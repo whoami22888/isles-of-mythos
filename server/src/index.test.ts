@@ -1,0 +1,1 @@
+import {describe,it,expect} from "vitest"; import {config} from "./config.js"; describe("server foundation",()=>{it("uses a valid development port",()=>expect(config.port).toBeGreaterThan(0)); it("has an environment",()=>expect(config.environment.length).toBeGreaterThan(0));});
