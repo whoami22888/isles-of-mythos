@@ -71,22 +71,26 @@ describe("server foundation", () => {
     const socket = new WebSocket(`ws://127.0.0.1:${port}/ws`);
 
     try {
+      const readyMessage = waitForMessage(socket);
+
       await new Promise<void>((resolve, reject) => {
         socket.once("open", () => resolve());
         socket.once("error", reject);
       });
 
-      await expect(waitForMessage(socket)).resolves.toMatchObject({
+      await expect(readyMessage).resolves.toMatchObject({
         type: "server_ready",
       });
 
+      const pongMessage = waitForMessage(socket);
       socket.send(JSON.stringify({ type: "ping" }));
-      await expect(waitForMessage(socket)).resolves.toMatchObject({
+      await expect(pongMessage).resolves.toMatchObject({
         type: "pong",
       });
 
+      const errorMessage = waitForMessage(socket);
       socket.send(JSON.stringify({ type: "unsupported" }));
-      await expect(waitForMessage(socket)).resolves.toEqual({
+      await expect(errorMessage).resolves.toEqual({
         type: "error",
         code: "INVALID_MESSAGE",
       });
