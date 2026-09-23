@@ -1,21 +1,26 @@
 # Isles of Mythos: Sunken Tides
 
-Step 1 — Engine Foundation.
+Step 2 — World Foundation.
 
 ## Development
 
 1. Copy `.env.example` to `.env`.
 2. Start infrastructure with `docker compose up -d`.
 3. Install dependencies with `npm install`.
-4. Apply PostgreSQL migrations with `npm run migrate:up`. Migrations are stored in `server/migrations`.
+4. Apply PostgreSQL migrations with `npm run migrate:up`.
 5. Run `npm run typecheck`.
 6. Run `npm run test`.
 7. Run `npm run build`.
-8. CI also runs linting and a high/critical vulnerability audit.
 
-Client: Vite + TypeScript + Phaser 3.
-Server: Node.js + TypeScript + Fastify + WebSocket.
-Persistence infrastructure: PostgreSQL + Redis.
+## World foundation
+
+- The server owns deterministic procedural world generation.
+- World terrain is streamed in fixed 32×32 tile chunks.
+- The server caches recently generated chunks with a bounded LRU-style cache.
+- The client renders only nearby chunks and unloads distant chunks.
+- Chunk generation is deterministic from world coordinates and the world seed.
+- Resource nodes and creature spawns are generated server-side.
+- Phaser 4 is used for the client renderer.
 
 ## Backend foundation
 

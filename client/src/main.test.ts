@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { GameState } from "./game-state.js";
 
 describe("game foundation", () => {
-  it("defines the expected initial state machine values", () => {
+  it("defines the expected state machine values", () => {
     expect(Object.values(GameState)).toEqual([
       "MENU",
       "OVERWORLD",
