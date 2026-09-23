@@ -11,6 +11,7 @@ Step 1 — Engine Foundation.
 5. Run `npm run typecheck`.
 6. Run `npm run test`.
 7. Run `npm run build`.
+8. CI also runs linting and a high/critical vulnerability audit.
 
 Client: Vite + TypeScript + Phaser 3.
 Server: Node.js + TypeScript + Fastify + WebSocket.
