@@ -2,6 +2,8 @@
 
 Step 2 — World Foundation.
 
+CI verifies lint, type safety, database migrations, integration tests, builds, and high/critical dependency vulnerabilities.
+
 ## Development
 
 1. Copy `.env.example` to `.env`.
