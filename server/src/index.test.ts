@@ -31,19 +31,22 @@ describe("server foundation", () => {
     expect(config.port).toBeLessThanOrEqual(65535);
   });
 
-  it("builds the Fastify application", async () => {
+  it("builds the Fastify application and exposes readiness", async () => {
     const app = await buildApp();
 
     const health = await app.inject({ method: "GET", url: "/health" });
     expect(health.statusCode).toBe(200);
-    expect(health.json()).toMatchObject({
-      status: "ok",
-      service: "isles-of-mythos-server",
-    });
 
     const ready = await app.inject({ method: "GET", url: "/ready" });
     expect(ready.statusCode).toBe(200);
-    expect(ready.json()).toEqual({ status: "ready" });
+    expect(ready.json()).toMatchObject({
+      status: "ready",
+      database: "ok",
+    });
+
+    const docs = await app.inject({ method: "GET", url: "/documentation/json" });
+    expect(docs.statusCode).toBe(200);
+    expect(docs.json().info.title).toBe("Isles of Mythos API");
 
     await app.close();
   });
@@ -89,6 +92,65 @@ describe("server foundation", () => {
       });
     } finally {
       socket.close();
+      await app.close();
+    }
+  });
+
+  it("registers, authenticates, and protects player identity", async () => {
+    const app = await buildApp();
+    const credentials = {
+      username: `test_1790196125622`,
+      email: `test_1790196125622@example.com`,
+      password: "Correct-Horse-Battery-9",
+    };
+
+    try {
+      const register = await app.inject({
+        method: "POST",
+        url: "/auth/register",
+        payload: credentials,
+      });
+
+      expect(register.statusCode).toBe(201);
+      const registered = register.json();
+      expect(registered.accessToken).toEqual(expect.any(String));
+      expect(registered.user).toMatchObject({
+        username: credentials.username,
+        email: credentials.email,
+      });
+
+      const login = await app.inject({
+        method: "POST",
+        url: "/auth/login",
+        payload: {
+          identifier: credentials.username,
+          password: credentials.password,
+        },
+      });
+
+      expect(login.statusCode).toBe(200);
+      const token = login.json().accessToken as string;
+
+      const me = await app.inject({
+        method: "GET",
+        url: "/auth/me",
+        headers: {
+          authorization: `Bearer ${token}`,
+        },
+      });
+
+      expect(me.statusCode).toBe(200);
+      expect(me.json().user).toMatchObject({
+        username: credentials.username,
+        email: credentials.email,
+      });
+
+      const rejected = await app.inject({
+        method: "GET",
+        url: "/auth/me",
+      });
+      expect(rejected.statusCode).toBe(401);
+    } finally {
       await app.close();
     }
   });

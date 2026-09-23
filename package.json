@@ -1,1 +1,19 @@
-{"name":"isles-of-mythos","private":true,"version":"0.1.0","workspaces":["client","server"],"scripts":{"build":"npm run build -w client && npm run build -w server","test":"npm run test -w client && npm run test -w server","typecheck":"npm run typecheck -w client && npm run typecheck -w server","lint":"npm run lint -w client && npm run lint -w server"}}
+{
+  "name": "isles-of-mythos",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w client",
+    "dev:server": "npm run dev -w server",
+    "build": "npm run build -w client && npm run build -w server",
+    "typecheck": "npm run typecheck -w client && npm run typecheck -w server",
+    "test": "npm run test -w client && npm run test -w server",
+    "lint": "npm run lint -w client && npm run lint -w server",
+    "migrate:up": "npm run migrate:up -w server",
+    "migrate:down": "npm run migrate:down -w server"
+  }
+}
