@@ -7,7 +7,7 @@ Step 1 — Engine Foundation.
 1. Copy `.env.example` to `.env`.
 2. Start infrastructure with `docker compose up -d`.
 3. Install dependencies with `npm install`.
-4. Apply PostgreSQL migrations with `npm run migrate:up`.
+4. Apply PostgreSQL migrations with `npm run migrate:up`. Migrations are stored in `server/migrations`.
 5. Run `npm run typecheck`.
 6. Run `npm run test`.
 7. Run `npm run build`.
