@@ -4,6 +4,17 @@ Step 2 — World Foundation.
 
 CI verifies lint, type safety, database migrations, integration tests, builds, and high/critical dependency vulnerabilities.
 
+## World foundation
+
+- Server-authoritative deterministic world generation.
+- Fixed 32×32 tile chunks.
+- Bounded server-side chunk cache.
+- Client-side segmented rendering of nearby chunks only.
+- HTTP chunk endpoint for bootstrapping.
+- Authenticated WebSocket chunk subscriptions for low-latency streaming.
+- WebSocket heartbeat and bounded payloads.
+- Phaser 4.2 client renderer.
+
 ## Development
 
 1. Copy `.env.example` to `.env`.
@@ -14,25 +25,4 @@ CI verifies lint, type safety, database migrations, integration tests, builds, a
 6. Run `npm run test`.
 7. Run `npm run build`.
 
-## World foundation
-
-- The server owns deterministic procedural world generation.
-- World terrain is streamed in fixed 32×32 tile chunks.
-- The server caches recently generated chunks with a bounded LRU-style cache.
-- The client renders only nearby chunks and unloads distant chunks.
-- Chunk generation is deterministic from world coordinates and the world seed.
-- Resource nodes and creature spawns are generated server-side.
-- Phaser 4 is used for the client renderer.
-
-## Backend foundation
-
-- PostgreSQL schema is versioned under `server/migrations`.
-- Passwords are stored as Argon2id password hashes.
-- Access tokens are short-lived JWTs.
-- Authentication endpoints are rate limited.
-- API schemas are exposed through OpenAPI documentation at `/documentation/`.
-- `/health` is a liveness endpoint.
-- `/ready` verifies PostgreSQL connectivity.
-- WebSocket payloads are bounded and invalid messages are rejected.
-
-The server is authoritative; client gameplay state must not become authoritative.
+The server is authoritative; the client never becomes authoritative for persistent gameplay state.

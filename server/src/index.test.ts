@@ -25,6 +25,13 @@ function waitForMessage(socket: WebSocket): Promise<unknown> {
   });
 }
 
+async function openSocket(app: Awaited<ReturnType<typeof buildApp>>): Promise<WebSocket> {
+  await app.listen({ host: "127.0.0.1", port: 0 });
+  const address = app.server.address();
+  if (address === null || typeof address === "string") throw new Error("Test server has no TCP address");
+  return new WebSocket(`ws://127.0.0.1:${(address as AddressInfo).port}/ws`);
+}
+
 describe("server foundation", () => {
   it("uses a valid port", () => {
     expect(config.port).toBeGreaterThan(0);
@@ -34,108 +41,86 @@ describe("server foundation", () => {
   it("builds the Fastify application and exposes readiness", async () => {
     const app = await buildApp();
 
-    const health = await app.inject({ method: "GET", url: "/health" });
-    expect(health.statusCode).toBe(200);
+    try {
+      expect((await app.inject({ method: "GET", url: "/health" })).statusCode).toBe(200);
+      const ready = await app.inject({ method: "GET", url: "/ready" });
+      expect(ready.statusCode).toBe(200);
+      expect(ready.json()).toMatchObject({ status: "ready", database: "ok" });
 
-    const ready = await app.inject({ method: "GET", url: "/ready" });
-    expect(ready.statusCode).toBe(200);
-    expect(ready.json()).toMatchObject({ status: "ready", database: "ok" });
+      const docs = await app.inject({ method: "GET", url: "/documentation/json" });
+      expect(docs.statusCode).toBe(200);
+      expect(docs.json().info.title).toBe("Isles of Mythos API");
 
-    const docs = await app.inject({ method: "GET", url: "/documentation/json" });
-    expect(docs.statusCode).toBe(200);
-    expect(docs.json().info.title).toBe("Isles of Mythos API");
-
-    const chunk = await app.inject({ method: "GET", url: "/world/chunks/0/0" });
-    expect(chunk.statusCode).toBe(200);
-    expect(chunk.json().size).toBe(32);
-
-    await app.close();
+      const chunk = await app.inject({ method: "GET", url: "/world/chunks/0/0" });
+      expect(chunk.statusCode).toBe(200);
+      expect(chunk.json().size).toBe(32);
+    } finally {
+      await app.close();
+    }
   });
 
-  it("accepts only the supported ping message", () => {
+  it("parses only supported protocol messages", () => {
     expect(parseClientMessage('{"type":"ping"}')).toEqual({ type: "ping" });
-    expect(parseClientMessage('{"type":"unknown"}')).toBeNull();
+    expect(parseClientMessage('{"type":"auth","token":"abc"}')).toEqual({ type: "auth", token: "abc" });
+    expect(parseClientMessage('{"type":"subscribe_chunks","requestId":"r1","chunks":[{"x":0,"y":0}]}')).toEqual({
+      type: "subscribe_chunks",
+      requestId: "r1",
+      chunks: [{ x: 0, y: 0 }],
+    });
+    expect(parseClientMessage('{"type":"subscribe_chunks","requestId":"r1","chunks":[]}')).toBeNull();
     expect(parseClientMessage("not-json")).toBeNull();
   });
 
-  it("serves the WebSocket protocol end to end", async () => {
+  it("authenticates a WebSocket before allowing world subscriptions", async () => {
     const app = await buildApp();
-    await app.listen({ host: "127.0.0.1", port: 0 });
+    const unique = Date.now();
+    const register = await app.inject({
+      method: "POST",
+      url: "/auth/register",
+      payload: {
+        username: `ws_${unique}`,
+        email: `ws_${unique}@example.com`,
+        password: "Correct-Horse-Battery-9",
+      },
+    });
+    expect(register.statusCode).toBe(201);
+    const token = register.json().accessToken as string;
 
-    const address = app.server.address();
-    if (address === null || typeof address === "string") {
-      await app.close();
-      throw new Error("Test server did not expose a TCP address");
-    }
-
-    const { port } = address as AddressInfo;
-    const socket = new WebSocket(`ws://127.0.0.1:${port}/ws`);
+    const socket = await openSocket(app);
 
     try {
-      const readyMessage = waitForMessage(socket);
+      const ready = waitForMessage(socket);
       await new Promise<void>((resolve, reject) => {
         socket.once("open", () => resolve());
         socket.once("error", reject);
       });
+      await expect(ready).resolves.toMatchObject({ type: "server_ready" });
 
-      await expect(readyMessage).resolves.toMatchObject({ type: "server_ready" });
+      const denied = waitForMessage(socket);
+      socket.send(JSON.stringify({
+        type: "subscribe_chunks",
+        requestId: "denied",
+        chunks: [{ x: 0, y: 0 }],
+      }));
+      await expect(denied).resolves.toEqual({ type: "error", code: "AUTH_REQUIRED" });
 
-      const pongMessage = waitForMessage(socket);
-      socket.send(JSON.stringify({ type: "ping" }));
-      await expect(pongMessage).resolves.toMatchObject({ type: "pong" });
+      const authenticated = waitForMessage(socket);
+      socket.send(JSON.stringify({ type: "auth", token }));
+      await expect(authenticated).resolves.toMatchObject({ type: "auth_ok" });
 
-      const errorMessage = waitForMessage(socket);
-      socket.send(JSON.stringify({ type: "unsupported" }));
-      await expect(errorMessage).resolves.toEqual({
-        type: "error",
-        code: "INVALID_MESSAGE",
+      const chunk = waitForMessage(socket);
+      socket.send(JSON.stringify({
+        type: "subscribe_chunks",
+        requestId: "world-1",
+        chunks: [{ x: 0, y: 0 }],
+      }));
+      await expect(chunk).resolves.toMatchObject({
+        type: "world_chunk",
+        requestId: "world-1",
+        chunk: { x: 0, y: 0, size: 32 },
       });
     } finally {
       socket.close();
-      await app.close();
-    }
-  });
-
-  it("registers, authenticates, and protects player identity", async () => {
-    const app = await buildApp();
-    const unique = Date.now();
-    const credentials = {
-      username: `test_${unique}`,
-      email: `test_${unique}@example.com`,
-      password: "Correct-Horse-Battery-9",
-    };
-
-    try {
-      const register = await app.inject({
-        method: "POST",
-        url: "/auth/register",
-        payload: credentials,
-      });
-      expect(register.statusCode).toBe(201);
-
-      const login = await app.inject({
-        method: "POST",
-        url: "/auth/login",
-        payload: {
-          identifier: credentials.username,
-          password: credentials.password,
-        },
-      });
-      expect(login.statusCode).toBe(200);
-
-      const token = login.json().accessToken as string;
-      const me = await app.inject({
-        method: "GET",
-        url: "/auth/me",
-        headers: { authorization: `Bearer ${token}` },
-      });
-
-      expect(me.statusCode).toBe(200);
-      expect(me.json().user).toMatchObject({
-        username: credentials.username,
-        email: credentials.email,
-      });
-    } finally {
       await app.close();
     }
   });

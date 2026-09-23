@@ -14,9 +14,7 @@ import { parseClientMessage, type ServerMessage } from "./protocol.js";
 import { WorldChunkCache } from "./world.js";
 
 function send(socket: WebSocket, message: ServerMessage): void {
-  if (socket.readyState === socket.OPEN) {
-    socket.send(JSON.stringify(message));
-  }
+  if (socket.readyState === socket.OPEN) socket.send(JSON.stringify(message));
 }
 
 export interface BuildAppOptions {
@@ -27,13 +25,11 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const db = options.db ?? createDbPool();
   const ownsDb = options.db === undefined;
   const world = new WorldChunkCache(256);
+  const sockets = new Set<WebSocket>();
   const app = Fastify({ logger: false });
 
   await app.register(cors, { origin: true });
-  await app.register(rateLimit, {
-    max: 120,
-    timeWindow: "1 minute",
-  });
+  await app.register(rateLimit, { max: 120, timeWindow: "1 minute" });
   await app.register(swagger, {
     openapi: {
       openapi: "3.1.0",
@@ -44,11 +40,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       },
       components: {
         securitySchemes: {
-          bearerAuth: {
-            type: "http",
-            scheme: "bearer",
-            bearerFormat: "JWT",
-          },
+          bearerAuth: { type: "http", scheme: "bearer", bearerFormat: "JWT" },
         },
       },
     },
@@ -61,7 +53,16 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     },
   });
 
+  const heartbeat = setInterval(() => {
+    for (const socket of sockets) {
+      if (socket.readyState === socket.OPEN) socket.ping();
+    }
+  }, 30_000);
+  heartbeat.unref();
+
   app.addHook("onClose", async () => {
+    clearInterval(heartbeat);
+    for (const socket of sockets) socket.close(1001, "server_shutdown");
     if (ownsDb) await db.end();
   });
 
@@ -111,19 +112,56 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   await registerAuthRoutes(app, db);
 
   app.get("/ws", { websocket: true }, (socket: WebSocket) => {
+    sockets.add(socket);
+    let userId: string | null = null;
+
     send(socket, { type: "server_ready", timestamp: Date.now() });
 
     socket.on("message", (raw) => {
       const message = parseClientMessage(raw.toString());
-      if (message?.type === "ping") {
+
+      if (!message) {
+        send(socket, { type: "error", code: "INVALID_MESSAGE" });
+        return;
+      }
+
+      if (message.type === "ping") {
         send(socket, { type: "pong", timestamp: Date.now() });
         return;
       }
-      send(socket, { type: "error", code: "INVALID_MESSAGE" });
+
+      if (message.type === "auth") {
+        try {
+          const payload = app.jwt.verify<{ sub: string; username: string }>(message.token);
+          userId = payload.sub;
+          send(socket, { type: "auth_ok", userId });
+        } catch {
+          send(socket, { type: "error", code: "INVALID_TOKEN" });
+          socket.close(1008, "invalid_token");
+        }
+        return;
+      }
+
+      if (message.type === "subscribe_chunks") {
+        if (!userId) {
+          send(socket, { type: "error", code: "AUTH_REQUIRED" });
+          return;
+        }
+
+        for (const coordinate of message.chunks) {
+          send(socket, {
+            type: "world_chunk",
+            requestId: message.requestId,
+            chunk: world.get(coordinate.x, coordinate.y),
+          });
+        }
+      }
     });
 
+    socket.on("close", () => sockets.delete(socket));
     socket.on("error", (error) => {
       log("websocket_error", { message: error.message });
+      sockets.delete(socket);
     });
   });
 
