@@ -1,0 +1,1 @@
+export const config={host:process.env.SERVER_HOST??"0.0.0.0",port:Number(process.env.SERVER_PORT??3000),environment:process.env.ENVIRONMENT??"development",databaseUrl:process.env.DATABASE_URL??"postgres://postgres:postgres@localhost:5432/isles",redisUrl:process.env.REDIS_URL??"redis://localhost:6379"} as const;
