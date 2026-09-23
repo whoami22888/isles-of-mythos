@@ -1,0 +1,1 @@
+{"name":"isles-of-mythos","private":true,"version":"0.1.0","workspaces":["client","server"],"scripts":{"build":"npm run build -w client && npm run build -w server","test":"npm run test -w client && npm run test -w server","typecheck":"npm run typecheck -w client && npm run typecheck -w server","lint":"npm run lint -w client && npm run lint -w server"}}
