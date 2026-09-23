@@ -2,6 +2,8 @@
 
 Step 2 — World Foundation.
 
+WebSocket world subscriptions now require a valid JWT before chunk streaming is permitted.
+
 CI verifies lint, type safety, database migrations, integration tests, builds, and high/critical dependency vulnerabilities.
 
 ## World foundation
