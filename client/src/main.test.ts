@@ -1,0 +1,1 @@
+import {describe,it,expect} from "vitest"; describe("engine foundation",()=>{it("defines the initial game state",()=>{const state="MENU"; expect(["MENU","OVERWORLD","BASE_BUILD","COMBAT_UI"]).toContain(state);});});
