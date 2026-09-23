@@ -1,1 +1,13 @@
-import {describe,it,expect} from "vitest"; describe("engine foundation",()=>{it("defines the initial game state",()=>{const state="MENU"; expect(["MENU","OVERWORLD","BASE_BUILD","COMBAT_UI"]).toContain(state);});});
+import { describe, expect, it } from "vitest";
+import { GameState } from "./game-state.js";
+
+describe("game foundation", () => {
+  it("defines the expected initial state machine values", () => {
+    expect(Object.values(GameState)).toEqual([
+      "MENU",
+      "OVERWORLD",
+      "BASE_BUILD",
+      "COMBAT_UI",
+    ]);
+  });
+});
