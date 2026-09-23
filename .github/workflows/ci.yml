@@ -40,9 +40,11 @@ jobs:
           package-manager-cache: false
 
       - run: npm install
+      - run: npm audit --audit-level=high
 
       - run: npm run migrate:up
 
+      - run: npm run lint
       - run: npm run typecheck
       - run: npm run test
       - run: npm run build
