@@ -41,7 +41,7 @@ class WorldScene extends Phaser.Scene {
   private moveAccumulator = 0;
   private connected = false;
   private combatText?: Phaser.GameObjects.Text;
-  private attackAccumulator = 0;
+  private attackAccumulator = 0;\n  private dodgeAccumulator = 0;\n  private blockButton?: Phaser.GameObjects.Text;
 
   constructor() { super("world"); }
 
@@ -50,11 +50,11 @@ class WorldScene extends Phaser.Scene {
     this.cameras.main.centerOn(TILE_SIZE / 2, TILE_SIZE / 2);
     this.statusText = this.add.text(16, 16, "CONNECTING...", { fontFamily: "sans-serif", fontSize: "16px", color: "#ffffff", backgroundColor: "#07131fcc", padding: { left: 8, right: 8, top: 6, bottom: 6 } }).setScrollFactor(0).setDepth(1000);
     this.combatText = this.add.text(16, 100, "SPACE: ATTACK NEAREST CREATURE", { fontFamily: "sans-serif", fontSize: "14px", color: "#ffffff", backgroundColor: "#07131fcc", padding: { left: 8, right: 8, top: 6, bottom: 6 } }).setScrollFactor(0).setDepth(1000);
-    this.survivalText = this.add.text(16, 58, "HP -- | HUNGER -- | OXYGEN -- | HOTBAR 1", { fontFamily: "sans-serif", fontSize: "15px", color: "#ffffff", backgroundColor: "#07131fcc", padding: { left: 8, right: 8, top: 6, bottom: 6 } }).setScrollFactor(0).setDepth(1000);
+    this.survivalText = this.add.text(16, 58, "HP -- | STA -- | HUNGER -- | OXYGEN -- | HOTBAR 1", { fontFamily: "sans-serif", fontSize: "15px", color: "#ffffff", backgroundColor: "#07131fcc", padding: { left: 8, right: 8, top: 6, bottom: 6 } }).setScrollFactor(0).setDepth(1000);
     this.playerMarker = this.add.graphics().setDepth(50);
     this.cursors = this.input.keyboard?.createCursorKeys();
     this.keys = this.input.keyboard?.addKeys("W,A,S,D") as Record<string, Phaser.Input.Keyboard.Key> | undefined;
-    this.input.keyboard?.on("keydown-SPACE", () => this.attackNearest());
+    this.input.keyboard?.on("keydown-SPACE", () => this.attackNearest());\n    this.input.keyboard?.on("keydown-SHIFT", () => this.dodge());\n    this.input.keyboard?.on("keydown-B", () => this.setBlocking(true));\n    this.input.keyboard?.on("keyup-B", () => this.setBlocking(false));\n    this.createTouchCombatControls();
     this.input.on("wheel", (_p: Phaser.Input.Pointer, _g: unknown[], _dx: number, dy: number) => this.cameras.main.setZoom(Phaser.Math.Clamp(this.cameras.main.zoom - dy * 0.001, 0.5, 2.5)));
     const hotbarKeys = ["ONE","TWO","THREE","FOUR","FIVE","SIX","SEVEN","EIGHT"];
     for (const key of hotbarKeys) {
@@ -66,7 +66,7 @@ class WorldScene extends Phaser.Scene {
   update(_time: number, delta: number): void {
     if (!this.connected || !this.socket || this.socket.readyState !== WebSocket.OPEN) return;
     this.moveAccumulator += delta;
-    this.attackAccumulator = Math.max(0, this.attackAccumulator - delta);
+    this.attackAccumulator = Math.max(0, this.attackAccumulator - delta);\n    this.dodgeAccumulator = Math.max(0, this.dodgeAccumulator - delta);
     if (this.moveAccumulator < MOVE_SEND_INTERVAL_MS) return;
     const dt = Math.min(this.moveAccumulator / 1000, 0.25);
     this.moveAccumulator = 0;
@@ -166,7 +166,7 @@ class WorldScene extends Phaser.Scene {
 
   private updateHud(): void {
     if (!this.player) return;
-    this.survivalText?.setText("HP " + Math.ceil(this.player.health) + " | HUNGER " + Math.ceil(this.player.hunger) + " | OXYGEN " + Math.ceil(this.player.oxygen) + " | HOTBAR " + (this.player.selectedHotbarSlot + 1));
+    this.survivalText?.setText("HP " + Math.ceil(this.player.health) + " | STA " + Math.ceil(this.player.stamina) + "/" + Math.ceil(this.player.maxStamina) + " | HUNGER " + Math.ceil(this.player.hunger) + " | OXYGEN " + Math.ceil(this.player.oxygen) + " | HOTBAR " + (this.player.selectedHotbarSlot + 1));
     this.statusText?.setText("WORLD ONLINE • chunks " + this.chunks.loadedCount + " • position " + this.player.x.toFixed(1) + ", " + this.player.y.toFixed(1));
   }
 
@@ -178,6 +178,43 @@ class WorldScene extends Phaser.Scene {
       this.connected = false;
       this.statusText?.setText("WORLD CONNECTION FAILED");
     }
+  }
+
+  private dodge(): void {
+    if (this.dodgeAccumulator > 0 || !this.player || this.socket?.readyState !== WebSocket.OPEN) return;
+    const direction = this.cursors && (this.cursors.left.isDown || this.cursors.right.isDown || this.cursors.up.isDown || this.cursors.down.isDown)
+      ? { x: Number(this.cursors.right.isDown) - Number(this.cursors.left.isDown), y: Number(this.cursors.down.isDown) - Number(this.cursors.up.isDown) }
+      : { x: 0, y: 1 };
+    if (direction.x === 0 && direction.y === 0) return;
+    try {
+      this.socket.send(JSON.stringify({ type: "dodge", facingX: direction.x, facingY: direction.y }));
+      this.dodgeAccumulator = 900;
+    } catch {
+      this.connected = false;
+      this.statusText?.setText("WORLD CONNECTION FAILED");
+    }
+  }
+
+  private setBlocking(active: boolean): void {
+    if (this.socket?.readyState !== WebSocket.OPEN) return;
+    try { this.socket.send(JSON.stringify({ type: "block", active })); } catch {
+      this.connected = false;
+      this.statusText?.setText("WORLD CONNECTION FAILED");
+    }
+  }
+
+  private createTouchCombatControls(): void {
+    const makeButton = (label: string, x: number, y: number, onDown: () => void, onUp?: () => void): Phaser.GameObjects.Text => {
+      const button = this.add.text(x, y, label, { fontFamily: "sans-serif", fontSize: "16px", color: "#ffffff", backgroundColor: "#17314dcc", padding: { left: 14, right: 14, top: 12, bottom: 12 } })
+        .setScrollFactor(0).setDepth(1200).setInteractive({ useHandCursor: true });
+      button.on("pointerdown", onDown);
+      if (onUp) button.on("pointerup", onUp);
+      button.on("pointerout", () => onUp?.());
+      return button;
+    };
+    makeButton("ATTACK", 16, 650, () => this.attackNearest());
+    makeButton("DODGE", 120, 650, () => this.dodge());
+    this.blockButton = makeButton("BLOCK", 214, 650, () => this.setBlocking(true), () => this.setBlocking(false));
   }
 
   private attackNearest(): void {
