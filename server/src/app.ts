@@ -20,6 +20,13 @@ function send(socket: WebSocket, message: ServerMessage): void {
   if (socket.readyState === socket.OPEN) socket.send(JSON.stringify(message));
 }
 
+function rawMessageToString(raw: WebSocket.RawData): string {
+  if (typeof raw === "string") return raw;
+  if (Buffer.isBuffer(raw)) return raw.toString("utf8");
+  if (raw instanceof ArrayBuffer) return new TextDecoder().decode(new Uint8Array(raw));
+  return Buffer.concat(raw).toString("utf8");
+}
+
 export interface BuildAppOptions {
   db?: Pool;
 }
@@ -144,7 +151,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     if (ownsDb) await db.end();
   });
 
-  app.get("/health", { schema: { tags: ["system"] } }, async () => ({
+  app.get("/health", { schema: { tags: ["system"] } }, () => ({
     status: "ok",
     service: "isles-of-mythos-server",
     environment: config.environment,
@@ -189,7 +196,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
 
   await registerAuthRoutes(app, db);
 
-  app.get("/shop/catalog", { schema: { tags: ["shop"] } }, async () => ({
+  app.get("/shop/catalog", { schema: { tags: ["shop"] } }, () => ({
     items: SHOP_ITEMS,
   }));
 
@@ -242,7 +249,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     let messageQueue = Promise.resolve();
     socket.on("message", (raw) => {
       messageQueue = messageQueue.then(async () => {
-      const message = parseClientMessage(raw.toString());
+      const message = parseClientMessage(rawMessageToString(raw));
 
       if (!message) {
         send(socket, { type: "error", code: "INVALID_MESSAGE" });
@@ -361,6 +368,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         }
         state.stamina -= weapon.staminaCost;
         const result = applyDamage(target, weapon);
+        addThreat(target, userId, result.amount);
         send(socket, {
           type: "combat_result",
           targetId: target.id,
