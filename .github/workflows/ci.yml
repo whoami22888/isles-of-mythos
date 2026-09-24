@@ -44,7 +44,8 @@ jobs:
           node-version: 24
           package-manager-cache: false
 
-      - run: npm install
+      - run: npm install --ignore-scripts
+      - run: npm rebuild argon2 esbuild
       - run: npm audit --audit-level=high
 
       - run: npm run migrate:up
