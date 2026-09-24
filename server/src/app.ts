@@ -423,7 +423,10 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       if (socketsForUser && socketsForUser.size === 0) userSockets.delete(userId);
       if (connections <= 0) {
         playerConnections.delete(userId);
-        attackCooldowns.delete(userId);\n        dodgeCooldowns.delete(userId);\n        blocking.delete(userId);\n        invulnerableUntil.delete(userId);
+        attackCooldowns.delete(userId);
+        dodgeCooldowns.delete(userId);
+        blocking.delete(userId);
+        invulnerableUntil.delete(userId);
         void players.unload(userId).catch((error) => {
           log("player_disconnect_persistence_failed", {
             message: error instanceof Error ? error.message : String(error),
