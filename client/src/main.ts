@@ -7,6 +7,25 @@ const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? "http://localhost:300
 const WS_URL = API_BASE_URL.replace(/^http/, "ws") + "/ws";
 const VISIBLE_CHUNK_RADIUS = 1;
 const MOVE_SEND_INTERVAL_MS = 50;
+const ATTACK_INPUT_COOLDOWN_MS = 150;
+
+interface CombatResultMessage {
+  type: "combat_result";
+  targetId: string;
+  damage: number;
+  critical: boolean;
+  killed: boolean;
+  targetHealth: number;
+  status?: string;
+}
+
+type ServerMessage =
+  | { type: "auth_ok"; userId: string }
+  | { type: "player_state"; state: PlayerState }
+  | { type: "world_chunk"; requestId: string; chunk: WorldChunk }
+  | CombatResultMessage
+  | { type: "error"; code: string }
+  | { type: string; [key: string]: unknown };
 
 class WorldScene extends Phaser.Scene {
   private readonly chunks = new ChunkRenderer(this);
@@ -34,9 +53,11 @@ class WorldScene extends Phaser.Scene {
     this.playerMarker = this.add.graphics().setDepth(50);
     this.cursors = this.input.keyboard?.createCursorKeys();
     this.keys = this.input.keyboard?.addKeys("W,A,S,D") as Record<string, Phaser.Input.Keyboard.Key> | undefined;
+    this.input.keyboard?.on("keydown-SPACE", () => this.attackNearest());
     this.input.on("wheel", (_p: Phaser.Input.Pointer, _g: unknown[], _dx: number, dy: number) => this.cameras.main.setZoom(Phaser.Math.Clamp(this.cameras.main.zoom - dy * 0.001, 0.5, 2.5)));
-    for (const key of ["ONE","TWO","THREE","FOUR","FIVE","SIX","SEVEN","EIGHT"]) {
-      this.input.keyboard?.on("keydown-" + key, () => this.selectHotbar(["ONE","TWO","THREE","FOUR","FIVE","SIX","SEVEN","EIGHT"].indexOf(key)));
+    const hotbarKeys = ["ONE","TWO","THREE","FOUR","FIVE","SIX","SEVEN","EIGHT"];
+    for (const key of hotbarKeys) {
+      this.input.keyboard?.on("keydown-" + key, () => this.selectHotbar(hotbarKeys.indexOf(key)));
     }
     void this.connect();
   }
@@ -53,7 +74,12 @@ class WorldScene extends Phaser.Scene {
     if (this.cursors?.right.isDown || this.keys?.D.isDown) dx += 1;
     if (this.cursors?.up.isDown || this.keys?.W.isDown) dy -= 1;
     if (this.cursors?.down.isDown || this.keys?.S.isDown) dy += 1;
-    this.socket.send(JSON.stringify({ type: "move", dx, dy, dt }));
+    try {
+      this.socket.send(JSON.stringify({ type: "move", dx, dy, dt }));
+    } catch {
+      this.connected = false;
+      this.statusText?.setText("WORLD CONNECTION FAILED");
+    }
   }
 
   private async connect(): Promise<void> {
@@ -61,21 +87,56 @@ class WorldScene extends Phaser.Scene {
     if (!token) { this.statusText?.setText("AUTHENTICATION REQUIRED"); return; }
     const socket = new WebSocket(WS_URL);
     this.socket = socket;
-    socket.addEventListener("open", () => socket.send(JSON.stringify({ type: "auth", token })));
+    socket.addEventListener("open", () => {
+      try {
+        socket.send(JSON.stringify({ type: "auth", token }));
+      } catch {
+        socket.close();
+      }
+    });
     socket.addEventListener("message", (event) => {
-      let message: { type: string; state?: PlayerState; chunk?: WorldChunk };
-      try { message = JSON.parse(String(event.data)) as typeof message; } catch { return; }
-      if (message.type === "auth_ok") { this.connected = true; this.statusText?.setText("WORLD ONLINE • AUTHORITATIVE SERVER"); this.requestChunks(); return; }
-      if (message.type === "player_state" && message.state) { this.player = message.state; this.renderPlayer(); this.updateHud(); this.requestChunks(); return; }
-      if (message.type === "world_chunk" && message.chunk) { this.chunks.render(message.chunk); this.updateHud(); }
+      let message: ServerMessage;
+      try {
+        message = JSON.parse(String(event.data)) as ServerMessage;
+      } catch {
+        this.statusText?.setText("INVALID SERVER MESSAGE");
+        return;
+      }
+      if (message.type === "auth_ok") {
+        this.connected = true;
+        this.statusText?.setText("WORLD ONLINE • AUTHORITATIVE SERVER");
+        this.requestChunks();
+        return;
+      }
+      if (message.type === "player_state") {
+        this.player = message.state;
+        this.renderPlayer();
+        this.updateHud();
+        this.requestChunks();
+        return;
+      }
+      if (message.type === "world_chunk") {
+        this.chunks.render(message.chunk);
+        this.updateHud();
+        return;
+      }
       if (message.type === "combat_result") {
         this.combatText?.setText(message.killed ? "DEFEATED • " + message.targetId : "HIT " + message.damage + (message.critical ? " CRITICAL" : "") + (message.status ? " • " + message.status.toUpperCase() : ""));
         this.time.delayedCall(900, () => this.combatText?.setText("SPACE: ATTACK NEAREST CREATURE"));
+        return;
       }
-      if (message.type === "error") this.statusText?.setText("NETWORK ERROR");
+      if (message.type === "error") {
+        this.statusText?.setText("NETWORK ERROR • " + message.code);
+      }
     });
-    socket.addEventListener("close", () => { this.connected = false; this.statusText?.setText("WORLD OFFLINE • RECONNECT REQUIRED"); });
-    socket.addEventListener("error", () => { this.connected = false; this.statusText?.setText("WORLD CONNECTION FAILED"); });
+    socket.addEventListener("close", () => {
+      this.connected = false;
+      this.statusText?.setText("WORLD OFFLINE • RECONNECT REQUIRED");
+    });
+    socket.addEventListener("error", () => {
+      this.connected = false;
+      this.statusText?.setText("WORLD CONNECTION FAILED");
+    });
   }
 
   private requestChunks(): void {
@@ -85,8 +146,13 @@ class WorldScene extends Phaser.Scene {
     this.loadedCenter = { x: centerChunkX, y: centerChunkY };
     const chunks: Array<{ x: number; y: number }> = [];
     for (let y = centerChunkY - VISIBLE_CHUNK_RADIUS; y <= centerChunkY + VISIBLE_CHUNK_RADIUS; y += 1) for (let x = centerChunkX - VISIBLE_CHUNK_RADIUS; x <= centerChunkX + VISIBLE_CHUNK_RADIUS; x += 1) chunks.push({ x, y });
-    this.socket.send(JSON.stringify({ type: "subscribe_chunks", requestId: centerChunkX + ":" + centerChunkY + ":" + Date.now(), chunks }));
-    this.chunks.unloadOutside(VISIBLE_CHUNK_RADIUS + 1, centerChunkX, centerChunkY);
+    try {
+      this.socket.send(JSON.stringify({ type: "subscribe_chunks", requestId: centerChunkX + ":" + centerChunkY + ":" + Date.now(), chunks }));
+      this.chunks.unloadOutside(VISIBLE_CHUNK_RADIUS + 1, centerChunkX, centerChunkY);
+    } catch {
+      this.connected = false;
+      this.statusText?.setText("WORLD CONNECTION FAILED");
+    }
   }
 
   private renderPlayer(): void {
@@ -103,7 +169,15 @@ class WorldScene extends Phaser.Scene {
     this.statusText?.setText("WORLD ONLINE • chunks " + this.chunks.loadedCount + " • position " + this.player.x.toFixed(1) + ", " + this.player.y.toFixed(1));
   }
 
-  private selectHotbar(slot: number): void { if (this.socket?.readyState === WebSocket.OPEN) this.socket.send(JSON.stringify({ type: "select_hotbar", slot })); }
+  private selectHotbar(slot: number): void {
+    if (this.socket?.readyState !== WebSocket.OPEN) return;
+    try {
+      this.socket.send(JSON.stringify({ type: "select_hotbar", slot }));
+    } catch {
+      this.connected = false;
+      this.statusText?.setText("WORLD CONNECTION FAILED");
+    }
+  }
 
   private attackNearest(): void {
     if (this.attackAccumulator > 0 || !this.player || this.socket?.readyState !== WebSocket.OPEN) return;
@@ -115,8 +189,13 @@ class WorldScene extends Phaser.Scene {
     }
     const dx = target.x - this.player.x;
     const dy = target.y - this.player.y;
-    this.socket.send(JSON.stringify({ type: "attack", targetId: target.id, facingX: Math.sign(dx), facingY: Math.sign(dy) }));
-    this.attackAccumulator = 150;
+    try {
+      this.socket.send(JSON.stringify({ type: "attack", targetId: target.id, facingX: Math.sign(dx), facingY: Math.sign(dy) }));
+      this.attackAccumulator = ATTACK_INPUT_COOLDOWN_MS;
+    } catch {
+      this.connected = false;
+      this.statusText?.setText("WORLD CONNECTION FAILED");
+    }
   }
 }
 
