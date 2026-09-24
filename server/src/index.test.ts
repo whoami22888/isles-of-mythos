@@ -6,22 +6,40 @@ import { config } from "./config.js";
 import { parseClientMessage } from "./protocol.js";
 
 function waitForMessage(socket: WebSocket): Promise<unknown> {
+  return waitForMatchingMessage(socket, () => true);
+}
+
+function waitForMatchingMessage(
+  socket: WebSocket,
+  predicate: (message: unknown) => boolean,
+): Promise<unknown> {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error("Timed out waiting for WebSocket message")), 2_000);
 
-    socket.once("message", (raw) => {
-      clearTimeout(timer);
+    const onMessage = (raw: Buffer) => {
+      let message: unknown;
       try {
-        resolve(JSON.parse(raw.toString()) as unknown);
+        message = JSON.parse(raw.toString()) as unknown;
       } catch (error) {
+        clearTimeout(timer);
+        socket.off("message", onMessage);
         reject(error);
+        return;
       }
-    });
-
-    socket.once("error", (error) => {
+      if (!predicate(message)) return;
       clearTimeout(timer);
+      socket.off("message", onMessage);
+      resolve(message);
+    };
+
+    const onError = (error: Error) => {
+      clearTimeout(timer);
+      socket.off("message", onMessage);
       reject(error);
-    });
+    };
+
+    socket.on("message", onMessage);
+    socket.once("error", onError);
   });
 }
 
@@ -117,10 +135,11 @@ describe("server foundation", () => {
       await expect(denied).resolves.toEqual({ type: "error", code: "AUTH_REQUIRED" });
 
       const authenticated = waitForMessage(socket);
+      const playerState = waitForMatchingMessage(socket, (message) => {
+        return typeof message === "object" && message !== null && (message as { type?: unknown }).type === "player_state";
+      });
       socket.send(JSON.stringify({ type: "auth", token }));
       await expect(authenticated).resolves.toMatchObject({ type: "auth_ok" });
-
-      const playerState = waitForMessage(socket);
       await expect(playerState).resolves.toMatchObject({
         type: "player_state",
         state: { userId: expect.any(String), health: 100, hunger: 100, oxygen: 100 },

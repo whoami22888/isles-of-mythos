@@ -11,6 +11,7 @@ import { createDbPool } from "./db.js";
 import { registerAuthRoutes } from "./auth.js";
 import { log } from "./logger.js";
 import { parseClientMessage, type ServerMessage } from "./protocol.js";
+import { PlayerStore, applyPlayerInput } from "./player.js";
 import { WorldChunkCache } from "./world.js";
 
 function send(socket: WebSocket, message: ServerMessage): void {
@@ -25,7 +26,9 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const db = options.db ?? createDbPool();
   const ownsDb = options.db === undefined;
   const world = new WorldChunkCache(256);
+  const players = new PlayerStore(db);
   const sockets = new Set<WebSocket>();
+  const playerConnections = new Map<string, number>();
   const app = Fastify({ logger: false });
 
   await app.register(cors, { origin: true });
@@ -60,8 +63,23 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   }, 30_000);
   heartbeat.unref();
 
+  const survivalTick = setInterval(() => players.tick(1), 1_000);
+  survivalTick.unref();
+
+  const persistenceTick = setInterval(() => {
+    void players.persistAll().catch((error) => {
+      log("player_persistence_failed", {
+        message: error instanceof Error ? error.message : String(error),
+      });
+    });
+  }, 10_000);
+  persistenceTick.unref();
+
   app.addHook("onClose", async () => {
     clearInterval(heartbeat);
+    clearInterval(survivalTick);
+    clearInterval(persistenceTick);
+    await players.persistAll();
     for (const socket of sockets) socket.close(1001, "server_shutdown");
     if (ownsDb) await db.end();
   });
@@ -134,11 +152,45 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         try {
           const payload = app.jwt.verify<{ sub: string; username: string }>(message.token);
           userId = payload.sub;
+          const state = await players.loadOrCreate(userId);
+          const connections = playerConnections.get(userId) ?? 0;
+          playerConnections.set(userId, connections + 1);
           send(socket, { type: "auth_ok", userId });
+          send(socket, { type: "player_state", state });
         } catch {
           send(socket, { type: "error", code: "INVALID_TOKEN" });
           socket.close(1008, "invalid_token");
         }
+        return;
+      }
+
+      if (message.type === "move") {
+        if (!userId) {
+          send(socket, { type: "error", code: "AUTH_REQUIRED" });
+          return;
+        }
+        const state = players.get(userId);
+        if (!state) {
+          send(socket, { type: "error", code: "AUTH_REQUIRED" });
+          return;
+        }
+        applyPlayerInput(state, message);
+        send(socket, { type: "player_state", state });
+        return;
+      }
+
+      if (message.type === "select_hotbar") {
+        if (!userId) {
+          send(socket, { type: "error", code: "AUTH_REQUIRED" });
+          return;
+        }
+        const state = players.get(userId);
+        if (!state) {
+          send(socket, { type: "error", code: "AUTH_REQUIRED" });
+          return;
+        }
+        state.selectedHotbarSlot = message.slot;
+        send(socket, { type: "player_state", state });
         return;
       }
 
@@ -158,7 +210,21 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       }
     });
 
-    socket.on("close", () => sockets.delete(socket));
+    socket.on("close", () => {
+      sockets.delete(socket);
+      if (!userId) return;
+      const connections = (playerConnections.get(userId) ?? 1) - 1;
+      if (connections <= 0) {
+        playerConnections.delete(userId);
+        void players.unload(userId).catch((error) => {
+          log("player_disconnect_persistence_failed", {
+            message: error instanceof Error ? error.message : String(error),
+          });
+        });
+      } else {
+        playerConnections.set(userId, connections);
+      }
+    });
     socket.on("error", (error) => {
       log("websocket_error", { message: error.message });
       sockets.delete(socket);
