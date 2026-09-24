@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { WebSocket } from "ws";
-import type { AddressInfo } from "node:net";
 import { buildApp } from "./app.js";
 import { config } from "./config.js";
 import { parseClientMessage } from "./protocol.js";
+
+type JsonObject = Record<string, unknown>;
 
 function waitForMessage(socket: WebSocket): Promise<unknown> {
   return waitForMatchingMessage(socket, () => true);
@@ -20,10 +21,10 @@ function waitForMatchingMessage(
       let message: unknown;
       try {
         message = JSON.parse(raw.toString()) as unknown;
-      } catch (error) {
+      } catch (error: unknown) {
         clearTimeout(timer);
         socket.off("message", onMessage);
-        reject(error);
+        reject(error instanceof Error ? error : new Error("Invalid JSON message"));
         return;
       }
       if (!predicate(message)) return;
@@ -43,11 +44,33 @@ function waitForMatchingMessage(
   });
 }
 
+function parseJsonObject(body: string): JsonObject {
+  const value: unknown = JSON.parse(body);
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new Error("Expected JSON object");
+  }
+  return value as JsonObject;
+}
+
+function getObject(value: JsonObject, key: string): JsonObject {
+  const nested = value[key];
+  if (typeof nested !== "object" || nested === null || Array.isArray(nested)) {
+    throw new Error(`Expected object property: ${key}`);
+  }
+  return nested as JsonObject;
+}
+
+function getString(value: JsonObject, key: string): string {
+  const result = value[key];
+  if (typeof result !== "string") throw new Error(`Expected string property: ${key}`);
+  return result;
+}
+
 async function openSocket(app: Awaited<ReturnType<typeof buildApp>>): Promise<WebSocket> {
   await app.listen({ host: "127.0.0.1", port: 0 });
   const address = app.server.address();
   if (address === null || typeof address === "string") throw new Error("Test server has no TCP address");
-  return new WebSocket(`ws://127.0.0.1:${(address as AddressInfo).port}/ws`);
+  return new WebSocket(`ws://127.0.0.1:${address.port}/ws`);
 }
 
 describe("server foundation", () => {
@@ -63,15 +86,16 @@ describe("server foundation", () => {
       expect((await app.inject({ method: "GET", url: "/health" })).statusCode).toBe(200);
       const ready = await app.inject({ method: "GET", url: "/ready" });
       expect(ready.statusCode).toBe(200);
-      expect(ready.json()).toMatchObject({ status: "ready", database: "ok" });
+      expect(parseJsonObject(ready.body)).toMatchObject({ status: "ready", database: "ok" });
 
       const docs = await app.inject({ method: "GET", url: "/documentation/json" });
       expect(docs.statusCode).toBe(200);
-      expect(docs.json().info.title).toBe("Isles of Mythos API");
+      const docsBody = parseJsonObject(docs.body);
+      expect(getString(getObject(docsBody, "info"), "title")).toBe("Isles of Mythos API");
 
       const chunk = await app.inject({ method: "GET", url: "/world/chunks/0/0" });
       expect(chunk.statusCode).toBe(200);
-      expect(chunk.json().size).toBe(32);
+      expect(parseJsonObject(chunk.body)).toMatchObject({ size: 32 });
     } finally {
       await app.close();
     }
@@ -114,7 +138,8 @@ describe("server foundation", () => {
       },
     });
     expect(register.statusCode).toBe(201);
-    const token = register.json().accessToken as string;
+    const registerBody = parseJsonObject(register.body);
+    const token = getString(registerBody, "accessToken");
 
     const socket = await openSocket(app);
 
@@ -136,7 +161,8 @@ describe("server foundation", () => {
 
       const authenticated = waitForMessage(socket);
       const playerState = waitForMatchingMessage(socket, (message) => {
-        return typeof message === "object" && message !== null && (message as { type?: unknown }).type === "player_state";
+        if (typeof message !== "object" || message === null || Array.isArray(message)) return false;
+        return (message as JsonObject).type === "player_state";
       });
       socket.send(JSON.stringify({ type: "auth", token }));
       await expect(authenticated).resolves.toMatchObject({ type: "auth_ok" });
