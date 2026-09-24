@@ -44,7 +44,7 @@ export function applyPlayerInput(state: PlayerState, input: PlayerInput): Player
   }
   const tile = tileAtWorld(Math.floor(state.x), Math.floor(state.y));
   const inWater = tile === TileKind.Ocean || tile === TileKind.Shallow;
-  state.hunger = clamp(state.hunger - dt * 0.12, 0, PLAYER_MAX_HUNGER);
+  state.stamina = clamp(state.stamina + dt * 12, 0, state.maxStamina);\n  state.hunger = clamp(state.hunger - dt * 0.12, 0, PLAYER_MAX_HUNGER);
   state.oxygen = inWater ? clamp(state.oxygen - dt * 0.35, 0, PLAYER_MAX_OXYGEN)
     : clamp(state.oxygen + dt * 0.8, 0, PLAYER_MAX_OXYGEN);
   if (state.hunger === 0 || state.oxygen === 0) state.health = clamp(state.health - dt * 2, 0, PLAYER_MAX_HEALTH);
