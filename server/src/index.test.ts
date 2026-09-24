@@ -166,17 +166,22 @@ describe("server foundation", () => {
       });
       socket.send(JSON.stringify({ type: "auth", token }));
       await expect(authenticated).resolves.toMatchObject({ type: "auth_ok" });
-      await expect(playerState).resolves.toMatchObject({
-        type: "player_state",
-        state: { userId: expect.any(String), health: 100, hunger: 100, oxygen: 100 },
-      });
+      const authenticatedState = await playerState;
+      const authenticatedStateObject = getObject(authenticatedState as JsonObject, "state");
+      expect(getString(authenticatedState as JsonObject, "type")).toBe("player_state");
+      expect(getString(authenticatedStateObject, "userId")).toBeTruthy();
+      expect(authenticatedStateObject.health).toBe(100);
+      expect(authenticatedStateObject.hunger).toBe(100);
+      expect(authenticatedStateObject.oxygen).toBe(100);
 
       const moved = waitForMessage(socket);
       socket.send(JSON.stringify({ type: "move", dx: 1, dy: 0, dt: 0.25 }));
-      await expect(moved).resolves.toMatchObject({
-        type: "player_state",
-        state: { x: expect.any(Number), y: expect.any(Number) },
-      });
+      const movedMessage = await moved;
+      const movedObject = movedMessage as JsonObject;
+      const movedState = getObject(movedObject, "state");
+      expect(getString(movedObject, "type")).toBe("player_state");
+      expect(typeof movedState.x).toBe("number");
+      expect(typeof movedState.y).toBe("number");
 
       const selected = waitForMessage(socket);
       socket.send(JSON.stringify({ type: "select_hotbar", slot: 1 }));
