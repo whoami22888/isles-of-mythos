@@ -32,8 +32,8 @@ export function isPlayerState(value: unknown): value is PlayerState {
     isFiniteNumber(state.hunger) && state.hunger >= 0 && state.hunger <= 100 &&
     isFiniteNumber(state.oxygen) && state.oxygen >= 0 && state.oxygen <= 100 &&
     isFiniteNumber(state.xp) && state.xp >= 0 &&
-    Number.isSafeInteger(state.level) && state.level >= 1 &&
-    Number.isSafeInteger(state.gold) && state.gold >= 0 &&
+    typeof state.level === "number" && Number.isSafeInteger(state.level) && state.level >= 1 &&
+    typeof state.gold === "number" && Number.isSafeInteger(state.gold) && state.gold >= 0 &&
     isInventory(state.inventory) && isHotbar(state.hotbar) &&
-    Number.isSafeInteger(state.selectedHotbarSlot) && state.selectedHotbarSlot >= 0 && state.selectedHotbarSlot < 8;
+    typeof state.selectedHotbarSlot === "number" && Number.isSafeInteger(state.selectedHotbarSlot) && state.selectedHotbarSlot >= 0 && state.selectedHotbarSlot < 8;
 }
