@@ -46,7 +46,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const invulnerableUntil = new Map<string, number>();
   const app = Fastify({ logger: false });
 
-  await app.register(cors, { origin: true });
+  await app.register(cors, { origin: config.corsOrigin });
   await app.register(rateLimit, { max: 120, timeWindow: "1 minute" });
   await app.register(swagger, {
     openapi: {
@@ -252,178 +252,178 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     let messageQueue = Promise.resolve();
     socket.on("message", (raw) => {
       messageQueue = messageQueue.then(async () => {
-      const message = parseClientMessage(rawMessageToString(raw));
+        const message = parseClientMessage(rawMessageToString(raw));
 
-      if (!message) {
-        send(socket, { type: "error", code: "INVALID_MESSAGE" });
-        return;
-      }
+        if (!message) {
+          send(socket, { type: "error", code: "INVALID_MESSAGE" });
+          return;
+        }
 
-      if (message.type === "ping") {
-        send(socket, { type: "pong", timestamp: Date.now() });
-        return;
-      }
+        if (message.type === "ping") {
+          send(socket, { type: "pong", timestamp: Date.now() });
+          return;
+        }
 
-      if (message.type === "auth") {
-        try {
-          if (userId) {
+        if (message.type === "auth") {
+          try {
+            if (userId) {
+              send(socket, { type: "error", code: "INVALID_MESSAGE" });
+              return;
+            }
+            const payload = app.jwt.verify<{ sub: string; username: string }>(message.token);
+            if (typeof payload.sub !== "string" || payload.sub.length === 0) throw new Error("invalid_subject");
+            const authenticatedUserId = payload.sub;
+            const state = await players.loadOrCreate(authenticatedUserId);
+            userId = authenticatedUserId;
+            const connections = playerConnections.get(authenticatedUserId) ?? 0;
+            playerConnections.set(authenticatedUserId, connections + 1);
+            const socketsForUser = userSockets.get(authenticatedUserId) ?? new Set<WebSocket>();
+            socketsForUser.add(socket);
+            userSockets.set(authenticatedUserId, socketsForUser);
+            send(socket, { type: "auth_ok", userId: authenticatedUserId });
+            send(socket, { type: "player_state", state });
+          } catch {
+            userId = null;
+            send(socket, { type: "error", code: "INVALID_TOKEN" });
+            socket.close(1008, "invalid_token");
+          }
+          return;
+        }
+
+        if (message.type === "move") {
+          if (!userId) {
+            send(socket, { type: "error", code: "AUTH_REQUIRED" });
+            return;
+          }
+          const state = players.get(userId);
+          if (!state) {
+            send(socket, { type: "error", code: "AUTH_REQUIRED" });
+            return;
+          }
+          applyPlayerInput(state, message);
+          send(socket, { type: "player_state", state });
+          return;
+        }
+
+        if (message.type === "select_hotbar") {
+          if (!userId) {
+            send(socket, { type: "error", code: "AUTH_REQUIRED" });
+            return;
+          }
+          const state = players.get(userId);
+          if (!state) {
+            send(socket, { type: "error", code: "AUTH_REQUIRED" });
+            return;
+          }
+          state.selectedHotbarSlot = message.slot;
+          send(socket, { type: "player_state", state });
+          return;
+        }
+
+        if (message.type === "attack") {
+          if (!userId) {
+            send(socket, { type: "error", code: "AUTH_REQUIRED" });
+            return;
+          }
+          const state = players.get(userId);
+          if (!state) {
+            send(socket, { type: "error", code: "AUTH_REQUIRED" });
+            return;
+          }
+          const weapon = weaponFor(state.hotbar[state.selectedHotbarSlot]);
+          if (!weapon) {
             send(socket, { type: "error", code: "INVALID_MESSAGE" });
             return;
           }
-          const payload = app.jwt.verify<{ sub: string; username: string }>(message.token);
-          if (typeof payload.sub !== "string" || payload.sub.length === 0) throw new Error("invalid_subject");
-          const authenticatedUserId = payload.sub;
-          const state = await players.loadOrCreate(authenticatedUserId);
-          userId = authenticatedUserId;
-          const connections = playerConnections.get(authenticatedUserId) ?? 0;
-          playerConnections.set(authenticatedUserId, connections + 1);
-          const socketsForUser = userSockets.get(authenticatedUserId) ?? new Set<WebSocket>();
-          socketsForUser.add(socket);
-          userSockets.set(authenticatedUserId, socketsForUser);
-          send(socket, { type: "auth_ok", userId: authenticatedUserId });
-          send(socket, { type: "player_state", state });
-        } catch {
-          userId = null;
-          send(socket, { type: "error", code: "INVALID_TOKEN" });
-          socket.close(1008, "invalid_token");
-        }
-        return;
-      }
-
-      if (message.type === "move") {
-        if (!userId) {
-          send(socket, { type: "error", code: "AUTH_REQUIRED" });
-          return;
-        }
-        const state = players.get(userId);
-        if (!state) {
-          send(socket, { type: "error", code: "AUTH_REQUIRED" });
-          return;
-        }
-        applyPlayerInput(state, message);
-        send(socket, { type: "player_state", state });
-        return;
-      }
-
-      if (message.type === "select_hotbar") {
-        if (!userId) {
-          send(socket, { type: "error", code: "AUTH_REQUIRED" });
-          return;
-        }
-        const state = players.get(userId);
-        if (!state) {
-          send(socket, { type: "error", code: "AUTH_REQUIRED" });
-          return;
-        }
-        state.selectedHotbarSlot = message.slot;
-        send(socket, { type: "player_state", state });
-        return;
-      }
-
-      if (message.type === "attack") {
-        if (!userId) {
-          send(socket, { type: "error", code: "AUTH_REQUIRED" });
-          return;
-        }
-        const state = players.get(userId);
-        if (!state) {
-          send(socket, { type: "error", code: "AUTH_REQUIRED" });
-          return;
-        }
-        const weapon = weaponFor(state.hotbar[state.selectedHotbarSlot]);
-        if (!weapon) {
-          send(socket, { type: "error", code: "INVALID_MESSAGE" });
-          return;
-        }
-        const now = Date.now();
-        const nextAttack = attackCooldowns.get(userId) ?? 0;
-        if (now < nextAttack) {
-          send(socket, { type: "error", code: "COMBAT_COOLDOWN" });
-          return;
-        }
-        if (state.stamina < weapon.staminaCost) {
-          send(socket, { type: "error", code: "NO_STAMINA" });
-          return;
-        }
-        const match = /^creature:(-?\d+):(-?\d+)$/.exec(message.targetId);
-        if (!match) {
-          send(socket, { type: "error", code: "INVALID_MESSAGE" });
-          return;
-        }
-        const targetX = Number(match[1]);
-        const targetY = Number(match[2]);
-        const chunk = world.get(Math.floor(targetX / 32), Math.floor(targetY / 32));
-        const spawn = chunk.creatures.find((creature) => creature.id === message.targetId);
-        if (!spawn) {
-          send(socket, { type: "error", code: "INVALID_MESSAGE" });
-          return;
-        }
-        let target = combatTargets.get(message.targetId);
-        if (!target) {
-          target = createCombatTarget(spawn.id, spawn.species, spawn.x, spawn.y, spawn.level);
-          combatTargets.set(target.id, target);
-        }
-        if (distance(state, target) > weapon.range) {
-          send(socket, { type: "error", code: "OUT_OF_RANGE" });
-          return;
-        }
-        attackCooldowns.set(userId, now + weapon.cooldownMs);
-        state.stamina -= weapon.staminaCost;
-        const result = applyDamage(target, weapon);
-        addThreat(target, userId, result.amount);
-        send(socket, {
-          type: "combat_result",
-          targetId: target.id,
-          damage: result.amount,
-          critical: result.critical,
-          killed: result.killed,
-          targetHealth: Math.ceil(target.health),
-          status: result.statusApplied?.id,
-        });
-        if (result.killed) combatTargets.delete(target.id);
-        return;
-      }
-
-      if (message.type === "dodge") {
-        if (!userId) { send(socket, { type: "error", code: "AUTH_REQUIRED" }); return; }
-        const state = players.get(userId);
-        if (!state) { send(socket, { type: "error", code: "AUTH_REQUIRED" }); return; }
-        const now = Date.now();
-        if ((dodgeCooldowns.get(userId) ?? 0) > now) { send(socket, { type: "error", code: "COMBAT_COOLDOWN" }); return; }
-        if (state.stamina < 20) { send(socket, { type: "error", code: "NO_STAMINA" }); return; }
-        const length = Math.hypot(message.facingX, message.facingY) || 1;
-        state.x = Math.max(-1_000_000, Math.min(1_000_000, state.x + (message.facingX / length) * 1.25));
-        state.y = Math.max(-1_000_000, Math.min(1_000_000, state.y + (message.facingY / length) * 1.25));
-        state.stamina -= 20;
-        dodgeCooldowns.set(userId, now + 900);
-        invulnerableUntil.set(userId, now + 350);
-        send(socket, { type: "player_state", state });
-        return;
-      }
-
-      if (message.type === "block") {
-        if (!userId) { send(socket, { type: "error", code: "AUTH_REQUIRED" }); return; }
-        const state = players.get(userId);
-        if (!state) { send(socket, { type: "error", code: "AUTH_REQUIRED" }); return; }
-        if (message.active && state.stamina <= 0) { send(socket, { type: "error", code: "NO_STAMINA" }); return; }
-        if (message.active) blocking.add(userId); else blocking.delete(userId);
-        return;
-      }
-
-      if (message.type === "subscribe_chunks") {
-        if (!userId) {
-          send(socket, { type: "error", code: "AUTH_REQUIRED" });
-          return;
-        }
-
-        for (const coordinate of message.chunks) {
+          const now = Date.now();
+          const nextAttack = attackCooldowns.get(userId) ?? 0;
+          if (now < nextAttack) {
+            send(socket, { type: "error", code: "COMBAT_COOLDOWN" });
+            return;
+          }
+          if (state.stamina < weapon.staminaCost) {
+            send(socket, { type: "error", code: "NO_STAMINA" });
+            return;
+          }
+          const match = /^creature:(-?\\d+):(-?\\d+)$/.exec(message.targetId);
+          if (!match) {
+            send(socket, { type: "error", code: "INVALID_MESSAGE" });
+            return;
+          }
+          const targetX = Number(match[1]);
+          const targetY = Number(match[2]);
+          const chunk = world.get(Math.floor(targetX / 32), Math.floor(targetY / 32));
+          const spawn = chunk.creatures.find((creature) => creature.id === message.targetId);
+          if (!spawn) {
+            send(socket, { type: "error", code: "INVALID_MESSAGE" });
+            return;
+          }
+          let target = combatTargets.get(message.targetId);
+          if (!target) {
+            target = createCombatTarget(spawn.id, spawn.species, spawn.x, spawn.y, spawn.level);
+            combatTargets.set(target.id, target);
+          }
+          if (distance(state, target) > weapon.range) {
+            send(socket, { type: "error", code: "OUT_OF_RANGE" });
+            return;
+          }
+          attackCooldowns.set(userId, now + weapon.cooldownMs);
+          state.stamina -= weapon.staminaCost;
+          const result = applyDamage(target, weapon);
+          addThreat(target, userId, result.amount);
           send(socket, {
-            type: "world_chunk",
-            requestId: message.requestId,
-            chunk: world.get(coordinate.x, coordinate.y),
+            type: "combat_result",
+            targetId: target.id,
+            damage: result.amount,
+            critical: result.critical,
+            killed: result.killed,
+            targetHealth: Math.ceil(target.health),
+            status: result.statusApplied?.id,
           });
+          if (result.killed) combatTargets.delete(target.id);
+          return;
         }
-      }
+
+        if (message.type === "dodge") {
+          if (!userId) { send(socket, { type: "error", code: "AUTH_REQUIRED" }); return; }
+          const state = players.get(userId);
+          if (!state) { send(socket, { type: "error", code: "AUTH_REQUIRED" }); return; }
+          const now = Date.now();
+          if ((dodgeCooldowns.get(userId) ?? 0) > now) { send(socket, { type: "error", code: "COMBAT_COOLDOWN" }); return; }
+          if (state.stamina < 20) { send(socket, { type: "error", code: "NO_STAMINA" }); return; }
+          const length = Math.hypot(message.facingX, message.facingY) || 1;
+          state.x = Math.max(-1_000_000, Math.min(1_000_000, state.x + (message.facingX / length) * 1.25));
+          state.y = Math.max(-1_000_000, Math.min(1_000_000, state.y + (message.facingY / length) * 1.25));
+          state.stamina -= 20;
+          dodgeCooldowns.set(userId, now + 900);
+          invulnerableUntil.set(userId, now + 350);
+          send(socket, { type: "player_state", state });
+          return;
+        }
+
+        if (message.type === "block") {
+          if (!userId) { send(socket, { type: "error", code: "AUTH_REQUIRED" }); return; }
+          const state = players.get(userId);
+          if (!state) { send(socket, { type: "error", code: "AUTH_REQUIRED" }); return; }
+          if (message.active && state.stamina <= 0) { send(socket, { type: "error", code: "NO_STAMINA" }); return; }
+          if (message.active) blocking.add(userId); else blocking.delete(userId);
+          return;
+        }
+
+        if (message.type === "subscribe_chunks") {
+          if (!userId) {
+            send(socket, { type: "error", code: "AUTH_REQUIRED" });
+            return;
+          }
+
+          for (const coordinate of message.chunks) {
+            send(socket, {
+              type: "world_chunk",
+              requestId: message.requestId,
+              chunk: world.get(coordinate.x, coordinate.y),
+            });
+          }
+        }
       }).catch((error) => {
         log("websocket_message_failed", {
           message: error instanceof Error ? error.message : String(error),
