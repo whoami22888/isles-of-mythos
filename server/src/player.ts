@@ -1,4 +1,5 @@
 import type { Pool } from "pg";
+import type { ShopItem } from "./shop.js";
 import { TileKind, tileAtWorld } from "./world.js";
 
 export const PLAYER_MAX_HEALTH = 100;
@@ -85,6 +86,39 @@ export class PlayerStore {
       "UPDATE player_profiles SET x=$2, y=$3, health=$4, hunger=$5, oxygen=$6, xp=$7, level=$8, gold=$9, inventory=$10::jsonb, hotbar=$11::jsonb, selected_hotbar_slot=$12, updated_at=CURRENT_TIMESTAMP WHERE user_id=$1",
       [userId, state.x, state.y, state.health, state.hunger, state.oxygen, state.xp, state.level, state.gold,
         JSON.stringify(state.inventory), JSON.stringify(state.hotbar), state.selectedHotbarSlot]);
+  }
+  async purchase(userId: string, item: ShopItem, quantity: number, totalGold: number): Promise<PlayerState> {
+    const client = await this.db.connect();
+    try {
+      await client.query("BEGIN");
+      const result = await client.query<PlayerRow>(
+        "SELECT user_id, x, y, health, hunger, oxygen, xp, level, gold, inventory, hotbar, selected_hotbar_slot FROM player_profiles WHERE user_id = $1 FOR UPDATE",
+        [userId],
+      );
+      const row = result.rows[0];
+      if (!row) throw new Error("PLAYER_NOT_FOUND");
+      const gold = Number(row.gold);
+      if (!Number.isSafeInteger(gold) || gold < totalGold) throw new Error("INSUFFICIENT_GOLD");
+      const inventory = row.inventory ?? {};
+      const currentQuantity = Number(inventory[item.id] ?? 0);
+      if (!Number.isSafeInteger(currentQuantity) || currentQuantity < 0 || currentQuantity + quantity > 1_000_000) {
+        throw new Error("INVENTORY_LIMIT");
+      }
+      const nextInventory = { ...inventory, [item.id]: currentQuantity + quantity };
+      const updated = await client.query<PlayerRow>(
+        "UPDATE player_profiles SET gold=$2, inventory=$3::jsonb, updated_at=CURRENT_TIMESTAMP WHERE user_id=$1 RETURNING user_id, x, y, health, hunger, oxygen, xp, level, gold, inventory, hotbar, selected_hotbar_slot",
+        [userId, gold - totalGold, JSON.stringify(nextInventory)],
+      );
+      await client.query("COMMIT");
+      const state = rowToState(updated.rows[0]);
+      this.active.set(userId, state);
+      return state;
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
   }
   async unload(userId: string): Promise<void> { await this.persist(userId); this.active.delete(userId); }
   async persistAll(): Promise<void> { for (const userId of this.active.keys()) await this.persist(userId); }
