@@ -1,7 +1,7 @@
 import Phaser from "phaser";
 import { ensureAuthenticated, getAccessToken } from "./auth.js";
 import { CHUNK_SIZE, TILE_SIZE, ChunkRenderer, type WorldChunk } from "./world.js";
-import type { PlayerState } from "./player.js";
+import { isPlayerState, type PlayerState } from "./player.js";
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? "http://localhost:3000").replace(/\/$/, "");
 const WS_URL = API_BASE_URL.replace(/^http/, "ws") + "/ws";
@@ -27,6 +27,58 @@ type ServerMessage =
   | { type: "world_chunk"; requestId: string; chunk: WorldChunk }
   | CombatResultMessage
   | { type: "error"; code: string };
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function isWorldChunk(value: unknown): value is WorldChunk {
+  if (!isRecord(value)) return false;
+  return typeof value.x === "number" &&
+    typeof value.y === "number" &&
+    typeof value.size === "number" &&
+    Array.isArray(value.tiles) &&
+    value.tiles.every((tile) => typeof tile === "number");
+}
+
+function parseServerMessage(value: unknown): ServerMessage | null {
+  if (!isRecord(value) || typeof value.type !== "string") return null;
+  switch (value.type) {
+    case "server_ready":
+      return typeof value.timestamp === "number" ? { type: "server_ready", timestamp: value.timestamp } : null;
+    case "pong":
+      return typeof value.timestamp === "number" ? { type: "pong", timestamp: value.timestamp } : null;
+    case "auth_ok":
+      return typeof value.userId === "string" ? { type: "auth_ok", userId: value.userId } : null;
+    case "player_state":
+      return isPlayerState(value.state) ? { type: "player_state", state: value.state } : null;
+    case "world_chunk":
+      return typeof value.requestId === "string" && isWorldChunk(value.chunk)
+        ? { type: "world_chunk", requestId: value.requestId, chunk: value.chunk }
+        : null;
+    case "combat_result":
+      return typeof value.targetId === "string" &&
+        typeof value.damage === "number" &&
+        typeof value.critical === "boolean" &&
+        typeof value.killed === "boolean" &&
+        typeof value.targetHealth === "number" &&
+        (value.status === undefined || typeof value.status === "string")
+        ? {
+            type: "combat_result",
+            targetId: value.targetId,
+            damage: value.damage,
+            critical: value.critical,
+            killed: value.killed,
+            targetHealth: value.targetHealth,
+            ...(value.status === undefined ? {} : { status: value.status }),
+          }
+        : null;
+    case "error":
+      return typeof value.code === "string" ? { type: "error", code: value.code } : null;
+    default:
+      return null;
+  }
+}
 
 class WorldScene extends Phaser.Scene {
   private readonly chunks = new ChunkRenderer(this);
@@ -103,10 +155,13 @@ class WorldScene extends Phaser.Scene {
       }
     });
     socket.addEventListener("message", (event) => {
-      let message: ServerMessage;
+      let message: ServerMessage | null;
       try {
-        message = JSON.parse(String(event.data)) as ServerMessage;
+        message = parseServerMessage(JSON.parse(String(event.data)) as unknown);
       } catch {
+        message = null;
+      }
+      if (!message) {
         this.statusText?.setText("INVALID SERVER MESSAGE");
         return;
       }
