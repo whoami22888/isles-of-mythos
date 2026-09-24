@@ -24,7 +24,7 @@ export type ServerMessage =
         | "INVALID_MESSAGE"
         | "UNSUPPORTED_MESSAGE"
         | "AUTH_REQUIRED"
-        | "INVALID_TOKEN";
+        | "INVALID_TOKEN"\n        | "COMBAT_COOLDOWN"\n        | "OUT_OF_RANGE"\n        | "NO_STAMINA";
     };
 
 function isSafeInteger(value: unknown): value is number {
