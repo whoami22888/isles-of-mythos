@@ -20,12 +20,13 @@ interface CombatResultMessage {
 }
 
 type ServerMessage =
+  | { type: "server_ready"; timestamp: number }
+  | { type: "pong"; timestamp: number }
   | { type: "auth_ok"; userId: string }
   | { type: "player_state"; state: PlayerState }
   | { type: "world_chunk"; requestId: string; chunk: WorldChunk }
   | CombatResultMessage
-  | { type: "error"; code: string }
-  | { type: string; [key: string]: unknown };
+  | { type: "error"; code: string };
 
 class WorldScene extends Phaser.Scene {
   private readonly chunks = new ChunkRenderer(this);
