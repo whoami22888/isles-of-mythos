@@ -1,6 +1,5 @@
 import Phaser from "phaser";
 import { ensureAuthenticated, getAccessToken } from "./auth.js";
-import { GameState } from "./game-state.js";
 import { CHUNK_SIZE, TILE_SIZE, ChunkRenderer, type WorldChunk } from "./world.js";
 import type { PlayerState } from "./player.js";
 
@@ -11,7 +10,6 @@ const MOVE_SEND_INTERVAL_MS = 50;
 
 class WorldScene extends Phaser.Scene {
   private readonly chunks = new ChunkRenderer(this);
-  private state = GameState.Overworld;
   private loadedCenter = { x: Number.NaN, y: Number.NaN };
   private statusText?: Phaser.GameObjects.Text;
   private survivalText?: Phaser.GameObjects.Text;
