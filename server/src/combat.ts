@@ -206,7 +206,7 @@ export function tickCreatureAi(target: CombatTarget, candidates: Iterable<{ user
 }
 
 export function createCombatTarget(id: string, species: string, x: number, y: number, level: number): CombatTarget {
-  const stats = CREATURE_STATS[species] ?? { health: 50, defense: 3, element: "physical" as DamageType, speed: 1.5, attack: 8, aggroRange: 5, attackRange: 1.2 };
+  const stats = CREATURE_STATS[species] ?? { health: 50, defense: 3, element: "physical", speed: 1.5, attack: 8, aggroRange: 5, attackRange: 1.2 };
   const scaledHealth = stats.health + Math.max(0, level - 1) * 10;
   return {
     id, species, x, y, level, health: scaledHealth, maxHealth: scaledHealth,
