@@ -96,15 +96,16 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     });
     for (const target of combatTargets.values()) {
       const ai = tickCreatureAi(target, candidates, now, 250);
-      const targetPlayer = ai.targetUserId ? players.get(ai.targetUserId) : undefined;
-      if (!targetPlayer || target.health <= 0) continue;
+      const userId = ai.targetUserId;
+      if (!userId || target.health <= 0) continue;
+      const targetPlayer = players.get(userId);
+      if (!targetPlayer) continue;
       if (ai.state === "chase") {
         const step = target.speed * 0.25;
         target.x += ai.moveX * step;
         target.y += ai.moveY * step;
       }
       if (ai.state === "attack" && distance(target, targetPlayer) <= target.attackRange) {
-        const userId = ai.targetUserId;
         const immune = (invulnerableUntil.get(userId) ?? 0) > now;
         if (!immune) {
           const blocked = blocking.has(userId);
@@ -114,8 +115,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           for (const socket of userSockets.get(userId) ?? []) send(socket, { type: "player_state", state: targetPlayer });
         }
       }
-      if (ai.ability && targetPlayer && distance(target, targetPlayer) <= ai.ability.range) {
-        const userId = ai.targetUserId;
+      if (ai.ability && distance(target, targetPlayer) <= ai.ability.range) {
         const immune = (invulnerableUntil.get(userId) ?? 0) > now;
         if (!immune) {
           const pseudoTarget = createCombatTarget(userId, "player", targetPlayer.x, targetPlayer.y, targetPlayer.level);
