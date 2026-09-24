@@ -206,7 +206,9 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
 
     send(socket, { type: "server_ready", timestamp: Date.now() });
 
-    socket.on("message", async (raw) => {
+    let messageQueue = Promise.resolve();
+    socket.on("message", (raw) => {
+      messageQueue = messageQueue.then(async () => {
       const message = parseClientMessage(raw.toString());
 
       if (!message) {
@@ -221,17 +223,24 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
 
       if (message.type === "auth") {
         try {
+          if (userId) {
+            send(socket, { type: "error", code: "INVALID_MESSAGE" });
+            return;
+          }
           const payload = app.jwt.verify<{ sub: string; username: string }>(message.token);
-          userId = payload.sub;
-          const state = await players.loadOrCreate(userId);
-          const connections = playerConnections.get(userId) ?? 0;
-          playerConnections.set(userId, connections + 1);
-          const socketsForUser = userSockets.get(userId) ?? new Set<WebSocket>();
+          if (typeof payload.sub !== "string" || payload.sub.length === 0) throw new Error("invalid_subject");
+          const authenticatedUserId = payload.sub;
+          const state = await players.loadOrCreate(authenticatedUserId);
+          userId = authenticatedUserId;
+          const connections = playerConnections.get(authenticatedUserId) ?? 0;
+          playerConnections.set(authenticatedUserId, connections + 1);
+          const socketsForUser = userSockets.get(authenticatedUserId) ?? new Set<WebSocket>();
           socketsForUser.add(socket);
-          userSockets.set(userId, socketsForUser);
-          send(socket, { type: "auth_ok", userId });
+          userSockets.set(authenticatedUserId, socketsForUser);
+          send(socket, { type: "auth_ok", userId: authenticatedUserId });
           send(socket, { type: "player_state", state });
         } catch {
+          userId = null;
           send(socket, { type: "error", code: "INVALID_TOKEN" });
           socket.close(1008, "invalid_token");
         }
@@ -338,6 +347,12 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           });
         }
       }
+      }).catch((error) => {
+        log("websocket_message_failed", {
+          message: error instanceof Error ? error.message : String(error),
+        });
+        send(socket, { type: "error", code: "INVALID_MESSAGE" });
+      });
     });
 
     socket.on("close", () => {
