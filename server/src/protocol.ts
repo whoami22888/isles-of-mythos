@@ -9,7 +9,9 @@ export type ClientMessage =
   | { type: "subscribe_chunks"; requestId: string; chunks: ChunkCoordinate[] }
   | { type: "move"; dx: number; dy: number; dt: number }
   | { type: "select_hotbar"; slot: number }
-  | { type: "attack"; targetId: string; facingX: number; facingY: number }\n  | { type: "dodge"; facingX: number; facingY: number }\n  | { type: "block"; active: boolean };
+  | { type: "attack"; targetId: string; facingX: number; facingY: number }
+  | { type: "dodge"; facingX: number; facingY: number }
+  | { type: "block"; active: boolean };
 
 export type ServerMessage =
   | { type: "server_ready"; timestamp: number }
