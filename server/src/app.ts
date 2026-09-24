@@ -117,7 +117,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
 
     send(socket, { type: "server_ready", timestamp: Date.now() });
 
-    socket.on("message", (raw) => {
+    socket.on("message", async (raw) => {
       const message = parseClientMessage(raw.toString());
 
       if (!message) {

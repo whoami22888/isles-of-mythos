@@ -67,6 +67,18 @@ describe("server foundation", () => {
       requestId: "r1",
       chunks: [{ x: 0, y: 0 }],
     });
+    expect(parseClientMessage('{"type":"move","dx":1,"dy":0,"dt":0.1}')).toEqual({
+      type: "move",
+      dx: 1,
+      dy: 0,
+      dt: 0.1,
+    });
+    expect(parseClientMessage('{"type":"select_hotbar","slot":7}')).toEqual({
+      type: "select_hotbar",
+      slot: 7,
+    });
+    expect(parseClientMessage('{"type":"select_hotbar","slot":8}')).toBeNull();
+    expect(parseClientMessage('{"type":"move","dx":2,"dy":0,"dt":0.1}')).toBeNull();
     expect(parseClientMessage('{"type":"subscribe_chunks","requestId":"r1","chunks":[]}')).toBeNull();
     expect(parseClientMessage("not-json")).toBeNull();
   });
@@ -107,6 +119,26 @@ describe("server foundation", () => {
       const authenticated = waitForMessage(socket);
       socket.send(JSON.stringify({ type: "auth", token }));
       await expect(authenticated).resolves.toMatchObject({ type: "auth_ok" });
+
+      const playerState = waitForMessage(socket);
+      await expect(playerState).resolves.toMatchObject({
+        type: "player_state",
+        state: { userId: expect.any(String), health: 100, hunger: 100, oxygen: 100 },
+      });
+
+      const moved = waitForMessage(socket);
+      socket.send(JSON.stringify({ type: "move", dx: 1, dy: 0, dt: 0.25 }));
+      await expect(moved).resolves.toMatchObject({
+        type: "player_state",
+        state: { x: expect.any(Number), y: expect.any(Number) },
+      });
+
+      const selected = waitForMessage(socket);
+      socket.send(JSON.stringify({ type: "select_hotbar", slot: 1 }));
+      await expect(selected).resolves.toMatchObject({
+        type: "player_state",
+        state: { selectedHotbarSlot: 1 },
+      });
 
       const chunk = waitForMessage(socket);
       socket.send(JSON.stringify({
