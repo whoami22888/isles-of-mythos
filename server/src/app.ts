@@ -13,6 +13,7 @@ import { log } from "./logger.js";
 import { parseClientMessage, type ServerMessage } from "./protocol.js";
 import { PlayerStore, applyPlayerInput } from "./player.js";
 import { WorldChunkCache } from "./world.js";
+import { SHOP_ITEMS, calculatePurchase, getShopItem } from "./shop.js";
 
 function send(socket: WebSocket, message: ServerMessage): void {
   if (socket.readyState === socket.OPEN) socket.send(JSON.stringify(message));
@@ -128,6 +129,50 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   );
 
   await registerAuthRoutes(app, db);
+
+  app.get("/shop/catalog", { schema: { tags: ["shop"] } }, async () => ({
+    items: SHOP_ITEMS,
+  }));
+
+  app.post<{ Body: { itemId: string; quantity: number } }>(
+    "/shop/purchase",
+    {
+      schema: {
+        tags: ["shop"],
+        security: [{ bearerAuth: [] }],
+        body: {
+          type: "object",
+          required: ["itemId", "quantity"],
+          additionalProperties: false,
+          properties: {
+            itemId: { type: "string", minLength: 1, maxLength: 64 },
+            quantity: { type: "integer", minimum: 1, maximum: 100 },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      try {
+        await request.jwtVerify();
+        const userId = request.user.sub;
+        const item = getShopItem(request.body.itemId);
+        if (!item) return reply.code(404).send({ error: "SHOP_ITEM_NOT_FOUND" });
+        const totalGold = calculatePurchase(item, request.body.quantity);
+        if (totalGold === null) return reply.code(400).send({ error: "INVALID_PURCHASE_QUANTITY" });
+        const state = await players.purchase(userId, item, request.body.quantity, totalGold);
+        return { itemId: item.id, quantity: request.body.quantity, totalGold, state };
+      } catch (error) {
+        if (error instanceof Error && error.message === "INSUFFICIENT_GOLD") {
+          return reply.code(409).send({ error: "INSUFFICIENT_GOLD" });
+        }
+        if (error instanceof Error && error.message === "PLAYER_NOT_FOUND") {
+          return reply.code(404).send({ error: "PLAYER_NOT_FOUND" });
+        }
+        log("shop_purchase_failed", { message: error instanceof Error ? error.message : String(error) });
+        return reply.code(500).send({ error: "PURCHASE_FAILED" });
+      }
+    },
+  );
 
   app.get("/ws", { websocket: true }, (socket: WebSocket) => {
     sockets.add(socket);
