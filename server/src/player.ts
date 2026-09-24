@@ -90,7 +90,7 @@ export class PlayerStore {
     const state = this.active.get(userId); if (!state) return;
     await this.db.query(
       "UPDATE player_profiles SET x=$2, y=$3, health=$4, stamina=$5, max_stamina=$6, hunger=$7, oxygen=$8, xp=$9, level=$10, gold=$11, inventory=$12::jsonb, hotbar=$13::jsonb, selected_hotbar_slot=$14, updated_at=CURRENT_TIMESTAMP WHERE user_id=$1",
-      [userId, state.x, state.y, state.health, state.hunger, state.oxygen, state.xp, state.level, state.gold,
+      [userId, state.x, state.y, state.health, state.stamina, state.maxStamina, state.hunger, state.oxygen, state.xp, state.level, state.gold,
         JSON.stringify(state.inventory), JSON.stringify(state.hotbar), state.selectedHotbarSlot]);
   }
   async purchase(userId: string, item: ShopItem, quantity: number, totalGold: number): Promise<PlayerState> {
