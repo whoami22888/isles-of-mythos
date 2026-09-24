@@ -95,7 +95,6 @@ class WorldScene extends Phaser.Scene {
   private combatText?: Phaser.GameObjects.Text;
   private attackAccumulator = 0;
   private dodgeAccumulator = 0;
-  private blockButton?: Phaser.GameObjects.Text;
 
   constructor() { super("world"); }
 
@@ -276,7 +275,7 @@ class WorldScene extends Phaser.Scene {
     };
     makeButton("ATTACK", 16, 650, () => this.attackNearest());
     makeButton("DODGE", 120, 650, () => this.dodge());
-    this.blockButton = makeButton("BLOCK", 214, 650, () => this.setBlocking(true), () => this.setBlocking(false));
+    makeButton("BLOCK", 214, 650, () => this.setBlocking(true), () => this.setBlocking(false));
   }
 
   private attackNearest(): void {
