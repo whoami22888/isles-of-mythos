@@ -14,7 +14,7 @@ import { parseClientMessage, type ServerMessage } from "./protocol.js";
 import { PlayerStore, applyPlayerInput } from "./player.js";
 import { WorldChunkCache } from "./world.js";
 import { SHOP_ITEMS, calculatePurchase, getShopItem } from "./shop.js";
-import { applyDamage, createCombatTarget, distance, tickStatuses, weaponFor, type CombatTarget } from "./combat.js";
+import { addThreat, applyDamage, createCombatTarget, creatureAbilityDamage, distance, tickCreatureAi, tickStatuses, weaponFor, type CombatTarget } from "./combat.js";
 
 function send(socket: WebSocket, message: ServerMessage): void {
   if (socket.readyState === socket.OPEN) socket.send(JSON.stringify(message));
@@ -34,6 +34,9 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const userSockets = new Map<string, Set<WebSocket>>();
   const combatTargets = new Map<string, CombatTarget>();
   const attackCooldowns = new Map<string, number>();
+  const dodgeCooldowns = new Map<string, number>();
+  const blocking = new Set<string>();
+  const invulnerableUntil = new Map<string, number>();
   const app = Fastify({ logger: false });
 
   await app.register(cors, { origin: true });
@@ -75,20 +78,50 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     const now = Date.now();
     for (const [targetId, target] of combatTargets) {
       tickStatuses(target, 250);
-      if (target.health <= 0) combatTargets.delete(targetId);
+      if (target.health <= 0) {
+        target.aiState = "dead";
+        combatTargets.delete(targetId);
+      }
     }
-    for (const [userId, player] of [...userSockets.entries()]) {
+    const candidates = [...userSockets.keys()].flatMap((userId) => {
       const state = players.get(userId);
-      if (!state) continue;
-      for (const target of combatTargets.values()) {
-        if (distance(state, target) <= 1.35 && target.health > 0) {
-          state.health = Math.max(0, state.health - 4);
-          for (const socket of player) send(socket, { type: "player_state", state });
-          break;
+      return state ? [{ userId, x: state.x, y: state.y }] : [];
+    });
+    for (const target of combatTargets.values()) {
+      const ai = tickCreatureAi(target, candidates, now, 250);
+      const targetPlayer = ai.targetUserId ? players.get(ai.targetUserId) : undefined;
+      if (!targetPlayer || target.health <= 0) continue;
+      if (ai.state === "chase") {
+        const step = target.speed * 0.25;
+        target.x += ai.moveX * step;
+        target.y += ai.moveY * step;
+      }
+      if (ai.state === "attack" && distance(target, targetPlayer) <= target.attackRange) {
+        const userId = ai.targetUserId;
+        const immune = (invulnerableUntil.get(userId) ?? 0) > now;
+        if (!immune) {
+          const blocked = blocking.has(userId);
+          const damage = blocked ? Math.max(1, Math.round(target.attack * 0.35)) : target.attack;
+          targetPlayer.health = Math.max(0, targetPlayer.health - damage);
+          if (blocked) targetPlayer.stamina = Math.max(0, targetPlayer.stamina - 4);
+          for (const socket of userSockets.get(userId) ?? []) send(socket, { type: "player_state", state: targetPlayer });
+        }
+      }
+      if (ai.ability && targetPlayer && distance(target, targetPlayer) <= ai.ability.range) {
+        const userId = ai.targetUserId;
+        const immune = (invulnerableUntil.get(userId) ?? 0) > now;
+        if (!immune) {
+          const pseudoTarget = createCombatTarget(userId, "player", targetPlayer.x, targetPlayer.y, targetPlayer.level);
+          pseudoTarget.health = targetPlayer.health;
+          pseudoTarget.maxHealth = targetPlayer.health;
+          pseudoTarget.defense = 0;
+          const result = creatureAbilityDamage(pseudoTarget, ai.ability);
+          targetPlayer.health = Math.max(0, targetPlayer.health - result.amount);
+          for (const socket of userSockets.get(userId) ?? []) send(socket, { type: "player_state", state: targetPlayer });
         }
       }
     }
-    void now;
+    for (const [userId, until] of invulnerableUntil) if (until <= now) invulnerableUntil.delete(userId);
   }, 250);
   combatTick.unref();
 
@@ -333,6 +366,32 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         return;
       }
 
+      if (message.type === "dodge") {
+        if (!userId) { send(socket, { type: "error", code: "AUTH_REQUIRED" }); return; }
+        const state = players.get(userId);
+        if (!state) { send(socket, { type: "error", code: "AUTH_REQUIRED" }); return; }
+        const now = Date.now();
+        if ((dodgeCooldowns.get(userId) ?? 0) > now) { send(socket, { type: "error", code: "COMBAT_COOLDOWN" }); return; }
+        if (state.stamina < 20) { send(socket, { type: "error", code: "NO_STAMINA" }); return; }
+        const length = Math.hypot(message.facingX, message.facingY) || 1;
+        state.x = Math.max(-1_000_000, Math.min(1_000_000, state.x + (message.facingX / length) * 1.25));
+        state.y = Math.max(-1_000_000, Math.min(1_000_000, state.y + (message.facingY / length) * 1.25));
+        state.stamina -= 20;
+        dodgeCooldowns.set(userId, now + 900);
+        invulnerableUntil.set(userId, now + 350);
+        send(socket, { type: "player_state", state });
+        return;
+      }
+
+      if (message.type === "block") {
+        if (!userId) { send(socket, { type: "error", code: "AUTH_REQUIRED" }); return; }
+        const state = players.get(userId);
+        if (!state) { send(socket, { type: "error", code: "AUTH_REQUIRED" }); return; }
+        if (message.active && state.stamina <= 0) { send(socket, { type: "error", code: "NO_STAMINA" }); return; }
+        if (message.active) blocking.add(userId); else blocking.delete(userId);
+        return;
+      }
+
       if (message.type === "subscribe_chunks") {
         if (!userId) {
           send(socket, { type: "error", code: "AUTH_REQUIRED" });
@@ -364,7 +423,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       if (socketsForUser && socketsForUser.size === 0) userSockets.delete(userId);
       if (connections <= 0) {
         playerConnections.delete(userId);
-        attackCooldowns.delete(userId);
+        attackCooldowns.delete(userId);\n        dodgeCooldowns.delete(userId);\n        blocking.delete(userId);\n        invulnerableUntil.delete(userId);
         void players.unload(userId).catch((error) => {
           log("player_disconnect_persistence_failed", {
             message: error instanceof Error ? error.message : String(error),
