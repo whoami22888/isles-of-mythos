@@ -92,6 +92,20 @@ export function parseClientMessage(raw: string): ClientMessage | null {
       return isSafeInteger(slot) && slot >= 0 && slot < 8 ? { type: "select_hotbar", slot } : null;
     }
 
+    if (type === "dodge") {
+      const facingX = (value as { facingX?: unknown }).facingX;
+      const facingY = (value as { facingY?: unknown }).facingY;
+      if (!isFiniteNumber(facingX) || !isFiniteNumber(facingY) ||
+          Math.abs(facingX) > 1 || Math.abs(facingY) > 1 ||
+          (facingX === 0 && facingY === 0)) return null;
+      return { type: "dodge", facingX, facingY };
+    }
+
+    if (type === "block") {
+      const active = (value as { active?: unknown }).active;
+      return typeof active === "boolean" ? { type: "block", active } : null;
+    }
+
     if (type === "attack") {
       const targetId = (value as { targetId?: unknown }).targetId;
       const facingX = (value as { facingX?: unknown }).facingX;
