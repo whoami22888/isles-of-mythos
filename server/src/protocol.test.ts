@@ -30,4 +30,9 @@ describe("combat protocol", () => {
       facingY: 0,
     }))).toBeNull();
   });
+  it("accepts dodge and block controls", () => {
+    expect(parseClientMessage(JSON.stringify({ type: "dodge", facingX: 1, facingY: 0 }))).toEqual({ type: "dodge", facingX: 1, facingY: 0 });
+    expect(parseClientMessage(JSON.stringify({ type: "block", active: true }))).toEqual({ type: "block", active: true });
+    expect(parseClientMessage(JSON.stringify({ type: "block", active: "yes" }))).toBeNull();
+  });
 });
