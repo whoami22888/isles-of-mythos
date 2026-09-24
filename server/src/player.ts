@@ -12,7 +12,7 @@ export const PLAYER_HITBOX_HEIGHT = 0.7;
 export const MELEE_RANGE = 1.5;
 
 export interface PlayerState {
-  userId: string; x: number; y: number; health: number; hunger: number; oxygen: number;
+  userId: string; x: number; y: number; health: number; stamina: number; maxStamina: number; hunger: number; oxygen: number;
   xp: number; level: number; gold: number; inventory: Record<string, number>;
   hotbar: Array<string | null>; selectedHotbarSlot: number;
 }
@@ -52,16 +52,16 @@ export function applyPlayerInput(state: PlayerState, input: PlayerInput): Player
 }
 
 export function createDefaultPlayer(userId: string): PlayerState {
-  return { userId, x: 0, y: 0, health: PLAYER_MAX_HEALTH, hunger: PLAYER_MAX_HUNGER, oxygen: PLAYER_MAX_OXYGEN,
+  return { userId, x: 0, y: 0, health: PLAYER_MAX_HEALTH, stamina: 100, maxStamina: 100, hunger: PLAYER_MAX_HUNGER, oxygen: PLAYER_MAX_OXYGEN,
     xp: 0, level: 1, gold: 0, inventory: {}, hotbar: ["cutlass", "flintlock", null, null, null, null, null, null], selectedHotbarSlot: 0 };
 }
 interface PlayerRow {
-  user_id: string; x: number; y: number; health: number; hunger: number; oxygen: number;
+  user_id: string; x: number; y: number; health: number; stamina: number; max_stamina: number; hunger: number; oxygen: number;
   xp: string; level: number; gold: string; inventory: Record<string, number>;
   hotbar: Array<string | null>; selected_hotbar_slot: number;
 }
 function rowToState(row: PlayerRow): PlayerState {
-  return { userId: row.user_id, x: row.x, y: row.y, health: row.health, hunger: row.hunger, oxygen: row.oxygen,
+  return { userId: row.user_id, x: row.x, y: row.y, health: row.health, stamina: row.stamina, maxStamina: row.max_stamina, hunger: row.hunger, oxygen: row.oxygen,
     xp: Number(row.xp), level: row.level, gold: Number(row.gold), inventory: row.inventory ?? {},
     hotbar: row.hotbar ?? [null, null, null, null, null, null, null, null], selectedHotbarSlot: row.selected_hotbar_slot };
 }
@@ -74,7 +74,7 @@ export class PlayerStore {
       [userId],
     );
     const result = await this.db.query<PlayerRow>(
-      "SELECT user_id, x, y, health, hunger, oxygen, xp, level, gold, inventory, hotbar, selected_hotbar_slot FROM player_profiles WHERE user_id = $1",
+      "SELECT user_id, x, y, health, stamina, max_stamina, hunger, oxygen, xp, level, gold, inventory, hotbar, selected_hotbar_slot FROM player_profiles WHERE user_id = $1",
       [userId],
     );
     const row = result.rows[0];
@@ -88,7 +88,7 @@ export class PlayerStore {
   async persist(userId: string): Promise<void> {
     const state = this.active.get(userId); if (!state) return;
     await this.db.query(
-      "UPDATE player_profiles SET x=$2, y=$3, health=$4, hunger=$5, oxygen=$6, xp=$7, level=$8, gold=$9, inventory=$10::jsonb, hotbar=$11::jsonb, selected_hotbar_slot=$12, updated_at=CURRENT_TIMESTAMP WHERE user_id=$1",
+      "UPDATE player_profiles SET x=$2, y=$3, health=$4, stamina=$5, max_stamina=$6, hunger=$7, oxygen=$8, xp=$9, level=$10, gold=$11, inventory=$12::jsonb, hotbar=$13::jsonb, selected_hotbar_slot=$14, updated_at=CURRENT_TIMESTAMP WHERE user_id=$1",
       [userId, state.x, state.y, state.health, state.hunger, state.oxygen, state.xp, state.level, state.gold,
         JSON.stringify(state.inventory), JSON.stringify(state.hotbar), state.selectedHotbarSlot]);
   }
