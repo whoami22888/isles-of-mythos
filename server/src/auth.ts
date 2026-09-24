@@ -1,6 +1,7 @@
 import argon2 from "argon2";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { Pool } from "pg";
+import { config } from "./config.js";
 
 interface RegisterBody {
   username: string;
@@ -58,7 +59,7 @@ async function signAccessToken(
 
 export async function registerAuthRoutes(app: FastifyInstance, db: Pool): Promise<void> {
   await app.register(import("@fastify/jwt"), {
-    secret: process.env.JWT_SECRET ?? "development-only-secret-change-me",
+    secret: config.jwtSecret,
     sign: {
       algorithm: "HS256",
       expiresIn: "15m",
