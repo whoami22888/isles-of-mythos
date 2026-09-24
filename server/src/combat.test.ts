@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyDamage, calculateDamage, createCombatTarget, distance, tickStatuses, weaponFor } from "./combat.js";
+import { addThreat, applyDamage, calculateDamage, createCombatTarget, distance, selectThreatTarget, tickCreatureAi, tickStatuses, weaponFor } from "./combat.js";
 
 describe("combat engine", () => {
   it("uses server-defined weapon damage and defense", () => {
@@ -29,5 +29,28 @@ describe("combat engine", () => {
 
   it("computes spatial distance for authoritative range checks", () => {
     expect(distance({ x: 0, y: 0 }, { x: 3, y: 4 })).toBe(5);
+  });
+  it("tracks threat and selects the highest-threat nearby player", () => {
+    const target = createCombatTarget("creature:1:1", "boar", 1, 1, 1);
+    addThreat(target, "a", 5, 100);
+    addThreat(target, "b", 12, 100);
+    expect(selectThreatTarget(target, [{ userId: "a", x: 1, y: 1 }, { userId: "b", x: 2, y: 1 }])?.userId).toBe("b");
+  });
+
+  it("moves an engaged creature toward its threat and transitions to attack range", () => {
+    const target = createCombatTarget("creature:1:1", "raptor", 0, 0, 1);
+    addThreat(target, "player", 10, 100);
+    const chase = tickCreatureAi(target, [{ userId: "player", x: 4, y: 0 }], 100, 250);
+    expect(chase.state).toBe("chase");
+    expect(chase.moveX).toBeGreaterThan(0);
+    target.x = 3;
+    const attack = tickCreatureAi(target, [{ userId: "player", x: 4, y: 0 }], 100, 250);
+    expect(attack.state).toBe("attack");
+  });
+
+  it("handles expired status tick input safely", () => {
+    const target = createCombatTarget("creature:1:1", "slime", 1, 1, 1);
+    expect(tickStatuses(target, 0)).toBe(0);
+    expect(tickStatuses(target, -100)).toBe(0);
   });
 });
