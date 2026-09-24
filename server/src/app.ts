@@ -327,7 +327,14 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         }
         const now = Date.now();
         const nextAttack = attackCooldowns.get(userId) ?? 0;
-        if (now < nextAttack) return;
+        if (now < nextAttack) {
+          send(socket, { type: "error", code: "COMBAT_COOLDOWN" });
+          return;
+        }
+        if (state.stamina < weapon.staminaCost) {
+          send(socket, { type: "error", code: "NO_STAMINA" });
+          return;
+        }
         attackCooldowns.set(userId, now + weapon.cooldownMs);
 
         const match = /^creature:(-?\d+):(-?\d+)$/.exec(message.targetId);
@@ -349,9 +356,10 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           combatTargets.set(target.id, target);
         }
         if (distance(state, target) > weapon.range) {
-          send(socket, { type: "error", code: "INVALID_MESSAGE" });
+          send(socket, { type: "error", code: "OUT_OF_RANGE" });
           return;
         }
+        state.stamina -= weapon.staminaCost;
         const result = applyDamage(target, weapon);
         send(socket, {
           type: "combat_result",
