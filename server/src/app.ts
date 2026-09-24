@@ -14,6 +14,7 @@ import { parseClientMessage, type ServerMessage } from "./protocol.js";
 import { PlayerStore, applyPlayerInput } from "./player.js";
 import { WorldChunkCache } from "./world.js";
 import { SHOP_ITEMS, calculatePurchase, getShopItem } from "./shop.js";
+import { applyDamage, createCombatTarget, distance, tickStatuses, weaponFor, type CombatTarget } from "./combat.js";
 
 function send(socket: WebSocket, message: ServerMessage): void {
   if (socket.readyState === socket.OPEN) socket.send(JSON.stringify(message));
@@ -30,6 +31,9 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const players = new PlayerStore(db);
   const sockets = new Set<WebSocket>();
   const playerConnections = new Map<string, number>();
+  const userSockets = new Map<string, Set<WebSocket>>();
+  const combatTargets = new Map<string, CombatTarget>();
+  const attackCooldowns = new Map<string, number>();
   const app = Fastify({ logger: false });
 
   await app.register(cors, { origin: true });
@@ -67,6 +71,27 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const survivalTick = setInterval(() => players.tick(1), 1_000);
   survivalTick.unref();
 
+  const combatTick = setInterval(() => {
+    const now = Date.now();
+    for (const [targetId, target] of combatTargets) {
+      tickStatuses(target, 250);
+      if (target.health <= 0) combatTargets.delete(targetId);
+    }
+    for (const [userId, player] of [...userSockets.entries()]) {
+      const state = players.get(userId);
+      if (!state) continue;
+      for (const target of combatTargets.values()) {
+        if (distance(state, target) <= 1.35 && target.health > 0) {
+          state.health = Math.max(0, state.health - 4);
+          for (const socket of player) send(socket, { type: "player_state", state });
+          break;
+        }
+      }
+    }
+    void now;
+  }, 250);
+  combatTick.unref();
+
   const persistenceTick = setInterval(() => {
     void players.persistAll().catch((error) => {
       log("player_persistence_failed", {
@@ -80,6 +105,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     clearInterval(heartbeat);
     clearInterval(survivalTick);
     clearInterval(persistenceTick);
+    clearInterval(combatTick);
     await players.persistAll();
     for (const socket of sockets) socket.close(1001, "server_shutdown");
     if (ownsDb) await db.end();
@@ -200,6 +226,9 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           const state = await players.loadOrCreate(userId);
           const connections = playerConnections.get(userId) ?? 0;
           playerConnections.set(userId, connections + 1);
+          const socketsForUser = userSockets.get(userId) ?? new Set<WebSocket>();
+          socketsForUser.add(socket);
+          userSockets.set(userId, socketsForUser);
           send(socket, { type: "auth_ok", userId });
           send(socket, { type: "player_state", state });
         } catch {
@@ -239,6 +268,62 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         return;
       }
 
+      if (message.type === "attack") {
+        if (!userId) {
+          send(socket, { type: "error", code: "AUTH_REQUIRED" });
+          return;
+        }
+        const state = players.get(userId);
+        if (!state) {
+          send(socket, { type: "error", code: "AUTH_REQUIRED" });
+          return;
+        }
+        const weapon = weaponFor(state.hotbar[state.selectedHotbarSlot]);
+        if (!weapon) {
+          send(socket, { type: "error", code: "INVALID_MESSAGE" });
+          return;
+        }
+        const now = Date.now();
+        const nextAttack = attackCooldowns.get(userId) ?? 0;
+        if (now < nextAttack) return;
+        attackCooldowns.set(userId, now + weapon.cooldownMs);
+
+        const match = /^creature:(-?\d+):(-?\d+)$/.exec(message.targetId);
+        if (!match) {
+          send(socket, { type: "error", code: "INVALID_MESSAGE" });
+          return;
+        }
+        const targetX = Number(match[1]);
+        const targetY = Number(match[2]);
+        const chunk = world.get(Math.floor(targetX / 32), Math.floor(targetY / 32));
+        const spawn = chunk.creatures.find((creature) => creature.id === message.targetId);
+        if (!spawn) {
+          send(socket, { type: "error", code: "INVALID_MESSAGE" });
+          return;
+        }
+        let target = combatTargets.get(message.targetId);
+        if (!target) {
+          target = createCombatTarget(spawn.id, spawn.species, spawn.x, spawn.y, spawn.level);
+          combatTargets.set(target.id, target);
+        }
+        if (distance(state, target) > weapon.range) {
+          send(socket, { type: "error", code: "INVALID_MESSAGE" });
+          return;
+        }
+        const result = applyDamage(target, weapon);
+        send(socket, {
+          type: "combat_result",
+          targetId: target.id,
+          damage: result.amount,
+          critical: result.critical,
+          killed: result.killed,
+          targetHealth: Math.ceil(target.health),
+          status: result.statusApplied?.id,
+        });
+        if (result.killed) combatTargets.delete(target.id);
+        return;
+      }
+
       if (message.type === "subscribe_chunks") {
         if (!userId) {
           send(socket, { type: "error", code: "AUTH_REQUIRED" });
@@ -259,8 +344,12 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       sockets.delete(socket);
       if (!userId) return;
       const connections = (playerConnections.get(userId) ?? 1) - 1;
+      const socketsForUser = userSockets.get(userId);
+      socketsForUser?.delete(socket);
+      if (socketsForUser && socketsForUser.size === 0) userSockets.delete(userId);
       if (connections <= 0) {
         playerConnections.delete(userId);
+        attackCooldowns.delete(userId);
         void players.unload(userId).catch((error) => {
           log("player_disconnect_persistence_failed", {
             message: error instanceof Error ? error.message : String(error),
