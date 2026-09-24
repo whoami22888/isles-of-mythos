@@ -97,7 +97,7 @@ export class PlayerStore {
     try {
       await client.query("BEGIN");
       const result = await client.query<PlayerRow>(
-        "SELECT user_id, x, y, health, hunger, oxygen, xp, level, gold, inventory, hotbar, selected_hotbar_slot FROM player_profiles WHERE user_id = $1 FOR UPDATE",
+        "SELECT user_id, x, y, health, stamina, max_stamina, hunger, oxygen, xp, level, gold, inventory, hotbar, selected_hotbar_slot FROM player_profiles WHERE user_id = $1 FOR UPDATE",
         [userId],
       );
       const row = result.rows[0];
@@ -111,7 +111,7 @@ export class PlayerStore {
       }
       const nextInventory = { ...inventory, [item.id]: currentQuantity + quantity };
       const updated = await client.query<PlayerRow>(
-        "UPDATE player_profiles SET gold=$2, inventory=$3::jsonb, updated_at=CURRENT_TIMESTAMP WHERE user_id=$1 RETURNING user_id, x, y, health, hunger, oxygen, xp, level, gold, inventory, hotbar, selected_hotbar_slot",
+        "UPDATE player_profiles SET gold=$2, inventory=$3::jsonb, updated_at=CURRENT_TIMESTAMP WHERE user_id=$1 RETURNING user_id, x, y, health, stamina, max_stamina, hunger, oxygen, xp, level, gold, inventory, hotbar, selected_hotbar_slot",
         [userId, gold - totalGold, JSON.stringify(nextInventory)],
       );
       await client.query("COMMIT");
