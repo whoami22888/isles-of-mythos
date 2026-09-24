@@ -8,7 +8,8 @@ export type ClientMessage =
   | { type: "auth"; token: string }
   | { type: "subscribe_chunks"; requestId: string; chunks: ChunkCoordinate[] }
   | { type: "move"; dx: number; dy: number; dt: number }
-  | { type: "select_hotbar"; slot: number };
+  | { type: "select_hotbar"; slot: number }
+  | { type: "attack"; targetId: string; facingX: number; facingY: number };
 
 export type ServerMessage =
   | { type: "server_ready"; timestamp: number }
@@ -83,6 +84,23 @@ export function parseClientMessage(raw: string): ClientMessage | null {
     if (type === "select_hotbar") {
       const slot = (value as { slot?: unknown }).slot;
       return isSafeInteger(slot) && slot >= 0 && slot < 8 ? { type: "select_hotbar", slot } : null;
+    }
+
+    if (type === "attack") {
+      const targetId = (value as { targetId?: unknown }).targetId;
+      const facingX = (value as { facingX?: unknown }).facingX;
+      const facingY = (value as { facingY?: unknown }).facingY;
+      if (
+        typeof targetId !== "string" ||
+        targetId.length === 0 ||
+        targetId.length > 128 ||
+        !isFiniteNumber(facingX) ||
+        !isFiniteNumber(facingY) ||
+        Math.abs(facingX) > 1 ||
+        Math.abs(facingY) > 1 ||
+        (facingX === 0 && facingY === 0)
+      ) return null;
+      return { type: "attack", targetId, facingX, facingY };
     }
   } catch {
     return null;
