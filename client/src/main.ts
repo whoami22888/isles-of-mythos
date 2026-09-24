@@ -3,7 +3,8 @@ import { ensureAuthenticated, getAccessToken } from "./auth.js";
 import { CHUNK_SIZE, TILE_SIZE, ChunkRenderer, type WorldChunk } from "./world.js";
 import { isPlayerState, type PlayerState } from "./player.js";
 
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? "http://localhost:3000").replace(/\/$/, "");
+const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL;
+const API_BASE_URL = (configuredBaseUrl ?? "http://localhost:3000").replace(/\/$/, "");
 const WS_URL = API_BASE_URL.replace(/^http/, "ws") + "/ws";
 const VISIBLE_CHUNK_RADIUS = 1;
 const MOVE_SEND_INTERVAL_MS = 50;
@@ -141,7 +142,7 @@ class WorldScene extends Phaser.Scene {
     }
   }
 
-  private async connect(): Promise<void> {
+  private connect(): void {
     const token = getAccessToken();
     if (!token) { this.statusText?.setText("AUTHENTICATION REQUIRED"); return; }
     const socket = new WebSocket(WS_URL);
