@@ -15,5 +15,9 @@
     "lint": "npm run lint -w client && npm run lint -w server",
     "migrate:up": "npm run migrate:up -w server",
     "migrate:down": "npm run migrate:down -w server"
+  },
+  "allowScripts": {
+    "argon2": true,
+    "esbuild": true
   }
 }
