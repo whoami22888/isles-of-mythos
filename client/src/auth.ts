@@ -61,7 +61,8 @@ async function validateExistingToken(baseUrl: string, token: string): Promise<bo
 }
 
 export async function ensureAuthenticated(): Promise<void> {
-  const baseUrl = (import.meta.env.VITE_API_BASE_URL ?? "http://localhost:3000").replace(/\/$/, "");
+  const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL;
+  const baseUrl = (configuredBaseUrl ?? "http://localhost:3000").replace(/\/$/, "");
   const existingToken = getAccessToken();
   if (existingToken && await validateExistingToken(baseUrl, existingToken)) return;
 
@@ -90,19 +91,24 @@ export async function ensureAuthenticated(): Promise<void> {
   });
 
   await new Promise<void>((resolve) => {
-    form.addEventListener("submit", async (event) => {
+    form.addEventListener("submit", (event) => {
       event.preventDefault();
       error.textContent = "";
       submit.disabled = true;
-      try {
-        const data = new FormData(form);
-        await submitAuth(baseUrl, mode, String(data.get("identifier") ?? ""), String(data.get("password") ?? ""), String(data.get("email") ?? ""));
-        overlay.remove();
-        resolve();
-      } catch (reason) {
-        error.textContent = reason instanceof Error ? reason.message : "Authentication failed";
-        submit.disabled = false;
-      }
+      const data = new FormData(form);
+      const formValue = (name: string): string => {
+        const value = data.get(name);
+        return typeof value === "string" ? value : "";
+      };
+      void submitAuth(baseUrl, mode, formValue("identifier"), formValue("password"), formValue("email"))
+        .then(() => {
+          overlay.remove();
+          resolve();
+        })
+        .catch((reason: unknown) => {
+          error.textContent = reason instanceof Error ? reason.message : "Authentication failed";
+          submit.disabled = false;
+        });
     });
   });
 }
