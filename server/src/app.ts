@@ -108,10 +108,13 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       if (ai.state === "attack" && distance(target, targetPlayer) <= target.attackRange) {
         const immune = (invulnerableUntil.get(userId) ?? 0) > now;
         if (!immune) {
-          const blocked = blocking.has(userId);
+          const blocked = blocking.has(userId) && targetPlayer.stamina > 0;
           const damage = blocked ? Math.max(1, Math.round(target.attack * 0.35)) : target.attack;
           targetPlayer.health = Math.max(0, targetPlayer.health - damage);
-          if (blocked) targetPlayer.stamina = Math.max(0, targetPlayer.stamina - 4);
+          if (blocked) {
+            targetPlayer.stamina = Math.max(0, targetPlayer.stamina - 4);
+            if (targetPlayer.stamina === 0) blocking.delete(userId);
+          }
           for (const socket of userSockets.get(userId) ?? []) send(socket, { type: "player_state", state: targetPlayer });
         }
       }
@@ -342,8 +345,6 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           send(socket, { type: "error", code: "NO_STAMINA" });
           return;
         }
-        attackCooldowns.set(userId, now + weapon.cooldownMs);
-
         const match = /^creature:(-?\d+):(-?\d+)$/.exec(message.targetId);
         if (!match) {
           send(socket, { type: "error", code: "INVALID_MESSAGE" });
@@ -366,6 +367,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           send(socket, { type: "error", code: "OUT_OF_RANGE" });
           return;
         }
+        attackCooldowns.set(userId, now + weapon.cooldownMs);
         state.stamina -= weapon.staminaCost;
         const result = applyDamage(target, weapon);
         addThreat(target, userId, result.amount);
