@@ -69,14 +69,19 @@ export class PlayerStore {
   private readonly active = new Map<string, PlayerState>();
   constructor(private readonly db: Pool) {}
   async loadOrCreate(userId: string): Promise<PlayerState> {
-    const existing = await this.db.query<PlayerRow>(
-      "SELECT user_id, x, y, health, hunger, oxygen, xp, level, gold, inventory, hotbar, selected_hotbar_slot FROM player_profiles WHERE user_id = $1", [userId]);
-    if (existing.rows[0]) {
-      const state = rowToState(existing.rows[0]); this.active.set(userId, state); return state;
-    }
+    await this.db.query(
+      "INSERT INTO player_profiles (user_id) VALUES ($1) ON CONFLICT (user_id) DO NOTHING",
+      [userId],
+    );
     const result = await this.db.query<PlayerRow>(
-      "INSERT INTO player_profiles (user_id) VALUES ($1) RETURNING user_id, x, y, health, hunger, oxygen, xp, level, gold, inventory, hotbar, selected_hotbar_slot", [userId]);
-    const state = rowToState(result.rows[0]); this.active.set(userId, state); return state;
+      "SELECT user_id, x, y, health, hunger, oxygen, xp, level, gold, inventory, hotbar, selected_hotbar_slot FROM player_profiles WHERE user_id = $1",
+      [userId],
+    );
+    const row = result.rows[0];
+    if (!row) throw new Error("PLAYER_NOT_FOUND");
+    const state = rowToState(row);
+    this.active.set(userId, state);
+    return state;
   }
   get(userId: string): PlayerState | undefined { return this.active.get(userId); }
   tick(dt: number): void { for (const state of this.active.values()) applyPlayerInput(state, { dx: 0, dy: 0, dt }); }
@@ -121,5 +126,8 @@ export class PlayerStore {
     }
   }
   async unload(userId: string): Promise<void> { await this.persist(userId); this.active.delete(userId); }
-  async persistAll(): Promise<void> { for (const userId of this.active.keys()) await this.persist(userId); }
+  async persistAll(): Promise<void> {
+    const userIds = [...this.active.keys()];
+    for (const userId of userIds) await this.persist(userId);
+  }
 }
