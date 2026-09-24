@@ -41,7 +41,9 @@ class WorldScene extends Phaser.Scene {
   private moveAccumulator = 0;
   private connected = false;
   private combatText?: Phaser.GameObjects.Text;
-  private attackAccumulator = 0;\n  private dodgeAccumulator = 0;\n  private blockButton?: Phaser.GameObjects.Text;
+  private attackAccumulator = 0;
+  private dodgeAccumulator = 0;
+  private blockButton?: Phaser.GameObjects.Text;
 
   constructor() { super("world"); }
 
@@ -54,7 +56,11 @@ class WorldScene extends Phaser.Scene {
     this.playerMarker = this.add.graphics().setDepth(50);
     this.cursors = this.input.keyboard?.createCursorKeys();
     this.keys = this.input.keyboard?.addKeys("W,A,S,D") as Record<string, Phaser.Input.Keyboard.Key> | undefined;
-    this.input.keyboard?.on("keydown-SPACE", () => this.attackNearest());\n    this.input.keyboard?.on("keydown-SHIFT", () => this.dodge());\n    this.input.keyboard?.on("keydown-B", () => this.setBlocking(true));\n    this.input.keyboard?.on("keyup-B", () => this.setBlocking(false));\n    this.createTouchCombatControls();
+    this.input.keyboard?.on("keydown-SPACE", () => this.attackNearest());
+    this.input.keyboard?.on("keydown-SHIFT", () => this.dodge());
+    this.input.keyboard?.on("keydown-B", () => this.setBlocking(true));
+    this.input.keyboard?.on("keyup-B", () => this.setBlocking(false));
+    this.createTouchCombatControls();
     this.input.on("wheel", (_p: Phaser.Input.Pointer, _g: unknown[], _dx: number, dy: number) => this.cameras.main.setZoom(Phaser.Math.Clamp(this.cameras.main.zoom - dy * 0.001, 0.5, 2.5)));
     const hotbarKeys = ["ONE","TWO","THREE","FOUR","FIVE","SIX","SEVEN","EIGHT"];
     for (const key of hotbarKeys) {
@@ -66,7 +72,8 @@ class WorldScene extends Phaser.Scene {
   update(_time: number, delta: number): void {
     if (!this.connected || !this.socket || this.socket.readyState !== WebSocket.OPEN) return;
     this.moveAccumulator += delta;
-    this.attackAccumulator = Math.max(0, this.attackAccumulator - delta);\n    this.dodgeAccumulator = Math.max(0, this.dodgeAccumulator - delta);
+    this.attackAccumulator = Math.max(0, this.attackAccumulator - delta);
+    this.dodgeAccumulator = Math.max(0, this.dodgeAccumulator - delta);
     if (this.moveAccumulator < MOVE_SEND_INTERVAL_MS) return;
     const dt = Math.min(this.moveAccumulator / 1000, 0.25);
     this.moveAccumulator = 0;
