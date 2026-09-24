@@ -20,6 +20,8 @@ class WorldScene extends Phaser.Scene {
   private keys?: Record<string, Phaser.Input.Keyboard.Key>;
   private moveAccumulator = 0;
   private connected = false;
+  private combatText?: Phaser.GameObjects.Text;
+  private attackAccumulator = 0;
 
   constructor() { super("world"); }
 
@@ -27,6 +29,7 @@ class WorldScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor("#07131f");
     this.cameras.main.centerOn(TILE_SIZE / 2, TILE_SIZE / 2);
     this.statusText = this.add.text(16, 16, "CONNECTING...", { fontFamily: "sans-serif", fontSize: "16px", color: "#ffffff", backgroundColor: "#07131fcc", padding: { left: 8, right: 8, top: 6, bottom: 6 } }).setScrollFactor(0).setDepth(1000);
+    this.combatText = this.add.text(16, 100, "SPACE: ATTACK NEAREST CREATURE", { fontFamily: "sans-serif", fontSize: "14px", color: "#ffffff", backgroundColor: "#07131fcc", padding: { left: 8, right: 8, top: 6, bottom: 6 } }).setScrollFactor(0).setDepth(1000);
     this.survivalText = this.add.text(16, 58, "HP -- | HUNGER -- | OXYGEN -- | HOTBAR 1", { fontFamily: "sans-serif", fontSize: "15px", color: "#ffffff", backgroundColor: "#07131fcc", padding: { left: 8, right: 8, top: 6, bottom: 6 } }).setScrollFactor(0).setDepth(1000);
     this.playerMarker = this.add.graphics().setDepth(50);
     this.cursors = this.input.keyboard?.createCursorKeys();
@@ -41,6 +44,7 @@ class WorldScene extends Phaser.Scene {
   update(_time: number, delta: number): void {
     if (!this.connected || !this.socket || this.socket.readyState !== WebSocket.OPEN) return;
     this.moveAccumulator += delta;
+    this.attackAccumulator = Math.max(0, this.attackAccumulator - delta);
     if (this.moveAccumulator < MOVE_SEND_INTERVAL_MS) return;
     const dt = Math.min(this.moveAccumulator / 1000, 0.25);
     this.moveAccumulator = 0;
@@ -64,6 +68,10 @@ class WorldScene extends Phaser.Scene {
       if (message.type === "auth_ok") { this.connected = true; this.statusText?.setText("WORLD ONLINE • AUTHORITATIVE SERVER"); this.requestChunks(); return; }
       if (message.type === "player_state" && message.state) { this.player = message.state; this.renderPlayer(); this.updateHud(); this.requestChunks(); return; }
       if (message.type === "world_chunk" && message.chunk) { this.chunks.render(message.chunk); this.updateHud(); }
+      if (message.type === "combat_result") {
+        this.combatText?.setText(message.killed ? "DEFEATED • " + message.targetId : "HIT " + message.damage + (message.critical ? " CRITICAL" : "") + (message.status ? " • " + message.status.toUpperCase() : ""));
+        this.time.delayedCall(900, () => this.combatText?.setText("SPACE: ATTACK NEAREST CREATURE"));
+      }
       if (message.type === "error") this.statusText?.setText("NETWORK ERROR");
     });
     socket.addEventListener("close", () => { this.connected = false; this.statusText?.setText("WORLD OFFLINE • RECONNECT REQUIRED"); });
@@ -96,6 +104,20 @@ class WorldScene extends Phaser.Scene {
   }
 
   private selectHotbar(slot: number): void { if (this.socket?.readyState === WebSocket.OPEN) this.socket.send(JSON.stringify({ type: "select_hotbar", slot })); }
+
+  private attackNearest(): void {
+    if (this.attackAccumulator > 0 || !this.player || this.socket?.readyState !== WebSocket.OPEN) return;
+    const target = this.chunks.nearestCreature(this.player.x, this.player.y, 10);
+    if (!target) {
+      this.combatText?.setText("NO CREATURE IN RANGE");
+      this.time.delayedCall(700, () => this.combatText?.setText("SPACE: ATTACK NEAREST CREATURE"));
+      return;
+    }
+    const dx = target.x - this.player.x;
+    const dy = target.y - this.player.y;
+    this.socket.send(JSON.stringify({ type: "attack", targetId: target.id, facingX: Math.sign(dx), facingY: Math.sign(dy) }));
+    this.attackAccumulator = 150;
+  }
 }
 
 export const gameConfig: Phaser.Types.Core.GameConfig = { type: Phaser.AUTO, parent: "game", width: 1280, height: 720, backgroundColor: "#07131f", scale: { mode: Phaser.Scale.RESIZE, autoCenter: Phaser.Scale.CENTER_BOTH }, scene: [WorldScene], render: { antialias: true, powerPreference: "high-performance" }, fps: { target: 60, forceSetTimeOut: false } };
