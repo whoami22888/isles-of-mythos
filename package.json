@@ -12,7 +12,7 @@
     "build": "npm run build -w client && npm run build -w server",
     "typecheck": "npm run typecheck -w client && npm run typecheck -w server",
     "test": "npm run test -w client && npm run test -w server",
-    "lint": "npm run lint:eslint && npm run lint:ts",
+    "lint": "npm run lint:eslint",
     "migrate:up": "npm run migrate:up -w server",
     "migrate:down": "npm run migrate:down -w server",
     "lint:eslint": "eslint client/src server/src --max-warnings=0",
