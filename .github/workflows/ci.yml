@@ -47,8 +47,9 @@ jobs:
         run: npm rebuild argon2 esbuild
       - name: Verify no unreviewed install scripts
         run: |
-          pending="$(npm install-scripts ls --json)"
-          test "$pending" = "[]" || { echo "$pending"; exit 1; }
+          pending="$(npm install-scripts ls)"
+          echo "$pending"
+          echo "$pending" | grep -F "No packages with unreviewed install scripts."
       - run: npm audit --audit-level=high
       - run: npm run migrate:up
       - run: npm run lint

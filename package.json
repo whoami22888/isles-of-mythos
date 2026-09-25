@@ -7,8 +7,8 @@
     "server"
   ],
   "allowScripts": {
-    "argon2": true,
-    "esbuild": true
+    "argon2@0.45.1": true,
+    "esbuild@0.28.2": true
   },
   "scripts": {
     "dev": "npm run dev -w client",
