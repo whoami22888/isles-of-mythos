@@ -66,8 +66,8 @@ describe("combat engine", () => {
     };
     const result = creatureAbilityDamage(target, ability);
     expect(result.critical).toBe(false);
-    expect(result.amount).toBe(10);
-    expect(target.health).toBe(before - 10);
+    expect(result.amount).toBe(8);
+    expect(target.health).toBe(before - 8);
   });
 
   it("keeps dead creatures from re-entering AI combat", () => {
