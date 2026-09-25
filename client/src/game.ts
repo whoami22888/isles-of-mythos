@@ -292,7 +292,9 @@ class WorldScene extends Phaser.Scene {
     makeButton("BLOCK", 214, 650, () => this.setBlocking(true), () => this.setBlocking(false));
   }
 
-  private nextAttackRequestId(): string { return Date.now().toString(36) + "-" + (++this.attackRequestSequence).toString(36); }\n\n  private attackNearest(): void {
+  private nextAttackRequestId(): string { return Date.now().toString(36) + "-" + (++this.attackRequestSequence).toString(36); }
+
+  private attackNearest(): void {
     if (this.attackAccumulator > 0 || !this.player || this.socket?.readyState !== WebSocket.OPEN) return;
     const target = this.chunks.nearestCreature(this.player.x, this.player.y, 10);
     if (!target) {
