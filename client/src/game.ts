@@ -170,6 +170,11 @@ class WorldScene extends Phaser.Scene {
       }
       if (message.type === "auth_ok") {
         this.connected = true;
+        this.reconnectAttempt = 0;
+        if (this.reconnectTimer !== undefined) {
+          window.clearTimeout(this.reconnectTimer);
+          this.reconnectTimer = undefined;
+        }
         this.statusText?.setText("WORLD ONLINE • AUTHORITATIVE SERVER");
         this.requestChunks();
         return;
@@ -197,7 +202,8 @@ class WorldScene extends Phaser.Scene {
     });
     socket.addEventListener("close", () => {
       this.connected = false;
-      this.statusText?.setText("WORLD OFFLINE • RECONNECT REQUIRED");
+      this.statusText?.setText("WORLD OFFLINE • RECONNECTING...");
+      this.scheduleReconnect();
     });
     socket.addEventListener("error", () => {
       this.connected = false;
