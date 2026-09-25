@@ -46,7 +46,11 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const invulnerableUntil = new Map<string, number>();
   const app = Fastify({ logger: false });
 
-  await app.register(cors, { origin: config.corsOrigin });
+  await app.register(cors, {
+    origin: (origin, callback) => {
+      callback(null, origin === undefined || origin === config.corsOrigin);
+    },
+  });
   await app.register(rateLimit, { max: 120, timeWindow: "1 minute" });
   await app.register(swagger, {
     openapi: {
