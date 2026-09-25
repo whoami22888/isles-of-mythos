@@ -148,7 +148,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         message: error instanceof Error ? error.message : String(error),
       });
     });
-  }, 5_000);
+  }, 10_000);
   persistenceTick.unref();
 
   app.addHook("onClose", async () => {
