@@ -109,7 +109,8 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         target.x += ai.moveX * step;
         target.y += ai.moveY * step;
       }
-      if (ai.state === "attack" && distance(target, targetPlayer) <= target.attackRange) {
+      if (ai.state === "attack" && distance(target, targetPlayer) <= target.attackRange && now >= target.nextAttackAt) {
+        target.nextAttackAt = now + target.attackCooldownMs;
         const immune = (invulnerableUntil.get(userId) ?? 0) > now;
         if (!immune) {
           const blocked = blocking.has(userId) && targetPlayer.stamina > 0;
