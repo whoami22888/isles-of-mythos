@@ -96,8 +96,10 @@ describe("server foundation", () => {
       const chunk = await app.inject({ method: "GET", url: "/world/chunks/0/0" });
       expect(chunk.statusCode).toBe(200);
       expect(parseJsonObject(chunk.body)).toMatchObject({ size: 32 });
-      const cors = await app.inject({ method: "GET", url: "/health", headers: { origin: "https://untrusted.example" } });
-      expect(cors.headers["access-control-allow-origin"]).toBeUndefined();
+      const trustedCors = await app.inject({ method: "GET", url: "/health", headers: { origin: config.corsOrigin } });
+      expect(trustedCors.headers["access-control-allow-origin"]).toBe(config.corsOrigin);
+      const untrustedCors = await app.inject({ method: "GET", url: "/health", headers: { origin: "https://untrusted.example" } });
+      expect(untrustedCors.headers["access-control-allow-origin"]).toBeUndefined();
     } finally {
       await app.close();
     }
