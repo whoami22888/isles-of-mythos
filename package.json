@@ -6,6 +6,10 @@
     "client",
     "server"
   ],
+  "allowScripts": {
+    "argon2": true,
+    "esbuild": true
+  },
   "scripts": {
     "dev": "npm run dev -w client",
     "dev:server": "npm run dev -w server",

@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres:17-alpine
+    image: postgres:17-bookworm
     environment:
       POSTGRES_DB: isles
       POSTGRES_USER: postgres

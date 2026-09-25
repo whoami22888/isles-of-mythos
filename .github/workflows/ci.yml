@@ -23,7 +23,7 @@ jobs:
       JWT_SECRET: test-only-jwt-secret-not-for-production
     services:
       postgres:
-        image: postgres:17-alpine
+        image: postgres:17-bookworm
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
@@ -35,21 +35,22 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 20
-
     steps:
       - uses: actions/checkout@v5
-
       - uses: actions/setup-node@v7
         with:
           node-version: 24
           package-manager-cache: false
-
-      - run: npm install --ignore-scripts
-      - run: npm rebuild argon2 esbuild
+      - name: Install dependencies
+        run: npm install --ignore-scripts
+      - name: Rebuild reviewed native dependencies
+        run: npm rebuild argon2 esbuild
+      - name: Verify no unreviewed install scripts
+        run: |
+          pending="$(npm install-scripts ls --json)"
+          test "$pending" = "[]" || { echo "$pending"; exit 1; }
       - run: npm audit --audit-level=high
-
       - run: npm run migrate:up
-
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run test

@@ -15,6 +15,7 @@ import { PlayerStore, applyPlayerInput } from "./player.js";
 import { WorldChunkCache } from "./world.js";
 import { SHOP_ITEMS, calculatePurchase, getShopItem } from "./shop.js";
 import { addThreat, applyDamage, createCombatTarget, creatureAbilityDamage, distance, tickCreatureAi, tickStatuses, weaponFor, type CombatTarget } from "./combat.js";
+import { CombatReplayCache } from "./combat-replay.js";
 
 function send(socket: WebSocket, message: ServerMessage): void {
   if (socket.readyState === socket.OPEN) socket.send(JSON.stringify(message));
@@ -44,6 +45,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const dodgeCooldowns = new Map<string, number>();
   const blocking = new Set<string>();
   const invulnerableUntil = new Map<string, number>();
+  const combatReplay = new CombatReplayCache<Extract<ServerMessage, { type: "combat_result" }>>();
   const app = Fastify({ logger: false });
 
   await app.register(cors, {
@@ -141,7 +143,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   combatTick.unref();
 
   const persistenceTick = setInterval(() => {
-    void players.persistAll().catch((error) => {
+    void players.persistDirty().catch((error) => {
       log("player_persistence_failed", {
         message: error instanceof Error ? error.message : String(error),
       });
@@ -306,6 +308,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             return;
           }
           applyPlayerInput(state, message);
+          players.markDirty(userId);
           send(socket, { type: "player_state", state });
           return;
         }
@@ -321,6 +324,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             return;
           }
           state.selectedHotbarSlot = message.slot;
+          players.markDirty(userId);
           send(socket, { type: "player_state", state });
           return;
         }
@@ -333,6 +337,16 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           const state = players.get(userId);
           if (!state) {
             send(socket, { type: "error", code: "AUTH_REQUIRED" });
+            return;
+          }
+          const replayFingerprint = message.targetId + "|" + message.facingX + "|" + message.facingY + "|" + state.selectedHotbarSlot;
+          const replay = combatReplay.lookup(userId, message.requestId, replayFingerprint);
+          if (replay.kind === "hit") {
+            send(socket, replay.response);
+            return;
+          }
+          if (replay.kind === "conflict") {
+            send(socket, { type: "error", code: "INVALID_MESSAGE" });
             return;
           }
           const weapon = weaponFor(state.hotbar[state.selectedHotbarSlot]);
@@ -374,17 +388,21 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           }
           attackCooldowns.set(userId, now + weapon.cooldownMs);
           state.stamina -= weapon.staminaCost;
+          players.markDirty(userId);
           const result = applyDamage(target, weapon);
           addThreat(target, userId, result.amount);
-          send(socket, {
+          const combatResult: Extract<ServerMessage, { type: "combat_result" }> = {
             type: "combat_result",
+            requestId: message.requestId,
             targetId: target.id,
             damage: result.amount,
             critical: result.critical,
             killed: result.killed,
             targetHealth: Math.ceil(target.health),
             status: result.statusApplied?.id,
-          });
+          };
+          combatReplay.remember(userId, message.requestId, replayFingerprint, combatResult);
+          send(socket, combatResult);
           if (result.killed) combatTargets.delete(target.id);
           return;
         }
@@ -400,6 +418,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           state.x = Math.max(-1_000_000, Math.min(1_000_000, state.x + (message.facingX / length) * 1.25));
           state.y = Math.max(-1_000_000, Math.min(1_000_000, state.y + (message.facingY / length) * 1.25));
           state.stamina -= 20;
+          players.markDirty(userId);
           dodgeCooldowns.set(userId, now + 900);
           invulnerableUntil.set(userId, now + 350);
           send(socket, { type: "player_state", state });
@@ -412,6 +431,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           if (!state) { send(socket, { type: "error", code: "AUTH_REQUIRED" }); return; }
           if (message.active && state.stamina <= 0) { send(socket, { type: "error", code: "NO_STAMINA" }); return; }
           if (message.active) blocking.add(userId); else blocking.delete(userId);
+          players.markDirty(userId);
           return;
         }
 
