@@ -142,12 +142,9 @@ export class PlayerStore {
     }
   }
   async unload(userId: string): Promise<void> {
-    try {
-      await this.persist(userId);
-    } finally {
-      this.active.delete(userId);
-      this.dirty.delete(userId);
-    }
+    await this.persist(userId);
+    this.active.delete(userId);
+    this.dirty.delete(userId);
   }
   async persistDirty(): Promise<void> {
     const userIds = [...this.dirty];
