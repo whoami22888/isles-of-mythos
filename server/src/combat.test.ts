@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addThreat, applyDamage, calculateDamage, createCombatTarget, distance, selectThreatTarget, tickCreatureAi, tickStatuses, weaponFor } from "./combat.js";
+import { addThreat, applyDamage, calculateDamage, createCombatTarget, creatureAbilityDamage, distance, selectThreatTarget, tickCreatureAi, tickStatuses, weaponFor } from "./combat.js";
 
 describe("combat engine", () => {
   it("uses server-defined weapon damage and defense", () => {
@@ -46,6 +46,36 @@ describe("combat engine", () => {
     target.x = 3;
     const attack = tickCreatureAi(target, [{ userId: "player", x: 4, y: 0 }], 100, 250);
     expect(attack.state).toBe("attack");
+  });
+
+  it("defines a bounded authoritative basic-attack cadence for creatures", () => {
+    const target = createCombatTarget("creature:1:1", "slime", 1, 1, 1);
+    expect(target.attackCooldownMs).toBeGreaterThanOrEqual(1000);
+    expect(target.nextAttackAt).toBe(0);
+  });
+
+  it("applies creature ability damage without allowing critical-hit variance", () => {
+    const target = createCombatTarget("player:1", "slime", 1, 1, 1);
+    const before = target.health;
+    const ability = {
+      id: "test_burst",
+      cooldownMs: 1000,
+      range: 3,
+      damage: 10,
+      damageType: "water" as const,
+    };
+    const result = creatureAbilityDamage(target, ability);
+    expect(result.critical).toBe(false);
+    expect(result.amount).toBe(10);
+    expect(target.health).toBe(before - 10);
+  });
+
+  it("keeps dead creatures from re-entering AI combat", () => {
+    const target = createCombatTarget("creature:1:1", "boar", 1, 1, 1);
+    target.health = 0;
+    const result = tickCreatureAi(target, [{ userId: "player", x: 1, y: 1 }], 100, 250);
+    expect(result.state).toBe("dead");
+    expect(result.targetUserId).toBeNull();
   });
 
   it("handles expired status tick input safely", () => {
