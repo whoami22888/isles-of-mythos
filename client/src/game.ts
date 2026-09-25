@@ -95,6 +95,9 @@ class WorldScene extends Phaser.Scene {
   private connected = false;
   private combatText?: Phaser.GameObjects.Text;
   private attackAccumulator = 0;
+  private attackRequestSequence = 0;
+  private reconnectTimer?: number;
+  private reconnectAttempt = 0;
   private dodgeAccumulator = 0;
 
   constructor() { super("world"); }
@@ -202,6 +205,16 @@ class WorldScene extends Phaser.Scene {
     });
   }
 
+  private scheduleReconnect(): void {
+    if (this.reconnectTimer !== undefined) return;
+    const delay = Math.min(10_000, 1_000 * 2 ** Math.min(this.reconnectAttempt, 3));
+    this.reconnectAttempt += 1;
+    this.reconnectTimer = window.setTimeout(() => {
+      this.reconnectTimer = undefined;
+      this.connect();
+    }, delay);
+  }
+
   private requestChunks(): void {
     if (!this.socket || this.socket.readyState !== WebSocket.OPEN || !this.player) return;
     const centerChunkX = Math.floor(this.player.x / CHUNK_SIZE), centerChunkY = Math.floor(this.player.y / CHUNK_SIZE);
@@ -279,7 +292,7 @@ class WorldScene extends Phaser.Scene {
     makeButton("BLOCK", 214, 650, () => this.setBlocking(true), () => this.setBlocking(false));
   }
 
-  private attackNearest(): void {
+  private nextAttackRequestId(): string { return Date.now().toString(36) + "-" + (++this.attackRequestSequence).toString(36); }\n\n  private attackNearest(): void {
     if (this.attackAccumulator > 0 || !this.player || this.socket?.readyState !== WebSocket.OPEN) return;
     const target = this.chunks.nearestCreature(this.player.x, this.player.y, 10);
     if (!target) {
@@ -290,7 +303,7 @@ class WorldScene extends Phaser.Scene {
     const dx = target.x - this.player.x;
     const dy = target.y - this.player.y;
     try {
-      this.socket.send(JSON.stringify({ type: "attack", targetId: target.id, facingX: Math.sign(dx), facingY: Math.sign(dy) }));
+      this.socket.send(JSON.stringify({ type: "attack", requestId: this.nextAttackRequestId(), targetId: target.id, facingX: Math.sign(dx), facingY: Math.sign(dy) }));
       this.attackAccumulator = ATTACK_INPUT_COOLDOWN_MS;
     } catch {
       this.connected = false;

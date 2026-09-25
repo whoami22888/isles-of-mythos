@@ -19,7 +19,7 @@ export type ServerMessage =
   | { type: "auth_ok"; userId: string }
   | { type: "player_state"; state: unknown }
   | { type: "world_chunk"; requestId: string; chunk: unknown }
-  | { type: "combat_result"; targetId: string; damage: number; critical: boolean; killed: boolean; targetHealth: number; status?: string }
+  | { type: "combat_result"; requestId: string; targetId: string; damage: number; critical: boolean; killed: boolean; targetHealth: number; status?: string }
   | {
       type: "error";
       code:
