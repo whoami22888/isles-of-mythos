@@ -9,7 +9,7 @@ export type ClientMessage =
   | { type: "subscribe_chunks"; requestId: string; chunks: ChunkCoordinate[] }
   | { type: "move"; dx: number; dy: number; dt: number }
   | { type: "select_hotbar"; slot: number }
-  | { type: "attack"; targetId: string; facingX: number; facingY: number }
+  | { type: "attack"; requestId: string; targetId: string; facingX: number; facingY: number }
   | { type: "dodge"; facingX: number; facingY: number }
   | { type: "block"; active: boolean };
 
@@ -19,7 +19,8 @@ export type ServerMessage =
   | { type: "auth_ok"; userId: string }
   | { type: "player_state"; state: unknown }
   | { type: "world_chunk"; requestId: string; chunk: unknown }
-  | { type: "combat_result"; targetId: string; damage: number; critical: boolean; killed: boolean; targetHealth: number; status?: string }
+  | { type: "projectile_spawn"; projectileId: string; ownerUserId: string; targetId: string; x: number; y: number; vx: number; vy: number; expiresAt: number }
+  | { type: "combat_result"; requestId: string; targetId: string; damage: number; critical: boolean; killed: boolean; targetHealth: number; status?: string; missed?: boolean }
   | {
       type: "error";
       code:
@@ -29,7 +30,11 @@ export type ServerMessage =
         | "INVALID_TOKEN"
         | "COMBAT_COOLDOWN"
         | "OUT_OF_RANGE"
-        | "NO_STAMINA";
+        | "NO_STAMINA"
+        | "COMBAT_IN_PROGRESS"
+        | "PLAYER_DEAD"
+        | "PLAYER_STUNNED"
+        | "RATE_LIMITED";
     };
 
 function isSafeInteger(value: unknown): value is number {
@@ -107,10 +112,14 @@ export function parseClientMessage(raw: string): ClientMessage | null {
     }
 
     if (type === "attack") {
+      const requestId = (value as { requestId?: unknown }).requestId;
       const targetId = (value as { targetId?: unknown }).targetId;
       const facingX = (value as { facingX?: unknown }).facingX;
       const facingY = (value as { facingY?: unknown }).facingY;
       if (
+        typeof requestId !== "string" ||
+        requestId.length === 0 ||
+        requestId.length > 64 ||
         typeof targetId !== "string" ||
         targetId.length === 0 ||
         targetId.length > 128 ||
@@ -120,7 +129,7 @@ export function parseClientMessage(raw: string): ClientMessage | null {
         Math.abs(facingY) > 1 ||
         (facingX === 0 && facingY === 0)
       ) return null;
-      return { type: "attack", targetId, facingX, facingY };
+      return { type: "attack", requestId, targetId, facingX, facingY };
     }
   } catch {
     return null;

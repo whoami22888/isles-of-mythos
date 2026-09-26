@@ -8,19 +8,22 @@ export interface WeaponSpec {
   cooldownMs: number;
   staminaCost: number;
   damageType: DamageType;
+  delivery: "melee" | "projectile";
+  projectileSpeed?: number;
+  projectileRadius?: number;
   criticalChance: number;
   criticalMultiplier: number;
   status?: { id: StatusEffectId; durationMs: number; magnitude: number };
 }
 
 export const WEAPONS: Record<string, WeaponSpec> = {
-  cutlass: { id: "cutlass", damage: 20, range: 1.6, cooldownMs: 450, staminaCost: 8, damageType: "physical", criticalChance: 0.08, criticalMultiplier: 1.75 },
-  dagger: { id: "dagger", damage: 14, range: 1.4, cooldownMs: 300, staminaCost: 6, damageType: "physical", criticalChance: 0.18, criticalMultiplier: 2 },
-  flintlock: { id: "flintlock", damage: 35, range: 8, cooldownMs: 900, staminaCost: 10, damageType: "physical", criticalChance: 0.12, criticalMultiplier: 2 },
-  musket: { id: "musket", damage: 52, range: 12, cooldownMs: 1500, staminaCost: 14, damageType: "physical", criticalChance: 0.1, criticalMultiplier: 2.1 },
-  bow: { id: "bow", damage: 24, range: 10, cooldownMs: 700, staminaCost: 8, damageType: "physical", criticalChance: 0.1, criticalMultiplier: 1.8 },
-  fire_spell: { id: "fire_spell", damage: 28, range: 7, cooldownMs: 1100, staminaCost: 16, damageType: "fire", criticalChance: 0.1, criticalMultiplier: 2, status: { id: "burn", durationMs: 2500, magnitude: 4 } },
-  harpoon: { id: "harpoon", damage: 18, range: 9, cooldownMs: 1000, staminaCost: 12, damageType: "physical", criticalChance: 0.05, criticalMultiplier: 1.6 },
+  cutlass: { id: "cutlass", delivery: "melee", damage: 20, range: 1.6, cooldownMs: 450, staminaCost: 8, damageType: "physical", criticalChance: 0.08, criticalMultiplier: 1.75 },
+  dagger: { id: "dagger", delivery: "melee", damage: 14, range: 1.4, cooldownMs: 300, staminaCost: 6, damageType: "physical", criticalChance: 0.18, criticalMultiplier: 2 },
+  flintlock: { id: "flintlock", delivery: "projectile", projectileSpeed: 18, projectileRadius: 0.12, damage: 35, range: 8, cooldownMs: 900, staminaCost: 10, damageType: "physical", criticalChance: 0.12, criticalMultiplier: 2 },
+  musket: { id: "musket", delivery: "projectile", projectileSpeed: 20, projectileRadius: 0.12, damage: 52, range: 12, cooldownMs: 1500, staminaCost: 14, damageType: "physical", criticalChance: 0.1, criticalMultiplier: 2.1 },
+  bow: { id: "bow", delivery: "projectile", projectileSpeed: 16, projectileRadius: 0.14, damage: 24, range: 10, cooldownMs: 700, staminaCost: 8, damageType: "physical", criticalChance: 0.1, criticalMultiplier: 1.8 },
+  fire_spell: { id: "fire_spell", delivery: "projectile", projectileSpeed: 12, projectileRadius: 0.2, damage: 28, range: 7, cooldownMs: 1100, staminaCost: 16, damageType: "fire", criticalChance: 0.1, criticalMultiplier: 2, status: { id: "burn", durationMs: 2500, magnitude: 4 } },
+  harpoon: { id: "harpoon", delivery: "projectile", projectileSpeed: 14, projectileRadius: 0.16, damage: 18, range: 9, cooldownMs: 1000, staminaCost: 12, damageType: "physical", criticalChance: 0.05, criticalMultiplier: 1.6 },
 };
 
 export interface StatusEffect {
@@ -51,6 +54,7 @@ export interface CombatTarget {
   species: string;
   x: number;
   y: number;
+  hitboxRadius: number;
   level: number;
   health: number;
   maxHealth: number;
@@ -63,6 +67,8 @@ export interface CombatTarget {
   aiState: CreatureAiState;
   aggroRange: number;
   attackRange: number;
+  attackCooldownMs: number;
+  nextAttackAt: number;
   nextAbilityAt: number;
   statuses: StatusEffect[];
   threat: Map<string, ThreatEntry>;
@@ -97,11 +103,11 @@ const ELEMENT_MULTIPLIERS: Record<DamageType, Partial<Record<DamageType, number>
 };
 
 export const CREATURE_STATS: Record<string, {
-  health: number; defense: number; element: DamageType; speed: number; attack: number; aggroRange: number; attackRange: number; ability?: CreatureAbility;
+  health: number; defense: number; element: DamageType; speed: number; attack: number; aggroRange: number; attackRange: number; attackCooldownMs: number; ability?: CreatureAbility;
 }> = {
-  slime: { health: 45, defense: 2, element: "water", speed: 1.4, attack: 7, aggroRange: 5, attackRange: 1.2, ability: { id: "acid_burst", cooldownMs: 3500, range: 3.5, damage: 10, damageType: "water", status: { id: "slow", durationMs: 1500, magnitude: 0.35 } } },
-  boar: { health: 70, defense: 5, element: "earth", speed: 2.1, attack: 11, aggroRange: 6, attackRange: 1.4, ability: { id: "charge", cooldownMs: 4000, range: 4, damage: 18, damageType: "earth" } },
-  raptor: { health: 90, defense: 7, element: "air", speed: 2.7, attack: 14, aggroRange: 8, attackRange: 1.6, ability: { id: "pounce", cooldownMs: 3000, range: 5, damage: 22, damageType: "air", status: { id: "stun", durationMs: 700, magnitude: 1 } } },
+  slime: { health: 45, defense: 2, element: "water", speed: 1.4, attack: 7, aggroRange: 5, attackRange: 1.2, attackCooldownMs: 1200, ability: { id: "acid_burst", cooldownMs: 3500, range: 3.5, damage: 10, damageType: "water", status: { id: "slow", durationMs: 1500, magnitude: 0.35 } } },
+  boar: { health: 70, defense: 5, element: "earth", speed: 2.1, attack: 11, aggroRange: 6, attackRange: 1.4, attackCooldownMs: 1400, ability: { id: "charge", cooldownMs: 4000, range: 4, damage: 18, damageType: "earth" } },
+  raptor: { health: 90, defense: 7, element: "air", speed: 2.7, attack: 14, aggroRange: 8, attackRange: 1.6, attackCooldownMs: 1000, ability: { id: "pounce", cooldownMs: 3000, range: 5, damage: 22, damageType: "air", status: { id: "stun", durationMs: 700, magnitude: 1 } } },
 };
 
 export function weaponFor(id: string | null | undefined): WeaponSpec | null {
@@ -206,20 +212,106 @@ export function tickCreatureAi(target: CombatTarget, candidates: Iterable<{ user
 }
 
 export function createCombatTarget(id: string, species: string, x: number, y: number, level: number): CombatTarget {
-  const stats = CREATURE_STATS[species] ?? { health: 50, defense: 3, element: "physical", speed: 1.5, attack: 8, aggroRange: 5, attackRange: 1.2 };
+  const stats = CREATURE_STATS[species] ?? { health: 50, defense: 3, element: "physical", speed: 1.5, attack: 8, aggroRange: 5, attackRange: 1.2, attackCooldownMs: 1400 };
   const scaledHealth = stats.health + Math.max(0, level - 1) * 10;
   return {
-    id, species, x, y, level, health: scaledHealth, maxHealth: scaledHealth,
+    id, species, x, y, hitboxRadius: 0.35, level, health: scaledHealth, maxHealth: scaledHealth,
     defense: stats.defense + Math.max(0, level - 1), element: stats.element,
     speed: stats.speed, attack: stats.attack + Math.max(0, level - 1) * 2,
     stamina: 100, maxStamina: 100, aiState: "idle", aggroRange: stats.aggroRange, attackRange: stats.attackRange,
-    nextAbilityAt: 0, statuses: [], threat: new Map(),
+    attackCooldownMs: stats.attackCooldownMs,
+    nextAttackAt: 0, nextAbilityAt: 0, statuses: [], threat: new Map(),
   };
+}
+
+
+export function isMeleeHit(attacker: { x: number; y: number }, target: { x: number; y: number; hitboxRadius: number }, facingX: number, facingY: number, range: number, arcWidth = 0.9): boolean {
+  const length = Math.hypot(facingX, facingY);
+  if (!Number.isFinite(length) || length === 0) return false;
+  const dx = target.x - attacker.x;
+  const dy = target.y - attacker.y;
+  const forward = (dx * facingX + dy * facingY) / length;
+  if (forward < -target.hitboxRadius || forward > range + target.hitboxRadius) return false;
+  const lateral = Math.abs(dx * facingY - dy * facingX) / length;
+  return lateral <= arcWidth / 2 + target.hitboxRadius;
+}
+
+export interface CombatProjectile {
+  id: string;
+  ownerUserId: string;
+  targetId: string;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  radius: number;
+  weapon: WeaponSpec;
+  expiresAt: number;
+  replayFingerprint: string;
+  distanceTravelled: number;
+  maxRange: number;
+}
+
+export function createProjectile(
+  id: string,
+  ownerUserId: string,
+  target: CombatTarget,
+  origin: { x: number; y: number },
+  facingX: number,
+  facingY: number,
+  weapon: WeaponSpec,
+  now: number,
+  replayFingerprint = "",
+): CombatProjectile | null {
+  const length = Math.hypot(facingX, facingY);
+  if (!Number.isFinite(length) || length === 0 || weapon.delivery !== "projectile" || !weapon.projectileSpeed) return null;
+  return {
+    id, ownerUserId, targetId: target.id, x: origin.x, y: origin.y,
+    vx: facingX / length * weapon.projectileSpeed,
+    vy: facingY / length * weapon.projectileSpeed,
+    radius: weapon.projectileRadius ?? 0.12,
+    weapon, replayFingerprint, distanceTravelled: 0, maxRange: weapon.range,
+    expiresAt: now + Math.max(1, Math.ceil((weapon.range / weapon.projectileSpeed) * 1000)),
+  };
+}
+
+export function advanceProjectile(projectile: CombatProjectile, target: CombatTarget, dtSeconds: number, now: number): "flying" | "hit" | "expired" {
+  if (!Number.isFinite(dtSeconds) || dtSeconds <= 0 || now >= projectile.expiresAt) return "expired";
+  const stepX = projectile.vx * dtSeconds;
+  const stepY = projectile.vy * dtSeconds;
+  const stepDistance = Math.hypot(stepX, stepY);
+  if (!Number.isFinite(stepDistance) || stepDistance <= 0) return "expired";
+
+  const remainingRange = Math.max(0, projectile.maxRange - projectile.distanceTravelled);
+  const travel = Math.min(stepDistance, remainingRange);
+  const ratio = stepDistance > 0 ? travel / stepDistance : 0;
+  const startX = projectile.x;
+  const startY = projectile.y;
+  const endX = startX + stepX * ratio;
+  const endY = startY + stepY * ratio;
+  projectile.x = endX;
+  projectile.y = endY;
+  projectile.distanceTravelled += travel;
+
+  const targetDx = endX - startX;
+  const targetDy = endY - startY;
+  const segmentLengthSquared = targetDx * targetDx + targetDy * targetDy;
+  const targetOffsetX = target.x - startX;
+  const targetOffsetY = target.y - startY;
+  const projection = segmentLengthSquared > 0
+    ? Math.max(0, Math.min(1, (targetOffsetX * targetDx + targetOffsetY * targetDy) / segmentLengthSquared))
+    : 0;
+  const closestX = startX + targetDx * projection;
+  const closestY = startY + targetDy * projection;
+  if (Math.hypot(target.x - closestX, target.y - closestY) <= projectile.radius + target.hitboxRadius) return "hit";
+  if (projectile.distanceTravelled >= projectile.maxRange || now >= projectile.expiresAt) return "expired";
+  return "flying";
 }
 
 export function creatureAbilityDamage(target: CombatTarget, ability: CreatureAbility): DamageResult {
   const pseudoWeapon: WeaponSpec = {
     id: ability.id, damage: ability.damage, range: ability.range, cooldownMs: ability.cooldownMs,
+    delivery: "melee",
     staminaCost: 0, damageType: ability.damageType, criticalChance: 0, criticalMultiplier: 1, status: ability.status,
   };
   return applyDamage(target, pseudoWeapon, 1);

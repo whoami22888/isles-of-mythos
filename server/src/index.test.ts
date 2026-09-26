@@ -129,6 +129,77 @@ describe("server foundation", () => {
     expect(parseClientMessage("not-json")).toBeNull();
   });
 
+  it("enforces authoritative melee stamina cost and cooldown", async () => {
+    const app = await buildApp();
+    const unique = Date.now();
+    const register = await app.inject({
+      method: "POST",
+      url: "/auth/register",
+      payload: {
+        username: `combat_${unique}`,
+        email: `combat_${unique}@example.com`,
+        password: "Correct-Horse-Battery-9",
+      },
+    });
+    expect(register.statusCode).toBe(201);
+    const registerBody = parseJsonObject(register.body);
+    const token = getString(registerBody, "accessToken");
+    const user = getObject(registerBody, "user");
+    const userId = getString(user, "id");
+
+    const database = (await import("./db.js")).createDbPool();
+    await database.query("UPDATE player_profiles SET x=$2, y=$3, stamina=100 WHERE user_id=$1", [userId, 2, 23]);
+
+    const socket = await openSocket(app);
+    try {
+      await new Promise<void>((resolve, reject) => {
+        socket.once("open", () => resolve());
+        socket.once("error", reject);
+      });
+      await waitForMessage(socket);
+      const authenticated = waitForMatchingMessage(socket, (message) => typeof message === "object" && message !== null && (message as JsonObject).type === "auth_ok");
+      const initialState = waitForMatchingMessage(socket, (message) => typeof message === "object" && message !== null && (message as JsonObject).type === "player_state");
+      socket.send(JSON.stringify({ type: "auth", token }));
+      await authenticated;
+      await initialState;
+
+      const attackResult = waitForMatchingMessage(socket, (message) => typeof message === "object" && message !== null && (message as JsonObject).type === "combat_result");
+      socket.send(JSON.stringify({
+        type: "attack",
+        requestId: "melee-1",
+        targetId: "creature:2:23",
+        facingX: 1,
+        facingY: 0,
+      }));
+      await expect(attackResult).resolves.toMatchObject({
+        type: "combat_result",
+        requestId: "melee-1",
+        targetId: "creature:2:23",
+      });
+
+      const stateAfterAttack = waitForMatchingMessage(socket, (message) => typeof message === "object" && message !== null && (message as JsonObject).type === "player_state");
+      socket.send(JSON.stringify({ type: "move", dx: 0, dy: 0, dt: 0 }));
+      await expect(stateAfterAttack).resolves.toMatchObject({
+        type: "player_state",
+        state: { stamina: 92 },
+      });
+
+      const cooldown = waitForMessage(socket);
+      socket.send(JSON.stringify({
+        type: "attack",
+        requestId: "melee-2",
+        targetId: "creature:2:23",
+        facingX: 1,
+        facingY: 0,
+      }));
+      await expect(cooldown).resolves.toEqual({ type: "error", code: "COMBAT_COOLDOWN" });
+    } finally {
+      socket.close();
+      await database.end();
+      await app.close();
+    }
+  });
+
   it("authenticates a WebSocket before allowing world subscriptions", async () => {
     const app = await buildApp();
     const unique = Date.now();
