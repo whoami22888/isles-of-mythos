@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addThreat, applyDamage, calculateDamage, createCombatTarget, creatureAbilityDamage, distance, selectThreatTarget, tickCreatureAi, tickStatuses, weaponFor } from "./combat.js";
+import { addThreat, advanceProjectile, applyDamage, calculateDamage, createCombatTarget, createProjectile, creatureAbilityDamage, distance, isMeleeHit, selectThreatTarget, tickCreatureAi, tickStatuses, weaponFor } from "./combat.js";
 
 describe("combat engine", () => {
   it("uses server-defined weapon damage and defense", () => {
@@ -26,6 +26,32 @@ describe("combat engine", () => {
     const healthBefore = target.health;
     tickStatuses(target, 1000);
     expect(target.health).toBeLessThan(healthBefore);
+  });
+
+  it("uses directional melee hitboxes rather than distance alone", () => {
+    const attacker = { x: 0, y: 0 };
+    const target = createCombatTarget("creature:1:0", "slime", 1, 0, 1);
+    expect(isMeleeHit(attacker, target, 1, 0, 1.6)).toBe(true);
+    target.x = 0;
+    target.y = 1;
+    expect(isMeleeHit(attacker, target, 1, 0, 1.6)).toBe(false);
+  });
+
+  it("creates and advances authoritative projectiles", () => {
+    const weapon = weaponFor("flintlock");
+    const target = createCombatTarget("creature:5:0", "slime", 5, 0, 1);
+    const projectile = createProjectile("projectile:user:attack-1", "user", target, { x: 0, y: 0 }, 1, 0, weapon!, 1000, "target|1|0|0");
+    expect(projectile?.weapon.id).toBe("flintlock");
+    expect(projectile?.replayFingerprint).toBe("target|1|0|0");
+    expect(advanceProjectile(projectile!, target, 0.25, 1250)).toBe("flying");
+    expect(advanceProjectile(projectile!, target, 0.05, 1300)).toBe("hit");
+  });
+
+  it("expires projectiles without applying damage", () => {
+    const weapon = weaponFor("bow");
+    const target = createCombatTarget("creature:20:0", "slime", 20, 0, 1);
+    const projectile = createProjectile("projectile:user:attack-2", "user", target, { x: 0, y: 0 }, 1, 0, weapon!, 1000, "target|2|1|0");
+    expect(advanceProjectile(projectile!, target, 0.05, projectile!.expiresAt)).toBe("expired");
   });
 
   it("computes spatial distance for authoritative range checks", () => {
