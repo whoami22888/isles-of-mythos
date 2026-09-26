@@ -16,7 +16,7 @@ export interface PlayerState {
   xp: number; level: number; gold: number; inventory: Record<string, number>;
   hotbar: Array<string | null>; selectedHotbarSlot: number;
 }
-export interface PlayerInput { dx: number; dy: number; dt: number; }
+export interface PlayerInput { dx: number; dy: number; dt: number; speedMultiplier?: number; }
 export interface Hitbox { x: number; y: number; width: number; height: number; }
 
 export function playerHitbox(state: Pick<PlayerState, "x" | "y">): Hitbox {
@@ -36,11 +36,12 @@ export function applyPlayerInput(state: PlayerState, input: PlayerInput): Player
   const length = Math.hypot(dx, dy);
   if (length > 0 && dt > 0) {
     const nx = dx / length, ny = dy / length;
+    const speedMultiplier = clamp(input.speedMultiplier ?? 1, 0, 1);
     const tile = tileAtWorld(Math.floor(state.x), Math.floor(state.y));
     const inWater = tile === TileKind.Ocean || tile === TileKind.Shallow;
     const speed = inWater ? PLAYER_WATER_SPEED : PLAYER_LAND_SPEED;
-    state.x = clamp(state.x + nx * speed * dt, -1_000_000, 1_000_000);
-    state.y = clamp(state.y + ny * speed * dt, -1_000_000, 1_000_000);
+    state.x = clamp(state.x + nx * speed * dt * speedMultiplier, -1_000_000, 1_000_000);
+    state.y = clamp(state.y + ny * speed * dt * speedMultiplier, -1_000_000, 1_000_000);
   }
   const tile = tileAtWorld(Math.floor(state.x), Math.floor(state.y));
   const inWater = tile === TileKind.Ocean || tile === TileKind.Shallow;
