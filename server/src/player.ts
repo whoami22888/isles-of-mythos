@@ -70,6 +70,7 @@ function rowToState(row: PlayerRow): PlayerState {
 export class PlayerStore {
   private readonly active = new Map<string, PlayerState>();
   private readonly dirty = new Set<string>();
+  private readonly revisions = new Map<string, number>();
   constructor(private readonly db: Pool) {}
   async loadOrCreate(userId: string): Promise<PlayerState> {
     const existing = this.active.get(userId);
@@ -86,12 +87,15 @@ export class PlayerStore {
     if (!row) throw new Error("PLAYER_NOT_FOUND");
     const state = rowToState(row);
     this.active.set(userId, state);
+    this.revisions.set(userId, 0);
     this.dirty.delete(userId);
     return state;
   }
   get(userId: string): PlayerState | undefined { return this.active.get(userId); }
   markDirty(userId: string): void {
-    if (this.active.has(userId)) this.dirty.add(userId);
+    if (!this.active.has(userId)) return;
+    this.dirty.add(userId);
+    this.revisions.set(userId, (this.revisions.get(userId) ?? 0) + 1);
   }
   tick(dt: number): void {
     for (const [userId, state] of this.active) {
@@ -103,11 +107,27 @@ export class PlayerStore {
   }
   async persist(userId: string): Promise<void> {
     const state = this.active.get(userId); if (!state) return;
+    const revision = this.revisions.get(userId) ?? 0;
+    const snapshot = {
+      x: state.x,
+      y: state.y,
+      health: state.health,
+      stamina: state.stamina,
+      maxStamina: state.maxStamina,
+      hunger: state.hunger,
+      oxygen: state.oxygen,
+      xp: state.xp,
+      level: state.level,
+      gold: state.gold,
+      inventory: JSON.stringify(state.inventory),
+      hotbar: JSON.stringify(state.hotbar),
+      selectedHotbarSlot: state.selectedHotbarSlot,
+    };
     await this.db.query(
       "UPDATE player_profiles SET x=$2, y=$3, health=$4, stamina=$5, max_stamina=$6, hunger=$7, oxygen=$8, xp=$9, level=$10, gold=$11, inventory=$12::jsonb, hotbar=$13::jsonb, selected_hotbar_slot=$14, updated_at=CURRENT_TIMESTAMP WHERE user_id=$1",
-      [userId, state.x, state.y, state.health, state.stamina, state.maxStamina, state.hunger, state.oxygen, state.xp, state.level, state.gold,
-        JSON.stringify(state.inventory), JSON.stringify(state.hotbar), state.selectedHotbarSlot]);
-    this.dirty.delete(userId);
+      [userId, snapshot.x, snapshot.y, snapshot.health, snapshot.stamina, snapshot.maxStamina, snapshot.hunger, snapshot.oxygen, snapshot.xp, snapshot.level, snapshot.gold,
+        snapshot.inventory, snapshot.hotbar, snapshot.selectedHotbarSlot]);
+    if ((this.revisions.get(userId) ?? 0) === revision) this.dirty.delete(userId);
   }
   async purchase(userId: string, item: ShopItem, quantity: number, totalGold: number): Promise<PlayerState> {
     const client = await this.db.connect();
@@ -134,6 +154,8 @@ export class PlayerStore {
       await client.query("COMMIT");
       const state = rowToState(updated.rows[0]);
       this.active.set(userId, state);
+      this.revisions.set(userId, (this.revisions.get(userId) ?? 0) + 1);
+      this.dirty.add(userId);
       return state;
     } catch (error) {
       await client.query("ROLLBACK");
@@ -146,6 +168,7 @@ export class PlayerStore {
     await this.persist(userId);
     this.active.delete(userId);
     this.dirty.delete(userId);
+    this.revisions.delete(userId);
   }
   async persistDirty(): Promise<void> {
     const userIds = [...this.dirty];
