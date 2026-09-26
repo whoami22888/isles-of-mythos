@@ -31,6 +31,7 @@ interface CombatResultMessage {
   killed: boolean;
   targetHealth: number;
   status?: string;
+  missed?: boolean;
 }
 
 type ServerMessage =
