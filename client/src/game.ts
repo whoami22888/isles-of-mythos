@@ -10,8 +10,21 @@ const VISIBLE_CHUNK_RADIUS = 1;
 const MOVE_SEND_INTERVAL_MS = 50;
 const ATTACK_INPUT_COOLDOWN_MS = 150;
 
+interface ProjectileSpawnMessage {
+  type: "projectile_spawn";
+  projectileId: string;
+  ownerUserId: string;
+  targetId: string;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  expiresAt: number;
+}
+
 interface CombatResultMessage {
   type: "combat_result";
+  requestId: string;
   targetId: string;
   damage: number;
   critical: boolean;
@@ -26,6 +39,7 @@ type ServerMessage =
   | { type: "auth_ok"; userId: string }
   | { type: "player_state"; state: PlayerState }
   | { type: "world_chunk"; requestId: string; chunk: WorldChunk }
+  | ProjectileSpawnMessage
   | CombatResultMessage
   | { type: "error"; code: string };
 
@@ -57,8 +71,16 @@ function parseServerMessage(value: unknown): ServerMessage | null {
       return typeof value.requestId === "string" && isWorldChunk(value.chunk)
         ? { type: "world_chunk", requestId: value.requestId, chunk: value.chunk }
         : null;
+    case "projectile_spawn":
+      return typeof value.projectileId === "string" && typeof value.ownerUserId === "string" && typeof value.targetId === "string" &&
+        typeof value.x === "number" && Number.isFinite(value.x) && typeof value.y === "number" && Number.isFinite(value.y) &&
+        typeof value.vx === "number" && Number.isFinite(value.vx) && typeof value.vy === "number" && Number.isFinite(value.vy) &&
+        typeof value.expiresAt === "number" && Number.isFinite(value.expiresAt)
+        ? { type: "projectile_spawn", projectileId: value.projectileId, ownerUserId: value.ownerUserId, targetId: value.targetId, x: value.x, y: value.y, vx: value.vx, vy: value.vy, expiresAt: value.expiresAt }
+        : null;
     case "combat_result":
-      return typeof value.targetId === "string" &&
+      return typeof value.requestId === "string" && value.requestId.length > 0 && value.requestId.length <= 64 &&
+        typeof value.targetId === "string" &&
         typeof value.damage === "number" &&
         typeof value.critical === "boolean" &&
         typeof value.killed === "boolean" &&
@@ -66,6 +88,7 @@ function parseServerMessage(value: unknown): ServerMessage | null {
         (value.status === undefined || typeof value.status === "string")
         ? {
             type: "combat_result",
+            requestId: value.requestId,
             targetId: value.targetId,
             damage: value.damage,
             critical: value.critical,
@@ -83,6 +106,8 @@ function parseServerMessage(value: unknown): ServerMessage | null {
 
 class WorldScene extends Phaser.Scene {
   private readonly chunks = new ChunkRenderer(this);
+  private readonly projectiles = new Map<string, Phaser.GameObjects.Graphics>();
+  private readonly projectileByRequest = new Map<string, string>();
   private loadedCenter = { x: Number.NaN, y: Number.NaN };
   private statusText?: Phaser.GameObjects.Text;
   private survivalText?: Phaser.GameObjects.Text;
@@ -191,7 +216,17 @@ class WorldScene extends Phaser.Scene {
         this.updateHud();
         return;
       }
+      if (message.type === "projectile_spawn") {
+        this.renderProjectile(message);
+        return;
+      }
       if (message.type === "combat_result") {
+        const projectileId = this.projectileByRequest.get(message.requestId);
+        if (projectileId) {
+          this.projectiles.get(projectileId)?.destroy();
+          this.projectiles.delete(projectileId);
+          this.projectileByRequest.delete(message.requestId);
+        }
         this.combatText?.setText(message.killed ? "DEFEATED • " + message.targetId : "HIT " + message.damage + (message.critical ? " CRITICAL" : "") + (message.status ? " • " + message.status.toUpperCase() : ""));
         this.time.delayedCall(900, () => this.combatText?.setText("SPACE: ATTACK NEAREST CREATURE"));
         return;
@@ -296,6 +331,30 @@ class WorldScene extends Phaser.Scene {
     makeButton("ATTACK", 16, 650, () => this.attackNearest());
     makeButton("DODGE", 120, 650, () => this.dodge());
     makeButton("BLOCK", 214, 650, () => this.setBlocking(true), () => this.setBlocking(false));
+  }
+
+  private renderProjectile(message: ProjectileSpawnMessage): void {
+    const marker = this.add.graphics().setDepth(30);
+    marker.fillStyle(0xffd166, 1);
+    marker.fillCircle(0, 0, TILE_SIZE * 0.12);
+    marker.setPosition(message.x * TILE_SIZE + TILE_SIZE / 2, message.y * TILE_SIZE + TILE_SIZE / 2);
+    this.projectiles.set(message.projectileId, marker);
+    const separator = message.projectileId.lastIndexOf(":");
+    const requestId = separator >= 0 ? message.projectileId.slice(separator + 1) : message.projectileId;
+    this.projectileByRequest.set(requestId, message.projectileId);
+    const lifetime = Math.max(1, message.expiresAt - Date.now());
+    this.tweens.add({
+      targets: marker,
+      x: marker.x + message.vx * TILE_SIZE * (lifetime / 1000),
+      y: marker.y + message.vy * TILE_SIZE * (lifetime / 1000),
+      duration: lifetime,
+      ease: "Linear",
+      onComplete: () => {
+        marker.destroy();
+        this.projectiles.delete(message.projectileId);
+        this.projectileByRequest.delete(requestId);
+      },
+    });
   }
 
   private nextAttackRequestId(): string { return Date.now().toString(36) + "-" + (++this.attackRequestSequence).toString(36); }
