@@ -53,6 +53,48 @@ describe("combat geometry and projectile lifecycle", () => {
     expect(advanceProjectile(projectile!, target, 0.1, 1100)).toBe("hit");
   });
 
+  it("detects a fast projectile crossing a target between simulation samples", () => {
+    const target = createCombatTarget("creature:3:0", "slime", 0.8, 0, 1);
+    const weapon = weaponFor("flintlock");
+    expect(weapon).not.toBeNull();
+
+    const projectile = createProjectile(
+      "p-sweep",
+      "player-1",
+      target,
+      { x: 0, y: 0 },
+      1,
+      0,
+      weapon!,
+      1000,
+    );
+    expect(projectile).not.toBeNull();
+
+    expect(advanceProjectile(projectile!, target, 0.1, 1100)).toBe("hit");
+  });
+
+  it("never travels beyond the weapon's authoritative range", () => {
+    const target = createCombatTarget("creature:3:0", "slime", 20, 0, 1);
+    const weapon = weaponFor("flintlock");
+    expect(weapon).not.toBeNull();
+
+    const projectile = createProjectile(
+      "p-range",
+      "player-1",
+      target,
+      { x: 0, y: 0 },
+      1,
+      0,
+      weapon!,
+      1000,
+    );
+    expect(projectile).not.toBeNull();
+
+    expect(advanceProjectile(projectile!, target, 1, 1100)).toBe("expired");
+    expect(projectile!.distanceTravelled).toBe(weapon!.range);
+    expect(Math.hypot(projectile!.x, projectile!.y)).toBe(weapon!.range);
+  });
+
   it("expires a projectile at its server-defined lifetime", () => {
     const target = createCombatTarget("creature:3:0", "slime", 100, 0, 1);
     const weapon = weaponFor("flintlock");
