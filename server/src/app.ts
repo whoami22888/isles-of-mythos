@@ -494,13 +494,13 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             send(socket, { type: "error", code: "NO_STAMINA" });
             return;
           }
-          const target = parseCreatureTargetId(message.targetId);
-          if (!target) {
+          const targetCoordinates = parseCreatureTargetId(message.targetId);
+          if (!targetCoordinates) {
             send(socket, { type: "error", code: "INVALID_MESSAGE" });
             return;
           }
-          const targetX = target.x;
-          const targetY = target.y;
+          const targetX = targetCoordinates.x;
+          const targetY = targetCoordinates.y;
           const chunk = world.get(Math.floor(targetX / 32), Math.floor(targetY / 32));
           const spawn = chunk.creatures.find((creature) => creature.id === message.targetId);
           if (!spawn) {
