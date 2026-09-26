@@ -14,7 +14,7 @@ import { parseClientMessage, type ServerMessage } from "./protocol.js";
 import { PlayerStore, applyPlayerInput } from "./player.js";
 import { WorldChunkCache } from "./world.js";
 import { SHOP_ITEMS, calculatePurchase, getShopItem } from "./shop.js";
-import { addThreat, applyDamage, createCombatTarget, creatureAbilityDamage, distance, tickCreatureAi, tickStatuses, weaponFor, type CombatTarget } from "./combat.js";
+import { addThreat, applyDamage, createCombatTarget, creatureAbilityDamage, createProjectile, advanceProjectile, isMeleeHit, distance, tickCreatureAi, tickStatuses, weaponFor, type CombatProjectile, type CombatTarget } from "./combat.js";
 import { CombatReplayCache } from "./combat-replay.js";
 
 function send(socket: WebSocket, message: ServerMessage): void {
@@ -41,6 +41,8 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const playerConnections = new Map<string, number>();
   const userSockets = new Map<string, Set<WebSocket>>();
   const combatTargets = new Map<string, CombatTarget>();
+  const projectiles = new Map<string, CombatProjectile>();
+  const pendingCombatRequests = new Map<string, number>();
   const attackCooldowns = new Map<string, number>();
   const dodgeCooldowns = new Map<string, number>();
   const blocking = new Set<string>();
@@ -89,6 +91,28 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
 
   const combatTick = setInterval(() => {
     const now = Date.now();
+    for (const [projectileId, projectile] of projectiles) {
+      const target = combatTargets.get(projectile.targetId);
+      if (!target) {
+        projectiles.delete(projectileId);
+        pendingCombatRequests.delete(projectile.ownerUserId + ":" + projectileId.split(":").slice(1).join(":"));
+        continue;
+      }
+      const outcome = advanceProjectile(projectile, target, 0.05, now);
+      if (outcome === "flying") continue;
+      projectiles.delete(projectileId);
+      const replayKey = projectile.ownerUserId + ":" + projectileId.split(":").slice(1).join(":");
+      pendingCombatRequests.delete(replayKey);
+      if (outcome === "expired") continue;
+      const result = applyDamage(target, projectile.weapon);
+      addThreat(target, projectile.ownerUserId, result.amount, now);
+      const combatResult: Extract<ServerMessage, { type: "combat_result" }> = {
+        type: "combat_result", requestId: projectileId.split(":").slice(1).join(":"), targetId: target.id,
+        damage: result.amount, critical: result.critical, killed: result.killed, targetHealth: Math.ceil(target.health), status: result.statusApplied?.id,
+      };
+      for (const socket of userSockets.get(projectile.ownerUserId) ?? []) send(socket, combatResult);
+      if (result.killed) combatTargets.delete(target.id);
+    }
     for (const [targetId, target] of combatTargets) {
       tickStatuses(target, 250);
       if (target.health <= 0) {
@@ -138,6 +162,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         }
       }
     }
+    for (const [key, expiresAt] of pendingCombatRequests) if (expiresAt <= now) pendingCombatRequests.delete(key);
     for (const [userId, until] of invulnerableUntil) if (until <= now) invulnerableUntil.delete(userId);
   }, 250);
   combatTick.unref();
@@ -341,12 +366,17 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           }
           const replayFingerprint = message.targetId + "|" + message.facingX + "|" + message.facingY + "|" + state.selectedHotbarSlot;
           const replay = combatReplay.lookup(userId, message.requestId, replayFingerprint);
+          const pendingKey = userId + ":" + message.requestId;
           if (replay.kind === "hit") {
             send(socket, replay.response);
             return;
           }
           if (replay.kind === "conflict") {
             send(socket, { type: "error", code: "INVALID_MESSAGE" });
+            return;
+          }
+          if (pendingCombatRequests.has(pendingKey)) {
+            send(socket, { type: "error", code: "COMBAT_IN_PROGRESS" });
             return;
           }
           const weapon = weaponFor(state.hotbar[state.selectedHotbarSlot]);
@@ -386,20 +416,34 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             send(socket, { type: "error", code: "OUT_OF_RANGE" });
             return;
           }
+          const facingLength = Math.hypot(message.facingX, message.facingY) || 1;
+          if (weapon.delivery === "melee" && !isMeleeHit(state, target, message.facingX, message.facingY, weapon.range)) {
+            send(socket, { type: "OUT_OF_RANGE" === "OUT_OF_RANGE" ? "error" : "error", code: "OUT_OF_RANGE" });
+            return;
+          }
           attackCooldowns.set(userId, now + weapon.cooldownMs);
           state.stamina -= weapon.staminaCost;
           players.markDirty(userId);
+          if (weapon.delivery === "projectile") {
+            const projectileId = "projectile:" + userId + ":" + message.requestId;
+            const projectile = createProjectile(projectileId, userId, target, state, message.facingX / facingLength, message.facingY / facingLength, weapon, now);
+            if (!projectile) {
+              send(socket, { type: "error", code: "INVALID_MESSAGE" });
+              return;
+            }
+            projectiles.set(projectileId, projectile);
+            pendingCombatRequests.set(pendingKey, projectile.expiresAt);
+            for (const ownerSocket of userSockets.get(userId) ?? []) send(ownerSocket, {
+              type: "projectile_spawn", projectileId, ownerUserId: userId, targetId: target.id,
+              x: projectile.x, y: projectile.y, vx: projectile.vx, vy: projectile.vy, expiresAt: projectile.expiresAt,
+            });
+            return;
+          }
           const result = applyDamage(target, weapon);
-          addThreat(target, userId, result.amount);
+          addThreat(target, userId, result.amount, now);
           const combatResult: Extract<ServerMessage, { type: "combat_result" }> = {
-            type: "combat_result",
-            requestId: message.requestId,
-            targetId: target.id,
-            damage: result.amount,
-            critical: result.critical,
-            killed: result.killed,
-            targetHealth: Math.ceil(target.health),
-            status: result.statusApplied?.id,
+            type: "combat_result", requestId: message.requestId, targetId: target.id, damage: result.amount,
+            critical: result.critical, killed: result.killed, targetHealth: Math.ceil(target.health), status: result.statusApplied?.id,
           };
           combatReplay.remember(userId, message.requestId, replayFingerprint, combatResult);
           send(socket, combatResult);
@@ -470,6 +514,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         dodgeCooldowns.delete(userId);
         blocking.delete(userId);
         invulnerableUntil.delete(userId);
+        for (const [key] of pendingCombatRequests) if (key.startsWith(userId + ":")) pendingCombatRequests.delete(key);
         void players.unload(userId).catch((error) => {
           log("player_disconnect_persistence_failed", {
             message: error instanceof Error ? error.message : String(error),

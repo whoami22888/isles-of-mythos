@@ -8,19 +8,22 @@ export interface WeaponSpec {
   cooldownMs: number;
   staminaCost: number;
   damageType: DamageType;
+  delivery: "melee" | "projectile";
+  projectileSpeed?: number;
+  projectileRadius?: number;
   criticalChance: number;
   criticalMultiplier: number;
   status?: { id: StatusEffectId; durationMs: number; magnitude: number };
 }
 
 export const WEAPONS: Record<string, WeaponSpec> = {
-  cutlass: { id: "cutlass", damage: 20, range: 1.6, cooldownMs: 450, staminaCost: 8, damageType: "physical", criticalChance: 0.08, criticalMultiplier: 1.75 },
-  dagger: { id: "dagger", damage: 14, range: 1.4, cooldownMs: 300, staminaCost: 6, damageType: "physical", criticalChance: 0.18, criticalMultiplier: 2 },
-  flintlock: { id: "flintlock", damage: 35, range: 8, cooldownMs: 900, staminaCost: 10, damageType: "physical", criticalChance: 0.12, criticalMultiplier: 2 },
-  musket: { id: "musket", damage: 52, range: 12, cooldownMs: 1500, staminaCost: 14, damageType: "physical", criticalChance: 0.1, criticalMultiplier: 2.1 },
-  bow: { id: "bow", damage: 24, range: 10, cooldownMs: 700, staminaCost: 8, damageType: "physical", criticalChance: 0.1, criticalMultiplier: 1.8 },
-  fire_spell: { id: "fire_spell", damage: 28, range: 7, cooldownMs: 1100, staminaCost: 16, damageType: "fire", criticalChance: 0.1, criticalMultiplier: 2, status: { id: "burn", durationMs: 2500, magnitude: 4 } },
-  harpoon: { id: "harpoon", damage: 18, range: 9, cooldownMs: 1000, staminaCost: 12, damageType: "physical", criticalChance: 0.05, criticalMultiplier: 1.6 },
+  cutlass: { id: "cutlass", delivery: "melee", damage: 20, range: 1.6, cooldownMs: 450, staminaCost: 8, damageType: "physical", criticalChance: 0.08, criticalMultiplier: 1.75 },
+  dagger: { id: "dagger", delivery: "melee", damage: 14, range: 1.4, cooldownMs: 300, staminaCost: 6, damageType: "physical", criticalChance: 0.18, criticalMultiplier: 2 },
+  flintlock: { id: "flintlock", delivery: "projectile", projectileSpeed: 18, projectileRadius: 0.12, damage: 35, range: 8, cooldownMs: 900, staminaCost: 10, damageType: "physical", criticalChance: 0.12, criticalMultiplier: 2 },
+  musket: { id: "musket", delivery: "projectile", projectileSpeed: 20, projectileRadius: 0.12, damage: 52, range: 12, cooldownMs: 1500, staminaCost: 14, damageType: "physical", criticalChance: 0.1, criticalMultiplier: 2.1 },
+  bow: { id: "bow", delivery: "projectile", projectileSpeed: 16, projectileRadius: 0.14, damage: 24, range: 10, cooldownMs: 700, staminaCost: 8, damageType: "physical", criticalChance: 0.1, criticalMultiplier: 1.8 },
+  fire_spell: { id: "fire_spell", delivery: "projectile", projectileSpeed: 12, projectileRadius: 0.2, damage: 28, range: 7, cooldownMs: 1100, staminaCost: 16, damageType: "fire", criticalChance: 0.1, criticalMultiplier: 2, status: { id: "burn", durationMs: 2500, magnitude: 4 } },
+  harpoon: { id: "harpoon", delivery: "projectile", projectileSpeed: 14, projectileRadius: 0.16, damage: 18, range: 9, cooldownMs: 1000, staminaCost: 12, damageType: "physical", criticalChance: 0.05, criticalMultiplier: 1.6 },
 };
 
 export interface StatusEffect {
@@ -51,6 +54,7 @@ export interface CombatTarget {
   species: string;
   x: number;
   y: number;
+  hitboxRadius: number;
   level: number;
   health: number;
   maxHealth: number;
@@ -211,7 +215,7 @@ export function createCombatTarget(id: string, species: string, x: number, y: nu
   const stats = CREATURE_STATS[species] ?? { health: 50, defense: 3, element: "physical", speed: 1.5, attack: 8, aggroRange: 5, attackRange: 1.2, attackCooldownMs: 1400 };
   const scaledHealth = stats.health + Math.max(0, level - 1) * 10;
   return {
-    id, species, x, y, level, health: scaledHealth, maxHealth: scaledHealth,
+    id, species, x, y, hitboxRadius: 0.35, level, health: scaledHealth, maxHealth: scaledHealth,
     defense: stats.defense + Math.max(0, level - 1), element: stats.element,
     speed: stats.speed, attack: stats.attack + Math.max(0, level - 1) * 2,
     stamina: 100, maxStamina: 100, aiState: "idle", aggroRange: stats.aggroRange, attackRange: stats.attackRange,
@@ -220,9 +224,64 @@ export function createCombatTarget(id: string, species: string, x: number, y: nu
   };
 }
 
+
+export function isMeleeHit(attacker: { x: number; y: number }, target: { x: number; y: number; hitboxRadius: number }, facingX: number, facingY: number, range: number, arcWidth = 0.9): boolean {
+  const length = Math.hypot(facingX, facingY);
+  if (!Number.isFinite(length) || length === 0) return false;
+  const dx = target.x - attacker.x;
+  const dy = target.y - attacker.y;
+  const forward = (dx * facingX + dy * facingY) / length;
+  if (forward < -target.hitboxRadius || forward > range + target.hitboxRadius) return false;
+  const lateral = Math.abs(dx * facingY - dy * facingX) / length;
+  return lateral <= arcWidth / 2 + target.hitboxRadius;
+}
+
+export interface CombatProjectile {
+  id: string;
+  ownerUserId: string;
+  targetId: string;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  radius: number;
+  weapon: WeaponSpec;
+  expiresAt: number;
+}
+
+export function createProjectile(
+  id: string,
+  ownerUserId: string,
+  target: CombatTarget,
+  origin: { x: number; y: number },
+  facingX: number,
+  facingY: number,
+  weapon: WeaponSpec,
+  now: number,
+): CombatProjectile | null {
+  const length = Math.hypot(facingX, facingY);
+  if (!Number.isFinite(length) || length === 0 || weapon.delivery !== "projectile" || !weapon.projectileSpeed) return null;
+  return {
+    id, ownerUserId, targetId: target.id, x: origin.x, y: origin.y,
+    vx: facingX / length * weapon.projectileSpeed,
+    vy: facingY / length * weapon.projectileSpeed,
+    radius: weapon.projectileRadius ?? 0.12,
+    weapon, expiresAt: now + Math.max(250, Math.ceil((weapon.range / weapon.projectileSpeed) * 1000) + 250),
+  };
+}
+
+export function advanceProjectile(projectile: CombatProjectile, target: CombatTarget, dtSeconds: number, now: number): "flying" | "hit" | "expired" {
+  if (now >= projectile.expiresAt) return "expired";
+  projectile.x += projectile.vx * dtSeconds;
+  projectile.y += projectile.vy * dtSeconds;
+  if (distance(projectile, target) <= projectile.radius + target.hitboxRadius) return "hit";
+  return "flying";
+}
+
 export function creatureAbilityDamage(target: CombatTarget, ability: CreatureAbility): DamageResult {
   const pseudoWeapon: WeaponSpec = {
     id: ability.id, damage: ability.damage, range: ability.range, cooldownMs: ability.cooldownMs,
+    delivery: "melee",
     staminaCost: 0, damageType: ability.damageType, criticalChance: 0, criticalMultiplier: 1, status: ability.status,
   };
   return applyDamage(target, pseudoWeapon, 1);

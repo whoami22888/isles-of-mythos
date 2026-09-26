@@ -19,7 +19,7 @@ export type ServerMessage =
   | { type: "auth_ok"; userId: string }
   | { type: "player_state"; state: unknown }
   | { type: "world_chunk"; requestId: string; chunk: unknown }
-  | { type: "combat_result"; requestId: string; targetId: string; damage: number; critical: boolean; killed: boolean; targetHealth: number; status?: string }
+  | { type: "projectile_spawn"; projectileId: string; ownerUserId: string; targetId: string; x: number; y: number; vx: number; vy: number; expiresAt: number }\n  | { type: "combat_result"; requestId: string; targetId: string; damage: number; critical: boolean; killed: boolean; targetHealth: number; status?: string }
   | {
       type: "error";
       code:
@@ -29,7 +29,7 @@ export type ServerMessage =
         | "INVALID_TOKEN"
         | "COMBAT_COOLDOWN"
         | "OUT_OF_RANGE"
-        | "NO_STAMINA";
+        | "NO_STAMINA"\n        | "COMBAT_IN_PROGRESS";
     };
 
 function isSafeInteger(value: unknown): value is number {
