@@ -4,6 +4,7 @@ import { addThreat, applyDamage, calculateDamage, createCombatTarget, creatureAb
 describe("combat engine", () => {
   it("uses server-defined weapon damage and defense", () => {
     const weapon = weaponFor("cutlass");
+    expect(weapon?.delivery).toBe("melee");
     expect(weapon).not.toBeNull();
     const result = calculateDamage(weapon!, { defense: 5, element: "physical" }, 0.99);
     expect(result.amount).toBe(15);
