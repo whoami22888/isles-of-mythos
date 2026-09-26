@@ -248,6 +248,8 @@ export interface CombatProjectile {
   weapon: WeaponSpec;
   expiresAt: number;
   replayFingerprint: string;
+  distanceTravelled: number;
+  maxRange: number;
 }
 
 export function createProjectile(
@@ -268,15 +270,41 @@ export function createProjectile(
     vx: facingX / length * weapon.projectileSpeed,
     vy: facingY / length * weapon.projectileSpeed,
     radius: weapon.projectileRadius ?? 0.12,
-    weapon, replayFingerprint, expiresAt: now + Math.max(250, Math.ceil((weapon.range / weapon.projectileSpeed) * 1000) + 250),
+    weapon, replayFingerprint, distanceTravelled: 0, maxRange: weapon.range,
+    expiresAt: now + Math.max(1, Math.ceil((weapon.range / weapon.projectileSpeed) * 1000)),
   };
 }
 
 export function advanceProjectile(projectile: CombatProjectile, target: CombatTarget, dtSeconds: number, now: number): "flying" | "hit" | "expired" {
-  if (now >= projectile.expiresAt) return "expired";
-  projectile.x += projectile.vx * dtSeconds;
-  projectile.y += projectile.vy * dtSeconds;
-  if (distance(projectile, target) <= projectile.radius + target.hitboxRadius) return "hit";
+  if (!Number.isFinite(dtSeconds) || dtSeconds <= 0 || now >= projectile.expiresAt) return "expired";
+  const stepX = projectile.vx * dtSeconds;
+  const stepY = projectile.vy * dtSeconds;
+  const stepDistance = Math.hypot(stepX, stepY);
+  if (!Number.isFinite(stepDistance) || stepDistance <= 0) return "expired";
+
+  const remainingRange = Math.max(0, projectile.maxRange - projectile.distanceTravelled);
+  const travel = Math.min(stepDistance, remainingRange);
+  const ratio = stepDistance > 0 ? travel / stepDistance : 0;
+  const startX = projectile.x;
+  const startY = projectile.y;
+  const endX = startX + stepX * ratio;
+  const endY = startY + stepY * ratio;
+  projectile.x = endX;
+  projectile.y = endY;
+  projectile.distanceTravelled += travel;
+
+  const targetDx = endX - startX;
+  const targetDy = endY - startY;
+  const segmentLengthSquared = targetDx * targetDx + targetDy * targetDy;
+  const targetOffsetX = target.x - startX;
+  const targetOffsetY = target.y - startY;
+  const projection = segmentLengthSquared > 0
+    ? Math.max(0, Math.min(1, (targetOffsetX * targetDx + targetOffsetY * targetDy) / segmentLengthSquared))
+    : 0;
+  const closestX = startX + targetDx * projection;
+  const closestY = startY + targetDy * projection;
+  if (Math.hypot(target.x - closestX, target.y - closestY) <= projectile.radius + target.hitboxRadius) return "hit";
+  if (projectile.distanceTravelled >= projectile.maxRange || now >= projectile.expiresAt) return "expired";
   return "flying";
 }
 
