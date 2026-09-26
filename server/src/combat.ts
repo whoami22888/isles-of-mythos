@@ -247,6 +247,7 @@ export interface CombatProjectile {
   radius: number;
   weapon: WeaponSpec;
   expiresAt: number;
+  replayFingerprint: string;
 }
 
 export function createProjectile(
@@ -258,6 +259,7 @@ export function createProjectile(
   facingY: number,
   weapon: WeaponSpec,
   now: number,
+  replayFingerprint = "",
 ): CombatProjectile | null {
   const length = Math.hypot(facingX, facingY);
   if (!Number.isFinite(length) || length === 0 || weapon.delivery !== "projectile" || !weapon.projectileSpeed) return null;
@@ -266,7 +268,7 @@ export function createProjectile(
     vx: facingX / length * weapon.projectileSpeed,
     vy: facingY / length * weapon.projectileSpeed,
     radius: weapon.projectileRadius ?? 0.12,
-    weapon, expiresAt: now + Math.max(250, Math.ceil((weapon.range / weapon.projectileSpeed) * 1000) + 250),
+    weapon, replayFingerprint, expiresAt: now + Math.max(250, Math.ceil((weapon.range / weapon.projectileSpeed) * 1000) + 250),
   };
 }
 

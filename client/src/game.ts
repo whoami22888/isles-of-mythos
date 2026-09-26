@@ -85,7 +85,8 @@ function parseServerMessage(value: unknown): ServerMessage | null {
         typeof value.critical === "boolean" &&
         typeof value.killed === "boolean" &&
         typeof value.targetHealth === "number" &&
-        (value.status === undefined || typeof value.status === "string")
+        (value.status === undefined || typeof value.status === "string") &&
+        (value.missed === undefined || typeof value.missed === "boolean")
         ? {
             type: "combat_result",
             requestId: value.requestId,
@@ -94,6 +95,7 @@ function parseServerMessage(value: unknown): ServerMessage | null {
             critical: value.critical,
             killed: value.killed,
             targetHealth: value.targetHealth,
+            ...(value.missed === undefined ? {} : { missed: value.missed }),
             ...(value.status === undefined ? {} : { status: value.status }),
           }
         : null;
@@ -227,7 +229,7 @@ class WorldScene extends Phaser.Scene {
           this.projectiles.delete(projectileId);
           this.projectileByRequest.delete(message.requestId);
         }
-        this.combatText?.setText(message.killed ? "DEFEATED • " + message.targetId : "HIT " + message.damage + (message.critical ? " CRITICAL" : "") + (message.status ? " • " + message.status.toUpperCase() : ""));
+        this.combatText?.setText(message.missed ? "MISSED • " + message.targetId : message.killed ? "DEFEATED • " + message.targetId : "HIT " + message.damage + (message.critical ? " CRITICAL" : "") + (message.status ? " • " + message.status.toUpperCase() : ""));
         this.time.delayedCall(900, () => this.combatText?.setText("SPACE: ATTACK NEAREST CREATURE"));
         return;
       }

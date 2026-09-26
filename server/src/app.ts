@@ -93,25 +93,39 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     const now = Date.now();
     for (const [projectileId, projectile] of projectiles) {
       const target = combatTargets.get(projectile.targetId);
+      const requestId = projectileId.slice(projectileId.indexOf(":") + 1).replace(projectile.ownerUserId + ":", "");
+      const replayKey = projectile.ownerUserId + ":" + requestId;
       if (!target) {
         projectiles.delete(projectileId);
-        pendingCombatRequests.delete(projectile.ownerUserId + ":" + projectileId.split(":").slice(1).join(":"));
+        pendingCombatRequests.delete(replayKey);
         continue;
       }
       const outcome = advanceProjectile(projectile, target, 0.05, now);
       if (outcome === "flying") continue;
       projectiles.delete(projectileId);
-      const replayKey = projectile.ownerUserId + ":" + projectileId.split(":").slice(1).join(":");
       pendingCombatRequests.delete(replayKey);
-      if (outcome === "expired") continue;
+      if (outcome === "expired") {
+        const missedResult: Extract<ServerMessage, { type: "combat_result" }> = {
+          type: "combat_result", requestId, targetId: target.id,
+          damage: 0, critical: false, killed: false, targetHealth: Math.ceil(target.health), missed: true,
+        };
+        combatReplay.remember(projectile.ownerUserId, requestId, projectile.replayFingerprint, missedResult, now);
+        for (const socket of userSockets.get(projectile.ownerUserId) ?? []) send(socket, missedResult);
+        continue;
+      }
       const result = applyDamage(target, projectile.weapon);
       addThreat(target, projectile.ownerUserId, result.amount, now);
       const combatResult: Extract<ServerMessage, { type: "combat_result" }> = {
-        type: "combat_result", requestId: projectileId.split(":").slice(1).join(":"), targetId: target.id,
-        damage: result.amount, critical: result.critical, killed: result.killed, targetHealth: Math.ceil(target.health), status: result.statusApplied?.id,
+        type: "combat_result", requestId, targetId: target.id,
+        damage: result.amount, critical: result.critical, killed: result.killed,
+        targetHealth: Math.ceil(target.health), status: result.statusApplied?.id,
       };
+      combatReplay.remember(projectile.ownerUserId, requestId, projectile.replayFingerprint, combatResult, now);
       for (const socket of userSockets.get(projectile.ownerUserId) ?? []) send(socket, combatResult);
-      if (result.killed) combatTargets.delete(target.id);
+      if (result.killed) {
+        combatTargets.delete(target.id);
+        defeatedCreatures.add(target.id);
+      }
     }
     for (const [targetId, target] of combatTargets) {
       tickStatuses(target, 250);
