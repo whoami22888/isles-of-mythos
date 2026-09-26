@@ -326,12 +326,28 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   app.get("/ws", { websocket: true }, (socket: WebSocket) => {
     sockets.add(socket);
     let userId: string | null = null;
+    let messageWindowStartedAt = Date.now();
+    let messageWindowCount = 0;
+    let authDeadline: NodeJS.Timeout | null = setTimeout(() => {
+      if (!userId && socket.readyState === socket.OPEN) socket.close(1008, "authentication_timeout");
+    }, 10_000);
+    authDeadline.unref();
 
     send(socket, { type: "server_ready", timestamp: Date.now() });
 
     let messageQueue = Promise.resolve();
     socket.on("message", (raw) => {
       messageQueue = messageQueue.then(async () => {
+        const now = Date.now();
+        if (now - messageWindowStartedAt >= 1_000) {
+          messageWindowStartedAt = now;
+          messageWindowCount = 0;
+        }
+        messageWindowCount += 1;
+        if (messageWindowCount > 120) {
+          send(socket, { type: "error", code: "RATE_LIMITED" });
+          return;
+        }
         const message = parseClientMessage(rawMessageToString(raw));
 
         if (!message) {
@@ -355,6 +371,10 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             const authenticatedUserId = payload.sub;
             const state = await players.loadOrCreate(authenticatedUserId);
             userId = authenticatedUserId;
+            if (authDeadline) {
+              clearTimeout(authDeadline);
+              authDeadline = null;
+            }
             const connections = playerConnections.get(authenticatedUserId) ?? 0;
             playerConnections.set(authenticatedUserId, connections + 1);
             const socketsForUser = userSockets.get(authenticatedUserId) ?? new Set<WebSocket>();
@@ -585,6 +605,10 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     });
 
     socket.on("close", () => {
+      if (authDeadline) {
+        clearTimeout(authDeadline);
+        authDeadline = null;
+      }
       sockets.delete(socket);
       if (!userId) return;
       const connections = (playerConnections.get(userId) ?? 1) - 1;
