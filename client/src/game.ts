@@ -230,7 +230,7 @@ class WorldScene extends Phaser.Scene {
           this.projectiles.delete(projectileId);
           this.projectileByRequest.delete(message.requestId);
         }
-        this.combatText?.setText(message.missed ? "MISSED • " + message.targetId : message.killed ? "DEFEATED • " + message.targetId : "HIT " + message.damage + (message.critical ? " CRITICAL" : "") + (message.status ? " • " + message.status.toUpperCase() : ""));
+        this.combatText?.setText(message.killed ? "DEFEATED • " + message.targetId : "HIT " + message.damage + (message.critical ? " CRITICAL" : "") + (message.status ? " • " + message.status.toUpperCase() : ""));
         this.time.delayedCall(900, () => this.combatText?.setText("SPACE: ATTACK NEAREST CREATURE"));
         return;
       }
