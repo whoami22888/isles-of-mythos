@@ -133,6 +133,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       if (target.health <= 0) {
         target.aiState = "dead";
         combatTargets.delete(targetId);
+        defeatedCreatures.add(targetId);
       }
     }
     const candidates = [...userSockets.keys()].flatMap((userId) => {
@@ -440,9 +441,6 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             send(socket, { type: "error", code: "OUT_OF_RANGE" });
             return;
           }
-          attackCooldowns.set(userId, now + weapon.cooldownMs);
-          state.stamina -= weapon.staminaCost;
-          players.markDirty(userId);
           if (weapon.delivery === "projectile") {
             const projectileId = "projectile:" + userId + ":" + message.requestId;
             const projectile = createProjectile(projectileId, userId, target, state, message.facingX / facingLength, message.facingY / facingLength, weapon, now, replayFingerprint);
@@ -450,6 +448,9 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
               send(socket, { type: "error", code: "INVALID_MESSAGE" });
               return;
             }
+            attackCooldowns.set(userId, now + weapon.cooldownMs);
+            state.stamina -= weapon.staminaCost;
+            players.markDirty(userId);
             projectiles.set(projectileId, projectile);
             pendingCombatRequests.set(pendingKey, projectile.expiresAt);
             for (const ownerSocket of userSockets.get(userId) ?? []) send(ownerSocket, {
@@ -466,7 +467,10 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           };
           combatReplay.remember(userId, message.requestId, replayFingerprint, combatResult);
           send(socket, combatResult);
-          if (result.killed) combatTargets.delete(target.id);
+          if (result.killed) {
+            combatTargets.delete(target.id);
+            defeatedCreatures.add(target.id);
+          }
           return;
         }
 
