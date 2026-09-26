@@ -422,6 +422,10 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             send(socket, { type: "error", code: "INVALID_MESSAGE" });
             return;
           }
+          if (defeatedCreatures.has(message.targetId)) {
+            send(socket, { type: "error", code: "INVALID_MESSAGE" });
+            return;
+          }
           let target = combatTargets.get(message.targetId);
           if (!target) {
             target = createCombatTarget(spawn.id, spawn.species, spawn.x, spawn.y, spawn.level);
@@ -441,7 +445,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           players.markDirty(userId);
           if (weapon.delivery === "projectile") {
             const projectileId = "projectile:" + userId + ":" + message.requestId;
-            const projectile = createProjectile(projectileId, userId, target, state, message.facingX / facingLength, message.facingY / facingLength, weapon, now);
+            const projectile = createProjectile(projectileId, userId, target, state, message.facingX / facingLength, message.facingY / facingLength, weapon, now, replayFingerprint);
             if (!projectile) {
               send(socket, { type: "error", code: "INVALID_MESSAGE" });
               return;
