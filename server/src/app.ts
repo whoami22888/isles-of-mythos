@@ -356,6 +356,10 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             send(socket, { type: "error", code: "AUTH_REQUIRED" });
             return;
           }
+          if (state.health <= 0) {
+            send(socket, { type: "error", code: "PLAYER_DEAD" });
+            return;
+          }
           applyPlayerInput(state, message);
           players.markDirty(userId);
           send(socket, { type: "player_state", state });
@@ -370,6 +374,10 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           const state = players.get(userId);
           if (!state) {
             send(socket, { type: "error", code: "AUTH_REQUIRED" });
+            return;
+          }
+          if (state.health <= 0) {
+            send(socket, { type: "error", code: "PLAYER_DEAD" });
             return;
           }
           state.selectedHotbarSlot = message.slot;
