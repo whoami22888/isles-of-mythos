@@ -33,7 +33,8 @@ export type ServerMessage =
         | "NO_STAMINA"
         | "COMBAT_IN_PROGRESS"
         | "PLAYER_DEAD"
-        | "PLAYER_STUNNED";
+        | "PLAYER_STUNNED"
+        | "RATE_LIMITED";
     };
 
 function isSafeInteger(value: unknown): value is number {
