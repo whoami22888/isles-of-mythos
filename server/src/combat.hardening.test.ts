@@ -4,6 +4,7 @@ import {
   createCombatTarget,
   createProjectile,
   isMeleeHit,
+  tickCreatureAi,
   weaponFor,
 } from "./combat.js";
 
@@ -52,7 +53,7 @@ describe("combat geometry and projectile lifecycle", () => {
     expect(advanceProjectile(projectile!, target, 0.1, 1100)).toBe("hit");
   });
 
-  it("expires a projectile after its server-defined lifetime", () => {
+  it("expires a projectile at its server-defined lifetime", () => {
     const target = createCombatTarget("creature:3:0", "slime", 100, 0, 1);
     const weapon = weaponFor("flintlock");
     expect(weapon).not.toBeNull();
@@ -74,21 +75,13 @@ describe("combat geometry and projectile lifecycle", () => {
 
   it("enforces creature ability cooldown state", () => {
     const target = createCombatTarget("creature:4:0", "slime", 0, 0, 1);
-    const first = target.nextAbilityAt;
-    const firstResult = target;
-    const ai = requireAiTick(firstResult, 1, 0);
-    expect(ai.ability?.id).toBe("acid_burst");
+    const initialNextAbilityAt = target.nextAbilityAt;
 
-    const next = requireAiTick(firstResult, 1, 1);
-    expect(next.ability).toBeUndefined();
-    expect(firstResult.nextAbilityAt).toBeGreaterThan(first);
+    const first = tickCreatureAi(target, [{ userId: "player-1", x: 1, y: 0 }], 0, 250);
+    expect(first.ability?.id).toBe("acid_burst");
+
+    const second = tickCreatureAi(target, [{ userId: "player-1", x: 1, y: 0 }], 1, 250);
+    expect(second.ability).toBeUndefined();
+    expect(target.nextAbilityAt).toBeGreaterThan(initialNextAbilityAt);
   });
 });
-
-function requireAiTick(target: ReturnType<typeof createCombatTarget>, userX: number, now: number) {
-  // Importing the AI function only for this test keeps the assertions focused on
-  // the state transition without duplicating the cooldown implementation.
-  return tickCreatureAiForTest(target, [{ userId: "player-1", x: userX, y: 0 }], now, 250);
-}
-
-import { tickCreatureAi as tickCreatureAiForTest } from "./combat.js";
