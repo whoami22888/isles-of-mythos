@@ -18,6 +18,13 @@ describe("player survival and movement", () => {
     expect(player.x).toBeCloseTo(player.y, 6);
     expect(player.hunger).toBeLessThan(PLAYER_MAX_HUNGER);
   });
+  it("applies an authoritative movement speed multiplier", () => {
+    const normal = createDefaultPlayer("normal");
+    const slowed = createDefaultPlayer("slowed");
+    applyPlayerInput(normal, { dx: 1, dy: 0, dt: 0.25 });
+    applyPlayerInput(slowed, { dx: 1, dy: 0, dt: 0.25, speedMultiplier: 0.35 });
+    expect(slowed.x).toBeCloseTo(normal.x * 0.35, 6);
+  });
   it("produces player and melee hitboxes", () => {
     const player = createDefaultPlayer("user-1");
     expect(playerHitbox(player)).toMatchObject({ width: 0.7, height: 0.7 });
