@@ -41,6 +41,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const playerConnections = new Map<string, number>();
   const userSockets = new Map<string, Set<WebSocket>>();
   const combatTargets = new Map<string, CombatTarget>();
+  const defeatedCreatures = new Set<string>();
   const projectiles = new Map<string, CombatProjectile>();
   const pendingCombatRequests = new Map<string, number>();
   const attackCooldowns = new Map<string, number>();
