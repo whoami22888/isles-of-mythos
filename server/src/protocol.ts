@@ -30,7 +30,8 @@ export type ServerMessage =
         | "INVALID_TOKEN"
         | "COMBAT_COOLDOWN"
         | "OUT_OF_RANGE"
-        | "NO_STAMINA"\n        | "COMBAT_IN_PROGRESS";
+        | "NO_STAMINA"
+        | "COMBAT_IN_PROGRESS";
     };
 
 function isSafeInteger(value: unknown): value is number {
