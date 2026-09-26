@@ -14,7 +14,7 @@ import { parseClientMessage, type ServerMessage } from "./protocol.js";
 import { PlayerStore, applyPlayerInput } from "./player.js";
 import { WorldChunkCache } from "./world.js";
 import { SHOP_ITEMS, calculatePurchase, getShopItem } from "./shop.js";
-import { addThreat, applyDamage, createCombatTarget, creatureAbilityDamage, createProjectile, advanceProjectile, isMeleeHit, distance, tickCreatureAi, tickStatuses, weaponFor, type CombatProjectile, type CombatTarget } from "./combat.js";
+import { addThreat, applyDamage, createCombatTarget, creatureAbilityDamage, createProjectile, advanceProjectile, isMeleeHit, distance, tickCreatureAi, tickStatuses, weaponFor, type CombatProjectile, type CombatTarget, type StatusEffect } from "./combat.js";
 import { CombatReplayCache } from "./combat-replay.js";
 
 function send(socket: WebSocket, message: ServerMessage): void {
@@ -48,8 +48,30 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const dodgeCooldowns = new Map<string, number>();
   const blocking = new Set<string>();
   const invulnerableUntil = new Map<string, number>();
+  const playerStatuses = new Map<string, StatusEffect[]>();
   const combatReplay = new CombatReplayCache<Extract<ServerMessage, { type: "combat_result" }>>();
   const app = Fastify({ logger: false });
+
+  function playerHasStatus(userId: string, statusId: StatusEffect["id"]): boolean {
+    return (playerStatuses.get(userId) ?? []).some((status) => status.id === statusId && status.remainingMs > 0);
+  }
+
+  function applyPlayerStatus(userId: string, status: StatusEffect): void {
+    const statuses = playerStatuses.get(userId) ?? [];
+    const next = statuses.filter((entry) => entry.id !== status.id);
+    next.push({ ...status });
+    playerStatuses.set(userId, next);
+  }
+
+  function tickPlayerStatuses(dtMs: number): void {
+    for (const [userId, statuses] of playerStatuses) {
+      const next = statuses
+        .map((status) => ({ ...status, remainingMs: status.remainingMs - dtMs }))
+        .filter((status) => status.remainingMs > 0);
+      if (next.length === 0) playerStatuses.delete(userId);
+      else playerStatuses.set(userId, next);
+    }
+  }
 
   await app.register(cors, {
     origin: (origin, callback) => {
@@ -92,6 +114,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
 
   const combatTick = setInterval(() => {
     const now = Date.now();
+    tickPlayerStatuses(250);
     for (const [projectileId, projectile] of projectiles) {
       const target = combatTargets.get(projectile.targetId);
       const requestId = projectileId.slice(projectileId.indexOf(":") + 1).replace(projectile.ownerUserId + ":", "");
@@ -181,6 +204,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           pseudoTarget.defense = 0;
           const result = creatureAbilityDamage(pseudoTarget, ai.ability);
           targetPlayer.health = Math.max(0, targetPlayer.health - result.amount);
+          if (result.statusApplied) applyPlayerStatus(userId, result.statusApplied);
           players.markDirty(userId);
           for (const socket of userSockets.get(userId) ?? []) send(socket, { type: "player_state", state: targetPlayer });
         }
@@ -360,7 +384,12 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             send(socket, { type: "error", code: "PLAYER_DEAD" });
             return;
           }
-          applyPlayerInput(state, message);
+          if (playerHasStatus(userId, "stun")) {
+            send(socket, { type: "error", code: "PLAYER_STUNNED" });
+            return;
+          }
+          const slow = (playerStatuses.get(userId) ?? []).find((status) => status.id === "slow");
+          applyPlayerInput(state, { ...message, speedMultiplier: slow ? Math.max(0, Math.min(1, 1 - slow.magnitude)) : 1 });
           players.markDirty(userId);
           send(socket, { type: "player_state", state });
           return;
@@ -398,6 +427,10 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           }
           if (state.health <= 0) {
             send(socket, { type: "error", code: "PLAYER_DEAD" });
+            return;
+          }
+          if (playerHasStatus(userId, "stun")) {
+            send(socket, { type: "error", code: "PLAYER_STUNNED" });
             return;
           }
           const replayFingerprint = message.targetId + "|" + message.facingX + "|" + message.facingY + "|" + state.selectedHotbarSlot;
@@ -502,6 +535,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           const state = players.get(userId);
           if (!state) { send(socket, { type: "error", code: "AUTH_REQUIRED" }); return; }
           if (state.health <= 0) { send(socket, { type: "error", code: "PLAYER_DEAD" }); return; }
+          if (playerHasStatus(userId, "stun")) { send(socket, { type: "error", code: "PLAYER_STUNNED" }); return; }
           const now = Date.now();
           if ((dodgeCooldowns.get(userId) ?? 0) > now) { send(socket, { type: "error", code: "COMBAT_COOLDOWN" }); return; }
           if (state.stamina < 20) { send(socket, { type: "error", code: "NO_STAMINA" }); return; }
@@ -521,6 +555,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           const state = players.get(userId);
           if (!state) { send(socket, { type: "error", code: "AUTH_REQUIRED" }); return; }
           if (state.health <= 0) { send(socket, { type: "error", code: "PLAYER_DEAD" }); return; }
+          if (playerHasStatus(userId, "stun")) { send(socket, { type: "error", code: "PLAYER_STUNNED" }); return; }
           if (message.active && state.stamina <= 0) { send(socket, { type: "error", code: "NO_STAMINA" }); return; }
           if (message.active) blocking.add(userId); else blocking.delete(userId);
           players.markDirty(userId);
@@ -562,6 +597,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         dodgeCooldowns.delete(userId);
         blocking.delete(userId);
         invulnerableUntil.delete(userId);
+        playerStatuses.delete(userId);
         for (const [key] of pendingCombatRequests) if (key.startsWith(userId + ":")) pendingCombatRequests.delete(key);
         void players.unload(userId).catch((error) => {
           log("player_disconnect_persistence_failed", {
