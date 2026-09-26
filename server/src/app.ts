@@ -483,7 +483,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             send(socket, { type: "error", code: "NO_STAMINA" });
             return;
           }
-          const match = /^creature:(-?\\d+):(-?\\d+)$/.exec(message.targetId);
+          const match = /^creature:(-?\d+):(-?\d+)$/.exec(message.targetId);
           if (!match) {
             send(socket, { type: "error", code: "INVALID_MESSAGE" });
             return;
