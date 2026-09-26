@@ -418,7 +418,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           }
           const facingLength = Math.hypot(message.facingX, message.facingY) || 1;
           if (weapon.delivery === "melee" && !isMeleeHit(state, target, message.facingX, message.facingY, weapon.range)) {
-            send(socket, { type: "OUT_OF_RANGE" === "OUT_OF_RANGE" ? "error" : "error", code: "OUT_OF_RANGE" });
+            send(socket, { type: "error", code: "OUT_OF_RANGE" });
             return;
           }
           attackCooldowns.set(userId, now + weapon.cooldownMs);
