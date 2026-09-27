@@ -57,7 +57,7 @@ export function applyPlayerInput(state: PlayerState, input: PlayerInput): Player
 
 export function createDefaultPlayer(userId: string): PlayerState {
   return { userId, x: 0, y: 0, health: PLAYER_MAX_HEALTH, defense: PLAYER_BASE_DEFENSE, stamina: 100, maxStamina: 100, hunger: PLAYER_MAX_HUNGER, oxygen: PLAYER_MAX_OXYGEN,
-    xp: 0, level: 1, gold: 0, inventory: { "ammo.flintlock": STARTING_FLINTLOCK_AMMO }, hotbar: ["cutlass", "flintlock", null, null, null, null, null, null], selectedHotbarSlot: 0 };
+    xp: 0, level: 1, gold: 0, inventory: { "ammo.flintlock": STARTING_FLINTLOCK_AMMO, "capture.orb": 3, "creature.feed": 4 }, hotbar: ["cutlass", "flintlock", null, null, null, null, null, null], selectedHotbarSlot: 0 };
 }
 interface PlayerRow {
   user_id: string; x: number; y: number; health: number; defense: number; stamina: number; max_stamina: number; hunger: number; oxygen: number;
@@ -67,7 +67,7 @@ interface PlayerRow {
 function rowToState(row: PlayerRow): PlayerState {
   return { userId: row.user_id, x: row.x, y: row.y, health: row.health, defense: row.defense ?? PLAYER_BASE_DEFENSE, stamina: row.stamina, maxStamina: row.max_stamina, hunger: row.hunger, oxygen: row.oxygen,
     xp: Number(row.xp), level: row.level, gold: Number(row.gold),
-    inventory: { "ammo.flintlock": STARTING_FLINTLOCK_AMMO, ...(row.inventory ?? {}) },
+    inventory: { "ammo.flintlock": STARTING_FLINTLOCK_AMMO, "capture.orb": 3, "creature.feed": 4, ...(row.inventory ?? {}) },
     hotbar: row.hotbar ?? [null, null, null, null, null, null, null, null], selectedHotbarSlot: row.selected_hotbar_slot };
 }
 export class PlayerStore {
