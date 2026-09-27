@@ -1,7 +1,6 @@
 export const up = (pgm) => {
-  const defaultHotbar = '["cutlass","flintlock",null,null,null,null,null,null]'::jsonb;
   pgm.sql(`UPDATE "player_profiles"
-    SET "hotbar" = ${defaultHotbar}
+    SET "hotbar" = '[\"cutlass\",\"flintlock\",null,null,null,null,null,null]'::jsonb
     WHERE "hotbar" = '[null,null,null,null,null,null,null,null]'::jsonb`);
   pgm.alterColumn("player_profiles", "hotbar", {
     default: pgm.func("'[\"cutlass\",\"flintlock\",null,null,null,null,null,null]'::jsonb"),
