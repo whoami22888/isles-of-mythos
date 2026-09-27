@@ -46,7 +46,7 @@ describe("creature foundation",()=>{
       const tameProgress:number[]=[];
       for(let i=0;i<4;i++){const t=wait(socket,v=>isObj(v)&&v.type==="creature_state"&&v.requestId===`t-${i}`);socket.send(JSON.stringify({type:"tame",requestId:`t-${i}`,creatureId}));const m=await t;tameProgress.push(Number(getObj(m as Obj,"creature").tameProgress));}
       expect(tameProgress).toEqual([25,50,75,100]);
-      const party=wait(socket,v=>isObj(v)&&v.type==="creature_party");socket.send(JSON.stringify({type:"set_creature_party",requestId:"party-1",creatureId,slot:0}));await wait(socket,v=>isObj(v)&&v.type==="creature_state"&&v.requestId==="party-1");const partyMessage=await party;expect(Array.isArray((partyMessage as Obj).creatures)).toBe(true);
+      const party=wait(socket,v=>isObj(v)&&v.type==="creature_party");const partyState=wait(socket,v=>isObj(v)&&v.type==="creature_state"&&v.requestId==="party-1");socket.send(JSON.stringify({type:"set_creature_party",requestId:"party-1",creatureId,slot:0}));await partyState;const partyMessage=await party;expect(Array.isArray((partyMessage as Obj).creatures)).toBe(true);
       const ai=wait(socket,v=>isObj(v)&&v.type==="creature_state"&&v.requestId==="ai-1");socket.send(JSON.stringify({type:"set_creature_ai",requestId:"ai-1",creatureId,mode:"stay"}));const aiMessage=await ai;expect(getObj(aiMessage as Obj,"creature").aiMode).toBe("stay");
       const persisted=await db.query("SELECT tame_progress,party_slot,ai_mode FROM player_creatures WHERE id=$1",[creatureId]);
       expect(persisted.rows[0]).toMatchObject({tame_progress:100,party_slot:0,ai_mode:"stay"});
