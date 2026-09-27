@@ -22,10 +22,11 @@ interface ProjectileSpawnMessage {
   expiresAt: number;
 }
 
-interface CreatureStateMessage { type: "creature_state"; requestId?: string; creature: { id: string; species: string; tameProgress: number; partySlot: number | null; aiMode: "follow" | "assist" | "stay" } }
-interface CreaturePartyMessage { type: "creature_party"; creatures: CreatureStateMessage["creature"][] }
+interface CreatureMessage { type: "creature_state"; requestId?: string; creature: CreatureState; }
+interface CreaturePartyMessage { type: "creature_party"; creatures: CreatureState[]; }
+interface CreatureState { id:string; species:string; nickname:string|null; level:number; health:number; maxHealth:number; tameProgress:number; partySlot:number|null; aiMode:"follow"|"assist"|"stay"; x:number; y:number; }
 
-interface CreatureMessage { type: "creature_state"; requestId?: string; creature: CreatureState; }\ninterface CreaturePartyMessage { type: "creature_party"; creatures: CreatureState[]; }\ninterface CreatureState { id:string; species:string; nickname:string|null; level:number; health:number; maxHealth:number; tameProgress:number; partySlot:number|null; aiMode:"follow"|"assist"|"stay"; x:number; y:number; }\n\ninterface CombatResultMessage {
+interface CombatResultMessage {
   type: "combat_result";
   requestId: string;
   targetId: string;
@@ -82,7 +83,13 @@ function parseServerMessage(value: unknown): ServerMessage | null {
         typeof value.expiresAt === "number" && Number.isFinite(value.expiresAt)
         ? { type: "projectile_spawn", projectileId: value.projectileId, ownerUserId: value.ownerUserId, targetId: value.targetId, x: value.x, y: value.y, vx: value.vx, vy: value.vy, expiresAt: value.expiresAt }
         : null;
-    case "creature_state":\n      if (!isRecord(value.creature) || typeof value.creature.id !== "string" || typeof value.creature.species !== "string" || typeof value.creature.tameProgress !== "number" || (value.creature.partySlot !== null && typeof value.creature.partySlot !== "number") || !["follow","assist","stay"].includes(String(value.creature.aiMode))) return null;\n      return { type: "creature_state", requestId: typeof value.requestId === "string" ? value.requestId : undefined, creature: { id:value.creature.id, species:value.creature.species, tameProgress:value.creature.tameProgress, partySlot:value.creature.partySlot as number|null, aiMode:value.creature.aiMode as "follow"|"assist"|"stay" } };\n    case "creature_party":\n      if (!Array.isArray(value.creatures)) return null;\n      return { type: "creature_party", creatures: value.creatures.filter(isRecord).filter(c => typeof c.id === "string" && typeof c.species === "string" && typeof c.tameProgress === "number" && (c.partySlot === null || typeof c.partySlot === "number") && ["follow","assist","stay"].includes(String(c.aiMode))).map(c => ({ id:c.id as string, species:c.species as string, tameProgress:c.tameProgress as number, partySlot:c.partySlot as number|null, aiMode:c.aiMode as "follow"|"assist"|"stay" })) };\n    case "combat_result":
+    case "creature_state":
+      if (!isRecord(value.creature) || typeof value.creature.id !== "string" || typeof value.creature.species !== "string" || typeof value.creature.tameProgress !== "number" || (value.creature.partySlot !== null && typeof value.creature.partySlot !== "number") || !["follow","assist","stay"].includes(String(value.creature.aiMode))) return null;
+      return { type: "creature_state", requestId: typeof value.requestId === "string" ? value.requestId : undefined, creature: { id:value.creature.id, species:value.creature.species, tameProgress:value.creature.tameProgress, partySlot:value.creature.partySlot as number|null, aiMode:value.creature.aiMode as "follow"|"assist"|"stay" } };
+    case "creature_party":
+      if (!Array.isArray(value.creatures)) return null;
+      return { type: "creature_party", creatures: value.creatures.filter(isRecord).filter(c => typeof c.id === "string" && typeof c.species === "string" && typeof c.tameProgress === "number" && (c.partySlot === null || typeof c.partySlot === "number") && ["follow","assist","stay"].includes(String(c.aiMode))).map(c => ({ id:c.id as string, species:c.species as string, tameProgress:c.tameProgress as number, partySlot:c.partySlot as number|null, aiMode:c.aiMode as "follow"|"assist"|"stay" })) };
+    case "combat_result":
       return typeof value.requestId === "string" && value.requestId.length > 0 && value.requestId.length <= 64 &&
         typeof value.targetId === "string" &&
         typeof value.damage === "number" &&
@@ -103,7 +110,13 @@ function parseServerMessage(value: unknown): ServerMessage | null {
             ...(value.status === undefined ? {} : { status: value.status }),
           }
         : null;
-    case "creature_state":\n      return isRecord(value.creature) && typeof value.creature.id === "string" && typeof value.creature.species === "string" && typeof value.creature.tameProgress === "number" && typeof value.creature.x === "number" && typeof value.creature.y === "number"\n        ? { type: "creature_state", ...(typeof value.requestId === "string" ? { requestId: value.requestId } : {}), creature: value.creature as CreatureState } : null;\n    case "creature_party":\n      return Array.isArray(value.creatures) && value.creatures.every((x) => isRecord(x) && typeof x.id === "string")\n        ? { type: "creature_party", creatures: value.creatures as CreatureState[] } : null;\n    case "error":
+    case "creature_state":
+      return isRecord(value.creature) && typeof value.creature.id === "string" && typeof value.creature.species === "string" && typeof value.creature.tameProgress === "number" && typeof value.creature.x === "number" && typeof value.creature.y === "number"
+        ? { type: "creature_state", ...(typeof value.requestId === "string" ? { requestId: value.requestId } : {}), creature: value.creature as CreatureState } : null;
+    case "creature_party":
+      return Array.isArray(value.creatures) && value.creatures.every((x) => isRecord(x) && typeof x.id === "string")
+        ? { type: "creature_party", creatures: value.creatures as CreatureState[] } : null;
+    case "error":
       return typeof value.code === "string" ? { type: "error", code: value.code } : null;
     default:
       return null;
@@ -129,7 +142,10 @@ class WorldScene extends Phaser.Scene {
   private attackRequestSequence = 0;
   private reconnectTimer?: number;
   private reconnectAttempt = 0;
-  private dodgeAccumulator = 0;\n  private readonly ownedCreatures = new Map<string, CreatureState>();\n  private creatureParty: CreatureStateMessage["creature"][] = [];\n  private selectedCreatureId?: string;
+  private dodgeAccumulator = 0;
+  private readonly ownedCreatures = new Map<string, CreatureState>();
+  private creatureParty: CreatureStateMessage["creature"][] = [];
+  private selectedCreatureId?: string;
 
   constructor() { super("world"); }
 
@@ -144,7 +160,9 @@ class WorldScene extends Phaser.Scene {
     this.keys = this.input.keyboard?.addKeys("W,A,S,D") as Record<string, Phaser.Input.Keyboard.Key> | undefined;
     this.input.keyboard?.on("keydown-SPACE", () => this.attackNearest());
     this.input.keyboard?.on("keydown-SHIFT", () => this.dodge());
-    this.input.keyboard?.on("keydown-B", () => this.setBlocking(true));\n    this.input.keyboard?.on("keydown-C", () => this.captureNearest());\n    this.input.keyboard?.on("keydown-T", () => this.tameSelected());
+    this.input.keyboard?.on("keydown-B", () => this.setBlocking(true));
+    this.input.keyboard?.on("keydown-C", () => this.captureNearest());
+    this.input.keyboard?.on("keydown-T", () => this.tameSelected());
     this.input.keyboard?.on("keyup-B", () => this.setBlocking(false));
     this.createTouchCombatControls();
     this.input.on("wheel", (_p: Phaser.Input.Pointer, _g: unknown[], _dx: number, dy: number) => this.cameras.main.setZoom(Phaser.Math.Clamp(this.cameras.main.zoom - dy * 0.001, 0.5, 2.5)));
@@ -222,11 +240,23 @@ class WorldScene extends Phaser.Scene {
         this.updateHud();
         return;
       }
-      if (message.type === "creature_party") {\n        this.ownedCreatures.clear();\n        for (const creature of message.creatures) this.ownedCreatures.set(creature.id, creature);\n        return;\n      }\n      if (message.type === "creature_state") {\n        this.ownedCreatures.set(message.creature.id, message.creature);\n        this.combatText?.setText(message.creature.tameProgress >= 100 ? `${message.creature.species.toUpperCase()} TAMED` : `${message.creature.species.toUpperCase()} TAME ${message.creature.tameProgress}%`);\n        return;\n      }\n      if (message.type === "projectile_spawn") {
+      if (message.type === "creature_party") {
+        this.ownedCreatures.clear();
+        for (const creature of message.creatures) this.ownedCreatures.set(creature.id, creature);
+        return;
+      }
+      if (message.type === "creature_state") {
+        this.ownedCreatures.set(message.creature.id, message.creature);
+        this.combatText?.setText(message.creature.tameProgress >= 100 ? `${message.creature.species.toUpperCase()} TAMED` : `${message.creature.species.toUpperCase()} TAME ${message.creature.tameProgress}%`);
+        return;
+      }
+      if (message.type === "projectile_spawn") {
         this.renderProjectile(message);
         return;
       }
-      if (message.type === "creature_party") { this.creatureParty = message.creatures; if (message.creatures.length > 0 && !this.selectedCreatureId) this.selectedCreatureId = message.creatures[0].id; this.combatText?.setText("CREATURE PARTY • " + message.creatures.length); return; }\n      if (message.type === "creature_state") { this.selectedCreatureId = message.creature.id; const i=this.creatureParty.findIndex(c=>c.id===message.creature.id); if(i>=0)this.creatureParty[i]=message.creature; else this.creatureParty.push(message.creature); this.combatText?.setText("CREATURE • "+message.creature.species+" • TAME "+message.creature.tameProgress+"%"); return; }\n      if (message.type === "combat_result") {
+      if (message.type === "creature_party") { this.creatureParty = message.creatures; if (message.creatures.length > 0 && !this.selectedCreatureId) this.selectedCreatureId = message.creatures[0].id; this.combatText?.setText("CREATURE PARTY • " + message.creatures.length); return; }
+      if (message.type === "creature_state") { this.selectedCreatureId = message.creature.id; const i=this.creatureParty.findIndex(c=>c.id===message.creature.id); if(i>=0)this.creatureParty[i]=message.creature; else this.creatureParty.push(message.creature); this.combatText?.setText("CREATURE • "+message.creature.species+" • TAME "+message.creature.tameProgress+"%"); return; }
+      if (message.type === "combat_result") {
         const projectileId = this.projectileByRequest.get(message.requestId);
         if (projectileId) {
           this.projectiles.get(projectileId)?.destroy();
@@ -317,7 +347,31 @@ class WorldScene extends Phaser.Scene {
     }
   }
 
-  private creatureRequestId(prefix: string): string { return prefix + "-" + Date.now().toString(36) + "-" + (++this.attackRequestSequence).toString(36); }\n\n  private captureNearest(): void {\n    if (!this.socket || this.socket.readyState !== WebSocket.OPEN || !this.player) return;\n    const target=this.chunks.nearestCreature(this.player.x,this.player.y,2.5);\n    if(!target){this.combatText?.setText("NO CREATURE IN CAPTURE RANGE");return;}\n    this.socket.send(JSON.stringify({type:"capture",requestId:this.creatureRequestId("capture"),targetId:target.id}));\n  }\n\n  private tameSelected(): void {\n    if(!this.selectedCreatureId || this.socket?.readyState!==WebSocket.OPEN){this.combatText?.setText("NO CREATURE SELECTED");return;}\n    this.socket.send(JSON.stringify({type:"tame",requestId:this.creatureRequestId("tame"),creatureId:this.selectedCreatureId}));\n  }\n\n  private setCreatureParty(): void {\n    if(!this.selectedCreatureId || this.socket?.readyState!==WebSocket.OPEN){this.combatText?.setText("NO CREATURE SELECTED");return;}\n    this.socket.send(JSON.stringify({type:"set_creature_party",requestId:this.creatureRequestId("party"),creatureId:this.selectedCreatureId,slot:0}));\n  }\n\n  private setCreatureAi(mode: "follow"|"assist"|"stay"): void {\n    if(!this.selectedCreatureId || this.socket?.readyState!==WebSocket.OPEN){this.combatText?.setText("NO CREATURE SELECTED");return;}\n    this.socket.send(JSON.stringify({type:"set_creature_ai",requestId:this.creatureRequestId("ai"),creatureId:this.selectedCreatureId,mode}));\n  }\n\n  private setBlocking(active: boolean): void {
+  private creatureRequestId(prefix: string): string { return prefix + "-" + Date.now().toString(36) + "-" + (++this.attackRequestSequence).toString(36); }
+
+  private captureNearest(): void {
+    if (!this.socket || this.socket.readyState !== WebSocket.OPEN || !this.player) return;
+    const target=this.chunks.nearestCreature(this.player.x,this.player.y,2.5);
+    if(!target){this.combatText?.setText("NO CREATURE IN CAPTURE RANGE");return;}
+    this.socket.send(JSON.stringify({type:"capture",requestId:this.creatureRequestId("capture"),targetId:target.id}));
+  }
+
+  private tameSelected(): void {
+    if(!this.selectedCreatureId || this.socket?.readyState!==WebSocket.OPEN){this.combatText?.setText("NO CREATURE SELECTED");return;}
+    this.socket.send(JSON.stringify({type:"tame",requestId:this.creatureRequestId("tame"),creatureId:this.selectedCreatureId}));
+  }
+
+  private setCreatureParty(): void {
+    if(!this.selectedCreatureId || this.socket?.readyState!==WebSocket.OPEN){this.combatText?.setText("NO CREATURE SELECTED");return;}
+    this.socket.send(JSON.stringify({type:"set_creature_party",requestId:this.creatureRequestId("party"),creatureId:this.selectedCreatureId,slot:0}));
+  }
+
+  private setCreatureAi(mode: "follow"|"assist"|"stay"): void {
+    if(!this.selectedCreatureId || this.socket?.readyState!==WebSocket.OPEN){this.combatText?.setText("NO CREATURE SELECTED");return;}
+    this.socket.send(JSON.stringify({type:"set_creature_ai",requestId:this.creatureRequestId("ai"),creatureId:this.selectedCreatureId,mode}));
+  }
+
+  private setBlocking(active: boolean): void {
     if (this.socket?.readyState !== WebSocket.OPEN) return;
     try { this.socket.send(JSON.stringify({ type: "block", active })); } catch {
       this.connected = false;
@@ -336,7 +390,13 @@ class WorldScene extends Phaser.Scene {
     };
     makeButton("ATTACK", 16, 650, () => this.attackNearest());
     makeButton("DODGE", 120, 650, () => this.dodge());
-    makeButton("BLOCK", 214, 650, () => this.setBlocking(true), () => this.setBlocking(false));\n    makeButton("CAPTURE", 318, 650, () => this.captureNearest());\n    makeButton("TAME", 426, 650, () => this.tameSelected());\n    makeButton("CAPTURE", 308, 650, () => this.captureNearest());\n    makeButton("TAME", 420, 650, () => this.tameSelected());\n    makeButton("PARTY", 502, 650, () => this.setCreatureParty());\n    makeButton("STAY", 590, 650, () => this.setCreatureAi("stay"));
+    makeButton("BLOCK", 214, 650, () => this.setBlocking(true), () => this.setBlocking(false));
+    makeButton("CAPTURE", 318, 650, () => this.captureNearest());
+    makeButton("TAME", 426, 650, () => this.tameSelected());
+    makeButton("CAPTURE", 308, 650, () => this.captureNearest());
+    makeButton("TAME", 420, 650, () => this.tameSelected());
+    makeButton("PARTY", 502, 650, () => this.setCreatureParty());
+    makeButton("STAY", 590, 650, () => this.setCreatureAi("stay"));
   }
 
   private renderProjectile(message: ProjectileSpawnMessage): void {
@@ -363,7 +423,21 @@ class WorldScene extends Phaser.Scene {
     });
   }
 
-  private captureNearest(): void {\n    if (!this.player || this.socket?.readyState !== WebSocket.OPEN) return;\n    const target = this.chunks.nearestCreature(this.player.x, this.player.y, 2.5);\n    if (!target) { this.combatText?.setText("NO CREATURE IN CAPTURE RANGE"); return; }\n    this.socket.send(JSON.stringify({ type: "capture", requestId: this.nextAttackRequestId(), targetId: target.id }));\n  }\n\n  private tameSelected(): void {\n    if (this.socket?.readyState !== WebSocket.OPEN) return;\n    const creature = [...this.ownedCreatures.values()].find((x) => x.partySlot !== null) ?? [...this.ownedCreatures.values()][0];\n    if (!creature) { this.combatText?.setText("NO OWNED CREATURE"); return; }\n    this.socket.send(JSON.stringify({ type: "tame", requestId: this.nextAttackRequestId(), creatureId: creature.id }));\n  }\n\n  private nextAttackRequestId(): string { return Date.now().toString(36) + "-" + (++this.attackRequestSequence).toString(36); }
+  private captureNearest(): void {
+    if (!this.player || this.socket?.readyState !== WebSocket.OPEN) return;
+    const target = this.chunks.nearestCreature(this.player.x, this.player.y, 2.5);
+    if (!target) { this.combatText?.setText("NO CREATURE IN CAPTURE RANGE"); return; }
+    this.socket.send(JSON.stringify({ type: "capture", requestId: this.nextAttackRequestId(), targetId: target.id }));
+  }
+
+  private tameSelected(): void {
+    if (this.socket?.readyState !== WebSocket.OPEN) return;
+    const creature = [...this.ownedCreatures.values()].find((x) => x.partySlot !== null) ?? [...this.ownedCreatures.values()][0];
+    if (!creature) { this.combatText?.setText("NO OWNED CREATURE"); return; }
+    this.socket.send(JSON.stringify({ type: "tame", requestId: this.nextAttackRequestId(), creatureId: creature.id }));
+  }
+
+  private nextAttackRequestId(): string { return Date.now().toString(36) + "-" + (++this.attackRequestSequence).toString(36); }
 
   private attackNearest(): void {
     if (this.attackAccumulator > 0 || !this.player || this.socket?.readyState !== WebSocket.OPEN) return;
