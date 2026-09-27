@@ -183,7 +183,6 @@ describe("server foundation", () => {
         socket.once("open", () => resolve());
         socket.once("error", reject);
       });
-      await waitForMessage(socket);
       const authenticated = waitForMatchingMessage(socket, (message) => typeof message === "object" && message !== null && (message as JsonObject).type === "auth_ok");
       const initialState = waitForMatchingMessage(socket, (message) => typeof message === "object" && message !== null && (message as JsonObject).type === "player_state");
       socket.send(JSON.stringify({ type: "auth", token }));
