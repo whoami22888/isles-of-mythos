@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { WebSocket } from "ws";
 import { buildApp } from "./app.js";
-import { config } from "./config.js";
 import { parseClientMessage } from "./protocol.js";
 
 type Obj=Record<string,unknown>;
@@ -10,7 +9,7 @@ const getObj=(v:Obj,k:string):Obj=>{const x=v[k];if(!isObj(x))throw new Error("E
 const getStr=(v:Obj,k:string)=>{const x=v[k];if(typeof x!=="string")throw new Error("Expected string");return x;};
 function wait(socket:WebSocket,p:(v:unknown)=>boolean):Promise<unknown>{
   return new Promise((resolve,reject)=>{const timer=setTimeout(()=>{socket.off("message",on);reject(new Error("Timed out waiting for creature message"));},3000);
-    const on=(raw:Buffer)=>{let v:unknown;try{v=JSON.parse(raw.toString());}catch(e){return;}if(!p(v))return;clearTimeout(timer);socket.off("message",on);resolve(v);};socket.on("message",on);});
+    const on=(raw:Buffer)=>{let v:unknown;try{v=JSON.parse(raw.toString());}catch { return; }if(!p(v))return;clearTimeout(timer);socket.off("message",on);resolve(v);};socket.on("message",on);});
 }
 async function socketFor(app:Awaited<ReturnType<typeof buildApp>>){await app.listen({host:"127.0.0.1",port:0});const a=app.server.address();if(!a||typeof a==="string")throw new Error("No test address");return new WebSocket(`ws://127.0.0.1:${a.port}/ws`);}
 describe("creature foundation",()=>{
@@ -43,7 +42,7 @@ describe("creature foundation",()=>{
       }
       const captured=wait(socket,v=>isObj(v)&&v.type==="creature_state"&&v.requestId==="cap-1");
       socket.send(JSON.stringify({type:"capture",requestId:"cap-1",targetId}));
-      const capturedMessage=await captured; const creature=getObj(capturedMessage as Obj,"creature"); const creatureId=getStr(creature,"id"); const inventoryAfterCapture=await db.query("SELECT inventory->>'capture.orb' AS capture_orbs FROM player_profiles WHERE user_id=$1",[userId]); expect(Number(inventoryAfterCapture.rows[0].capture_orbs)).toBe(2);
+      const capturedMessage=await captured; const creature=getObj(capturedMessage as Obj,"creature"); const creatureId=getStr(creature,"id"); const inventoryAfterCapture=await db.query<{ capture_orbs: string | null }>("SELECT inventory->>'capture.orb' AS capture_orbs FROM player_profiles WHERE user_id=$1",[userId]); expect(Number(inventoryAfterCapture.rows[0]?.capture_orbs)).toBe(2);
       expect(creature.species).toBe(getStr(spawn,"species")); expect(creature.tameProgress).toBe(0);
       const tameProgress:number[]=[];
       for(let i=0;i<4;i++){const t=wait(socket,v=>isObj(v)&&v.type==="creature_state"&&v.requestId===`t-${i}`);socket.send(JSON.stringify({type:"tame",requestId:`t-${i}`,creatureId}));const m=await t;tameProgress.push(Number(getObj(m as Obj,"creature").tameProgress));}
