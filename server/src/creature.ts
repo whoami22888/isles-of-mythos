@@ -61,8 +61,8 @@ export class CreatureStore {
       const c=rowToCreature(inserted.rows[0]); const list=this.active.get(userId)??[]; list.push(c); this.active.set(userId,list); this.markDirty(userId); return c;
     }catch(e){await client.query("ROLLBACK");throw e;}finally{client.release();}
   }
-  async tame(userId:string,id:string):Promise<OwnedCreature>{
-    const c=this.getCreature(userId,id); if(!c)throw new Error("CREATURE_NOT_FOUND"); if(c.tameProgress>=100)return c;
+  async tame(userId:string,id:string):Promise<{creature:OwnedCreature;consumed:boolean}>{
+    const c=this.getCreature(userId,id); if(!c)throw new Error("CREATURE_NOT_FOUND"); if(c.tameProgress>=100)return {creature:c,consumed:false};
     const client=await this.db.connect();
     try{
       await client.query("BEGIN");
