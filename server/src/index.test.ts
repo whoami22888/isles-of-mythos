@@ -239,6 +239,158 @@ describe("server foundation", () => {
     }
   });
 
+  it("enforces authoritative ranged ammunition consumption", async () => {
+    const app = await buildApp();
+    const unique = Date.now();
+    const register = await app.inject({
+      method: "POST",
+      url: "/auth/register",
+      payload: {
+        username: `ammo_${unique}`,
+        email: `ammo_${unique}@example.com`,
+        password: "Correct-Horse-Battery-9",
+      },
+    });
+    expect(register.statusCode).toBe(201);
+    const registerBody = parseJsonObject(register.body);
+    const token = getString(registerBody, "accessToken");
+    const userId = getString(getObject(registerBody, "user"), "id");
+
+    let spawnObject: JsonObject | null = null;
+    for (let chunkY = 0; chunkY < 8 && !spawnObject; chunkY += 1) {
+      for (let chunkX = 0; chunkX < 8 && !spawnObject; chunkX += 1) {
+        const chunkResponse = await app.inject({ method: "GET", url: `/world/chunks/${chunkX}/${chunkY}` });
+        expect(chunkResponse.statusCode).toBe(200);
+        const chunk = parseJsonObject(chunkResponse.body);
+        const creatures = chunk.creatures;
+        if (!Array.isArray(creatures)) throw new Error("Test world chunk creatures are malformed");
+        const spawn = creatures.find(isJsonObject);
+        if (spawn) spawnObject = spawn;
+      }
+    }
+    if (!spawnObject) throw new Error("Deterministic test world contains no creature spawn");
+    const targetId = getString(spawnObject, "id");
+    const targetX = Number(spawnObject.x);
+    const targetY = Number(spawnObject.y);
+    const database = (await import("./db.js")).createDbPool();
+    await database.query(
+      "INSERT INTO player_profiles (user_id, x, y, stamina, inventory) VALUES ($1, $2, $3, 100, $4::jsonb) ON CONFLICT (user_id) DO UPDATE SET x=EXCLUDED.x, y=EXCLUDED.y, stamina=100, inventory=EXCLUDED.inventory",
+      [userId, targetX - 0.5, targetY, JSON.stringify({ "ammo.flintlock": 1 })],
+    );
+
+    const socket = await openSocket(app);
+    try {
+      await new Promise<void>((resolve, reject) => {
+        socket.once("open", () => resolve());
+        socket.once("error", reject);
+      });
+      const authenticated = waitForMatchingMessage(socket, (message) => isJsonObject(message) && message.type === "auth_ok");
+      const initialState = waitForMatchingMessage(socket, (message) => isJsonObject(message) && message.type === "player_state");
+      socket.send(JSON.stringify({ type: "auth", token }));
+      await authenticated;
+      await initialState;
+
+      const selected = waitForMatchingMessage(socket, (message) => isJsonObject(message) && message.type === "player_state" && getObject(message, "state").selectedHotbarSlot === 1);
+      socket.send(JSON.stringify({ type: "select_hotbar", slot: 1 }));
+      await selected;
+
+      const hit = waitForMatchingMessage(socket, (message) => isJsonObject(message) && message.type === "combat_result");
+      socket.send(JSON.stringify({
+        type: "attack",
+        requestId: "ammo-1",
+        targetId,
+        facingX: 1,
+        facingY: 0,
+      }));
+      await expect(hit).resolves.toMatchObject({ type: "combat_result", requestId: "ammo-1", targetId });
+
+      const stateAfterAttack = waitForMatchingMessage(socket, (message) => isJsonObject(message) && message.type === "player_state");
+      socket.send(JSON.stringify({ type: "move", dx: 0, dy: 0, dt: 0 }));
+      await expect(stateAfterAttack).resolves.toMatchObject({
+        type: "player_state",
+        state: { inventory: { "ammo.flintlock": 0 } },
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 950));
+      const noAmmo = waitForMatchingMessage(socket, (message) => isJsonObject(message) && message.type === "error" && message.code === "NO_AMMO");
+      socket.send(JSON.stringify({
+        type: "attack",
+        requestId: "ammo-2",
+        targetId,
+        facingX: 1,
+        facingY: 0,
+      }));
+      await expect(noAmmo).resolves.toEqual({ type: "error", code: "NO_AMMO" });
+    } finally {
+      socket.close();
+      await database.end();
+      await app.close();
+    }
+  });
+
+  it("acquires nearby creatures for autonomous server AI", async () => {
+    const app = await buildApp();
+    const unique = Date.now();
+    const register = await app.inject({
+      method: "POST",
+      url: "/auth/register",
+      payload: {
+        username: `ai_${unique}`,
+        email: `ai_${unique}@example.com`,
+        password: "Correct-Horse-Battery-9",
+      },
+    });
+    expect(register.statusCode).toBe(201);
+    const registerBody = parseJsonObject(register.body);
+    const token = getString(registerBody, "accessToken");
+    const userId = getString(getObject(registerBody, "user"), "id");
+
+    let spawnObject: JsonObject | null = null;
+    for (let chunkY = 0; chunkY < 8 && !spawnObject; chunkY += 1) {
+      for (let chunkX = 0; chunkX < 8 && !spawnObject; chunkX += 1) {
+        const chunkResponse = await app.inject({ method: "GET", url: `/world/chunks/${chunkX}/${chunkY}` });
+        expect(chunkResponse.statusCode).toBe(200);
+        const chunk = parseJsonObject(chunkResponse.body);
+        const creatures = chunk.creatures;
+        if (!Array.isArray(creatures)) throw new Error("Test world chunk creatures are malformed");
+        const spawn = creatures.find(isJsonObject);
+        if (spawn) spawnObject = spawn;
+      }
+    }
+    if (!spawnObject) throw new Error("Deterministic test world contains no creature spawn");
+    const targetX = Number(spawnObject.x);
+    const targetY = Number(spawnObject.y);
+    const database = (await import("./db.js")).createDbPool();
+    await database.query(
+      "INSERT INTO player_profiles (user_id, x, y, stamina, health) VALUES ($1, $2, $3, 100, 100) ON CONFLICT (user_id) DO UPDATE SET x=EXCLUDED.x, y=EXCLUDED.y, stamina=100, health=100",
+      [userId, targetX - 0.25, targetY],
+    );
+
+    const socket = await openSocket(app);
+    try {
+      await new Promise<void>((resolve, reject) => {
+        socket.once("open", () => resolve());
+        socket.once("error", reject);
+      });
+      const authenticated = waitForMatchingMessage(socket, (message) => isJsonObject(message) && message.type === "auth_ok");
+      const initialState = waitForMatchingMessage(socket, (message) => isJsonObject(message) && message.type === "player_state");
+      socket.send(JSON.stringify({ type: "auth", token }));
+      await authenticated;
+      await initialState;
+
+      const damaged = waitForMatchingMessage(socket, (message) => {
+        if (!isJsonObject(message) || message.type !== "player_state") return false;
+        const state = getObject(message, "state");
+        return typeof state.health === "number" && state.health < 100;
+      });
+      await expect(damaged).resolves.toMatchObject({ type: "player_state" });
+    } finally {
+      socket.close();
+      await database.end();
+      await app.close();
+    }
+  });
+
   it("authenticates a WebSocket before allowing world subscriptions", async () => {
     const app = await buildApp();
     const unique = Date.now();
