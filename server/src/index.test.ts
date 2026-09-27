@@ -52,6 +52,10 @@ function parseJsonObject(body: string): JsonObject {
   return value as JsonObject;
 }
 
+function isJsonObject(value: unknown): value is JsonObject {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 function getObject(value: JsonObject, key: string): JsonObject {
   const nested = value[key];
   if (typeof nested !== "object" || nested === null || Array.isArray(nested)) {
@@ -155,10 +159,8 @@ describe("server foundation", () => {
         const chunk = parseJsonObject(chunkResponse.body);
         const creatures = chunk.creatures;
         if (!Array.isArray(creatures)) throw new Error("Test world chunk creatures are malformed");
-        const spawn = creatures.find((entry) => typeof entry === "object" && entry !== null && !Array.isArray(entry));
-        if (spawn && typeof spawn === "object" && spawn !== null && !Array.isArray(spawn)) {
-          spawnObject = spawn as JsonObject;
-        }
+        const spawn = creatures.find(isJsonObject);
+        if (spawn) spawnObject = spawn;
       }
     }
     if (!spawnObject) throw new Error("Deterministic test world contains no creature spawn");
