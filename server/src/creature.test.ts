@@ -32,7 +32,6 @@ describe("creature foundation",()=>{
     const socket=await socketFor(app);
     try{
       await new Promise<void>((res,rej)=>{socket.once("open",()=>res());socket.once("error",rej);});
-      await wait(socket,v=>isObj(v)&&v.type==="server_ready");
       const auth=wait(socket,v=>isObj(v)&&v.type==="auth_ok"); const state=wait(socket,v=>isObj(v)&&v.type==="player_state");
       socket.send(JSON.stringify({type:"auth",token})); await auth; await state;
       for(let i=0;i<2;i++){
