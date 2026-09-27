@@ -67,7 +67,7 @@ interface PlayerRow {
 function rowToState(row: PlayerRow): PlayerState {
   return { userId: row.user_id, x: row.x, y: row.y, health: row.health, defense: row.defense ?? PLAYER_BASE_DEFENSE, stamina: row.stamina, maxStamina: row.max_stamina, hunger: row.hunger, oxygen: row.oxygen,
     xp: Number(row.xp), level: row.level, gold: Number(row.gold),
-    inventory: { "ammo.flintlock": STARTING_FLINTLOCK_AMMO, "capture.orb": 3, "creature.feed": 4, ...(row.inventory ?? {}) },
+    inventory: { "ammo.flintlock": STARTING_FLINTLOCK_AMMO, ...(row.inventory ?? {}) },
     hotbar: row.hotbar ?? [null, null, null, null, null, null, null, null], selectedHotbarSlot: row.selected_hotbar_slot };
 }
 export class PlayerStore {
