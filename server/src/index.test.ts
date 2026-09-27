@@ -175,7 +175,7 @@ describe("server foundation", () => {
     expect(Number.isFinite(targetY)).toBe(true);
 
     const database = (await import("./db.js")).createDbPool();
-    await database.query("UPDATE player_profiles SET x=$2, y=$3, stamina=100 WHERE user_id=$1", [userId, targetX - 1, targetY]);
+    await database.query("UPDATE player_profiles SET x=$2, y=$3, stamina=100 WHERE user_id=$1", [userId, targetX - 0.5, targetY]);
 
     const socket = await openSocket(app);
     try {
