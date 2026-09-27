@@ -128,7 +128,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     tickPlayerStatuses(250);
     for (const [projectileId, projectile] of projectiles) {
       const target = combatTargets.get(projectile.targetId);
-      const requestId = projectile.requestId;
+      const requestId = projectileId.slice(projectileId.indexOf(":") + 1).replace(projectile.ownerUserId + ":", "");
       const replayKey = projectile.ownerUserId + ":" + requestId;
       if (!target) {
         projectiles.delete(projectileId);
@@ -527,7 +527,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           }
           if (weapon.delivery === "projectile") {
             const projectileId = "projectile:" + userId + ":" + message.requestId;
-            const projectile = createProjectile(projectileId, userId, message.requestId, target, state, message.facingX / facingLength, message.facingY / facingLength, weapon, now, replayFingerprint);
+            const projectile = createProjectile(projectileId, userId, target, state, message.facingX / facingLength, message.facingY / facingLength, weapon, now, replayFingerprint);
             if (!projectile) {
               send(socket, { type: "error", code: "INVALID_MESSAGE" });
               return;
@@ -538,7 +538,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             projectiles.set(projectileId, projectile);
             pendingCombatRequests.set(pendingKey, projectile.expiresAt);
             for (const ownerSocket of userSockets.get(userId) ?? []) send(ownerSocket, {
-              type: "projectile_spawn", projectileId, ownerUserId: userId, requestId: message.requestId, targetId: target.id,
+              type: "projectile_spawn", projectileId, ownerUserId: userId, targetId: target.id,
               x: projectile.x, y: projectile.y, vx: projectile.vx, vy: projectile.vy, expiresAt: projectile.expiresAt,
             });
             return;
