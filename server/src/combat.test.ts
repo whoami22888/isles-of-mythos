@@ -40,7 +40,7 @@ describe("combat engine", () => {
   it("creates and advances authoritative projectiles", () => {
     const weapon = weaponFor("flintlock");
     const target = createCombatTarget("creature:5:0", "slime", 5, 0, 1);
-    const projectile = createProjectile("projectile:user:attack-1", "user", "attack-1", target, { x: 0, y: 0 }, 1, 0, weapon!, 1000, "target|1|0|0");
+    const projectile = createProjectile("projectile:user:attack-1", "user", target, { x: 0, y: 0 }, 1, 0, weapon!, 1000, "target|1|0|0");
     expect(projectile?.weapon.id).toBe("flintlock");
     expect(projectile?.replayFingerprint).toBe("target|1|0|0");
     expect(advanceProjectile(projectile!, target, 0.25, 1250)).toBe("flying");
@@ -50,7 +50,7 @@ describe("combat engine", () => {
   it("expires projectiles without applying damage", () => {
     const weapon = weaponFor("bow");
     const target = createCombatTarget("creature:20:0", "slime", 20, 0, 1);
-    const projectile = createProjectile("projectile:user:attack-2", "user", "attack-2", target, { x: 0, y: 0 }, 1, 0, weapon!, 1000, "target|2|1|0");
+    const projectile = createProjectile("projectile:user:attack-2", "user", target, { x: 0, y: 0 }, 1, 0, weapon!, 1000, "target|2|1|0");
     expect(advanceProjectile(projectile!, target, 0.05, projectile!.expiresAt)).toBe("expired");
   });
 
