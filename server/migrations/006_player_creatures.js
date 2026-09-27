@@ -22,9 +22,9 @@ export const up=(pgm)=>{
     updated_at:{type:"timestamptz",notNull:true,default:pgm.func("CURRENT_TIMESTAMP")}
   });
   pgm.addConstraint("player_creatures","player_creatures_level_range",{check:"level>=1 AND level<=100"});
-  pgm.addConstraint("player_creatures_tame_range",{check:"tame_progress>=0 AND tame_progress<=100"});
-  pgm.addConstraint("player_creatures_party_range",{check:"party_slot IS NULL OR (party_slot>=0 AND party_slot<3)"});
-  pgm.addConstraint("player_creatures_ai_mode",{check:"ai_mode IN ('follow','assist','stay')"});
+  pgm.addConstraint("player_creatures","player_creatures_tame_range",{check:"tame_progress>=0 AND tame_progress<=100"});
+  pgm.addConstraint("player_creatures","player_creatures_party_range",{check:"party_slot IS NULL OR (party_slot>=0 AND party_slot<3)"});
+  pgm.addConstraint("player_creatures","player_creatures_ai_mode",{check:"ai_mode IN ('follow','assist','stay')"});
   pgm.addConstraint("player_creatures_wild_source_unique",{unique:["owner_user_id","wild_source_id"]});
   pgm.createIndex("player_creatures",["owner_user_id","party_slot"],{unique:true,where:"party_slot IS NOT NULL"});
 };
