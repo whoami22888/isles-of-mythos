@@ -5,11 +5,13 @@ describe("combat protocol", () => {
   it("accepts bounded attack messages", () => {
     expect(parseClientMessage(JSON.stringify({
       type: "attack",
+      requestId: "attack-1",
       targetId: "creature:10:-4",
       facingX: 1,
       facingY: 0,
     }))).toEqual({
       type: "attack",
+      requestId: "attack-1",
       targetId: "creature:10:-4",
       facingX: 1,
       facingY: 0,
@@ -19,12 +21,14 @@ describe("combat protocol", () => {
   it("rejects malformed or unbounded attack messages", () => {
     expect(parseClientMessage(JSON.stringify({
       type: "attack",
+      requestId: "attack-3",
       targetId: "creature:10:-4",
       facingX: 4,
       facingY: 0,
     }))).toBeNull();
     expect(parseClientMessage(JSON.stringify({
       type: "attack",
+      requestId: "attack-2",
       targetId: "",
       facingX: 1,
       facingY: 0,
