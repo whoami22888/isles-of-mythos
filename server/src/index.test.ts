@@ -15,7 +15,10 @@ function waitForMatchingMessage(
   predicate: (message: unknown) => boolean,
 ): Promise<unknown> {
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error("Timed out waiting for WebSocket message")), 2_000);
+    const received: unknown[] = [];
+    const timer = setTimeout(() => {
+      reject(new Error(`Timed out waiting for WebSocket message; received: ${JSON.stringify(received)}`));
+    }, 2_000);
 
     const onMessage = (raw: Buffer) => {
       let message: unknown;
@@ -27,6 +30,7 @@ function waitForMatchingMessage(
         reject(error instanceof Error ? error : new Error("Invalid JSON message"));
         return;
       }
+      received.push(message);
       if (!predicate(message)) return;
       clearTimeout(timer);
       socket.off("message", onMessage);
