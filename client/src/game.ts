@@ -158,8 +158,6 @@ class WorldScene extends Phaser.Scene {
   private reconnectAttempt = 0;
   private dodgeAccumulator = 0;
   private readonly ownedCreatures = new Map<string, CreatureState>();
-  private creatureParty: CreatureState[] = [];
-  private selectedCreatureId?: string;
 
   constructor() { super("world"); }
 
@@ -404,8 +402,6 @@ class WorldScene extends Phaser.Scene {
       },
     });
   }
-
-  private creatureRequestId(prefix: string): string { return prefix + "-" + Date.now().toString(36) + "-" + (++this.attackRequestSequence).toString(36); }
 
   private captureNearest(): void {
     if (!this.player || this.socket?.readyState !== WebSocket.OPEN) return;
