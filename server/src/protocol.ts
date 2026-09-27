@@ -11,7 +11,11 @@ export type ClientMessage =
   | { type: "select_hotbar"; slot: number }
   | { type: "attack"; requestId: string; targetId: string; facingX: number; facingY: number }
   | { type: "dodge"; facingX: number; facingY: number }
-  | { type: "block"; active: boolean }\n  | { type: "capture"; requestId: string; targetId: string }\n  | { type: "tame"; requestId: string; creatureId: string }\n  | { type: "set_creature_party"; requestId: string; creatureId: string; slot: number | null }\n  | { type: "set_creature_ai"; requestId: string; creatureId: string; mode: "follow" | "assist" | "stay" };
+  | { type: "block"; active: boolean }
+  | { type: "capture"; requestId: string; targetId: string }
+  | { type: "tame"; requestId: string; creatureId: string }
+  | { type: "set_creature_party"; requestId: string; creatureId: string; slot: number | null }
+  | { type: "set_creature_ai"; requestId: string; creatureId: string; mode: "follow" | "assist" | "stay" };
 
 export type ServerMessage =
   | { type: "server_ready"; timestamp: number }
@@ -20,7 +24,9 @@ export type ServerMessage =
   | { type: "player_state"; state: unknown }
   | { type: "world_chunk"; requestId: string; chunk: unknown }
   | { type: "projectile_spawn"; projectileId: string; ownerUserId: string; targetId: string; x: number; y: number; vx: number; vy: number; expiresAt: number }
-  | { type: "combat_result"; requestId: string; targetId: string; damage: number; critical: boolean; killed: boolean; targetHealth: number; status?: string; missed?: boolean }\n  | { type: "creature_state"; requestId?: string; creature: unknown }\n  | { type: "creature_party"; creatures: unknown[] }
+  | { type: "combat_result"; requestId: string; targetId: string; damage: number; critical: boolean; killed: boolean; targetHealth: number; status?: string; missed?: boolean }
+  | { type: "creature_state"; requestId?: string; creature: unknown }
+  | { type: "creature_party"; creatures: unknown[] }
   | {
       type: "error";
       code:
@@ -35,7 +41,14 @@ export type ServerMessage =
         | "COMBAT_IN_PROGRESS"
         | "PLAYER_DEAD"
         | "PLAYER_STUNNED"
-        | "RATE_LIMITED"\n        | "CREATURE_TOO_HEALTHY"\n        | "NO_CAPTURE_ORB"\n        | "CREATURE_ALREADY_CAPTURED"\n        | "CREATURE_NOT_FOUND"\n        | "NO_CREATURE_FEED"\n        | "CREATURE_NOT_TAMED"\n        | "INVALID_PARTY_SLOT";
+        | "RATE_LIMITED"
+        | "CREATURE_TOO_HEALTHY"
+        | "NO_CAPTURE_ORB"
+        | "CREATURE_ALREADY_CAPTURED"
+        | "CREATURE_NOT_FOUND"
+        | "NO_CREATURE_FEED"
+        | "CREATURE_NOT_TAMED"
+        | "INVALID_PARTY_SLOT";
     };
 
 function isSafeInteger(value: unknown): value is number {
