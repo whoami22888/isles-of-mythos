@@ -34,10 +34,16 @@ describe("creature foundation",()=>{
       await new Promise<void>((res,rej)=>{socket.once("open",()=>res());socket.once("error",rej);});
       const auth=wait(socket,v=>isObj(v)&&v.type==="auth_ok"); const state=wait(socket,v=>isObj(v)&&v.type==="player_state");
       socket.send(JSON.stringify({type:"auth",token})); await auth; await state;
-      for(let i=0;i<2;i++){
-        const hit=wait(socket,v=>isObj(v)&&v.type==="combat_result"&&v.requestId===`hit-${i}`);
-        socket.send(JSON.stringify({type:"attack",requestId:`hit-${i}`,targetId,facingX:1,facingY:0})); await hit;
+      for(let i=0;i<6;i++){
+        const requestId="hit-"+i;
+        const hit=wait(socket,v=>isObj(v)&&v.type==="combat_result"&&v.requestId===requestId);
+        socket.send(JSON.stringify({type:"attack",requestId,targetId,facingX:1,facingY:0}));
+        const result=await hit as Obj;
+        const hpValue=result.targetHealth;
+        if(typeof hpValue!=="number")throw new Error("Missing target health");
+        if(hpValue<=Number(spawn.health)*0.25)break;
         await new Promise(r=>setTimeout(r,500));
+        if(i===5)throw new Error("Creature was not reduced to capture threshold");
       }
       const captured=wait(socket,v=>isObj(v)&&v.type==="creature_state"&&v.requestId==="cap-1");
       socket.send(JSON.stringify({type:"capture",requestId:"cap-1",targetId}));
@@ -48,6 +54,8 @@ describe("creature foundation",()=>{
       expect(tameProgress).toEqual([25,50,75,100]);
       const party=wait(socket,v=>isObj(v)&&v.type==="creature_party");const partyState=wait(socket,v=>isObj(v)&&v.type==="creature_state"&&v.requestId==="party-1");socket.send(JSON.stringify({type:"set_creature_party",requestId:"party-1",creatureId,slot:0}));await partyState;const partyMessage=await party;expect(Array.isArray((partyMessage as Obj).creatures)).toBe(true);
       const ai=wait(socket,v=>isObj(v)&&v.type==="creature_state"&&v.requestId==="ai-1");socket.send(JSON.stringify({type:"set_creature_ai",requestId:"ai-1",creatureId,mode:"stay"}));const aiMessage=await ai;expect(getObj(aiMessage as Obj,"creature").aiMode).toBe("stay");
+      socket.close();
+      await new Promise<void>((resolve)=>socket.once("close",()=>resolve()));
       const persisted=await db.query("SELECT tame_progress,party_slot,ai_mode FROM player_creatures WHERE id=$1",[creatureId]);
       expect(persisted.rows[0]).toMatchObject({tame_progress:100,party_slot:0,ai_mode:"stay"});
     }finally{socket.close();await db.end();await app.close();}
