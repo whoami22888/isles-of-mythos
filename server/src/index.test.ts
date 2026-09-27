@@ -389,7 +389,7 @@ describe("server foundation", () => {
       });
       await expect(damaged).resolves.toMatchObject({
         type: "player_state",
-        state: { health: 100 - Math.max(1, creatureStats.attack - 5) },
+        state: { health: 100 - Math.max(1, creatureStats.attack + Math.max(0, Number(spawnObject.level) - 1) * 2 - 5) },
       });
     } finally {
       socket.close();
