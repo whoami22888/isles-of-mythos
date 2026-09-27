@@ -8,7 +8,7 @@ describe("player survival and movement", () => {
     expect(player.defense).toBe(PLAYER_BASE_DEFENSE);
     expect(player.hunger).toBe(PLAYER_MAX_HUNGER);
     expect(player.oxygen).toBe(PLAYER_MAX_OXYGEN);
-    expect(player.inventory).toEqual({ "ammo.flintlock": STARTING_FLINTLOCK_AMMO });
+    expect(player.inventory).toEqual({ "ammo.flintlock": STARTING_FLINTLOCK_AMMO, "capture.orb": 3, "creature.feed": 4 });
     expect(player.hotbar[0]).toBe("cutlass");
   });
   it("normalizes diagonal movement and consumes hunger", () => {
