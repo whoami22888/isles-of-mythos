@@ -14,12 +14,13 @@ export interface WeaponSpec {
   criticalChance: number;
   criticalMultiplier: number;
   status?: { id: StatusEffectId; durationMs: number; magnitude: number };
+  ammoType?: string;
 }
 
 export const WEAPONS: Record<string, WeaponSpec> = {
   cutlass: { id: "cutlass", delivery: "melee", damage: 20, range: 1.6, cooldownMs: 450, staminaCost: 8, damageType: "physical", criticalChance: 0.08, criticalMultiplier: 1.75 },
   dagger: { id: "dagger", delivery: "melee", damage: 14, range: 1.4, cooldownMs: 300, staminaCost: 6, damageType: "physical", criticalChance: 0.18, criticalMultiplier: 2 },
-  flintlock: { id: "flintlock", delivery: "projectile", projectileSpeed: 18, projectileRadius: 0.12, damage: 35, range: 8, cooldownMs: 900, staminaCost: 10, damageType: "physical", criticalChance: 0.12, criticalMultiplier: 2 },
+  flintlock: { id: "flintlock", delivery: "projectile", projectileSpeed: 18, projectileRadius: 0.12, damage: 35, range: 8, cooldownMs: 900, staminaCost: 10, damageType: "physical", criticalChance: 0.12, criticalMultiplier: 2, ammoType: "ammo.flintlock" },
   musket: { id: "musket", delivery: "projectile", projectileSpeed: 20, projectileRadius: 0.12, damage: 52, range: 12, cooldownMs: 1500, staminaCost: 14, damageType: "physical", criticalChance: 0.1, criticalMultiplier: 2.1 },
   bow: { id: "bow", delivery: "projectile", projectileSpeed: 16, projectileRadius: 0.14, damage: 24, range: 10, cooldownMs: 700, staminaCost: 8, damageType: "physical", criticalChance: 0.1, criticalMultiplier: 1.8 },
   fire_spell: { id: "fire_spell", delivery: "projectile", projectileSpeed: 12, projectileRadius: 0.2, damage: 28, range: 7, cooldownMs: 1100, staminaCost: 16, damageType: "fire", criticalChance: 0.1, criticalMultiplier: 2, status: { id: "burn", durationMs: 2500, magnitude: 4 } },
