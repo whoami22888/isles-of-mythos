@@ -663,6 +663,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         blocking.delete(userId);
         invulnerableUntil.delete(userId);
         playerStatuses.delete(userId);
+        combatActivationNextAt.delete(userId);
         for (const [key] of pendingCombatRequests) if (key.startsWith(userId + ":")) pendingCombatRequests.delete(key);
         void players.unload(userId).catch((error) => {
           log("player_disconnect_persistence_failed", {
