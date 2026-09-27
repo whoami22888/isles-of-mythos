@@ -172,9 +172,6 @@ describe("server foundation", () => {
     const targetId = getString(spawnObject, "id");
     const targetX = Number(spawnObject.x);
     const targetY = Number(spawnObject.y);
-    const species = getString(spawnObject, "species");
-    const creatureStats = CREATURE_STATS[species];
-    if (!creatureStats) throw new Error(`Unknown deterministic test creature species: ${species}`);
     expect(Number.isFinite(targetX)).toBe(true);
     expect(Number.isFinite(targetY)).toBe(true);
 
@@ -364,6 +361,9 @@ describe("server foundation", () => {
     if (!spawnObject) throw new Error("Deterministic test world contains no creature spawn");
     const targetX = Number(spawnObject.x);
     const targetY = Number(spawnObject.y);
+    const species = getString(spawnObject, "species");
+    const creatureStats = CREATURE_STATS[species];
+    if (!creatureStats) throw new Error(`Unknown deterministic test creature species: ${species}`);
     const database = (await import("./db.js")).createDbPool();
     await database.query(
       "INSERT INTO player_profiles (user_id, x, y, stamina, health, defense) VALUES ($1, $2, $3, 100, 100, 5) ON CONFLICT (user_id) DO UPDATE SET x=EXCLUDED.x, y=EXCLUDED.y, stamina=100, health=100, defense=5",
