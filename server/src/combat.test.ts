@@ -99,10 +99,10 @@ describe("combat engine", () => {
 
   it("enforces creature ability cooldowns between AI decisions", () => {
     const target = createCombatTarget("creature:1:1", "raptor", 0, 0, 1);
-    const first = tickCreatureAi(target, [{ userId: "player", x: 3, y: 0 }], 1000, 250);
+    const first = tickCreatureAi(target, [{ userId: "player", x: 1, y: 0 }], 1000, 250);
     expect(first.ability?.id).toBe("pounce");
     expect(target.nextAbilityAt).toBe(4000);
-    const second = tickCreatureAi(target, [{ userId: "player", x: 3, y: 0 }], 1100, 250);
+    const second = tickCreatureAi(target, [{ userId: "player", x: 1, y: 0 }], 1100, 250);
     expect(second.ability).toBeUndefined();
   });
 
