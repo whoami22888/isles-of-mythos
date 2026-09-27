@@ -211,7 +211,7 @@ describe("server foundation", () => {
       socket.send(JSON.stringify({
         type: "attack",
         requestId: "melee-2",
-        targetId: "creature:2:23",
+        targetId,
         facingX: 1,
         facingY: 0,
       }));
