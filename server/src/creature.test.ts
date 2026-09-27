@@ -28,7 +28,10 @@ describe("creature foundation",()=>{
     for(let y=0;y<8&&!spawn;y++)for(let x=0;x<8&&!spawn;x++){const r=await app.inject({method:"GET",url:`/world/chunks/${x}/${y}`});const c=JSON.parse(r.body) as Obj;const list=c.creatures;if(Array.isArray(list)){const found=list.find(isObj);if(found)spawn=found;}}
     if(!spawn)throw new Error("No deterministic creature spawn"); const targetId=getStr(spawn,"id"); const tx=Number(spawn.x),ty=Number(spawn.y);
     const db=(await import("./db.js")).createDbPool();
-    await db.query("UPDATE player_profiles SET x=$2,y=$3,health=100,inventory=$4::jsonb WHERE user_id=$1",[userId,tx-0.5,ty,JSON.stringify({"ammo.flintlock":30,"capture.orb":3,"creature.feed":4})]);
+    await db.query(
+      "INSERT INTO player_profiles (user_id,x,y,health,inventory,hotbar,selected_hotbar_slot) VALUES ($1,$2,$3,100,$4::jsonb,'[\"cutlass\",\"flintlock\",null,null,null,null,null,null]'::jsonb,0) ON CONFLICT (user_id) DO UPDATE SET x=EXCLUDED.x,y=EXCLUDED.y,health=EXCLUDED.health,inventory=EXCLUDED.inventory,hotbar=EXCLUDED.hotbar,selected_hotbar_slot=EXCLUDED.selected_hotbar_slot",
+      [userId,tx-0.5,ty,JSON.stringify({"ammo.flintlock":30,"capture.orb":3,"creature.feed":4})],
+    );
     const socket=await socketFor(app);
     try{
       await new Promise<void>((res,rej)=>{socket.once("open",()=>res());socket.once("error",rej);});
