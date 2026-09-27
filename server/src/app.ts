@@ -60,6 +60,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const blocking = new Set<string>();
   const invulnerableUntil = new Map<string, number>();
   const playerStatuses = new Map<string, StatusEffect[]>();
+  const combatActivationNextAt = new Map<string, number>();
   const combatReplay = new CombatReplayCache<Extract<ServerMessage, { type: "combat_result" }>>();
   const app = Fastify({ logger: false });
 
@@ -126,6 +127,29 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const combatTick = setInterval(() => {
     const now = Date.now();
     tickPlayerStatuses(250);
+
+    for (const [connectedUserId, nextActivationAt] of combatActivationNextAt) {
+      if (now < nextActivationAt) continue;
+      const player = players.get(connectedUserId);
+      if (!player || player.health <= 0 || !userSockets.has(connectedUserId)) {
+        combatActivationNextAt.delete(connectedUserId);
+        continue;
+      }
+      const centerChunkX = Math.floor(player.x / 32);
+      const centerChunkY = Math.floor(player.y / 32);
+      for (let chunkY = centerChunkY - 1; chunkY <= centerChunkY + 1; chunkY += 1) {
+        for (let chunkX = centerChunkX - 1; chunkX <= centerChunkX + 1; chunkX += 1) {
+          for (const spawn of world.get(chunkX, chunkY).creatures) {
+            if (defeatedCreatures.has(spawn.id) || combatTargets.has(spawn.id)) continue;
+            const activationDistance = Math.hypot(player.x - spawn.x, player.y - spawn.y);
+            if (activationDistance <= 8) {
+              combatTargets.set(spawn.id, createCombatTarget(spawn.id, spawn.species, spawn.x, spawn.y, spawn.level));
+            }
+          }
+        }
+      }
+      combatActivationNextAt.set(connectedUserId, now + 500);
+    }
     for (const [projectileId, projectile] of projectiles) {
       const target = combatTargets.get(projectile.targetId);
       const requestId = projectileId.slice(projectileId.indexOf(":") + 1).replace(projectile.ownerUserId + ":", "");
@@ -484,6 +508,11 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             send(socket, { type: "error", code: "INVALID_MESSAGE" });
             return;
           }
+          const ammoType = weapon.ammoType;
+          if (ammoType && (Number(state.inventory[ammoType] ?? 0) < 1)) {
+            send(socket, { type: "error", code: "NO_AMMO" });
+            return;
+          }
           const now = Date.now();
           const nextAttack = attackCooldowns.get(userId) ?? 0;
           if (now < nextAttack) {
@@ -534,6 +563,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             }
             attackCooldowns.set(userId, now + weapon.cooldownMs);
             state.stamina -= weapon.staminaCost;
+            if (ammoType) state.inventory[ammoType] = Number(state.inventory[ammoType] ?? 0) - 1;
             players.markDirty(userId);
             projectiles.set(projectileId, projectile);
             pendingCombatRequests.set(pendingKey, projectile.expiresAt);
