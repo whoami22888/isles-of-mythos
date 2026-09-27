@@ -147,8 +147,26 @@ describe("server foundation", () => {
     const user = getObject(registerBody, "user");
     const userId = getString(user, "id");
 
+    const chunkResponse = await app.inject({ method: "GET", url: "/world/chunks/0/0" });
+    expect(chunkResponse.statusCode).toBe(200);
+    const chunk = parseJsonObject(chunkResponse.body);
+    const creatures = chunk.creatures;
+    if (!Array.isArray(creatures) || creatures.length === 0) {
+      throw new Error("Test world chunk contains no creature spawn");
+    }
+    const spawn = creatures[0];
+    if (typeof spawn !== "object" || spawn === null || Array.isArray(spawn)) {
+      throw new Error("Test creature spawn is malformed");
+    }
+    const spawnObject = spawn as JsonObject;
+    const targetId = getString(spawnObject, "id");
+    const targetX = Number(spawnObject.x);
+    const targetY = Number(spawnObject.y);
+    expect(Number.isFinite(targetX)).toBe(true);
+    expect(Number.isFinite(targetY)).toBe(true);
+
     const database = (await import("./db.js")).createDbPool();
-    await database.query("UPDATE player_profiles SET x=$2, y=$3, stamina=100 WHERE user_id=$1", [userId, 2, 23]);
+    await database.query("UPDATE player_profiles SET x=$2, y=$3, stamina=100 WHERE user_id=$1", [userId, targetX - 1, targetY]);
 
     const socket = await openSocket(app);
     try {
@@ -167,14 +185,14 @@ describe("server foundation", () => {
       socket.send(JSON.stringify({
         type: "attack",
         requestId: "melee-1",
-        targetId: "creature:2:23",
+        targetId,
         facingX: 1,
         facingY: 0,
       }));
       await expect(attackResult).resolves.toMatchObject({
         type: "combat_result",
         requestId: "melee-1",
-        targetId: "creature:2:23",
+        targetId,
       });
 
       const stateAfterAttack = waitForMatchingMessage(socket, (message) => typeof message === "object" && message !== null && (message as JsonObject).type === "player_state");
