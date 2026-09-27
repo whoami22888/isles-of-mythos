@@ -147,18 +147,21 @@ describe("server foundation", () => {
     const user = getObject(registerBody, "user");
     const userId = getString(user, "id");
 
-    const chunkResponse = await app.inject({ method: "GET", url: "/world/chunks/0/0" });
-    expect(chunkResponse.statusCode).toBe(200);
-    const chunk = parseJsonObject(chunkResponse.body);
-    const creatures = chunk.creatures;
-    if (!Array.isArray(creatures) || creatures.length === 0) {
-      throw new Error("Test world chunk contains no creature spawn");
+    let spawnObject: JsonObject | null = null;
+    for (let chunkY = 0; chunkY < 8 && !spawnObject; chunkY += 1) {
+      for (let chunkX = 0; chunkX < 8 && !spawnObject; chunkX += 1) {
+        const chunkResponse = await app.inject({ method: "GET", url: `/world/chunks/${chunkX}/${chunkY}` });
+        expect(chunkResponse.statusCode).toBe(200);
+        const chunk = parseJsonObject(chunkResponse.body);
+        const creatures = chunk.creatures;
+        if (!Array.isArray(creatures)) throw new Error("Test world chunk creatures are malformed");
+        const spawn = creatures.find((entry) => typeof entry === "object" && entry !== null && !Array.isArray(entry));
+        if (spawn && typeof spawn === "object" && spawn !== null && !Array.isArray(spawn)) {
+          spawnObject = spawn as JsonObject;
+        }
+      }
     }
-    const spawn = creatures[0];
-    if (typeof spawn !== "object" || spawn === null || Array.isArray(spawn)) {
-      throw new Error("Test creature spawn is malformed");
-    }
-    const spawnObject = spawn as JsonObject;
+    if (!spawnObject) throw new Error("Deterministic test world contains no creature spawn");
     const targetId = getString(spawnObject, "id");
     const targetX = Number(spawnObject.x);
     const targetY = Number(spawnObject.y);
