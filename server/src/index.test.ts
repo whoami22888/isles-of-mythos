@@ -187,7 +187,12 @@ describe("server foundation", () => {
       const initialState = waitForMatchingMessage(socket, (message) => typeof message === "object" && message !== null && (message as JsonObject).type === "player_state");
       socket.send(JSON.stringify({ type: "auth", token }));
       await authenticated;
-      await initialState;
+      const authenticatedState = await initialState;
+      if (!isJsonObject(authenticatedState)) throw new Error("Expected player_state message");
+      const state = authenticatedState.state;
+      if (!isJsonObject(state)) throw new Error("Expected player state object");
+      expect(state.x).toBe(targetX - 0.5);
+      expect(state.y).toBe(targetY);
 
       const attackResult = waitForMatchingMessage(socket, (message) => typeof message === "object" && message !== null && (message as JsonObject).type === "combat_result");
       socket.send(JSON.stringify({
