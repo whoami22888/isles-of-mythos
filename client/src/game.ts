@@ -73,11 +73,11 @@ function parseServerMessage(value: unknown): ServerMessage | null {
         ? { type: "world_chunk", requestId: value.requestId, chunk: value.chunk }
         : null;
     case "projectile_spawn":
-      return typeof value.projectileId === "string" && typeof value.ownerUserId === "string" && typeof value.targetId === "string" &&
+      return typeof value.projectileId === "string" && typeof value.ownerUserId === "string" && typeof value.requestId === "string" && value.requestId.length > 0 && value.requestId.length <= 64 && typeof value.targetId === "string" &&
         typeof value.x === "number" && Number.isFinite(value.x) && typeof value.y === "number" && Number.isFinite(value.y) &&
         typeof value.vx === "number" && Number.isFinite(value.vx) && typeof value.vy === "number" && Number.isFinite(value.vy) &&
         typeof value.expiresAt === "number" && Number.isFinite(value.expiresAt)
-        ? { type: "projectile_spawn", projectileId: value.projectileId, ownerUserId: value.ownerUserId, targetId: value.targetId, x: value.x, y: value.y, vx: value.vx, vy: value.vy, expiresAt: value.expiresAt }
+        ? { type: "projectile_spawn", projectileId: value.projectileId, ownerUserId: value.ownerUserId, requestId: value.requestId, targetId: value.targetId, x: value.x, y: value.y, vx: value.vx, vy: value.vy, expiresAt: value.expiresAt }
         : null;
     case "combat_result":
       return typeof value.requestId === "string" && value.requestId.length > 0 && value.requestId.length <= 64 &&
@@ -342,8 +342,7 @@ class WorldScene extends Phaser.Scene {
     marker.fillCircle(0, 0, TILE_SIZE * 0.12);
     marker.setPosition(message.x * TILE_SIZE + TILE_SIZE / 2, message.y * TILE_SIZE + TILE_SIZE / 2);
     this.projectiles.set(message.projectileId, marker);
-    const separator = message.projectileId.lastIndexOf(":");
-    const requestId = separator >= 0 ? message.projectileId.slice(separator + 1) : message.projectileId;
+    const requestId = message.requestId;
     this.projectileByRequest.set(requestId, message.projectileId);
     const lifetime = Math.max(1, message.expiresAt - Date.now());
     this.tweens.add({
