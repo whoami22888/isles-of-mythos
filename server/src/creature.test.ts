@@ -36,9 +36,11 @@ describe("creature foundation",()=>{
       socket.send(JSON.stringify({type:"auth",token})); await auth; await state;
       for(let i=0;i<6;i++){
         const requestId="hit-"+i;
-        const hit=wait(socket,v=>isObj(v)&&v.type==="combat_result"&&v.requestId===requestId);
+        const hit=wait(socket,v=>isObj(v)&&((v.type==="combat_result"&&v.requestId===requestId)||(v.type==="error")));
         socket.send(JSON.stringify({type:"attack",requestId,targetId,facingX:1,facingY:0}));
-        const result=await hit as Obj;
+        const response=await hit as Obj;
+        if(response.type==="error") throw new Error("Attack "+requestId+" rejected: "+getStr(response,"code"));
+        const result=response;
         const hpValue=result.targetHealth;
         if(typeof hpValue!=="number")throw new Error("Missing target health");
         if(hpValue<=Number(spawn.health)*0.25)break;
