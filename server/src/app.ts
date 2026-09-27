@@ -658,7 +658,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
 
         if (message.type === "tame") {
           if(!userId){send(socket,{type:"error",code:"AUTH_REQUIRED"});return;}
-          try{const creature=await creatures.tame(userId,message.creatureId);send(socket,{type:"creature_state",requestId:message.requestId,creature});}
+          try{const creature=await creatures.tame(userId,message.creatureId);\n            const player=players.get(userId);\n            if(player) { player.inventory["creature.feed"]=Math.max(0,Number(player.inventory["creature.feed"]??0)-1); players.markDirty(userId); }\n            send(socket,{type:"creature_state",requestId:message.requestId,creature});}
           catch(error){
             const code=error instanceof Error?error.message:"TAME_FAILED";
             if(["CREATURE_NOT_FOUND","NO_CREATURE_FEED"].includes(code)){send(socket,{type:"error",code});return;}
