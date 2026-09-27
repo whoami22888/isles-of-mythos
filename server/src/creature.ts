@@ -33,15 +33,16 @@ function statsFor(species:string, level:number) {
 export class CreatureStore {
   private readonly active=new Map<string,OwnedCreature[]>();
   private readonly dirty=new Set<string>();
+  private readonly revisions=new Map<string,number>();
   constructor(private readonly db:Pool){}
   async load(userId:string):Promise<OwnedCreature[]> {
     const cached=this.active.get(userId); if(cached) return cached;
     const r=await this.db.query<CreatureRow>("SELECT id,owner_user_id,species,nickname,level,xp,health,max_health,attack,defense,element,ability_ids,tame_progress,party_slot,ai_mode,x,y FROM player_creatures WHERE owner_user_id=$1 ORDER BY COALESCE(party_slot,999),created_at,id",[userId]);
-    const creatures=r.rows.map(rowToCreature); this.active.set(userId,creatures); return creatures;
+    const creatures=r.rows.map(rowToCreature); this.active.set(userId,creatures); this.revisions.set(userId,0); return creatures;
   }
   get(userId:string):OwnedCreature[]{return this.active.get(userId)??[];}
   getCreature(userId:string,id:string){return this.get(userId).find(c=>c.id===id);}
-  markDirty(userId:string){if(this.active.has(userId))this.dirty.add(userId);}
+  markDirty(userId:string){if(!this.active.has(userId))return;this.dirty.add(userId);this.revisions.set(userId,(this.revisions.get(userId)??0)+1);}
   async capture(userId:string,target:CombatTarget):Promise<OwnedCreature>{
     const client=await this.db.connect();
     try{
@@ -57,7 +58,7 @@ export class CreatureStore {
         [userId,target.id,target.species,s.level,s.maxHealth,s.attack,s.defense,s.element,JSON.stringify(s.abilityIds),target.x,target.y]);
       await client.query("UPDATE player_profiles SET inventory=$2::jsonb,updated_at=CURRENT_TIMESTAMP WHERE user_id=$1",[userId,JSON.stringify(next)]);
       await client.query("COMMIT");
-      const c=rowToCreature(inserted.rows[0]); const list=this.active.get(userId)??[]; list.push(c); this.active.set(userId,list); this.dirty.add(userId); return c;
+      const c=rowToCreature(inserted.rows[0]); const list=this.active.get(userId)??[]; list.push(c); this.active.set(userId,list); this.markDirty(userId); return c;
     }catch(e){await client.query("ROLLBACK");throw e;}finally{client.release();}
   }
   async tame(userId:string,id:string):Promise<OwnedCreature>{
@@ -99,16 +100,16 @@ export class CreatureStore {
       const d=Math.hypot(player.x-c.x,player.y-c.y);
       if(d>3){const step=Math.min(d-2,0.375);c.x+=(player.x-c.x)/d*step;c.y+=(player.y-c.y)/d*step;changed=true;}
     }
-    if(changed)this.dirty.add(userId); return changed;
+    if(changed)this.markDirty(userId); return changed;
   }
   async persist(userId:string){
     if(!this.active.has(userId))return; const client=await this.db.connect();
     try{await client.query("BEGIN");
       for(const c of this.get(userId))await client.query("UPDATE player_creatures SET health=$2,xp=$3,level=$4,max_health=$5,attack=$6,defense=$7,tame_progress=$8,party_slot=$9,ai_mode=$10,x=$11,y=$12,updated_at=CURRENT_TIMESTAMP WHERE id=$1 AND owner_user_id=$13",[c.id,c.health,c.xp,c.level,c.maxHealth,c.attack,c.defense,c.tameProgress,c.partySlot,c.aiMode,c.x,c.y,userId]);
-      await client.query("COMMIT");this.dirty.delete(userId);
+      await client.query("COMMIT"); if((this.revisions.get(userId)??0)===revision)this.dirty.delete(userId);
     }catch(e){await client.query("ROLLBACK");throw e;}finally{client.release();}
   }
-  async unload(userId:string){await this.persist(userId);this.active.delete(userId);this.dirty.delete(userId);}
+  async unload(userId:string){await this.persist(userId);this.active.delete(userId);this.dirty.delete(userId);this.revisions.delete(userId);}
   async persistDirty(){for(const id of [...this.dirty])await this.persist(id);}
   async persistAll(){for(const id of this.active.keys())await this.persist(id);}
 }
