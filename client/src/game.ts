@@ -25,7 +25,7 @@ interface ProjectileSpawnMessage {
 interface CreatureStateMessage { type: "creature_state"; requestId?: string; creature: { id: string; species: string; tameProgress: number; partySlot: number | null; aiMode: "follow" | "assist" | "stay" } }
 interface CreaturePartyMessage { type: "creature_party"; creatures: CreatureStateMessage["creature"][] }
 
-interface CombatResultMessage {
+interface CreatureMessage { type: "creature_state"; requestId?: string; creature: CreatureState; }\ninterface CreaturePartyMessage { type: "creature_party"; creatures: CreatureState[]; }\ninterface CreatureState { id:string; species:string; nickname:string|null; level:number; health:number; maxHealth:number; tameProgress:number; partySlot:number|null; aiMode:"follow"|"assist"|"stay"; x:number; y:number; }\n\ninterface CombatResultMessage {
   type: "combat_result";
   requestId: string;
   targetId: string;
@@ -103,7 +103,7 @@ function parseServerMessage(value: unknown): ServerMessage | null {
             ...(value.status === undefined ? {} : { status: value.status }),
           }
         : null;
-    case "error":
+    case "creature_state":\n      return isRecord(value.creature) && typeof value.creature.id === "string" && typeof value.creature.species === "string" && typeof value.creature.tameProgress === "number" && typeof value.creature.x === "number" && typeof value.creature.y === "number"\n        ? { type: "creature_state", ...(typeof value.requestId === "string" ? { requestId: value.requestId } : {}), creature: value.creature as CreatureState } : null;\n    case "creature_party":\n      return Array.isArray(value.creatures) && value.creatures.every((x) => isRecord(x) && typeof x.id === "string")\n        ? { type: "creature_party", creatures: value.creatures as CreatureState[] } : null;\n    case "error":
       return typeof value.code === "string" ? { type: "error", code: value.code } : null;
     default:
       return null;
@@ -129,7 +129,7 @@ class WorldScene extends Phaser.Scene {
   private attackRequestSequence = 0;
   private reconnectTimer?: number;
   private reconnectAttempt = 0;
-  private dodgeAccumulator = 0;\n  private creatureParty: CreatureStateMessage["creature"][] = [];\n  private selectedCreatureId?: string;
+  private dodgeAccumulator = 0;\n  private readonly ownedCreatures = new Map<string, CreatureState>();\n  private creatureParty: CreatureStateMessage["creature"][] = [];\n  private selectedCreatureId?: string;
 
   constructor() { super("world"); }
 
@@ -144,7 +144,7 @@ class WorldScene extends Phaser.Scene {
     this.keys = this.input.keyboard?.addKeys("W,A,S,D") as Record<string, Phaser.Input.Keyboard.Key> | undefined;
     this.input.keyboard?.on("keydown-SPACE", () => this.attackNearest());
     this.input.keyboard?.on("keydown-SHIFT", () => this.dodge());
-    this.input.keyboard?.on("keydown-B", () => this.setBlocking(true));
+    this.input.keyboard?.on("keydown-B", () => this.setBlocking(true));\n    this.input.keyboard?.on("keydown-C", () => this.captureNearest());\n    this.input.keyboard?.on("keydown-T", () => this.tameSelected());
     this.input.keyboard?.on("keyup-B", () => this.setBlocking(false));
     this.createTouchCombatControls();
     this.input.on("wheel", (_p: Phaser.Input.Pointer, _g: unknown[], _dx: number, dy: number) => this.cameras.main.setZoom(Phaser.Math.Clamp(this.cameras.main.zoom - dy * 0.001, 0.5, 2.5)));
@@ -222,7 +222,7 @@ class WorldScene extends Phaser.Scene {
         this.updateHud();
         return;
       }
-      if (message.type === "projectile_spawn") {
+      if (message.type === "creature_party") {\n        this.ownedCreatures.clear();\n        for (const creature of message.creatures) this.ownedCreatures.set(creature.id, creature);\n        return;\n      }\n      if (message.type === "creature_state") {\n        this.ownedCreatures.set(message.creature.id, message.creature);\n        this.combatText?.setText(message.creature.tameProgress >= 100 ? `${message.creature.species.toUpperCase()} TAMED` : `${message.creature.species.toUpperCase()} TAME ${message.creature.tameProgress}%`);\n        return;\n      }\n      if (message.type === "projectile_spawn") {
         this.renderProjectile(message);
         return;
       }
@@ -336,7 +336,7 @@ class WorldScene extends Phaser.Scene {
     };
     makeButton("ATTACK", 16, 650, () => this.attackNearest());
     makeButton("DODGE", 120, 650, () => this.dodge());
-    makeButton("BLOCK", 214, 650, () => this.setBlocking(true), () => this.setBlocking(false));\n    makeButton("CAPTURE", 308, 650, () => this.captureNearest());\n    makeButton("TAME", 420, 650, () => this.tameSelected());\n    makeButton("PARTY", 502, 650, () => this.setCreatureParty());\n    makeButton("STAY", 590, 650, () => this.setCreatureAi("stay"));
+    makeButton("BLOCK", 214, 650, () => this.setBlocking(true), () => this.setBlocking(false));\n    makeButton("CAPTURE", 318, 650, () => this.captureNearest());\n    makeButton("TAME", 426, 650, () => this.tameSelected());\n    makeButton("CAPTURE", 308, 650, () => this.captureNearest());\n    makeButton("TAME", 420, 650, () => this.tameSelected());\n    makeButton("PARTY", 502, 650, () => this.setCreatureParty());\n    makeButton("STAY", 590, 650, () => this.setCreatureAi("stay"));
   }
 
   private renderProjectile(message: ProjectileSpawnMessage): void {
@@ -363,7 +363,7 @@ class WorldScene extends Phaser.Scene {
     });
   }
 
-  private nextAttackRequestId(): string { return Date.now().toString(36) + "-" + (++this.attackRequestSequence).toString(36); }
+  private captureNearest(): void {\n    if (!this.player || this.socket?.readyState !== WebSocket.OPEN) return;\n    const target = this.chunks.nearestCreature(this.player.x, this.player.y, 2.5);\n    if (!target) { this.combatText?.setText("NO CREATURE IN CAPTURE RANGE"); return; }\n    this.socket.send(JSON.stringify({ type: "capture", requestId: this.nextAttackRequestId(), targetId: target.id }));\n  }\n\n  private tameSelected(): void {\n    if (this.socket?.readyState !== WebSocket.OPEN) return;\n    const creature = [...this.ownedCreatures.values()].find((x) => x.partySlot !== null) ?? [...this.ownedCreatures.values()][0];\n    if (!creature) { this.combatText?.setText("NO OWNED CREATURE"); return; }\n    this.socket.send(JSON.stringify({ type: "tame", requestId: this.nextAttackRequestId(), creatureId: creature.id }));\n  }\n\n  private nextAttackRequestId(): string { return Date.now().toString(36) + "-" + (++this.attackRequestSequence).toString(36); }
 
   private attackNearest(): void {
     if (this.attackAccumulator > 0 || !this.player || this.socket?.readyState !== WebSocket.OPEN) return;
