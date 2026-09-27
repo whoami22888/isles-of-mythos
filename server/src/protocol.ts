@@ -35,7 +35,7 @@ export type ServerMessage =
         | "COMBAT_IN_PROGRESS"
         | "PLAYER_DEAD"
         | "PLAYER_STUNNED"
-        | "RATE_LIMITED";
+        | "RATE_LIMITED"\n        | "CREATURE_TOO_HEALTHY"\n        | "NO_CAPTURE_ORB"\n        | "CREATURE_ALREADY_CAPTURED"\n        | "CREATURE_NOT_FOUND"\n        | "NO_CREATURE_FEED"\n        | "CREATURE_NOT_TAMED"\n        | "INVALID_PARTY_SLOT";
     };
 
 function isSafeInteger(value: unknown): value is number {
