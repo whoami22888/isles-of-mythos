@@ -50,7 +50,7 @@ export class CreatureStore {
       const invR=await client.query<{inventory:Record<string,number>}>("SELECT inventory FROM player_profiles WHERE user_id=$1 FOR UPDATE",[userId]);
       const inv=invR.rows[0]?.inventory??{}; const orbs=Number(inv[CAPTURE_ORB_ITEM]??0);
       if(!Number.isSafeInteger(orbs)||orbs<1)throw new Error("NO_CAPTURE_ORB");
-      const duplicate=await client.query("SELECT 1 FROM player_creatures WHERE owner_user_id=$1 AND wild_source_id=$2 LIMIT 1",[userId,target.id]);
+      const duplicate=await client.query("SELECT 1 FROM player_creatures WHERE wild_source_id=$1 LIMIT 1",[target.id]);
       if(duplicate.rowCount)throw new Error("CREATURE_ALREADY_CAPTURED");
       const s=statsFor(target.species,target.level); const next={...inv,[CAPTURE_ORB_ITEM]:orbs-1};
       const inserted=await client.query<CreatureRow>(
@@ -72,7 +72,7 @@ export class CreatureStore {
       const progress=Math.min(100,c.tameProgress+TAME_PROGRESS_PER_FEED); const next={...inv,[CREATURE_FEED_ITEM]:feed-1};
       await client.query("UPDATE player_creatures SET tame_progress=$2,updated_at=CURRENT_TIMESTAMP WHERE id=$1 AND owner_user_id=$3",[id,progress,userId]);
       await client.query("UPDATE player_profiles SET inventory=$2::jsonb,updated_at=CURRENT_TIMESTAMP WHERE user_id=$1",[userId,JSON.stringify(next)]);
-      await client.query("COMMIT"); c.tameProgress=progress; this.dirty.add(userId); return c;
+      await client.query("COMMIT"); c.tameProgress=progress; this.markDirty(userId); return {creature:c,consumed:true};
     }catch(e){await client.query("ROLLBACK");throw e;}finally{client.release();}
   }
   async setPartySlot(userId:string,id:string,slot:number|null):Promise<OwnedCreature>{
@@ -86,12 +86,12 @@ export class CreatureStore {
       await client.query("UPDATE player_creatures SET party_slot=$2,updated_at=CURRENT_TIMESTAMP WHERE id=$1 AND owner_user_id=$3",[id,slot,userId]);
       await client.query("COMMIT");
       for(const e of this.get(userId))if(e.id!==id&&e.partySlot===slot)e.partySlot=null;
-      c.partySlot=slot; this.dirty.add(userId); return c;
+      c.partySlot=slot; this.markDirty(userId); return c;
     }catch(e){await client.query("ROLLBACK");throw e;}finally{client.release();}
   }
   setAiMode(userId:string,id:string,mode:CreatureAiMode):OwnedCreature{
     const c=this.getCreature(userId,id); if(!c)throw new Error("CREATURE_NOT_FOUND"); if(c.tameProgress<100)throw new Error("CREATURE_NOT_TAMED");
-    c.aiMode=mode; this.dirty.add(userId); return c;
+    c.aiMode=mode; this.markDirty(userId); return c;
   }
   tickAi(userId:string,player:{x:number;y:number}):boolean{
     let changed=false;
@@ -103,7 +103,7 @@ export class CreatureStore {
     if(changed)this.markDirty(userId); return changed;
   }
   async persist(userId:string){
-    if(!this.active.has(userId))return; const client=await this.db.connect();
+    if(!this.active.has(userId))return; const revision=this.revisions.get(userId)??0; const client=await this.db.connect();
     try{await client.query("BEGIN");
       for(const c of this.get(userId))await client.query("UPDATE player_creatures SET health=$2,xp=$3,level=$4,max_health=$5,attack=$6,defense=$7,tame_progress=$8,party_slot=$9,ai_mode=$10,x=$11,y=$12,updated_at=CURRENT_TIMESTAMP WHERE id=$1 AND owner_user_id=$13",[c.id,c.health,c.xp,c.level,c.maxHealth,c.attack,c.defense,c.tameProgress,c.partySlot,c.aiMode,c.x,c.y,userId]);
       await client.query("COMMIT"); if((this.revisions.get(userId)??0)===revision)this.dirty.delete(userId);
