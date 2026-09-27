@@ -206,7 +206,11 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         defeatedCreatures.add(targetId);
       }
     }
-    for (const connectedUserId of userSockets.keys()) {\n      const player = players.get(connectedUserId);\n      if (player) creatures.tickAi(connectedUserId, player);\n    }\n    const candidates = [...userSockets.keys()].flatMap((userId) => {
+    for (const connectedUserId of userSockets.keys()) {
+      const player = players.get(connectedUserId);
+      if (player) creatures.tickAi(connectedUserId, player);
+    }
+    const candidates = [...userSockets.keys()].flatMap((userId) => {
       const state = players.get(userId);
       return state && state.health > 0 ? [{ userId, x: state.x, y: state.y }] : [];
     });
@@ -271,7 +275,8 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     clearInterval(survivalTick);
     clearInterval(persistenceTick);
     clearInterval(combatTick);
-    await players.persistAll();\n    await creatures.persistAll();
+    await players.persistAll();
+    await creatures.persistAll();
     for (const socket of sockets) socket.close(1001, "server_shutdown");
     if (ownsDb) await db.end();
   });
@@ -411,7 +416,8 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             const payload = app.jwt.verify<{ sub: string; username: string }>(message.token);
             if (typeof payload.sub !== "string" || payload.sub.length === 0) throw new Error("invalid_subject");
             const authenticatedUserId = payload.sub;
-            const state = await players.loadOrCreate(authenticatedUserId);\n            const ownedCreatures = await creatures.load(authenticatedUserId);
+            const state = await players.loadOrCreate(authenticatedUserId);
+            const ownedCreatures = await creatures.load(authenticatedUserId);
             userId = authenticatedUserId;
             if (authDeadline) {
               clearTimeout(authDeadline);
@@ -424,7 +430,8 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             socketsForUser.add(socket);
             userSockets.set(authenticatedUserId, socketsForUser);
             send(socket, { type: "auth_ok", userId: authenticatedUserId });
-            send(socket, { type: "player_state", state });\n            send(socket, { type: "creature_party", creatures: ownedCreatures });
+            send(socket, { type: "player_state", state });
+            send(socket, { type: "creature_party", creatures: ownedCreatures });
           } catch {
             userId = null;
             send(socket, { type: "error", code: "INVALID_TOKEN" });
@@ -646,6 +653,8 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           if(target.health>target.maxHealth*CAPTURE_HEALTH_RATIO){send(socket,{type:"error",code:"CREATURE_TOO_HEALTHY"});return;}
           try{
             const creature=await creatures.capture(userId,target);
+            state.inventory["capture.orb"]=Math.max(0,Number(state.inventory["capture.orb"]??0)-1);
+            players.markDirty(userId);
             combatTargets.delete(target.id); defeatedCreatures.add(target.id);
             for(const ownerSocket of userSockets.get(userId)??[])send(ownerSocket,{type:"creature_state",requestId:message.requestId,creature});
             return;
@@ -658,7 +667,10 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
 
         if (message.type === "tame") {
           if(!userId){send(socket,{type:"error",code:"AUTH_REQUIRED"});return;}
-          try{const creature=await creatures.tame(userId,message.creatureId);\n            const player=players.get(userId);\n            if(player) { player.inventory["creature.feed"]=Math.max(0,Number(player.inventory["creature.feed"]??0)-1); players.markDirty(userId); }\n            send(socket,{type:"creature_state",requestId:message.requestId,creature});}
+          try{const creature=await creatures.tame(userId,message.creatureId);
+            const player=players.get(userId);
+            if(player) { player.inventory["creature.feed"]=Math.max(0,Number(player.inventory["creature.feed"]??0)-1); players.markDirty(userId); }
+            send(socket,{type:"creature_state",requestId:message.requestId,creature});}
           catch(error){
             const code=error instanceof Error?error.message:"TAME_FAILED";
             if(["CREATURE_NOT_FOUND","NO_CREATURE_FEED"].includes(code)){send(socket,{type:"error",code});return;}
@@ -736,7 +748,10 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         playerStatuses.delete(userId);
         combatActivationNextAt.delete(userId);
         for (const [key] of pendingCombatRequests) if (key.startsWith(userId + ":")) pendingCombatRequests.delete(key);
-        void creatures.unload(userId).catch((error) => {\n          log("creature_disconnect_persistence_failed",{message:error instanceof Error?error.message:String(error)});\n        });\n        void players.unload(userId).catch((error) => {
+        void creatures.unload(userId).catch((error) => {
+          log("creature_disconnect_persistence_failed",{message:error instanceof Error?error.message:String(error)});
+        });
+        void players.unload(userId).catch((error) => {
           log("player_disconnect_persistence_failed", {
             message: error instanceof Error ? error.message : String(error),
           });
