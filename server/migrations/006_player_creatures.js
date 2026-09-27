@@ -12,7 +12,7 @@ export const up=(pgm)=>{
     attack:{type:"real",notNull:true},
     defense:{type:"real",notNull:true},
     element:{type:"varchar(16)",notNull:true},
-    ability_ids:{type:"jsonb",notNull:true,default:"[]"},
+    ability_ids:{type:"jsonb",notNull:true,default:pgm.func("'[]'::jsonb")},
     tame_progress:{type:"integer",notNull:true,default:0},
     party_slot:{type:"integer"},
     ai_mode:{type:"varchar(16)",notNull:true,default:"follow"},
