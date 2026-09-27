@@ -664,7 +664,8 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             return;
           }catch(error){
             const code=errorCode(error, "CAPTURE_FAILED");
-            if(code==="NO_CAPTURE_ORB"||code==="CREATURE_ALREADY_CAPTURED"){send(socket,{type:"error",code:code==="NO_CAPTURE_ORB"?"NO_CAPTURE_ORB":"CREATURE_ALREADY_CAPTURED"});return;}
+            if (code === "NO_CAPTURE_ORB") { send(socket, { type: "error", code: "NO_CAPTURE_ORB" }); return; }
+            if (code === "CREATURE_ALREADY_CAPTURED") { send(socket, { type: "error", code: "CREATURE_ALREADY_CAPTURED" }); return; }
             throw error;
           }
         }
@@ -677,7 +678,8 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             send(socket,{type:"creature_state",requestId:message.requestId,creature});}
           catch(error){
             const code=errorCode(error, "TAME_FAILED");
-            if(["CREATURE_NOT_FOUND","NO_CREATURE_FEED"].includes(code)){send(socket,{type:"error",code});return;}
+            if (code === "CREATURE_NOT_FOUND") { send(socket, { type: "error", code: "CREATURE_NOT_FOUND" }); return; }
+            if (code === "NO_CREATURE_FEED") { send(socket, { type: "error", code: "NO_CREATURE_FEED" }); return; }
             throw error;
           }
           return;
@@ -691,7 +693,9 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             send(socket,{type:"creature_party",creatures:creatures.get(userId)});
           }catch(error){
             const code=errorCode(error, "PARTY_UPDATE_FAILED");
-            if(["CREATURE_NOT_FOUND","CREATURE_NOT_TAMED","INVALID_PARTY_SLOT"].includes(code)){send(socket,{type:"error",code});return;}
+            if (code === "CREATURE_NOT_FOUND") { send(socket, { type: "error", code: "CREATURE_NOT_FOUND" }); return; }
+            if (code === "CREATURE_NOT_TAMED") { send(socket, { type: "error", code: "CREATURE_NOT_TAMED" }); return; }
+            if (code === "INVALID_PARTY_SLOT") { send(socket, { type: "error", code: "INVALID_PARTY_SLOT" }); return; }
             throw error;
           }
           return;
@@ -704,7 +708,8 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             send(socket,{type:"creature_state",requestId:message.requestId,creature});
           }catch(error){
             const code=errorCode(error, "CREATURE_AI_UPDATE_FAILED");
-            if(["CREATURE_NOT_FOUND","CREATURE_NOT_TAMED"].includes(code)){send(socket,{type:"error",code});return;}
+            if (code === "CREATURE_NOT_FOUND") { send(socket, { type: "error", code: "CREATURE_NOT_FOUND" }); return; }
+            if (code === "CREATURE_NOT_TAMED") { send(socket, { type: "error", code: "CREATURE_NOT_TAMED" }); return; }
             throw error;
           }
           return;
