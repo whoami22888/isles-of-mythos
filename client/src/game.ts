@@ -44,6 +44,8 @@ type ServerMessage =
   | { type: "world_chunk"; requestId: string; chunk: WorldChunk }
   | ProjectileSpawnMessage
   | CombatResultMessage
+  | { type: "creature_state"; requestId?: string; creature: CreatureState }
+  | { type: "creature_party"; creatures: CreatureState[] }
   | { type: "error"; code: string };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
