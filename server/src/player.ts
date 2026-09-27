@@ -79,7 +79,7 @@ export class PlayerStore {
     const existing = this.active.get(userId);
     if (existing) return existing;
     await this.db.query(
-      "INSERT INTO player_profiles (user_id, hotbar, selected_hotbar_slot) VALUES ($1, '[\"cutlass\",\"flintlock\",null,null,null,null,null,null]'::jsonb, 0) ON CONFLICT (user_id) DO NOTHING",
+      "INSERT INTO player_profiles (user_id, inventory, hotbar, selected_hotbar_slot) VALUES ($1, '{\"ammo.flintlock\":30,\"capture.orb\":3,\"creature.feed\":4}'::jsonb, '[\"cutlass\",\"flintlock\",null,null,null,null,null,null]'::jsonb, 0) ON CONFLICT (user_id) DO NOTHING",
       [userId],
     );
     const result = await this.db.query<PlayerRow>(
