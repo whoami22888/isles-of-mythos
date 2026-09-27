@@ -412,6 +412,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             }
             const connections = playerConnections.get(authenticatedUserId) ?? 0;
             playerConnections.set(authenticatedUserId, connections + 1);
+            combatActivationNextAt.set(authenticatedUserId, Date.now());
             const socketsForUser = userSockets.get(authenticatedUserId) ?? new Set<WebSocket>();
             socketsForUser.add(socket);
             userSockets.set(authenticatedUserId, socketsForUser);
