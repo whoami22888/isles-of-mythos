@@ -18,6 +18,10 @@ import { addThreat, applyDamage, createCombatTarget, creatureAbilityDamage, crea
 import { CombatReplayCache } from "./combat-replay.js";
 import { CAPTURE_HEALTH_RATIO, CreatureStore } from "./creature.js";
 
+function errorCode(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback;
+}
+
 function send(socket: WebSocket, message: ServerMessage): void {
   if (socket.readyState === socket.OPEN) socket.send(JSON.stringify(message));
 }
@@ -659,7 +663,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             for(const ownerSocket of userSockets.get(userId)??[])send(ownerSocket,{type:"creature_state",requestId:message.requestId,creature});
             return;
           }catch(error){
-            const code=error instanceof Error?error.message:"CAPTURE_FAILED";
+            const code=errorCode(error, "CAPTURE_FAILED");
             if(code==="NO_CAPTURE_ORB"||code==="CREATURE_ALREADY_CAPTURED"){send(socket,{type:"error",code:code==="NO_CAPTURE_ORB"?"NO_CAPTURE_ORB":"CREATURE_ALREADY_CAPTURED"});return;}
             throw error;
           }
@@ -672,7 +676,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             if(player) { player.inventory["creature.feed"]=Math.max(0,Number(player.inventory["creature.feed"]??0)-1); players.markDirty(userId); }
             send(socket,{type:"creature_state",requestId:message.requestId,creature});}
           catch(error){
-            const code=error instanceof Error?error.message:"TAME_FAILED";
+            const code=errorCode(error, "TAME_FAILED");
             if(["CREATURE_NOT_FOUND","NO_CREATURE_FEED"].includes(code)){send(socket,{type:"error",code});return;}
             throw error;
           }
@@ -686,7 +690,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             send(socket,{type:"creature_state",requestId:message.requestId,creature});
             send(socket,{type:"creature_party",creatures:creatures.get(userId)});
           }catch(error){
-            const code=error instanceof Error?error.message:"PARTY_UPDATE_FAILED";
+            const code=errorCode(error, "PARTY_UPDATE_FAILED");
             if(["CREATURE_NOT_FOUND","CREATURE_NOT_TAMED","INVALID_PARTY_SLOT"].includes(code)){send(socket,{type:"error",code});return;}
             throw error;
           }
@@ -699,7 +703,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             const creature=creatures.setAiMode(userId,message.creatureId,message.mode);
             send(socket,{type:"creature_state",requestId:message.requestId,creature});
           }catch(error){
-            const code=error instanceof Error?error.message:"CREATURE_AI_UPDATE_FAILED";
+            const code=errorCode(error, "CREATURE_AI_UPDATE_FAILED");
             if(["CREATURE_NOT_FOUND","CREATURE_NOT_TAMED"].includes(code)){send(socket,{type:"error",code});return;}
             throw error;
           }
