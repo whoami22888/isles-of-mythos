@@ -31,6 +31,7 @@ export type ServerMessage =
         | "COMBAT_COOLDOWN"
         | "OUT_OF_RANGE"
         | "NO_STAMINA"
+        | "NO_AMMO"
         | "COMBAT_IN_PROGRESS"
         | "PLAYER_DEAD"
         | "PLAYER_STUNNED"
