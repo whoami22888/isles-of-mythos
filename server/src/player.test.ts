@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { PLAYER_MAX_HEALTH, PLAYER_MAX_HUNGER, PLAYER_MAX_OXYGEN, STARTING_FLINTLOCK_AMMO, applyPlayerInput, createDefaultPlayer, meleeHitbox, playerHitbox } from "./player.js";
+import { PLAYER_MAX_HEALTH, PLAYER_MAX_HUNGER, PLAYER_MAX_OXYGEN, PLAYER_BASE_DEFENSE, STARTING_FLINTLOCK_AMMO, applyPlayerInput, createDefaultPlayer, meleeHitbox, playerHitbox } from "./player.js";
 
 describe("player survival and movement", () => {
   it("creates a valid default player state", () => {
     const player = createDefaultPlayer("user-1");
     expect(player.health).toBe(PLAYER_MAX_HEALTH);
+    expect(player.defense).toBe(PLAYER_BASE_DEFENSE);
     expect(player.hunger).toBe(PLAYER_MAX_HUNGER);
     expect(player.oxygen).toBe(PLAYER_MAX_OXYGEN);
     expect(player.inventory).toEqual({ "ammo.flintlock": STARTING_FLINTLOCK_AMMO });

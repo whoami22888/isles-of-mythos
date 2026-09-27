@@ -3,6 +3,7 @@ import { WebSocket } from "ws";
 import { buildApp } from "./app.js";
 import { config } from "./config.js";
 import { parseClientMessage } from "./protocol.js";
+import { CREATURE_STATS } from "./combat.js";
 
 type JsonObject = Record<string, unknown>;
 
@@ -171,6 +172,9 @@ describe("server foundation", () => {
     const targetId = getString(spawnObject, "id");
     const targetX = Number(spawnObject.x);
     const targetY = Number(spawnObject.y);
+    const species = getString(spawnObject, "species");
+    const creatureStats = CREATURE_STATS[species];
+    if (!creatureStats) throw new Error(`Unknown deterministic test creature species: ${species}`);
     expect(Number.isFinite(targetX)).toBe(true);
     expect(Number.isFinite(targetY)).toBe(true);
 
@@ -362,7 +366,7 @@ describe("server foundation", () => {
     const targetY = Number(spawnObject.y);
     const database = (await import("./db.js")).createDbPool();
     await database.query(
-      "INSERT INTO player_profiles (user_id, x, y, stamina, health) VALUES ($1, $2, $3, 100, 100) ON CONFLICT (user_id) DO UPDATE SET x=EXCLUDED.x, y=EXCLUDED.y, stamina=100, health=100",
+      "INSERT INTO player_profiles (user_id, x, y, stamina, health, defense) VALUES ($1, $2, $3, 100, 100, 5) ON CONFLICT (user_id) DO UPDATE SET x=EXCLUDED.x, y=EXCLUDED.y, stamina=100, health=100, defense=5",
       [userId, targetX - 0.25, targetY],
     );
 
@@ -383,7 +387,10 @@ describe("server foundation", () => {
         const state = getObject(message, "state");
         return typeof state.health === "number" && state.health < 100;
       });
-      await expect(damaged).resolves.toMatchObject({ type: "player_state" });
+      await expect(damaged).resolves.toMatchObject({
+        type: "player_state",
+        state: { health: 100 - Math.max(1, creatureStats.attack - 5) },
+      });
     } finally {
       socket.close();
       await database.end();

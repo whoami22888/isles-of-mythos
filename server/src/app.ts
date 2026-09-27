@@ -14,7 +14,7 @@ import { parseClientMessage, type ServerMessage } from "./protocol.js";
 import { PlayerStore, applyPlayerInput } from "./player.js";
 import { WorldChunkCache } from "./world.js";
 import { SHOP_ITEMS, calculatePurchase, getShopItem } from "./shop.js";
-import { addThreat, applyDamage, createCombatTarget, creatureAbilityDamage, createProjectile, advanceProjectile, isMeleeHit, distance, tickCreatureAi, tickStatuses, weaponFor, type CombatProjectile, type CombatTarget, type StatusEffect } from "./combat.js";
+import { addThreat, applyDamage, createCombatTarget, creatureAbilityDamage, createProjectile, advanceProjectile, isMeleeHit, distance, mitigateDamage, tickCreatureAi, tickStatusEffects, tickStatuses, weaponFor, type CombatProjectile, type CombatTarget, type StatusEffect } from "./combat.js";
 import { CombatReplayCache } from "./combat-replay.js";
 
 function send(socket: WebSocket, message: ServerMessage): void {
@@ -77,11 +77,15 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
 
   function tickPlayerStatuses(dtMs: number): void {
     for (const [userId, statuses] of playerStatuses) {
-      const next = statuses
-        .map((status) => ({ ...status, remainingMs: status.remainingMs - dtMs }))
-        .filter((status) => status.remainingMs > 0);
-      if (next.length === 0) playerStatuses.delete(userId);
-      else playerStatuses.set(userId, next);
+      const player = players.get(userId);
+      const result = tickStatusEffects(player?.health ?? 0, statuses, dtMs);
+      if (player && result.damage > 0 && player.health > 0) {
+        player.health = result.health;
+        players.markDirty(userId);
+        for (const socket of userSockets.get(userId) ?? []) send(socket, { type: "player_state", state: player });
+      }
+      if (result.statuses.length === 0) playerStatuses.delete(userId);
+      else playerStatuses.set(userId, result.statuses);
     }
   }
 
@@ -220,7 +224,8 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         const immune = (invulnerableUntil.get(userId) ?? 0) > now;
         if (!immune) {
           const blocked = blocking.has(userId) && targetPlayer.stamina > 0;
-          const damage = blocked ? Math.max(1, Math.round(target.attack * 0.35)) : target.attack;
+          const mitigatedDamage = mitigateDamage(target.attack, targetPlayer.defense);
+          const damage = blocked ? Math.max(1, Math.round(mitigatedDamage * 0.35)) : mitigatedDamage;
           targetPlayer.health = Math.max(0, targetPlayer.health - damage);
           if (blocked) {
             targetPlayer.stamina = Math.max(0, targetPlayer.stamina - 4);
@@ -236,7 +241,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           const pseudoTarget = createCombatTarget(userId, "player", targetPlayer.x, targetPlayer.y, targetPlayer.level);
           pseudoTarget.health = targetPlayer.health;
           pseudoTarget.maxHealth = targetPlayer.health;
-          pseudoTarget.defense = 0;
+          pseudoTarget.defense = targetPlayer.defense;
           const result = creatureAbilityDamage(pseudoTarget, ai.ability);
           targetPlayer.health = Math.max(0, targetPlayer.health - result.amount);
           if (result.statusApplied) applyPlayerStatus(userId, result.statusApplied);

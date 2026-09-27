@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addThreat, advanceProjectile, applyDamage, calculateDamage, createCombatTarget, createProjectile, creatureAbilityDamage, distance, isMeleeHit, selectThreatTarget, tickCreatureAi, tickStatuses, weaponFor } from "./combat.js";
+import { addThreat, advanceProjectile, applyDamage, calculateDamage, createCombatTarget, createProjectile, creatureAbilityDamage, distance, isMeleeHit, mitigateDamage, selectThreatTarget, tickCreatureAi, tickStatusEffects, tickStatuses, weaponFor } from "./combat.js";
 
 describe("combat engine", () => {
   it("uses server-defined weapon damage and defense", () => {
@@ -97,12 +97,34 @@ describe("combat engine", () => {
     expect(target.health).toBe(before - 8);
   });
 
+  it("enforces creature ability cooldowns between AI decisions", () => {
+    const target = createCombatTarget("creature:1:1", "raptor", 0, 0, 1);
+    const first = tickCreatureAi(target, [{ userId: "player", x: 3, y: 0 }], 1000, 250);
+    expect(first.ability?.id).toBe("pounce");
+    expect(target.nextAbilityAt).toBe(4000);
+    const second = tickCreatureAi(target, [{ userId: "player", x: 3, y: 0 }], 1100, 250);
+    expect(second.ability).toBeUndefined();
+  });
+
   it("keeps dead creatures from re-entering AI combat", () => {
     const target = createCombatTarget("creature:1:1", "boar", 1, 1, 1);
     target.health = 0;
     const result = tickCreatureAi(target, [{ userId: "player", x: 1, y: 1 }], 100, 250);
     expect(result.state).toBe("dead");
     expect(result.targetUserId).toBeNull();
+  });
+
+  it("mitigates creature damage with authoritative player defense", () => {
+    expect(mitigateDamage(14, 5)).toBe(9);
+    expect(mitigateDamage(4, 10)).toBe(1);
+    expect(mitigateDamage(14, -5)).toBe(14);
+  });
+
+  it("ticks player damage-over-time statuses and expires them", () => {
+    const result = tickStatusEffects(100, [{ id: "burn", remainingMs: 1500, magnitude: 4 }], 1000);
+    expect(result.damage).toBe(4);
+    expect(result.health).toBe(96);
+    expect(result.statuses).toEqual([{ id: "burn", remainingMs: 500, magnitude: 4 }]);
   });
 
   it("handles expired status tick input safely", () => {

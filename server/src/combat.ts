@@ -119,6 +119,12 @@ export function distance(a: { x: number; y: number }, b: { x: number; y: number 
   return Math.hypot(a.x - b.x, a.y - b.y);
 }
 
+export function mitigateDamage(rawDamage: number, defense: number): number {
+  if (!Number.isFinite(rawDamage) || rawDamage <= 0) return 0;
+  const safeDefense = Number.isFinite(defense) ? Math.max(0, defense) : 0;
+  return Math.max(1, Math.round(rawDamage - safeDefense));
+}
+
 export function calculateDamage(weapon: WeaponSpec, target: Pick<CombatTarget, "defense" | "element">, random = Math.random()): DamageResult {
   const critical = random < weapon.criticalChance;
   const multiplier = ELEMENT_MULTIPLIERS[weapon.damageType][target.element] ?? 1;
@@ -140,19 +146,24 @@ export function applyDamage(target: CombatTarget, weapon: WeaponSpec, random = M
   return result;
 }
 
-export function tickStatuses(target: CombatTarget, dtMs: number): number {
-  if (!Number.isFinite(dtMs) || dtMs <= 0) return 0;
+export function tickStatusEffects(health: number, statuses: StatusEffect[], dtMs: number): { health: number; statuses: StatusEffect[]; damage: number } {
+  if (!Number.isFinite(dtMs) || dtMs <= 0) return { health, statuses: statuses.map((status) => ({ ...status })), damage: 0 };
   let damage = 0;
   const next: StatusEffect[] = [];
-  for (const status of target.statuses) {
+  for (const status of statuses) {
     const activeMs = Math.min(dtMs, status.remainingMs);
     if (status.id === "burn" || status.id === "poison") damage += status.magnitude * activeMs / 1000;
     const remainingMs = status.remainingMs - dtMs;
     if (remainingMs > 0) next.push({ ...status, remainingMs });
   }
-  target.statuses = next;
-  target.health = Math.max(0, target.health - damage);
-  return damage;
+  return { health: Math.max(0, health - damage), statuses: next, damage };
+}
+
+export function tickStatuses(target: CombatTarget, dtMs: number): number {
+  const result = tickStatusEffects(target.health, target.statuses, dtMs);
+  target.statuses = result.statuses;
+  target.health = result.health;
+  return result.damage;
 }
 
 export function addThreat(target: CombatTarget, userId: string, amount: number, now = Date.now()): void {
