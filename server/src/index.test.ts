@@ -200,14 +200,12 @@ describe("server foundation", () => {
         targetId,
       });
 
-      const stateAfterAttack = waitForMatchingMessage(socket, (message) => typeof message === "object" && message !== null && (message as JsonObject).type === "player_state");
-      socket.send(JSON.stringify({ type: "move", dx: 0, dy: 0, dt: 0 }));
-      await expect(stateAfterAttack).resolves.toMatchObject({
-        type: "player_state",
-        state: { stamina: 92 },
-      });
-
-      const cooldown = waitForMessage(socket);
+      const cooldown = waitForMatchingMessage(socket, (message) => (
+        typeof message === "object"
+        && message !== null
+        && (message as JsonObject).type === "error"
+        && (message as JsonObject).code === "COMBAT_COOLDOWN"
+      ));
       socket.send(JSON.stringify({
         type: "attack",
         requestId: "melee-2",
@@ -216,6 +214,13 @@ describe("server foundation", () => {
         facingY: 0,
       }));
       await expect(cooldown).resolves.toEqual({ type: "error", code: "COMBAT_COOLDOWN" });
+
+      const stateAfterAttack = waitForMatchingMessage(socket, (message) => typeof message === "object" && message !== null && (message as JsonObject).type === "player_state");
+      socket.send(JSON.stringify({ type: "move", dx: 0, dy: 0, dt: 0 }));
+      await expect(stateAfterAttack).resolves.toMatchObject({
+        type: "player_state",
+        state: { stamina: 92 },
+      });
     } finally {
       socket.close();
       await database.end();
