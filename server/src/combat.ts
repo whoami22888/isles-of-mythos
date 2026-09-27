@@ -239,7 +239,6 @@ export function isMeleeHit(attacker: { x: number; y: number }, target: { x: numb
 export interface CombatProjectile {
   id: string;
   ownerUserId: string;
-  requestId: string;
   targetId: string;
   x: number;
   y: number;
@@ -256,7 +255,6 @@ export interface CombatProjectile {
 export function createProjectile(
   id: string,
   ownerUserId: string,
-  requestId: string,
   target: CombatTarget,
   origin: { x: number; y: number },
   facingX: number,
@@ -268,7 +266,7 @@ export function createProjectile(
   const length = Math.hypot(facingX, facingY);
   if (!Number.isFinite(length) || length === 0 || weapon.delivery !== "projectile" || !weapon.projectileSpeed) return null;
   return {
-    id, ownerUserId, requestId, targetId: target.id, x: origin.x, y: origin.y,
+    id, ownerUserId, targetId: target.id, x: origin.x, y: origin.y,
     vx: facingX / length * weapon.projectileSpeed,
     vy: facingY / length * weapon.projectileSpeed,
     radius: weapon.projectileRadius ?? 0.12,
