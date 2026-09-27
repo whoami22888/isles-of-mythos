@@ -21,6 +21,7 @@ export const up=(pgm)=>{
     created_at:{type:"timestamptz",notNull:true,default:pgm.func("CURRENT_TIMESTAMP")},
     updated_at:{type:"timestamptz",notNull:true,default:pgm.func("CURRENT_TIMESTAMP")}
   });
+  pgm.sql("UPDATE player_profiles SET inventory = COALESCE(inventory, '{}'::jsonb) || CASE WHEN COALESCE(inventory, '{}'::jsonb) ? 'capture.orb' THEN '{}'::jsonb ELSE jsonb_build_object('capture.orb', 3) END || CASE WHEN COALESCE(inventory, '{}'::jsonb) ? 'creature.feed' THEN '{}'::jsonb ELSE jsonb_build_object('creature.feed', 4) END WHERE inventory IS NULL OR NOT (COALESCE(inventory, '{}'::jsonb) ? 'capture.orb') OR NOT (COALESCE(inventory, '{}'::jsonb) ? 'creature.feed')");
   pgm.addConstraint("player_creatures","player_creatures_level_range",{check:"level>=1 AND level<=100"});
   pgm.addConstraint("player_creatures","player_creatures_tame_range",{check:"tame_progress>=0 AND tame_progress<=100"});
   pgm.addConstraint("player_creatures","player_creatures_party_range",{check:"party_slot IS NULL OR (party_slot>=0 AND party_slot<3)"});
