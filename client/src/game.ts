@@ -359,6 +359,52 @@ class WorldScene extends Phaser.Scene {
     }
   }
 
+  private setBlocking(active: boolean): void {
+    if (this.socket?.readyState !== WebSocket.OPEN) return;
+    try { this.socket.send(JSON.stringify({ type: "block", active })); } catch {
+      this.connected = false;
+      this.statusText?.setText("WORLD CONNECTION FAILED");
+    }
+  }
+
+  private createTouchCombatControls(): void {
+    const makeButton = (label: string, x: number, y: number, onDown: () => void, onUp?: () => void): Phaser.GameObjects.Text => {
+      const button = this.add.text(x, y, label, { fontFamily: "sans-serif", fontSize: "16px", color: "#ffffff", backgroundColor: "#17314dcc", padding: { left: 14, right: 14, top: 12, bottom: 12 } })
+        .setScrollFactor(0).setDepth(1200).setInteractive({ useHandCursor: true });
+      button.on("pointerdown", onDown);
+      if (onUp) button.on("pointerup", onUp);
+      button.on("pointerout", () => onUp?.());
+      return button;
+    };
+    makeButton("ATTACK", 16, 650, () => this.attackNearest());
+    makeButton("DODGE", 120, 650, () => this.dodge());
+    makeButton("BLOCK", 214, 650, () => this.setBlocking(true), () => this.setBlocking(false));
+  }
+
+  private renderProjectile(message: ProjectileSpawnMessage): void {
+    const marker = this.add.graphics().setDepth(30);
+    marker.fillStyle(0xffd166, 1);
+    marker.fillCircle(0, 0, TILE_SIZE * 0.12);
+    marker.setPosition(message.x * TILE_SIZE + TILE_SIZE / 2, message.y * TILE_SIZE + TILE_SIZE / 2);
+    this.projectiles.set(message.projectileId, marker);
+    const separator = message.projectileId.lastIndexOf(":");
+    const requestId = separator >= 0 ? message.projectileId.slice(separator + 1) : message.projectileId;
+    this.projectileByRequest.set(requestId, message.projectileId);
+    const lifetime = Math.max(1, message.expiresAt - Date.now());
+    this.tweens.add({
+      targets: marker,
+      x: marker.x + message.vx * TILE_SIZE * (lifetime / 1000),
+      y: marker.y + message.vy * TILE_SIZE * (lifetime / 1000),
+      duration: lifetime,
+      ease: "Linear",
+      onComplete: () => {
+        marker.destroy();
+        this.projectiles.delete(message.projectileId);
+        this.projectileByRequest.delete(requestId);
+      },
+    });
+  }
+
   private creatureRequestId(prefix: string): string { return prefix + "-" + Date.now().toString(36) + "-" + (++this.attackRequestSequence).toString(36); }
 
   private captureNearest(): void {
