@@ -39,10 +39,21 @@ describe("creature foundation",()=>{
       socket.send(JSON.stringify({type:"auth",token})); await auth; await state;
       for(let i=0;i<6;i++){
         const requestId="hit-"+i;
-        const hit=wait(socket,v=>isObj(v)&&((v.type==="combat_result"&&v.requestId===requestId)||(v.type==="error")));
-        socket.send(JSON.stringify({type:"attack",requestId,targetId,facingX:1,facingY:0}));
-        const response=await hit as Obj;
-        if(response.type==="error") throw new Error("Attack "+requestId+" rejected: "+getStr(response,"code"));
+        let response:Obj;
+        for(let attempt=0;;attempt++){
+          const hit=wait(socket,v=>isObj(v)&&((v.type==="combat_result"&&v.requestId===requestId)||(v.type==="error")));
+          socket.send(JSON.stringify({type:"attack",requestId,targetId,facingX:1,facingY:0}));
+          const candidate=await hit as Obj;
+          if(candidate.type!=="error"){response=candidate;break;}
+          const code=getStr(candidate,"code");
+          if(code==="PLAYER_STUNNED"&&attempt<3){
+            // Creature abilities are authoritative and may stun the player between attacks.
+            // Wait beyond the longest current stun (700ms) before retrying the same logical attack.
+            await new Promise(r=>setTimeout(r,800));
+            continue;
+          }
+          throw new Error("Attack "+requestId+" rejected: "+code);
+        }
         const result=response;
         const hpValue=result.targetHealth;
         if(typeof hpValue!=="number")throw new Error("Missing target health");
