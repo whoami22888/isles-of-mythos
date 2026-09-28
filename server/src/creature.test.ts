@@ -171,7 +171,7 @@ describe("creature foundation",()=>{
     const db=(await import("./db.js")).createDbPool();
     try{
       await db.query(
-        "INSERT INTO player_profiles (user_id,inventory,hotbar,selected_hotbar_slot) VALUES ($1,$3::jsonb,'["cutlass",null,null,null,null,null,null,null]'::jsonb,0),($2,$3::jsonb,'["cutlass",null,null,null,null,null,null,null]'::jsonb,0)",
+        "INSERT INTO player_profiles (user_id,inventory,hotbar,selected_hotbar_slot) VALUES ($1,$3::jsonb,'[\"cutlass\",null,null,null,null,null,null,null]'::jsonb,0),($2,$3::jsonb,'[\"cutlass\",null,null,null,null,null,null,null]'::jsonb,0)",
         [ownerId,intruderId,JSON.stringify({"capture.orb":0,"creature.feed":4})],
       );
       const inserted=await db.query<{id:string}>(
