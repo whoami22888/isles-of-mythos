@@ -158,6 +158,7 @@ class WorldScene extends Phaser.Scene {
   private reconnectAttempt = 0;
   private dodgeAccumulator = 0;
   private readonly ownedCreatures = new Map<string, CreatureState>();
+  private readonly pendingCaptureTargets = new Map<string, string>();
 
   constructor() { super("world"); }
 
@@ -261,6 +262,13 @@ class WorldScene extends Phaser.Scene {
       }
       if (message.type === "creature_state") {
         this.ownedCreatures.set(message.creature.id, message.creature);
+        if (message.requestId) {
+          const targetId = this.pendingCaptureTargets.get(message.requestId);
+          if (targetId) {
+            this.chunks.removeCreature(targetId);
+            this.pendingCaptureTargets.delete(message.requestId);
+          }
+        }
         if (message.creature.tameProgress >= 100 && message.creature.partySlot === null) {
           this.combatText?.setText(message.creature.species.toUpperCase() + " TAMED • P: PARTY");
         }
@@ -284,6 +292,11 @@ class WorldScene extends Phaser.Scene {
         return;
       }
       if (message.type === "error") {
+        for (const [requestId] of this.pendingCaptureTargets) {
+          if (message.code === "CREATURE_TOO_HEALTHY" || message.code === "NO_CAPTURE_ORB" || message.code === "CREATURE_ALREADY_CAPTURED" || message.code === "INVALID_MESSAGE" || message.code === "OUT_OF_RANGE") {
+            this.pendingCaptureTargets.delete(requestId);
+          }
+        }
         this.statusText?.setText("NETWORK ERROR • " + message.code);
       }
     });
@@ -417,9 +430,9 @@ class WorldScene extends Phaser.Scene {
     if (!this.player || this.socket?.readyState !== WebSocket.OPEN) return;
     const target = this.chunks.nearestCreature(this.player.x, this.player.y, 2.5);
     if (!target) { this.combatText?.setText("NO CREATURE IN CAPTURE RANGE"); return; }
-    this.socket.send(JSON.stringify({ type: "capture", requestId: this.nextAttackRequestId(), targetId: target.id }));
-    const targetId = target.id;
-    this.time.delayedCall(250, () => this.chunks.removeCreature(targetId));
+    const requestId = this.nextAttackRequestId();
+    this.pendingCaptureTargets.set(requestId, target.id);
+    this.socket.send(JSON.stringify({ type: "capture", requestId, targetId: target.id }));
   }
 
   private tameSelected(): void {
