@@ -205,7 +205,7 @@ describe("creature foundation",()=>{
     const socket=await socketFor(app);
     try{
       await db.query(
-        "INSERT INTO player_profiles (user_id,x,y,health,defense,inventory,hotbar,selected_hotbar_slot) VALUES ($1,$2,$3,100,5,$4::jsonb,'["cutlass","flintlock",null,null,null,null,null,null]'::jsonb,0) ON CONFLICT (user_id) DO UPDATE SET x=EXCLUDED.x,y=EXCLUDED.y,health=100,defense=5,inventory=EXCLUDED.inventory,hotbar=EXCLUDED.hotbar,selected_hotbar_slot=0",
+        `INSERT INTO player_profiles (user_id,x,y,health,defense,inventory,hotbar,selected_hotbar_slot) VALUES ($1,$2,$3,100,5,$4::jsonb,'["cutlass","flintlock",null,null,null,null,null,null]'::jsonb,0) ON CONFLICT (user_id) DO UPDATE SET x=EXCLUDED.x,y=EXCLUDED.y,health=100,defense=5,inventory=EXCLUDED.inventory,hotbar=EXCLUDED.hotbar,selected_hotbar_slot=0`,
         [userId,tx-0.5,ty,JSON.stringify({"ammo.flintlock":30,"capture.orb":3,"creature.feed":4})],
       );
       await new Promise<void>((res,rej)=>{socket.once("open",()=>res());socket.once("error",rej);});
