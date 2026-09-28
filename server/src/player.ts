@@ -74,7 +74,21 @@ export class PlayerStore {
   private readonly active = new Map<string, PlayerState>();
   private readonly dirty = new Set<string>();
   private readonly revisions = new Map<string, number>();
+  private readonly operations = new Map<string, Promise<void>>();
   constructor(private readonly db: Pool) {}
+  async runExclusive<T>(userId: string, operation: () => Promise<T>): Promise<T> {
+    const previous = this.operations.get(userId) ?? Promise.resolve();
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    const queued = previous.catch(() => undefined).then(() => gate);
+    this.operations.set(userId, queued);
+    await previous.catch(() => undefined);
+    try { return await operation(); }
+    finally {
+      release();
+      if (this.operations.get(userId) === queued) this.operations.delete(userId);
+    }
+  }
   async loadOrCreate(userId: string): Promise<PlayerState> {
     const existing = this.active.get(userId);
     if (existing) return existing;
@@ -108,7 +122,7 @@ export class PlayerStore {
       if (before !== after) this.markDirty(userId);
     }
   }
-  async persist(userId: string): Promise<void> {
+  private async persistUnsafe(userId: string): Promise<void> {
     const state = this.active.get(userId); if (!state) return;
     const revision = this.revisions.get(userId) ?? 0;
     const snapshot = {
@@ -134,7 +148,8 @@ export class PlayerStore {
     if ((this.revisions.get(userId) ?? 0) === revision) this.dirty.delete(userId);
   }
   async purchase(userId: string, item: ShopItem, quantity: number, totalGold: number): Promise<PlayerState> {
-    const client = await this.db.connect();
+    return this.runExclusive(userId, async () => {
+      const client = await this.db.connect();
     try {
       await client.query("BEGIN");
       const result = await client.query<PlayerRow>(
@@ -164,15 +179,21 @@ export class PlayerStore {
     } catch (error) {
       await client.query("ROLLBACK");
       throw error;
-    } finally {
-      client.release();
-    }
+      } finally {
+        client.release();
+      }
+    });
+  }
+  async persist(userId: string): Promise<void> {
+    await this.runExclusive(userId, () => this.persistUnsafe(userId));
   }
   async unload(userId: string): Promise<void> {
-    await this.persist(userId);
-    this.active.delete(userId);
-    this.dirty.delete(userId);
-    this.revisions.delete(userId);
+    await this.runExclusive(userId, async () => {
+      await this.persistUnsafe(userId);
+      this.active.delete(userId);
+      this.dirty.delete(userId);
+      this.revisions.delete(userId);
+    });
   }
   async persistDirty(): Promise<void> {
     const userIds = [...this.dirty];
