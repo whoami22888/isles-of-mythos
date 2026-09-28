@@ -685,13 +685,14 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
 
         if (message.type === "capture") {
           if (!userId) { send(socket,{type:"error",code:"AUTH_REQUIRED"}); return; }
+          const authenticatedUserId=userId;
           const captureFingerprint=message.type+"|"+message.targetId;
-          const captureReplay=creatureReplay.lookup(userId,message.requestId,captureFingerprint);
+          const captureReplay=creatureReplay.lookup(authenticatedUserId,message.requestId,captureFingerprint);
           if(captureReplay.kind==="hit"){send(socket,captureReplay.response);return;}
           if(captureReplay.kind==="conflict"){send(socket,{type:"error",code:"INVALID_MESSAGE"});return;}
-          const pendingCapture=pendingCreatureRequests.get(userId+":"+message.requestId);
+          const pendingCapture=pendingCreatureRequests.get(authenticatedUserId+":"+message.requestId);
           if(pendingCapture){send(socket,await pendingCapture);return;}
-          const state=players.get(userId); if(!state){send(socket,{type:"error",code:"AUTH_REQUIRED"});return;}
+          const state=players.get(authenticatedUserId); if(!state){send(socket,{type:"error",code:"AUTH_REQUIRED"});return;}
           if(state.health<=0){send(socket,{type:"error",code:"PLAYER_DEAD"});return;}
           const coords=parseCreatureTargetId(message.targetId);
           if(!coords){send(socket,{type:"error",code:"INVALID_MESSAGE"});return;}
@@ -703,14 +704,14 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           if(distance(state,target)>2.5){send(socket,{type:"error",code:"OUT_OF_RANGE"});return;}
           if(target.health>target.maxHealth*CAPTURE_HEALTH_RATIO){send(socket,{type:"error",code:"CREATURE_TOO_HEALTHY"});return;}
           const fingerprint=captureFingerprint;
-          const response=await runCreatureRequest(userId,message.requestId,fingerprint,async()=>{
+          const response=await runCreatureRequest(authenticatedUserId,message.requestId,fingerprint,async()=>{
             try{
-              const creature=await creatures.capture(userId,target);
+              const creature=await creatures.capture(authenticatedUserId,target);
               state.inventory["capture.orb"]=Math.max(0,Number(state.inventory["capture.orb"]??0)-1);
-              players.markDirty(userId);
+              players.markDirty(authenticatedUserId);
               combatTargets.delete(target.id); defeatedCreatures.add(target.id); capturedWorldCreatures.add(target.id);
               const result: ServerMessage={type:"creature_state",requestId:message.requestId,creature};
-              for(const ownerSocket of userSockets.get(userId)??[])send(ownerSocket,result);
+              for(const ownerSocket of userSockets.get(authenticatedUserId)??[])send(ownerSocket,result);
               return result;
             }catch(error){
               const code=errorCode(error, "CAPTURE_FAILED");
@@ -725,11 +726,12 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
 
         if (message.type === "tame") {
           if(!userId){send(socket,{type:"error",code:"AUTH_REQUIRED"});return;}
-          const response=await runCreatureRequest(userId,message.requestId,message.type+"|"+message.creatureId,async()=>{
+          const authenticatedUserId=userId;
+          const response=await runCreatureRequest(authenticatedUserId,message.requestId,message.type+"|"+message.creatureId,async()=>{
             try{
-              const result=await creatures.tame(userId,message.creatureId);
-              const player=players.get(userId);
-              if(result.consumed&&player) { player.inventory["creature.feed"]=Math.max(0,Number(player.inventory["creature.feed"]??0)-1); players.markDirty(userId); }
+              const result=await creatures.tame(authenticatedUserId,message.creatureId);
+              const player=players.get(authenticatedUserId);
+              if(result.consumed&&player) { player.inventory["creature.feed"]=Math.max(0,Number(player.inventory["creature.feed"]??0)-1); players.markDirty(authenticatedUserId); }
               return {type:"creature_state",requestId:message.requestId,creature:result.creature};
             }catch(error){
               const code=errorCode(error, "TAME_FAILED");
@@ -744,9 +746,10 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
 
         if (message.type === "set_creature_party") {
           if(!userId){send(socket,{type:"error",code:"AUTH_REQUIRED"});return;}
-          const response=await runCreatureRequest(userId,message.requestId,message.type+"|"+message.creatureId+"|"+String(message.slot),async()=>{
+          const authenticatedUserId=userId;
+          const response=await runCreatureRequest(authenticatedUserId,message.requestId,message.type+"|"+message.creatureId+"|"+String(message.slot),async()=>{
             try{
-              const creature=await creatures.setPartySlot(userId,message.creatureId,message.slot);
+              const creature=await creatures.setPartySlot(authenticatedUserId,message.creatureId,message.slot);
               return {type:"creature_state",requestId:message.requestId,creature};
             }catch(error){
               const code=errorCode(error, "PARTY_UPDATE_FAILED");
@@ -757,15 +760,16 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             }
           });
           send(socket,response);
-          if(response.type==="creature_state")send(socket,{type:"creature_party",creatures:creatures.get(userId)});
+          if(response.type==="creature_state")send(socket,{type:"creature_party",creatures:creatures.get(authenticatedUserId)});
           return;
         }
 
         if (message.type === "set_creature_ai") {
           if(!userId){send(socket,{type:"error",code:"AUTH_REQUIRED"});return;}
-          const response=await runCreatureRequest(userId,message.requestId,message.type+"|"+message.creatureId+"|"+message.mode,()=>{
+          const authenticatedUserId=userId;
+          const response=await runCreatureRequest(authenticatedUserId,message.requestId,message.type+"|"+message.creatureId+"|"+message.mode,()=>{
             try{
-              const creature=creatures.setAiMode(userId,message.creatureId,message.mode);
+              const creature=creatures.setAiMode(authenticatedUserId,message.creatureId,message.mode);
               return {type:"creature_state",requestId:message.requestId,creature};
             }catch(error){
               const code=errorCode(error, "CREATURE_AI_UPDATE_FAILED");
