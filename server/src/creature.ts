@@ -61,7 +61,7 @@ export class CreatureStore {
       const c=rowToCreature(inserted.rows[0]); const list=this.active.get(userId)??[]; list.push(c); this.active.set(userId,list); this.markDirty(userId); return c;
     }catch(error){
       await client.query("ROLLBACK");
-      if (typeof error === "object" && error !== null && "code" in error && (error as { code?: unknown }).code === "23505") throw new Error("CREATURE_ALREADY_CAPTURED");
+      if (typeof error === "object" && error !== null && "code" in error && (error as { code?: unknown }).code === "23505") throw new Error("CREATURE_ALREADY_CAPTURED", { cause: error });
       throw error;
     }finally{client.release();}
   }

@@ -108,7 +108,7 @@ describe("creature foundation",()=>{
       expect(results.filter((result)=>result.status==="fulfilled")).toHaveLength(1);
       const rejected=results.find((result)=>result.status==="rejected");
       expect(rejected&&rejected.reason instanceof Error?rejected.reason.message:rejected).toBe("CREATURE_ALREADY_CAPTURED");
-      const ownership=await db.query("SELECT COUNT(*)::text AS count FROM player_creatures WHERE wild_source_id=$1",[target.id]);
+      const ownership=await db.query<{count:string}>("SELECT COUNT(*)::text AS count FROM player_creatures WHERE wild_source_id=$1",[target.id]);
       expect(Number(ownership.rows[0]?.count)).toBe(1);
     }finally{await db.end();await app.close();}
   });
