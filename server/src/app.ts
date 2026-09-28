@@ -77,7 +77,39 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const playerStatuses = new Map<string, StatusEffect[]>();
   const combatActivationNextAt = new Map<string, number>();
   const combatReplay = new CombatReplayCache<Extract<ServerMessage, { type: "combat_result" }>>();
+  const creatureReplay = new CombatReplayCache<ServerMessage>();
+  const pendingCreatureRequests = new Map<string, Promise<ServerMessage>>();
+  const pendingCreatureOperations = new Map<string, Promise<void>>();
   const app = Fastify({ logger: false });
+
+  async function runCreatureRequest(
+    userId: string,
+    requestId: string,
+    fingerprint: string,
+    operation: () => Promise<ServerMessage>,
+  ): Promise<ServerMessage> {
+    const replay = creatureReplay.lookup(userId, requestId, fingerprint);
+    if (replay.kind === "hit") return replay.response;
+    if (replay.kind === "conflict") return { type: "error", code: "INVALID_MESSAGE" };
+    const key = userId + ":" + requestId;
+    const existing = pendingCreatureRequests.get(key);
+    if (existing) return existing;
+    const previous = pendingCreatureOperations.get(userId) ?? Promise.resolve();
+    const task = previous.catch(() => undefined).then(async () => {
+      const response = await operation();
+      creatureReplay.remember(userId, requestId, fingerprint, response);
+      return response;
+    });
+    const drain = task.then(() => undefined, () => undefined);
+    pendingCreatureRequests.set(key, task);
+    pendingCreatureOperations.set(userId, drain);
+    try {
+      return await task;
+    } finally {
+      if (pendingCreatureRequests.get(key) === task) pendingCreatureRequests.delete(key);
+      if (pendingCreatureOperations.get(userId) === drain) pendingCreatureOperations.delete(userId);
+    }
+  }
 
   function playerHasStatus(userId: string, statusId: StatusEffect["id"]): boolean {
     return (playerStatuses.get(userId) ?? []).some((status) => status.id === statusId && status.remainingMs > 0);
@@ -664,63 +696,79 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           if(!target){target=createCombatTarget(spawn.id,spawn.species,spawn.x,spawn.y,spawn.level);combatTargets.set(target.id,target);}
           if(distance(state,target)>2.5){send(socket,{type:"error",code:"OUT_OF_RANGE"});return;}
           if(target.health>target.maxHealth*CAPTURE_HEALTH_RATIO){send(socket,{type:"error",code:"CREATURE_TOO_HEALTHY"});return;}
-          try{
-            const creature=await creatures.capture(userId,target);
-            state.inventory["capture.orb"]=Math.max(0,Number(state.inventory["capture.orb"]??0)-1);
-            players.markDirty(userId);
-            combatTargets.delete(target.id); defeatedCreatures.add(target.id); capturedWorldCreatures.add(target.id);
-            for(const ownerSocket of userSockets.get(userId)??[])send(ownerSocket,{type:"creature_state",requestId:message.requestId,creature});
-            return;
-          }catch(error){
-            const code=errorCode(error, "CAPTURE_FAILED");
-            if (code === "NO_CAPTURE_ORB") { send(socket, { type: "error", code: "NO_CAPTURE_ORB" }); return; }
-            if (code === "CREATURE_ALREADY_CAPTURED") { send(socket, { type: "error", code: "CREATURE_ALREADY_CAPTURED" }); return; }
-            throw error;
-          }
+          const fingerprint=message.type+"|"+message.targetId;
+          const response=await runCreatureRequest(userId,message.requestId,fingerprint,async()=>{
+            try{
+              const creature=await creatures.capture(userId,target);
+              state.inventory["capture.orb"]=Math.max(0,Number(state.inventory["capture.orb"]??0)-1);
+              players.markDirty(userId);
+              combatTargets.delete(target.id); defeatedCreatures.add(target.id); capturedWorldCreatures.add(target.id);
+              const result: ServerMessage={type:"creature_state",requestId:message.requestId,creature};
+              for(const ownerSocket of userSockets.get(userId)??[])send(ownerSocket,result);
+              return result;
+            }catch(error){
+              const code=errorCode(error, "CAPTURE_FAILED");
+              if(code==="NO_CAPTURE_ORB")return {type:"error",code:"NO_CAPTURE_ORB"};
+              if(code==="CREATURE_ALREADY_CAPTURED")return {type:"error",code:"CREATURE_ALREADY_CAPTURED"};
+              throw error;
+            }
+          });
+          if(response.type==="error"||response.type==="creature_state")send(socket,response);
+          return;
         }
 
         if (message.type === "tame") {
           if(!userId){send(socket,{type:"error",code:"AUTH_REQUIRED"});return;}
-          try{const result=await creatures.tame(userId,message.creatureId);
-            const player=players.get(userId);
-            if(result.consumed&&player) { player.inventory["creature.feed"]=Math.max(0,Number(player.inventory["creature.feed"]??0)-1); players.markDirty(userId); }
-            send(socket,{type:"creature_state",requestId:message.requestId,creature:result.creature});}
-          catch(error){
-            const code=errorCode(error, "TAME_FAILED");
-            if (code === "CREATURE_NOT_FOUND") { send(socket, { type: "error", code: "CREATURE_NOT_FOUND" }); return; }
-            if (code === "NO_CREATURE_FEED") { send(socket, { type: "error", code: "NO_CREATURE_FEED" }); return; }
-            throw error;
-          }
+          const response=await runCreatureRequest(userId,message.requestId,message.type+"|"+message.creatureId,async()=>{
+            try{
+              const result=await creatures.tame(userId,message.creatureId);
+              const player=players.get(userId);
+              if(result.consumed&&player) { player.inventory["creature.feed"]=Math.max(0,Number(player.inventory["creature.feed"]??0)-1); players.markDirty(userId); }
+              return {type:"creature_state",requestId:message.requestId,creature:result.creature};
+            }catch(error){
+              const code=errorCode(error, "TAME_FAILED");
+              if(code==="CREATURE_NOT_FOUND")return {type:"error",code:"CREATURE_NOT_FOUND"};
+              if(code==="NO_CREATURE_FEED")return {type:"error",code:"NO_CREATURE_FEED"};
+              throw error;
+            }
+          });
+          send(socket,response);
           return;
         }
 
         if (message.type === "set_creature_party") {
           if(!userId){send(socket,{type:"error",code:"AUTH_REQUIRED"});return;}
-          try{
-            const creature=await creatures.setPartySlot(userId,message.creatureId,message.slot);
-            send(socket,{type:"creature_state",requestId:message.requestId,creature});
-            send(socket,{type:"creature_party",creatures:creatures.get(userId)});
-          }catch(error){
-            const code=errorCode(error, "PARTY_UPDATE_FAILED");
-            if (code === "CREATURE_NOT_FOUND") { send(socket, { type: "error", code: "CREATURE_NOT_FOUND" }); return; }
-            if (code === "CREATURE_NOT_TAMED") { send(socket, { type: "error", code: "CREATURE_NOT_TAMED" }); return; }
-            if (code === "INVALID_PARTY_SLOT") { send(socket, { type: "error", code: "INVALID_PARTY_SLOT" }); return; }
-            throw error;
-          }
+          const response=await runCreatureRequest(userId,message.requestId,message.type+"|"+message.creatureId+"|"+String(message.slot),async()=>{
+            try{
+              const creature=await creatures.setPartySlot(userId,message.creatureId,message.slot);
+              return {type:"creature_state",requestId:message.requestId,creature};
+            }catch(error){
+              const code=errorCode(error, "PARTY_UPDATE_FAILED");
+              if(code==="CREATURE_NOT_FOUND")return {type:"error",code:"CREATURE_NOT_FOUND"};
+              if(code==="CREATURE_NOT_TAMED")return {type:"error",code:"CREATURE_NOT_TAMED"};
+              if(code==="INVALID_PARTY_SLOT")return {type:"error",code:"INVALID_PARTY_SLOT"};
+              throw error;
+            }
+          });
+          send(socket,response);
+          if(response.type==="creature_state")send(socket,{type:"creature_party",creatures:creatures.get(userId)});
           return;
         }
 
         if (message.type === "set_creature_ai") {
           if(!userId){send(socket,{type:"error",code:"AUTH_REQUIRED"});return;}
-          try{
-            const creature=creatures.setAiMode(userId,message.creatureId,message.mode);
-            send(socket,{type:"creature_state",requestId:message.requestId,creature});
-          }catch(error){
-            const code=errorCode(error, "CREATURE_AI_UPDATE_FAILED");
-            if (code === "CREATURE_NOT_FOUND") { send(socket, { type: "error", code: "CREATURE_NOT_FOUND" }); return; }
-            if (code === "CREATURE_NOT_TAMED") { send(socket, { type: "error", code: "CREATURE_NOT_TAMED" }); return; }
-            throw error;
-          }
+          const response=await runCreatureRequest(userId,message.requestId,message.type+"|"+message.creatureId+"|"+message.mode,async()=>{
+            try{
+              const creature=creatures.setAiMode(userId,message.creatureId,message.mode);
+              return {type:"creature_state",requestId:message.requestId,creature};
+            }catch(error){
+              const code=errorCode(error, "CREATURE_AI_UPDATE_FAILED");
+              if(code==="CREATURE_NOT_FOUND")return {type:"error",code:"CREATURE_NOT_FOUND"};
+              if(code==="CREATURE_NOT_TAMED")return {type:"error",code:"CREATURE_NOT_TAMED"};
+              throw error;
+            }
+          });
+          send(socket,response);
           return;
         }
 
@@ -766,10 +814,22 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         playerStatuses.delete(userId);
         combatActivationNextAt.delete(userId);
         for (const [key] of pendingCombatRequests) if (key.startsWith(userId + ":")) pendingCombatRequests.delete(key);
-        void creatures.unload(userId).catch((error) => {
-          log("creature_disconnect_persistence_failed",{message:error instanceof Error?error.message:String(error)});
+        const pendingCreatureWork = pendingCreatureOperations.get(userId) ?? Promise.resolve();
+        void pendingCreatureWork.then(
+          () => creatures.unload(userId),
+          () => creatures.unload(userId),
+        ).then(
+          () => players.unload(userId),
+          (error) => {
+            log("creature_disconnect_persistence_failed",{message:error instanceof Error?error.message:String(error)});
+            return players.unload(userId);
+          },
+        ).catch((error) => {
+          log("player_disconnect_persistence_failed", {
+            message: error instanceof Error ? error.message : String(error),
+          });
         });
-        void players.unload(userId).catch((error) => {
+        void Promise.resolve().then(async () => {
           log("player_disconnect_persistence_failed", {
             message: error instanceof Error ? error.message : String(error),
           });
