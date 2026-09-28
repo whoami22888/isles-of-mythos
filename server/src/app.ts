@@ -711,13 +711,15 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           const fingerprint=captureFingerprint;
           const response=await runCreatureRequest(authenticatedUserId,message.requestId,fingerprint,async()=>{
             try{
-              const creature=await creatures.capture(authenticatedUserId,target);
-              state.inventory["capture.orb"]=Math.max(0,Number(state.inventory["capture.orb"]??0)-1);
-              players.markDirty(authenticatedUserId);
-              combatTargets.delete(target.id); defeatedCreatures.add(target.id); capturedWorldCreatures.add(target.id);
-              const result: ServerMessage={type:"creature_state",requestId:message.requestId,creature};
-              for(const ownerSocket of userSockets.get(authenticatedUserId)??[])send(ownerSocket,result);
-              return result;
+              return await players.runExclusive(authenticatedUserId, async()=>{
+                const creature=await creatures.capture(authenticatedUserId,target);
+                state.inventory["capture.orb"]=Math.max(0,Number(state.inventory["capture.orb"]??0)-1);
+                players.markDirty(authenticatedUserId);
+                combatTargets.delete(target.id); defeatedCreatures.add(target.id); capturedWorldCreatures.add(target.id);
+                const result: ServerMessage={type:"creature_state",requestId:message.requestId,creature};
+                for(const ownerSocket of userSockets.get(authenticatedUserId)??[])send(ownerSocket,result);
+                return result;
+              });
             }catch(error){
               const code=errorCode(error, "CAPTURE_FAILED");
               if(code==="NO_CAPTURE_ORB")return {type:"error",code:"NO_CAPTURE_ORB"};
@@ -734,10 +736,12 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           const authenticatedUserId=userId;
           const response=await runCreatureRequest(authenticatedUserId,message.requestId,message.type+"|"+message.creatureId,async()=>{
             try{
-              const result=await creatures.tame(authenticatedUserId,message.creatureId);
-              const player=players.get(authenticatedUserId);
-              if(result.consumed&&player) { player.inventory["creature.feed"]=Math.max(0,Number(player.inventory["creature.feed"]??0)-1); players.markDirty(authenticatedUserId); }
-              return {type:"creature_state",requestId:message.requestId,creature:result.creature};
+              return await players.runExclusive(authenticatedUserId, async()=>{
+                const result=await creatures.tame(authenticatedUserId,message.creatureId);
+                const player=players.get(authenticatedUserId);
+                if(result.consumed&&player) { player.inventory["creature.feed"]=Math.max(0,Number(player.inventory["creature.feed"]??0)-1); players.markDirty(authenticatedUserId); }
+                return {type:"creature_state",requestId:message.requestId,creature:result.creature};
+              });
             }catch(error){
               const code=errorCode(error, "TAME_FAILED");
               if(code==="CREATURE_NOT_FOUND")return {type:"error",code:"CREATURE_NOT_FOUND"};
