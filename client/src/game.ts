@@ -292,16 +292,12 @@ class WorldScene extends Phaser.Scene {
         return;
       }
       if (message.type === "error") {
-        for (const [requestId] of this.pendingCaptureTargets) {
-          if (message.code === "CREATURE_TOO_HEALTHY" || message.code === "NO_CAPTURE_ORB" || message.code === "CREATURE_ALREADY_CAPTURED" || message.code === "INVALID_MESSAGE" || message.code === "OUT_OF_RANGE") {
-            this.pendingCaptureTargets.delete(requestId);
-          }
-        }
         this.statusText?.setText("NETWORK ERROR • " + message.code);
       }
     });
     socket.addEventListener("close", () => {
       this.connected = false;
+      this.pendingCaptureTargets.clear();
       this.statusText?.setText("WORLD OFFLINE • RECONNECTING...");
       this.scheduleReconnect();
     });
