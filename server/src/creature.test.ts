@@ -196,7 +196,7 @@ describe("creature foundation",()=>{
     expect(reg.statusCode).toBe(201); const body=JSON.parse(reg.body) as Obj; const token=getStr(body,"accessToken"); const userId=getStr(getObj(body,"user"),"id");
     let spawn:Obj|null=null;
     for(let y=0;y<8&&!spawn;y++)for(let x=0;x<8&&!spawn;x++){
-      const response=await app.inject({method:"GET",url:`/world/chunks/${x}/${y}`}); const chunk=JSON.parse(response.body) as Obj; const creatures=chunk.creatures;
+      const response=await app.inject({method:"GET",url:`/world/chunks/${x}/${y}`}); const chunk=parseBody(response.body); const creatures=chunk.creatures;
       if(Array.isArray(creatures)){for(const value of creatures as unknown[]){if(isObj(value)&&value.species==="slime"){spawn=value;break;}}}
     }
     if(!spawn)throw new Error("No deterministic slime spawn available");
