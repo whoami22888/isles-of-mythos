@@ -685,6 +685,12 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
 
         if (message.type === "capture") {
           if (!userId) { send(socket,{type:"error",code:"AUTH_REQUIRED"}); return; }
+          const captureFingerprint=message.type+"|"+message.targetId;
+          const captureReplay=creatureReplay.lookup(userId,message.requestId,captureFingerprint);
+          if(captureReplay.kind==="hit"){send(socket,captureReplay.response);return;}
+          if(captureReplay.kind==="conflict"){send(socket,{type:"error",code:"INVALID_MESSAGE"});return;}
+          const pendingCapture=pendingCreatureRequests.get(userId+":"+message.requestId);
+          if(pendingCapture){send(socket,await pendingCapture);return;}
           const state=players.get(userId); if(!state){send(socket,{type:"error",code:"AUTH_REQUIRED"});return;}
           if(state.health<=0){send(socket,{type:"error",code:"PLAYER_DEAD"});return;}
           const coords=parseCreatureTargetId(message.targetId);
@@ -696,7 +702,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           if(!target){target=createCombatTarget(spawn.id,spawn.species,spawn.x,spawn.y,spawn.level);combatTargets.set(target.id,target);}
           if(distance(state,target)>2.5){send(socket,{type:"error",code:"OUT_OF_RANGE"});return;}
           if(target.health>target.maxHealth*CAPTURE_HEALTH_RATIO){send(socket,{type:"error",code:"CREATURE_TOO_HEALTHY"});return;}
-          const fingerprint=message.type+"|"+message.targetId;
+          const fingerprint=captureFingerprint;
           const response=await runCreatureRequest(userId,message.requestId,fingerprint,async()=>{
             try{
               const creature=await creatures.capture(userId,target);
