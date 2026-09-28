@@ -80,6 +80,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const creatureReplay = new CombatReplayCache<ServerMessage>();
   const pendingCreatureRequests = new Map<string, Promise<ServerMessage>>();
   const pendingCreatureOperations = new Map<string, Promise<void>>();
+  const pendingPlayerUnloads = new Map<string, Promise<void>>();
   let shuttingDown = false;
   const app = Fastify({ logger: false });
 
@@ -463,6 +464,8 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             const payload = app.jwt.verify<{ sub: string; username: string }>(message.token);
             if (typeof payload.sub !== "string" || payload.sub.length === 0) throw new Error("invalid_subject");
             const authenticatedUserId = payload.sub;
+            const pendingUnload = pendingPlayerUnloads.get(authenticatedUserId);
+            if (pendingUnload) await pendingUnload;
             const state = await players.loadOrCreate(authenticatedUserId);
             const ownedCreatures = await creatures.load(authenticatedUserId);
             userId = authenticatedUserId;
@@ -828,7 +831,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         combatActivationNextAt.delete(disconnectedUserId);
         for (const [key] of pendingCombatRequests) if (key.startsWith(disconnectedUserId + ":")) pendingCombatRequests.delete(key);
         const pendingCreatureWork = pendingCreatureOperations.get(disconnectedUserId) ?? Promise.resolve();
-        void pendingCreatureWork.then(
+        const unloadPromise = pendingCreatureWork.then(
           () => creatures.unload(disconnectedUserId),
           () => creatures.unload(disconnectedUserId),
         ).then(
@@ -841,6 +844,10 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           log("player_disconnect_persistence_failed", {
             message: error instanceof Error ? error.message : String(error),
           });
+        });
+        pendingPlayerUnloads.set(disconnectedUserId, unloadPromise);
+        void unloadPromise.finally(() => {
+          if (pendingPlayerUnloads.get(disconnectedUserId) === unloadPromise) pendingPlayerUnloads.delete(disconnectedUserId);
         });
       } else {
         playerConnections.set(disconnectedUserId, connections);
