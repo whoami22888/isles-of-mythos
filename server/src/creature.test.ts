@@ -193,7 +193,7 @@ describe("creature foundation",()=>{
 
   it("serializes creature inventory mutation before disconnect unload",async()=>{
     const app=await buildApp(); const unique=Date.now();
-    const reg=await app.inject({method:"POST",url:"/auth/register",payload:{username:`exclusive_inventory_${unique}`,email:`exclusive_inventory_${unique}@example.com`,password:"Correct-Horse-Battery-9"}});
+    const reg=await app.inject({method:"POST",url:"/auth/register",payload:{username:`exinv_${unique}`,email:`exinv_${unique}@example.com`,password:"Correct-Horse-Battery-9"}});
     expect(reg.statusCode).toBe(201); const body=JSON.parse(reg.body) as Obj; const userId=getStr(getObj(body,"user"),"id");
     const db=(await import("./db.js")).createDbPool();
     try{
