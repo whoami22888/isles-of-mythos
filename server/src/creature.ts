@@ -66,17 +66,39 @@ export class CreatureStore {
     }finally{client.release();}
   }
   async tame(userId:string,id:string):Promise<{creature:OwnedCreature;consumed:boolean}>{
-    const c=this.getCreature(userId,id); if(!c)throw new Error("CREATURE_NOT_FOUND"); if(c.tameProgress>=100)return {creature:c,consumed:false};
+    const cached=this.getCreature(userId,id);
+    if(cached&&cached.tameProgress>=100)return {creature:cached,consumed:false};
     const client=await this.db.connect();
     try{
       await client.query("BEGIN");
+      const creatureResult=await client.query<CreatureRow>(
+        "SELECT id,owner_user_id,species,nickname,level,xp,health,max_health,attack,defense,element,ability_ids,tame_progress,party_slot,ai_mode,x,y FROM player_creatures WHERE id=$1 AND owner_user_id=$2 FOR UPDATE",
+        [id,userId],
+      );
+      const row=creatureResult.rows[0];
+      if(!row)throw new Error("CREATURE_NOT_FOUND");
+      const current=rowToCreature(row);
+      if(current.tameProgress>=100){
+        await client.query("COMMIT");
+        const active=this.getCreature(userId,id);
+        if(active)Object.assign(active,current);
+        else{const list=this.get(userId);list.push(current);this.active.set(userId,list);}
+        return {creature:this.getCreature(userId,id)??current,consumed:false};
+      }
       const r=await client.query<{inventory:Record<string,number>}>("SELECT inventory FROM player_profiles WHERE user_id=$1 FOR UPDATE",[userId]);
       const inv=r.rows[0]?.inventory??{}; const feed=Number(inv[CREATURE_FEED_ITEM]??0);
       if(!Number.isSafeInteger(feed)||feed<1)throw new Error("NO_CREATURE_FEED");
-      const progress=Math.min(100,c.tameProgress+TAME_PROGRESS_PER_FEED); const next={...inv,[CREATURE_FEED_ITEM]:feed-1};
+      const progress=Math.min(100,current.tameProgress+TAME_PROGRESS_PER_FEED);
+      const next={...inv,[CREATURE_FEED_ITEM]:feed-1};
       await client.query("UPDATE player_creatures SET tame_progress=$2,updated_at=CURRENT_TIMESTAMP WHERE id=$1 AND owner_user_id=$3",[id,progress,userId]);
       await client.query("UPDATE player_profiles SET inventory=$2::jsonb,updated_at=CURRENT_TIMESTAMP WHERE user_id=$1",[userId,JSON.stringify(next)]);
-      await client.query("COMMIT"); c.tameProgress=progress; this.markDirty(userId); return {creature:c,consumed:true};
+      await client.query("COMMIT");
+      const active=this.getCreature(userId,id);
+      if(active)Object.assign(active,current,{tameProgress:progress});
+      else{current.tameProgress=progress;const list=this.get(userId);list.push(current);this.active.set(userId,list);}
+      const creature=this.getCreature(userId,id)??current;
+      this.markDirty(userId);
+      return {creature,consumed:true};
     }catch(e){await client.query("ROLLBACK");throw e;}finally{client.release();}
   }
   async setPartySlot(userId:string,id:string,slot:number|null):Promise<OwnedCreature>{
