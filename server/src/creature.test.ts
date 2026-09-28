@@ -1,7 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { WebSocket } from "ws";
 import { buildApp } from "./app.js";
-import { createCombatTarget } from "./combat.js";
+import { calculateDamage, createCombatTarget, weaponFor } from "./combat.js";
 import { parseClientMessage } from "./protocol.js";
 
 type Obj=Record<string,unknown>;
@@ -22,13 +22,21 @@ describe("creature foundation",()=>{
     expect(parseClientMessage('{"type":"set_creature_ai","requestId":"a1","creatureId":"bad","mode":"follow"}')).toEqual({type:"set_creature_ai",requestId:"a1",creatureId:"bad",mode:"follow"});
   });
   it("captures, tames, parties and persists a wild creature server-side",async()=>{
-    const app=await buildApp(); const unique=Date.now();
+    const app=await buildApp(); const unique=Date.now(); const randomSpy=vi.spyOn(Math,"random").mockReturnValue(0.99);
     const reg=await app.inject({method:"POST",url:"/auth/register",payload:{username:`creature_${unique}`,email:`creature_${unique}@example.com`,password:"Correct-Horse-Battery-9"}});
     expect(reg.statusCode).toBe(201); const body=JSON.parse(reg.body) as Obj; const token=getStr(body,"accessToken"); const userId=getStr(getObj(body,"user"),"id");
-    let spawn:Obj|null=null;
-    for(let y=0;y<8&&!spawn;y++)for(let x=0;x<8&&!spawn;x++){const r=await app.inject({method:"GET",url:`/world/chunks/${x}/${y}`});const c=JSON.parse(r.body) as Obj;const list=c.creatures;if(Array.isArray(list)){const found=list.find(isObj);if(found)spawn=found;}}
-    if(!spawn)throw new Error("No deterministic creature spawn"); const targetId=getStr(spawn,"id"); const tx=Number(spawn.x),ty=Number(spawn.y); const level=Number(spawn.level);
-    const targetMaxHealth=createCombatTarget(targetId,getStr(spawn,"species"),tx,ty,level).maxHealth;
+    const cutlass=weaponFor("cutlass"); if(!cutlass)throw new Error("Missing cutlass test weapon");
+    let spawn:Obj|null=null; let targetMaxHealth=0; let targetHits=Number.POSITIVE_INFINITY;
+    for(let y=0;y<8;y++)for(let x=0;x<8;x++){const r=await app.inject({method:"GET",url:`/world/chunks/${x}/${y}`});const c=JSON.parse(r.body) as Obj;const list=c.creatures;
+      if(!Array.isArray(list))continue;
+      for(const candidate of list){if(!isObj(candidate))continue;const id=candidate.id;const species=candidate.species;const sx=Number(candidate.x),sy=Number(candidate.y),level=Number(candidate.level);
+        if(typeof id!=="string"||typeof species!=="string"||!Number.isFinite(sx)||!Number.isFinite(sy)||!Number.isFinite(level))continue;
+        const target=createCombatTarget(id,species,sx,sy,level); const damage=calculateDamage(cutlass,target,0.99).amount; const hits=Math.ceil((target.maxHealth*0.75)/damage);
+        const preferred=species==="slime"||species==="boar"; const currentPreferred=spawn?((getStr(spawn,"species")==="slime"||getStr(spawn,"species")==="boar")):false;
+        if(hits<=6&&(!spawn|| (preferred&&!currentPreferred)|| (preferred===currentPreferred&&(hits<targetHits||(hits===targetHits&&target.maxHealth<targetMaxHealth))))){spawn=candidate;targetMaxHealth=target.maxHealth;targetHits=hits;}
+      }
+    }
+    if(!spawn)throw new Error("No deterministic creature can reach the capture threshold within six cutlass hits"); const targetId=getStr(spawn,"id"); const tx=Number(spawn.x),ty=Number(spawn.y);
     const db=(await import("./db.js")).createDbPool();
     await db.query(
       "INSERT INTO player_profiles (user_id,x,y,health,defense,inventory,hotbar,selected_hotbar_slot) VALUES ($1,$2,$3,100,5,$4::jsonb,'[\"cutlass\",\"flintlock\",null,null,null,null,null,null]'::jsonb,0) ON CONFLICT (user_id) DO UPDATE SET x=EXCLUDED.x,y=EXCLUDED.y,health=EXCLUDED.health,defense=EXCLUDED.defense,inventory=EXCLUDED.inventory,hotbar=EXCLUDED.hotbar,selected_hotbar_slot=EXCLUDED.selected_hotbar_slot",
@@ -51,12 +59,11 @@ describe("creature foundation",()=>{
           if(code==="PLAYER_STUNNED"&&attempt<3){await new Promise(r=>setTimeout(r,800));continue;}
           throw new Error("Attack "+requestId+" rejected: "+code);
         }
-        const result=response;
-        const hpValue=result.targetHealth;
+        const result=response; const hpValue=result.targetHealth;
         if(typeof hpValue!=="number")throw new Error("Missing target health");
         if(result.killed===true)throw new Error("Creature was killed before capture threshold");
         if(hpValue<=targetMaxHealth*0.25)break;
-        if(i===5)throw new Error(`Creature was not reduced to capture threshold (health=${hpValue}, max=${targetMaxHealth})`);
+        if(i===5)throw new Error(`Creature was not reduced to capture threshold (health=${hpValue}, max=${targetMaxHealth}, expectedHits=${targetHits})`);
         await new Promise(r=>setTimeout(r,500));
       }
       const captureResponse=wait(socket,v=>isObj(v)&&((v.type==="creature_state"&&v.requestId==="cap-1")||v.type==="error"));
@@ -75,6 +82,6 @@ describe("creature foundation",()=>{
       await new Promise<void>((resolve)=>socket.once("close",()=>resolve()));
       const persisted=await db.query("SELECT tame_progress,party_slot,ai_mode FROM player_creatures WHERE id=$1",[creatureId]);
       expect(persisted.rows[0]).toMatchObject({tame_progress:100,party_slot:0,ai_mode:"stay"});
-    }finally{socket.close();await db.end();await app.close();}
+    }finally{socket.close();randomSpy.mockRestore();await db.end();await app.close();}
   });
 });
