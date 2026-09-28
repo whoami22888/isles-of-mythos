@@ -29,7 +29,7 @@ describe("creature foundation",()=>{
     if(!spawn)throw new Error("No deterministic creature spawn"); const targetId=getStr(spawn,"id"); const tx=Number(spawn.x),ty=Number(spawn.y);
     const db=(await import("./db.js")).createDbPool();
     await db.query(
-      "INSERT INTO player_profiles (user_id,x,y,health,inventory,hotbar,selected_hotbar_slot) VALUES ($1,$2,$3,100,$4::jsonb,'[\"cutlass\",\"flintlock\",null,null,null,null,null,null]'::jsonb,0) ON CONFLICT (user_id) DO UPDATE SET x=EXCLUDED.x,y=EXCLUDED.y,health=EXCLUDED.health,inventory=EXCLUDED.inventory,hotbar=EXCLUDED.hotbar,selected_hotbar_slot=EXCLUDED.selected_hotbar_slot",
+      "INSERT INTO player_profiles (user_id,x,y,health,defense,inventory,hotbar,selected_hotbar_slot) VALUES ($1,$2,$3,100,100,$4::jsonb,'[\"cutlass\",\"flintlock\",null,null,null,null,null,null]'::jsonb,0) ON CONFLICT (user_id) DO UPDATE SET x=EXCLUDED.x,y=EXCLUDED.y,health=EXCLUDED.health,defense=EXCLUDED.defense,inventory=EXCLUDED.inventory,hotbar=EXCLUDED.hotbar,selected_hotbar_slot=EXCLUDED.selected_hotbar_slot",
       [userId,tx-0.5,ty,JSON.stringify({"ammo.flintlock":30,"capture.orb":3,"creature.feed":4})],
     );
     const socket=await socketFor(app);
@@ -46,12 +46,7 @@ describe("creature foundation",()=>{
           const candidate=await hit as Obj;
           if(candidate.type!=="error"){response=candidate;break;}
           const code=getStr(candidate,"code");
-          if(code==="PLAYER_STUNNED"&&attempt<3){
-            // Creature abilities are authoritative and may stun the player between attacks.
-            // Wait beyond the longest current stun (700ms) before retrying the same logical attack.
-            await new Promise(r=>setTimeout(r,800));
-            continue;
-          }
+          if(code==="PLAYER_STUNNED"&&attempt<3){await new Promise(r=>setTimeout(r,800));continue;}
           throw new Error("Attack "+requestId+" rejected: "+code);
         }
         const result=response;
