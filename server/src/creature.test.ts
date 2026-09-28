@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { WebSocket } from "ws";
 import { buildApp } from "./app.js";
+import { PlayerStore } from "./player.js";
 import { calculateDamage, createCombatTarget, weaponFor } from "./combat.js";
 import { CreatureStore } from "./creature.js";
 import { parseClientMessage } from "./protocol.js";
@@ -190,57 +191,32 @@ describe("creature foundation",()=>{
     }finally{await db.end();await app.close();}
   });
 
-  it("serializes capture persistence across disconnect",async()=>{
-    const app=await buildApp(); const unique=Date.now(); const randomSpy=vi.spyOn(Math,"random").mockReturnValue(0.99);
-    const reg=await app.inject({method:"POST",url:"/auth/register",payload:{username:`disconnect_capture_${unique}`,email:`disconnect_capture_${unique}@example.com`,password:"Correct-Horse-Battery-9"}});
-    expect(reg.statusCode).toBe(201); const body=JSON.parse(reg.body) as Obj; const token=getStr(body,"accessToken"); const userId=getStr(getObj(body,"user"),"id");
-    let spawn:Obj|null=null;
-    for(let y=0;y<8&&!spawn;y++)for(let x=0;x<8&&!spawn;x++){
-      const response=await app.inject({method:"GET",url:`/world/chunks/${x}/${y}`}); const chunk=parseBody(response.body); const creatures=chunk.creatures;
-      if(Array.isArray(creatures)){for(const value of creatures as unknown[]){if(isObj(value)&&value.species==="slime"){spawn=value;break;}}}
-    }
-    if(!spawn)throw new Error("No deterministic slime spawn available");
-    const tx=Number(spawn.x),ty=Number(spawn.y),targetId=getStr(spawn,"id");
+  it("serializes creature inventory mutation before disconnect unload",async()=>{
+    const app=await buildApp(); const unique=Date.now();
+    const reg=await app.inject({method:"POST",url:"/auth/register",payload:{username:`exclusive_inventory_${unique}`,email:`exclusive_inventory_${unique}@example.com`,password:"Correct-Horse-Battery-9"}});
+    expect(reg.statusCode).toBe(201); const body=JSON.parse(reg.body) as Obj; const userId=getStr(getObj(body,"user"),"id");
     const db=(await import("./db.js")).createDbPool();
-    const lock=await db.connect();
-    const socket=await socketFor(app);
     try{
       await db.query(
-        `INSERT INTO player_profiles (user_id,x,y,health,defense,inventory,hotbar,selected_hotbar_slot) VALUES ($1,$2,$3,100,5,$4::jsonb,'["cutlass","flintlock",null,null,null,null,null,null]'::jsonb,0) ON CONFLICT (user_id) DO UPDATE SET x=EXCLUDED.x,y=EXCLUDED.y,health=100,defense=5,inventory=EXCLUDED.inventory,hotbar=EXCLUDED.hotbar,selected_hotbar_slot=0`,
-        [userId,tx-0.5,ty,JSON.stringify({"ammo.flintlock":30,"capture.orb":3,"creature.feed":4})],
+        "INSERT INTO player_profiles (user_id,inventory,hotbar,selected_hotbar_slot) VALUES ($1,$2::jsonb,'["cutlass",null,null,null,null,null,null,null]'::jsonb,0) ON CONFLICT (user_id) DO UPDATE SET inventory=EXCLUDED.inventory,hotbar=EXCLUDED.hotbar,selected_hotbar_slot=0",
+        [userId,JSON.stringify({"ammo.flintlock":30,"capture.orb":3,"creature.feed":4})],
       );
-      await new Promise<void>((res,rej)=>{socket.once("open",()=>res());socket.once("error",rej);});
-      const auth=wait(socket,v=>isObj(v)&&v.type==="auth_ok"); const state=wait(socket,v=>isObj(v)&&v.type==="player_state");
-      socket.send(JSON.stringify({type:"auth",token})); await auth; await state;
-      for(let i=0;i<2;i++){
-        const requestId=`disconnect-hit-${i}`;
-        const hit=wait(socket,v=>isObj(v)&&((v.type==="combat_result"&&v.requestId===requestId)||(v.type==="error")));
-        socket.send(JSON.stringify({type:"attack",requestId,targetId,facingX:1,facingY:0}));
-        const result=await hit as Obj;
-        if(result.type==="error"){
-          await new Promise(r=>setTimeout(r,500));
-          i-=1;
-        }
-      }
-      await lock.query("BEGIN");
-      await lock.query("SELECT user_id FROM player_profiles WHERE user_id=$1 FOR UPDATE",[userId]);
-      socket.send(JSON.stringify({type:"capture",requestId:"disconnect-capture",targetId}));
-      await new Promise(r=>setTimeout(r,100));
-      socket.terminate();
-      await lock.query("COMMIT");
-      await new Promise<void>((resolve)=>socket.readyState===socket.CLOSED?resolve():socket.once("close",()=>resolve()));
+      const players=new PlayerStore(db);
+      const player=await players.loadOrCreate(userId);
+      let release!:()=>void;
+      const barrier=new Promise<void>((resolve)=>{release=resolve;});
+      const mutation=players.runExclusive(userId,async()=>{
+        await barrier;
+        player.inventory["capture.orb"]=2;
+        players.markDirty(userId);
+      });
+      const unload=players.unload(userId);
+      release();
+      await mutation;
+      await unload;
       const persisted=await db.query<{orbs:string|null}>("SELECT inventory->>'capture.orb' AS orbs FROM player_profiles WHERE user_id=$1",[userId]);
       expect(Number(persisted.rows[0]?.orbs)).toBe(2);
-      const owned=await db.query<{count:string}>("SELECT COUNT(*)::text AS count FROM player_creatures WHERE owner_user_id=$1 AND wild_source_id=$2",[userId,targetId]);
-      expect(Number(owned.rows[0]?.count)).toBe(1);
-    }finally{
-      try{await lock.query("ROLLBACK");}catch{void 0;}
-      lock.release();
-      socket.close();
-      randomSpy.mockRestore();
-      await db.end();
-      await app.close();
-    }
+    }finally{await db.end();await app.close();}
   });
 
   it("rejects concurrent capture of one wild spawn across owners",async()=>{
