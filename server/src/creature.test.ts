@@ -159,6 +159,36 @@ describe("creature foundation",()=>{
     }finally{await db.end();await restarted.close();}
   });
 
+  it("rejects cross-account creature mutation",async()=>{
+    const app=await buildApp(); const unique=Date.now();
+    const registrations=await Promise.all([
+      app.inject({method:"POST",url:"/auth/register",payload:{username:`owner_${unique}`,email:`owner_${unique}@example.com`,password:"Correct-Horse-Battery-9"}}),
+      app.inject({method:"POST",url:"/auth/register",payload:{username:`intruder_${unique}`,email:`intruder_${unique}@example.com`,password:"Correct-Horse-Battery-9"}}),
+    ]);
+    expect(registrations.every((response)=>response.statusCode===201)).toBe(true);
+    const ownerId=getStr(getObj(JSON.parse(registrations[0]?.body??"{}") as Obj,"user"),"id");
+    const intruderId=getStr(getObj(JSON.parse(registrations[1]?.body??"{}") as Obj,"user"),"id");
+    const db=(await import("./db.js")).createDbPool();
+    try{
+      await db.query(
+        "INSERT INTO player_profiles (user_id,inventory,hotbar,selected_hotbar_slot) VALUES ($1,$3::jsonb,'["cutlass",null,null,null,null,null,null,null]'::jsonb,0),($2,$3::jsonb,'["cutlass",null,null,null,null,null,null,null]'::jsonb,0)",
+        [ownerId,intruderId,JSON.stringify({"capture.orb":0,"creature.feed":4})],
+      );
+      const inserted=await db.query<{id:string}>(
+        "INSERT INTO player_creatures(owner_user_id,wild_source_id,species,level,xp,health,max_health,attack,defense,element,ability_ids,tame_progress,party_slot,ai_mode,x,y) VALUES($1,$2,'slime',1,0,45,45,18,2,'water','[]'::jsonb,25,NULL,'follow',1,1) RETURNING id",
+        [ownerId,`ownership-${unique}`],
+      );
+      const creatureId=inserted.rows[0]?.id; if(!creatureId)throw new Error("Missing creature id");
+      const store=new CreatureStore(db); await store.load(intruderId);
+      await expect(store.tame(intruderId,creatureId)).rejects.toThrow("CREATURE_NOT_FOUND");
+      await expect(store.setPartySlot(intruderId,creatureId,0)).rejects.toThrow("CREATURE_NOT_FOUND");
+      expect(()=>store.setAiMode(intruderId,creatureId,"stay")).toThrow("CREATURE_NOT_FOUND");
+      const row=await db.query<{feeds:string|null;tame_progress:number}>("SELECT (SELECT inventory->>'creature.feed' FROM player_profiles WHERE user_id=$1) AS feeds,tame_progress FROM player_creatures WHERE id=$2",[intruderId,creatureId]);
+      expect(row.rows[0]?.feeds).toBe("4");
+      expect(row.rows[0]?.tame_progress).toBe(25);
+    }finally{await db.end();await app.close();}
+  });
+
   it("rejects concurrent capture of one wild spawn across owners",async()=>{
     const app=await buildApp(); const unique=Date.now();
     const registrations=await Promise.all([
