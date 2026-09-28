@@ -227,8 +227,8 @@ describe("creature foundation",()=>{
       socket.send(JSON.stringify({type:"capture",requestId:"disconnect-capture",targetId}));
       await new Promise(r=>setTimeout(r,100));
       socket.terminate();
-      await new Promise<void>((resolve)=>socket.once("close",()=>resolve()));
       await lock.query("COMMIT");
+      await new Promise<void>((resolve)=>socket.readyState===socket.CLOSED?resolve():socket.once("close",()=>resolve()));
       const persisted=await db.query<{orbs:string|null}>("SELECT inventory->>'capture.orb' AS orbs FROM player_profiles WHERE user_id=$1",[userId]);
       expect(Number(persisted.rows[0]?.orbs)).toBe(2);
       const owned=await db.query<{count:string}>("SELECT COUNT(*)::text AS count FROM player_creatures WHERE owner_user_id=$1 AND wild_source_id=$2",[userId,targetId]);
