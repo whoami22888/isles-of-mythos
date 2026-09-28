@@ -80,8 +80,14 @@ describe("creature foundation",()=>{
       const ai=wait(socket,v=>isObj(v)&&v.type==="creature_state"&&v.requestId==="ai-1");socket.send(JSON.stringify({type:"set_creature_ai",requestId:"ai-1",creatureId,mode:"stay"}));const aiMessage=await ai;expect(getObj(aiMessage as Obj,"creature").aiMode).toBe("stay");
       socket.close();
       await new Promise<void>((resolve)=>socket.once("close",()=>resolve()));
-      const persisted=await db.query("SELECT tame_progress,party_slot,ai_mode FROM player_creatures WHERE id=$1",[creatureId]);
-      expect(persisted.rows[0]).toMatchObject({tame_progress:100,party_slot:0,ai_mode:"stay"});
+      let persistedRow:Obj|null=null;
+      for(let attempt=0;attempt<20;attempt++){
+        const persisted=await db.query("SELECT tame_progress,party_slot,ai_mode FROM player_creatures WHERE id=$1",[creatureId]);
+        const row=persisted.rows[0] as Obj|undefined;
+        if(row){persistedRow=row;if(row.tame_progress===100&&row.party_slot===0&&row.ai_mode==="stay")break;}
+        await new Promise(r=>setTimeout(r,50));
+      }
+      expect(persistedRow).toMatchObject({tame_progress:100,party_slot:0,ai_mode:"stay"});
     }finally{socket.close();randomSpy.mockRestore();await db.end();await app.close();}
   });
 });
