@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { WebSocket } from "ws";
 import { buildApp } from "./app.js";
+import { createCombatTarget } from "./combat.js";
 import { parseClientMessage } from "./protocol.js";
 
 type Obj=Record<string,unknown>;
@@ -26,7 +27,8 @@ describe("creature foundation",()=>{
     expect(reg.statusCode).toBe(201); const body=JSON.parse(reg.body) as Obj; const token=getStr(body,"accessToken"); const userId=getStr(getObj(body,"user"),"id");
     let spawn:Obj|null=null;
     for(let y=0;y<8&&!spawn;y++)for(let x=0;x<8&&!spawn;x++){const r=await app.inject({method:"GET",url:`/world/chunks/${x}/${y}`});const c=JSON.parse(r.body) as Obj;const list=c.creatures;if(Array.isArray(list)){const found=list.find(isObj);if(found)spawn=found;}}
-    if(!spawn)throw new Error("No deterministic creature spawn"); const targetId=getStr(spawn,"id"); const tx=Number(spawn.x),ty=Number(spawn.y);
+    if(!spawn)throw new Error("No deterministic creature spawn"); const targetId=getStr(spawn,"id"); const tx=Number(spawn.x),ty=Number(spawn.y); const level=Number(spawn.level);
+    const targetMaxHealth=createCombatTarget(targetId,getStr(spawn,"species"),tx,ty,level).maxHealth;
     const db=(await import("./db.js")).createDbPool();
     await db.query(
       "INSERT INTO player_profiles (user_id,x,y,health,defense,inventory,hotbar,selected_hotbar_slot) VALUES ($1,$2,$3,100,5,$4::jsonb,'[\"cutlass\",\"flintlock\",null,null,null,null,null,null]'::jsonb,0) ON CONFLICT (user_id) DO UPDATE SET x=EXCLUDED.x,y=EXCLUDED.y,health=EXCLUDED.health,defense=EXCLUDED.defense,inventory=EXCLUDED.inventory,hotbar=EXCLUDED.hotbar,selected_hotbar_slot=EXCLUDED.selected_hotbar_slot",
@@ -52,13 +54,17 @@ describe("creature foundation",()=>{
         const result=response;
         const hpValue=result.targetHealth;
         if(typeof hpValue!=="number")throw new Error("Missing target health");
-        if(hpValue<=Number(spawn.health)*0.25)break;
+        if(result.killed===true)throw new Error("Creature was killed before capture threshold");
+        if(hpValue<=targetMaxHealth*0.25)break;
+        if(i===5)throw new Error(`Creature was not reduced to capture threshold (health=${hpValue}, max=${targetMaxHealth})`);
         await new Promise(r=>setTimeout(r,500));
-        if(i===5)throw new Error("Creature was not reduced to capture threshold");
       }
-      const captured=wait(socket,v=>isObj(v)&&v.type==="creature_state"&&v.requestId==="cap-1");
+      const captureResponse=wait(socket,v=>isObj(v)&&((v.type==="creature_state"&&v.requestId==="cap-1")||v.type==="error"));
       socket.send(JSON.stringify({type:"capture",requestId:"cap-1",targetId}));
-      const capturedMessage=await captured; const creature=getObj(capturedMessage as Obj,"creature"); const creatureId=getStr(creature,"id"); const inventoryAfterCapture=await db.query<{ capture_orbs: string | null }>("SELECT inventory->>'capture.orb' AS capture_orbs FROM player_profiles WHERE user_id=$1",[userId]); expect(Number(inventoryAfterCapture.rows[0]?.capture_orbs)).toBe(2);
+      const captureMessage=await captureResponse as Obj;
+      if(captureMessage.type==="error")throw new Error("Capture rejected: "+getStr(captureMessage,"code"));
+      const creature=getObj(captureMessage,"creature"); const creatureId=getStr(creature,"id");
+      const inventoryAfterCapture=await db.query<{ capture_orbs: string | null }>("SELECT inventory->>'capture.orb' AS capture_orbs FROM player_profiles WHERE user_id=$1",[userId]); expect(Number(inventoryAfterCapture.rows[0]?.capture_orbs)).toBe(2);
       expect(creature.species).toBe(getStr(spawn,"species")); expect(creature.tameProgress).toBe(0);
       const tameProgress:number[]=[];
       for(let i=0;i<4;i++){const t=wait(socket,v=>isObj(v)&&v.type==="creature_state"&&v.requestId===`t-${i}`);socket.send(JSON.stringify({type:"tame",requestId:`t-${i}`,creatureId}));const m=await t;tameProgress.push(Number(getObj(m as Obj,"creature").tameProgress));}
