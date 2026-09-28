@@ -9,6 +9,7 @@ type Obj=Record<string,unknown>;
 const isObj=(v:unknown):v is Obj=>typeof v==="object"&&v!==null&&!Array.isArray(v);
 const getObj=(v:Obj,k:string):Obj=>{const x=v[k];if(!isObj(x))throw new Error("Expected object");return x;};
 const getStr=(v:Obj,k:string)=>{const x=v[k];if(typeof x!=="string")throw new Error("Expected string");return x;};
+const parseBody=(body:string):Obj=>{const value:unknown=JSON.parse(body);if(!isObj(value))throw new Error("Expected JSON object");return value;};
 function wait(socket:WebSocket,p:(v:unknown)=>boolean):Promise<unknown>{
   return new Promise((resolve,reject)=>{const timer=setTimeout(()=>{socket.off("message",on);reject(new Error("Timed out waiting for creature message"));},3000);
     const on=(raw:Buffer)=>{let v:unknown;try{v=JSON.parse(raw.toString());}catch { return; }if(!p(v))return;clearTimeout(timer);socket.off("message",on);resolve(v);};socket.on("message",on);});
@@ -138,7 +139,7 @@ describe("creature foundation",()=>{
     expect(reg.statusCode).toBe(201); const userId=getStr(getObj(JSON.parse(reg.body) as Obj,"user"),"id");
     let spawn:Obj|null=null; let chunkX=0; let chunkY=0;
     for(let y=0;y<8&&!spawn;y++)for(let x=0;x<8&&!spawn;x++){
-      const response=await app.inject({method:"GET",url:`/world/chunks/${x}/${y}`}); const chunk=JSON.parse(response.body) as Obj; const creatures=chunk.creatures;
+      const response=await app.inject({method:"GET",url:`/world/chunks/${x}/${y}`}); const chunk=parseBody(response.body); const creatures=chunk.creatures;
       if(Array.isArray(creatures)){const candidate=creatures.find(isObj);if(candidate){spawn=candidate;chunkX=x;chunkY=y;}}
     }
     if(!spawn)throw new Error("No deterministic world creature available");
@@ -233,7 +234,7 @@ describe("creature foundation",()=>{
       const owned=await db.query<{count:string}>("SELECT COUNT(*)::text AS count FROM player_creatures WHERE owner_user_id=$1 AND wild_source_id=$2",[userId,targetId]);
       expect(Number(owned.rows[0]?.count)).toBe(1);
     }finally{
-      try{await lock.query("ROLLBACK");}catch{}
+      try{await lock.query("ROLLBACK");}catch{void 0;}
       lock.release();
       socket.close();
       randomSpy.mockRestore();
