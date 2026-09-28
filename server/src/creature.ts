@@ -34,7 +34,21 @@ export class CreatureStore {
   private readonly active=new Map<string,OwnedCreature[]>();
   private readonly dirty=new Set<string>();
   private readonly revisions=new Map<string,number>();
+  private readonly operations=new Map<string,Promise<void>>();
   constructor(private readonly db:Pool){}
+  private async runExclusive<T>(userId:string,operation:()=>Promise<T>):Promise<T>{
+    const previous=this.operations.get(userId)??Promise.resolve();
+    let release!:()=>void;
+    const gate=new Promise<void>(resolve=>{release=resolve;});
+    const queued=previous.catch(()=>undefined).then(()=>gate);
+    this.operations.set(userId,queued);
+    await previous.catch(()=>undefined);
+    try{return await operation();}
+    finally{
+      release();
+      if(this.operations.get(userId)===queued)this.operations.delete(userId);
+    }
+  }
   async load(userId:string):Promise<OwnedCreature[]> {
     const cached=this.active.get(userId); if(cached) return cached;
     const r=await this.db.query<CreatureRow>("SELECT id,owner_user_id,species,nickname,level,xp,health,max_health,attack,defense,element,ability_ids,tame_progress,party_slot,ai_mode,x,y FROM player_creatures WHERE owner_user_id=$1 ORDER BY COALESCE(party_slot,999),created_at,id",[userId]);
@@ -44,6 +58,7 @@ export class CreatureStore {
   getCreature(userId:string,id:string){return this.get(userId).find(c=>c.id===id);}
   markDirty(userId:string){if(!this.active.has(userId))return;this.dirty.add(userId);this.revisions.set(userId,(this.revisions.get(userId)??0)+1);}
   async capture(userId:string,target:CombatTarget):Promise<OwnedCreature>{
+    return this.runExclusive(userId,async()=>{
     const client=await this.db.connect();
     try{
       await client.query("BEGIN");
@@ -64,8 +79,11 @@ export class CreatureStore {
       if (typeof error === "object" && error !== null && "code" in error && (error as { code?: unknown }).code === "23505") throw new Error("CREATURE_ALREADY_CAPTURED", { cause: error });
       throw error;
     }finally{client.release();}
+    });
   }
   async tame(userId:string,id:string):Promise<{creature:OwnedCreature;consumed:boolean}>{
+    return this.runExclusive(userId,async()=>{
+
     const cached=this.getCreature(userId,id);
     if(cached&&cached.tameProgress>=100)return {creature:cached,consumed:false};
     const client=await this.db.connect();
@@ -100,8 +118,10 @@ export class CreatureStore {
       this.markDirty(userId);
       return {creature,consumed:true};
     }catch(e){await client.query("ROLLBACK");throw e;}finally{client.release();}
+    });
   }
   async setPartySlot(userId:string,id:string,slot:number|null):Promise<OwnedCreature>{
+    return this.runExclusive(userId,async()=>{
     const c=this.getCreature(userId,id); if(!c)throw new Error("CREATURE_NOT_FOUND");
     if(c.tameProgress<100)throw new Error("CREATURE_NOT_TAMED");
     if(slot!==null&&(!Number.isInteger(slot)||slot<0||slot>=MAX_CREATURE_PARTY))throw new Error("INVALID_PARTY_SLOT");
@@ -114,6 +134,7 @@ export class CreatureStore {
       for(const e of this.get(userId))if(e.id!==id&&e.partySlot===slot)e.partySlot=null;
       c.partySlot=slot; this.markDirty(userId); return c;
     }catch(e){await client.query("ROLLBACK");throw e;}finally{client.release();}
+    });
   }
   setAiMode(userId:string,id:string,mode:CreatureAiMode):OwnedCreature{
     const c=this.getCreature(userId,id); if(!c)throw new Error("CREATURE_NOT_FOUND"); if(c.tameProgress<100)throw new Error("CREATURE_NOT_TAMED");
@@ -128,14 +149,15 @@ export class CreatureStore {
     }
     if(changed)this.markDirty(userId); return changed;
   }
-  async persist(userId:string){
+  private async persistUnsafe(userId:string){
     if(!this.active.has(userId))return; const revision=this.revisions.get(userId)??0; const client=await this.db.connect();
     try{await client.query("BEGIN");
       for(const c of this.get(userId))await client.query("UPDATE player_creatures SET health=$2,xp=$3,level=$4,max_health=$5,attack=$6,defense=$7,tame_progress=$8,party_slot=$9,ai_mode=$10,x=$11,y=$12,updated_at=CURRENT_TIMESTAMP WHERE id=$1 AND owner_user_id=$13",[c.id,c.health,c.xp,c.level,c.maxHealth,c.attack,c.defense,c.tameProgress,c.partySlot,c.aiMode,c.x,c.y,userId]);
       await client.query("COMMIT"); if((this.revisions.get(userId)??0)===revision)this.dirty.delete(userId);
     }catch(e){await client.query("ROLLBACK");throw e;}finally{client.release();}
   }
-  async unload(userId:string){await this.persist(userId);this.active.delete(userId);this.dirty.delete(userId);this.revisions.delete(userId);}
+  async persist(userId:string){await this.runExclusive(userId,()=>this.persistUnsafe(userId));}
+  async unload(userId:string){await this.runExclusive(userId,async()=>{await this.persistUnsafe(userId);this.active.delete(userId);this.dirty.delete(userId);this.revisions.delete(userId);});}
   async persistDirty(){for(const id of [...this.dirty])await this.persist(id);}
   async persistAll(){for(const id of this.active.keys())await this.persist(id);}
 }
