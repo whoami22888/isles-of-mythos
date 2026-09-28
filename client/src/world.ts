@@ -105,6 +105,13 @@ export class ChunkRenderer {
     }
   }
 
+  removeCreature(id: string): void {
+    const marker = this.creatures.get(id);
+    if (!marker) return;
+    marker.destroy();
+    this.creatures.delete(id);
+  }
+
   get loadedCount(): number {
     return this.chunks.size;
   }

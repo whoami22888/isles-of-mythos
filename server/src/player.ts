@@ -57,7 +57,7 @@ export function applyPlayerInput(state: PlayerState, input: PlayerInput): Player
 
 export function createDefaultPlayer(userId: string): PlayerState {
   return { userId, x: 0, y: 0, health: PLAYER_MAX_HEALTH, defense: PLAYER_BASE_DEFENSE, stamina: 100, maxStamina: 100, hunger: PLAYER_MAX_HUNGER, oxygen: PLAYER_MAX_OXYGEN,
-    xp: 0, level: 1, gold: 0, inventory: { "ammo.flintlock": STARTING_FLINTLOCK_AMMO }, hotbar: ["cutlass", "flintlock", null, null, null, null, null, null], selectedHotbarSlot: 0 };
+    xp: 0, level: 1, gold: 0, inventory: { "ammo.flintlock": STARTING_FLINTLOCK_AMMO, "capture.orb": 3, "creature.feed": 4 }, hotbar: ["cutlass", "flintlock", null, null, null, null, null, null], selectedHotbarSlot: 0 };
 }
 interface PlayerRow {
   user_id: string; x: number; y: number; health: number; defense: number; stamina: number; max_stamina: number; hunger: number; oxygen: number;
@@ -74,12 +74,26 @@ export class PlayerStore {
   private readonly active = new Map<string, PlayerState>();
   private readonly dirty = new Set<string>();
   private readonly revisions = new Map<string, number>();
+  private readonly operations = new Map<string, Promise<void>>();
   constructor(private readonly db: Pool) {}
+  async runExclusive<T>(userId: string, operation: () => Promise<T>): Promise<T> {
+    const previous = this.operations.get(userId) ?? Promise.resolve();
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    const queued = previous.catch(() => undefined).then(() => gate);
+    this.operations.set(userId, queued);
+    await previous.catch(() => undefined);
+    try { return await operation(); }
+    finally {
+      release();
+      if (this.operations.get(userId) === queued) this.operations.delete(userId);
+    }
+  }
   async loadOrCreate(userId: string): Promise<PlayerState> {
     const existing = this.active.get(userId);
     if (existing) return existing;
     await this.db.query(
-      "INSERT INTO player_profiles (user_id, hotbar, selected_hotbar_slot) VALUES ($1, '[\"cutlass\",\"flintlock\",null,null,null,null,null,null]'::jsonb, 0) ON CONFLICT (user_id) DO NOTHING",
+      "INSERT INTO player_profiles (user_id, inventory, hotbar, selected_hotbar_slot) VALUES ($1, '{\"ammo.flintlock\":30,\"capture.orb\":3,\"creature.feed\":4}'::jsonb, '[\"cutlass\",\"flintlock\",null,null,null,null,null,null]'::jsonb, 0) ON CONFLICT (user_id) DO NOTHING",
       [userId],
     );
     const result = await this.db.query<PlayerRow>(
@@ -105,10 +119,10 @@ export class PlayerStore {
       const before = [state.health, state.stamina, state.hunger, state.oxygen].join("|");
       applyPlayerInput(state, { dx: 0, dy: 0, dt });
       const after = [state.health, state.stamina, state.hunger, state.oxygen].join("|");
-      if (before !== after) this.dirty.add(userId);
+      if (before !== after) this.markDirty(userId);
     }
   }
-  async persist(userId: string): Promise<void> {
+  private async persistUnsafe(userId: string): Promise<void> {
     const state = this.active.get(userId); if (!state) return;
     const revision = this.revisions.get(userId) ?? 0;
     const snapshot = {
@@ -134,7 +148,8 @@ export class PlayerStore {
     if ((this.revisions.get(userId) ?? 0) === revision) this.dirty.delete(userId);
   }
   async purchase(userId: string, item: ShopItem, quantity: number, totalGold: number): Promise<PlayerState> {
-    const client = await this.db.connect();
+    return this.runExclusive(userId, async () => {
+      const client = await this.db.connect();
     try {
       await client.query("BEGIN");
       const result = await client.query<PlayerRow>(
@@ -164,15 +179,21 @@ export class PlayerStore {
     } catch (error) {
       await client.query("ROLLBACK");
       throw error;
-    } finally {
-      client.release();
-    }
+      } finally {
+        client.release();
+      }
+    });
+  }
+  async persist(userId: string): Promise<void> {
+    await this.runExclusive(userId, () => this.persistUnsafe(userId));
   }
   async unload(userId: string): Promise<void> {
-    await this.persist(userId);
-    this.active.delete(userId);
-    this.dirty.delete(userId);
-    this.revisions.delete(userId);
+    await this.runExclusive(userId, async () => {
+      await this.persistUnsafe(userId);
+      this.active.delete(userId);
+      this.dirty.delete(userId);
+      this.revisions.delete(userId);
+    });
   }
   async persistDirty(): Promise<void> {
     const userIds = [...this.dirty];
