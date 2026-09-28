@@ -91,6 +91,74 @@ describe("creature foundation",()=>{
       expect(persistedRow).toMatchObject({tame_progress:100,party_slot:0,ai_mode:"stay"});
     }finally{socket.close();randomSpy.mockRestore();await db.end();await app.close();}
   });
+  it("deduplicates concurrent tame requests and consumes one feed",async()=>{
+    const app=await buildApp(); const unique=Date.now();
+    const reg=await app.inject({method:"POST",url:"/auth/register",payload:{username:`tame_retry_${unique}`,email:`tame_retry_${unique}@example.com`,password:"Correct-Horse-Battery-9"}});
+    expect(reg.statusCode).toBe(201); const body=JSON.parse(reg.body) as Obj; const token=getStr(body,"accessToken"); const userId=getStr(getObj(body,"user"),"id");
+    const db=(await import("./db.js")).createDbPool();
+    try{
+      await db.query(
+        "INSERT INTO player_profiles (user_id,inventory,hotbar,selected_hotbar_slot) VALUES ($1,$2::jsonb,'["cutlass",null,null,null,null,null,null,null]'::jsonb,0) ON CONFLICT (user_id) DO UPDATE SET inventory=EXCLUDED.inventory,hotbar=EXCLUDED.hotbar,selected_hotbar_slot=EXCLUDED.selected_hotbar_slot",
+        [userId,JSON.stringify({"capture.orb":0,"creature.feed":4})],
+      );
+      const inserted=await db.query<{id:string}>(
+        "INSERT INTO player_creatures(owner_user_id,wild_source_id,species,level,xp,health,max_health,attack,defense,element,ability_ids,tame_progress,party_slot,ai_mode,x,y) VALUES($1,$2,'slime',1,0,45,45,18,2,'water','[]'::jsonb,0,NULL,'follow',1,1) RETURNING id",
+        [userId,`tame-retry-${unique}`],
+      );
+      const creatureId=inserted.rows[0]?.id; if(!creatureId)throw new Error("Missing creature id");
+      const socket=await socketFor(app);
+      try{
+        await new Promise<void>((res,rej)=>{socket.once("open",()=>res());socket.once("error",rej);});
+        const auth=wait(socket,v=>isObj(v)&&v.type==="auth_ok"); const state=wait(socket,v=>isObj(v)&&v.type==="player_state");
+        socket.send(JSON.stringify({type:"auth",token})); await auth; await state;
+        const responses:Obj[]=[];
+        const responsePromise=new Promise<void>((resolve,reject)=>{
+          const timer=setTimeout(()=>reject(new Error("Timed out waiting for duplicate tame responses")),3000);
+          const on=(raw:Buffer)=>{
+            let v:unknown;try{v=JSON.parse(raw.toString());}catch{return;}
+            if(!isObj(v)||v.type!=="creature_state"||v.requestId!=="dup-tame")return;
+            responses.push(v);
+            if(responses.length===2){clearTimeout(timer);socket.off("message",on);resolve();}
+          };
+          socket.on("message",on);
+        });
+        const payload=JSON.stringify({type:"tame",requestId:"dup-tame",creatureId});
+        socket.send(payload); socket.send(payload);
+        await responsePromise;
+        expect(responses.every((response)=>Number(getObj(response,"creature").tameProgress)===25)).toBe(true);
+        const inventory=await db.query<{feeds:string|null}>("SELECT inventory->>'creature.feed' AS feeds FROM player_profiles WHERE user_id=$1",[userId]);
+        expect(Number(inventory.rows[0]?.feeds)).toBe(3);
+      }finally{socket.close();await new Promise<void>((resolve)=>socket.once("close",()=>resolve()));}
+    }finally{await db.end();await app.close();}
+  });
+
+  it("does not respawn a captured world source after server restart",async()=>{
+    const app=await buildApp(); const unique=Date.now();
+    const reg=await app.inject({method:"POST",url:"/auth/register",payload:{username:`restart_${unique}`,email:`restart_${unique}@example.com`,password:"Correct-Horse-Battery-9"}});
+    expect(reg.statusCode).toBe(201); const userId=getStr(getObj(JSON.parse(reg.body) as Obj,"user"),"id");
+    let spawn:Obj|null=null; let chunkX=0; let chunkY=0;
+    for(let y=0;y<8&&!spawn;y++)for(let x=0;x<8&&!spawn;x++){
+      const response=await app.inject({method:"GET",url:`/world/chunks/${x}/${y}`}); const chunk=JSON.parse(response.body) as Obj; const creatures=chunk.creatures;
+      if(Array.isArray(creatures)){const candidate=creatures.find(isObj);if(candidate){spawn=candidate;chunkX=x;chunkY=y;}}
+    }
+    if(!spawn)throw new Error("No deterministic world creature available");
+    const db=(await import("./db.js")).createDbPool();
+    try{
+      await db.query(
+        "INSERT INTO player_creatures(owner_user_id,wild_source_id,species,level,xp,health,max_health,attack,defense,element,ability_ids,tame_progress,party_slot,ai_mode,x,y) VALUES($1,$2,$3,1,0,45,45,18,2,'water','[]'::jsonb,0,NULL,'follow',$4,$5)",
+        [userId,getStr(spawn,"id"),getStr(spawn,"species"),Number(spawn.x),Number(spawn.y)],
+      );
+    }finally{await app.close();}
+    const restarted=await buildApp();
+    try{
+      const response=await restarted.inject({method:"GET",url:`/world/chunks/${chunkX}/${chunkY}`});
+      expect(response.statusCode).toBe(200);
+      const chunk=JSON.parse(response.body) as Obj; const creatures=chunk.creatures;
+      expect(Array.isArray(creatures)).toBe(true);
+      expect((creatures as unknown[]).some((value)=>isObj(value)&&value.id===spawn?.id)).toBe(false);
+    }finally{await db.end();await restarted.close();}
+  });
+
   it("rejects concurrent capture of one wild spawn across owners",async()=>{
     const app=await buildApp(); const unique=Date.now();
     const registrations=await Promise.all([
