@@ -810,8 +810,8 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         authDeadline = null;
       }
       sockets.delete(socket);
-      if (!disconnectedUserId) return;
-      const disconnectedUserId=disconnectedUserId;
+      if (!userId) return;
+      const disconnectedUserId=userId;
       const connections = (playerConnections.get(disconnectedUserId) ?? 1) - 1;
       const socketsForUser = userSockets.get(disconnectedUserId);
       socketsForUser?.delete(socket);
