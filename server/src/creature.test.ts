@@ -226,7 +226,7 @@ describe("creature foundation",()=>{
       await lock.query("SELECT user_id FROM player_profiles WHERE user_id=$1 FOR UPDATE",[userId]);
       socket.send(JSON.stringify({type:"capture",requestId:"disconnect-capture",targetId}));
       await new Promise(r=>setTimeout(r,100));
-      socket.close();
+      socket.terminate();
       await new Promise<void>((resolve)=>socket.once("close",()=>resolve()));
       await lock.query("COMMIT");
       const persisted=await db.query<{orbs:string|null}>("SELECT inventory->>'capture.orb' AS orbs FROM player_profiles WHERE user_id=$1",[userId]);
