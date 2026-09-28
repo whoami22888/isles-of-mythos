@@ -810,29 +810,30 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         authDeadline = null;
       }
       sockets.delete(socket);
-      if (!userId) return;
-      const connections = (playerConnections.get(userId) ?? 1) - 1;
-      const socketsForUser = userSockets.get(userId);
+      if (!disconnectedUserId) return;
+      const disconnectedUserId=disconnectedUserId;
+      const connections = (playerConnections.get(disconnectedUserId) ?? 1) - 1;
+      const socketsForUser = userSockets.get(disconnectedUserId);
       socketsForUser?.delete(socket);
-      if (socketsForUser && socketsForUser.size === 0) userSockets.delete(userId);
+      if (socketsForUser && socketsForUser.size === 0) userSockets.delete(disconnectedUserId);
       if (connections <= 0) {
-        playerConnections.delete(userId);
-        attackCooldowns.delete(userId);
-        dodgeCooldowns.delete(userId);
-        blocking.delete(userId);
-        invulnerableUntil.delete(userId);
-        playerStatuses.delete(userId);
-        combatActivationNextAt.delete(userId);
-        for (const [key] of pendingCombatRequests) if (key.startsWith(userId + ":")) pendingCombatRequests.delete(key);
-        const pendingCreatureWork = pendingCreatureOperations.get(userId) ?? Promise.resolve();
+        playerConnections.delete(disconnectedUserId);
+        attackCooldowns.delete(disconnectedUserId);
+        dodgeCooldowns.delete(disconnectedUserId);
+        blocking.delete(disconnectedUserId);
+        invulnerableUntil.delete(disconnectedUserId);
+        playerStatuses.delete(disconnectedUserId);
+        combatActivationNextAt.delete(disconnectedUserId);
+        for (const [key] of pendingCombatRequests) if (key.startsWith(disconnectedUserId + ":")) pendingCombatRequests.delete(key);
+        const pendingCreatureWork = pendingCreatureOperations.get(disconnectedUserId) ?? Promise.resolve();
         void pendingCreatureWork.then(
-          () => creatures.unload(userId),
-          () => creatures.unload(userId),
+          () => creatures.unload(disconnectedUserId),
+          () => creatures.unload(disconnectedUserId),
         ).then(
-          () => players.unload(userId),
+          () => players.unload(disconnectedUserId),
           (error) => {
             log("creature_disconnect_persistence_failed",{message:error instanceof Error?error.message:String(error)});
-            return players.unload(userId);
+            return players.unload(disconnectedUserId);
           },
         ).catch((error) => {
           log("player_disconnect_persistence_failed", {
@@ -840,7 +841,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           });
         });
       } else {
-        playerConnections.set(userId, connections);
+        playerConnections.set(disconnectedUserId, connections);
       }
     });
     socket.on("error", (error) => {
