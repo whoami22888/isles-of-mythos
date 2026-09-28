@@ -86,7 +86,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     userId: string,
     requestId: string,
     fingerprint: string,
-    operation: () => Promise<ServerMessage>,
+    operation: () => Promise<ServerMessage> | ServerMessage,
   ): Promise<ServerMessage> {
     const replay = creatureReplay.lookup(userId, requestId, fingerprint);
     if (replay.kind === "hit") return replay.response;
@@ -763,7 +763,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
 
         if (message.type === "set_creature_ai") {
           if(!userId){send(socket,{type:"error",code:"AUTH_REQUIRED"});return;}
-          const response=await runCreatureRequest(userId,message.requestId,message.type+"|"+message.creatureId+"|"+message.mode,async()=>{
+          const response=await runCreatureRequest(userId,message.requestId,message.type+"|"+message.creatureId+"|"+message.mode,()=>{
             try{
               const creature=creatures.setAiMode(userId,message.creatureId,message.mode);
               return {type:"creature_state",requestId:message.requestId,creature};
