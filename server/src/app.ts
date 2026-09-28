@@ -80,6 +80,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const creatureReplay = new CombatReplayCache<ServerMessage>();
   const pendingCreatureRequests = new Map<string, Promise<ServerMessage>>();
   const pendingCreatureOperations = new Map<string, Promise<void>>();
+  let shuttingDown = false;
   const app = Fastify({ logger: false });
 
   async function runCreatureRequest(
@@ -316,6 +317,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   persistenceTick.unref();
 
   app.addHook("onClose", async () => {
+    shuttingDown = true;
     clearInterval(heartbeat);
     clearInterval(survivalTick);
     clearInterval(persistenceTick);
@@ -810,7 +812,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         authDeadline = null;
       }
       sockets.delete(socket);
-      if (!userId) return;
+      if (shuttingDown || !userId) return;
       const disconnectedUserId=userId;
       const connections = (playerConnections.get(disconnectedUserId) ?? 1) - 1;
       const socketsForUser = userSockets.get(disconnectedUserId);
