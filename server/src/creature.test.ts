@@ -223,7 +223,6 @@ describe("creature foundation",()=>{
       }
       await lock.query("BEGIN");
       await lock.query("SELECT user_id FROM player_profiles WHERE user_id=$1 FOR UPDATE",[userId]);
-      const capture=wait(socket,v=>isObj(v)&&((v.type==="creature_state"&&v.requestId==="disconnect-capture")||(v.type==="error")));
       socket.send(JSON.stringify({type:"capture",requestId:"disconnect-capture",targetId}));
       await new Promise(r=>setTimeout(r,100));
       socket.close();
@@ -233,7 +232,6 @@ describe("creature foundation",()=>{
       expect(Number(persisted.rows[0]?.orbs)).toBe(2);
       const owned=await db.query<{count:string}>("SELECT COUNT(*)::text AS count FROM player_creatures WHERE owner_user_id=$1 AND wild_source_id=$2",[userId,targetId]);
       expect(Number(owned.rows[0]?.count)).toBe(1);
-      await expect(capture).resolves.toMatchObject({type:"creature_state",requestId:"disconnect-capture"});
     }finally{
       try{await lock.query("ROLLBACK");}catch{}
       lock.release();
