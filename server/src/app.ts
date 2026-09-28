@@ -829,11 +829,6 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             message: error instanceof Error ? error.message : String(error),
           });
         });
-        void Promise.resolve().then(async () => {
-          log("player_disconnect_persistence_failed", {
-            message: error instanceof Error ? error.message : String(error),
-          });
-        });
       } else {
         playerConnections.set(userId, connections);
       }
