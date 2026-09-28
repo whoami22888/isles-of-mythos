@@ -834,8 +834,9 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         playerStatuses.delete(disconnectedUserId);
         combatActivationNextAt.delete(disconnectedUserId);
         for (const [key] of pendingCombatRequests) if (key.startsWith(disconnectedUserId + ":")) pendingCombatRequests.delete(key);
+        const pendingMessageWork = messageQueue.catch(() => undefined);
         const pendingCreatureWork = pendingCreatureOperations.get(disconnectedUserId) ?? Promise.resolve();
-        const unloadPromise = pendingCreatureWork.then(
+        const unloadPromise = pendingMessageWork.then(() => pendingCreatureWork).then(
           () => creatures.unload(disconnectedUserId),
           () => creatures.unload(disconnectedUserId),
         ).then(
