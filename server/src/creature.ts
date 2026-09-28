@@ -59,7 +59,11 @@ export class CreatureStore {
       await client.query("UPDATE player_profiles SET inventory=$2::jsonb,updated_at=CURRENT_TIMESTAMP WHERE user_id=$1",[userId,JSON.stringify(next)]);
       await client.query("COMMIT");
       const c=rowToCreature(inserted.rows[0]); const list=this.active.get(userId)??[]; list.push(c); this.active.set(userId,list); this.markDirty(userId); return c;
-    }catch(e){await client.query("ROLLBACK");throw e;}finally{client.release();}
+    }catch(error){
+      await client.query("ROLLBACK");
+      if (typeof error === "object" && error !== null && "code" in error && (error as { code?: unknown }).code === "23505") throw new Error("CREATURE_ALREADY_CAPTURED");
+      throw error;
+    }finally{client.release();}
   }
   async tame(userId:string,id:string):Promise<{creature:OwnedCreature;consumed:boolean}>{
     const c=this.getCreature(userId,id); if(!c)throw new Error("CREATURE_NOT_FOUND"); if(c.tameProgress>=100)return {creature:c,consumed:false};

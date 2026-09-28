@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { WebSocket } from "ws";
 import { buildApp } from "./app.js";
 import { calculateDamage, createCombatTarget, weaponFor } from "./combat.js";
+import { CreatureStore } from "./creature.js";
 import { parseClientMessage } from "./protocol.js";
 
 type Obj=Record<string,unknown>;
@@ -89,5 +90,26 @@ describe("creature foundation",()=>{
       }
       expect(persistedRow).toMatchObject({tame_progress:100,party_slot:0,ai_mode:"stay"});
     }finally{socket.close();randomSpy.mockRestore();await db.end();await app.close();}
+  });
+  it("rejects concurrent capture of one wild spawn across owners",async()=>{
+    const app=await buildApp(); const unique=Date.now();
+    const registrations=await Promise.all([
+      app.inject({method:"POST",url:"/auth/register",payload:{username:"capture_a_"+unique,email:"capture_a_"+unique+"@example.com",password:"Correct-Horse-Battery-9"}}),
+      app.inject({method:"POST",url:"/auth/register",payload:{username:"capture_b_"+unique,email:"capture_b_"+unique+"@example.com",password:"Correct-Horse-Battery-9"}}),
+    ]);
+    expect(registrations.every((response)=>response.statusCode===201)).toBe(true);
+    const userIds=registrations.map((response)=>getStr(getObj(JSON.parse(response.body) as Obj,"user"),"id"));
+    const db=(await import("./db.js")).createDbPool();
+    try{
+      await db.query("INSERT INTO player_profiles (user_id,inventory,hotbar,selected_hotbar_slot) VALUES ($1,$3::jsonb,'[\"cutlass\",null,null,null,null,null,null,null]'::jsonb,0),($2,$3::jsonb,'[\"cutlass\",null,null,null,null,null,null,null]'::jsonb,0)",[userIds[0],userIds[1],JSON.stringify({"capture.orb":1,"creature.feed":0})]);
+      const target=createCombatTarget("creature:concurrent-test","slime",1,1,1);
+      const first=new CreatureStore(db); const second=new CreatureStore(db);
+      const results=await Promise.allSettled([first.capture(userIds[0],target),second.capture(userIds[1],target)]);
+      expect(results.filter((result)=>result.status==="fulfilled")).toHaveLength(1);
+      const rejected=results.find((result)=>result.status==="rejected");
+      expect(rejected&&rejected.reason instanceof Error?rejected.reason.message:rejected).toBe("CREATURE_ALREADY_CAPTURED");
+      const ownership=await db.query("SELECT COUNT(*)::text AS count FROM player_creatures WHERE wild_source_id=$1",[target.id]);
+      expect(Number(ownership.rows[0]?.count)).toBe(1);
+    }finally{await db.end();await app.close();}
   });
 });

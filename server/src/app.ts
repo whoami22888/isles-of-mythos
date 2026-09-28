@@ -59,6 +59,15 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const userSockets = new Map<string, Set<WebSocket>>();
   const combatTargets = new Map<string, CombatTarget>();
   const defeatedCreatures = new Set<string>();
+  const capturedWorldCreatures = new Set<string>();
+  const capturedRows = await db.query<{ wild_source_id: string }>("SELECT wild_source_id FROM player_creatures");
+  for (const row of capturedRows.rows) capturedWorldCreatures.add(row.wild_source_id);
+  const visibleWorldChunk = (x: number, y: number) => {
+    const chunk = world.get(x, y);
+    if (capturedWorldCreatures.size === 0) return chunk;
+    const creatures = chunk.creatures.filter((spawn) => !capturedWorldCreatures.has(spawn.id));
+    return creatures.length === chunk.creatures.length ? chunk : { ...chunk, creatures };
+  };
   const projectiles = new Map<string, CombatProjectile>();
   const pendingCombatRequests = new Map<string, number>();
   const attackCooldowns = new Map<string, number>();
@@ -149,7 +158,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       const centerChunkY = Math.floor(player.y / 32);
       for (let chunkY = centerChunkY - 1; chunkY <= centerChunkY + 1; chunkY += 1) {
         for (let chunkX = centerChunkX - 1; chunkX <= centerChunkX + 1; chunkX += 1) {
-          for (const spawn of world.get(chunkX, chunkY).creatures) {
+          for (const spawn of visibleWorldChunk(chunkX, chunkY).creatures) {
             if (defeatedCreatures.has(spawn.id) || combatTargets.has(spawn.id)) continue;
             const activationDistance = Math.hypot(player.x - spawn.x, player.y - spawn.y);
             if (activationDistance <= 8) {
@@ -324,7 +333,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       if (!Number.isSafeInteger(x) || !Number.isSafeInteger(y)) {
         return reply.code(400).send({ error: "INVALID_CHUNK_COORDINATE" });
       }
-      return world.get(x, y);
+      return visibleWorldChunk(x, y);
     },
   );
 
@@ -648,7 +657,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           if(state.health<=0){send(socket,{type:"error",code:"PLAYER_DEAD"});return;}
           const coords=parseCreatureTargetId(message.targetId);
           if(!coords){send(socket,{type:"error",code:"INVALID_MESSAGE"});return;}
-          const chunk=world.get(Math.floor(coords.x/32),Math.floor(coords.y/32));
+          const chunk=visibleWorldChunk(Math.floor(coords.x/32),Math.floor(coords.y/32));
           const spawn=chunk.creatures.find(c=>c.id===message.targetId);
           if(!spawn||defeatedCreatures.has(message.targetId)){send(socket,{type:"error",code:"INVALID_MESSAGE"});return;}
           let target=combatTargets.get(message.targetId);
@@ -659,7 +668,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             const creature=await creatures.capture(userId,target);
             state.inventory["capture.orb"]=Math.max(0,Number(state.inventory["capture.orb"]??0)-1);
             players.markDirty(userId);
-            combatTargets.delete(target.id); defeatedCreatures.add(target.id);
+            combatTargets.delete(target.id); defeatedCreatures.add(target.id); capturedWorldCreatures.add(target.id);
             for(const ownerSocket of userSockets.get(userId)??[])send(ownerSocket,{type:"creature_state",requestId:message.requestId,creature});
             return;
           }catch(error){
@@ -725,7 +734,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             send(socket, {
               type: "world_chunk",
               requestId: message.requestId,
-              chunk: world.get(coordinate.x, coordinate.y),
+              chunk: visibleWorldChunk(coordinate.x, coordinate.y),
             });
           }
         }

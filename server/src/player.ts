@@ -105,7 +105,7 @@ export class PlayerStore {
       const before = [state.health, state.stamina, state.hunger, state.oxygen].join("|");
       applyPlayerInput(state, { dx: 0, dy: 0, dt });
       const after = [state.health, state.stamina, state.hunger, state.oxygen].join("|");
-      if (before !== after) this.dirty.add(userId);
+      if (before !== after) this.markDirty(userId);
     }
   }
   async persist(userId: string): Promise<void> {
