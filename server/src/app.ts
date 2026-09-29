@@ -80,6 +80,8 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const combatActivationNextAt = new Map<string, number>();
   const combatReplay = new CombatReplayCache<Extract<ServerMessage, { type: "combat_result" }>>();
   const creatureReplay = new CombatReplayCache<ServerMessage>();
+  const baseReplay = new CombatReplayCache<ServerMessage>();
+  const pendingBaseRequests = new Map<string, Promise<ServerMessage>>();
   const pendingCreatureRequests = new Map<string, Promise<ServerMessage>>();
   const pendingCreatureOperations = new Map<string, Promise<void>>();
   const pendingPlayerUnloads = new Map<string, Promise<void>>();
@@ -112,6 +114,30 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     } finally {
       if (pendingCreatureRequests.get(key) === task) pendingCreatureRequests.delete(key);
       if (pendingCreatureOperations.get(userId) === drain) pendingCreatureOperations.delete(userId);
+    }
+  }
+
+  async function runBaseRequest(
+    userId: string,
+    requestId: string,
+    fingerprint: string,
+    operation: () => Promise<ServerMessage> | ServerMessage,
+  ): Promise<ServerMessage> {
+    const replay = baseReplay.lookup(userId, requestId, fingerprint);
+    if (replay.kind === "hit") return replay.response;
+    if (replay.kind === "conflict") return { type: "error", code: "INVALID_MESSAGE" };
+    const key = userId + ":" + requestId;
+    const existing = pendingBaseRequests.get(key);
+    if (existing) return existing;
+    const task = Promise.resolve().then(operation).then((response) => {
+      baseReplay.remember(userId, requestId, fingerprint, response);
+      return response;
+    });
+    pendingBaseRequests.set(key, task);
+    try {
+      return await task;
+    } finally {
+      if (pendingBaseRequests.get(key) === task) pendingBaseRequests.delete(key);
     }
   }
 
@@ -795,20 +821,26 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
 
         if (message.type === "create_base") {
           if(!userId){send(socket,{type:"error",code:"AUTH_REQUIRED"});return;}
-          try{
-            const base=await bases.create(userId,message.name,message.x,message.y);
-            send(socket,{type:"base_state",base});
-          }catch(error){const code=errorCode(error,"BASE_CREATE_FAILED"); const allowed=["BASE_ALREADY_EXISTS","INVALID_BASE_COORDINATES","BASE_CREATE_FAILED"]; send(socket,{type:"error",code:(allowed.includes(code)?code:"BASE_CREATE_FAILED") as "BASE_ALREADY_EXISTS"|"INVALID_BASE_COORDINATES"|"BASE_CREATE_FAILED"});}
+          const response=await runBaseRequest(userId,message.requestId,"create_base|"+message.name+"|"+message.x+"|"+message.y,async()=>{
+            try{
+              const base=await bases.create(userId,message.name,message.x,message.y);
+              return {type:"base_state",base};
+            }catch(error){const code=errorCode(error,"BASE_CREATE_FAILED"); const allowed=["BASE_ALREADY_EXISTS","INVALID_BASE_COORDINATES","BASE_CREATE_FAILED"]; return {type:"error",code:(allowed.includes(code)?code:"BASE_CREATE_FAILED") as "BASE_ALREADY_EXISTS"|"INVALID_BASE_COORDINATES"|"BASE_CREATE_FAILED"};}
+          });
+          send(socket,response);
           return;
         }
 
         if (message.type === "build") {
           if(!userId){send(socket,{type:"error",code:"AUTH_REQUIRED"});return;}
-          try{
-            if(!BUILDING_TYPES.includes(message.buildingType as BuildingType))throw new Error("INVALID_BUILDING_TYPE");
-            const building=await bases.createBuilding(userId,message.buildingType as BuildingType,message.level,message.gridX,message.gridY);
-            send(socket,{type:"building_state",requestId:message.requestId,building});
-          }catch(error){const code=errorCode(error,"BUILD_FAILED"); const allowed=["BASE_NOT_FOUND","BASE_PERMISSION_DENIED","INVALID_BUILDING_TYPE","INVALID_BUILDING_LEVEL","INVALID_BUILDING_POSITION","BUILDING_POSITION_OCCUPIED","BUILDING_PREREQUISITE_MISSING","BUILD_FAILED"]; send(socket,{type:"error",code:(allowed.includes(code)?code:"BUILD_FAILED") as "BASE_NOT_FOUND"|"BASE_PERMISSION_DENIED"|"INVALID_BUILDING_TYPE"|"INVALID_BUILDING_LEVEL"|"INVALID_BUILDING_POSITION"|"BUILDING_POSITION_OCCUPIED"|"BUILDING_PREREQUISITE_MISSING"|"BUILD_FAILED"});}
+          const response=await runBaseRequest(userId,message.requestId,"build|"+message.buildingType+"|"+message.level+"|"+message.gridX+"|"+message.gridY,async()=>{
+            try{
+              if(!BUILDING_TYPES.includes(message.buildingType as BuildingType))throw new Error("INVALID_BUILDING_TYPE");
+              const building=await bases.createBuilding(userId,message.buildingType as BuildingType,message.level,message.gridX,message.gridY);
+              return {type:"building_state",requestId:message.requestId,building};
+            }catch(error){const code=errorCode(error,"BUILD_FAILED"); const allowed=["BASE_NOT_FOUND","BASE_PERMISSION_DENIED","INVALID_BUILDING_TYPE","INVALID_BUILDING_LEVEL","INVALID_BUILDING_POSITION","BUILDING_POSITION_OCCUPIED","BUILDING_PREREQUISITE_MISSING","BUILD_FAILED"]; return {type:"error",code:(allowed.includes(code)?code:"BUILD_FAILED") as "BASE_NOT_FOUND"|"BASE_PERMISSION_DENIED"|"INVALID_BUILDING_TYPE"|"INVALID_BUILDING_LEVEL"|"INVALID_BUILDING_POSITION"|"BUILDING_POSITION_OCCUPIED"|"BUILDING_PREREQUISITE_MISSING"|"BUILD_FAILED"};}
+          });
+          send(socket,response);
           return;
         }
 
