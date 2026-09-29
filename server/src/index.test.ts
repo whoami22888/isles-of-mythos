@@ -416,7 +416,7 @@ describe("server foundation", () => {
     const token = getString(registerBody, "accessToken");
 
     const socket = await openSocket(firstApp);
-    let baseId = "";
+    let baseId: string | undefined;
     try {
       await new Promise<void>((resolve, reject) => {
         socket.once("open", () => resolve());
@@ -461,6 +461,7 @@ describe("server foundation", () => {
       await firstApp.close();
     }
 
+    if (!baseId) throw new Error("Base creation test did not produce a base id");
     const secondApp = await buildApp({ db: database });
     const secondSocket = await openSocket(secondApp);
     try {
