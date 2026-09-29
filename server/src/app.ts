@@ -17,7 +17,7 @@ import { SHOP_ITEMS, calculatePurchase, getShopItem } from "./shop.js";
 import { addThreat, applyDamage, createCombatTarget, creatureAbilityDamage, createProjectile, advanceProjectile, isMeleeHit, distance, mitigateDamage, tickCreatureAi, tickStatusEffects, tickStatuses, weaponFor, type CombatProjectile, type CombatTarget, type StatusEffect } from "./combat.js";
 import { CombatReplayCache } from "./combat-replay.js";
 import { CAPTURE_HEALTH_RATIO, CreatureStore } from "./creature.js";
-import { BaseStore, BASE_PERMISSIONS, BUILDING_TYPES, WORK_TASKS, type BasePermission, type BuildingType, type WorkTask } from "./base.js";
+import { BaseStore, BASE_PERMISSIONS, BUILDING_TYPES, WORK_TASKS, WORKER_MODES, type BasePermission, type BuildingType, type WorkTask, type WorkerMode } from "./base.js";
 
 function errorCode(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
@@ -869,8 +869,8 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
                 return {type:"base_state",base};
               }
               if(message.type==="assign_worker"){
-                if(!WORK_TASKS.includes(message.task as WorkTask))throw new Error("INVALID_WORK_TASK");
-                await bases.assignWorker(authenticatedUserId,message.creatureId,message.buildingId,message.task as WorkTask);
+                if(!WORKER_MODES.includes(message.task as WorkerMode))throw new Error("INVALID_WORK_TASK");
+                await bases.assignWorker(authenticatedUserId,message.creatureId,message.buildingId,message.task as WorkerMode);
                 return {type:"base_state",base:bases.get(authenticatedUserId)};
               }
               const base=await bases.setWorkPriorities(authenticatedUserId,message.priorities);
