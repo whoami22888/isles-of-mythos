@@ -143,15 +143,13 @@ export class PlayerStore {
       oxygen: state.oxygen,
       xp: state.xp,
       level: state.level,
-      gold: state.gold.toString(),
-      inventory: JSON.stringify(state.inventory),
       hotbar: JSON.stringify(state.hotbar),
       selectedHotbarSlot: state.selectedHotbarSlot,
     };
     await this.db.query(
-      "UPDATE player_profiles SET x=$2, y=$3, health=$4, defense=$5, stamina=$6, max_stamina=$7, hunger=$8, oxygen=$9, xp=$10, level=$11, gold=$12, inventory=$13::jsonb, hotbar=$14::jsonb, selected_hotbar_slot=$15, updated_at=CURRENT_TIMESTAMP WHERE user_id=$1",
-      [userId, snapshot.x, snapshot.y, snapshot.health, snapshot.defense, snapshot.stamina, snapshot.maxStamina, snapshot.hunger, snapshot.oxygen, snapshot.xp, snapshot.level, snapshot.gold,
-        snapshot.inventory, snapshot.hotbar, snapshot.selectedHotbarSlot]);
+      "UPDATE player_profiles SET x=$2, y=$3, health=$4, defense=$5, stamina=$6, max_stamina=$7, hunger=$8, oxygen=$9, xp=$10, level=$11, hotbar=$12::jsonb, selected_hotbar_slot=$13, updated_at=CURRENT_TIMESTAMP WHERE user_id=$1",
+      [userId, snapshot.x, snapshot.y, snapshot.health, snapshot.defense, snapshot.stamina, snapshot.maxStamina, snapshot.hunger, snapshot.oxygen, snapshot.xp, snapshot.level,
+        snapshot.hotbar, snapshot.selectedHotbarSlot]);
     if ((this.revisions.get(userId) ?? 0) === revision) this.dirty.delete(userId);
   }
   async purchase(userId: string, item: ShopItem, quantity: number, totalGold: bigint): Promise<PlayerState> {
