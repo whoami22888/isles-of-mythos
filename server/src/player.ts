@@ -19,6 +19,12 @@ export interface PlayerState {
   xp: number; level: number; gold: bigint; inventory: Record<string, number>;
   hotbar: Array<string | null>; selectedHotbarSlot: number;
 }
+export type PublicPlayerState = Omit<PlayerState, "gold"> & { gold: string };
+
+export function serializePlayerState(state: PlayerState): PublicPlayerState {
+  return { ...state, gold: state.gold.toString(), inventory: { ...state.inventory } };
+}
+
 export interface PlayerInput { dx: number; dy: number; dt: number; speedMultiplier?: number; }
 export interface Hitbox { x: number; y: number; width: number; height: number; }
 
