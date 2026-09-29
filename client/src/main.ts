@@ -12,6 +12,7 @@ const ATTACK_INPUT_COOLDOWN_MS = 150;
 
 interface CombatResultMessage {
   type: "combat_result";
+  requestId: string;
   targetId: string;
   damage: number;
   critical: boolean;
@@ -58,7 +59,8 @@ function parseServerMessage(value: unknown): ServerMessage | null {
         ? { type: "world_chunk", requestId: value.requestId, chunk: value.chunk }
         : null;
     case "combat_result":
-      return typeof value.targetId === "string" &&
+      return typeof value.requestId === "string" &&
+        typeof value.targetId === "string" &&
         typeof value.damage === "number" &&
         typeof value.critical === "boolean" &&
         typeof value.killed === "boolean" &&
@@ -66,6 +68,7 @@ function parseServerMessage(value: unknown): ServerMessage | null {
         (value.status === undefined || typeof value.status === "string")
         ? {
             type: "combat_result",
+            requestId: value.requestId,
             targetId: value.targetId,
             damage: value.damage,
             critical: value.critical,
@@ -290,7 +293,7 @@ class WorldScene extends Phaser.Scene {
     const dx = target.x - this.player.x;
     const dy = target.y - this.player.y;
     try {
-      this.socket.send(JSON.stringify({ type: "attack", targetId: target.id, facingX: Math.sign(dx), facingY: Math.sign(dy) }));
+      this.socket.send(JSON.stringify({ type: "attack", requestId: crypto.randomUUID(), targetId: target.id, facingX: Math.sign(dx), facingY: Math.sign(dy) }));
       this.attackAccumulator = ATTACK_INPUT_COOLDOWN_MS;
     } catch {
       this.connected = false;
