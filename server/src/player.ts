@@ -116,9 +116,15 @@ export class PlayerStore {
         [userId, gold - totalGold, JSON.stringify(nextInventory)],
       );
       await client.query("COMMIT");
-      const state = rowToState(updated.rows[0]);
-      this.active.set(userId, state);
-      return state;
+      const persisted = rowToState(updated.rows[0]);
+      const active = this.active.get(userId);
+      if (active) {
+        active.gold = persisted.gold;
+        active.inventory = persisted.inventory;
+        return active;
+      }
+      this.active.set(userId, persisted);
+      return persisted;
     } catch (error) {
       await client.query("ROLLBACK");
       throw error;
