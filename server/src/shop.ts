@@ -26,8 +26,12 @@ export function getShopItem(itemId: string): ShopItem | undefined {
   return SHOP_ITEMS.find((item) => item.id === itemId);
 }
 
-export function calculatePurchase(item: ShopItem, quantity: number): number | null {
+export function calculatePurchase(item: ShopItem, quantity: number): bigint | null {
   if (!Number.isSafeInteger(quantity) || quantity < 1 || quantity > item.maxPurchase) return null;
-  const total = item.priceGold * quantity;
-  return Number.isSafeInteger(total) ? total : null;
+  const total = item.priceGold * BigInt(quantity);
+  return total <= 9_223_372_036_854_775_807n ? total : null;
+}
+
+export function serializeShopItem(item: ShopItem): Omit<ShopItem, "priceGold"> & { priceGold: string } {
+  return { ...item, priceGold: item.priceGold.toString() };
 }
