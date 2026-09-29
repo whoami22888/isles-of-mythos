@@ -11,9 +11,9 @@ import { createDbPool } from "./db.js";
 import { registerAuthRoutes } from "./auth.js";
 import { log } from "./logger.js";
 import { parseClientMessage, type ServerMessage } from "./protocol.js";
-import { PlayerStore, applyPlayerInput } from "./player.js";
+import { PlayerStore, applyPlayerInput, serializePlayerState } from "./player.js";
 import { WorldChunkCache } from "./world.js";
-import { SHOP_ITEMS, calculatePurchase, getShopItem } from "./shop.js";
+import { SHOP_ITEMS, calculatePurchase, getShopItem, serializeShopItem } from "./shop.js";
 import { addThreat, applyDamage, createCombatTarget, creatureAbilityDamage, createProjectile, advanceProjectile, isMeleeHit, distance, mitigateDamage, tickCreatureAi, tickStatusEffects, tickStatuses, weaponFor, type CombatProjectile, type CombatTarget, type StatusEffect } from "./combat.js";
 import { CombatReplayCache } from "./combat-replay.js";
 import { CAPTURE_HEALTH_RATIO, CreatureStore } from "./creature.js";
@@ -433,7 +433,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         const totalGold = calculatePurchase(item, request.body.quantity);
         if (totalGold === null) return reply.code(400).send({ error: "INVALID_PURCHASE_QUANTITY" });
         const state = await players.purchase(userId, item, request.body.quantity, totalGold);
-        return { itemId: item.id, quantity: request.body.quantity, totalGold, state };
+        return { itemId: item.id, quantity: request.body.quantity, totalGold: totalGold.toString(), state: serializePlayerState(state) };
       } catch (error) {
         if (error instanceof Error && error.message === "INSUFFICIENT_GOLD") {
           return reply.code(409).send({ error: "INSUFFICIENT_GOLD" });
