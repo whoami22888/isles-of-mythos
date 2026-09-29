@@ -15,7 +15,7 @@
 | G6-11 | Server authority/security | 6E | NOT STARTED | — | — |
 | G6-12 | Restart/regression verification | 6F | NOT STARTED | — | — |
 
-## Process metrics
+## Current execution checkpoint\n- 6A: domain + migration + runtime store created; authenticated server lifecycle integration is in progress.\n- 6B: placement validation + authoritative build endpoint added; targeted protocol/authorization verification remains.\n- 6C: BLOCKED until 6A/6B interfaces stabilize.\n- 6D: BLOCKED until 6C resource/job interfaces stabilize.\n- 6E: partially active for base authorization, full security audit pending.\n- 6F: BLOCKED until implementation blocks report complete.\n\n## Process metrics
 - Blocks assigned: 6
 - Blocks reopened: 0
 - Blind test loops: 0
