@@ -48,6 +48,26 @@ describe("combat engine", () => {
     expect(attack.state).toBe("attack");
   });
 
+
+  it("enforces creature attack cooldowns", () => {
+    const target = createCombatTarget("creature:1:1", "boar", 1, 1, 1);
+    addThreat(target, "player", 10, 100);
+    const first = tickCreatureAi(target, [{ userId: "player", x: 2, y: 1 }], 100, 250);
+    expect(first.attackReady).toBe(true);
+    const second = tickCreatureAi(target, [{ userId: "player", x: 2, y: 1 }], 200, 250);
+    expect(second.attackReady).toBe(false);
+    const third = tickCreatureAi(target, [{ userId: "player", x: 2, y: 1 }], 1200, 250);
+    expect(third.attackReady).toBe(true);
+  });
+
+  it("prevents stunned creatures from attacking or chasing", () => {
+    const target = createCombatTarget("creature:1:1", "raptor", 1, 1, 1);
+    target.statuses.push({ id: "stun", remainingMs: 700, magnitude: 1 });
+    const result = tickCreatureAi(target, [{ userId: "player", x: 2, y: 1 }], 100, 250);
+    expect(result.state).toBe("stunned");
+    expect(result.attackReady).toBe(false);
+  });
+
   it("handles expired status tick input safely", () => {
     const target = createCombatTarget("creature:1:1", "slime", 1, 1, 1);
     expect(tickStatuses(target, 0)).toBe(0);
