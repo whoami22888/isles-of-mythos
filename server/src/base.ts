@@ -76,6 +76,28 @@ function rowToBuilding(r:BuildingRow):BaseBuilding {
   return {id:r.id,baseId:r.base_id,type:r.type,level:r.level,gridX:r.grid_x,gridY:r.grid_y,active:r.active};
 }
 
+export function calculateBuildingCost(type:BuildingType,level:number):Record<string,number>{
+  if(!BASE_BUILDING_DEFINITIONS[type]||!Number.isSafeInteger(level)||level<1||level>MAX_BUILDING_LEVEL)throw new Error("INVALID_BUILDING_LEVEL");
+  if(type==="command_centre"&&level===1)return {};
+  const scale=level*level;
+  return {wood:50*scale,stone:25*scale};
+}
+export function validateBuildingPlacement(base:Pick<BaseState,"buildings">,type:BuildingType,level:number,gridX:number,gridY:number):void{
+  if(!BASE_BUILDING_DEFINITIONS[type])throw new Error("INVALID_BUILDING_TYPE");
+  if(!Number.isSafeInteger(level)||level!==1)throw new Error("INVALID_BUILDING_LEVEL");
+  if(!Number.isSafeInteger(gridX)||gridX<BASE_GRID_MIN||gridX>BASE_GRID_MAX||!Number.isSafeInteger(gridY)||gridY<BASE_GRID_MIN||gridY>BASE_GRID_MAX)throw new Error("INVALID_BUILDING_POSITION");
+  if(base.buildings.some(b=>b.gridX===gridX&&b.gridY===gridY))throw new Error("BUILDING_POSITION_OCCUPIED");
+  for(const prerequisite of BASE_BUILDING_DEFINITIONS[type].prerequisites){
+    if(!base.buildings.some(b=>b.type===prerequisite&&b.active))throw new Error("BUILDING_PREREQUISITE_MISSING");
+  }
+}
+export function validateBuildingUpgrade(base:Pick<BaseState,"buildings">,buildingId:string):BaseBuilding{
+  const building=base.buildings.find(b=>b.id===buildingId);
+  if(!building)throw new Error("BUILDING_NOT_FOUND");
+  if(building.level>=MAX_BUILDING_LEVEL)throw new Error("BUILDING_MAX_LEVEL");
+  return building;
+}
+
 export class BaseStore {
   private readonly active=new Map<string,BaseState>();
   private readonly operations=new Map<string,Promise<void>>();
