@@ -794,7 +794,25 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         }
 
         if (message.type === "create_base") {
-          if(!userId){send(socket,{type:"error",code:"AUTH_REQUIRED"});return;}\n          try{\n            const base=await bases.create(userId,message.name,message.x,message.y);\n            send(socket,{type:"base_state",base});\n          }catch(error){const code=errorCode(error,"BASE_CREATE_FAILED"); const allowed=["BASE_ALREADY_EXISTS","INVALID_BASE_COORDINATES","BASE_CREATE_FAILED"]; send(socket,{type:"error",code:(allowed.includes(code)?code:"BASE_CREATE_FAILED") as "BASE_ALREADY_EXISTS"|"INVALID_BASE_COORDINATES"|"BASE_CREATE_FAILED"});}\n          return;\n        }\n\n        if (message.type === "build") {\n          if(!userId){send(socket,{type:"error",code:"AUTH_REQUIRED"});return;}\n          try{\n            if(!BUILDING_TYPES.includes(message.buildingType as BuildingType))throw new Error("INVALID_BUILDING_TYPE");\n            const building=await bases.createBuilding(userId,message.buildingType as BuildingType,message.level,message.gridX,message.gridY);\n            send(socket,{type:"building_state",requestId:message.requestId,building});\n          }catch(error){const code=errorCode(error,"BUILD_FAILED"); const allowed=["BASE_NOT_FOUND","BASE_PERMISSION_DENIED","INVALID_BUILDING_TYPE","INVALID_BUILDING_LEVEL","INVALID_BUILDING_POSITION","BUILDING_POSITION_OCCUPIED","BUILDING_PREREQUISITE_MISSING","BUILD_FAILED"]; send(socket,{type:"error",code:(allowed.includes(code)?code:"BUILD_FAILED") as "BASE_NOT_FOUND"|"BASE_PERMISSION_DENIED"|"INVALID_BUILDING_TYPE"|"INVALID_BUILDING_LEVEL"|"INVALID_BUILDING_POSITION"|"BUILDING_POSITION_OCCUPIED"|"BUILDING_PREREQUISITE_MISSING"|"BUILD_FAILED"});}\n          return;\n        }\n\n        if (message.type === "subscribe_chunks") {
+          if(!userId){send(socket,{type:"error",code:"AUTH_REQUIRED"});return;}
+          try{
+            const base=await bases.create(userId,message.name,message.x,message.y);
+            send(socket,{type:"base_state",base});
+          }catch(error){const code=errorCode(error,"BASE_CREATE_FAILED"); const allowed=["BASE_ALREADY_EXISTS","INVALID_BASE_COORDINATES","BASE_CREATE_FAILED"]; send(socket,{type:"error",code:(allowed.includes(code)?code:"BASE_CREATE_FAILED") as "BASE_ALREADY_EXISTS"|"INVALID_BASE_COORDINATES"|"BASE_CREATE_FAILED"});}
+          return;
+        }
+
+        if (message.type === "build") {
+          if(!userId){send(socket,{type:"error",code:"AUTH_REQUIRED"});return;}
+          try{
+            if(!BUILDING_TYPES.includes(message.buildingType as BuildingType))throw new Error("INVALID_BUILDING_TYPE");
+            const building=await bases.createBuilding(userId,message.buildingType as BuildingType,message.level,message.gridX,message.gridY);
+            send(socket,{type:"building_state",requestId:message.requestId,building});
+          }catch(error){const code=errorCode(error,"BUILD_FAILED"); const allowed=["BASE_NOT_FOUND","BASE_PERMISSION_DENIED","INVALID_BUILDING_TYPE","INVALID_BUILDING_LEVEL","INVALID_BUILDING_POSITION","BUILDING_POSITION_OCCUPIED","BUILDING_PREREQUISITE_MISSING","BUILD_FAILED"]; send(socket,{type:"error",code:(allowed.includes(code)?code:"BUILD_FAILED") as "BASE_NOT_FOUND"|"BASE_PERMISSION_DENIED"|"INVALID_BUILDING_TYPE"|"INVALID_BUILDING_LEVEL"|"INVALID_BUILDING_POSITION"|"BUILDING_POSITION_OCCUPIED"|"BUILDING_PREREQUISITE_MISSING"|"BUILD_FAILED"});}
+          return;
+        }
+
+        if (message.type === "subscribe_chunks") {
           if (!userId) {
             send(socket, { type: "error", code: "AUTH_REQUIRED" });
             return;
