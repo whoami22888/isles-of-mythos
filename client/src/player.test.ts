@@ -12,7 +12,7 @@ const validPlayerState = {
   oxygen: 100,
   xp: 0,
   level: 1,
-  gold: 0,
+  gold: "0",
   inventory: {},
   hotbar: ["cutlass", null, null, null, null, null, null, null],
   selectedHotbarSlot: 0,
