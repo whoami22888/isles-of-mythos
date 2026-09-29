@@ -930,7 +930,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         for (const [key] of pendingCombatRequests) if (key.startsWith(disconnectedUserId + ":")) pendingCombatRequests.delete(key);
         const pendingMessageWork = messageQueue.catch(() => undefined);
         const pendingCreatureWork = pendingCreatureOperations.get(disconnectedUserId) ?? Promise.resolve();
-        const pendingBaseWork = bases.processProduction(disconnectedUserId).catch((error) => { log("base_disconnect_persistence_failed",{message:error instanceof Error?error.message:String(error)}); return null; });
+        const pendingBaseWork = bases.persistAndUnload(disconnectedUserId).catch((error) => { log("base_disconnect_persistence_failed",{message:error instanceof Error?error.message:String(error)}); return null; });
         const unloadPromise = pendingMessageWork.then(() => pendingCreatureWork).then(() => pendingBaseWork).then(
           () => creatures.unload(disconnectedUserId),
           () => creatures.unload(disconnectedUserId),
