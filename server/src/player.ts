@@ -170,6 +170,19 @@ export class PlayerStore {
     });
   }
 
+  async reloadEconomy(userId: string): Promise<PlayerState> {
+    const result = await this.db.query<{ gold: string; inventory: Record<string, number> }>(
+      "SELECT gold, inventory FROM player_profiles WHERE user_id=$1",
+      [userId],
+    );
+    const state = this.active.get(userId);
+    const row = result.rows[0];
+    if (!state || !row) throw new Error("PLAYER_NOT_FOUND");
+    state.gold = parseGoldDoubloons(row.gold);
+    state.inventory = cloneInventory(row.inventory);
+    return state;
+  }
+
   async consumeInventory(userId: string, itemId: string, quantity = 1): Promise<PlayerState> {
     return this.runExclusive(userId, async () => {
       const result = await runEconomyTransaction(this.db, userId, async ({ gold, inventory }) => {
