@@ -178,7 +178,7 @@ export class BaseStore {
   }
 
   async persistAndUnload(userId:string):Promise<void>{
-    await this.runExclusive(userId,async()=>{this.active.delete(userId);});
+    await this.runExclusive(userId,()=>Promise.resolve(this.active.delete(userId)));
   }
 
   async createBuilding(userId:string,type:BuildingType,level:number,gridX:number,gridY:number):Promise<BaseBuilding>{
