@@ -6,8 +6,11 @@ import {
   applyInventoryDelta,
   cloneInventory,
   parseGoldDoubloons,
-  subtractGoldDoubloons,\n  runEconomyTransaction,
-} from "./economy.js";\nimport { createDbPool } from "./db.js";\nimport { buildApp } from "./app.js";
+  subtractGoldDoubloons,
+  runEconomyTransaction,
+} from "./economy.js";
+import { createDbPool } from "./db.js";
+import { buildApp } from "./app.js";
 
 describe("economy foundation", () => {
   it("keeps Gold Doubloons exact beyond JavaScript safe-integer range", () => {
