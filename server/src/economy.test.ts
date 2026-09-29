@@ -11,6 +11,7 @@ import {
 } from "./economy.js";
 import { createDbPool } from "./db.js";
 import { buildApp } from "./app.js";
+import { PlayerStore } from "./player.js";
 
 describe("economy foundation", () => {
   it("keeps Gold Doubloons exact beyond JavaScript safe-integer range", () => {
@@ -89,6 +90,51 @@ describe("economy transaction concurrency", () => {
       );
       expect(afterRollback.rows[0].gold).toBe("499968000");
       expect(afterRollback.rows[0].inventory.wood).toBe(3200);
+    } finally {
+      await app.close();
+      await db.end();
+    }
+  });
+
+
+  it("prevents stale player persistence from overwriting transactional economy state", async () => {
+    const db = createDbPool();
+    const app = await buildApp({ db });
+    const unique = Date.now();
+    try {
+      const response = await app.inject({
+        method: "POST",
+        url: "/auth/register",
+        payload: {
+          username: `economy_persist_${unique}`,
+          email: `economy_persist_${unique}@example.com`,
+          password: "Correct-Horse-Battery-9",
+        },
+      });
+      expect(response.statusCode).toBe(201);
+      const body = JSON.parse(response.body) as { user: { id: string } };
+      const userId = body.user.id;
+      await db.query(
+        "UPDATE player_profiles SET gold=$2, inventory=$3::jsonb WHERE user_id=$1",
+        [userId, "500000000", JSON.stringify({ wood: 10 })],
+      );
+
+      const first = new PlayerStore(db);
+      const second = new PlayerStore(db);
+      await first.loadOrCreate(userId);
+      const stale = await second.loadOrCreate(userId);
+      await first.consumeInventory(userId, "wood", 1);
+      stale.health = 90;
+      second.markDirty(userId);
+      await second.persist(userId);
+
+      const row = await db.query<{ gold: string; inventory: Record<string, number>; health: number }>(
+        "SELECT gold, inventory, health FROM player_profiles WHERE user_id=$1",
+        [userId],
+      );
+      expect(row.rows[0].gold).toBe("500000000");
+      expect(row.rows[0].inventory.wood).toBe(9);
+      expect(row.rows[0].health).toBe(90);
     } finally {
       await app.close();
       await db.end();
