@@ -70,6 +70,8 @@ export class PlayerStore {
   private readonly active = new Map<string, PlayerState>();
   constructor(private readonly db: Pool) {}
   async loadOrCreate(userId: string): Promise<PlayerState> {
+    const existing = this.active.get(userId);
+    if (existing) return existing;
     await this.db.query(
       "INSERT INTO player_profiles (user_id) VALUES ($1) ON CONFLICT (user_id) DO NOTHING",
       [userId],
@@ -87,11 +89,27 @@ export class PlayerStore {
   get(userId: string): PlayerState | undefined { return this.active.get(userId); }
   tick(dt: number): void { for (const state of this.active.values()) applyPlayerInput(state, { dx: 0, dy: 0, dt }); }
   async persist(userId: string): Promise<void> {
-    const state = this.active.get(userId); if (!state) return;
-    await this.db.query(
-      "UPDATE player_profiles SET x=$2, y=$3, health=$4, stamina=$5, max_stamina=$6, hunger=$7, oxygen=$8, xp=$9, level=$10, gold=$11, inventory=$12::jsonb, hotbar=$13::jsonb, selected_hotbar_slot=$14, updated_at=CURRENT_TIMESTAMP WHERE user_id=$1",
-      [userId, state.x, state.y, state.health, state.stamina, state.maxStamina, state.hunger, state.oxygen, state.xp, state.level, state.gold,
-        JSON.stringify(state.inventory), JSON.stringify(state.hotbar), state.selectedHotbarSlot]);
+    const client = await this.db.connect();
+    try {
+      await client.query("BEGIN");
+      await client.query("SELECT user_id FROM player_profiles WHERE user_id = $1 FOR UPDATE", [userId]);
+      const state = this.active.get(userId);
+      if (!state) {
+        await client.query("COMMIT");
+        return;
+      }
+      await client.query(
+        "UPDATE player_profiles SET x=$2, y=$3, health=$4, stamina=$5, max_stamina=$6, hunger=$7, oxygen=$8, xp=$9, level=$10, gold=$11, inventory=$12::jsonb, hotbar=$13::jsonb, selected_hotbar_slot=$14, updated_at=CURRENT_TIMESTAMP WHERE user_id=$1",
+        [userId, state.x, state.y, state.health, state.stamina, state.maxStamina, state.hunger, state.oxygen, state.xp, state.level, state.gold,
+          JSON.stringify(state.inventory), JSON.stringify(state.hotbar), state.selectedHotbarSlot],
+      );
+      await client.query("COMMIT");
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
   }
   async purchase(userId: string, item: ShopItem, quantity: number, totalGold: number): Promise<PlayerState> {
     const client = await this.db.connect();
@@ -132,7 +150,12 @@ export class PlayerStore {
       client.release();
     }
   }
-  async unload(userId: string): Promise<void> { await this.persist(userId); this.active.delete(userId); }
+  async unload(userId: string): Promise<void> {
+    const state = this.active.get(userId);
+    if (!state) return;
+    await this.persist(userId);
+    if (this.active.get(userId) === state) this.active.delete(userId);
+  }
   async persistAll(): Promise<void> {
     const userIds = [...this.active.keys()];
     for (const userId of userIds) await this.persist(userId);
