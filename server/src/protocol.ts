@@ -15,7 +15,7 @@ export type ClientMessage =
   | { type: "capture"; requestId: string; targetId: string }
   | { type: "tame"; requestId: string; creatureId: string }
   | { type: "set_creature_party"; requestId: string; creatureId: string; slot: number | null }
-  | { type: "set_creature_ai"; requestId: string; creatureId: string; mode: "follow" | "assist" | "stay" }\n  | { type: "create_base"; requestId: string; name: string; x: number; y: number }\n  | { type: "build"; requestId: string; type: string; level: number; gridX: number; gridY: number };
+  | { type: "set_creature_ai"; requestId: string; creatureId: string; mode: "follow" | "assist" | "stay" }\n  | { type: "create_base"; requestId: string; name: string; x: number; y: number }\n  | { type: "build"; requestId: string; buildingType: string; level: number; gridX: number; gridY: number };
 
 export type ServerMessage =
   | { type: "server_ready"; timestamp: number }
@@ -131,7 +131,7 @@ export function parseClientMessage(raw: string): ClientMessage | null {
       const mode=(value as {mode?:unknown}).mode;return mode==="follow"||mode==="assist"||mode==="stay"?{type:"set_creature_ai",requestId,creatureId,mode}:null;
     }
 
-    if (type === "create_base" || type === "build") {\n      const requestId=(value as {requestId?:unknown}).requestId;\n      if(typeof requestId!=="string"||requestId.length===0||requestId.length>64)return null;\n      if(type==="create_base"){const name=(value as {name?:unknown}).name; const x=(value as {x?:unknown}).x; const y=(value as {y?:unknown}).y; return typeof name==="string"&&name.length<=64&&isSafeInteger(x)&&isSafeInteger(y)&&Math.abs(x)<=1000000&&Math.abs(y)<=1000000?{type:"create_base",requestId,name,x,y}:null;}\n      const buildingType=(value as {type?:unknown}).type; const level=(value as {level?:unknown}).level; const gridX=(value as {gridX?:unknown}).gridX; const gridY=(value as {gridY?:unknown}).gridY;\n      return typeof buildingType==="string"&&buildingType.length>0&&buildingType.length<=32&&isSafeInteger(level)&&isSafeInteger(gridX)&&isSafeInteger(gridY)&&Math.abs(gridX)<=128&&Math.abs(gridY)<=128?{type:"build",requestId,type:buildingType,level,gridX,gridY}:null;\n    }\n\n    if (type === "block") {
+    if (type === "create_base" || type === "build") {\n      const requestId=(value as {requestId?:unknown}).requestId;\n      if(typeof requestId!=="string"||requestId.length===0||requestId.length>64)return null;\n      if(type==="create_base"){const name=(value as {name?:unknown}).name; const x=(value as {x?:unknown}).x; const y=(value as {y?:unknown}).y; return typeof name==="string"&&name.length<=64&&isSafeInteger(x)&&isSafeInteger(y)&&Math.abs(x)<=1000000&&Math.abs(y)<=1000000?{type:"create_base",requestId,name,x,y}:null;}\n      const buildingType=(value as {type?:unknown}).type; const level=(value as {level?:unknown}).level; const gridX=(value as {gridX?:unknown}).gridX; const gridY=(value as {gridY?:unknown}).gridY;\n      return typeof buildingType==="string"&&buildingType.length>0&&buildingType.length<=32&&isSafeInteger(level)&&isSafeInteger(gridX)&&isSafeInteger(gridY)&&Math.abs(gridX)<=128&&Math.abs(gridY)<=128?{type:"build",requestId,buildingType,level,gridX,gridY}:null;\n    }\n\n    if (type === "block") {
       const active = (value as { active?: unknown }).active;
       return typeof active === "boolean" ? { type: "block", active } : null;
     }
