@@ -17,7 +17,7 @@ export type BuildingType = typeof BUILDING_TYPES[number];
 export const BASE_PERMISSIONS = ["build","storage","production","workers","manage"] as const;
 export type BasePermission = typeof BASE_PERMISSIONS[number];
 
-export const WORK_TASKS = ["repair","feed","collect","transport","process","store"] as const;
+export const WORK_TASKS = ["repair","feed","collect","transport","process","store","fishing","net_operation","irrigation","aquatic_harvesting","ore_smelting","base_defense","furnace_power","storage_protection","mining","ore_transport","timber_cutting","log_transport","scouting","light_transport"] as const;
 export type WorkTask = typeof WORK_TASKS[number];
 export const WORKER_MODES = ["auto",...WORK_TASKS] as const;
 export type WorkerMode = typeof WORKER_MODES[number];
@@ -71,6 +71,26 @@ export const BASE_BUILDING_DEFINITIONS: Record<BuildingType,{maxLevel:number; pr
   magic_observatory:{maxLevel:7,prerequisites:["command_centre"]},
 };
 
+const BUILDING_WORK_TASKS: Partial<Record<BuildingType,readonly WorkTask[]>> = {
+  lumber_mill:["collect","timber_cutting","log_transport"],
+  steel_mill:["process","ore_smelting","mining","ore_transport"],
+  forge:["process","ore_smelting","furnace_power"],
+  farm:["collect","irrigation"],
+  fishing_dock:["collect","fishing","net_operation","aquatic_harvesting"],
+  storage:["store","transport","storage_protection"],
+  watchtower:["scouting","base_defense"],
+  cannon_tower:["base_defense"],
+  wall:["base_defense"],
+  gate:["base_defense"],
+  creature_stable:["feed","transport"],
+  breeding_pen:["feed","transport"],
+};
+function validTasksForBuilding(type:BuildingType):readonly WorkTask[]{return BUILDING_WORK_TASKS[type]??[];}
+function selectAutomaticTask(type:BuildingType,priorities:string[]):WorkTask|null{
+  const valid=validTasksForBuilding(type);
+  for(const priority of priorities)for(const task of valid)if(priority===task)return task;
+  return null;
+}
 const PRODUCTION: Partial<Record<BuildingType,{output:string;ratePerMinute:number;input?:string;inputPerMinute:number}>> = {
   lumber_mill:{output:"wood",ratePerMinute:10,inputPerMinute:0},
   steel_mill:{output:"steel",ratePerMinute:5,input:"iron",inputPerMinute:10},
@@ -119,14 +139,10 @@ export function productionFor(base:Pick<BaseState,"buildings"|"workers"|"storage
   for(const building of base.buildings){
     if(!building.active)continue;
     const spec=PRODUCTION[building.type]; if(!spec)continue;
-    const automaticTask=building.type==="lumber_mill"||building.type==="farm"||building.type==="fishing_dock"?"collect":building.type==="steel_mill"||building.type==="forge"?"process":null;
+    const automaticTask=selectAutomaticTask(building.type,base.workPriorities);
     const validTask=(worker:BaseWorker):boolean=>{
-      if(worker.task!=="auto")return automaticTask!==null&&worker.task===automaticTask;
-      if(automaticTask===null)return false;
-      for(const priority of base.workPriorities){
-        if(priority===automaticTask)return true;
-      }
-      return false;
+      if(worker.task!=="auto")return validTasksForBuilding(building.type).includes(worker.task);
+      return automaticTask!==null;
     };
     const workerCount=base.workers.filter(w=>w.buildingId===building.id&&validTask(w)).length;
     if(workerCount===0)continue;
@@ -299,6 +315,7 @@ export class BaseStore {
       if(!BaseStore.can(userId,base,"workers"))throw new Error("BASE_PERMISSION_DENIED");
       if(!WORKER_MODES.includes(task))throw new Error("INVALID_WORK_TASK");
       const building=base.buildings.find(b=>b.id===buildingId&&b.active); if(!building)throw new Error("BUILDING_NOT_FOUND");
+      if(task!=="auto"&&!validTasksForBuilding(building.type).includes(task))throw new Error("INVALID_WORK_TASK");
       const client=await this.db.connect();
       try{
         await client.query("BEGIN");
