@@ -64,6 +64,7 @@ export interface CombatTarget {
   aggroRange: number;
   attackRange: number;
   nextAbilityAt: number;
+  nextAttackAt: number;
   statuses: StatusEffect[];
   threat: Map<string, ThreatEntry>;
 }
@@ -97,7 +98,7 @@ const ELEMENT_MULTIPLIERS: Record<DamageType, Partial<Record<DamageType, number>
 };
 
 export const CREATURE_STATS: Record<string, {
-  health: number; defense: number; element: DamageType; speed: number; attack: number; aggroRange: number; attackRange: number; ability?: CreatureAbility;
+  health: number; defense: number; element: DamageType; speed: number; attack: number; attackCooldownMs: number; aggroRange: number; attackRange: number; ability?: CreatureAbility;
 }> = {
   slime: { health: 45, defense: 2, element: "water", speed: 1.4, attack: 7, attackCooldownMs: 1200, aggroRange: 5, attackRange: 1.2, ability: { id: "acid_burst", cooldownMs: 3500, range: 3.5, damage: 10, damageType: "water", status: { id: "slow", durationMs: 1500, magnitude: 0.35 } } },
   boar: { health: 70, defense: 5, element: "earth", speed: 2.1, attack: 11, attackCooldownMs: 1100, aggroRange: 6, attackRange: 1.4, ability: { id: "charge", cooldownMs: 4000, range: 4, damage: 18, damageType: "earth" } },
