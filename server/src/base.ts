@@ -289,6 +289,7 @@ export class BaseStore {
     });
   }
   async processProduction(userId:string):Promise<BaseState|null>{return this.runExclusive(userId,async()=>{await this.load(userId);if(!this.active.has(userId))return null;await this.processProductionUnsafe(userId);return this.active.get(userId)??null;});}
+  async processAll():Promise<void>{for(const userId of [...this.active.keys()])await this.processProduction(userId);}
   private async processProductionUnsafe(userId:string):Promise<void>{
     const base=this.active.get(userId); if(!base)return;
     const now=Date.now(); const elapsed=Math.max(0,Math.min(now-base.productionProcessedAt,MAX_PRODUCTION_ELAPSED_MS)); if(elapsed<1000)return;
