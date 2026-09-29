@@ -233,16 +233,29 @@ export class BaseStore {
       const client=await this.db.connect();
       try{
         await client.query("BEGIN");
+        const profile=await client.query<{inventory:Record<string,number>}>("SELECT inventory FROM player_profiles WHERE user_id=$1 FOR UPDATE",[userId]);
+        if(!profile.rows[0])throw new Error("PLAYER_NOT_FOUND");
+        const inventory={...(profile.rows[0].inventory??{})};
+        const nextStorage={...base.storage};
         for(const [resource,delta] of Object.entries(changes)){
-          if(!Number.isSafeInteger(delta)||delta===0)continue;
-          const locked=await client.query<{quantity:string}>("SELECT quantity FROM base_storage WHERE base_id=$1 AND resource_key=$2 FOR UPDATE",[base.id,resource]);
-          const current=Number(locked.rows[0]?.quantity??0);
-          const next=current+delta; if(!Number.isSafeInteger(next)||next<0)throw new Error("INSUFFICIENT_STORAGE");
-          if(delta>0)await client.query("INSERT INTO base_storage(base_id,resource_key,quantity) VALUES($1,$2,$3) ON CONFLICT(base_id,resource_key) DO UPDATE SET quantity=base_storage.quantity+EXCLUDED.quantity,updated_at=CURRENT_TIMESTAMP",[base.id,resource,delta]);
-          else await client.query("UPDATE base_storage SET quantity=quantity+$3,updated_at=CURRENT_TIMESTAMP WHERE base_id=$1 AND resource_key=$2 AND quantity >= $4",[base.id,resource,delta,-delta]);
-          base.storage[resource]=next;
+          if(delta===0)continue;
+          const current=Number((await client.query<{quantity:string}>("SELECT quantity FROM base_storage WHERE base_id=$1 AND resource_key=$2 FOR UPDATE",[base.id,resource])).rows[0]?.quantity??0);
+          if(delta>0){
+            const owned=Number(inventory[resource]??0);
+            if(!Number.isSafeInteger(owned)||owned<delta)throw new Error("INSUFFICIENT_INVENTORY");
+            inventory[resource]=owned-delta;
+          }else{
+            if(current<Math.abs(delta))throw new Error("INSUFFICIENT_STORAGE");
+            inventory[resource]=(Number(inventory[resource]??0))+Math.abs(delta);
+          }
+          const next=current+delta;
+          if(next<0||!Number.isSafeInteger(next))throw new Error("INVALID_STORAGE_QUANTITY");
+          await client.query("INSERT INTO base_storage(base_id,resource_key,quantity) VALUES($1,$2,$3) ON CONFLICT(base_id,resource_key) DO UPDATE SET quantity=EXCLUDED.quantity,updated_at=CURRENT_TIMESTAMP",[base.id,resource,next]);
+          nextStorage[resource]=next;
         }
-        await client.query("COMMIT"); return {...base.storage};
+        await client.query("UPDATE player_profiles SET inventory=$2::jsonb,updated_at=CURRENT_TIMESTAMP WHERE user_id=$1",[userId,JSON.stringify(inventory)]);
+        await client.query("COMMIT");
+        base.storage=nextStorage; return {...base.storage};
       }catch(error){await client.query("ROLLBACK");throw error;}finally{client.release();}
     });
   }
