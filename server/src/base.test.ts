@@ -25,7 +25,8 @@ describe("base foundation",()=>{
         {id:"cc",baseId:"b",type:"command_centre" as const,level:1,gridX:0,gridY:0,active:true},
         {id:"mill",baseId:"b",type:"lumber_mill" as const,level:2,gridX:1,gridY:0,active:true},
       ],
-      workers:[{creatureId:"c1",baseId:"b",buildingId:"mill",task:"collect" as const}],
+      workers:[{creatureId:"c1",baseId:"b",buildingId:"mill",task:"auto" as const}],
+      workPriorities:["repair","collect","process"],
       storage:{wood:0,stone:0},
     };
     expect(productionFor(base,60_000)).toEqual({wood:20});
