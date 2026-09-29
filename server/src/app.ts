@@ -16,7 +16,8 @@ import { WorldChunkCache } from "./world.js";
 import { SHOP_ITEMS, calculatePurchase, getShopItem } from "./shop.js";
 import { addThreat, applyDamage, createCombatTarget, creatureAbilityDamage, createProjectile, advanceProjectile, isMeleeHit, distance, mitigateDamage, tickCreatureAi, tickStatusEffects, tickStatuses, weaponFor, type CombatProjectile, type CombatTarget, type StatusEffect } from "./combat.js";
 import { CombatReplayCache } from "./combat-replay.js";
-import { CAPTURE_HEALTH_RATIO, CreatureStore } from "./creature.js";\nimport { BaseStore, BUILDING_TYPES, type BuildingType } from "./base.js";
+import { CAPTURE_HEALTH_RATIO, CreatureStore } from "./creature.js";
+import { BaseStore, BUILDING_TYPES, type BuildingType } from "./base.js";
 
 function errorCode(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
@@ -53,7 +54,8 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const ownsDb = options.db === undefined;
   const world = new WorldChunkCache(256);
   const players = new PlayerStore(db);
-  const creatures = new CreatureStore(db);\n  const bases = new BaseStore(db);
+  const creatures = new CreatureStore(db);
+  const bases = new BaseStore(db);
   const sockets = new Set<WebSocket>();
   const playerConnections = new Map<string, number>();
   const userSockets = new Map<string, Set<WebSocket>>();
@@ -791,7 +793,8 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           return;
         }
 
-        if (message.type === "create_base") {\n          if(!userId){send(socket,{type:"error",code:"AUTH_REQUIRED"});return;}\n          try{\n            const base=await bases.create(userId,message.name,message.x,message.y);\n            send(socket,{type:"base_state",base});\n          }catch(error){const code=errorCode(error,"BASE_CREATE_FAILED"); const allowed=["BASE_ALREADY_EXISTS","INVALID_BASE_COORDINATES","BASE_CREATE_FAILED"]; send(socket,{type:"error",code:(allowed.includes(code)?code:"BASE_CREATE_FAILED") as "BASE_ALREADY_EXISTS"|"INVALID_BASE_COORDINATES"|"BASE_CREATE_FAILED"});}\n          return;\n        }\n\n        if (message.type === "build") {\n          if(!userId){send(socket,{type:"error",code:"AUTH_REQUIRED"});return;}\n          try{\n            if(!BUILDING_TYPES.includes(message.type as BuildingType))throw new Error("INVALID_BUILDING_TYPE");\n            const building=await bases.createBuilding(userId,message.type as BuildingType,message.level,message.gridX,message.gridY);\n            send(socket,{type:"building_state",requestId:message.requestId,building});\n          }catch(error){const code=errorCode(error,"BUILD_FAILED"); const allowed=["BASE_NOT_FOUND","BASE_PERMISSION_DENIED","INVALID_BUILDING_TYPE","INVALID_BUILDING_LEVEL","INVALID_BUILDING_POSITION","BUILDING_POSITION_OCCUPIED","BUILDING_PREREQUISITE_MISSING","BUILD_FAILED"]; send(socket,{type:"error",code:(allowed.includes(code)?code:"BUILD_FAILED") as "BASE_NOT_FOUND"|"BASE_PERMISSION_DENIED"|"INVALID_BUILDING_TYPE"|"INVALID_BUILDING_LEVEL"|"INVALID_BUILDING_POSITION"|"BUILDING_POSITION_OCCUPIED"|"BUILDING_PREREQUISITE_MISSING"|"BUILD_FAILED"});}\n          return;\n        }\n\n        if (message.type === "subscribe_chunks") {
+        if (message.type === "create_base") {
+          if(!userId){send(socket,{type:"error",code:"AUTH_REQUIRED"});return;}\n          try{\n            const base=await bases.create(userId,message.name,message.x,message.y);\n            send(socket,{type:"base_state",base});\n          }catch(error){const code=errorCode(error,"BASE_CREATE_FAILED"); const allowed=["BASE_ALREADY_EXISTS","INVALID_BASE_COORDINATES","BASE_CREATE_FAILED"]; send(socket,{type:"error",code:(allowed.includes(code)?code:"BASE_CREATE_FAILED") as "BASE_ALREADY_EXISTS"|"INVALID_BASE_COORDINATES"|"BASE_CREATE_FAILED"});}\n          return;\n        }\n\n        if (message.type === "build") {\n          if(!userId){send(socket,{type:"error",code:"AUTH_REQUIRED"});return;}\n          try{\n            if(!BUILDING_TYPES.includes(message.buildingType as BuildingType))throw new Error("INVALID_BUILDING_TYPE");\n            const building=await bases.createBuilding(userId,message.buildingType as BuildingType,message.level,message.gridX,message.gridY);\n            send(socket,{type:"building_state",requestId:message.requestId,building});\n          }catch(error){const code=errorCode(error,"BUILD_FAILED"); const allowed=["BASE_NOT_FOUND","BASE_PERMISSION_DENIED","INVALID_BUILDING_TYPE","INVALID_BUILDING_LEVEL","INVALID_BUILDING_POSITION","BUILDING_POSITION_OCCUPIED","BUILDING_PREREQUISITE_MISSING","BUILD_FAILED"]; send(socket,{type:"error",code:(allowed.includes(code)?code:"BUILD_FAILED") as "BASE_NOT_FOUND"|"BASE_PERMISSION_DENIED"|"INVALID_BUILDING_TYPE"|"INVALID_BUILDING_LEVEL"|"INVALID_BUILDING_POSITION"|"BUILDING_POSITION_OCCUPIED"|"BUILDING_PREREQUISITE_MISSING"|"BUILD_FAILED"});}\n          return;\n        }\n\n        if (message.type === "subscribe_chunks") {
           if (!userId) {
             send(socket, { type: "error", code: "AUTH_REQUIRED" });
             return;
