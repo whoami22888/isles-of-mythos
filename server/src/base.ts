@@ -121,8 +121,12 @@ export function productionFor(base:Pick<BaseState,"buildings"|"workers"|"storage
     const spec=PRODUCTION[building.type]; if(!spec)continue;
     const automaticTask=building.type==="lumber_mill"||building.type==="farm"||building.type==="fishing_dock"?"collect":building.type==="steel_mill"||building.type==="forge"?"process":null;
     const validTask=(worker:BaseWorker):boolean=>{
-      if(worker.task==="auto")return automaticTask!==null&&base.workPriorities.some(priority=>priority===automaticTask);
-      return automaticTask!==null&&worker.task===automaticTask;
+      if(worker.task!=="auto")return automaticTask!==null&&worker.task===automaticTask;
+      if(automaticTask===null)return false;
+      for(const priority of base.workPriorities){
+        if(priority===automaticTask)return true;
+      }
+      return false;
     };
     const workerCount=base.workers.filter(w=>w.buildingId===building.id&&validTask(w)).length;
     if(workerCount===0)continue;
