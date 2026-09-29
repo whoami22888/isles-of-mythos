@@ -30,7 +30,7 @@ export const up=(pgm)=>{
     quantity:{type:"bigint",notNull:true,default:0},
     updated_at:{type:"timestamptz",notNull:true,default:pgm.func("CURRENT_TIMESTAMP")},
   });
-  pgm.addConstraint("base_storage_pk",{primaryKey:["base_id","resource_key"]});
+  pgm.addConstraint("base_storage","base_storage_pk",{primaryKey:["base_id","resource_key"]});
   pgm.addConstraint("base_storage_quantity_check",{check:"quantity >= 0"});
   pgm.createTable("base_work_priorities",{
     base_id:{type:"uuid",notNull:true,references:"player_bases(id)",onDelete:"CASCADE"},
