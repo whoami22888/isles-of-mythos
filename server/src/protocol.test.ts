@@ -11,6 +11,7 @@ describe("combat protocol", () => {
       facingY: 0,
     }))).toEqual({
       type: "attack",
+      requestId: "attack-1",
       targetId: "creature:10:-4",
       facingX: 1,
       facingY: 0,
