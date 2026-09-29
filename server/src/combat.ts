@@ -99,9 +99,9 @@ const ELEMENT_MULTIPLIERS: Record<DamageType, Partial<Record<DamageType, number>
 export const CREATURE_STATS: Record<string, {
   health: number; defense: number; element: DamageType; speed: number; attack: number; aggroRange: number; attackRange: number; ability?: CreatureAbility;
 }> = {
-  slime: { health: 45, defense: 2, element: "water", speed: 1.4, attack: 7, aggroRange: 5, attackRange: 1.2, ability: { id: "acid_burst", cooldownMs: 3500, range: 3.5, damage: 10, damageType: "water", status: { id: "slow", durationMs: 1500, magnitude: 0.35 } } },
-  boar: { health: 70, defense: 5, element: "earth", speed: 2.1, attack: 11, aggroRange: 6, attackRange: 1.4, ability: { id: "charge", cooldownMs: 4000, range: 4, damage: 18, damageType: "earth" } },
-  raptor: { health: 90, defense: 7, element: "air", speed: 2.7, attack: 14, aggroRange: 8, attackRange: 1.6, ability: { id: "pounce", cooldownMs: 3000, range: 5, damage: 22, damageType: "air", status: { id: "stun", durationMs: 700, magnitude: 1 } } },
+  slime: { health: 45, defense: 2, element: "water", speed: 1.4, attack: 7, attackCooldownMs: 1200, aggroRange: 5, attackRange: 1.2, ability: { id: "acid_burst", cooldownMs: 3500, range: 3.5, damage: 10, damageType: "water", status: { id: "slow", durationMs: 1500, magnitude: 0.35 } } },
+  boar: { health: 70, defense: 5, element: "earth", speed: 2.1, attack: 11, attackCooldownMs: 1100, aggroRange: 6, attackRange: 1.4, ability: { id: "charge", cooldownMs: 4000, range: 4, damage: 18, damageType: "earth" } },
+  raptor: { health: 90, defense: 7, element: "air", speed: 2.7, attack: 14, attackCooldownMs: 1000, aggroRange: 8, attackRange: 1.6, ability: { id: "pounce", cooldownMs: 3000, range: 5, damage: 22, damageType: "air", status: { id: "stun", durationMs: 700, magnitude: 1 } } },
 };
 
 export function weaponFor(id: string | null | undefined): WeaponSpec | null {
@@ -188,7 +188,7 @@ export function tickCreatureAi(target: CombatTarget, candidates: Iterable<{ user
   if (!selected) {
     target.aiState = "idle";
     target.stamina = Math.min(target.maxStamina, target.stamina + dtMs * 0.01);
-    return { targetUserId: null, state: "idle", moveX: 0, moveY: 0 };
+    return { targetUserId: null, state: "idle", moveX: 0, moveY: 0, attackReady: false };
   }
   const d = distance(target, selected);
   if (d > target.attackRange) {
@@ -196,7 +196,7 @@ export function tickCreatureAi(target: CombatTarget, candidates: Iterable<{ user
     const dx = selected.x - target.x;
     const dy = selected.y - target.y;
     const length = Math.hypot(dx, dy) || 1;
-    return { targetUserId: selected.userId, state: "chase", moveX: dx / length, moveY: dy / length };
+    const slow = target.statuses.find((status) => status.id === "slow" && status.remainingMs > 0);\n    const speedMultiplier = slow ? Math.max(0, 1 - slow.magnitude) : 1;\n    return { targetUserId: selected.userId, state: "chase", moveX: (dx / length) * speedMultiplier, moveY: (dy / length) * speedMultiplier, attackReady: false };
   }
   target.aiState = "attack";
   const species = CREATURE_STATS[target.species];
@@ -206,14 +206,14 @@ export function tickCreatureAi(target: CombatTarget, candidates: Iterable<{ user
 }
 
 export function createCombatTarget(id: string, species: string, x: number, y: number, level: number): CombatTarget {
-  const stats = CREATURE_STATS[species] ?? { health: 50, defense: 3, element: "physical", speed: 1.5, attack: 8, aggroRange: 5, attackRange: 1.2 };
+  const stats = CREATURE_STATS[species] ?? { health: 50, defense: 3, element: "physical", speed: 1.5, attack: 8, attackCooldownMs: 1000, aggroRange: 5, attackRange: 1.2 };
   const scaledHealth = stats.health + Math.max(0, level - 1) * 10;
   return {
     id, species, x, y, level, health: scaledHealth, maxHealth: scaledHealth,
     defense: stats.defense + Math.max(0, level - 1), element: stats.element,
     speed: stats.speed, attack: stats.attack + Math.max(0, level - 1) * 2,
     stamina: 100, maxStamina: 100, aiState: "idle", aggroRange: stats.aggroRange, attackRange: stats.attackRange,
-    nextAbilityAt: 0, statuses: [], threat: new Map(),
+    nextAbilityAt: 0, nextAttackAt: 0, statuses: [], threat: new Map(),
   };
 }
 
