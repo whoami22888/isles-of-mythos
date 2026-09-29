@@ -1,5 +1,5 @@
 import {describe,expect,it} from "vitest";
-import {BASE_BUILDING_DEFINITIONS,BaseStore} from "./base.js";
+import {BASE_BUILDING_DEFINITIONS,BaseStore,calculateBuildingCost,validateBuildingPlacement} from "./base.js";
 
 describe("base foundation",()=>{
   it("defines every Phase 6 building with level 1-7 progression",()=>{
