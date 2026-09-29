@@ -17,7 +17,7 @@ import { SHOP_ITEMS, calculatePurchase, getShopItem } from "./shop.js";
 import { addThreat, applyDamage, createCombatTarget, creatureAbilityDamage, createProjectile, advanceProjectile, isMeleeHit, distance, mitigateDamage, tickCreatureAi, tickStatusEffects, tickStatuses, weaponFor, type CombatProjectile, type CombatTarget, type StatusEffect } from "./combat.js";
 import { CombatReplayCache } from "./combat-replay.js";
 import { CAPTURE_HEALTH_RATIO, CreatureStore } from "./creature.js";
-import { BaseStore, BUILDING_TYPES, type BuildingType } from "./base.js";
+import { BaseStore, BASE_PERMISSIONS, BUILDING_TYPES, WORK_TASKS, type BasePermission, type BuildingType, type WorkTask } from "./base.js";
 
 function errorCode(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
@@ -337,7 +337,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   combatTick.unref();
 
   const persistenceTick = setInterval(() => {
-    void Promise.all([players.persistDirty(), creatures.persistDirty()]).catch((error) => {
+    void Promise.all([players.persistDirty(), creatures.persistDirty(), bases.processAll()]).catch((error) => {
       log("player_persistence_failed", {
         message: error instanceof Error ? error.message : String(error),
       });
@@ -353,6 +353,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     clearInterval(combatTick);
     await players.persistAll();
     await creatures.persistAll();
+    await bases.processAll();
     for (const socket of sockets) socket.close(1001, "server_shutdown");
     if (ownsDb) await db.end();
   });
@@ -496,6 +497,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             if (pendingUnload) await pendingUnload;
             const state = await players.loadOrCreate(authenticatedUserId);
             const ownedCreatures = await creatures.load(authenticatedUserId);
+            const base = await bases.load(authenticatedUserId);
             userId = authenticatedUserId;
             if (authDeadline) {
               clearTimeout(authDeadline);
@@ -510,6 +512,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             send(socket, { type: "auth_ok", userId: authenticatedUserId });
             send(socket, { type: "player_state", state });
             send(socket, { type: "creature_party", creatures: ownedCreatures });
+            if (base) send(socket, { type: "base_state", base });
           } catch {
             userId = null;
             send(socket, { type: "error", code: "INVALID_TOKEN" });
@@ -846,6 +849,42 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           return;
         }
 
+        if (message.type === "upgrade_building" || message.type === "storage" || message.type === "set_base_permission" || message.type === "assign_worker" || message.type === "set_work_priorities") {
+          if(!userId){send(socket,{type:"error",code:"AUTH_REQUIRED"});return;}
+          const authenticatedUserId=userId;
+          const fingerprint=message.type+"|"+JSON.stringify(message);
+          const response=await runBaseRequest(authenticatedUserId,message.requestId,fingerprint,async()=>{
+            try{
+              if(message.type==="upgrade_building"){
+                const building=await bases.upgradeBuilding(authenticatedUserId,message.buildingId);
+                return {type:"building_state",requestId:message.requestId,building};
+              }
+              if(message.type==="storage"){
+                const storage=await bases.mutateStorage(authenticatedUserId,message.changes);
+                return {type:"base_state",base:{...(bases.get(authenticatedUserId)??{}),storage}};
+              }
+              if(message.type==="set_base_permission"){
+                if(!BASE_PERMISSIONS.includes(message.permission as BasePermission))throw new Error("BASE_PERMISSION_DENIED");
+                const base=await bases.setPermission(authenticatedUserId,message.targetUserId,message.permission as BasePermission,message.enabled);
+                return {type:"base_state",base};
+              }
+              if(message.type==="assign_worker"){
+                if(!WORK_TASKS.includes(message.task as WorkTask))throw new Error("INVALID_WORK_TASK");
+                await bases.assignWorker(authenticatedUserId,message.creatureId,message.buildingId,message.task as WorkTask);
+                return {type:"base_state",base:bases.get(authenticatedUserId)};
+              }
+              const base=await bases.setWorkPriorities(authenticatedUserId,message.priorities);
+              return {type:"base_state",base};
+            }catch(error){
+              const code=errorCode(error,"BASE_CREATE_FAILED");
+              const allowed=["BASE_NOT_FOUND","BASE_PERMISSION_DENIED","BUILDING_NOT_FOUND","BUILDING_MAX_LEVEL","BUILDING_PREREQUISITE_MISSING","INSUFFICIENT_STORAGE","STORAGE_CAPACITY_EXCEEDED","INVALID_STORAGE_QUANTITY","INVALID_WORK_TASK","CREATURE_NOT_FOUND","CREATURE_NOT_TAMED","CREATURE_IN_PARTY","UPGRADE_FAILED","STORAGE_UPDATE_FAILED","PERMISSION_UPDATE_FAILED","WORKER_UPDATE_FAILED","PRIORITY_UPDATE_FAILED"];
+              return {type:"error",code:(allowed.includes(code)?code:"BASE_CREATE_FAILED") as "BASE_NOT_FOUND"|"BASE_PERMISSION_DENIED"|"BUILDING_NOT_FOUND"|"BUILDING_MAX_LEVEL"|"BUILDING_PREREQUISITE_MISSING"|"INSUFFICIENT_STORAGE"|"STORAGE_CAPACITY_EXCEEDED"|"INVALID_STORAGE_QUANTITY"|"INVALID_WORK_TASK"|"CREATURE_NOT_FOUND"|"CREATURE_NOT_TAMED"|"CREATURE_IN_PARTY"|"UPGRADE_FAILED"|"STORAGE_UPDATE_FAILED"|"PERMISSION_UPDATE_FAILED"|"WORKER_UPDATE_FAILED"|"PRIORITY_UPDATE_FAILED"|"BASE_CREATE_FAILED"};
+            }
+          });
+          send(socket,response);
+          return;
+        }
+
         if (message.type === "subscribe_chunks") {
           if (!userId) {
             send(socket, { type: "error", code: "AUTH_REQUIRED" });
@@ -891,7 +930,8 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         for (const [key] of pendingCombatRequests) if (key.startsWith(disconnectedUserId + ":")) pendingCombatRequests.delete(key);
         const pendingMessageWork = messageQueue.catch(() => undefined);
         const pendingCreatureWork = pendingCreatureOperations.get(disconnectedUserId) ?? Promise.resolve();
-        const unloadPromise = pendingMessageWork.then(() => pendingCreatureWork).then(
+        const pendingBaseWork = bases.processProduction(disconnectedUserId).catch((error) => { log("base_disconnect_persistence_failed",{message:error instanceof Error?error.message:String(error)}); return null; });
+        const unloadPromise = pendingMessageWork.then(() => pendingCreatureWork).then(() => pendingBaseWork).then(
           () => creatures.unload(disconnectedUserId),
           () => creatures.unload(disconnectedUserId),
         ).then(
