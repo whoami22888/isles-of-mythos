@@ -24,7 +24,7 @@ function errorCode(error: unknown, fallback: string): string {
 }
 
 function send(socket: WebSocket, message: ServerMessage): void {
-  if (socket.readyState === socket.OPEN) socket.send(JSON.stringify(message));
+  if (socket.readyState === socket.OPEN) socket.send(JSON.stringify(message, (_key, value: unknown) => typeof value === "bigint" ? value.toString() : value));
 }
 
 function rawMessageToString(raw: WebSocket.RawData): string {
@@ -404,7 +404,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   await registerAuthRoutes(app, db);
 
   app.get("/shop/catalog", { schema: { tags: ["shop"] } }, () => ({
-    items: SHOP_ITEMS,
+    items: SHOP_ITEMS.map(serializeShopItem),
   }));
 
   app.post<{ Body: { itemId: string; quantity: number } }>(
