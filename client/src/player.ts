@@ -8,8 +8,15 @@ function isFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
 }
 
+const MAX_GOLD_DOUBLOONS = 9_223_372_036_854_775_807n;
+
 function isGold(value: unknown): value is string {
-  return typeof value === "string" && /^(0|[1-9][0-9]*)$/.test(value) && value.length <= 19;
+  if (typeof value !== "string" || !/^(0|[1-9][0-9]*)$/.test(value) || value.length > 19) return false;
+  try {
+    return BigInt(value) <= MAX_GOLD_DOUBLOONS;
+  } catch {
+    return false;
+  }
 }
 
 function isInventory(value: unknown): value is Record<string, number> {
