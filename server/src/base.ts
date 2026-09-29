@@ -253,6 +253,7 @@ export class BaseStore {
           await client.query("INSERT INTO base_storage(base_id,resource_key,quantity) VALUES($1,$2,$3) ON CONFLICT(base_id,resource_key) DO UPDATE SET quantity=EXCLUDED.quantity,updated_at=CURRENT_TIMESTAMP",[base.id,resource,next]);
           nextStorage[resource]=next;
         }
+        if(Object.values(nextStorage).reduce((sum,n)=>sum+n,0)>storageCapacity(base))throw new Error("STORAGE_CAPACITY_EXCEEDED");
         await client.query("UPDATE player_profiles SET inventory=$2::jsonb,updated_at=CURRENT_TIMESTAMP WHERE user_id=$1",[userId,JSON.stringify(inventory)]);
         await client.query("COMMIT");
         base.storage=nextStorage; return {...base.storage};
@@ -267,6 +268,8 @@ export class BaseStore {
       const client=await this.db.connect();
       try{
         await client.query("BEGIN");
+        const target=await client.query("SELECT 1 FROM users WHERE id=$1",[targetUserId]);
+        if(!target.rowCount)throw new Error("BASE_PERMISSION_DENIED");
         if(enabled)await client.query("INSERT INTO base_permissions(base_id,user_id,permission) VALUES($1,$2,$3) ON CONFLICT DO NOTHING",[base.id,targetUserId,permission]);
         else await client.query("DELETE FROM base_permissions WHERE base_id=$1 AND user_id=$2 AND permission=$3",[base.id,targetUserId,permission]);
         await client.query("COMMIT");
