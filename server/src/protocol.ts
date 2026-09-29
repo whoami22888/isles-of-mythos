@@ -26,7 +26,7 @@ export type ServerMessage =
   | { type: "projectile_spawn"; projectileId: string; ownerUserId: string; targetId: string; x: number; y: number; vx: number; vy: number; expiresAt: number }
   | { type: "combat_result"; requestId: string; targetId: string; damage: number; critical: boolean; killed: boolean; targetHealth: number; status?: string; missed?: boolean }
   | { type: "creature_state"; requestId?: string; creature: unknown }
-  | { type: "creature_party"; creatures: unknown[] }
+  | { type: "creature_party"; creatures: unknown[] }\n  | { type: "base_state"; base: unknown }\n  | { type: "building_state"; requestId: string; building: unknown }
   | {
       type: "error";
       code:
@@ -48,7 +48,7 @@ export type ServerMessage =
         | "CREATURE_NOT_FOUND"
         | "NO_CREATURE_FEED"
         | "CREATURE_NOT_TAMED"
-        | "INVALID_PARTY_SLOT";
+        | "INVALID_PARTY_SLOT"\n        | "BASE_ALREADY_EXISTS"\n        | "BASE_NOT_FOUND"\n        | "BASE_PERMISSION_DENIED"\n        | "INVALID_BASE_COORDINATES"\n        | "INVALID_BUILDING_TYPE"\n        | "INVALID_BUILDING_LEVEL"\n        | "INVALID_BUILDING_POSITION"\n        | "BUILDING_POSITION_OCCUPIED"\n        | "BUILDING_PREREQUISITE_MISSING"\n        | "BUILD_FAILED"\n        | "BASE_CREATE_FAILED";
     };
 
 function isSafeInteger(value: unknown): value is number {
