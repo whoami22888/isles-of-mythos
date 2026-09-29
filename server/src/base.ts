@@ -192,7 +192,11 @@ export class BaseStore {
       const client=await this.db.connect();
       try{
         await client.query("BEGIN");
-        for(const [resource,quantity] of Object.entries(cost))await client.query("UPDATE base_storage SET quantity=quantity-$3,updated_at=CURRENT_TIMESTAMP WHERE base_id=$1 AND resource_key=$2 AND quantity >= $3",[base.id,resource,quantity]);
+        for(const [resource,quantity] of Object.entries(cost)){
+          const locked=await client.query<{quantity:string}>("SELECT quantity FROM base_storage WHERE base_id=$1 AND resource_key=$2 FOR UPDATE",[base.id,resource]);
+          if(Number(locked.rows[0]?.quantity??0)<quantity)throw new Error("INSUFFICIENT_STORAGE");
+          await client.query("UPDATE base_storage SET quantity=quantity-$3,updated_at=CURRENT_TIMESTAMP WHERE base_id=$1 AND resource_key=$2",[base.id,resource,quantity]);
+        }
         const result=await client.query<BuildingRow>("INSERT INTO base_buildings(base_id,type,level,grid_x,grid_y,active) VALUES($1,$2,$3,$4,$5,true) RETURNING id,base_id,type,level,grid_x,grid_y,active",[base.id,type,level,gridX,gridY]);
         await client.query("COMMIT");
         for(const [resource,quantity] of Object.entries(cost))base.storage[resource]=(base.storage[resource]??0)-quantity;
@@ -208,7 +212,11 @@ export class BaseStore {
       const client=await this.db.connect();
       try{
         await client.query("BEGIN");
-        for(const [resource,quantity] of Object.entries(cost))await client.query("UPDATE base_storage SET quantity=quantity-$3,updated_at=CURRENT_TIMESTAMP WHERE base_id=$1 AND resource_key=$2 AND quantity >= $3",[base.id,resource,quantity]);
+        for(const [resource,quantity] of Object.entries(cost)){
+          const locked=await client.query<{quantity:string}>("SELECT quantity FROM base_storage WHERE base_id=$1 AND resource_key=$2 FOR UPDATE",[base.id,resource]);
+          if(Number(locked.rows[0]?.quantity??0)<quantity)throw new Error("INSUFFICIENT_STORAGE");
+          await client.query("UPDATE base_storage SET quantity=quantity-$3,updated_at=CURRENT_TIMESTAMP WHERE base_id=$1 AND resource_key=$2",[base.id,resource,quantity]);
+        }
         const result=await client.query<BuildingRow>("UPDATE base_buildings SET level=$2,updated_at=CURRENT_TIMESTAMP WHERE id=$1 AND base_id=$3 RETURNING id,base_id,type,level,grid_x,grid_y,active",[buildingId,nextLevel,base.id]);
         if(!result.rows[0])throw new Error("BUILDING_NOT_FOUND");
         await client.query("COMMIT");
@@ -227,8 +235,9 @@ export class BaseStore {
         await client.query("BEGIN");
         for(const [resource,delta] of Object.entries(changes)){
           if(!Number.isSafeInteger(delta)||delta===0)continue;
-          const current=base.storage[resource]??0;
-          const next=current+delta; if(next<0)throw new Error("INSUFFICIENT_STORAGE");
+          const locked=await client.query<{quantity:string}>("SELECT quantity FROM base_storage WHERE base_id=$1 AND resource_key=$2 FOR UPDATE",[base.id,resource]);
+          const current=Number(locked.rows[0]?.quantity??0);
+          const next=current+delta; if(!Number.isSafeInteger(next)||next<0)throw new Error("INSUFFICIENT_STORAGE");
           if(delta>0)await client.query("INSERT INTO base_storage(base_id,resource_key,quantity) VALUES($1,$2,$3) ON CONFLICT(base_id,resource_key) DO UPDATE SET quantity=base_storage.quantity+EXCLUDED.quantity,updated_at=CURRENT_TIMESTAMP",[base.id,resource,delta]);
           else await client.query("UPDATE base_storage SET quantity=quantity+$3,updated_at=CURRENT_TIMESTAMP WHERE base_id=$1 AND resource_key=$2 AND quantity >= $4",[base.id,resource,delta,-delta]);
           base.storage[resource]=next;
