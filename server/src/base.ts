@@ -36,7 +36,7 @@ export interface BaseWorker {
   creatureId: string;
   baseId: string;
   buildingId: string;
-  task: WorkTask;
+  task: WorkerMode;
 }
 
 export interface BaseState {
@@ -112,7 +112,7 @@ export function validateBuildingUpgrade(base:Pick<BaseState,"buildings">,buildin
   for(const prerequisite of BASE_BUILDING_DEFINITIONS[building.type].prerequisites)if(!base.buildings.some(b=>b.type===prerequisite&&b.active))throw new Error("BUILDING_PREREQUISITE_MISSING");
   return building;
 }
-export function productionFor(base:Pick<BaseState,"buildings"|"workers"|"storage">,elapsedMs:number):Record<string,number>{
+export function productionFor(base:Pick<BaseState,"buildings"|"workers"|"storage"|"workPriorities">,elapsedMs:number):Record<string,number>{
   if(!Number.isFinite(elapsedMs)||elapsedMs<=0)return {};
   const elapsed=Math.min(elapsedMs,MAX_PRODUCTION_ELAPSED_MS)/60000;
   const deltas:Record<string,number>={};
