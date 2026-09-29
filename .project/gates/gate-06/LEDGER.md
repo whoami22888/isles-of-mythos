@@ -15,11 +15,11 @@
 | G6-11 | Server authority/security | 6E | NOT STARTED | — | — |
 | G6-12 | Restart/regression verification | 6F | NOT STARTED | — | — |
 
-## Current execution checkpoint\n- 6A: domain + migration + runtime store created; authenticated server lifecycle integration is in progress.\n- 6B: placement validation + authoritative build endpoint added; targeted protocol/authorization verification remains.\n- 6C: BLOCKED until 6A/6B interfaces stabilize.\n- 6D: BLOCKED until 6C resource/job interfaces stabilize.\n- 6E: partially active for base authorization, full security audit pending.\n- 6F: BLOCKED until implementation blocks report complete.\n\n## Process metrics
+## Current execution checkpoint\n- 6A: domain + migration + runtime store created; migration verification exposed and fixed a node-pg-migrate constraint declaration defect.\n- 6B: placement validation + authoritative build endpoint added; protocol field separation corrected; targeted verification remains.\n- 6C: BLOCKED until 6A/6B interfaces stabilize.\n- 6D: BLOCKED until 6C resource/job interfaces stabilize.\n- 6E: partially active for base authorization, full security audit pending.\n- 6F: BLOCKED until implementation blocks report complete.\n\n## Process metrics
 - Blocks assigned: 6
 - Blocks reopened: 0
 - Blind test loops: 0
 - Scope violations: 0
-- CI runs: 2 (prior runs superseded by newer PR commits)
-- P1/P2 defects: 0 known
+- CI runs: 12+ PR runs observed; most superseded by newer commits. Run #260 reached migration and exposed the Gate 6 schema defect; current head is 3d6474219d662200b34f40e216cec19cded9f6b4.
+- P1/P2 defects: 0 known; one P2 migration implementation defect found and corrected.
 - Deferred findings: 0
