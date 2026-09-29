@@ -398,6 +398,98 @@ describe("server foundation", () => {
     }
   });
 
+  it("persists base, building, and storage state across server restart", async () => {
+    const database = (await import("./db.js")).createDbPool();
+    const firstApp = await buildApp({ db: database });
+    const unique = Date.now();
+    const register = await firstApp.inject({
+      method: "POST",
+      url: "/auth/register",
+      payload: {
+        username: `base_restart_${unique}`,
+        email: `base_restart_${unique}@example.com`,
+        password: "Correct-Horse-Battery-9",
+      },
+    });
+    expect(register.statusCode).toBe(201);
+    const registerBody = parseJsonObject(register.body);
+    const token = getString(registerBody, "accessToken");
+
+    const socket = await openSocket(firstApp);
+    let baseId: string | undefined;
+    try {
+      await new Promise<void>((resolve, reject) => {
+        socket.once("open", () => resolve());
+        socket.once("error", reject);
+      });
+      const authenticated = waitForMatchingMessage(socket, (message) => isJsonObject(message) && message.type === "auth_ok");
+      socket.send(JSON.stringify({ type: "auth", token }));
+      await authenticated;
+
+      const baseCreated = waitForMatchingMessage(socket, (message) => isJsonObject(message) && message.type === "base_state");
+      socket.send(JSON.stringify({
+        type: "create_base",
+        requestId: "base-create-1",
+        name: "Restart Test Base",
+        x: unique % 100000,
+        y: -Math.floor(unique % 100000),
+      }));
+      const created = await baseCreated;
+      const createdBase = getObject(created as JsonObject, "base");
+      baseId = getString(createdBase, "id");
+      expect(getString(createdBase, "name")).toBe("Restart Test Base");
+
+      const buildingCreated = waitForMatchingMessage(socket, (message) => isJsonObject(message) && message.type === "building_state");
+      socket.send(JSON.stringify({
+        type: "build",
+        requestId: "base-build-1",
+        buildingType: "storage",
+        level: 1,
+        gridX: 1,
+        gridY: 0,
+      }));
+      const building = await buildingCreated;
+      expect(getObject(building as JsonObject, "building")).toMatchObject({
+        baseId,
+        type: "storage",
+        level: 1,
+        gridX: 1,
+        gridY: 0,
+      });
+    } finally {
+      socket.close();
+      await firstApp.close();
+    }
+
+    if (!baseId) throw new Error("Base creation test did not produce a base id");
+    const secondApp = await buildApp({ db: database });
+    const secondSocket = await openSocket(secondApp);
+    try {
+      await new Promise<void>((resolve, reject) => {
+        secondSocket.once("open", () => resolve());
+        secondSocket.once("error", reject);
+      });
+      const authenticated = waitForMatchingMessage(secondSocket, (message) => isJsonObject(message) && message.type === "auth_ok");
+      const persistedBase = waitForMatchingMessage(secondSocket, (message) => isJsonObject(message) && message.type === "base_state");
+      secondSocket.send(JSON.stringify({ type: "auth", token }));
+      await authenticated;
+      const persisted = await persistedBase;
+      const persistedObject = getObject(persisted as JsonObject, "base");
+      expect(getString(persistedObject, "id")).toBe(baseId);
+      expect(getString(persistedObject, "name")).toBe("Restart Test Base");
+      expect(Array.isArray(persistedObject.buildings)).toBe(true);
+      const buildings = persistedObject.buildings as unknown[];
+      expect(buildings.some((entry) => isJsonObject(entry) && entry.type === "storage" && entry.level === 1 && entry.gridX === 1 && entry.gridY === 0)).toBe(true);
+      const storage = getObject(persistedObject, "storage");
+      expect(storage.wood).toBe(450);
+      expect(storage.stone).toBe(225);
+    } finally {
+      secondSocket.close();
+      await secondApp.close();
+      await database.end();
+    }
+  });
+
   it("authenticates a WebSocket before allowing world subscriptions", async () => {
     const app = await buildApp();
     const unique = Date.now();
