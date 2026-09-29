@@ -19,6 +19,8 @@ export type BasePermission = typeof BASE_PERMISSIONS[number];
 
 export const WORK_TASKS = ["repair","feed","collect","transport","process","store"] as const;
 export type WorkTask = typeof WORK_TASKS[number];
+export const WORKER_MODES = ["auto",...WORK_TASKS] as const;
+export type WorkerMode = typeof WORKER_MODES[number];
 
 export interface BaseBuilding {
   id: string;
@@ -54,7 +56,7 @@ export interface BaseState {
 interface BaseRow { id:string; owner_user_id:string; name:string; x:number; y:number; production_processed_at:Date|string; }
 interface BuildingRow { id:string; base_id:string; type:BuildingType; level:number; grid_x:number; grid_y:number; active:boolean; }
 interface StorageRow { resource_key:string; quantity:string; }
-interface WorkerRow { creature_id:string; base_id:string; building_id:string; task:WorkTask; }
+interface WorkerRow { creature_id:string; base_id:string; building_id:string; task:WorkerMode; }
 
 export const BASE_BUILDING_DEFINITIONS: Record<BuildingType,{maxLevel:number; prerequisites:BuildingType[]}> = {
   command_centre:{maxLevel:7,prerequisites:[]}, storage:{maxLevel:7,prerequisites:["command_centre"]},
@@ -117,7 +119,8 @@ export function productionFor(base:Pick<BaseState,"buildings"|"workers"|"storage
   for(const building of base.buildings){
     if(!building.active)continue;
     const spec=PRODUCTION[building.type]; if(!spec)continue;
-    const workerCount=base.workers.filter(w=>w.buildingId===building.id&&(w.task==="collect"||w.task==="process")).length;
+    const validTask=(worker:BaseWorker):boolean=>worker.task==="collect"||worker.task==="process"||(worker.task==="auto"&&base.workPriorities.some(priority=>priority==="collect"||priority==="process"));
+    const workerCount=base.workers.filter(w=>w.buildingId===building.id&&validTask(w)).length;
     if(workerCount===0)continue;
     const multiplier=building.level*workerCount;
     const output=Math.floor(spec.ratePerMinute*multiplier*elapsed);
@@ -282,11 +285,11 @@ export class BaseStore {
       }catch(error){await client.query("ROLLBACK");throw error;}finally{client.release();}
     });
   }
-  async assignWorker(userId:string,creatureId:string,buildingId:string,task:WorkTask):Promise<BaseWorker>{
+  async assignWorker(userId:string,creatureId:string,buildingId:string,task:WorkerMode):Promise<BaseWorker>{
     return this.runExclusive(userId,async()=>{
       const base=await this.load(userId); if(!base)throw new Error("BASE_NOT_FOUND");
       if(!BaseStore.can(userId,base,"workers"))throw new Error("BASE_PERMISSION_DENIED");
-      if(!WORK_TASKS.includes(task))throw new Error("INVALID_WORK_TASK");
+      if(!WORKER_MODES.includes(task))throw new Error("INVALID_WORK_TASK");
       const building=base.buildings.find(b=>b.id===buildingId&&b.active); if(!building)throw new Error("BUILDING_NOT_FOUND");
       const client=await this.db.connect();
       try{
