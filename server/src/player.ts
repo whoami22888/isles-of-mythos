@@ -1,5 +1,6 @@
 import type { Pool } from "pg";
 import type { ShopItem } from "./shop.js";
+import { applyInventoryDelta, cloneInventory, parseGoldDoubloons, runEconomyTransaction, subtractGoldDoubloons } from "./economy.js";
 import { TileKind, tileAtWorld } from "./world.js";
 
 export const PLAYER_MAX_HEALTH = 100;
@@ -15,7 +16,7 @@ export const PLAYER_BASE_DEFENSE = 0;
 
 export interface PlayerState {
   userId: string; x: number; y: number; health: number; defense: number; stamina: number; maxStamina: number; hunger: number; oxygen: number;
-  xp: number; level: number; gold: number; inventory: Record<string, number>;
+  xp: number; level: number; gold: bigint; inventory: Record<string, number>;
   hotbar: Array<string | null>; selectedHotbarSlot: number;
 }
 export interface PlayerInput { dx: number; dy: number; dt: number; speedMultiplier?: number; }
@@ -57,7 +58,7 @@ export function applyPlayerInput(state: PlayerState, input: PlayerInput): Player
 
 export function createDefaultPlayer(userId: string): PlayerState {
   return { userId, x: 0, y: 0, health: PLAYER_MAX_HEALTH, defense: PLAYER_BASE_DEFENSE, stamina: 100, maxStamina: 100, hunger: PLAYER_MAX_HUNGER, oxygen: PLAYER_MAX_OXYGEN,
-    xp: 0, level: 1, gold: 0, inventory: { "ammo.flintlock": STARTING_FLINTLOCK_AMMO, "capture.orb": 3, "creature.feed": 4 }, hotbar: ["cutlass", "flintlock", null, null, null, null, null, null], selectedHotbarSlot: 0 };
+    xp: 0, level: 1, gold: 0n, inventory: { "ammo.flintlock": STARTING_FLINTLOCK_AMMO, "capture.orb": 3, "creature.feed": 4 }, hotbar: ["cutlass", "flintlock", null, null, null, null, null, null], selectedHotbarSlot: 0 };
 }
 interface PlayerRow {
   user_id: string; x: number; y: number; health: number; defense: number; stamina: number; max_stamina: number; hunger: number; oxygen: number;
@@ -66,8 +67,8 @@ interface PlayerRow {
 }
 function rowToState(row: PlayerRow): PlayerState {
   return { userId: row.user_id, x: row.x, y: row.y, health: row.health, defense: row.defense ?? PLAYER_BASE_DEFENSE, stamina: row.stamina, maxStamina: row.max_stamina, hunger: row.hunger, oxygen: row.oxygen,
-    xp: Number(row.xp), level: row.level, gold: Number(row.gold),
-    inventory: { "ammo.flintlock": STARTING_FLINTLOCK_AMMO, ...(row.inventory ?? {}) },
+    xp: Number(row.xp), level: row.level, gold: parseGoldDoubloons(row.gold),
+    inventory: cloneInventory({ "ammo.flintlock": STARTING_FLINTLOCK_AMMO, ...(row.inventory ?? {}) }),
     hotbar: row.hotbar ?? [null, null, null, null, null, null, null, null], selectedHotbarSlot: row.selected_hotbar_slot };
 }
 export class PlayerStore {
@@ -136,7 +137,7 @@ export class PlayerStore {
       oxygen: state.oxygen,
       xp: state.xp,
       level: state.level,
-      gold: state.gold,
+      gold: state.gold.toString(),
       inventory: JSON.stringify(state.inventory),
       hotbar: JSON.stringify(state.hotbar),
       selectedHotbarSlot: state.selectedHotbarSlot,
@@ -147,43 +148,37 @@ export class PlayerStore {
         snapshot.inventory, snapshot.hotbar, snapshot.selectedHotbarSlot]);
     if ((this.revisions.get(userId) ?? 0) === revision) this.dirty.delete(userId);
   }
-  async purchase(userId: string, item: ShopItem, quantity: number, totalGold: number): Promise<PlayerState> {
+  async purchase(userId: string, item: ShopItem, quantity: number, totalGold: bigint): Promise<PlayerState> {
     return this.runExclusive(userId, async () => {
-      const client = await this.db.connect();
-    try {
-      await client.query("BEGIN");
-      const result = await client.query<PlayerRow>(
-        "SELECT user_id, x, y, health, defense, stamina, max_stamina, hunger, oxygen, xp, level, gold, inventory, hotbar, selected_hotbar_slot FROM player_profiles WHERE user_id = $1 FOR UPDATE",
-        [userId],
-      );
-      const row = result.rows[0];
-      if (!row) throw new Error("PLAYER_NOT_FOUND");
-      const gold = Number(row.gold);
-      if (!Number.isSafeInteger(gold) || gold < totalGold) throw new Error("INSUFFICIENT_GOLD");
-      const inventory = row.inventory ?? {};
-      const currentQuantity = Number(inventory[item.id] ?? 0);
-      if (!Number.isSafeInteger(currentQuantity) || currentQuantity < 0 || currentQuantity + quantity > 1_000_000) {
-        throw new Error("INVENTORY_LIMIT");
-      }
-      const nextInventory = { ...inventory, [item.id]: currentQuantity + quantity };
-      const updated = await client.query<PlayerRow>(
-        "UPDATE player_profiles SET gold=$2, inventory=$3::jsonb, updated_at=CURRENT_TIMESTAMP WHERE user_id=$1 RETURNING user_id, x, y, health, stamina, max_stamina, hunger, oxygen, xp, level, gold, inventory, hotbar, selected_hotbar_slot",
-        [userId, gold - totalGold, JSON.stringify(nextInventory)],
-      );
-      await client.query("COMMIT");
-      const state = rowToState(updated.rows[0]);
-      this.active.set(userId, state);
-      this.revisions.set(userId, (this.revisions.get(userId) ?? 0) + 1);
-      this.dirty.add(userId);
+      const result = await runEconomyTransaction(this.db, userId, async ({ gold, inventory }) => {
+        const nextInventory = applyInventoryDelta(inventory, item.id, quantity);
+        const nextGold = subtractGoldDoubloons(gold, totalGold);
+        return { gold: nextGold, inventory: nextInventory, value: { gold: nextGold, inventory: nextInventory } };
+      });
+      const state = this.active.get(userId);
+      if (!state) throw new Error("PLAYER_NOT_FOUND");
+      state.gold = result.gold;
+      state.inventory = result.inventory;
+      this.markDirty(userId);
       return state;
-    } catch (error) {
-      await client.query("ROLLBACK");
-      throw error;
-      } finally {
-        client.release();
-      }
     });
   }
+
+  async consumeInventory(userId: string, itemId: string, quantity = 1): Promise<PlayerState> {
+    return this.runExclusive(userId, async () => {
+      const result = await runEconomyTransaction(this.db, userId, async ({ gold, inventory }) => {
+        const nextInventory = applyInventoryDelta(inventory, itemId, -quantity);
+        return { gold, inventory: nextInventory, value: { gold, inventory: nextInventory } };
+      });
+      const state = this.active.get(userId);
+      if (!state) throw new Error("PLAYER_NOT_FOUND");
+      state.gold = result.gold;
+      state.inventory = result.inventory;
+      this.markDirty(userId);
+      return state;
+    });
+  }
+
   async persist(userId: string): Promise<void> {
     await this.runExclusive(userId, () => this.persistUnsafe(userId));
   }
