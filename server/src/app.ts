@@ -659,7 +659,17 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             }
             attackCooldowns.set(userId, now + weapon.cooldownMs);
             state.stamina -= weapon.staminaCost;
-            if (ammoType) state.inventory[ammoType] = Number(state.inventory[ammoType] ?? 0) - 1;
+            if (ammoType) {
+              try {
+                await players.consumeInventory(userId, ammoType, 1);
+              } catch (error) {
+                if (error instanceof Error && error.message === "INSUFFICIENT_INVENTORY") {
+                  send(socket, { type: "error", code: "NO_AMMO" });
+                  return;
+                }
+                throw error;
+              }
+            }
             players.markDirty(userId);
             projectiles.set(projectileId, projectile);
             pendingCombatRequests.set(pendingKey, projectile.expiresAt);
@@ -744,8 +754,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             try{
               return await players.runExclusive(authenticatedUserId, async()=>{
                 const creature=await creatures.capture(authenticatedUserId,target);
-                state.inventory["capture.orb"]=Math.max(0,Number(state.inventory["capture.orb"]??0)-1);
-                players.markDirty(authenticatedUserId);
+                await players.reloadEconomy(authenticatedUserId);
                 combatTargets.delete(target.id); defeatedCreatures.add(target.id); capturedWorldCreatures.add(target.id);
                 const result: ServerMessage={type:"creature_state",requestId:message.requestId,creature};
                 for(const ownerSocket of userSockets.get(authenticatedUserId)??[])send(ownerSocket,result);
@@ -769,8 +778,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             try{
               return await players.runExclusive(authenticatedUserId, async()=>{
                 const result=await creatures.tame(authenticatedUserId,message.creatureId);
-                const player=players.get(authenticatedUserId);
-                if(result.consumed&&player) { player.inventory["creature.feed"]=Math.max(0,Number(player.inventory["creature.feed"]??0)-1); players.markDirty(authenticatedUserId); }
+                if(result.consumed) await players.reloadEconomy(authenticatedUserId);
                 return {type:"creature_state",requestId:message.requestId,creature:result.creature};
               });
             }catch(error){
