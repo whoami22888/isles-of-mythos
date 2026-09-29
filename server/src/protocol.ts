@@ -15,7 +15,9 @@ export type ClientMessage =
   | { type: "capture"; requestId: string; targetId: string }
   | { type: "tame"; requestId: string; creatureId: string }
   | { type: "set_creature_party"; requestId: string; creatureId: string; slot: number | null }
-  | { type: "set_creature_ai"; requestId: string; creatureId: string; mode: "follow" | "assist" | "stay" }\n  | { type: "create_base"; requestId: string; name: string; x: number; y: number }\n  | { type: "build"; requestId: string; buildingType: string; level: number; gridX: number; gridY: number };
+  | { type: "set_creature_ai"; requestId: string; creatureId: string; mode: "follow" | "assist" | "stay" }
+  | { type: "create_base"; requestId: string; name: string; x: number; y: number }
+  | { type: "build"; requestId: string; buildingType: string; level: number; gridX: number; gridY: number };
 
 export type ServerMessage =
   | { type: "server_ready"; timestamp: number }
@@ -26,7 +28,9 @@ export type ServerMessage =
   | { type: "projectile_spawn"; projectileId: string; ownerUserId: string; targetId: string; x: number; y: number; vx: number; vy: number; expiresAt: number }
   | { type: "combat_result"; requestId: string; targetId: string; damage: number; critical: boolean; killed: boolean; targetHealth: number; status?: string; missed?: boolean }
   | { type: "creature_state"; requestId?: string; creature: unknown }
-  | { type: "creature_party"; creatures: unknown[] }\n  | { type: "base_state"; base: unknown }\n  | { type: "building_state"; requestId: string; building: unknown }
+  | { type: "creature_party"; creatures: unknown[] }
+  | { type: "base_state"; base: unknown }
+  | { type: "building_state"; requestId: string; building: unknown }
   | {
       type: "error";
       code:
@@ -48,7 +52,18 @@ export type ServerMessage =
         | "CREATURE_NOT_FOUND"
         | "NO_CREATURE_FEED"
         | "CREATURE_NOT_TAMED"
-        | "INVALID_PARTY_SLOT"\n        | "BASE_ALREADY_EXISTS"\n        | "BASE_NOT_FOUND"\n        | "BASE_PERMISSION_DENIED"\n        | "INVALID_BASE_COORDINATES"\n        | "INVALID_BUILDING_TYPE"\n        | "INVALID_BUILDING_LEVEL"\n        | "INVALID_BUILDING_POSITION"\n        | "BUILDING_POSITION_OCCUPIED"\n        | "BUILDING_PREREQUISITE_MISSING"\n        | "BUILD_FAILED"\n        | "BASE_CREATE_FAILED";
+        | "INVALID_PARTY_SLOT"
+        | "BASE_ALREADY_EXISTS"
+        | "BASE_NOT_FOUND"
+        | "BASE_PERMISSION_DENIED"
+        | "INVALID_BASE_COORDINATES"
+        | "INVALID_BUILDING_TYPE"
+        | "INVALID_BUILDING_LEVEL"
+        | "INVALID_BUILDING_POSITION"
+        | "BUILDING_POSITION_OCCUPIED"
+        | "BUILDING_PREREQUISITE_MISSING"
+        | "BUILD_FAILED"
+        | "BASE_CREATE_FAILED";
     };
 
 function isSafeInteger(value: unknown): value is number {
@@ -131,7 +146,15 @@ export function parseClientMessage(raw: string): ClientMessage | null {
       const mode=(value as {mode?:unknown}).mode;return mode==="follow"||mode==="assist"||mode==="stay"?{type:"set_creature_ai",requestId,creatureId,mode}:null;
     }
 
-    if (type === "create_base" || type === "build") {\n      const requestId=(value as {requestId?:unknown}).requestId;\n      if(typeof requestId!=="string"||requestId.length===0||requestId.length>64)return null;\n      if(type==="create_base"){const name=(value as {name?:unknown}).name; const x=(value as {x?:unknown}).x; const y=(value as {y?:unknown}).y; return typeof name==="string"&&name.length<=64&&isSafeInteger(x)&&isSafeInteger(y)&&Math.abs(x)<=1000000&&Math.abs(y)<=1000000?{type:"create_base",requestId,name,x,y}:null;}\n      const buildingType=(value as {type?:unknown}).type; const level=(value as {level?:unknown}).level; const gridX=(value as {gridX?:unknown}).gridX; const gridY=(value as {gridY?:unknown}).gridY;\n      return typeof buildingType==="string"&&buildingType.length>0&&buildingType.length<=32&&isSafeInteger(level)&&isSafeInteger(gridX)&&isSafeInteger(gridY)&&Math.abs(gridX)<=128&&Math.abs(gridY)<=128?{type:"build",requestId,buildingType,level,gridX,gridY}:null;\n    }\n\n    if (type === "block") {
+    if (type === "create_base" || type === "build") {
+      const requestId=(value as {requestId?:unknown}).requestId;
+      if(typeof requestId!=="string"||requestId.length===0||requestId.length>64)return null;
+      if(type==="create_base"){const name=(value as {name?:unknown}).name; const x=(value as {x?:unknown}).x; const y=(value as {y?:unknown}).y; return typeof name==="string"&&name.length<=64&&isSafeInteger(x)&&isSafeInteger(y)&&Math.abs(x)<=1000000&&Math.abs(y)<=1000000?{type:"create_base",requestId,name,x,y}:null;}
+      const buildingType=(value as {type?:unknown}).type; const level=(value as {level?:unknown}).level; const gridX=(value as {gridX?:unknown}).gridX; const gridY=(value as {gridY?:unknown}).gridY;
+      return typeof buildingType==="string"&&buildingType.length>0&&buildingType.length<=32&&isSafeInteger(level)&&isSafeInteger(gridX)&&isSafeInteger(gridY)&&Math.abs(gridX)<=128&&Math.abs(gridY)<=128?{type:"build",requestId,buildingType,level,gridX,gridY}:null;
+    }
+
+    if (type === "block") {
       const active = (value as { active?: unknown }).active;
       return typeof active === "boolean" ? { type: "block", active } : null;
     }
