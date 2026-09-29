@@ -117,7 +117,7 @@ export function productionFor(base:Pick<BaseState,"buildings"|"workers"|"storage
   for(const building of base.buildings){
     if(!building.active)continue;
     const spec=PRODUCTION[building.type]; if(!spec)continue;
-    const workerCount=base.workers.filter(w=>w.buildingId===building.id&&w.task==="collect"||w.buildingId===building.id&&w.task==="process").length;
+    const workerCount=base.workers.filter(w=>w.buildingId===building.id&&(w.task==="collect"||w.task==="process")).length;
     if(workerCount===0)continue;
     const multiplier=building.level*workerCount;
     const output=Math.floor(spec.ratePerMinute*multiplier*elapsed);
@@ -179,7 +179,7 @@ export class BaseStore {
         await client.query("INSERT INTO base_work_priorities(base_id,priority_index,priority) VALUES ($1,0,'repair'),($1,1,'feed'),($1,2,'collect'),($1,3,'transport'),($1,4,'process'),($1,5,'store')",[row.id]);
         await client.query("COMMIT");
         const state=await this.load(userId); if(!state)throw new Error("BASE_LOAD_FAILED"); return state;
-      }catch(error){await client.query("ROLLBACK");throw error;}finally{client.release();}
+      }catch(error){await client.query("ROLLBACK");if(typeof error==="object"&&error!==null&&"code" in error&&(error as {code?:unknown}).code==="23505")throw new Error("BASE_ALREADY_EXISTS",{cause:error});throw error;}finally{client.release();}
     });
   }
   async persistAndUnload(userId:string):Promise<void>{await this.runExclusive(userId,async()=>{await this.processProductionUnsafe(userId);this.active.delete(userId);});}
@@ -192,6 +192,7 @@ export class BaseStore {
       const client=await this.db.connect();
       try{
         await client.query("BEGIN");
+        await client.query("SELECT id FROM player_bases WHERE id=$1 FOR UPDATE",[base.id]);
         for(const [resource,quantity] of Object.entries(cost)){
           const locked=await client.query<{quantity:string}>("SELECT quantity FROM base_storage WHERE base_id=$1 AND resource_key=$2 FOR UPDATE",[base.id,resource]);
           if(Number(locked.rows[0]?.quantity??0)<quantity)throw new Error("INSUFFICIENT_STORAGE");
@@ -212,6 +213,7 @@ export class BaseStore {
       const client=await this.db.connect();
       try{
         await client.query("BEGIN");
+        await client.query("SELECT id FROM player_bases WHERE id=$1 FOR UPDATE",[base.id]);
         for(const [resource,quantity] of Object.entries(cost)){
           const locked=await client.query<{quantity:string}>("SELECT quantity FROM base_storage WHERE base_id=$1 AND resource_key=$2 FOR UPDATE",[base.id,resource]);
           if(Number(locked.rows[0]?.quantity??0)<quantity)throw new Error("INSUFFICIENT_STORAGE");
