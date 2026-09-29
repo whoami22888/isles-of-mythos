@@ -181,7 +181,7 @@ export class BaseStore {
     await this.runExclusive(userId,async()=>{this.active.delete(userId);});
   }
 
-  static can(userId:string,base:BaseState,permission:BasePermission):boolean{
+  async createBuilding(userId:string,type:BuildingType,level:number,gridX:number,gridY:number):Promise<BaseBuilding>{\n    return this.runExclusive(userId,async()=>{\n      const base=await this.load(userId);\n      if(!base)throw new Error("BASE_NOT_FOUND");\n      if(!BaseStore.can(userId,base,"build"))throw new Error("BASE_PERMISSION_DENIED");\n      validateBuildingPlacement(base,type,level,gridX,gridY);\n      const client=await this.db.connect();\n      try{\n        await client.query("BEGIN");\n        const result=await client.query<BuildingRow>("INSERT INTO base_buildings(base_id,type,level,grid_x,grid_y,active) VALUES($1,$2,$3,$4,$5,true) RETURNING id,base_id,type,level,grid_x,grid_y,active",[base.id,type,level,gridX,gridY]);\n        await client.query("COMMIT");\n        const building=rowToBuilding(result.rows[0]);\n        base.buildings.push(building);\n        return building;\n      }catch(error){await client.query("ROLLBACK");throw error;}finally{client.release();}\n    });\n  }\n\n  static can(userId:string,base:BaseState,permission:BasePermission):boolean{
     return base.ownerUserId===userId || (base.permissions[userId]??[]).includes(permission);
   }
 }
