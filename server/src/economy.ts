@@ -57,12 +57,10 @@ export function applyInventoryDelta(inventory: Inventory, itemId: string, delta:
   return next;
 }
 
-export function parseGoldDoubloons(value: string | bigint | number): bigint {
+export function parseGoldDoubloons(value: string | bigint): bigint {
   const parsed = typeof value === "bigint"
     ? value
-    : typeof value === "string"
-      ? (/^(0|[1-9][0-9]*)$/.test(value) ? BigInt(value) : (() => { throw new Error("INVALID_GOLD"); })())
-      : Number.isSafeInteger(value) ? BigInt(value) : (() => { throw new Error("INVALID_GOLD"); })());
+    : (/^(0|[1-9][0-9]*)$/.test(value) ? BigInt(value) : (() => { throw new Error("INVALID_GOLD"); })());
   if (parsed < 0n || parsed > MAX_GOLD_DOUBLOONS) throw new Error("GOLD_OVERFLOW");
   return parsed;
 }
