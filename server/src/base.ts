@@ -119,7 +119,8 @@ export function productionFor(base:Pick<BaseState,"buildings"|"workers"|"storage
   for(const building of base.buildings){
     if(!building.active)continue;
     const spec=PRODUCTION[building.type]; if(!spec)continue;
-    const validTask=(worker:BaseWorker):boolean=>worker.task==="collect"||worker.task==="process"||(worker.task==="auto"&&base.workPriorities.some(priority=>priority==="collect"||priority==="process"));
+    const automaticTask=building.type==="lumber_mill"||building.type==="farm"||building.type==="fishing_dock"?"collect":building.type==="steel_mill"||building.type==="forge"?"process":null;
+    const validTask=(worker:BaseWorker):boolean=>worker.task==="collect"&&automaticTask==="collect"||worker.task==="process"&&automaticTask==="process"||(worker.task==="auto"&&automaticTask!==null&&base.workPriorities.includes(automaticTask));
     const workerCount=base.workers.filter(w=>w.buildingId===building.id&&validTask(w)).length;
     if(workerCount===0)continue;
     const multiplier=building.level*workerCount;
