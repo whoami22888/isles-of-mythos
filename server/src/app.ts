@@ -44,6 +44,8 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const dodgeCooldowns = new Map<string, number>();
   const blocking = new Set<string>();
   const invulnerableUntil = new Map<string, number>();
+  const defeatedCreatures = new Set<string>();
+  const processedAttacks = new Map<string, Map<string, { fingerprint: string; response: Extract<ServerMessage, { type: "combat_result" }> }>>();
   const app = Fastify({ logger: false });
 
   await app.register(cors, {
@@ -109,7 +111,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         target.x += ai.moveX * step;
         target.y += ai.moveY * step;
       }
-      if (ai.state === "attack" && distance(target, targetPlayer) <= target.attackRange) {
+      if (ai.state === "attack" && ai.attackReady && distance(target, targetPlayer) <= target.attackRange) {
         const immune = (invulnerableUntil.get(userId) ?? 0) > now;
         if (!immune) {
           const blocked = blocking.has(userId) && targetPlayer.stamina > 0;
@@ -334,6 +336,17 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             send(socket, { type: "error", code: "AUTH_REQUIRED" });
             return;
           }
+          const attackFingerprint = JSON.stringify({ targetId: message.targetId, facingX: message.facingX, facingY: message.facingY });
+          const userAttacks = processedAttacks.get(userId);
+          const priorAttack = userAttacks?.get(message.requestId);
+          if (priorAttack) {
+            if (priorAttack.fingerprint !== attackFingerprint) {
+              send(socket, { type: "error", code: "INVALID_MESSAGE" });
+              return;
+            }
+            send(socket, priorAttack.response);
+            return;
+          }
           const weapon = weaponFor(state.hotbar[state.selectedHotbarSlot]);
           if (!weapon) {
             send(socket, { type: "error", code: "INVALID_MESSAGE" });
@@ -358,7 +371,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           const targetY = Number(match[2]);
           const chunk = world.get(Math.floor(targetX / 32), Math.floor(targetY / 32));
           const spawn = chunk.creatures.find((creature) => creature.id === message.targetId);
-          if (!spawn) {
+          if (!spawn || defeatedCreatures.has(message.targetId)) {
             send(socket, { type: "error", code: "INVALID_MESSAGE" });
             return;
           }
@@ -375,16 +388,32 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           state.stamina -= weapon.staminaCost;
           const result = applyDamage(target, weapon);
           addThreat(target, userId, result.amount);
-          send(socket, {
+          const response: Extract<ServerMessage, { type: "combat_result" }> = {
             type: "combat_result",
+            requestId: message.requestId,
             targetId: target.id,
             damage: result.amount,
             critical: result.critical,
             killed: result.killed,
             targetHealth: Math.ceil(target.health),
             status: result.statusApplied?.id,
-          });
-          if (result.killed) combatTargets.delete(target.id);
+          };
+          let attackHistory = processedAttacks.get(userId);
+          if (!attackHistory) {
+            attackHistory = new Map();
+            processedAttacks.set(userId, attackHistory);
+          }
+          attackHistory.set(message.requestId, { fingerprint: attackFingerprint, response });
+          while (attackHistory.size > 256) {
+            const oldest = attackHistory.keys().next().value;
+            if (oldest === undefined) break;
+            attackHistory.delete(oldest);
+          }
+          send(socket, response);
+          if (result.killed) {
+            defeatedCreatures.add(target.id);
+            combatTargets.delete(target.id);
+          }
           return;
         }
 
