@@ -314,20 +314,39 @@ export class BaseStore {
   async processAll():Promise<void>{for(const userId of [...this.active.keys()])await this.processProduction(userId);}
   private async processProductionUnsafe(userId:string):Promise<void>{
     const base=this.active.get(userId); if(!base)return;
-    const now=Date.now(); const elapsed=Math.max(0,Math.min(now-base.productionProcessedAt,MAX_PRODUCTION_ELAPSED_MS)); if(elapsed<1000)return;
-    const deltas=productionFor(base,elapsed); const next={...base.storage};
-    for(const [resource,delta] of Object.entries(deltas)){const current=next[resource]??0;const value=current+delta;if(value<0)return;next[resource]=value;}
-    const total=Object.values(next).reduce((sum,n)=>sum+n,0); if(total>storageCapacity(base))return;
+    const now=Date.now();
     const client=await this.db.connect();
     try{
       await client.query("BEGIN");
+      const lockedBase=await client.query<{production_processed_at:Date|string}>("SELECT production_processed_at FROM player_bases WHERE id=$1 FOR UPDATE",[base.id]);
+      const processedAt=lockedBase.rows[0]?new Date(lockedBase.rows[0].production_processed_at).getTime():now;
+      const elapsed=Math.max(0,Math.min(now-processedAt,MAX_PRODUCTION_ELAPSED_MS));
+      if(elapsed<1000){await client.query("COMMIT");return;}
+      const [storageRows,buildingRows,workerRows]=await Promise.all([
+        client.query<StorageRow>("SELECT resource_key,quantity FROM base_storage WHERE base_id=$1 FOR UPDATE",[base.id]),
+        client.query<BuildingRow>("SELECT id,base_id,type,level,grid_x,grid_y,active FROM base_buildings WHERE base_id=$1",[base.id]),
+        client.query<WorkerRow>("SELECT creature_id,base_id,building_id,task FROM base_workers WHERE base_id=$1",[base.id]),
+      ]);
+      const storage=Object.fromEntries(storageRows.rows.map(r=>[r.resource_key,toQuantity(r.quantity)]));
+      const runtime={...base,storage,buildings:buildingRows.rows.map(rowToBuilding),workers:workerRows.rows.map(rowToWorker)};
+      const deltas=productionFor(runtime,elapsed);
+      const next={...storage};
+      let valid=true;
       for(const [resource,delta] of Object.entries(deltas)){
-        if(delta===0)continue;
-        await client.query("INSERT INTO base_storage(base_id,resource_key,quantity) VALUES($1,$2,$3) ON CONFLICT(base_id,resource_key) DO UPDATE SET quantity=base_storage.quantity+EXCLUDED.quantity,updated_at=CURRENT_TIMESTAMP",[base.id,resource,delta]);
+        const value=(next[resource]??0)+delta;
+        if(value<0||!Number.isSafeInteger(value)){valid=false;break;}
+        next[resource]=value;
+      }
+      if(Object.values(next).reduce((sum,n)=>sum+n,0)>storageCapacity(runtime))valid=false;
+      if(valid){
+        for(const [resource,delta] of Object.entries(deltas)){
+          if(delta===0)continue;
+          await client.query("INSERT INTO base_storage(base_id,resource_key,quantity) VALUES($1,$2,$3) ON CONFLICT(base_id,resource_key) DO UPDATE SET quantity=EXCLUDED.quantity,updated_at=CURRENT_TIMESTAMP",[base.id,resource,next[resource]]);
+        }
       }
       await client.query("UPDATE player_bases SET production_processed_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=$1",[base.id]);
       await client.query("COMMIT");
-      base.storage=next; base.productionProcessedAt=now;
+      base.storage=valid?next:storage; base.buildings=runtime.buildings; base.workers=runtime.workers; base.productionProcessedAt=now;
     }catch(error){await client.query("ROLLBACK");throw error;}
     finally{client.release();}
   }
