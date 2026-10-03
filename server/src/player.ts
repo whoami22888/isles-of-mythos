@@ -97,83 +97,75 @@ export class PlayerStore {
   tick(dt: number): void { for (const state of this.active.values()) applyPlayerInput(state, { dx: 0, dy: 0, dt }); }
   async persist(userId: string): Promise<void> {
     await this.enqueueWrite(async () => {
-    await this.enqueueWrite(userId, async () => {
-      const client = await this.db.connect();
-      try {
-        await client.query("BEGIN");
-        await client.query("SELECT user_id FROM player_profiles WHERE user_id = $1 FOR UPDATE", [userId]);
-        const state = this.active.get(userId);
-        if (!state) {
-          await client.query("COMMIT");
-          return;
-        }
-        await client.query(
-          "UPDATE player_profiles SET x=$2, y=$3, health=$4, stamina=$5, max_stamina=$6, hunger=$7, oxygen=$8, xp=$9, level=$10, gold=$11, inventory=$12::jsonb, hotbar=$13::jsonb, selected_hotbar_slot=$14, updated_at=CURRENT_TIMESTAMP WHERE user_id=$1",
-          [userId, state.x, state.y, state.health, state.stamina, state.maxStamina, state.hunger, state.oxygen, state.xp, state.level, state.gold,
-            JSON.stringify(state.inventory), JSON.stringify(state.hotbar), state.selectedHotbarSlot],
-        );
+    const client = await this.db.connect();
+    try {
+      await client.query("BEGIN");
+      await client.query("SELECT user_id FROM player_profiles WHERE user_id = $1 FOR UPDATE", [userId]);
+      const state = this.active.get(userId);
+      if (!state) {
         await client.query("COMMIT");
-      } catch (error) {
-        await client.query("ROLLBACK");
-        throw error;
-      } finally {
-        client.release();
+        return;
       }
+      await client.query(
+        "UPDATE player_profiles SET x=$2, y=$3, health=$4, stamina=$5, max_stamina=$6, hunger=$7, oxygen=$8, xp=$9, level=$10, gold=$11, inventory=$12::jsonb, hotbar=$13::jsonb, selected_hotbar_slot=$14, updated_at=CURRENT_TIMESTAMP WHERE user_id=$1",
+        [userId, state.x, state.y, state.health, state.stamina, state.maxStamina, state.hunger, state.oxygen, state.xp, state.level, state.gold,
+          JSON.stringify(state.inventory), JSON.stringify(state.hotbar), state.selectedHotbarSlot],
+      );
+      await client.query("COMMIT");
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
     }
-    });
     });
   }
   async purchase(userId: string, item: ShopItem, quantity: number, totalGold: number): Promise<PlayerState> {
     return this.enqueueWrite(async () => {
-    return this.enqueueWrite(userId, async () => {
-      const client = await this.db.connect();
-      try {
-        await client.query("BEGIN");
-        const result = await client.query<PlayerRow>(
-          "SELECT user_id, x, y, health, stamina, max_stamina, hunger, oxygen, xp, level, gold, inventory, hotbar, selected_hotbar_slot FROM player_profiles WHERE user_id = $1 FOR UPDATE",
-          [userId],
-        );
-        const row = result.rows[0];
-        if (!row) throw new Error("PLAYER_NOT_FOUND");
-        const gold = Number(row.gold);
-        if (!Number.isSafeInteger(gold) || gold < totalGold) throw new Error("INSUFFICIENT_GOLD");
-        const inventory = row.inventory ?? {};
-        const currentQuantity = Number(inventory[item.id] ?? 0);
-        if (!Number.isSafeInteger(currentQuantity) || currentQuantity < 0 || currentQuantity + quantity > 1_000_000) {
-          throw new Error("INVENTORY_LIMIT");
-        }
-        const nextInventory = { ...inventory, [item.id]: currentQuantity + quantity };
-        const updated = await client.query<PlayerRow>(
-          "UPDATE player_profiles SET gold=$2, inventory=$3::jsonb, updated_at=CURRENT_TIMESTAMP WHERE user_id=$1 RETURNING user_id, x, y, health, stamina, max_stamina, hunger, oxygen, xp, level, gold, inventory, hotbar, selected_hotbar_slot",
-          [userId, gold - totalGold, JSON.stringify(nextInventory)],
-        );
-        await client.query("COMMIT");
-        const persisted = rowToState(updated.rows[0]);
-        const active = this.active.get(userId);
-        if (active) {
-          active.gold = persisted.gold;
-          active.inventory = persisted.inventory;
-          return active;
-        }
-        this.active.set(userId, persisted);
-        return persisted;
-      } catch (error) {
-        await client.query("ROLLBACK");
-        throw error;
-      } finally {
-        client.release();
+    const client = await this.db.connect();
+    try {
+      await client.query("BEGIN");
+      const result = await client.query<PlayerRow>(
+        "SELECT user_id, x, y, health, stamina, max_stamina, hunger, oxygen, xp, level, gold, inventory, hotbar, selected_hotbar_slot FROM player_profiles WHERE user_id = $1 FOR UPDATE",
+        [userId],
+      );
+      const row = result.rows[0];
+      if (!row) throw new Error("PLAYER_NOT_FOUND");
+      const gold = Number(row.gold);
+      if (!Number.isSafeInteger(gold) || gold < totalGold) throw new Error("INSUFFICIENT_GOLD");
+      const inventory = row.inventory ?? {};
+      const currentQuantity = Number(inventory[item.id] ?? 0);
+      if (!Number.isSafeInteger(currentQuantity) || currentQuantity < 0 || currentQuantity + quantity > 1_000_000) {
+        throw new Error("INVENTORY_LIMIT");
       }
+      const nextInventory = { ...inventory, [item.id]: currentQuantity + quantity };
+      const updated = await client.query<PlayerRow>(
+        "UPDATE player_profiles SET gold=$2, inventory=$3::jsonb, updated_at=CURRENT_TIMESTAMP WHERE user_id=$1 RETURNING user_id, x, y, health, stamina, max_stamina, hunger, oxygen, xp, level, gold, inventory, hotbar, selected_hotbar_slot",
+        [userId, gold - totalGold, JSON.stringify(nextInventory)],
+      );
+      await client.query("COMMIT");
+      const persisted = rowToState(updated.rows[0]);
+      const active = this.active.get(userId);
+      if (active) {
+        active.gold = persisted.gold;
+        active.inventory = persisted.inventory;
+        return active;
+      }
+      this.active.set(userId, persisted);
+      return persisted;
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
     }
-    });
     });
   }
   async unload(userId: string): Promise<void> {
     const state = this.active.get(userId);
     if (!state) return;
     await this.persist(userId);
-    if (this.active.get(userId) === state) {
-      this.active.delete(userId);
-    }
+    if (this.active.get(userId) === state) this.active.delete(userId);
   }
   async persistAll(): Promise<void> {
     const userIds = [...this.active.keys()];
