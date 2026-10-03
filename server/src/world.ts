@@ -55,7 +55,10 @@ function elevation(worldX: number, worldY: number): number {
 export function tileAtWorld(worldX: number, worldY: number): TileKind {
   const e = elevation(worldX, worldY);
   if (e < 0.38) return TileKind.Ocean;
-  if (e < 0.45) return TileKind.Shallow;
+  if (e < 0.45) {
+    const reefKey = Math.imul(worldX, 73856093) ^ Math.imul(worldY, 19349663) ^ WORLD_SEED;
+    return Math.abs(reefKey) % 5 === 0 ? TileKind.Reef : TileKind.Shallow;
+  }
   if (e < 0.5) return TileKind.Sand;
   if (e > 0.78) return TileKind.Rock;
   return TileKind.Grass;
