@@ -510,7 +510,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             socketsForUser.add(socket);
             userSockets.set(authenticatedUserId, socketsForUser);
             send(socket, { type: "auth_ok", userId: authenticatedUserId });
-            send(socket, { type: "player_state", state });
+            send(socket, { type: "player_state", state: serializePlayerState(state) });
             send(socket, { type: "creature_party", creatures: ownedCreatures });
             if (base) send(socket, { type: "base_state", base });
           } catch {
@@ -542,7 +542,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           const slow = (playerStatuses.get(userId) ?? []).find((status) => status.id === "slow");
           applyPlayerInput(state, { ...message, speedMultiplier: slow ? Math.max(0, Math.min(1, 1 - slow.magnitude)) : 1 });
           players.markDirty(userId);
-          send(socket, { type: "player_state", state });
+          send(socket, { type: "player_state", state: serializePlayerState(state) });
           return;
         }
 
@@ -562,7 +562,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           }
           state.selectedHotbarSlot = message.slot;
           players.markDirty(userId);
-          send(socket, { type: "player_state", state });
+          send(socket, { type: "player_state", state: serializePlayerState(state) });
           return;
         }
 
@@ -713,7 +713,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           players.markDirty(userId);
           dodgeCooldowns.set(userId, now + 900);
           invulnerableUntil.set(userId, now + 350);
-          send(socket, { type: "player_state", state });
+          send(socket, { type: "player_state", state: serializePlayerState(state) });
           return;
         }
 
