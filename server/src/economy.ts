@@ -81,7 +81,7 @@ export function subtractGoldDoubloons(current: bigint, amount: bigint): bigint {
 export async function runEconomyTransaction<T>(
   db: Pool,
   userId: string,
-  mutation: (draft: EconomyDraft) => Promise<EconomyMutation<T>>,
+  mutation: (draft: EconomyDraft) => EconomyMutation<T> | Promise<EconomyMutation<T>>,
 ): Promise<T> {
   const client = await db.connect();
   try {
