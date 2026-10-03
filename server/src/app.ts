@@ -159,7 +159,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       if (player && result.damage > 0 && player.health > 0) {
         player.health = result.health;
         players.markDirty(userId);
-        for (const socket of userSockets.get(userId) ?? []) send(socket, { type: "player_state", state: player });
+        for (const socket of userSockets.get(userId) ?? []) send(socket, { type: "player_state", state: serializePlayerState(player) });
       }
       if (result.statuses.length === 0) playerStatuses.delete(userId);
       else playerStatuses.set(userId, result.statuses);
@@ -313,7 +313,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             if (targetPlayer.stamina === 0) blocking.delete(userId);
           }
           players.markDirty(userId);
-          for (const socket of userSockets.get(userId) ?? []) send(socket, { type: "player_state", state: targetPlayer });
+          for (const socket of userSockets.get(userId) ?? []) send(socket, { type: "player_state", state: serializePlayerState(targetPlayer) });
         }
       }
       if (ai.ability && distance(target, targetPlayer) <= ai.ability.range) {
@@ -327,7 +327,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           targetPlayer.health = Math.max(0, targetPlayer.health - result.amount);
           if (result.statusApplied) applyPlayerStatus(userId, result.statusApplied);
           players.markDirty(userId);
-          for (const socket of userSockets.get(userId) ?? []) send(socket, { type: "player_state", state: targetPlayer });
+          for (const socket of userSockets.get(userId) ?? []) send(socket, { type: "player_state", state: serializePlayerState(targetPlayer) });
         }
       }
     }
