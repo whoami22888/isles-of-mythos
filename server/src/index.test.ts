@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { WebSocket } from "ws";
-import { buildApp } from "./app.js";
+import { buildApp, parseCreatureTargetId } from "./app.js";
 import { config } from "./config.js";
 import { parseClientMessage } from "./protocol.js";
 
@@ -74,6 +74,12 @@ async function openSocket(app: Awaited<ReturnType<typeof buildApp>>): Promise<We
 }
 
 describe("server foundation", () => {
+  it("parses bounded creature target coordinates", () => {
+    expect(parseCreatureTargetId("creature:10:-4")).toEqual({ x: 10, y: -4 });
+    expect(parseCreatureTargetId("creature:10")).toBeNull();
+    expect(parseCreatureTargetId("creature:1000001:0")).toBeNull();
+  });
+
   it("uses a valid port", () => {
     expect(config.port).toBeGreaterThan(0);
     expect(config.port).toBeLessThanOrEqual(65535);
