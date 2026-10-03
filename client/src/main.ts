@@ -27,6 +27,7 @@ type ServerMessage =
   | { type: "auth_ok"; userId: string }
   | { type: "player_state"; state: PlayerState }
   | { type: "world_chunk"; requestId: string; chunk: WorldChunk }
+  | { type: "creature_state"; id: string; species: "slime" | "boar" | "raptor"; x: number; y: number; health: number; maxHealth: number; aiState: string; active: boolean }
   | CombatResultMessage
   | { type: "error"; code: string };
 
