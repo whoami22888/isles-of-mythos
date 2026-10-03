@@ -11,7 +11,7 @@ describe("shop catalogue", () => {
   it("calculates purchases from server catalogue prices", () => {
     const cannon = getShopItem("defence.cannon");
     expect(cannon).toBeDefined();
-    expect(calculatePurchase(cannon!, 2)).toBe(cannon!.priceGold * 2);
+    expect(calculatePurchase(cannon!, 2)).toBe(cannon!.priceGold * 2n);
   });
 
   it("rejects invalid or excessive quantities", () => {

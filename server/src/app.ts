@@ -11,9 +11,9 @@ import { createDbPool } from "./db.js";
 import { registerAuthRoutes } from "./auth.js";
 import { log } from "./logger.js";
 import { parseClientMessage, type ServerMessage } from "./protocol.js";
-import { PlayerStore, applyPlayerInput } from "./player.js";
+import { PlayerStore, applyPlayerInput, serializePlayerState } from "./player.js";
 import { WorldChunkCache } from "./world.js";
-import { SHOP_ITEMS, calculatePurchase, getShopItem } from "./shop.js";
+import { SHOP_ITEMS, calculatePurchase, getShopItem, serializeShopItem } from "./shop.js";
 import { addThreat, applyDamage, createCombatTarget, creatureAbilityDamage, createProjectile, advanceProjectile, isMeleeHit, distance, mitigateDamage, tickCreatureAi, tickStatusEffects, tickStatuses, weaponFor, type CombatProjectile, type CombatTarget, type StatusEffect } from "./combat.js";
 import { CombatReplayCache } from "./combat-replay.js";
 import { CAPTURE_HEALTH_RATIO, CreatureStore } from "./creature.js";
@@ -24,7 +24,7 @@ function errorCode(error: unknown, fallback: string): string {
 }
 
 function send(socket: WebSocket, message: ServerMessage): void {
-  if (socket.readyState === socket.OPEN) socket.send(JSON.stringify(message));
+  if (socket.readyState === socket.OPEN) socket.send(JSON.stringify(message, (_key, value: unknown) => typeof value === "bigint" ? value.toString() : value));
 }
 
 function rawMessageToString(raw: WebSocket.RawData): string {
@@ -159,7 +159,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       if (player && result.damage > 0 && player.health > 0) {
         player.health = result.health;
         players.markDirty(userId);
-        for (const socket of userSockets.get(userId) ?? []) send(socket, { type: "player_state", state: player });
+        for (const socket of userSockets.get(userId) ?? []) send(socket, { type: "player_state", state: serializePlayerState(player) });
       }
       if (result.statuses.length === 0) playerStatuses.delete(userId);
       else playerStatuses.set(userId, result.statuses);
@@ -313,7 +313,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             if (targetPlayer.stamina === 0) blocking.delete(userId);
           }
           players.markDirty(userId);
-          for (const socket of userSockets.get(userId) ?? []) send(socket, { type: "player_state", state: targetPlayer });
+          for (const socket of userSockets.get(userId) ?? []) send(socket, { type: "player_state", state: serializePlayerState(targetPlayer) });
         }
       }
       if (ai.ability && distance(target, targetPlayer) <= ai.ability.range) {
@@ -327,7 +327,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           targetPlayer.health = Math.max(0, targetPlayer.health - result.amount);
           if (result.statusApplied) applyPlayerStatus(userId, result.statusApplied);
           players.markDirty(userId);
-          for (const socket of userSockets.get(userId) ?? []) send(socket, { type: "player_state", state: targetPlayer });
+          for (const socket of userSockets.get(userId) ?? []) send(socket, { type: "player_state", state: serializePlayerState(targetPlayer) });
         }
       }
     }
@@ -404,7 +404,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   await registerAuthRoutes(app, db);
 
   app.get("/shop/catalog", { schema: { tags: ["shop"] } }, () => ({
-    items: SHOP_ITEMS,
+    items: SHOP_ITEMS.map(serializeShopItem),
   }));
 
   app.post<{ Body: { itemId: string; quantity: number } }>(
@@ -433,7 +433,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         const totalGold = calculatePurchase(item, request.body.quantity);
         if (totalGold === null) return reply.code(400).send({ error: "INVALID_PURCHASE_QUANTITY" });
         const state = await players.purchase(userId, item, request.body.quantity, totalGold);
-        return { itemId: item.id, quantity: request.body.quantity, totalGold, state };
+        return { itemId: item.id, quantity: request.body.quantity, totalGold: totalGold.toString(), state: serializePlayerState(state) };
       } catch (error) {
         if (error instanceof Error && error.message === "INSUFFICIENT_GOLD") {
           return reply.code(409).send({ error: "INSUFFICIENT_GOLD" });
@@ -510,7 +510,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             socketsForUser.add(socket);
             userSockets.set(authenticatedUserId, socketsForUser);
             send(socket, { type: "auth_ok", userId: authenticatedUserId });
-            send(socket, { type: "player_state", state });
+            send(socket, { type: "player_state", state: serializePlayerState(state) });
             send(socket, { type: "creature_party", creatures: ownedCreatures });
             if (base) send(socket, { type: "base_state", base });
           } catch {
@@ -542,7 +542,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           const slow = (playerStatuses.get(userId) ?? []).find((status) => status.id === "slow");
           applyPlayerInput(state, { ...message, speedMultiplier: slow ? Math.max(0, Math.min(1, 1 - slow.magnitude)) : 1 });
           players.markDirty(userId);
-          send(socket, { type: "player_state", state });
+          send(socket, { type: "player_state", state: serializePlayerState(state) });
           return;
         }
 
@@ -562,7 +562,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           }
           state.selectedHotbarSlot = message.slot;
           players.markDirty(userId);
-          send(socket, { type: "player_state", state });
+          send(socket, { type: "player_state", state: serializePlayerState(state) });
           return;
         }
 
@@ -659,7 +659,17 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             }
             attackCooldowns.set(userId, now + weapon.cooldownMs);
             state.stamina -= weapon.staminaCost;
-            if (ammoType) state.inventory[ammoType] = Number(state.inventory[ammoType] ?? 0) - 1;
+            if (ammoType) {
+              try {
+                await players.consumeInventory(userId, ammoType, 1);
+              } catch (error) {
+                if (error instanceof Error && error.message === "INSUFFICIENT_INVENTORY") {
+                  send(socket, { type: "error", code: "NO_AMMO" });
+                  return;
+                }
+                throw error;
+              }
+            }
             players.markDirty(userId);
             projectiles.set(projectileId, projectile);
             pendingCombatRequests.set(pendingKey, projectile.expiresAt);
@@ -703,7 +713,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           players.markDirty(userId);
           dodgeCooldowns.set(userId, now + 900);
           invulnerableUntil.set(userId, now + 350);
-          send(socket, { type: "player_state", state });
+          send(socket, { type: "player_state", state: serializePlayerState(state) });
           return;
         }
 
@@ -744,8 +754,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             try{
               return await players.runExclusive(authenticatedUserId, async()=>{
                 const creature=await creatures.capture(authenticatedUserId,target);
-                state.inventory["capture.orb"]=Math.max(0,Number(state.inventory["capture.orb"]??0)-1);
-                players.markDirty(authenticatedUserId);
+                await players.reloadEconomy(authenticatedUserId);
                 combatTargets.delete(target.id); defeatedCreatures.add(target.id); capturedWorldCreatures.add(target.id);
                 const result: ServerMessage={type:"creature_state",requestId:message.requestId,creature};
                 for(const ownerSocket of userSockets.get(authenticatedUserId)??[])send(ownerSocket,result);
@@ -769,8 +778,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             try{
               return await players.runExclusive(authenticatedUserId, async()=>{
                 const result=await creatures.tame(authenticatedUserId,message.creatureId);
-                const player=players.get(authenticatedUserId);
-                if(result.consumed&&player) { player.inventory["creature.feed"]=Math.max(0,Number(player.inventory["creature.feed"]??0)-1); players.markDirty(authenticatedUserId); }
+                if(result.consumed) await players.reloadEconomy(authenticatedUserId);
                 return {type:"creature_state",requestId:message.requestId,creature:result.creature};
               });
             }catch(error){
