@@ -62,7 +62,7 @@ describe("economy transaction concurrency", () => {
         [userId, "500000000", JSON.stringify({ wood: 0 })],
       );
 
-      const operations = Array.from({ length: 32 }, () => runEconomyTransaction(db, userId, async ({ gold, inventory }) => {
+      const operations = Array.from({ length: 32 }, () => runEconomyTransaction(db, userId, ({ gold, inventory }) => {
         const nextGold = subtractGoldDoubloons(gold, 1000n);
         const nextInventory = applyInventoryDelta(inventory, "wood", 100);
         return { gold: nextGold, inventory: nextInventory, value: true };
