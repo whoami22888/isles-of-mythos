@@ -27,6 +27,15 @@ function rawMessageToString(raw: WebSocket.RawData): string {
   return Buffer.concat(raw).toString("utf8");
 }
 
+export function parseCreatureTargetId(targetId: string): { x: number; y: number } | null {
+  const match = /^creature:(-?\d+):(-?\d+)$/.exec(targetId);
+  if (!match) return null;
+  const x = Number(match[1]);
+  const y = Number(match[2]);
+  if (!Number.isSafeInteger(x) || !Number.isSafeInteger(y) || Math.abs(x) > 1_000_000 || Math.abs(y) > 1_000_000) return null;
+  return { x, y };
+}
+
 export interface BuildAppOptions {
   db?: Pool;
 }
@@ -401,13 +410,13 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             send(socket, { type: "error", code: "NO_STAMINA" });
             return;
           }
-          const match = /^creature:(-?\d+):(-?\d+)$/.exec(message.targetId);
-          if (!match) {
+          const target = parseCreatureTargetId(message.targetId);
+          if (!target) {
             send(socket, { type: "error", code: "INVALID_MESSAGE" });
             return;
           }
-          const targetX = Number(match[1]);
-          const targetY = Number(match[2]);
+          const targetX = target.x;
+          const targetY = target.y;
           const chunk = world.get(Math.floor(targetX / 32), Math.floor(targetY / 32));
           const spawn = chunk.creatures.find((creature) => creature.id === message.targetId);
           if (!spawn || defeatedCreatures.has(message.targetId)) {
