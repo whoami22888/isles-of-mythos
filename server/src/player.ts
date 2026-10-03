@@ -68,13 +68,12 @@ function rowToState(row: PlayerRow): PlayerState {
 }
 export class PlayerStore {
   private readonly active = new Map<string, PlayerState>();
-  private readonly writeQueues = new Map<string, Promise<void>>();
+  private writeQueue: Promise<void> = Promise.resolve();
   constructor(private readonly db: Pool) {}
 
-  private enqueueWrite<T>(userId: string, operation: () => Promise<T>): Promise<T> {
-    const previous = this.writeQueues.get(userId) ?? Promise.resolve();
-    const task = previous.catch(() => undefined).then(operation);
-    this.writeQueues.set(userId, task.then(() => undefined, () => undefined));
+  private enqueueWrite<T>(operation: () => Promise<T>): Promise<T> {
+    const task = this.writeQueue.catch(() => undefined).then(operation);
+    this.writeQueue = task.then(() => undefined, () => undefined);
     return task;
   }
   async loadOrCreate(userId: string): Promise<PlayerState> {
@@ -97,6 +96,7 @@ export class PlayerStore {
   get(userId: string): PlayerState | undefined { return this.active.get(userId); }
   tick(dt: number): void { for (const state of this.active.values()) applyPlayerInput(state, { dx: 0, dy: 0, dt }); }
   async persist(userId: string): Promise<void> {
+    await this.enqueueWrite(async () => {
     await this.enqueueWrite(userId, async () => {
       const client = await this.db.connect();
       try {
@@ -121,8 +121,10 @@ export class PlayerStore {
       }
     }
     });
+    });
   }
   async purchase(userId: string, item: ShopItem, quantity: number, totalGold: number): Promise<PlayerState> {
+    return this.enqueueWrite(async () => {
     return this.enqueueWrite(userId, async () => {
       const client = await this.db.connect();
       try {
@@ -163,6 +165,7 @@ export class PlayerStore {
       }
     }
     });
+    });
   }
   async unload(userId: string): Promise<void> {
     const state = this.active.get(userId);
@@ -170,7 +173,6 @@ export class PlayerStore {
     await this.persist(userId);
     if (this.active.get(userId) === state) {
       this.active.delete(userId);
-      this.writeQueues.delete(userId);
     }
   }
   async persistAll(): Promise<void> {
