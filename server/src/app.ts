@@ -423,7 +423,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             send(socket, { type: "error", code: "INVALID_MESSAGE" });
             return;
           }
-          let target = combatTargets.get(message.targetId);
+          let target: CombatTarget | undefined = combatTargets.get(message.targetId);
           if (!target) {
             target = createCombatTarget(spawn.id, spawn.species, spawn.x, spawn.y, spawn.level);
             combatTargets.set(target.id, target);
