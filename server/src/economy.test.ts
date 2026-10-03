@@ -76,7 +76,7 @@ describe("economy transaction concurrency", () => {
       expect(row.rows[0].gold).toBe("499968000");
       expect(row.rows[0].inventory.wood).toBe(3200);
 
-      await expect(runEconomyTransaction(db, userId, async ({ gold, inventory }) => {
+      await expect(runEconomyTransaction(db, userId, ({ gold, inventory }) => {
         const nextGold = subtractGoldDoubloons(gold, 1000n);
         const nextInventory = applyInventoryDelta(inventory, "wood", 1);
         void nextGold;
