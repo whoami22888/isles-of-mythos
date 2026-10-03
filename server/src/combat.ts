@@ -63,7 +63,6 @@ export interface CombatTarget {
   aiState: CreatureAiState;
   aggroRange: number;
   attackRange: number;
-  attackCooldownMs: number;
   nextAbilityAt: number;
   nextAttackAt: number;
   statuses: StatusEffect[];
@@ -83,7 +82,6 @@ export interface CreatureAiResult {
   moveX: number;
   moveY: number;
   ability?: CreatureAbility;
-  attackReady: boolean;
 }
 
 const ELEMENT_MULTIPLIERS: Record<DamageType, Partial<Record<DamageType, number>>> = {
