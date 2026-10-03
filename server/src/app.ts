@@ -423,27 +423,34 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             send(socket, { type: "error", code: "INVALID_MESSAGE" });
             return;
           }
-          let target: CombatTarget | undefined = combatTargets.get(message.targetId);
-          if (!target) {
-            target = createCombatTarget(spawn.id, spawn.species, spawn.x, spawn.y, spawn.level);
-            combatTargets.set(target.id, target);
+          let combatTarget = combatTargets.get(message.targetId);
+          if (!combatTarget) {
+            const createdTarget: CombatTarget = createCombatTarget(
+              spawn.id,
+              spawn.species,
+              spawn.x,
+              spawn.y,
+              spawn.level,
+            );
+            combatTargets.set(createdTarget.id, createdTarget);
+            combatTarget = createdTarget;
           }
-          if (distance(state, target) > weapon.range) {
+          if (distance(state, combatTarget) > weapon.range) {
             send(socket, { type: "error", code: "OUT_OF_RANGE" });
             return;
           }
           attackCooldowns.set(userId, now + weapon.cooldownMs);
           state.stamina -= weapon.staminaCost;
-          const result = applyDamage(target, weapon);
-          addThreat(target, userId, result.amount);
+          const result = applyDamage(combatTarget, weapon);
+          addThreat(combatTarget, userId, result.amount);
           const response: Extract<ServerMessage, { type: "combat_result" }> = {
             type: "combat_result",
             requestId: message.requestId,
-            targetId: target.id,
+            targetId: combatTarget.id,
             damage: result.amount,
             critical: result.critical,
             killed: result.killed,
-            targetHealth: Math.ceil(target.health),
+            targetHealth: Math.ceil(combatTarget.health),
             status: result.statusApplied?.id,
           };
           let attackHistory = processedAttacks.get(userId);
@@ -459,8 +466,8 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           }
           send(socket, response);
           if (result.killed) {
-            defeatedCreatures.add(target.id);
-            combatTargets.delete(target.id);
+            defeatedCreatures.add(combatTarget.id);
+            combatTargets.delete(combatTarget.id);
           }
           return;
         }
