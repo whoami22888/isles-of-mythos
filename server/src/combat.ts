@@ -204,7 +204,9 @@ export function tickCreatureAi(target: CombatTarget, candidates: Iterable<{ user
     const dx = selected.x - target.x;
     const dy = selected.y - target.y;
     const length = Math.hypot(dx, dy) || 1;
-    const slow = target.statuses.find((status) => status.id === "slow" && status.remainingMs > 0);\n    const speedMultiplier = slow ? Math.max(0, 1 - slow.magnitude) : 1;\n    return { targetUserId: selected.userId, state: "chase", moveX: (dx / length) * speedMultiplier, moveY: (dy / length) * speedMultiplier, attackReady: false };
+    const slow = target.statuses.find((status) => status.id === "slow" && status.remainingMs > 0);
+    const speedMultiplier = slow ? Math.max(0, 1 - slow.magnitude) : 1;
+    return { targetUserId: selected.userId, state: "chase", moveX: (dx / length) * speedMultiplier, moveY: (dy / length) * speedMultiplier, attackReady: false };
   }
   target.aiState = "attack";
   const species = CREATURE_STATS[target.species];
