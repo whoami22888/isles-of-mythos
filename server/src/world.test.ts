@@ -11,6 +11,7 @@ describe("world generation", () => {
     expect(chunk.tiles).toHaveLength(CHUNK_SIZE * CHUNK_SIZE);
     expect(chunk.size).toBe(CHUNK_SIZE);
     expect(chunk.tiles.every((tile) => Object.values(TileKind).includes(tile))).toBe(true);
+    expect(chunk.tiles).toContain(TileKind.Reef);
   });
 
   it("keeps the chunk cache bounded and reuses generated chunks", () => {

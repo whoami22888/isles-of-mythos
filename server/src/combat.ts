@@ -63,6 +63,7 @@ export interface CombatTarget {
   aiState: CreatureAiState;
   aggroRange: number;
   attackRange: number;
+  attackCooldownMs: number;
   nextAbilityAt: number;
   nextAttackAt: number;
   statuses: StatusEffect[];
@@ -82,6 +83,7 @@ export interface CreatureAiResult {
   moveX: number;
   moveY: number;
   ability?: CreatureAbility;
+  attackReady: boolean;
 }
 
 const ELEMENT_MULTIPLIERS: Record<DamageType, Partial<Record<DamageType, number>>> = {
@@ -173,7 +175,12 @@ export function selectThreatTarget(target: CombatTarget, candidates: Iterable<{ 
 export function tickCreatureAi(target: CombatTarget, candidates: Iterable<{ userId: string; x: number; y: number }>, now = Date.now(), dtMs = 250): CreatureAiResult {
   if (target.health <= 0) {
     target.aiState = "dead";
-    return { targetUserId: null, state: "dead", moveX: 0, moveY: 0 };
+    return { targetUserId: null, state: "dead", moveX: 0, moveY: 0, attackReady: false };
+  }
+  const stunned = target.statuses.some((status) => status.id === "stun" && status.remainingMs > 0);
+  if (stunned) {
+    target.aiState = "stunned";
+    return { targetUserId: null, state: "stunned", moveX: 0, moveY: 0, attackReady: false };
   }
   const candidateList = [...candidates];
   let selected = selectThreatTarget(target, candidateList);
@@ -203,7 +210,9 @@ export function tickCreatureAi(target: CombatTarget, candidates: Iterable<{ user
   const species = CREATURE_STATS[target.species];
   const ability = species?.ability && now >= target.nextAbilityAt && d <= species.ability.range ? species.ability : undefined;
   if (ability) target.nextAbilityAt = now + ability.cooldownMs;
-  return { targetUserId: selected.userId, state: "attack", moveX: 0, moveY: 0, ability };
+  const attackReady = now >= target.nextAttackAt;
+  if (attackReady) target.nextAttackAt = now + target.attackCooldownMs;
+  return { targetUserId: selected.userId, state: "attack", moveX: 0, moveY: 0, ability, attackReady };
 }
 
 export function createCombatTarget(id: string, species: string, x: number, y: number, level: number): CombatTarget {
@@ -214,7 +223,7 @@ export function createCombatTarget(id: string, species: string, x: number, y: nu
     defense: stats.defense + Math.max(0, level - 1), element: stats.element,
     speed: stats.speed, attack: stats.attack + Math.max(0, level - 1) * 2,
     stamina: 100, maxStamina: 100, aiState: "idle", aggroRange: stats.aggroRange, attackRange: stats.attackRange,
-    nextAbilityAt: 0, nextAttackAt: 0, statuses: [], threat: new Map(),
+    attackCooldownMs: stats.attackCooldownMs, nextAbilityAt: 0, nextAttackAt: 0, statuses: [], threat: new Map(),
   };
 }
 

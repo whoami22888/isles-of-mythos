@@ -45,6 +45,12 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const blocking = new Set<string>();
   const invulnerableUntil = new Map<string, number>();
   const defeatedCreatures = new Set<string>();
+  const visibleWorldChunk = (x: number, y: number) => {
+    const chunk = world.get(x, y);
+    if (defeatedCreatures.size === 0) return chunk;
+    const creatures = chunk.creatures.filter((spawn) => !defeatedCreatures.has(spawn.id));
+    return creatures.length === chunk.creatures.length ? chunk : { ...chunk, creatures };
+  };
   const processedAttacks = new Map<string, Map<string, { fingerprint: string; response: Extract<ServerMessage, { type: "combat_result" }> }>>();
   const app = Fastify({ logger: false });
 
@@ -89,11 +95,36 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
 
   const combatTick = setInterval(() => {
     const now = Date.now();
+    for (const [userId, socketsForUser] of userSockets) {
+      const player = players.get(userId);
+      if (!player || player.health <= 0) continue;
+      const centerChunkX = Math.floor(player.x / 32);
+      const centerChunkY = Math.floor(player.y / 32);
+      for (let chunkY = centerChunkY - 1; chunkY <= centerChunkY + 1; chunkY += 1) {
+        for (let chunkX = centerChunkX - 1; chunkX <= centerChunkX + 1; chunkX += 1) {
+          for (const spawn of visibleWorldChunk(chunkX, chunkY).creatures) {
+            if (defeatedCreatures.has(spawn.id) || combatTargets.has(spawn.id)) continue;
+            if (distance(player, spawn) <= 10) combatTargets.set(spawn.id, createCombatTarget(spawn.id, spawn.species, spawn.x, spawn.y, spawn.level));
+          }
+        }
+      }
+      if (socketsForUser.size === 0) continue;
+    }
     for (const [targetId, target] of combatTargets) {
       tickStatuses(target, 250);
       if (target.health <= 0) {
         target.aiState = "dead";
+        for (const [userId, socketsForUser] of userSockets) {
+          const player = players.get(userId);
+          if (player && distance(player, target) <= 12) {
+            for (const socket of socketsForUser) send(socket, {
+              type: "creature_state", id: target.id, species: target.species as "slime" | "boar" | "raptor",
+              x: target.x, y: target.y, health: 0, maxHealth: target.maxHealth, aiState: "dead", active: false,
+            });
+          }
+        }
         combatTargets.delete(targetId);
+        defeatedCreatures.add(targetId);
       }
     }
     const candidates = [...userSockets.keys()].flatMap((userId) => {
@@ -135,6 +166,14 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           targetPlayer.health = Math.max(0, targetPlayer.health - result.amount);
           for (const socket of userSockets.get(userId) ?? []) send(socket, { type: "player_state", state: targetPlayer });
         }
+      }
+      for (const [observerId, observerSockets] of userSockets) {
+        const observer = players.get(observerId);
+        if (!observer || distance(observer, target) > 12) continue;
+        for (const socket of observerSockets) send(socket, {
+          type: "creature_state", id: target.id, species: target.species as "slime" | "boar" | "raptor",
+          x: target.x, y: target.y, health: target.health, maxHealth: target.maxHealth, aiState: target.aiState, active: true,
+        });
       }
     }
     for (const [userId, until] of invulnerableUntil) if (until <= now) invulnerableUntil.delete(userId);
@@ -199,7 +238,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       if (!Number.isSafeInteger(x) || !Number.isSafeInteger(y)) {
         return reply.code(400).send({ error: "INVALID_CHUNK_COORDINATE" });
       }
-      return world.get(x, y);
+      return visibleWorldChunk(x, y);
     },
   );
 
@@ -453,7 +492,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             send(socket, {
               type: "world_chunk",
               requestId: message.requestId,
-              chunk: world.get(coordinate.x, coordinate.y),
+              chunk: visibleWorldChunk(coordinate.x, coordinate.y),
             });
           }
         }

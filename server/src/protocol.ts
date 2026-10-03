@@ -19,6 +19,7 @@ export type ServerMessage =
   | { type: "auth_ok"; userId: string }
   | { type: "player_state"; state: unknown }
   | { type: "world_chunk"; requestId: string; chunk: unknown }
+  | { type: "creature_state"; id: string; species: "slime" | "boar" | "raptor"; x: number; y: number; health: number; maxHealth: number; aiState: string; active: boolean }
   | { type: "combat_result"; requestId: string; targetId: string; damage: number; critical: boolean; killed: boolean; targetHealth: number; status?: string }
   | {
       type: "error";

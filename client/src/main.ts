@@ -77,6 +77,16 @@ function parseServerMessage(value: unknown): ServerMessage | null {
             ...(value.status === undefined ? {} : { status: value.status }),
           }
         : null;
+    case "creature_state":
+      return typeof value.id === "string" &&
+        (value.species === "slime" || value.species === "boar" || value.species === "raptor") &&
+        typeof value.x === "number" && Number.isFinite(value.x) &&
+        typeof value.y === "number" && Number.isFinite(value.y) &&
+        typeof value.health === "number" && Number.isFinite(value.health) &&
+        typeof value.maxHealth === "number" && Number.isFinite(value.maxHealth) &&
+        typeof value.aiState === "string" && typeof value.active === "boolean"
+        ? { type: "creature_state", id: value.id, species: value.species, x: value.x, y: value.y, health: value.health, maxHealth: value.maxHealth, aiState: value.aiState, active: value.active }
+        : null;
     case "error":
       return typeof value.code === "string" ? { type: "error", code: value.code } : null;
     default:
@@ -184,6 +194,10 @@ class WorldScene extends Phaser.Scene {
       if (message.type === "world_chunk") {
         this.chunks.render(message.chunk);
         this.updateHud();
+        return;
+      }
+      if (message.type === "creature_state") {
+        this.chunks.updateCreature(message.id, message.species, message.x, message.y, message.active);
         return;
       }
       if (message.type === "combat_result") {

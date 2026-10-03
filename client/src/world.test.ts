@@ -7,5 +7,6 @@ describe("client world constants", () => {
     expect(TILE_SIZE).toBe(32);
     expect(TileKind.Ocean).toBe(0);
     expect(TileKind.Grass).toBe(3);
+    expect(TileKind.Reef).toBe(5);
   });
 });
