@@ -154,7 +154,7 @@ export class PlayerStore {
   }
   async purchase(userId: string, item: ShopItem, quantity: number, totalGold: bigint): Promise<PlayerState> {
     return this.runExclusive(userId, async () => {
-      const result = await runEconomyTransaction(this.db, userId, async ({ gold, inventory }) => {
+      const result = await runEconomyTransaction(this.db, userId, ({ gold, inventory }) => {
         const nextInventory = applyInventoryDelta(inventory, item.id, quantity);
         const nextGold = subtractGoldDoubloons(gold, totalGold);
         return { gold: nextGold, inventory: nextInventory, value: { gold: nextGold, inventory: nextInventory } };
