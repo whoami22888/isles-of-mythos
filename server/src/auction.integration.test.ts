@@ -4,6 +4,7 @@ import { buildApp } from "./app.js";
 import { createDbPool } from "./db.js";
 import { AuctionStore } from "./auction.js";
 import { PlayerStore } from "./player.js";
+import type { Pool } from "pg";
 
 async function users(){
   const db=createDbPool();const app=await buildApp({db});
@@ -14,7 +15,7 @@ async function users(){
   };
   return {db,app,seller:await create("auctions"),buyer:await create("auctionb"),other:await create("auctionc")};
 }
-async function setEconomy(db:any,userId:string,gold:string,inventory:Record<string,number>){
+async function setEconomy(db:Pool,userId:string,gold:string,inventory:Record<string,number>){
   await db.query("UPDATE player_profiles SET gold=$2,inventory=$3::jsonb WHERE user_id=$1",[userId,gold,JSON.stringify(inventory)]);
 }
 
@@ -29,7 +30,7 @@ describe("Gate 14 auction authority",()=>{
       const sold=await auction.buyNow(buyer,listing.id);
       expect(sold.status).toBe("sold");
       const rows=await db.query("SELECT user_id,gold,inventory FROM player_profiles WHERE user_id=ANY($1::uuid[]) ORDER BY user_id",[[seller,buyer]]);
-      const byUser=new Map(rows.rows.map((x:any)=>[x.user_id,x]));
+      const byUser=new Map(rows.rows.map((x:{user_id:string;gold:string;inventory:Record<string,number>})=>[x.user_id,x]));
       expect(byUser.get(seller)).toMatchObject({gold:"237"});
       expect(byUser.get(buyer)).toMatchObject({gold:"750",inventory:{"resource.wood":4}});
       expect((await auction.history(seller)).some((x:any)=>x.transaction_type==="buy_now")).toBe(true);
@@ -43,7 +44,7 @@ describe("Gate 14 auction authority",()=>{
       const listing=await auction.create(seller,{itemId:"resource.wood",quantity:2,startPrice:"100",buyNowPrice:null,durationMs:60000});
       await auction.bid(buyer,listing.id,"150");await auction.bid(other,listing.id,"200");
       const rows=await db.query("SELECT user_id,gold FROM player_profiles WHERE user_id=ANY($1::uuid[]) ORDER BY user_id",[[buyer,other]]);
-      const byUser=new Map(rows.rows.map((x:any)=>[x.user_id,x.gold]));
+      const byUser=new Map(rows.rows.map((x:{user_id:string;gold:string})=>[x.user_id,x.gold]));
       expect(byUser.get(buyer)).toBe("500");
       expect(byUser.get(other)).toBe("500");
       expect((await db.query("SELECT status,amount FROM auction_bids WHERE listing_id=$1 ORDER BY created_at",[listing.id])).rows).toEqual([
