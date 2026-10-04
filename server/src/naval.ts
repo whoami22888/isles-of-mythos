@@ -1,3 +1,4 @@
+import { CREATURE_STATS } from "./combat.js";
 import type { Pool } from "pg";
 
 const CREW_TYPES = ["pirate", "mermaid", "dragon", "npc_specialist"] as const;
@@ -52,7 +53,7 @@ export class NavalStore {
       const now=Date.now();
       if(attacker.retreat_until && attacker.retreat_until.getTime()>now) throw new Error("SHIP_RETREATING");
       if(target.retreat_until && target.retreat_until.getTime()>now) throw new Error("TARGET_SHIP_RETREATING");
-      const crew=await c.query<{role:string;skill:number;morale:number}>("SELECT role,skill,morale FROM ship_crew WHERE ship_id=$1",[shipId]);
+      const crew=await c.query<{role:string;skill:number;morale:number;species:string|null}>("SELECT sc.role,sc.skill,sc.morale,pc.species FROM ship_crew sc LEFT JOIN player_creatures pc ON pc.id=sc.creature_id WHERE sc.ship_id=$1",[shipId]);
       const scoutRange=Math.min(100,crew.filter(x=>x.role==="scout").reduce((s,x)=>s+x.skill*(x.morale/100),0));
       const range=250+scoutRange;
       const distance=Math.hypot(attacker.x-target.x,attacker.y-target.y);
@@ -68,8 +69,9 @@ export class NavalStore {
       const gunner=crew.filter(x=>x.role==="gunner");
       const captain=crew.filter(x=>x.role==="captain");
       const bonus=gunner.reduce((sum,x)=>sum+x.skill*(x.morale/100),0);
+      const abilityBonus=crew.reduce((sum,x)=>sum+(x.species ? (CREATURE_STATS[x.species]?.ability?.damage ?? 0) : 0),0);
       const commandMultiplier=Math.min(1.2,1+captain.reduce((sum,x)=>sum+x.morale,0)/1000);
-      const damage=Math.max(1,Math.round((attacker.cannon_count+Math.floor(bonus/10))*commandMultiplier)-target.armor);
+      const damage=Math.max(1,Math.round((attacker.cannon_count+Math.floor(bonus/10)+abilityBonus)*commandMultiplier)-target.armor);
       const hull=Math.max(0,target.hull-damage);
       const status=hull===0?"destroyed":target.status;
       const fireStarted=hull>0 && damage>=Math.max(10,Math.floor(target.max_hull/20));
