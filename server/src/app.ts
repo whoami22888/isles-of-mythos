@@ -263,6 +263,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const breedingTick = setInterval(() => { void breeding.completeDue().catch((error) => log("breeding_completion_failed",{message:error instanceof Error?error.message:String(error)})); }, 1_000);
   const navalFireTick = setInterval(() => { void naval.tickFires().catch((error) => log("naval_fire_tick_failed",{message:error instanceof Error?error.message:String(error)})); }, 1_000);
   const invasionTick = setInterval(() => { void invasions.tick().catch((error) => log("invasion_tick_failed",{message:error instanceof Error?error.message:String(error)})); }, 1_000);
+  const auctionTick = setInterval(() => { void auctions.tick().catch((error) => log("auction_tick_failed",{message:error instanceof Error ? error.message : String(error)})); }, 5_000);
   navalFireTick.unref();
   invasionTick.unref();
   auctionTick.unref();
@@ -1160,7 +1161,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
                   const rows = await db.query<{ user_id: string }>("SELECT user_id FROM guild_members WHERE guild_id=$1", [guildId]);
                   for (const row of rows.rows) recipients.add(row.user_id);
                 } else if (message.channel === "local") {
-                  for (const [id,p] of userSockets) {
+                  for (const id of userSockets.keys()) {
                     const other=players.get(id); if (other && Math.hypot(other.x-sender.x,other.y-sender.y)<=32) recipients.add(id);
                   }
                 } else if (message.channel === "region") {
