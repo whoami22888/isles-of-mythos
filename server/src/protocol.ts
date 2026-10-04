@@ -28,6 +28,7 @@ export type ClientMessage =
   | { type:"list_breeding"; requestId:string }
   | { type:"create_guild"; requestId:string; name:string; tag:string }
   | { type:"get_guild"; requestId:string }
+  | { type:"list_guild_invitations"; requestId:string }
   | { type:"invite_guild_member"; requestId:string; guildId:string; targetUserId:string }
   | { type:"accept_guild_invite"; requestId:string; invitationId:string }
   | { type:"decline_guild_invite"; requestId:string; invitationId:string }
@@ -74,6 +75,7 @@ export type ServerMessage =
   | { type:"breeding_started"; requestId:string; job:unknown }
   | { type:"breeding_jobs"; requestId:string; jobs:unknown[] }
   | { type:"guild_state"; requestId:string; guild:unknown }
+  | { type:"guild_invitations"; requestId:string; invitations:unknown[] }
   | { type:"guild_bank_state"; requestId:string; guildId:string; bank:unknown }
   | { type:"guild_operation_ok"; requestId:string; guildId:string }
   | { type:"ship_state"; requestId:string; ship:unknown }
@@ -144,6 +146,7 @@ export function parseClientMessage(raw:string):ClientMessage|null{
     if(type==="list_breeding"){const id=(value as {requestId?:unknown}).requestId;return requestId(id)?{type:"list_breeding",requestId:id}:null;}
     if(type==="create_guild"){const id=(value as {requestId?:unknown}).requestId,name=(value as {name?:unknown}).name,tag=(value as {tag?:unknown}).tag;return requestId(id)&&typeof name==="string"&&name.length<=64&&typeof tag==="string"&&tag.length<=8?{type:"create_guild",requestId:id,name,tag}:null;}
     if(type==="get_guild"){const id=(value as {requestId?:unknown}).requestId;return requestId(id)?{type:"get_guild",requestId:id}:null;}
+    if(type==="list_guild_invitations"){const id=(value as {requestId?:unknown}).requestId;return requestId(id)?{type:"list_guild_invitations",requestId:id}:null;}
     if(type==="invite_guild_member"){const id=(value as {requestId?:unknown}).requestId,guildId=(value as {guildId?:unknown}).guildId,targetUserId=(value as {targetUserId?:unknown}).targetUserId;return requestId(id)&&typeof guildId==="string"&&guildId.length>0&&typeof targetUserId==="string"&&targetUserId.length>0?{type:"invite_guild_member",requestId:id,guildId,targetUserId}:null;}
     if(type==="accept_guild_invite"||type==="decline_guild_invite"){const id=(value as {requestId?:unknown}).requestId,invitationId=(value as {invitationId?:unknown}).invitationId;return requestId(id)&&typeof invitationId==="string"&&invitationId.length>0?{type,requestId:id,invitationId}:null;}
     if(type==="leave_guild"){const id=(value as {requestId?:unknown}).requestId,guildId=(value as {guildId?:unknown}).guildId;return requestId(id)&&typeof guildId==="string"&&guildId.length>0?{type:"leave_guild",requestId:id,guildId}:null;}
