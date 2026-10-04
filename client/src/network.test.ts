@@ -37,3 +37,13 @@ describe("Gate 13 client invasion protocol", () => {
     })).toMatchObject({ type:"army_list", requestId:"r4" });
   });
 });
+
+
+describe("Gate 14 client social protocol",()=>{
+  it("parses friends, chat, party and auction messages",()=>{
+    expect(parseServerMessage({type:"friends_list",requestId:"f1",friends:[]})).toMatchObject({type:"friends_list"});
+    expect(parseServerMessage({type:"chat_message",requestId:"c1",message:{channel:"global",body:"hello"}})).toMatchObject({type:"chat_message"});
+    expect(parseServerMessage({type:"party_state",requestId:"p1",party:null})).toMatchObject({type:"party_state",party:null});
+    expect(parseServerMessage({type:"auction_list",requestId:"a1",listings:[]})).toMatchObject({type:"auction_list"});
+  });
+});
