@@ -4,7 +4,6 @@ import { buildApp } from "./app.js";
 import { createDbPool } from "./db.js";
 import { MAX_ITEM_STACK } from "./economy.js";
 import { PlayerStore } from "./player.js";
-import { describe, expect, it } from "vitest";
 import { SHOP_ITEMS, calculatePurchase, getShopItem } from "./shop.js";
 
 describe("shop catalogue", () => {
