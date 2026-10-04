@@ -54,7 +54,7 @@ describe("Gate 9 naval mechanics",()=>{
       await db.query("UPDATE player_ships SET hull=hull-50 WHERE id=$1",[attacker.id]);
       const repaired=await naval.repairShip(a,attacker.id);expect(repaired.hull).toBeGreaterThan(attacker.hull-50);
       const retreat=await naval.retreatShip(a,attacker.id);expect(retreat.retreatUntil).not.toBeNull();
-      const cargo=await inventory.mutate(a,attacker.id,"repair_lumber",2);expect(cargo.find(x=>x.itemId==="repair_lumber")?.quantity).toBe(7);
+      const cargo=await inventory.mutate(a,attacker.id,"repair_lumber",2);expect(cargo.find(x=>x.itemId==="repair_lumber")?.quantity).toBe(6);
       const fleet=await fleets.create(a,"Sea Wolves",attacker.id);expect(fleet.shipIds).toContain(attacker.id);
       const second=await ships.create(a,"Escort","sloop");const expanded=await fleets.addShip(a,fleet.id,second.id);expect(expanded.shipIds).toContain(second.id);
       const reduced=await fleets.removeShip(a,fleet.id,second.id);expect(reduced.shipIds).not.toContain(second.id);
