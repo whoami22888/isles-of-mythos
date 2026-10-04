@@ -1,5 +1,6 @@
 import type { PlayerState } from "./player.js";
 import { isPlayerState } from "./player.js";
+import type { WorldChunk } from "./world.js";
 
 export interface ProjectileSpawnMessage {
   type: "projectile_spawn";
@@ -51,7 +52,7 @@ export type ServerMessage =
   | { type: "pong"; timestamp: number }
   | { type: "auth_ok"; userId: string }
   | { type: "player_state"; state: PlayerState }
-  | { type: "world_chunk"; requestId: string; chunk: unknown }
+  | { type: "world_chunk"; requestId: string; chunk: WorldChunk }
   | ProjectileSpawnMessage
   | CombatResultMessage
   | { type: "creature_state"; requestId?: string; creature: CreatureState }
