@@ -55,8 +55,8 @@ export const up=(pgm)=>{
     created_at:{type:"timestamptz",notNull:true,default:pgm.func("CURRENT_TIMESTAMP")},
     updated_at:{type:"timestamptz",notNull:true,default:pgm.func("CURRENT_TIMESTAMP")}
   });
-  pgm.addConstraint("invasion_wave_values_check",{check:"wave_number >= 1 AND quantity > 0 AND max_health > 0 AND current_health >= 0 AND current_health <= max_health AND attack > 0 AND defense >= 0"});
-  pgm.addConstraint("invasion_wave_status_check",{check:"status IN ('queued','active','defeated','retreated')"});
+  pgm.addConstraint("invasion_waves","invasion_wave_values_check",{check:"wave_number >= 1 AND quantity > 0 AND max_health > 0 AND current_health >= 0 AND current_health <= max_health AND attack > 0 AND defense >= 0"});
+  pgm.addConstraint("invasion_waves","invasion_wave_status_check",{check:"status IN ('queued','active','defeated','retreated')"});
   pgm.createIndex("invasion_waves",["invasion_id","wave_number"]);
 
   pgm.createTable("invasion_participants",{
@@ -68,8 +68,8 @@ export const up=(pgm)=>{
     joined_at:{type:"timestamptz",notNull:true,default:pgm.func("CURRENT_TIMESTAMP")},
     updated_at:{type:"timestamptz",notNull:true,default:pgm.func("CURRENT_TIMESTAMP")}
   });
-  pgm.addConstraint("invasion_participant_pk",{primaryKey:["invasion_id","user_id"]});
-  pgm.addConstraint("invasion_participant_values_check",{check:"contribution >= 0 AND actions >= 0"});
+  pgm.addConstraint("invasion_participants","invasion_participant_pk",{primaryKey:["invasion_id","user_id"]});
+  pgm.addConstraint("invasion_participants","invasion_participant_values_check",{check:"contribution >= 0 AND actions >= 0"});
 
   pgm.createTable("invasion_rewards",{
     id:{type:"uuid",primaryKey:true,default:pgm.func("gen_random_uuid()")},
@@ -80,8 +80,8 @@ export const up=(pgm)=>{
     loot:{type:"jsonb",notNull:true,default:pgm.func("'{}'::jsonb")},
     claimed_at:{type:"timestamptz",notNull:true,default:pgm.func("CURRENT_TIMESTAMP")}
   });
-  pgm.addConstraint("invasion_reward_values_check",{check:"gold >= 0 AND triumph_badges >= 0"});
-  pgm.addConstraint("invasion_reward_unique",{unique:["invasion_id","user_id"]});
+  pgm.addConstraint("invasion_rewards","invasion_reward_values_check",{check:"gold >= 0 AND triumph_badges >= 0"});
+  pgm.addConstraint("invasion_rewards","invasion_reward_unique",{unique:["invasion_id","user_id"]});
 
   pgm.createTable("invasion_consequences",{
     id:{type:"uuid",primaryKey:true,default:pgm.func("gen_random_uuid()")},
@@ -94,7 +94,7 @@ export const up=(pgm)=>{
     payload:{type:"jsonb",notNull:true,default:pgm.func("'{}'::jsonb")},
     applied_at:{type:"timestamptz",notNull:true,default:pgm.func("CURRENT_TIMESTAMP")}
   });
-  pgm.addConstraint("invasion_consequence_severity",{check:"severity >= 0 AND severity <= 100"});
+  pgm.addConstraint("invasion_consequences","invasion_consequence_severity",{check:"severity >= 0 AND severity <= 100"});
   pgm.createIndex("invasion_consequences",["territory_id","applied_at"]);
 
   pgm.sql("INSERT INTO invasion_threat(territory_id) SELECT id FROM territories ON CONFLICT DO NOTHING");
