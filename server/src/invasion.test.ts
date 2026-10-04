@@ -1,5 +1,5 @@
 import {describe,expect,it} from "vitest";
-import {buildWavePlan,calculateThreatScore,nextPhaseAt,PHASE_SECONDS,INVASION_PHASES} from "./invasion.js";
+import {buildWavePlan,calculateDefenseDamage,calculateThreatScore,nextPhaseAt,PHASE_SECONDS,INVASION_PHASES,INVASION_ROLES} from "./invasion.js";
 describe("Gate 13 invasion engine",()=>{
  it("scales threat from server-side factors and clamps the result",()=>{
   expect(calculateThreatScore({playerLevel:10,guildLevel:5,territoryStrength:100,previousVictories:2,activePlayers:4,baseDefense:500,regionalThreat:200} )).toBe(2125);
@@ -9,6 +9,14 @@ describe("Gate 13 invasion engine",()=>{
   const waves=buildWavePlan(10000);
   expect(waves.length).toBeGreaterThanOrEqual(2);
   expect(waves.every(w=>w.quantity>0&&w.attack>0&&w.defense>=0)).toBe(true);
+ });
+ it("exposes all required cooperative invasion roles",()=>{
+  expect(INVASION_ROLES).toEqual(["tank","damage","support","scout","commander","logistics"]);
+ });
+ it("calculates server-side tower defense damage deterministically",()=>{
+  expect(calculateDefenseDamage("archer_tower",1,0)).toBe(12);
+  expect(calculateDefenseDamage("cannon_tower",2,20)).toBe(115);
+  expect(calculateDefenseDamage("wall",7,100)).toBe(0);
  });
  it("uses the required lifecycle in order",()=>{
   expect(INVASION_PHASES.slice(0,8)).toEqual(["WARNING","MUSTER","ARRIVAL","ASSAULT","BATTLE","RESOLUTION","REWARD","COOLDOWN"]);
