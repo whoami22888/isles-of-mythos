@@ -44,7 +44,7 @@ describe("Gate 9 naval mechanics",()=>{
       await db.query("UPDATE player_ships SET x=20,y=0 WHERE id=$1",[defender.id]);
       const board=await naval.boardShip(a,attacker.id,defender.id);
       expect(board.damage).toBeGreaterThan(0);
-      await db.query("UPDATE ship_inventory SET quantity=5 WHERE ship_id=$1 AND item_id='repair_lumber'",[attacker.id]);
+      await db.query("INSERT INTO ship_inventory(ship_id,item_id,quantity) VALUES($1,'repair_lumber',5) ON CONFLICT(ship_id,item_id) DO UPDATE SET quantity=5",[attacker.id]);
       await db.query("UPDATE player_ships SET hull=hull-50 WHERE id=$1",[attacker.id]);
       const repaired=await naval.repairShip(a,attacker.id);expect(repaired.hull).toBeGreaterThan(attacker.hull-50);
       const retreat=await naval.retreatShip(a,attacker.id);expect(retreat.retreatUntil).not.toBeNull();
