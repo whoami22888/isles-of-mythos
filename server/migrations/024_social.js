@@ -100,7 +100,7 @@ export const up=(pgm)=>{
     updated_at:{type:"timestamptz",notNull:true,default:pgm.func("CURRENT_TIMESTAMP")}
   });
   pgm.addConstraint("auction_listings","auction_quantity_check",{check:"quantity > 0 AND remaining_quantity >= 0 AND remaining_quantity <= quantity"});
-  pgm.addConstraint("auction_prices_check",{check:"start_price > 0 AND current_bid >= 0 AND (buy_now_price IS NULL OR buy_now_price >= start_price)"});
+  pgm.addConstraint("auction_listings","auction_prices_check",{check:"start_price > 0 AND current_bid >= 0 AND (buy_now_price IS NULL OR buy_now_price >= start_price)"});
   pgm.addConstraint("auction_fee_check",{check:"seller_fee_bps BETWEEN 0 AND 2000"});
   pgm.addConstraint("auction_status_check",{check:"status IN ('active','sold','expired','cancelled')"});
   pgm.createIndex("auction_listings",["status","expires_at"]);
