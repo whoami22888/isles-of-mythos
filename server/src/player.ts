@@ -181,7 +181,7 @@ export class PlayerStore {
   }
 
   async reloadEconomy(userId: string): Promise<PlayerState> {
-    const result = await this.db.query<{ gold: string; inventory: Record<string, number> }>(
+    const result = await this.db.query<{ gold: string; triumph_badges: string; inventory: Record<string, number> }>(
       "SELECT gold, triumph_badges, inventory FROM player_profiles WHERE user_id=$1",
       [userId],
     );
