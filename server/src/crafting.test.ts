@@ -9,7 +9,7 @@ import { craftRecipe } from "./crafting.js";
 async function createPlayer() {
   const db = createDbPool();
   const app = await buildApp({ db });
-  const unique = randomUUID().replace(/-/g, "");
+  const unique = randomUUID().replace(/-/g, "").slice(0, 24);
   const response = await app.inject({
     method: "POST",
     url: "/auth/register",
