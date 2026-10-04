@@ -50,10 +50,15 @@ export interface BaseState {
   workPriorities: string[];
   permissions: Record<string, BasePermission[]>;
   workers: BaseWorker[];
+  maximumCreatures: number;
+  currentCreatures: number;
+  maximumWorkers: number;
+  currentWorkers: number;
+  maximumBreedingSlots: number;
   productionProcessedAt: number;
 }
 
-interface BaseRow { id:string; owner_user_id:string; name:string; x:number; y:number; production_processed_at:Date|string; }
+interface BaseRow { id:string; owner_user_id:string; name:string; x:number; y:number; maximum_creatures:number; maximum_workers:number; maximum_breeding_slots:number; production_processed_at:Date|string; }
 interface BuildingRow { id:string; base_id:string; type:BuildingType; level:number; grid_x:number; grid_y:number; active:boolean; }
 interface StorageRow { resource_key:string; quantity:string; }
 interface WorkerRow { creature_id:string; base_id:string; building_id:string; task:WorkerMode; }
@@ -170,14 +175,15 @@ export class BaseStore {
   }
   async load(userId:string):Promise<BaseState|null>{
     const cached=this.active.get(userId); if(cached)return cached;
-    const base=await this.db.query<BaseRow>("SELECT id,owner_user_id,name,x,y,production_processed_at FROM player_bases WHERE owner_user_id=$1",[userId]);
+    const base=await this.db.query<BaseRow>("SELECT id,owner_user_id,name,x,y,maximum_creatures,maximum_workers,maximum_breeding_slots,production_processed_at FROM player_bases WHERE owner_user_id=$1",[userId]);
     const row=base.rows[0]; if(!row)return null;
-    const [buildings,storage,priorityRows,permissionRows,workerRows]=await Promise.all([
+    const [buildings,storage,priorityRows,permissionRows,workerRows,creatureCountRows]=await Promise.all([
       this.db.query<BuildingRow>("SELECT id,base_id,type,level,grid_x,grid_y,active FROM base_buildings WHERE base_id=$1 ORDER BY grid_y,grid_x,id",[row.id]),
       this.db.query<StorageRow>("SELECT resource_key,quantity FROM base_storage WHERE base_id=$1",[row.id]),
       this.db.query<{priority:string}>("SELECT priority FROM base_work_priorities WHERE base_id=$1 ORDER BY priority_index",[row.id]),
       this.db.query<{user_id:string;permission:BasePermission}>("SELECT user_id,permission FROM base_permissions WHERE base_id=$1",[row.id]),
       this.db.query<WorkerRow>("SELECT creature_id,base_id,building_id,task FROM base_workers WHERE base_id=$1",[row.id]),
+      this.db.query<{count:string}>("SELECT COUNT(*)::text count FROM player_creatures WHERE owner_user_id=$1",[userId]),
     ]);
     const permissions:Record<string,BasePermission[]>={};
     for(const p of permissionRows.rows)(permissions[p.user_id]??=[]).push(p.permission);
@@ -185,6 +191,8 @@ export class BaseStore {
       id:row.id,ownerUserId:row.owner_user_id,name:row.name,x:row.x,y:row.y,
       buildings:buildings.rows.map(rowToBuilding),storage:Object.fromEntries(storage.rows.map(r=>[r.resource_key,toQuantity(r.quantity)])),
       workPriorities:priorityRows.rows.map(r=>r.priority),permissions,workers:workerRows.rows.map(rowToWorker),
+      maximumCreatures:row.maximum_creatures,currentCreatures:Number(creatureCountRows.rows[0]?.count??0),
+      maximumWorkers:row.maximum_workers,currentWorkers:workerRows.rows.length,maximumBreedingSlots:row.maximum_breeding_slots,
       productionProcessedAt:new Date(row.production_processed_at).getTime(),
     };
     this.active.set(userId,state);
