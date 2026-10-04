@@ -29,6 +29,8 @@ import { GuildStore } from "./guild.js";
 import { ArmyStore } from "./army.js";
 import { RealmStore } from "./realm.js";
 import { InvasionStore } from "./invasion.js";
+import { SocialStore } from "./social.js";
+import { AuctionStore } from "./auction.js";
 
 function errorCode(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
@@ -75,6 +77,8 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const guilds = new GuildStore(db);
   const armies = new ArmyStore(db);
   const realms = new RealmStore(db);
+  const social = new SocialStore(db);
+  const auctions = new AuctionStore(db);
   const sockets = new Set<WebSocket>();
   const playerConnections = new Map<string, number>();
   const userSockets = new Map<string, Set<WebSocket>>();
@@ -261,6 +265,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const invasionTick = setInterval(() => { void invasions.tick().catch((error) => log("invasion_tick_failed",{message:error instanceof Error?error.message:String(error)})); }, 1_000);
   navalFireTick.unref();
   invasionTick.unref();
+  auctionTick.unref();
   survivalTick.unref();
 
   const combatTick = setInterval(() => {
@@ -405,6 +410,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
 
   app.addHook("onClose", async () => {
     clearInterval(invasionTick);
+    clearInterval(auctionTick);
     shuttingDown = true;
     clearInterval(heartbeat);
     clearInterval(survivalTick);
@@ -1093,6 +1099,130 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             }
           });
           send(socket,response);return;
+        }
+
+
+        if (message.type === "list_friends" || message.type === "add_friend" || message.type === "remove_friend" || message.type === "block_user" || message.type === "unblock_user" || message.type === "list_blocks" || message.type === "report_user" ||
+            message.type === "chat_send" || message.type === "chat_history" || message.type === "create_party" || message.type === "get_party" || message.type === "party_invitations" ||
+            message.type === "party_invite" || message.type === "party_accept" || message.type === "party_leave" || message.type === "party_kick" ||
+            message.type === "auction_list" || message.type === "auction_create" || message.type === "auction_bid" || message.type === "auction_buy_now" || message.type === "auction_cancel" || message.type === "auction_history") {
+          if (!userId) { send(socket, { type: "error", code: "AUTH_REQUIRED" }); return; }
+          const authenticatedUserId = userId;
+          await players.loadOrCreate(authenticatedUserId);
+          const response = await runBaseRequest(authenticatedUserId, message.requestId, message.type + "|" + JSON.stringify(message), async () => {
+            try {
+              if (message.type === "list_friends") return { type: "friends_list", requestId: message.requestId, friends: await social.friends(authenticatedUserId) };
+              if (message.type === "add_friend") {
+                await social.addFriend(authenticatedUserId, message.targetUserId);
+                const friends = await social.friends(authenticatedUserId);
+                if (userSockets.has(message.targetUserId)) for (const s of userSockets.get(message.targetUserId) ?? []) send(s, { type: "friends_list", requestId: "push", friends: await social.friends(message.targetUserId) });
+                return { type: "friends_list", requestId: message.requestId, friends };
+              }
+              if (message.type === "remove_friend") {
+                await social.removeFriend(authenticatedUserId, message.targetUserId);
+                return { type: "social_operation_ok", requestId: message.requestId };
+              }
+              if (message.type === "block_user") {
+                await social.block(authenticatedUserId, message.targetUserId);
+                return { type: "social_operation_ok", requestId: message.requestId };
+              }
+              if (message.type === "unblock_user") {
+                await social.unblock(authenticatedUserId, message.targetUserId);
+                return { type: "social_operation_ok", requestId: message.requestId };
+              }
+              if (message.type === "list_blocks") return { type: "blocks_list", requestId: message.requestId, blockedUserIds: await social.blocked(authenticatedUserId) };
+              if (message.type === "report_user") return { type: "social_reported", requestId: message.requestId, reportId: await social.report(authenticatedUserId, message.targetUserId, message.reason, message.details) };
+
+              if (message.type === "chat_send") {
+                if (message.channel === "system") throw new Error("INVALID_CHAT_CHANNEL");
+                const sender = players.get(authenticatedUserId);
+                if (!sender) throw new Error("PLAYER_NOT_FOUND");
+                const regionId = Math.floor(sender.x / 1000) * 100000 + Math.floor(sender.y / 1000);
+                let partyId: string | null = message.partyId;
+                let guildId: string | null = message.guildId;
+                if (message.channel === "party") {
+                  const party = await social.partyForUser(authenticatedUserId);
+                  if (!party || (message.partyId && party.id !== message.partyId)) throw new Error("PARTY_MEMBERSHIP_REQUIRED");
+                  partyId = party.id;
+                }
+                if (message.channel === "guild") {
+                  const guild = await db.query<{ guild_id: string }>("SELECT guild_id FROM guild_members WHERE user_id=$1", [authenticatedUserId]);
+                  if (!guild.rows[0] || (message.guildId && guild.rows[0].guild_id !== message.guildId)) throw new Error("GUILD_MEMBERSHIP_REQUIRED");
+                  guildId = guild.rows[0].guild_id;
+                }
+                const chat = await social.sendChat(authenticatedUserId, { channel: message.channel, body: message.body, recipientUserId: message.recipientUserId, guildId, partyId, regionId });
+                const recipients = new Set<string>();
+                if (message.channel === "whisper") recipients.add(message.recipientUserId ?? "");
+                else if (message.channel === "party" && partyId) {
+                  const rows = await db.query<{ user_id: string }>("SELECT user_id FROM party_members WHERE party_id=$1", [partyId]);
+                  for (const row of rows.rows) recipients.add(row.user_id);
+                } else if (message.channel === "guild" && guildId) {
+                  const rows = await db.query<{ user_id: string }>("SELECT user_id FROM guild_members WHERE guild_id=$1", [guildId]);
+                  for (const row of rows.rows) recipients.add(row.user_id);
+                } else if (message.channel === "local") {
+                  for (const [id,p] of userSockets) {
+                    const other=players.get(id); if (other && Math.hypot(other.x-sender.x,other.y-sender.y)<=32) recipients.add(id);
+                  }
+                } else if (message.channel === "region") {
+                  for (const [id,p] of userSockets) {
+                    const other=players.get(id);
+                    if (other && Math.floor(other.x/1000)*100000+Math.floor(other.y/1000)===regionId) recipients.add(id);
+                  }
+                } else {
+                  for (const id of userSockets.keys()) recipients.add(id);
+                }
+                const recipientIds=[...recipients].filter(Boolean);
+                if (recipientIds.length) {
+                  const blocked = await db.query<{ blocker_user_id: string }>(
+                    "SELECT blocker_user_id FROM social_blocks WHERE blocker_user_id=ANY($1::uuid[]) AND blocked_user_id=$2",
+                    [recipientIds, authenticatedUserId],
+                  );
+                  const blockedSet=new Set(blocked.rows.map(x=>x.blocker_user_id));
+                  for (const recipientId of recipientIds) if (!blockedSet.has(recipientId)) for (const s of userSockets.get(recipientId) ?? []) send(s,{type:"chat_message",requestId:message.requestId,message:chat});
+                }
+                return { type: "chat_message", requestId: message.requestId, message: chat };
+              }
+              if (message.type === "chat_history") {
+                const sender=players.get(authenticatedUserId);const regionId=sender?Math.floor(sender.x/1000)*100000+Math.floor(sender.y/1000):null;
+                const history=await social.chatHistory(authenticatedUserId,{channel:message.channel,recipientUserId:message.recipientUserId,guildId:message.guildId,partyId:message.partyId,regionId});
+                return { type:"chat_history",requestId:message.requestId,messages:history };
+              }
+
+              if (message.type === "create_party") return { type:"party_state",requestId:message.requestId,party:await social.createParty(authenticatedUserId) };
+              if (message.type === "get_party") return { type:"party_state",requestId:message.requestId,party:await social.partyForUser(authenticatedUserId) };
+              if (message.type === "party_invitations") return { type:"party_invitations",requestId:message.requestId,invitations:await social.partyInvitations(authenticatedUserId) };
+              if (message.type === "party_invite") {
+                const invitation=await social.inviteToParty(authenticatedUserId,message.targetUserId);
+                if(userSockets.has(message.targetUserId)) for(const s of userSockets.get(message.targetUserId)??[]) send(s,{type:"party_invitations",requestId:"push",invitations:await social.partyInvitations(message.targetUserId)});
+                return {type:"party_operation_ok",requestId:message.requestId};
+              }
+              if (message.type === "party_accept") {
+                const party=await social.acceptPartyInvite(authenticatedUserId,message.invitationId);
+                for(const member of party.members) for(const s of userSockets.get(member.userId)??[]) send(s,{type:"party_state",requestId:"push",party});
+                return {type:"party_state",requestId:message.requestId,party};
+              }
+              if (message.type === "party_leave") { await social.leaveParty(authenticatedUserId); return {type:"party_operation_ok",requestId:message.requestId}; }
+              if (message.type === "party_kick") { await social.kickFromParty(authenticatedUserId,message.targetUserId); return {type:"party_operation_ok",requestId:message.requestId}; }
+
+              if (message.type === "auction_list") return {type:"auction_list",requestId:message.requestId,listings:await auctions.list({itemId:message.itemId,minPrice:message.minPrice,maxPrice:message.maxPrice})};
+              if (message.type === "auction_create") return {type:"auction_state",requestId:message.requestId,listing:await auctions.create(authenticatedUserId,message)};
+              if (message.type === "auction_bid") return {type:"auction_state",requestId:message.requestId,listing:await auctions.bid(authenticatedUserId,message.listingId,message.amount)};
+              if (message.type === "auction_buy_now") return {type:"auction_state",requestId:message.requestId,listing:await auctions.buyNow(authenticatedUserId,message.listingId)};
+              if (message.type === "auction_cancel") { await auctions.cancel(authenticatedUserId,message.listingId); return {type:"auction_operation_ok",requestId:message.requestId}; }
+              return {type:"auction_history",requestId:message.requestId,transactions:await auctions.history(authenticatedUserId)};
+            } catch (error) {
+              const code=errorCode(error,"SOCIAL_OPERATION_FAILED");
+              const allowed=[
+                "INVALID_SOCIAL_TARGET","SOCIAL_BLOCKED","ALREADY_FRIENDS","FRIEND_REQUEST_EXISTS","PLAYER_NOT_FOUND","CHAT_RATE_LIMITED","INVALID_CHAT_CHANNEL","INVALID_CHAT_TARGET","INVALID_CHAT_CONTEXT","PARTY_MEMBERSHIP_REQUIRED","GUILD_MEMBERSHIP_REQUIRED",
+                "ALREADY_IN_PARTY","PARTY_NOT_FOUND","PARTY_FULL","TARGET_IN_PARTY","PARTY_INVITATION_NOT_FOUND","PARTY_LEADER_REQUIRED","INVALID_PARTY_TARGET","PARTY_MEMBER_NOT_FOUND",
+                "INVALID_AUCTION_ITEM","INVALID_AUCTION_QUANTITY","INVALID_AUCTION_PRICE","INVALID_AUCTION_DURATION","INVALID_AUCTION_BID","AUCTION_NOT_FOUND","AUCTION_NOT_ACTIVE","AUCTION_SELF_BID","AUCTION_BID_TOO_LOW","AUCTION_NO_BUY_NOW","AUCTION_SELF_BUY","AUCTION_OWNER_REQUIRED","AUCTION_HAS_BID",
+                "INVALID_GOLD","GOLD_OVERFLOW","INSUFFICIENT_GOLD","INVALID_ITEM_ID","INVALID_ITEM_QUANTITY","INSUFFICIENT_INVENTORY","INVENTORY_LIMIT"
+              ];
+              return {type:"error",code:(allowed.includes(code)?code:"INVALID_MESSAGE") as Extract<ServerMessage,{type:"error"}>["code"]};
+            }
+          });
+          send(socket,response);
+          return;
         }
 
         if (message.type === "create_army" || message.type === "list_armies" || message.type === "train_army" || message.type === "garrison_army" || message.type === "add_army_creature" || message.type === "set_army_assignment" || message.type === "set_army_formation" || message.type === "nominate_commander" || message.type === "assign_army_commander" || message.type === "issue_army_order" || message.type === "create_army_battle" || message.type === "deploy_battle_unit" || message.type === "execute_battle_turn" || message.type === "get_army_battle" || message.type === "army_tactical_action" || message.type === "build_defense" || message.type === "list_defenses") {
