@@ -164,7 +164,7 @@ export class SocialStore{
     });
   }
 
-  async partyInvitations(userId:string):Promise<unknown[]>{
+  async partyInvitations(userId:string):Promise<Array<{id:string;party_id:string;inviter_user_id:string;created_at:Date}>>{
     const r=await this.db.query<{id:string;party_id:string;inviter_user_id:string;created_at:Date}>("SELECT id,party_id,inviter_user_id,created_at FROM party_invitations WHERE invitee_user_id=$1 AND status='pending' ORDER BY created_at DESC",[userId]);
     return r.rows;
   }
