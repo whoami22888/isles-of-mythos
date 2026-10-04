@@ -1048,13 +1048,14 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           send(socket,response); return;
         }
 
-        if (message.type === "create_guild" || message.type === "get_guild" || message.type === "invite_guild_member" || message.type === "accept_guild_invite" || message.type === "decline_guild_invite" || message.type === "leave_guild" || message.type === "remove_guild_member" || message.type === "set_guild_rank" || message.type === "set_guild_permission" || message.type === "guild_bank" || message.type === "guild_bank_deposit" || message.type === "guild_bank_withdraw" || message.type === "build_guild_infrastructure") {
+        if (message.type === "create_guild" || message.type === "get_guild" || message.type === "list_guild_invitations" || message.type === "invite_guild_member" || message.type === "accept_guild_invite" || message.type === "decline_guild_invite" || message.type === "leave_guild" || message.type === "remove_guild_member" || message.type === "set_guild_rank" || message.type === "set_guild_permission" || message.type === "guild_bank" || message.type === "guild_bank_deposit" || message.type === "guild_bank_withdraw" || message.type === "build_guild_infrastructure") {
           if(!userId){send(socket,{type:"error",code:"AUTH_REQUIRED"});return;}
           const authenticatedUserId=userId;
           const response=await runBaseRequest(authenticatedUserId,message.requestId,message.type+"|"+JSON.stringify(message),async()=>{
             try{
               if(message.type==="create_guild")return {type:"guild_state",requestId:message.requestId,guild:await guilds.create(authenticatedUserId,message.name,message.tag)};
               if(message.type==="get_guild")return {type:"guild_state",requestId:message.requestId,guild:await guilds.get(authenticatedUserId)};
+              if(message.type==="list_guild_invitations")return {type:"guild_invitations",requestId:message.requestId,invitations:await guilds.listInvitations(authenticatedUserId)};
               if(message.type==="invite_guild_member"){await guilds.invite(authenticatedUserId,message.guildId,message.targetUserId);return {type:"guild_operation_ok",requestId:message.requestId,guildId:message.guildId};}
               if(message.type==="accept_guild_invite")return {type:"guild_state",requestId:message.requestId,guild:await guilds.acceptInvite(authenticatedUserId,message.invitationId)};
               if(message.type==="decline_guild_invite"){await guilds.declineInvite(authenticatedUserId,message.invitationId);return {type:"guild_operation_ok",requestId:message.requestId,guildId:""};}
