@@ -25,8 +25,8 @@ async function lockUsers(c:PoolClient,ids:string[]):Promise<Map<string,{user_id:
   return new Map(r.rows.map(x=>[x.user_id,x]));
 }
 function fee(gross:bigint,bps:number):bigint{return (gross*BigInt(bps)+9999n)/10000n;}
-type AuctionCategory="resource"|"upgrade"|"defence"|"equipment"|"consumable"|"other";
-type AuctionRarity="common"|"uncommon"|"rare"|"epic"|"legendary"|"mythic";
+export type AuctionCategory="resource"|"upgrade"|"defence"|"equipment"|"consumable"|"other";
+export type AuctionRarity="common"|"uncommon"|"rare"|"epic"|"legendary"|"mythic";
 interface AuctionMetadata{category:AuctionCategory;rarity:AuctionRarity;itemLevel:number;}
 function metadataFor(itemId:string):AuctionMetadata{
   const shop=getShopItem(itemId);
