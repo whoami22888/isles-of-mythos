@@ -35,7 +35,7 @@ export function cloneInventory(inventory: Inventory | null | undefined): Invento
   for (const [itemId, quantity] of Object.entries(source)) {
     validateItemId(itemId);
     validateStackQuantity(quantity);
-    if (quantity > 0) next[itemId] = quantity;
+    next[itemId] = quantity;
   }
   return next;
 }
@@ -52,8 +52,7 @@ export function applyInventoryDelta(inventory: Inventory, itemId: string, delta:
     throw new Error(nextQuantity < 0 ? "INSUFFICIENT_INVENTORY" : "INVENTORY_LIMIT");
   }
   const next = { ...inventory };
-  if (nextQuantity === 0) delete next[itemId];
-  else next[itemId] = nextQuantity;
+  next[itemId] = nextQuantity;
   return next;
 }
 
