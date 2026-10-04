@@ -52,28 +52,23 @@ export const up=(pgm)=>{
     attack:{type:"integer",notNull:true},
     defense:{type:"integer",notNull:true},
     status:{type:"varchar(16)",notNull:true,default:"queued"},
-    aggro_range:{type:"integer",notNull:true,default:10},
-    target_user_id:{type:"uuid",references:"users(id)",onDelete:"SET NULL"},
     created_at:{type:"timestamptz",notNull:true,default:pgm.func("CURRENT_TIMESTAMP")},
     updated_at:{type:"timestamptz",notNull:true,default:pgm.func("CURRENT_TIMESTAMP")}
   });
-  pgm.addConstraint("invasion_waves","invasion_wave_values_check",{check:"wave_number >= 1 AND quantity > 0 AND max_health > 0 AND current_health >= 0 AND current_health <= max_health AND attack > 0 AND defense >= 0 AND aggro_range >= 1 AND aggro_range <= 100"});
+  pgm.addConstraint("invasion_waves","invasion_wave_values_check",{check:"wave_number >= 1 AND quantity > 0 AND max_health > 0 AND current_health >= 0 AND current_health <= max_health AND attack > 0 AND defense >= 0"});
   pgm.addConstraint("invasion_waves","invasion_wave_status_check",{check:"status IN ('queued','active','defeated','retreated')"});
   pgm.createIndex("invasion_waves",["invasion_id","wave_number"]);
-  pgm.createIndex("invasion_waves",["target_user_id"]);
 
   pgm.createTable("invasion_participants",{
     invasion_id:{type:"uuid",notNull:true,references:"invasions(id)",onDelete:"CASCADE"},
     user_id:{type:"uuid",notNull:true,references:"users(id)",onDelete:"CASCADE"},
     army_id:{type:"uuid",references:"armies(id)",onDelete:"SET NULL"},
     contribution:{type:"bigint",notNull:true,default:0},
-    role:{type:"varchar(16)",notNull:true,default:"damage"},
     actions:{type:"integer",notNull:true,default:0},
     joined_at:{type:"timestamptz",notNull:true,default:pgm.func("CURRENT_TIMESTAMP")},
     updated_at:{type:"timestamptz",notNull:true,default:pgm.func("CURRENT_TIMESTAMP")}
   });
   pgm.addConstraint("invasion_participants","invasion_participant_pk",{primaryKey:["invasion_id","user_id"]});
-  pgm.addConstraint("invasion_participants","invasion_participant_role_check",{check:"role IN (\'tank\',\'damage\',\'support\',\'scout\',\'commander\',\'logistics\')"});
   pgm.addConstraint("invasion_participants","invasion_participant_values_check",{check:"contribution >= 0 AND actions >= 0"});
 
   pgm.createTable("invasion_rewards",{
