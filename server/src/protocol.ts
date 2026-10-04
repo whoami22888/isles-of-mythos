@@ -31,6 +31,7 @@ export type ClientMessage =
   | { type:"list_guild_invitations"; requestId:string }
   | { type:"list_realms"; requestId:string }
   | { type:"list_territories"; requestId:string }
+  | { type:"list_realm_fortresses"; requestId:string }
   | { type:"territory_at"; requestId:string; x:number; y:number }
   | { type:"claim_guild_territory"; requestId:string; territoryId:string; guildId:string }
   | { type:"change_realm_reputation"; requestId:string; realm:string; delta:number }
@@ -106,6 +107,7 @@ export type ServerMessage =
   | { type:"guild_operation_ok"; requestId:string; guildId:string }
   | { type:"realm_list"; requestId:string; realms:unknown[] }
   | { type:"territory_list"; requestId:string; territories:unknown[] }
+  | { type:"fortress_list"; requestId:string; fortresses:unknown[] }
   | { type:"territory_state"; requestId:string; territory:unknown }
   | { type:"realm_reputation"; requestId:string; reputation:unknown }
   | { type:"trade_route_state"; requestId:string; route:unknown }
@@ -185,7 +187,7 @@ export function parseClientMessage(raw:string):ClientMessage|null{
     }
     if(type==="start_breeding"){const id=(value as {requestId?:unknown}).requestId,baseId=(value as {baseId?:unknown}).baseId,penBuildingId=(value as {penBuildingId?:unknown}).penBuildingId,parentAId=(value as {parentAId?:unknown}).parentAId,parentBId=(value as {parentBId?:unknown}).parentBId,durationMs=(value as {durationMs?:unknown}).durationMs;if(!requestId(id)||![baseId,penBuildingId,parentAId,parentBId].every(v=>typeof v==="string"&&v.length>0&&v.length<=64)||(durationMs!==undefined&&(!isSafeInteger(durationMs)||durationMs<=0||durationMs>86400000)))return null;return {type:"start_breeding",requestId:id,baseId:baseId as string,penBuildingId:penBuildingId as string,parentAId:parentAId as string,parentBId:parentBId as string,...(durationMs===undefined?{}:{durationMs})};}
     if(type==="list_breeding"){const id=(value as {requestId?:unknown}).requestId;return requestId(id)?{type:"list_breeding",requestId:id}:null;}
-    if(type==="list_realms"||type==="list_territories"||type==="my_realm_reputation"||type==="list_trade_routes"||type==="tick_realm_ai"){const id=(value as {requestId?:unknown}).requestId;return requestId(id)?{type,requestId:id}:null;}
+    if(type==="list_realms"||type==="list_territories"||type==="list_realm_fortresses"||type==="my_realm_reputation"||type==="list_trade_routes"||type==="tick_realm_ai"){const id=(value as {requestId?:unknown}).requestId;return requestId(id)?{type,requestId:id}:null;}
     if(type==="territory_at"){const id=(value as {requestId?:unknown}).requestId,x=(value as {x?:unknown}).x,y=(value as {y?:unknown}).y;return requestId(id)&&isSafeInteger(x)&&isSafeInteger(y)?{type:"territory_at",requestId:id,x,y}:null;}
     if(type==="claim_guild_territory"){const id=(value as {requestId?:unknown}).requestId,t=(value as {territoryId?:unknown}).territoryId,g=(value as {guildId?:unknown}).guildId;return requestId(id)&&typeof t==="string"&&typeof g==="string"?{type:"claim_guild_territory",requestId:id,territoryId:t,guildId:g}:null;}
     if(type==="change_realm_reputation"){const id=(value as {requestId?:unknown}).requestId,realm=(value as {realm?:unknown}).realm,delta=(value as {delta?:unknown}).delta;return requestId(id)&&typeof realm==="string"&&isSafeInteger(delta)&&Math.abs(delta)<=1000?{type:"change_realm_reputation",requestId:id,realm,delta}:null;}
