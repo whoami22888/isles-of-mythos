@@ -69,14 +69,14 @@ export type ServerMessage =
   | { type: "blocks_list"; requestId: string; blockedUserIds: string[] }
   | { type: "social_operation_ok"; requestId: string }
   | { type: "social_reported"; requestId: string; reportId: string }
-  | { type: "chat_message"; requestId: string; message: unknown }
-  | { type: "chat_history"; requestId: string; messages: unknown[] }
-  | { type: "party_state"; requestId: string; party: unknown | null }
-  | { type: "party_invitations"; requestId: string; invitations: unknown[] }
+  | { type: "chat_message"; requestId: string; message: Record<string, unknown> }
+  | { type: "chat_history"; requestId: string; messages: Record<string, unknown>[] }
+  | { type: "party_state"; requestId: string; party: Record<string, unknown> | null }
+  | { type: "party_invitations"; requestId: string; invitations: Record<string, unknown>[] }
   | { type: "party_operation_ok"; requestId: string }
-  | { type: "auction_list"; requestId: string; listings: unknown[] }
-  | { type: "auction_state"; requestId: string; listing: unknown }
-  | { type: "auction_history"; requestId: string; transactions: unknown[] }
+  | { type: "auction_list"; requestId: string; listings: Record<string, unknown>[] }
+  | { type: "auction_state"; requestId: string; listing: Record<string, unknown> }
+  | { type: "auction_history"; requestId: string; transactions: Record<string, unknown>[] }
   | { type: "auction_operation_ok"; requestId: string }
   | { type: "error"; code: string };
 
