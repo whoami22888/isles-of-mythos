@@ -396,7 +396,8 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   persistenceTick.unref();
 
   app.addHook("onClose", async () => {
-    clearInterval(invasionTick);\n    shuttingDown = true;
+    clearInterval(invasionTick);
+    shuttingDown = true;
     clearInterval(heartbeat);
     clearInterval(survivalTick);
     clearInterval(breedingTick);
