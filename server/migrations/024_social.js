@@ -82,6 +82,7 @@ export const up=(pgm)=>{
   pgm.addConstraint("party_invitations","party_invitations_status_check",{check:"status IN ('pending','accepted','declined','cancelled')"});
   pgm.createIndex("party_invitations",["invitee_user_id","status"]);
   pgm.createIndex("party_invitations",["party_id","invitee_user_id","status"]);
+  pgm.createIndex("party_invitations",["party_id","invitee_user_id"],{unique:true,where:"status = 'pending'"});
 
   pgm.createTable("auction_listings",{
     id:{type:"uuid",primaryKey:true,default:pgm.func("gen_random_uuid()")},
