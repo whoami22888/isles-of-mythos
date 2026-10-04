@@ -7,6 +7,7 @@ export const up=(pgm)=>{
     level:{type:"integer",notNull:true,default:1},
     experience:{type:"bigint",notNull:true,default:0},
     treasury:{type:"bigint",notNull:true,default:0},
+    territory:{type:"jsonb",notNull:true,default:pgm.func("'{}'::jsonb")},
     created_at:{type:"timestamptz",notNull:true,default:pgm.func("CURRENT_TIMESTAMP")},
     updated_at:{type:"timestamptz",notNull:true,default:pgm.func("CURRENT_TIMESTAMP")}
   });
