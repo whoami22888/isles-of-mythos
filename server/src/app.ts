@@ -25,6 +25,7 @@ import { ShipStore, SHIP_CLASSES, CREW_ROLES, type ShipClass, type CrewRole } fr
 import { NavalStore } from "./naval.js";
 import { FleetStore } from "./fleet.js";
 import { ShipInventoryStore } from "./ship-inventory.js";
+import { GuildStore } from "./guild.js";
 
 function errorCode(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
@@ -68,6 +69,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const naval = new NavalStore(db);
   const fleets = new FleetStore(db);
   const shipInventory = new ShipInventoryStore(db);
+  const guilds = new GuildStore(db);
   const sockets = new Set<WebSocket>();
   const playerConnections = new Map<string, number>();
   const userSockets = new Map<string, Set<WebSocket>>();
@@ -1044,6 +1046,34 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           const authenticatedUserId=userId;
           const response=await runCreatureRequest(authenticatedUserId,message.requestId,"list_breeding",async()=>({type:"breeding_jobs",requestId:message.requestId,jobs:await breeding.list(authenticatedUserId)}));
           send(socket,response); return;
+        }
+
+        if (message.type === "create_guild" || message.type === "get_guild" || message.type === "invite_guild_member" || message.type === "accept_guild_invite" || message.type === "decline_guild_invite" || message.type === "leave_guild" || message.type === "remove_guild_member" || message.type === "set_guild_rank" || message.type === "set_guild_permission" || message.type === "guild_bank" || message.type === "guild_bank_deposit" || message.type === "guild_bank_withdraw" || message.type === "build_guild_infrastructure") {
+          if(!userId){send(socket,{type:"error",code:"AUTH_REQUIRED"});return;}
+          const authenticatedUserId=userId;
+          const response=await runBaseRequest(authenticatedUserId,message.requestId,message.type+"|"+JSON.stringify(message),async()=>{
+            try{
+              if(message.type==="create_guild")return {type:"guild_state",requestId:message.requestId,guild:await guilds.create(authenticatedUserId,message.name,message.tag)};
+              if(message.type==="get_guild")return {type:"guild_state",requestId:message.requestId,guild:await guilds.get(authenticatedUserId)};
+              if(message.type==="invite_guild_member"){await guilds.invite(authenticatedUserId,message.guildId,message.targetUserId);return {type:"guild_operation_ok",requestId:message.requestId,guildId:message.guildId};}
+              if(message.type==="accept_guild_invite")return {type:"guild_state",requestId:message.requestId,guild:await guilds.acceptInvite(authenticatedUserId,message.invitationId)};
+              if(message.type==="decline_guild_invite"){await guilds.declineInvite(authenticatedUserId,message.invitationId);return {type:"guild_operation_ok",requestId:message.requestId,guildId:""};}
+              if(message.type==="leave_guild"){await guilds.leave(authenticatedUserId,message.guildId);return {type:"guild_operation_ok",requestId:message.requestId,guildId:message.guildId};}
+              if(message.type==="remove_guild_member"){await guilds.removeMember(authenticatedUserId,message.guildId,message.targetUserId);return {type:"guild_operation_ok",requestId:message.requestId,guildId:message.guildId};}
+              if(message.type==="set_guild_rank"){await guilds.setRank(authenticatedUserId,message.guildId,message.targetUserId,message.rank);return {type:"guild_operation_ok",requestId:message.requestId,guildId:message.guildId};}
+              if(message.type==="set_guild_permission"){await guilds.setPermission(authenticatedUserId,message.guildId,message.rank,message.permission,message.enabled);return {type:"guild_operation_ok",requestId:message.requestId,guildId:message.guildId};}
+              if(message.type==="guild_bank")return {type:"guild_bank_state",requestId:message.requestId,guildId:message.guildId,bank:await guilds.bank(authenticatedUserId,message.guildId)};
+              if(message.type==="guild_bank_deposit"){await guilds.bankDeposit(authenticatedUserId,message.guildId,message.itemId,message.quantity,message.gold);return {type:"guild_operation_ok",requestId:message.requestId,guildId:message.guildId};}
+              if(message.type==="guild_bank_withdraw"){await guilds.bankWithdraw(authenticatedUserId,message.guildId,message.itemId,message.quantity,message.gold);return {type:"guild_operation_ok",requestId:message.requestId,guildId:message.guildId};}
+              await guilds.buildInfrastructure(authenticatedUserId,message.guildId,message.structureType);
+              return {type:"guild_operation_ok",requestId:message.requestId,guildId:message.guildId};
+            }catch(error){
+              const code=errorCode(error,"GUILD_OPERATION_FAILED");
+              const allowed=["INVALID_GUILD_NAME","INVALID_GUILD_TAG","GUILD_NAME_OR_TAG_EXISTS","GUILD_HALL_REQUIRED","ALREADY_IN_GUILD","GUILD_NOT_FOUND","GUILD_MEMBERSHIP_REQUIRED","GUILD_PERMISSION_DENIED","PLAYER_NOT_FOUND","INVALID_GUILD_INVITEE","TARGET_ALREADY_IN_GUILD","GUILD_INVITATION_NOT_FOUND","GUILD_MASTER_CANNOT_LEAVE","INVALID_GUILD_MEMBER","GUILD_MEMBER_NOT_FOUND","GUILD_MASTER_PROTECTED","INVALID_GUILD_RANK","INVALID_GUILD_PERMISSION","INVALID_GUILD_INFRASTRUCTURE","INVALID_GUILD_BANK_QUANTITY","INVALID_GUILD_BANK_DEPOSIT","INVALID_GUILD_BANK_WITHDRAW","INSUFFICIENT_GUILD_BANK","GUILD_QUEST_NOT_FOUND","GUILD_INFRASTRUCTURE_MAX","INVALID_GOLD","GOLD_OVERFLOW","INSUFFICIENT_GOLD","INVALID_ITEM_ID","INVALID_ITEM_QUANTITY","INVENTORY_LIMIT","INSUFFICIENT_INVENTORY"];
+              return {type:"error",code:(allowed.includes(code)?code:"INVALID_MESSAGE") as Extract<ServerMessage,{type:"error"}>["code"]};
+            }
+          });
+          send(socket,response);return;
         }
 
         if (message.type === "create_ship" || message.type === "list_ships" || message.type === "ship_inventory" || message.type === "ship_cargo" || message.type === "create_fleet" || message.type === "list_fleets" || message.type === "add_fleet_ship" || message.type === "remove_fleet_ship" || message.type === "sail" || message.type === "assign_ship_crew" || message.type === "assign_ship_npc_crew" || message.type === "fire_cannon" || message.type === "board_ship" || message.type === "repair_ship" || message.type === "retreat_ship" || message.type === "fight_ship_fire") {
