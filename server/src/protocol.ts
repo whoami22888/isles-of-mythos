@@ -131,7 +131,7 @@ export type ServerMessage =
   | { type:"breeding_started"; requestId:string; job:unknown }
   | { type:"breeding_jobs"; requestId:string; jobs:unknown[] }
   | { type:"guild_state"; requestId:string; guild:unknown }
-  | { type:"guild_invitations"; requestId:string; invitations:PartyInvitation[] }
+  | { type:"guild_invitations"; requestId:string; invitations:unknown[] }
   | { type:"guild_bank_state"; requestId:string; guildId:string; bank:unknown }
   | { type:"guild_operation_ok"; requestId:string; guildId:string }
   | { type:"realm_list"; requestId:string; realms:unknown[] }
@@ -167,7 +167,7 @@ export type ServerMessage =
   | { type:"chat_message"; requestId:string; message:ChatMessage }
   | { type:"chat_history"; requestId:string; messages:ChatMessage[] }
   | { type:"party_state"; requestId:string; party:PartyState|null }
-  | { type:"party_invitations"; requestId:string; invitations:Record<string, unknown>[] }
+  | { type:"party_invitations"; requestId:string; invitations:PartyInvitation[] }
   | { type:"party_operation_ok"; requestId:string }
   | { type:"auction_list"; requestId:string; listings:AuctionSummary[] }
   | { type:"auction_state"; requestId:string; listing:AuctionSummary }
