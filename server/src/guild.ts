@@ -37,6 +37,7 @@ async function requirePermission(c:PoolClient,guildId:string,userId:string,p:Gui
   if(!q.rows[0]?.enabled)throw new Error('GUILD_PERMISSION_DENIED');return m;
 }
 async function ensureDailyQuests(c:PoolClient,guildId:string){
+  await c.query("UPDATE guild_quests SET status='expired' WHERE guild_id=$1 AND status='active' AND expires_at<=CURRENT_TIMESTAMP",[guildId]);
   const day=new Date().toISOString().slice(0,10);
   for(const q of QUESTS)await c.query(
     "INSERT INTO guild_quests(guild_id,operation_key,title,requirement_item,target_quantity,reward_xp,reward_gold,reward_badges,expires_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,CURRENT_TIMESTAMP+INTERVAL '1 day') ON CONFLICT(guild_id,operation_key) DO NOTHING",
