@@ -112,7 +112,19 @@ export class InvasionStore{
   if(outcome==="defeat"){if(baseId)await c.query("UPDATE base_defensive_structures SET health=GREATEST(0,health-$2),active=CASE WHEN health-$2<=0 THEN false ELSE active END WHERE base_id=$1 AND active=true",[baseId,Math.max(10,severity*10)]);await c.query("UPDATE territories SET control_points=GREATEST(0,control_points-$2),updated_at=CURRENT_TIMESTAMP WHERE id=$1",[territoryId,Math.max(1,Math.floor(severity/5))]);}
  }
  private async issueRewards(c:PoolClient,invasionId:string,threat:number){
-  const inv=await c.query<{outcome:string|null}>("SELECT outcome FROM invasions WHERE id=$1 FOR UPDATE",[invasionId]);if(!inv.rows[0])return;const participants=await c.query<{user_id:string;contribution:string}>("SELECT user_id,contribution FROM invasion_participants WHERE invasion_id=$1 ORDER BY contribution DESC",[invasionId]);if(!participants.rows.length)return;const win=inv.rows[0].outcome==="victory";for(const p of participants){const badges=BigInt(Math.max(10,Math.floor(threat/100)*(win?2:1)));const gold=BigInt(Math.max(100,Math.floor(threat*5/participants.length)));await c.query("INSERT INTO invasion_rewards(invasion_id,user_id,gold,triumph_badges,loot) VALUES($1,$2,$3,$4,$5::jsonb) ON CONFLICT DO NOTHING",[invasionId,p.user_id,gold,badges,JSON.stringify({treasure_maps:win?Math.max(1,Math.floor(threat/5000)):0,rare_treasure:win})]);await c.query("UPDATE player_profiles SET gold=gold+$2,triumph_badges=triumph_badges+$3,updated_at=CURRENT_TIMESTAMP WHERE user_id=$1",[p.user_id,gold,badges]);}
+  const inv=await c.query<{outcome:string|null}>("SELECT outcome FROM invasions WHERE id=$1 FOR UPDATE",[invasionId]);
+  if(!inv.rows[0])return;
+  const participants=await c.query<{user_id:string;contribution:string}>("SELECT user_id,contribution FROM invasion_participants WHERE invasion_id=$1 ORDER BY contribution DESC",[invasionId]);
+  const participantRows=participants.rows;
+  if(participantRows.length===0)return;
+  const win=inv.rows[0].outcome==="victory";
+  for(const participant of participantRows){
+   const badges=BigInt(Math.max(10,Math.floor(threat/100)*(win?2:1)));
+   const gold=BigInt(Math.max(100,Math.floor(threat*5/participantRows.length)));
+   const loot=JSON.stringify({treasure_maps:win?Math.max(1,Math.floor(threat/5000)):0,rare_treasure:win});
+   await c.query("INSERT INTO invasion_rewards(invasion_id,user_id,gold,triumph_badges,loot) VALUES($1,$2,$3,$4,$5::jsonb) ON CONFLICT DO NOTHING",[invasionId,participant.user_id,gold,badges,loot]);
+   await c.query("UPDATE player_profiles SET gold=gold+$2,triumph_badges=triumph_badges+$3,updated_at=CURRENT_TIMESTAMP WHERE user_id=$1",[participant.user_id,gold,badges]);
+  }}
  }
  async list(territoryId:string|null=null):Promise<InvasionSummary[]>{
   const q=territoryId?await this.db.query<{id:string;territory_id:string;source_type:InvasionSource;target_base_id:string|null;phase:InvasionPhase;threat_score:number;outcome:string|null;phase_ends_at:Date}>("SELECT id,territory_id,source_type,target_base_id,phase,threat_score,outcome,phase_ends_at FROM invasions WHERE territory_id=$1 ORDER BY started_at DESC",[territoryId]):await this.db.query<{id:string;territory_id:string;source_type:InvasionSource;target_base_id:string|null;phase:InvasionPhase;threat_score:number;outcome:string|null;phase_ends_at:Date}>("SELECT id,territory_id,source_type,target_base_id,phase,threat_score,outcome,phase_ends_at FROM invasions ORDER BY started_at DESC LIMIT 100");
