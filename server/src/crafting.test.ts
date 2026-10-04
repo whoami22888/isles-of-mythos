@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { buildApp } from "./app.js";
 import { createDbPool } from "./db.js";
@@ -8,7 +9,7 @@ import { craftRecipe } from "./crafting.js";
 async function createPlayer() {
   const db = createDbPool();
   const app = await buildApp({ db });
-  const unique = Date.now() + Math.random();
+  const unique = randomUUID().replace(/-/g, "");
   const response = await app.inject({
     method: "POST",
     url: "/auth/register",
