@@ -13,6 +13,7 @@ const validPlayerState = {
   xp: 0,
   level: 1,
   gold: "0",
+  triumphBadges: "0",
   inventory: {},
   hotbar: ["cutlass", null, null, null, null, null, null, null],
   selectedHotbarSlot: 0,
@@ -37,6 +38,7 @@ describe("client player contract", () => {
       x: 0, y: 0, health: 100, stamina: 100, maxStamina: 100,
       hunger: 100, oxygen: 100, xp: 0, level: 1,
       gold: "500000000",
+      triumphBadges: "123",
       inventory: {},
       hotbar: ["cutlass", null, null, null, null, null, null, null],
       selectedHotbarSlot: 0,
@@ -45,5 +47,7 @@ describe("client player contract", () => {
     expect(isPlayerState({ ...state, gold: "9223372036854775807" })).toBe(true);
     expect(isPlayerState({ ...state, gold: "9223372036854775808" })).toBe(false);
     expect(isPlayerState({ ...state, gold: 500000000 })).toBe(false);
+    expect(isPlayerState({ ...state, triumphBadges: "9223372036854775808" })).toBe(false);
+    expect(isPlayerState({ ...state, triumphBadges: 1 })).toBe(false);
   });
 });
