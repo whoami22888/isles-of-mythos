@@ -26,11 +26,11 @@ describe("Gate 12 realms",()=>{
    await army.garrison(user,a.id,base.id);
    const realms=new RealmStore(db);const all=await realms.list();expect(all).toHaveLength(6);
    const territory=await realms.territoryAt(-100,0);expect(territory?.name).toBe("Sunken Coast");
-   await realms.claimGuildTerritory(user,territory!.id,g.id);
+   if(!territory)throw new Error("TERRITORY_MISSING");await realms.claimGuildTerritory(user,territory.id,g.id);
    const owned=(await realms.territories()).find(x=>x.id===territory!.id);expect(owned?.guild_owner_id).toBe(g.id);expect(owned?.realm_owner_id).toBeNull();
    const rep=await realms.reputation(user,"Sunken Kingdom",750);expect(rep.tier).toBe("respected");
-   const territories=await realms.territories();const destination=territories.find(x=>x.id!==territory!.id)!;
-   const route=await realms.createTradeRoute(user,territory!.id,destination.id,"iron","1000",60,g.id,null);expect(route).toBeTruthy();
+   const territories=await realms.territories();const destination=territories.find(x=>x.id!==territory.id);if(!destination)throw new Error("DESTINATION_MISSING");
+   const route=await realms.createTradeRoute(user,territory.id,destination.id,"iron","1000",60,g.id,null);expect(route).toBeTruthy();
    expect((await realms.routes()).some(x=>x.id===route)).toBe(true);
    await realms.tickAI();
    expect((await realms.list()).every(x=>BigInt(x.economy)>=0n&&BigInt(x.military_strength)>=0n)).toBe(true);
