@@ -23,8 +23,8 @@ export type ClientMessage =
   | { type:"set_work_priorities"; requestId:string; priorities:string[] }
   | { type:"craft"; requestId:string; recipeId:string }
   | { type:"shop_purchase"; requestId:string; itemId:string; quantity:number }
-  | { type:"trade"; requestId:string; toUserId:string; gold:string; items:Array<{itemId:string;quantity:number}> };
-  | { type:"start_breeding"; requestId:string; baseId:string; penBuildingId:string; parentAId:string; parentBId:string; durationMs?:number };
+  | { type:"trade"; requestId:string; toUserId:string; gold:string; items:Array<{itemId:string;quantity:number}> }
+  | { type:"start_breeding"; requestId:string; baseId:string; penBuildingId:string; parentAId:string; parentBId:string; durationMs?:number }
   | { type:"list_breeding"; requestId:string };
 
 export type ServerMessage =
