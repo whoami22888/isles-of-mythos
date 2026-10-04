@@ -1090,7 +1090,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
               if(message.type==="list_armies")return {type:"army_list",requestId:message.requestId,armies:await armies.list(authenticatedUserId)};
               if(message.type==="train_army"){const q=await armies.train(authenticatedUserId,message.armyId,message.unitType,message.quantity);return {type:"army_training",requestId:message.requestId,queueId:q.queueId,completesAt:q.completesAt};}
               if(message.type==="garrison_army"){await armies.garrison(authenticatedUserId,message.armyId,message.baseId);return {type:"army_operation_ok",requestId:message.requestId};}
-              if(message.type==="add_army_creature"){const unit=await armies.addCreature(authenticatedUserId,message.armyId,message.creatureId);return {type:"army_operation_ok",requestId:message.requestId};}
+              if(message.type==="add_army_creature"){await armies.addCreature(authenticatedUserId,message.armyId,message.creatureId);return {type:"army_operation_ok",requestId:message.requestId};}
               if(message.type==="set_army_assignment")return {type:"army_state",requestId:message.requestId,army:await armies.assignment(authenticatedUserId,message.armyId,message.assignment)};
               if(message.type==="set_army_formation")return {type:"army_state",requestId:message.requestId,army:await armies.formation(authenticatedUserId,message.armyId,message.name,message.formationType,message.layout)};
               if(message.type==="nominate_commander"){await armies.nominateCommander(authenticatedUserId,message.guildId,message.targetUserId);return {type:"army_operation_ok",requestId:message.requestId};}
