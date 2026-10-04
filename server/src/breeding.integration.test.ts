@@ -20,7 +20,9 @@ async function fixture(){
   const base=await bases.create(userId,"Breeding Test Base",0,0);
   const pen=await db.query<{id:string}>("INSERT INTO base_buildings(base_id,type,level,grid_x,grid_y,active) VALUES($1,'breeding_pen',1,1,0,true) RETURNING id",[base.id]);
   await db.query("UPDATE player_bases SET maximum_creatures=10,maximum_breeding_slots=1 WHERE id=$1",[base.id]);
-  await db.query("UPDATE player_profiles SET inventory=jsonb_set(COALESCE(inventory,'{}'::jsonb),'{creature.feed}','10'::jsonb,true),updated_at=CURRENT_TIMESTAMP WHERE user_id=$1",[userId]);
+  await db.query("UPDATE player_profiles SET inventory=COALESCE(inventory,'{}'::jsonb) || '{\"creature.feed\":10}'::jsonb,updated_at=CURRENT_TIMESTAMP WHERE user_id=$1",[userId]);
+  const feed=await db.query<{value:string|null}>("SELECT inventory->>'creature.feed' AS value FROM player_profiles WHERE user_id=$1",[userId]);
+  expect(feed.rows[0]?.value).toBe("10");
   const parents=await db.query<{id:string}>(`
     INSERT INTO player_creatures(owner_user_id,wild_source_id,species,level,xp,health,max_health,attack,defense,element,ability_ids,tame_progress,party_slot,ai_mode,x,y,genetics,generation)
     VALUES
