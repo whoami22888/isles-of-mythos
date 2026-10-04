@@ -27,6 +27,7 @@ import { FleetStore } from "./fleet.js";
 import { ShipInventoryStore } from "./ship-inventory.js";
 import { GuildStore } from "./guild.js";
 import { ArmyStore } from "./army.js";
+import { RealmStore } from "./realm.js";
 
 function errorCode(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
@@ -72,6 +73,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const shipInventory = new ShipInventoryStore(db);
   const guilds = new GuildStore(db);
   const armies = new ArmyStore(db);
+  const realms = new RealmStore(db);
   const sockets = new Set<WebSocket>();
   const playerConnections = new Map<string, number>();
   const userSockets = new Map<string, Set<WebSocket>>();
@@ -1110,6 +1112,24 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             }
           });
           send(socket,response);return;
+        }
+
+        if (message.type === "list_realms" || message.type === "list_territories" || message.type === "territory_at" || message.type === "claim_guild_territory" || message.type === "change_realm_reputation" || message.type === "my_realm_reputation" || message.type === "create_trade_route" || message.type === "list_trade_routes" || message.type === "tick_realm_ai") {
+          if(!userId){send(socket,{type:"error",code:"AUTH_REQUIRED"});return;}
+          const authenticatedUserId=userId;await players.loadOrCreate(authenticatedUserId);
+          const response=await runBaseRequest(authenticatedUserId,message.requestId,message.type+"|"+JSON.stringify(message),async()=>{
+            try{
+              if(message.type==="list_realms")return {type:"realm_list",requestId:message.requestId,realms:await realms.list()};
+              if(message.type==="list_territories")return {type:"territory_list",requestId:message.requestId,territories:await realms.territories()};
+              if(message.type==="territory_at")return {type:"territory_state",requestId:message.requestId,territory:await realms.territoryAt(message.x,message.y)};
+              if(message.type==="claim_guild_territory"){await realms.claimGuildTerritory(authenticatedUserId,message.territoryId,message.guildId);return {type:"realm_operation_ok",requestId:message.requestId};}
+              if(message.type==="change_realm_reputation")return {type:"realm_reputation",requestId:message.requestId,reputation:await realms.reputation(authenticatedUserId,message.realm,message.delta)};
+              if(message.type==="my_realm_reputation")return {type:"realm_reputation",requestId:message.requestId,reputation:await realms.myReputation(authenticatedUserId)};
+              if(message.type==="create_trade_route"){const route=await realms.createTradeRoute(authenticatedUserId,message.sourceTerritoryId,message.destinationTerritoryId,message.resourceKey,message.quantity,message.travelSeconds,message.guildId,message.realmId);return {type:"trade_route_state",requestId:message.requestId,route};}
+              if(message.type==="list_trade_routes")return {type:"trade_route_list",requestId:message.requestId,routes:await realms.routes()};
+              await realms.tickAI();return {type:"realm_operation_ok",requestId:message.requestId};
+            }catch(error){const code=errorCode(error,"REALM_OPERATION_FAILED");const allowed=["INVALID_TERRITORY_COORDINATES","TERRITORY_NOT_FOUND","INSUFFICIENT_TERRITORY_INFLUENCE","INVALID_REPUTATION_DELTA","REALM_NOT_FOUND","INVALID_TRADE_ROUTE","INVALID_TRADE_ROUTE_ENDPOINTS","GUILD_PERMISSION_DENIED","GUILD_MEMBERSHIP_REQUIRED","PLAYER_NOT_FOUND"];return {type:"error",code:(allowed.includes(code)?code:"INVALID_MESSAGE") as Extract<ServerMessage,{type:"error"}>["code"]};}
+          });send(socket,response);return;
         }
 
         if (message.type === "create_ship" || message.type === "list_ships" || message.type === "ship_inventory" || message.type === "ship_cargo" || message.type === "create_fleet" || message.type === "list_fleets" || message.type === "add_fleet_ship" || message.type === "remove_fleet_ship" || message.type === "sail" || message.type === "assign_ship_crew" || message.type === "assign_ship_npc_crew" || message.type === "fire_cannon" || message.type === "board_ship" || message.type === "repair_ship" || message.type === "retreat_ship" || message.type === "fight_ship_fire") {
