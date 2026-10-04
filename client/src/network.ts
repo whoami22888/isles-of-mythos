@@ -110,11 +110,12 @@ function isInvasionWave(value: unknown): value is InvasionWave {
   return typeof value.id === "string" && typeof value.wave_number === "number" && Number.isSafeInteger(value.wave_number) &&
     typeof value.unit_type === "string" && typeof value.category === "string" &&
     typeof value.quantity === "number" && Number.isSafeInteger(value.quantity) && value.quantity > 0 &&
-    typeof value.max_health === "number" && Number.isSafeInteger(value.max_health) &&
-    typeof value.current_health === "number" && Number.isSafeInteger(value.current_health) &&
-    typeof value.attack === "number" && Number.isSafeInteger(value.attack) &&
-    typeof value.defense === "number" && Number.isSafeInteger(value.defense) &&
-    typeof value.status === "string" && typeof value.aggro_range === "number" && Number.isSafeInteger(value.aggro_range) &&
+    typeof value.max_health === "number" && Number.isSafeInteger(value.max_health) && value.max_health > 0 &&
+    typeof value.current_health === "number" && Number.isSafeInteger(value.current_health) && value.current_health >= 0 && value.current_health <= value.max_health &&
+    typeof value.attack === "number" && Number.isSafeInteger(value.attack) && value.attack > 0 &&
+    typeof value.defense === "number" && Number.isSafeInteger(value.defense) && value.defense >= 0 &&
+    typeof value.status === "string" && (value.status === "queued" || value.status === "active" || value.status === "defeated" || value.status === "retreated") &&
+    typeof value.aggro_range === "number" && Number.isSafeInteger(value.aggro_range) && value.aggro_range >= 1 && value.aggro_range <= 100 &&
     (value.target_user_id === null || typeof value.target_user_id === "string");
 }
 
