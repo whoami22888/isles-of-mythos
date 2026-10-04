@@ -36,7 +36,12 @@ describe("Gate 13 invasion persistence",()=>{
     const reward=(await invasionStore.list(territory.id))[0];expect(reward.phase).toBe("REWARD");
     await db2.query("UPDATE invasions SET phase_ends_at=CURRENT_TIMESTAMP-INTERVAL '1 second' WHERE id=$1",[invasion.id]);await invasionStore.tick();
     const cooldown=(await invasionStore.list(territory.id))[0];expect(cooldown.phase).toBe("COOLDOWN");
-    const rewards=await db2.query("SELECT gold,triumph_badges FROM invasion_rewards WHERE invasion_id=$1 AND user_id=$2",[invasion.id,user]);expect(rewards.rows).toHaveLength(1);expect(BigInt(rewards.rows[0].gold)).toBeGreaterThan(0n);
+    const rewards=await db2.query<{gold:string;triumph_badges:string}>(
+     "SELECT gold,triumph_badges FROM invasion_rewards WHERE invasion_id=$1 AND user_id=$2",
+     [invasion.id,user],
+    );
+    expect(rewards.rows).toHaveLength(1);
+    expect(BigInt(rewards.rows[0]?.gold??"0")).toBeGreaterThan(0n);
    }finally{await db2.end();}
   }finally{await db.end();if(app.server.listening)await app.close();}
  });
