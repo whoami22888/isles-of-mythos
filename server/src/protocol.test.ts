@@ -46,6 +46,43 @@ describe("combat protocol", () => {
     expect(parseClientMessage(JSON.stringify({type:"assign_worker",requestId:"w1",creatureId:"c1",buildingId:"b1",task:"auto"}))).toEqual({type:"assign_worker",requestId:"w1",creatureId:"c1",buildingId:"b1",task:"auto"});
     expect(parseClientMessage(JSON.stringify({type:"set_work_priorities",requestId:"q1",priorities:["repair","collect","store"]}))).toEqual({type:"set_work_priorities",requestId:"q1",priorities:["repair","collect","store"]});
   });
+  it("accepts bounded Gate 7 economy requests", () => {
+    expect(parseClientMessage(JSON.stringify({
+      type: "craft", requestId: "craft-1", recipeId: "tool.wooden-club",
+    }))).toEqual({ type: "craft", requestId: "craft-1", recipeId: "tool.wooden-club" });
+    expect(parseClientMessage(JSON.stringify({
+      type: "shop_purchase", requestId: "shop-1", itemId: "resource.wood", quantity: 2,
+    }))).toEqual({ type: "shop_purchase", requestId: "shop-1", itemId: "resource.wood", quantity: 2 });
+    expect(parseClientMessage(JSON.stringify({
+      type: "trade",
+      requestId: "trade-1",
+      toUserId: "00000000-0000-0000-0000-000000000002",
+      gold: "250",
+      items: [{ itemId: "resource.wood", quantity: 4 }],
+    }))).toEqual({
+      type: "trade",
+      requestId: "trade-1",
+      toUserId: "00000000-0000-0000-0000-000000000002",
+      gold: "250",
+      items: [{ itemId: "resource.wood", quantity: 4 }],
+    });
+  });
+
+  it("rejects malformed or unbounded Gate 7 economy requests", () => {
+    expect(parseClientMessage(JSON.stringify({
+      type: "craft", requestId: "craft-1", recipeId: "",
+    }))).toBeNull();
+    expect(parseClientMessage(JSON.stringify({
+      type: "shop_purchase", requestId: "shop-1", itemId: "resource.wood", quantity: 1.5,
+    }))).toBeNull();
+    expect(parseClientMessage(JSON.stringify({
+      type: "trade", requestId: "trade-1", toUserId: "u2", gold: "1", items: Array.from({ length: 33 }, () => ({ itemId: "resource.wood", quantity: 1 })),
+    }))).toBeNull();
+    expect(parseClientMessage(JSON.stringify({
+      type: "trade", requestId: "trade-1", toUserId: "u2", gold: "1", items: [{ itemId: "resource.wood", quantity: 1e9 }],
+    }))).toBeNull();
+  });
+
   it("rejects unbounded storage mutations",()=>{
     expect(parseClientMessage(JSON.stringify({type:"storage",requestId:"s1",changes:{wood:1e12}}))).toBeNull();
     expect(parseClientMessage(JSON.stringify({type:"storage",requestId:"s1",changes:{}}))).toBeNull();
