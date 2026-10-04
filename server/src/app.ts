@@ -886,7 +886,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
               if(!BUILDING_TYPES.includes(message.buildingType as BuildingType))throw new Error("INVALID_BUILDING_TYPE");
               const building=await bases.createBuilding(authenticatedUserId,message.buildingType as BuildingType,message.level,message.gridX,message.gridY);
               return {type:"building_state",requestId:message.requestId,building};
-            }catch(error){const code=errorCode(error,"BUILD_FAILED"); const allowed=["BASE_NOT_FOUND","BASE_PERMISSION_DENIED","INVALID_BUILDING_TYPE","INVALID_BUILDING_LEVEL","INVALID_BUILDING_POSITION","BUILDING_POSITION_OCCUPIED","BUILDING_PREREQUISITE_MISSING","INSUFFICIENT_STORAGE","BUILD_FAILED"]; return {type:"error",code:(allowed.includes(code)?code:"BUILD_FAILED") as "BASE_NOT_FOUND"|"BASE_PERMISSION_DENIED"|"INVALID_BUILDING_TYPE"|"INVALID_BUILDING_LEVEL"|"INVALID_BUILDING_POSITION"|"BUILDING_POSITION_OCCUPIED"|"BUILDING_PREREQUISITE_MISSING"|"INSUFFICIENT_STORAGE"|"BUILD_FAILED"};}
+            }catch(error){const code=errorCode(error,"BUILD_FAILED"); const allowed=["BASE_NOT_FOUND","BASE_PERMISSION_DENIED","INVALID_BUILDING_TYPE","INVALID_BUILDING_LEVEL","INVALID_BUILDING_POSITION","BUILDING_POSITION_OCCUPIED","BUILDING_PREREQUISITE_MISSING","INSUFFICIENT_STORAGE","BUILD_FAILED","WORKER_CAPACITY_REACHED"]; return {type:"error",code:(allowed.includes(code)?code:"BUILD_FAILED") as "BASE_NOT_FOUND"|"BASE_PERMISSION_DENIED"|"INVALID_BUILDING_TYPE"|"INVALID_BUILDING_LEVEL"|"INVALID_BUILDING_POSITION"|"BUILDING_POSITION_OCCUPIED"|"BUILDING_PREREQUISITE_MISSING"|"INSUFFICIENT_STORAGE"|"BUILD_FAILED"|"WORKER_CAPACITY_REACHED"};}
           });
           send(socket,response);
           return;
