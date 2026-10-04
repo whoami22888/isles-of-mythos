@@ -31,9 +31,9 @@ describe("Gate 11 tactical armies",()=>{
       await armies.garrison(user,a.id,baseId);await armies.assignment(user,a.id,"garrison");
       const formation=await armies.formation(user,a.id,"Line","line",{slots:[0,1,2]});expect(formation.activeFormation?.formationType).toBe("line");
       const defense=await armies.defense(user,baseId,"spike_trap",2,2);expect(defense.type).toBe("spike_trap");
-      await db.query("INSERT INTO army_units(army_id,unit_type,category,quantity,health,max_health,attack,defense,range,speed,ability_ids) VALUES($1,'pirate_infantry','infantry',5,500,500,14,12,1,3,'["shield_wall"]'::jsonb)",[b.id]);
+      await db.query("INSERT INTO army_units(army_id,unit_type,category,quantity,health,max_health,attack,defense,range,speed,ability_ids) VALUES($1,'pirate_infantry','infantry',5,500,500,14,12,1,3,'[\"shield_wall\"]'::jsonb)",[b.id]);
       const battle=await armies.battleCreate(user,a.id,b.id,5,5);expect(battle.status).toBe("active");
-      await armies.deploy(user,battle.id,trained.units[0]!.id,0);
+      await armies.deploy(user,battle.id,trained.units[0]?.id ?? (()=>{throw new Error("TRAINED_UNIT_MISSING")})(),0);
       const enemy=await db.query<{id:string}>("SELECT id FROM army_units WHERE army_id=$1",[b.id]);expect(enemy.rows[0]).toBeTruthy();
       await armies.deploy(user,battle.id,enemy.rows[0]!.id,1);
       const after=await armies.turn(user,battle.id);expect(after.turn).toBeGreaterThan(1);
