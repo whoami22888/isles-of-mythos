@@ -1,6 +1,6 @@
 import type { Pool } from "pg";
 import type { ShopItem } from "./shop.js";
-import { applyInventoryDelta, cloneInventory, parseGoldDoubloons, runEconomyTransaction, subtractGoldDoubloons } from "./economy.js";
+import { applyInventoryDelta, cloneInventory, parseGoldDoubloons, runEconomyTransaction, subtractGoldDoubloons, type Inventory } from "./economy.js";
 import { TileKind, tileAtWorld } from "./world.js";
 
 export const PLAYER_MAX_HEALTH = 100;
@@ -82,6 +82,7 @@ export class PlayerStore {
   private readonly dirty = new Set<string>();
   private readonly revisions = new Map<string, number>();
   private readonly operations = new Map<string, Promise<void>>();
+  private readonly economyInventorySnapshots = new Map<string, Inventory>();
   constructor(private readonly db: Pool) {}
   async runExclusive<T>(userId: string, operation: () => Promise<T>): Promise<T> {
     const previous = this.operations.get(userId) ?? Promise.resolve();
@@ -111,6 +112,7 @@ export class PlayerStore {
     if (!row) throw new Error("PLAYER_NOT_FOUND");
     const state = rowToState(row);
     this.active.set(userId, state);
+    this.economyInventorySnapshots.set(userId, cloneInventory(state.inventory));
     this.revisions.set(userId, 0);
     this.dirty.delete(userId);
     return state;
@@ -150,6 +152,15 @@ export class PlayerStore {
       "UPDATE player_profiles SET x=$2, y=$3, health=$4, defense=$5, stamina=$6, max_stamina=$7, hunger=$8, oxygen=$9, xp=$10, level=$11, hotbar=$12::jsonb, selected_hotbar_slot=$13, updated_at=CURRENT_TIMESTAMP WHERE user_id=$1",
       [userId, snapshot.x, snapshot.y, snapshot.health, snapshot.defense, snapshot.stamina, snapshot.maxStamina, snapshot.hunger, snapshot.oxygen, snapshot.xp, snapshot.level,
         snapshot.hotbar, snapshot.selectedHotbarSlot]);
+    const baselineInventory = this.economyInventorySnapshots.get(userId);
+    const inventoryChanged = !baselineInventory || !sameInventory(baselineInventory, state.inventory);
+    if (inventoryChanged) {
+      await this.db.query(
+        "UPDATE player_profiles SET inventory=$2::jsonb, updated_at=CURRENT_TIMESTAMP WHERE user_id=$1",
+        [userId, JSON.stringify(cloneInventory(state.inventory))],
+      );
+      this.economyInventorySnapshots.set(userId, cloneInventory(state.inventory));
+    }
     if ((this.revisions.get(userId) ?? 0) === revision) this.dirty.delete(userId);
   }
   async purchase(userId: string, item: ShopItem, quantity: number, totalGold: bigint): Promise<PlayerState> {
@@ -163,6 +174,7 @@ export class PlayerStore {
       if (!state) throw new Error("PLAYER_NOT_FOUND");
       state.gold = result.gold;
       state.inventory = result.inventory;
+      this.economyInventorySnapshots.set(userId, cloneInventory(result.inventory));
       this.markDirty(userId);
       return state;
     });
@@ -178,6 +190,7 @@ export class PlayerStore {
     if (!state || !row) throw new Error("PLAYER_NOT_FOUND");
     state.gold = parseGoldDoubloons(row.gold);
     state.inventory = cloneInventory(row.inventory);
+    this.economyInventorySnapshots.set(userId, cloneInventory(state.inventory));
     return state;
   }
 
@@ -191,6 +204,7 @@ export class PlayerStore {
       if (!state) throw new Error("PLAYER_NOT_FOUND");
       state.gold = result.gold;
       state.inventory = result.inventory;
+      this.economyInventorySnapshots.set(userId, cloneInventory(result.inventory));
       this.markDirty(userId);
       return state;
     });
@@ -205,6 +219,7 @@ export class PlayerStore {
       this.active.delete(userId);
       this.dirty.delete(userId);
       this.revisions.delete(userId);
+      this.economyInventorySnapshots.delete(userId);
     });
   }
   async persistDirty(): Promise<void> {
@@ -215,4 +230,12 @@ export class PlayerStore {
     const userIds = [...this.active.keys()];
     for (const userId of userIds) await this.persist(userId);
   }
+}
+
+function sameInventory(a: Inventory, b: Inventory): boolean {
+  const aKeys = Object.keys(a);
+  const bKeys = Object.keys(b);
+  if (aKeys.length !== bKeys.length) return false;
+  for (const key of aKeys) if (a[key] !== b[key]) return false;
+  return true;
 }
