@@ -76,11 +76,14 @@ describe("Gate 14 auction authority",()=>{
       await setEconomy(db,seller,"0",{"resource.wood":2});await setEconomy(db,buyer,"500",{});await setEconomy(db,other,"500",{});
       const listing=await auction.create(seller,{itemId:"resource.wood",quantity:2,startPrice:"100",buyNowPrice:null,durationMs:60000});
       const results=await Promise.allSettled([auction.bid(buyer,listing.id,"150"),auction.bid(other,listing.id,"200")]);
-      expect(results.filter(x=>x.status==="fulfilled")).toHaveLength(1);
-      expect(results.filter(x=>x.status==="rejected")).toHaveLength(1);
+      expect(results.some(x=>x.status==="fulfilled")).toBe(true);
       const row=await db.query<{current_bid:string;highest_bidder_user_id:string|null}>("SELECT current_bid,highest_bidder_user_id FROM auction_listings WHERE id=$1",[listing.id]);
       expect(row.rows[0]).toMatchObject({current_bid:"200"});
       expect(row.rows[0].highest_bidder_user_id).toBeTruthy();
+      const held=await db.query<{count:number}>("SELECT COUNT(*)::int count FROM auction_bids WHERE listing_id=$1 AND status='held'",[listing.id]);
+      expect(held.rows[0].count).toBe(1);
+      const balances=await db.query<{gold:string}>("SELECT gold FROM player_profiles WHERE user_id=ANY($1::uuid[])",[[buyer,other]]);
+      expect(balances.rows.reduce((sum,x)=>sum+BigInt(x.gold),0n)).toBe(800n);
     }finally{await app.close();await db.end();}
   });
 
