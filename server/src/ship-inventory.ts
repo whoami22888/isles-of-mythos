@@ -10,10 +10,10 @@ export class ShipInventoryStore {
       const ship=await c.query<{cargo_capacity:number}>("SELECT cargo_capacity FROM player_ships WHERE id=$1 AND owner_user_id=$2 FOR UPDATE",[shipId,userId]);
       if(!ship.rows[0]) throw new Error("SHIP_NOT_FOUND");
       const locked=await c.query<{item_id:string;quantity:string}>("SELECT item_id,quantity FROM ship_inventory WHERE ship_id=$1 FOR UPDATE",[shipId]);
-      const current=locked.find(x=>x.item_id===itemId);
+      const current=locked.rows.find(x=>x.item_id===itemId);
       const next=Number(current?.quantity??0)+delta;
       if(next<0) throw new Error("INSUFFICIENT_SHIP_CARGO");
-      const totalNext=locked.reduce((sum,row)=>sum+Number(row.quantity),0)+delta;
+      const totalNext=locked.rows.reduce((sum,row)=>sum+Number(row.quantity),0)+delta;
       if(!Number.isSafeInteger(totalNext) || totalNext>ship.rows[0].cargo_capacity) throw new Error("SHIP_CARGO_CAPACITY_EXCEEDED");
       await c.query("INSERT INTO ship_inventory(ship_id,item_id,quantity) VALUES($1,$2,$3) ON CONFLICT(ship_id,item_id) DO UPDATE SET quantity=EXCLUDED.quantity,updated_at=CURRENT_TIMESTAMP",[shipId,itemId,next]);
       await c.query("COMMIT");
