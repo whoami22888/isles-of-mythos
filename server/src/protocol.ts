@@ -1,6 +1,6 @@
 import type { InvasionRole } from "./invasion.js";
 import type { PublicPlayerState } from "./player.js";
-import type { AuctionSummary } from "./auction.js";
+import type { AuctionCategory, AuctionRarity, AuctionSummary } from "./auction.js";
 import type { ChatMessage, FriendRecord, PartyInvitation, PartyState } from "./social.js";
 export interface ChunkCoordinate { x:number; y:number; }
 
@@ -106,7 +106,7 @@ export type ClientMessage =
   | { type:"party_accept"; requestId:string; invitationId:string }
   | { type:"party_leave"; requestId:string }
   | { type:"party_kick"; requestId:string; targetUserId:string }
-  | { type:"auction_list"; requestId:string; itemId:string|null; rarity:string|null; category:string|null; minLevel:number|null; maxLevel:number|null; minPrice:string|null; maxPrice:string|null }
+  | { type:"auction_list"; requestId:string; itemId:string|null; rarity:AuctionRarity|null; category:AuctionCategory|null; minLevel:number|null; maxLevel:number|null; minPrice:string|null; maxPrice:string|null }
   | { type:"auction_create"; requestId:string; itemId:string; quantity:number; startPrice:string; buyNowPrice:string|null; durationMs:number }
   | { type:"auction_bid"; requestId:string; listingId:string; amount:string }
   | { type:"auction_buy_now"; requestId:string; listingId:string }
