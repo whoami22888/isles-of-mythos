@@ -37,7 +37,7 @@ describe("base foundation",()=>{
     expect(storageCapacity(base)).toBe(3000);
   });
   it("treats the owner as authoritative for all base permissions",()=>{
-    const base={id:"b",ownerUserId:"owner",name:"x",x:0,y:0,buildings:[],storage:{},workPriorities:[],permissions:{},workers:[],productionProcessedAt:Date.now()};
+    const base={id:"b",ownerUserId:"owner",name:"x",x:0,y:0,buildings:[],storage:{},workPriorities:[],permissions:{},workers:[],maximumCreatures:20,currentCreatures:0,maximumWorkers:10,currentWorkers:0,maximumBreedingSlots:1,productionProcessedAt:Date.now()};
     expect(BaseStore.can("owner",base,"manage")).toBe(true);
     expect(BaseStore.can("other",base,"manage")).toBe(false);
   });
