@@ -1,6 +1,6 @@
 export interface PlayerState {
   userId: string; x: number; y: number; health: number; stamina: number; maxStamina: number; hunger: number; oxygen: number;
-  xp: number; level: number; gold: string; inventory: Record<string, number>;
+  xp: number; level: number; gold: string; triumphBadges: string; inventory: Record<string, number>;
   hotbar: Array<string | null>; selectedHotbarSlot: number;
 }
 
@@ -9,6 +9,7 @@ function isFiniteNumber(value: unknown): value is number {
 }
 
 const MAX_GOLD_DOUBLOONS = 9_223_372_036_854_775_807n;
+const MAX_TRIUMPH_BADGES = MAX_GOLD_DOUBLOONS;
 
 function isGold(value: unknown): value is string {
   if (typeof value !== "string" || !/^(0|[1-9][0-9]*)$/.test(value) || value.length > 19) return false;
@@ -17,6 +18,11 @@ function isGold(value: unknown): value is string {
   } catch {
     return false;
   }
+}
+
+function isTriumphBadges(value: unknown): value is string {
+  if (typeof value !== "string" || !/^(0|[1-9][0-9]*)$/.test(value) || value.length > 19) return false;
+  try { return BigInt(value) <= MAX_TRIUMPH_BADGES; } catch { return false; }
 }
 
 function isInventory(value: unknown): value is Record<string, number> {
@@ -45,6 +51,7 @@ export function isPlayerState(value: unknown): value is PlayerState {
     isFiniteNumber(state.xp) && state.xp >= 0 &&
     typeof state.level === "number" && Number.isSafeInteger(state.level) && state.level >= 1 &&
     isGold(state.gold) &&
+    isTriumphBadges(state.triumphBadges) &&
     isInventory(state.inventory) && isHotbar(state.hotbar) &&
     typeof state.selectedHotbarSlot === "number" && Number.isSafeInteger(state.selectedHotbarSlot) && state.selectedHotbarSlot >= 0 && state.selectedHotbarSlot < 8;
 }
