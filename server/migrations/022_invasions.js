@@ -97,7 +97,7 @@ export const up=(pgm)=>{
   pgm.addConstraint("invasion_consequences","invasion_consequence_severity",{check:"severity >= 0 AND severity <= 100"});
   pgm.createIndex("invasion_consequences",["territory_id","applied_at"]);
 
-  pgm.sql("INSERT INTO invasion_threat(territory_id) SELECT id FROM territories ON CONFLICT DO NOTHING");
+  pgm.sql("INSERT INTO invasion_threats(territory_id) SELECT id FROM territories ON CONFLICT DO NOTHING");
   pgm.sql("INSERT INTO invasion_schedules(territory_id) SELECT id FROM territories ON CONFLICT DO NOTHING");
 };
 export const down=(pgm)=>{
