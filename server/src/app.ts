@@ -1192,7 +1192,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
               if (message.type === "get_party") return { type:"party_state",requestId:message.requestId,party:await social.partyForUser(authenticatedUserId) };
               if (message.type === "party_invitations") return { type:"party_invitations",requestId:message.requestId,invitations:await social.partyInvitations(authenticatedUserId) };
               if (message.type === "party_invite") {
-                const invitation=await social.inviteToParty(authenticatedUserId,message.targetUserId);
+                await social.inviteToParty(authenticatedUserId,message.targetUserId);
                 if(userSockets.has(message.targetUserId)) for(const s of userSockets.get(message.targetUserId)??[]) send(s,{type:"party_invitations",requestId:"push",invitations:await social.partyInvitations(message.targetUserId)});
                 return {type:"party_operation_ok",requestId:message.requestId};
               }
