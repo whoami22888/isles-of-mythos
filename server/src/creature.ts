@@ -65,6 +65,11 @@ export class CreatureStore {
       const invR=await client.query<{inventory:Record<string,number>}>("SELECT inventory FROM player_profiles WHERE user_id=$1 FOR UPDATE",[userId]);
       const inv=invR.rows[0]?.inventory??{}; const orbs=Number(inv[CAPTURE_ORB_ITEM]??0);
       if(!Number.isSafeInteger(orbs)||orbs<1)throw new Error("NO_CAPTURE_ORB");
+      const populationBase=await client.query<{id:string;maximum_creatures:number}>("SELECT id,maximum_creatures FROM player_bases WHERE owner_user_id=$1 FOR UPDATE",[userId]);
+      if(populationBase.rows[0]){
+        const population=await client.query<{count:string}>("SELECT COUNT(*)::text count FROM player_creatures WHERE owner_user_id=$1",[userId]);
+        if(Number(population.rows[0]?.count??0)>=populationBase.rows[0].maximum_creatures)throw new Error("POPULATION_LIMIT_REACHED");
+      }
       const duplicate=await client.query("SELECT 1 FROM player_creatures WHERE wild_source_id=$1 LIMIT 1",[target.id]);
       if(duplicate.rowCount)throw new Error("CREATURE_ALREADY_CAPTURED");
       const s=statsFor(target.species,target.level); const next={...inv,[CAPTURE_ORB_ITEM]:orbs-1};
