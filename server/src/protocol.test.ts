@@ -83,6 +83,18 @@ describe("combat protocol", () => {
     }))).toBeNull();
   });
 
+  it("accepts and validates invasion team roles",()=>{
+    expect(parseClientMessage(JSON.stringify({
+      type:"join_invasion",requestId:"inv-1",invasionId:"inv-10",armyId:"army-10",role:"tank",
+    }))).toEqual({type:"join_invasion",requestId:"inv-1",invasionId:"inv-10",armyId:"army-10",role:"tank"});
+    expect(parseClientMessage(JSON.stringify({
+      type:"join_invasion",requestId:"inv-1",invasionId:"inv-10",armyId:"army-10",role:"invalid",
+    }))).toBeNull();
+    expect(parseClientMessage(JSON.stringify({
+      type:"invasion_action",requestId:"inv-1",invasionId:"",action:"attack",waveId:null,
+    }))).toBeNull();
+  });
+
   it("rejects unbounded storage mutations",()=>{
     expect(parseClientMessage(JSON.stringify({type:"storage",requestId:"s1",changes:{wood:1e12}}))).toBeNull();
     expect(parseClientMessage(JSON.stringify({type:"storage",requestId:"s1",changes:{}}))).toBeNull();

@@ -1,7 +1,17 @@
 import Phaser from "phaser";
 import { getAccessToken } from "./auth.js";
-import { CHUNK_SIZE, TILE_SIZE, ChunkRenderer, type WorldChunk } from "./world.js";
-import { isPlayerState, type PlayerState } from "./player.js";
+import { CHUNK_SIZE, TILE_SIZE, ChunkRenderer } from "./world.js";
+import type { PlayerState } from "./player.js";
+import {
+  parseServerMessage,
+  type ArmySummary,
+  type CreatureState,
+  type InvasionRole,
+  type InvasionSummary,
+  type InvasionWave,
+  type ProjectileSpawnMessage,
+  type ServerMessage,
+} from "./network.js";
 
 const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL;
 const API_BASE_URL = (configuredBaseUrl ?? "http://localhost:3000").replace(/\/$/, "");
@@ -9,156 +19,6 @@ const WS_URL = API_BASE_URL.replace(/^http/, "ws") + "/ws";
 const VISIBLE_CHUNK_RADIUS = 1;
 const MOVE_SEND_INTERVAL_MS = 50;
 const ATTACK_INPUT_COOLDOWN_MS = 150;
-
-interface ProjectileSpawnMessage {
-  type: "projectile_spawn";
-  projectileId: string;
-  ownerUserId: string;
-  targetId: string;
-  x: number;
-  y: number;
-  vx: number;
-  vy: number;
-  expiresAt: number;
-}
-
-interface CreatureState { id:string; species:string; nickname:string|null; level:number; health:number; maxHealth:number; tameProgress:number; partySlot:number|null; aiMode:"follow"|"assist"|"stay"; x:number; y:number; }
-
-interface CombatResultMessage {
-  type: "combat_result";
-  requestId: string;
-  targetId: string;
-  damage: number;
-  critical: boolean;
-  killed: boolean;
-  targetHealth: number;
-  status?: string;
-  missed?: boolean;
-}
-
-type EconomySnapshot = { userId: string; gold: string; inventory: Record<string, number> };
-
-type ServerMessage =
-  | { type: "server_ready"; timestamp: number }
-  | { type: "pong"; timestamp: number }
-  | { type: "auth_ok"; userId: string }
-  | { type: "player_state"; state: PlayerState }
-  | { type: "world_chunk"; requestId: string; chunk: WorldChunk }
-  | ProjectileSpawnMessage
-  | CombatResultMessage
-  | { type: "creature_state"; requestId?: string; creature: CreatureState }
-  | { type: "creature_party"; creatures: CreatureState[] }
-  | { type: "craft_result"; requestId: string; recipeId: string; state: PlayerState }
-  | { type: "shop_purchase_result"; requestId: string; itemId: string; quantity: number; totalGold: string; state: PlayerState }
-  | { type: "trade_result"; requestId: string; from: EconomySnapshot; to: EconomySnapshot }
-  | { type: "error"; code: string };
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
-function isWorldChunk(value: unknown): value is WorldChunk {
-  if (!isRecord(value)) return false;
-  return typeof value.x === "number" &&
-    typeof value.y === "number" &&
-    typeof value.size === "number" &&
-    Array.isArray(value.tiles) &&
-    value.tiles.every((tile) => typeof tile === "number");
-}
-
-function isCreatureState(value: unknown): value is CreatureState {
-  if (!isRecord(value)) return false;
-  return typeof value.id === "string" &&
-    typeof value.species === "string" &&
-    (value.nickname === null || typeof value.nickname === "string") &&
-    typeof value.level === "number" &&
-    typeof value.health === "number" &&
-    typeof value.maxHealth === "number" &&
-    typeof value.tameProgress === "number" &&
-    (value.partySlot === null || typeof value.partySlot === "number") &&
-    (value.aiMode === "follow" || value.aiMode === "assist" || value.aiMode === "stay") &&
-    typeof value.x === "number" &&
-    typeof value.y === "number";
-}
-
-function parseServerMessage(value: unknown): ServerMessage | null {
-  if (!isRecord(value) || typeof value.type !== "string") return null;
-  switch (value.type) {
-    case "server_ready":
-      return typeof value.timestamp === "number" ? { type: "server_ready", timestamp: value.timestamp } : null;
-    case "pong":
-      return typeof value.timestamp === "number" ? { type: "pong", timestamp: value.timestamp } : null;
-    case "auth_ok":
-      return typeof value.userId === "string" ? { type: "auth_ok", userId: value.userId } : null;
-    case "player_state":
-      return isPlayerState(value.state) ? { type: "player_state", state: value.state } : null;
-    case "world_chunk":
-      return typeof value.requestId === "string" && isWorldChunk(value.chunk)
-        ? { type: "world_chunk", requestId: value.requestId, chunk: value.chunk }
-        : null;
-    case "projectile_spawn":
-      return typeof value.projectileId === "string" && typeof value.ownerUserId === "string" && typeof value.targetId === "string" &&
-        typeof value.x === "number" && Number.isFinite(value.x) && typeof value.y === "number" && Number.isFinite(value.y) &&
-        typeof value.vx === "number" && Number.isFinite(value.vx) && typeof value.vy === "number" && Number.isFinite(value.vy) &&
-        typeof value.expiresAt === "number" && Number.isFinite(value.expiresAt)
-        ? { type: "projectile_spawn", projectileId: value.projectileId, ownerUserId: value.ownerUserId, targetId: value.targetId, x: value.x, y: value.y, vx: value.vx, vy: value.vy, expiresAt: value.expiresAt }
-        : null;
-    case "creature_state": {
-      if (!isCreatureState(value.creature)) return null;
-      return {
-        type: "creature_state",
-        ...(typeof value.requestId === "string" ? { requestId: value.requestId } : {}),
-        creature: value.creature,
-      };
-    }
-    case "craft_result":
-      return typeof value.requestId === "string" && typeof value.recipeId === "string" && isPlayerState(value.state)
-        ? { type: "craft_result", requestId: value.requestId, recipeId: value.recipeId, state: value.state }
-        : null;
-    case "shop_purchase_result":
-      return typeof value.requestId === "string" && typeof value.itemId === "string" && typeof value.quantity === "number" &&
-        Number.isSafeInteger(value.quantity) && value.quantity > 0 && typeof value.totalGold === "string" && isPlayerState(value.state)
-        ? { type: "shop_purchase_result", requestId: value.requestId, itemId: value.itemId, quantity: value.quantity, totalGold: value.totalGold, state: value.state }
-        : null;
-    case "trade_result": {
-      const isSnapshot = (snapshot: unknown): snapshot is EconomySnapshot => {
-        if (!isRecord(snapshot) || typeof snapshot.userId !== "string" || typeof snapshot.gold !== "string" || !isRecord(snapshot.inventory)) return false;
-        return Object.values(snapshot.inventory).every((quantity) => typeof quantity === "number" && Number.isSafeInteger(quantity) && quantity >= 0);
-      };
-      return typeof value.requestId === "string" && isSnapshot(value.from) && isSnapshot(value.to)
-        ? { type: "trade_result", requestId: value.requestId, from: value.from, to: value.to }
-        : null;
-    }
-    case "creature_party":
-      if (!Array.isArray(value.creatures) || !value.creatures.every(isCreatureState)) return null;
-      return { type: "creature_party", creatures: value.creatures };
-    case "combat_result":
-      return typeof value.requestId === "string" && value.requestId.length > 0 && value.requestId.length <= 64 &&
-        typeof value.targetId === "string" &&
-        typeof value.damage === "number" &&
-        typeof value.critical === "boolean" &&
-        typeof value.killed === "boolean" &&
-        typeof value.targetHealth === "number" &&
-        (value.status === undefined || typeof value.status === "string") &&
-        (value.missed === undefined || typeof value.missed === "boolean")
-        ? {
-            type: "combat_result",
-            requestId: value.requestId,
-            targetId: value.targetId,
-            damage: value.damage,
-            critical: value.critical,
-            killed: value.killed,
-            targetHealth: value.targetHealth,
-            ...(value.missed === undefined ? {} : { missed: value.missed }),
-            ...(value.status === undefined ? {} : { status: value.status }),
-          }
-        : null;
-    case "error":
-      return typeof value.code === "string" ? { type: "error", code: value.code } : null;
-    default:
-      return null;
-  }
-}
 
 class WorldScene extends Phaser.Scene {
   private readonly chunks = new ChunkRenderer(this);
@@ -182,6 +42,20 @@ class WorldScene extends Phaser.Scene {
   private dodgeAccumulator = 0;
   private readonly ownedCreatures = new Map<string, CreatureState>();
   private readonly pendingCaptureTargets = new Map<string, string>();
+  private invasion?: InvasionSummary;
+  private invasionWaves: InvasionWave[] = [];
+  private availableArmies: ArmySummary[] = [];
+  private invasionRoleIndex = 1;
+  private invasionPanel?: Phaser.GameObjects.Rectangle;
+  private invasionTitle?: Phaser.GameObjects.Text;
+  private invasionInfo?: Phaser.GameObjects.Text;
+  private invasionWaveInfo?: Phaser.GameObjects.Text;
+  private invasionRoleText?: Phaser.GameObjects.Text;
+  private invasionJoinButton?: Phaser.GameObjects.Text;
+  private invasionRoleButton?: Phaser.GameObjects.Text;
+  private invasionAttackButton?: Phaser.GameObjects.Text;
+  private invasionReinforceButton?: Phaser.GameObjects.Text;
+  private invasionRetreatButton?: Phaser.GameObjects.Text;
 
   constructor() { super("world"); }
 
@@ -203,6 +77,10 @@ class WorldScene extends Phaser.Scene {
     this.input.keyboard?.on("keydown-I", () => this.cycleSelectedAi());
     this.input.keyboard?.on("keyup-B", () => this.setBlocking(false));
     this.createTouchCombatControls();
+    this.createInvasionOverlay();
+    this.time.addEvent({ delay: 3000, loop: true, callback: () => this.refreshInvasions() });
+    this.scale.on("resize", () => this.layoutInvasionOverlay());
+    this.layoutInvasionOverlay();
     this.input.on("wheel", (_p: Phaser.Input.Pointer, _g: unknown[], _dx: number, dy: number) => this.cameras.main.setZoom(Phaser.Math.Clamp(this.cameras.main.zoom - dy * 0.001, 0.5, 2.5)));
     const hotbarKeys = ["ONE","TWO","THREE","FOUR","FIVE","SIX","SEVEN","EIGHT"];
     for (const key of hotbarKeys) {
@@ -264,6 +142,37 @@ class WorldScene extends Phaser.Scene {
         }
         this.statusText?.setText("WORLD ONLINE • AUTHORITATIVE SERVER");
         this.requestChunks();
+        this.requestArmies();
+        this.refreshInvasions();
+        return;
+      }
+      if (message.type === "army_list") {
+        this.availableArmies = message.armies;
+        this.renderInvasionOverlay();
+        return;
+      }
+      if (message.type === "invasion_list") {
+        const active = message.invasions.find((x) => x.phase !== "COMPLETE") ?? message.invasions[0];
+        this.invasion = active;
+        if (!active) this.invasionWaves = [];
+        if (active) this.requestInvasionWaves(active.id);
+        this.renderInvasionOverlay();
+        return;
+      }
+      if (message.type === "invasion_waves") {
+        if (!this.invasion || this.invasion.id === message.invasionId) this.invasionWaves = message.waves;
+        this.renderInvasionOverlay();
+        return;
+      }
+      if (message.type === "invasion_state") {
+        this.invasion = message.invasion;
+        this.requestInvasionWaves(message.invasion.id);
+        this.renderInvasionOverlay();
+        return;
+      }
+      if (message.type === "invasion_operation_ok") {
+        this.statusText?.setText("INVASION COMMAND ACCEPTED");
+        this.refreshInvasions();
         return;
       }
       if (message.type === "player_state") {
@@ -331,7 +240,9 @@ class WorldScene extends Phaser.Scene {
     });
     socket.addEventListener("close", () => {
       this.connected = false;
+      this.invasionWaves = [];
       this.pendingCaptureTargets.clear();
+      this.renderInvasionOverlay();
       this.statusText?.setText("WORLD OFFLINE • RECONNECTING...");
       this.scheduleReconnect();
     });
@@ -349,6 +260,120 @@ class WorldScene extends Phaser.Scene {
       this.reconnectTimer = undefined;
       this.connect();
     }, delay);
+  }
+
+  private requestArmies(): void {
+    if (this.socket?.readyState !== WebSocket.OPEN) return;
+    this.socket.send(JSON.stringify({ type: "list_armies", requestId: this.nextAttackRequestId() }));
+  }
+
+  private refreshInvasions(): void {
+    if (this.socket?.readyState !== WebSocket.OPEN) return;
+    this.requestArmies();
+    this.socket.send(JSON.stringify({ type: "list_invasions", requestId: this.nextAttackRequestId(), territoryId: null }));
+  }
+
+  private requestInvasionWaves(invasionId: string): void {
+    if (this.socket?.readyState !== WebSocket.OPEN) return;
+    this.socket.send(JSON.stringify({ type: "get_invasion_waves", requestId: this.nextAttackRequestId(), invasionId }));
+  }
+
+  private createInvasionOverlay(): void {
+    this.invasionPanel = this.add.rectangle(0, 0, 390, 190, 0x07131f, 0.94).setOrigin(0, 0).setScrollFactor(0).setDepth(1100);
+    this.invasionTitle = this.add.text(0, 0, "TACTICAL DEFENSE", { fontFamily: "sans-serif", fontSize: "18px", color: "#ffffff" }).setScrollFactor(0).setDepth(1101);
+    this.invasionInfo = this.add.text(0, 0, "No active invasion", { fontFamily: "sans-serif", fontSize: "14px", color: "#ffffff" }).setScrollFactor(0).setDepth(1101);
+    this.invasionWaveInfo = this.add.text(0, 0, "", { fontFamily: "sans-serif", fontSize: "13px", color: "#ffffff" }).setScrollFactor(0).setDepth(1101);
+    this.invasionRoleText = this.add.text(0, 0, "ROLE: DAMAGE", { fontFamily: "sans-serif", fontSize: "13px", color: "#ffffff" }).setScrollFactor(0).setDepth(1101);
+    const button = (label: string, onDown: () => void): Phaser.GameObjects.Text => {
+      const text = this.add.text(0, 0, label, { fontFamily: "sans-serif", fontSize: "13px", color: "#ffffff", backgroundColor: "#17314d", padding: { left: 8, right: 8, top: 7, bottom: 7 } })
+        .setScrollFactor(0).setDepth(1102).setInteractive({ useHandCursor: true });
+      text.on("pointerdown", onDown);
+      return text;
+    };
+    this.invasionJoinButton = button("JOIN", () => this.joinInvasion());
+    this.invasionRoleButton = button("ROLE", () => this.cycleInvasionRole());
+    this.invasionAttackButton = button("ATTACK", () => this.invasionAction("attack"));
+    this.invasionReinforceButton = button("REINFORCE", () => this.invasionAction("reinforce"));
+    this.invasionRetreatButton = button("RETREAT", () => this.invasionAction("retreat"));
+    this.renderInvasionOverlay();
+  }
+
+  private layoutInvasionOverlay(): void {
+    if (!this.invasionPanel || !this.invasionTitle || !this.invasionInfo || !this.invasionWaveInfo || !this.invasionRoleText ||
+      !this.invasionJoinButton || !this.invasionRoleButton || !this.invasionAttackButton || !this.invasionReinforceButton || !this.invasionRetreatButton) return;
+    const width = Math.min(420, Math.max(280, this.scale.width - 16));
+    const x = this.scale.width >= 720 ? this.scale.width - width - 8 : 8;
+    const y = this.scale.width >= 720 ? 120 : 132;
+    this.invasionPanel.setPosition(x, y).setSize(width, 190);
+    this.invasionTitle.setPosition(x + 12, y + 9);
+    this.invasionInfo.setPosition(x + 12, y + 36);
+    this.invasionWaveInfo.setPosition(x + 12, y + 62);
+    this.invasionRoleText.setPosition(x + 12, y + 88);
+    const buttons = [this.invasionJoinButton, this.invasionRoleButton, this.invasionAttackButton, this.invasionReinforceButton, this.invasionRetreatButton];
+    let bx = x + 10;
+    for (const item of buttons) {
+      item.setPosition(bx, y + 130);
+      bx += item.width + 7;
+      if (bx > x + width - 90) bx = x + 10;
+    }
+  }
+
+  private renderInvasionOverlay(): void {
+    if (!this.invasionPanel || !this.invasionTitle || !this.invasionInfo || !this.invasionWaveInfo || !this.invasionRoleText ||
+      !this.invasionJoinButton || !this.invasionRoleButton || !this.invasionAttackButton || !this.invasionReinforceButton || !this.invasionRetreatButton) return;
+    const role = (["tank","damage","support","scout","commander","logistics"] as InvasionRole[])[this.invasionRoleIndex] ?? "damage";
+    this.invasionTitle.setText(this.invasion ? "TACTICAL DEFENSE • " + this.invasion.sourceType.toUpperCase() : "TACTICAL DEFENSE");
+    this.invasionInfo.setText(this.invasion
+      ? this.invasion.phase + " • THREAT " + this.invasion.threatScore + (this.invasion.outcome ? " • " + this.invasion.outcome.toUpperCase() : "")
+      : "No active invasion");
+    const activeWave = this.invasionWaves.find((wave) => wave.status === "active");
+    this.invasionWaveInfo.setText(activeWave
+      ? "WAVE " + activeWave.wave_number + " • HP " + activeWave.current_health + "/" + activeWave.max_health + " • AGGRO " + activeWave.aggro_range +
+        (activeWave.target_user_id ? " • TARGET LOCKED" : "")
+      : this.invasion ? "No active wave • " + this.invasion.phase : "");
+    this.invasionRoleText.setText("ROLE: " + role.toUpperCase() + " • ARMIES: " + this.availableArmies.length);
+    const battle = this.invasion?.phase === "BATTLE";
+    this.invasionJoinButton.setAlpha(this.invasion && this.invasion.phase !== "COMPLETE" ? 1 : 0.45);
+    this.invasionRoleButton.setAlpha(this.invasion ? 1 : 0.45);
+    this.invasionAttackButton.setAlpha(battle && activeWave ? 1 : 0.45);
+    this.invasionReinforceButton.setAlpha(battle ? 1 : 0.45);
+    this.invasionRetreatButton.setAlpha(battle ? 1 : 0.45);
+    this.layoutInvasionOverlay();
+  }
+
+  private cycleInvasionRole(): void {
+    this.invasionRoleIndex = (this.invasionRoleIndex + 1) % 6;
+    this.renderInvasionOverlay();
+  }
+
+  private joinInvasion(): void {
+    if (!this.invasion || this.invasion.phase === "COMPLETE" || this.socket?.readyState !== WebSocket.OPEN) return;
+    const army = this.availableArmies.find((item) => item.assignment !== "invasion") ?? this.availableArmies[0];
+    if (!army) {
+      this.statusText?.setText("NO ARMY AVAILABLE");
+      return;
+    }
+    const roles: InvasionRole[] = ["tank","damage","support","scout","commander","logistics"];
+    const role = roles[this.invasionRoleIndex] ?? "damage";
+    this.socket.send(JSON.stringify({
+      type: "join_invasion",
+      requestId: this.nextAttackRequestId(),
+      invasionId: this.invasion.id,
+      armyId: army.id,
+      role,
+    }));
+  }
+
+  private invasionAction(action: "attack" | "reinforce" | "retreat"): void {
+    if (!this.invasion || this.invasion.phase !== "BATTLE" || this.socket?.readyState !== WebSocket.OPEN) return;
+    const waveId = this.invasionWaves.find((wave) => wave.status === "active")?.id ?? null;
+    this.socket.send(JSON.stringify({
+      type: "invasion_action",
+      requestId: this.nextAttackRequestId(),
+      invasionId: this.invasion.id,
+      action,
+      waveId,
+    }));
   }
 
   private requestChunks(): void {
