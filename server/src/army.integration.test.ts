@@ -34,8 +34,8 @@ describe("Gate 11 tactical armies",()=>{
       await db.query("INSERT INTO army_units(army_id,unit_type,category,quantity,health,max_health,attack,defense,range,speed,ability_ids) VALUES($1,'pirate_infantry','infantry',5,500,500,14,12,1,3,'[\"shield_wall\"]'::jsonb)",[b.id]);
       const battle=await armies.battleCreate(user,a.id,b.id,5,5);expect(battle.status).toBe("active");
       await armies.deploy(user,battle.id,trained.units[0]?.id ?? (()=>{throw new Error("TRAINED_UNIT_MISSING")})(),0);
-      const enemy=await db.query<{id:string}>("SELECT id FROM army_units WHERE army_id=$1",[b.id]);expect(enemy.rows[0]).toBeTruthy();
-      await armies.deploy(user,battle.id,enemy.rows[0]!.id,1);
+      const enemy=await db.query<{id:string}>("SELECT id FROM army_units WHERE army_id=$1",[b.id]);const enemyId=enemy.rows[0]?.id;if(!enemyId)throw new Error("ENEMY_UNIT_MISSING");
+      await armies.deploy(user,battle.id,enemyId,1);
       const after=await armies.turn(user,battle.id);expect(after.turn).toBeGreaterThan(1);
       const reloaded=await armies.get(user,a.id);expect(reloaded.garrisonBaseIds).toContain(baseId);
     }finally{await db.end();if(app.server.listening)await app.close();}
