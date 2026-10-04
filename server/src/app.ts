@@ -432,6 +432,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         if (!item) return reply.code(404).send({ error: "SHOP_ITEM_NOT_FOUND" });
         const totalGold = calculatePurchase(item, request.body.quantity);
         if (totalGold === null) return reply.code(400).send({ error: "INVALID_PURCHASE_QUANTITY" });
+        await players.loadOrCreate(userId);
         const state = await players.purchase(userId, item, request.body.quantity, totalGold);
         return { itemId: item.id, quantity: request.body.quantity, totalGold: totalGold.toString(), state: serializePlayerState(state) };
       } catch (error) {
