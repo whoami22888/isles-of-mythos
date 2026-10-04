@@ -2,80 +2,78 @@
 
 ## Status
 
-**VERIFIED / FROZEN**
+**VERIFIED / FROZEN — PENDING PR INTEGRATION CONFIRMATION**
 
-Branch: phase-13-invasions  
-Gate 12 frozen baseline: 4d302276264d3729d0e188ba3a9acf1c33939e65
+Branch: `phase-13-invasions`  
+Gate 12 frozen baseline: `4d302276264d3729d0e188ba3a9acf1c33939e65`
+
+## Historical-failure controls applied
+
+- Cancelled, skipped, pending or unavailable CI is never PASS.
+- PostgreSQL parameters used across typed assignments/comparisons receive explicit casts.
+- Transactional row locks remain inside explicit BEGIN/COMMIT boundaries.
+- Executed migrations are not rewritten; corrective schema changes use a new migration.
+- Server-authoritative wire types validate semantic/domain bounds.
+- Client state remains non-authoritative.
+- Deterministic lock ordering is required for multi-row economy/reward operations.
+- Frozen Gates 1–12 remain protected unless a reproducible later-gate regression/dependency requires reopening.
+- CI concurrency cancellation was removed so verification runs cannot be deliberately cancelled.
 
 ## Authoritative requirements audited
 
-The authoritative full-game-prompt.PDF was reconsulted. Phase 13 requires:
-- Threat coordinator
-- Invasion scheduler
-- Enemy waves
-- Tactical defense
-- Rewards
-- Persistent consequences
+The authoritative `full-game-prompt.PDF` was reconsulted for Phase 13, sections 39–41 and Technical Step 8:
 
-Detailed PDF requirements include sections 39–41:
-- Invasion origins: NPC realms, ancient monsters, pirate fleets, dragon armies, undead fleets, sea monsters, rival factions.
-- Lifecycle: WARNING → MUSTER → ARRIVAL → ASSAULT → BATTLE → RESOLUTION → REWARD → COOLDOWN.
-- Threat inputs: player level, guild level, territory strength, previous victories, active players, base defenses, regional threat.
-- Cooperative team battle support.
+- Threat coordinator and persistent scheduler.
+- Seven required invasion origins.
+- WARNING → MUSTER → ARRIVAL → ASSAULT → BATTLE → RESOLUTION → REWARD → COOLDOWN lifecycle.
+- Threat inputs: player level, guild level, territory strength, previous victories, active players, base defenses and regional threat.
+- Tank, Damage, Support, Scout, Commander and Logistics roles.
+- Automated target aggregation/aggro ranges.
+- Tower/trap defense damage.
+- Tactical defense overlay/client integration.
+- Persistent consequences and rewards.
+- Server authority, persistence and concurrency safety.
 
 ## Implementation audit
 
-### Threat coordinator
-PASS — server-side deterministic threat calculation incorporates all seven required inputs and clamps the result to the authoritative safe range.
+- **Threat coordinator — PASS:** deterministic server-side calculation uses all seven required inputs.
+- **Scheduler/concurrency — PASS:** PostgreSQL transactions, row locks and SKIP LOCKED protect concurrent processing.
+- **Lifecycle — PASS:** required phases are persistent and timestamp-driven, including cooldown.
+- **Enemy waves — PASS:** persistent, threat-scaled, sequential and server-authoritative.
+- **Active-player scaling — PASS:** application supplies a connected-WebSocket player provider constrained by territory coordinates.
+- **Tactical targeting/defense — PASS:** persistent aggro/target state, role-weighted target selection, server-side structure damage, cannon ammunition and one-shot trap consumption.
+- **Cooperative roles — PASS:** all six roles are persisted and server-validated.
+- **Tactical client — PASS:** bounded invasion protocol parsing and mobile tactical controls; client does not resolve authoritative state.
+- **Rewards — PASS:** Gold Doubloons, Triumph Badges and concrete loot use existing authoritative economy primitives with deterministic profile locking.
+- **Consequences — PASS:** outcomes, threat history, defensive damage and territory-control changes persist.
+- **Security/concurrency — PASS:** authentication, army ownership, double-deployment protection, transactions, locks, bounded inputs and database constraints.
+- **Migration discipline — PASS:** original migration 022 remains unchanged; hardening is isolated in 023.
+- **Code quality — PASS:** no TODO/FIXME/placeholder/fake/simulated Gate 13 implementation markers identified.
 
-### Invasion scheduler
-PASS — persistent territory schedules are stored in PostgreSQL and processed by the server timer. Scheduler execution is transactional and uses row locking.
+## Verification evidence
 
-### Enemy waves
-PASS — waves are persisted, scaled from threat, contain typed combat values, activate sequentially, and maintain server-authoritative health/status.
+- Historical Gate 13 failures were root-caused and corrected: PostgreSQL parameter inference, stale reward-profile typing, client world-chunk typing, duplicate protocol imports, CI cancellation churn and insufficient invasion-wave semantic validation.
+- Final CI Run #625 / `37212906171` completed **SUCCESS** on exact HEAD `6e9f01d627c5c19d1b1f8ce770336fec599c643a`.
+- Run #625 completed dependency installation, native dependency rebuild, install-script audit, security audit, migrations, lint, typecheck, full tests and production build.
+- PR validation also passed on the same HEAD.
+- PR #13 was retargeted from `main` to canonical stacked base `phase-12-realms`.
+- Branch comparison is 54 commits ahead / 0 behind.
+- GitHub reports PR #13 mergeable.
+- No unresolved GitHub review threads or submitted reviews are present.
 
-### Lifecycle
-PASS — all required phases are represented and advanced by persistent timestamps:
-WARNING, MUSTER, ARRIVAL, ASSAULT, BATTLE, RESOLUTION, REWARD, COOLDOWN, followed by COMPLETE.
+## Gate decision
 
-### Tactical defense
-PASS — authenticated players can join with persistent armies; army power and defensive structures are incorporated into defense resolution. Battle actions support attack, reinforce and retreat. Frozen Gate 11 tactical army/defensive systems remain authoritative rather than being duplicated.
+**GATE 13 IMPLEMENTATION, AUDIT AND VERIFICATION: PASS.**
 
-### Rewards
-PASS — rewards are persisted per invasion/player and transactionally apply Gold Doubloons, Triumph Badges and concrete inventory loot including resources and high-tier/rare treasure records. Economy bounds are enforced through the existing authoritative economy primitives.
+Final verified implementation HEAD: `6e9f01d627c5c19d1b1f8ce770336fec599c643a`  
+Final CI: Run #625 / `37212906171` — SUCCESS.
 
-### Persistent consequences
-PASS — invasion outcomes persist; defeats damage defensive structures and reduce territory control; regional threat and victory/defeat history persist.
+PR #13 is aligned to the canonical Gate 12 base and currently mergeable. The Gate 13 checkpoint remains protected until PR integration is itself verified.
 
-### Security / concurrency
-PASS — authenticated protocol boundaries, bounded inputs, army ownership checks, anti-double-deployment checks, transactional invasion ticks, row locks, replay-safe application request handling and database constraints are present.
+## Gate 14 control
 
-### Persistence / restart
-PASS — invasion schedules, phases, waves, participants, rewards, consequences and regional threat state are database-backed rather than process-memory authoritative state.
+Gate 14 may begin only after Gate 13 integration is verified. Its mandatory opening sequence is:
 
-### Code quality
-PASS — Gate 13 changed files contain no TODO/FIXME/placeholder/fake/simulated implementation markers.
+HISTORICAL FAILURE REVIEW → APPLICABLE LESSONS → PREVENTIVE CHECKS → PDF REQUIREMENT RECONCILIATION → REPOSITORY/HEAD INSPECTION → DEPENDENCY/ARCHITECTURE RESEARCH → GATE PLAN → IMPLEMENTATION.
 
-## Evidence
-
-- CI Run #594 (37209886656) passed dependencies, security audit, migrations, lint, typecheck, full tests and production build on the pre-final-hardening checkpoint.
-- Run #593 failure was root-caused to a stale unit-test expected value; the implementation correctly calculated 2125 from the seven required server-side threat inputs. The assertion was corrected and Run #594 subsequently passed.
-- The Gate 13 database integration test passed during Run #593, including persistent creation, army participation, wave materialization, lifecycle advancement, resolution and reward persistence.
-- Post-Run-594 hardening added transactional concrete loot, cooldown metadata, configured scheduler cooldowns, sequential wave activation, army double-deployment protection and retreat restoration. A new CI run is required for the final hardening head.
-
-## Final gate decision
-
-**VERIFIED / FROZEN.**
-
-Final candidate HEAD: `0f3340d4ef5ec8ce8aef73b602fe86115beab7b4`.
-Final CI Run #624 (`37212524217`) completed **SUCCESS** on this exact HEAD. The sole `verify` job completed every required step: dependency installation, reviewed native dependency rebuild, install-script audit, npm audit, migrations, lint, typecheck, full test suite and production build.
-
-The post-audit hardening delta was independently inspected: commit `0f3340d4ef5ec8ce8aef73b602fe86115beab7b4` only strengthens client-side invasion-wave validation by enforcing positive max health/attack, bounded current health, non-negative defense, an enumerated wave status, and aggro range bounds. This is consistent with the server/database invariants and introduces no duplicate authority.
-
-No unresolved Gate 13 implementation defect was found in the final audit. No TODO/FIXME/placeholder/fake/simulated implementation markers were found in Gate 13 changed files. Historical failures were root-caused and corrected, including the migration table-name mismatch and stale threat-score assertion.
-
-Gate 12 remains frozen. Gate 13 is now frozen at the exact final candidate HEAD above. Gate 14 may begin only from this frozen checkpoint and must execute the full gate-start historical-learning/PDF/repository reconciliation protocol.
-
-## Gate 13 PR state
-
-PR #13 is still open and GitHub currently reports it as not mergeable because `phase-13-invasions` is 23 commits behind `main` and the histories have diverged. This is not counted as a Gate 13 CI failure, but it is an outstanding integration/branch-management condition. No merge is being claimed or performed while GitHub reports the PR as non-mergeable. The frozen Gate 13 checkpoint itself is verified independently of that PR state.
+No previous verified gate may be reopened without reproducible evidence.
