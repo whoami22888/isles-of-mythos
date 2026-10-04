@@ -91,7 +91,7 @@ export class InvasionStore{
   if(inv.phase==="ARRIVAL")await this.materializeWaves(c,inv.id,inv.threat_score);
   if(inv.phase==="BATTLE" )await this.resolveIfBattleEnded(c,inv);
   const next=nextPhase(inv.phase);if(next==="COMPLETE"){await c.query("UPDATE invasions SET phase='COMPLETE',resolved_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=$1",[inv.id]);return}
-  const now=new Date(),end=nextPhaseAt(next,now);await c.query("UPDATE invasions SET phase=$2,phase_started_at=$3,phase_ends_at=$4,cooldown_until=CASE WHEN $2='COOLDOWN' THEN $4 ELSE cooldown_until END,updated_at=CURRENT_TIMESTAMP WHERE id=$1",[inv.id,next,now,end]);
+  const now=new Date(),end=nextPhaseAt(next,now);await c.query("UPDATE invasions SET phase=$2::varchar(16),phase_started_at=$3,phase_ends_at=$4,cooldown_until=CASE WHEN $2::varchar(16)='COOLDOWN' THEN $4 ELSE cooldown_until END,updated_at=CURRENT_TIMESTAMP WHERE id=$1",[inv.id,next,now,end]);
   if(next==="RESOLUTION")await this.applyResolution(c,inv.id,inv.territory_id,inv.target_base_id);
   if(next==="REWARD")await this.issueRewards(c,inv.id,inv.threat_score);
  }
@@ -109,7 +109,7 @@ export class InvasionStore{
   const w=await c.query<{power:string}>("SELECT COALESCE(SUM(current_health*(attack+defense)/GREATEST(max_health,1)),0)::bigint power FROM invasion_waves WHERE invasion_id=$1 AND status<>'defeated'",[invasionId]);
   const outcome=BigInt(w.rows[0]?.power??"0")===0n?"victory":"defeat";const severity=outcome==="victory"?0:Math.min(100,Math.max(10,Number(w.rows[0]?.power??0)/1000));
   await c.query("UPDATE invasions SET outcome=$2 WHERE id=$1",[invasionId,outcome]);await c.query("INSERT INTO invasion_consequences(invasion_id,territory_id,base_id,consequence_type,severity,payload) VALUES($1,$2,$3,$4,$5,$6::jsonb)",[invasionId,territoryId,baseId,outcome==="victory"?"defense_success":"territory_damage",severity,JSON.stringify({remainingEnemyPower:w.rows[0]?.power??"0"})]);
-  await c.query("UPDATE invasion_threats SET threat_level=GREATEST(0,LEAST(100000,threat_level+CASE WHEN $2='victory' THEN -1000 ELSE 1000 END)),victories=victories+CASE WHEN $2='victory' THEN 1 ELSE 0 END,defeats=defeats+CASE WHEN $2='defeat' THEN 1 ELSE 0 END,updated_at=CURRENT_TIMESTAMP WHERE territory_id=$1",[territoryId,outcome]);
+  await c.query("UPDATE invasion_threats SET threat_level=GREATEST(0,LEAST(100000,threat_level+CASE WHEN $2::varchar(16)='victory' THEN -1000 ELSE 1000 END)),victories=victories+CASE WHEN $2::varchar(16)='victory' THEN 1 ELSE 0 END,defeats=defeats+CASE WHEN $2::varchar(16)='defeat' THEN 1 ELSE 0 END,updated_at=CURRENT_TIMESTAMP WHERE territory_id=$1",[territoryId,outcome]);
   if(outcome==="defeat"){if(baseId)await c.query("UPDATE base_defensive_structures SET health=GREATEST(0,health-$2),active=CASE WHEN health-$2<=0 THEN false ELSE active END WHERE base_id=$1 AND active=true",[baseId,Math.max(10,severity*10)]);await c.query("UPDATE territories SET control_points=GREATEST(0,control_points-$2),updated_at=CURRENT_TIMESTAMP WHERE id=$1",[territoryId,Math.max(1,Math.floor(severity/5))]);}
  }
  private async issueRewards(c:PoolClient,invasionId:string,threat:number){
