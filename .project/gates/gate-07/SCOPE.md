@@ -1,6 +1,6 @@
 # Gate 7 — Phase 7 Crafting & Economy
 
-Status: ACTIVE
+Status: VERIFIED / FROZEN
 Baseline: 1343a8eeaa62ba78a0068b6d9049a26fd23e6201 (Gate 6 verified current HEAD)
 Authoritative specification: full-game-prompt.PDF, Phase 7 — CRAFTING & ECONOMY
 
