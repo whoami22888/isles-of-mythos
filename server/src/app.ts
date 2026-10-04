@@ -1153,12 +1153,12 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             try{
               if(message.type==="list_invasions")return {type:"invasion_list",requestId:message.requestId,invasions:await invasions.list(message.territoryId)};
               if(message.type==="get_invasion_waves")return {type:"invasion_waves",requestId:message.requestId,invasionId:message.invasionId,waves:await invasions.waves(message.invasionId)};
-              if(message.type==="join_invasion"){await invasions.join(authenticatedUserId,message.invasionId,message.armyId);return {type:"invasion_operation_ok",requestId:message.requestId,invasionId:message.invasionId};}
+              if(message.type==="join_invasion"){await invasions.join(authenticatedUserId,message.invasionId,message.armyId,message.role);return {type:"invasion_operation_ok",requestId:message.requestId,invasionId:message.invasionId};}
               const invasion=await invasions.act(authenticatedUserId,message.invasionId,message.action,message.waveId);
               return {type:"invasion_state",requestId:message.requestId,invasion};
             }catch(error){
               const code=errorCode(error,"INVASION_OPERATION_FAILED");
-              const allowed=["INVALID_INVASION_THREAT","INVALID_INVASION_SOURCE","INVASION_ALREADY_ACTIVE","INVASION_NOT_FOUND","INVASION_NOT_JOINABLE","ARMY_NOT_FOUND","ARMY_NOT_OWNED","ARMY_ALREADY_IN_INVASION","INVASION_NOT_IN_BATTLE","INVASION_NOT_PARTICIPANT","INVASION_WAVE_REQUIRED","INVASION_WAVE_NOT_FOUND","INVASION_WAVE_NOT_ACTIVE","PLAYER_NOT_FOUND"];
+              const allowed=["INVALID_INVASION_ROLE","INVASION_ALREADY_PARTICIPATING","INVALID_INVASION_THREAT","INVALID_INVASION_SOURCE","INVASION_ALREADY_ACTIVE","INVASION_NOT_FOUND","INVASION_NOT_JOINABLE","ARMY_NOT_FOUND","ARMY_NOT_OWNED","ARMY_ALREADY_IN_INVASION","INVASION_NOT_IN_BATTLE","INVASION_NOT_PARTICIPANT","INVASION_WAVE_REQUIRED","INVASION_WAVE_NOT_FOUND","INVASION_WAVE_NOT_ACTIVE","PLAYER_NOT_FOUND"];
               return {type:"error",code:(allowed.includes(code)?code:"INVALID_MESSAGE") as Extract<ServerMessage,{type:"error"}>["code"]};
             }
           });
