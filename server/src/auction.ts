@@ -1,5 +1,7 @@
 import type { Pool, PoolClient } from "pg";
 import { addGoldDoubloons, applyInventoryDelta, cloneInventory, parseGoldDoubloons, subtractGoldDoubloons, type Inventory } from "./economy.js";
+import { getResource } from "./resource.js";
+import { getShopItem } from "./shop.js";
 
 const MAX_QTY=1_000_000;
 const MAX_DURATION_MS=7*24*60*60*1000;
@@ -23,8 +25,25 @@ async function lockUsers(c:PoolClient,ids:string[]):Promise<Map<string,{user_id:
   return new Map(r.rows.map(x=>[x.user_id,x]));
 }
 function fee(gross:bigint,bps:number):bigint{return (gross*BigInt(bps)+9999n)/10000n;}
+type AuctionCategory="resource"|"upgrade"|"defence"|"equipment"|"consumable"|"other";
+type AuctionRarity="common"|"uncommon"|"rare"|"epic"|"legendary"|"mythic";
+interface AuctionMetadata{category:AuctionCategory;rarity:AuctionRarity;itemLevel:number;}
+function metadataFor(itemId:string):AuctionMetadata{
+  const shop=getShopItem(itemId);
+  if(shop) return {category:shop.category,rarity:shop.category==="upgrade"?"uncommon":"common",itemLevel:shop.category==="resource"?1:2};
+  const resource=getResource(itemId);
+  if(resource){
+    const rare=itemId==="resource.pearl";
+    const epic=itemId==="resource.dragon-scales"||itemId==="resource.mermaid-pearls";
+    const legendary=itemId==="resource.ancient-relics";
+    return {category:"resource",rarity:legendary?"legendary":epic?"epic":rare?"uncommon":"common",itemLevel:legendary?20:epic?15:rare?5:1};
+  }
+  const prefix=itemId.split(".")[0];
+  const category:AuctionCategory=prefix==="upgrade"||prefix==="defence"?prefix:"other";
+  return {category,rarity:"common",itemLevel:1};
+}
 
-export interface AuctionSummary{id:string;sellerUserId:string;itemId:string;quantity:number;remainingQuantity:number;startPrice:string;buyNowPrice:string|null;currentBid:string;highestBidderUserId:string|null;status:string;expiresAt:string;}
+export interface AuctionSummary{id:string;sellerUserId:string;itemId:string;category:AuctionCategory;rarity:AuctionRarity;itemLevel:number;quantity:number;remainingQuantity:number;startPrice:string;buyNowPrice:string|null;currentBid:string;highestBidderUserId:string|null;status:string;expiresAt:string;}
 
 export class AuctionStore{
   constructor(private readonly db:Pool){}
