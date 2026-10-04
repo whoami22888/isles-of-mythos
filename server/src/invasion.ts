@@ -193,7 +193,7 @@ private async advance(c:PoolClient,inv:{id:string;phase:InvasionPhase;phase_star
    if(!profile)continue;
    const gold=BigInt(Math.max(100,Math.floor(threat*5/participantRows.length)));
    const badges=BigInt(Math.max(10,Math.floor(threat/100)*(win?2:1)));
-   let inventory=cloneInventory(profile.rows[0].inventory);
+   let inventory=cloneInventory(profile.inventory);
    const loot:Record<string,number>={};
    const wood=Math.min(1_000_000,Math.max(100,Math.floor(threat*(win?20:5))));
    inventory=applyInventoryDelta(inventory,"resource.wood",wood);loot["resource.wood"]=wood;
@@ -204,8 +204,8 @@ private async advance(c:PoolClient,inv:{id:string;phase:InvasionPhase;phase_star
     inventory=applyInventoryDelta(inventory,"treasure.map.high-tier",maps);loot["treasure.map.high-tier"]=maps;
     inventory=applyInventoryDelta(inventory,"treasure.rare",1);loot["treasure.rare"]=1;
    }
-   const nextGold=addGoldDoubloons(BigInt(profile.rows[0].gold),gold);
-   const nextBadges=addTriumphBadges(BigInt(profile.rows[0].triumph_badges),badges);
+   const nextGold=addGoldDoubloons(BigInt(profile.gold),gold);
+   const nextBadges=addTriumphBadges(BigInt(profile.triumph_badges),badges);
    await c.query("INSERT INTO invasion_rewards(invasion_id,user_id,gold,triumph_badges,loot) VALUES($1,$2,$3,$4,$5::jsonb) ON CONFLICT DO NOTHING",[invasionId,participant.user_id,gold.toString(),badges.toString(),JSON.stringify(loot)]);
    await c.query("UPDATE player_profiles SET gold=$2,triumph_badges=$3,inventory=$4::jsonb,updated_at=CURRENT_TIMESTAMP WHERE user_id=$1",[participant.user_id,nextGold.toString(),nextBadges.toString(),JSON.stringify(inventory)]);
   }
