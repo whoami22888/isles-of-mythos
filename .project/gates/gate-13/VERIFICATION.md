@@ -2,7 +2,7 @@
 
 ## Status
 
-**ACTIVE / OPEN / AUDIT COMPLETE / AWAITING FINAL CI**
+**VERIFIED / FROZEN**
 
 Branch: phase-13-invasions  
 Gate 12 frozen baseline: 4d302276264d3729d0e188ba3a9acf1c33939e65
@@ -65,6 +65,17 @@ PASS — Gate 13 changed files contain no TODO/FIXME/placeholder/fake/simulated 
 
 ## Final gate decision
 
-Not yet frozen. Final CI on the post-audit/hardening HEAD must pass the complete pipeline. If any stage fails, diagnose and correct the root cause, rerun verification, then re-audit affected behavior.
+**VERIFIED / FROZEN.**
 
-Only after final CI is green may Gate 13 be marked VERIFIED/FROZEN and Gate 14 be activated.
+Final candidate HEAD: `0f3340d4ef5ec8ce8aef73b602fe86115beab7b4`.
+Final CI Run #624 (`37212524217`) completed **SUCCESS** on this exact HEAD. The sole `verify` job completed every required step: dependency installation, reviewed native dependency rebuild, install-script audit, npm audit, migrations, lint, typecheck, full test suite and production build.
+
+The post-audit hardening delta was independently inspected: commit `0f3340d4ef5ec8ce8aef73b602fe86115beab7b4` only strengthens client-side invasion-wave validation by enforcing positive max health/attack, bounded current health, non-negative defense, an enumerated wave status, and aggro range bounds. This is consistent with the server/database invariants and introduces no duplicate authority.
+
+No unresolved Gate 13 implementation defect was found in the final audit. No TODO/FIXME/placeholder/fake/simulated implementation markers were found in Gate 13 changed files. Historical failures were root-caused and corrected, including the migration table-name mismatch and stale threat-score assertion.
+
+Gate 12 remains frozen. Gate 13 is now frozen at the exact final candidate HEAD above. Gate 14 may begin only from this frozen checkpoint and must execute the full gate-start historical-learning/PDF/repository reconciliation protocol.
+
+## Gate 13 PR state
+
+PR #13 is still open and GitHub currently reports it as not mergeable because `phase-13-invasions` is 23 commits behind `main` and the histories have diverged. This is not counted as a Gate 13 CI failure, but it is an outstanding integration/branch-management condition. No merge is being claimed or performed while GitHub reports the PR as non-mergeable. The frozen Gate 13 checkpoint itself is verified independently of that PR state.
