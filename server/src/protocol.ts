@@ -129,7 +129,7 @@ export type ServerMessage =
   | { type:"breeding_started"; requestId:string; job:unknown }
   | { type:"breeding_jobs"; requestId:string; jobs:unknown[] }
   | { type:"guild_state"; requestId:string; guild:unknown }
-  | { type:"guild_invitations"; requestId:string; invitations:unknown[] }
+  | { type:"guild_invitations"; requestId:string; invitations:Record<string, unknown>[] }
   | { type:"guild_bank_state"; requestId:string; guildId:string; bank:unknown }
   | { type:"guild_operation_ok"; requestId:string; guildId:string }
   | { type:"realm_list"; requestId:string; realms:unknown[] }
@@ -158,18 +158,18 @@ export type ServerMessage =
   | { type:"fleet_state"; requestId:string; fleet:unknown }
   | { type:"fleet_list"; requestId:string; fleets:unknown[] }
   | { type:"naval_combat_result"; requestId:string; attacker:unknown; target:unknown; damage:number; fireStarted?:boolean; captured?:boolean }
-  | { type:"friends_list"; requestId:string; friends:unknown[] }
+  | { type:"friends_list"; requestId:string; friends:Record<string, unknown>[] }
   | { type:"blocks_list"; requestId:string; blockedUserIds:string[] }
   | { type:"social_operation_ok"; requestId:string }
   | { type:"social_reported"; requestId:string; reportId:string }
-  | { type:"chat_message"; requestId:string; message:unknown }
-  | { type:"chat_history"; requestId:string; messages:unknown[] }
-  | { type:"party_state"; requestId:string; party:unknown|null }
+  | { type:"chat_message"; requestId:string; message:Record<string, unknown> }
+  | { type:"chat_history"; requestId:string; messages:Record<string, unknown>[] }
+  | { type:"party_state"; requestId:string; party:Record<string, unknown>|null }
   | { type:"party_invitations"; requestId:string; invitations:unknown[] }
   | { type:"party_operation_ok"; requestId:string }
-  | { type:"auction_list"; requestId:string; listings:unknown[] }
-  | { type:"auction_state"; requestId:string; listing:unknown }
-  | { type:"auction_history"; requestId:string; transactions:unknown[] }
+  | { type:"auction_list"; requestId:string; listings:Record<string, unknown>[] }
+  | { type:"auction_state"; requestId:string; listing:Record<string, unknown> }
+  | { type:"auction_history"; requestId:string; transactions:Record<string, unknown>[] }
   | { type:"auction_operation_ok"; requestId:string }
   | { type:"error"; code:
       | "INVALID_MESSAGE"|"UNSUPPORTED_MESSAGE"|"AUTH_REQUIRED"|"INVALID_TOKEN"|"COMBAT_COOLDOWN"|"OUT_OF_RANGE"|"NO_STAMINA"|"NO_AMMO"|"COMBAT_IN_PROGRESS"|"PLAYER_DEAD"|"PLAYER_STUNNED"|"RATE_LIMITED"
@@ -291,7 +291,7 @@ export function parseClientMessage(raw:string):ClientMessage|null{
       return {type:"attack",requestId:id,targetId,facingX,facingY};
     }
     if(type==="list_friends"||type==="list_blocks"||type==="create_party"||type==="get_party"||type==="party_invitations"||type==="party_leave"||type==="auction_history"){
-      const id=(value as {requestId?:unknown}).requestId;return requestId(id)?{type,requestId:id} as ClientMessage:null;
+      const id=(value as {requestId?:unknown}).requestId;return requestId(id)?{type,requestId:id}:null;
     }
     if(type==="add_friend"||type==="remove_friend"||type==="block_user"||type==="unblock_user"||type==="party_invite"||type==="party_kick"||type==="party_accept"||type==="auction_bid"||type==="auction_buy_now"||type==="auction_cancel"){
       const id=(value as {requestId?:unknown}).requestId;if(!requestId(id))return null;
