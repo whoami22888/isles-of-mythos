@@ -20,6 +20,7 @@ import { addThreat, applyDamage, createCombatTarget, creatureAbilityDamage, crea
 import { CombatReplayCache } from "./combat-replay.js";
 import { CAPTURE_HEALTH_RATIO, CreatureStore } from "./creature.js";
 import { BaseStore, BASE_PERMISSIONS, BUILDING_TYPES, WORKER_MODES, type BasePermission, type BuildingType, type WorkerMode } from "./base.js";
+import { BreedingStore } from "./breeding.js";
 
 function errorCode(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
@@ -58,6 +59,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const players = new PlayerStore(db);
   const creatures = new CreatureStore(db);
   const bases = new BaseStore(db);
+  const breeding = new BreedingStore(db);
   const sockets = new Set<WebSocket>();
   const playerConnections = new Map<string, number>();
   const userSockets = new Map<string, Set<WebSocket>>();
@@ -230,6 +232,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   heartbeat.unref();
 
   const survivalTick = setInterval(() => players.tick(1), 1_000);
+  const breedingTick = setInterval(() => { void breeding.completeDue().catch((error) => log("breeding_completion_failed",{message:error instanceof Error?error.message:String(error)})); }, 1_000);
   survivalTick.unref();
 
   const combatTick = setInterval(() => {
@@ -376,6 +379,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     shuttingDown = true;
     clearInterval(heartbeat);
     clearInterval(survivalTick);
+    clearInterval(breedingTick);
     clearInterval(persistenceTick);
     clearInterval(combatTick);
     await players.persistAll();
@@ -1005,6 +1009,29 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             for (const recipientSocket of userSockets.get(message.toUserId) ?? []) send(recipientSocket, response);
           }
           return;
+        }
+
+        if (message.type === "start_breeding") {
+          if (!userId) { send(socket, { type: "error", code: "AUTH_REQUIRED" }); return; }
+          const authenticatedUserId=userId;
+          const response=await runCreatureRequest(authenticatedUserId,message.requestId,"start_breeding|"+JSON.stringify(message),async()=>{
+            try {
+              const job=await breeding.start(authenticatedUserId,message.baseId,message.penBuildingId,message.parentAId,message.parentBId,message.durationMs);
+              return {type:"breeding_started",requestId:message.requestId,job};
+            } catch(error) {
+              const code=errorCode(error,"BREEDING_START_FAILED");
+              const allowed=["BASE_NOT_FOUND","BREEDING_PEN_NOT_FOUND","BREEDING_CAPACITY_REACHED","BREEDING_PEN_BUSY","INVALID_BREEDING_DURATION","CREATURE_NOT_FOUND","BREEDING_PARENTS_MUST_DIFFER","INCOMPATIBLE_BREEDING_PARENTS","BREEDING_GENERATION_LIMIT","POPULATION_LIMIT_REACHED","NO_BREEDING_FEED"];
+              return {type:"error",code:(allowed.includes(code)?code:"INVALID_MESSAGE") as ServerMessage extends infer _T ? any : never};
+            }
+          });
+          send(socket,response); return;
+        }
+
+        if (message.type === "list_breeding") {
+          if (!userId) { send(socket, { type: "error", code: "AUTH_REQUIRED" }); return; }
+          const authenticatedUserId=userId;
+          const response=await runCreatureRequest(authenticatedUserId,message.requestId,"list_breeding",async()=>({type:"breeding_jobs",requestId:message.requestId,jobs:await breeding.list(authenticatedUserId)}));
+          send(socket,response); return;
         }
 
         if (message.type === "subscribe_chunks") {
