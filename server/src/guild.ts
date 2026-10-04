@@ -1,5 +1,5 @@
 import type {Pool,PoolClient} from 'pg';
-import {applyInventoryDelta,cloneInventory,parseGoldDoubloons,subtractGoldDoubloons,addGoldDoubloons} from './economy.js';
+import {applyInventoryDelta,cloneInventory,parseGoldDoubloons,subtractGoldDoubloons,addGoldDoubloons,parseTriumphBadges,addTriumphBadges} from './economy.js';
 
 export const GUILD_RANKS=['master','officer','veteran','member','recruit'] as const;
 export type GuildRank=typeof GUILD_RANKS[number];
@@ -51,8 +51,12 @@ async function completeQuest(c:PoolClient,guildId:string,userId:string,questId:s
   const experience=BigInt(g.rows[0].experience)+xp;
   const treasury=addGoldDoubloons(BigInt(g.rows[0].treasury),gold);
   await c.query("UPDATE guilds SET experience=$2,level=$3,treasury=$4,updated_at=CURRENT_TIMESTAMP WHERE id=$1",[guildId,experience.toString(),guildLevel(experience),treasury.toString()]);
-  await c.query("UPDATE player_profiles SET xp=xp+$2,triumph_badges=triumph_badges+$3,updated_at=CURRENT_TIMESTAMP WHERE user_id=$1",[userId,xp.toString(),badges.toString()]);
+  const player=await c.query<{triumph_badges:string}>("SELECT triumph_badges FROM player_profiles WHERE user_id=$1 FOR UPDATE",[userId]);
+  if(!player.rows[0])throw new Error('PLAYER_NOT_FOUND');
+  const nextBadges=addTriumphBadges(parseTriumphBadges(player.rows[0].triumph_badges),badges);
+  await c.query("UPDATE player_profiles SET xp=xp+$2,triumph_badges=$3,updated_at=CURRENT_TIMESTAMP WHERE user_id=$1",[userId,xp.toString(),nextBadges.toString()]);
   await c.query("UPDATE guild_quests SET status='completed',completed_at=CURRENT_TIMESTAMP WHERE id=$1",[questId]);
+  await c.query("INSERT INTO guild_bank_transactions(guild_id,user_id,action_type,quantity,gold_before,gold_after,metadata) VALUES($1,$2,'quest_reward',0,$3,$4,$5::jsonb)",[guildId,userId,guild.rows[0].treasury,treasury.toString(),JSON.stringify({questId,xp:xp.toString(),gold:gold.toString(),badges:badges.toString()})]);
 }
 export class GuildStore{
   constructor(private readonly db:Pool){}
@@ -100,6 +104,10 @@ export class GuildStore{
       await c.query("INSERT INTO guild_members(guild_id,user_id,rank) VALUES($1,$2,'recruit')",[inv.rows[0].guild_id,userId]);
       await c.query("UPDATE guild_invitations SET status='accepted',responded_at=CURRENT_TIMESTAMP WHERE id=$1",[invitationId]);await c.query('COMMIT');return this.get(userId);
     }catch(e){await c.query('ROLLBACK');throw e}finally{c.release()}
+  }
+  async listInvitations(userId:string){
+    const r=await this.db.query<{id:string;guild_id:string;guild_name:string;guild_tag:string;inviter_user_id:string;created_at:Date}>("SELECT i.id,i.guild_id,g.name guild_name,g.tag guild_tag,i.inviter_user_id,i.created_at FROM guild_invitations i JOIN guilds g ON g.id=i.guild_id WHERE i.invitee_user_id=$1 AND i.status='pending' ORDER BY i.created_at DESC",[userId]);
+    return r.rows.map(x=>({id:x.id,guildId:x.guild_id,guildName:x.guild_name,guildTag:x.guild_tag,inviterUserId:x.inviter_user_id,createdAt:x.created_at.toISOString()}));
   }
   async declineInvite(userId:string,invitationId:string):Promise<void>{
     const c=await this.db.connect();try{await c.query('BEGIN');const r=await c.query("UPDATE guild_invitations SET status='declined',responded_at=CURRENT_TIMESTAMP WHERE id=$1 AND invitee_user_id=$2 AND status='pending'",[invitationId,userId]);if(r.rowCount===0)throw new Error('GUILD_INVITATION_NOT_FOUND');await c.query('COMMIT')}catch(e){await c.query('ROLLBACK');throw e}finally{c.release()}
