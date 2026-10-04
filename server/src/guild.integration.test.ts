@@ -30,6 +30,7 @@ describe('Gate 10 guilds',()=>{
       await guilds.setRank(owner,guild.id,member,'veteran');
       const afterRank=await guilds.get(member);expect(afterRank.myRank).toBe('veteran');
       await db.query("UPDATE player_profiles SET inventory=jsonb_build_object('wood',1000),gold=5000,triumph_badges=0,xp=0 WHERE user_id=$1",[member]);
+      await db.query("UPDATE player_profiles SET gold=5000 WHERE user_id=$1",[owner]);
       await guilds.bankDeposit(member,guild.id,'wood',1000,'0');
       const afterQuest=await guilds.get(member);
       expect(afterQuest.quests.some(q=>q.requirementItem==='wood'&&q.status==='completed')).toBe(true);
