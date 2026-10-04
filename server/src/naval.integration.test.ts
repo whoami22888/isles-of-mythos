@@ -7,6 +7,8 @@ import {BaseStore} from "./base.js";
 import {ShipStore} from "./ship.js";
 import {NavalStore} from "./naval.js";
 import {parseClientMessage} from "./protocol.js";
+import {FleetStore} from "./fleet.js";
+import {ShipInventoryStore} from "./ship-inventory.js";
 
 async function register(app:FastifyInstance,tag:string):Promise<string>{
   const unique=tag+"_"+Date.now().toString(36).slice(-7)+"_"+Math.random().toString(36).slice(2,5);
@@ -24,12 +26,14 @@ describe("Gate 9 naval mechanics",()=>{
     expect(parseClientMessage(JSON.stringify({type:"board_ship",requestId:"b",shipId:"1",targetShipId:"2"}))?.type).toBe("board_ship");
     expect(parseClientMessage(JSON.stringify({type:"assign_ship_npc_crew",requestId:"c",shipId:"1",npcType:"pirate",role:"boarding_specialist",skill:80,morale:100}))?.type).toBe("assign_ship_npc_crew");
     expect(parseClientMessage(JSON.stringify({type:"repair_ship",requestId:"r",shipId:"1"}))?.type).toBe("repair_ship");
+    expect(parseClientMessage(JSON.stringify({type:"create_fleet",requestId:"f",name:"Fleet",shipId:"1"}))?.type).toBe("create_fleet");
+    expect(parseClientMessage(JSON.stringify({type:"ship_cargo",requestId:"c",shipId:"1",itemId:"cannonball",quantity:1}))?.type).toBe("ship_cargo");
   });
   it("implements NPC crew, cannon arcs, fire, boarding, repair and retreat transactionally",async()=>{
     const app=await buildApp();const db=createDbPool();
     try{
       const a=await register(app,"na"),b=await register(app,"nb");await fixture(db,a);await fixture(db,b);
-      const ships=new ShipStore(db),naval=new NavalStore(db);
+      const ships=new ShipStore(db),naval=new NavalStore(db),fleets=new FleetStore(db),inventory=new ShipInventoryStore(db);
       const attacker=await ships.create(a,"War Galleon","galleon");
       const defender=await ships.create(b,"Target Raft","raft");
       await db.query("UPDATE player_ships SET x=0,y=0,heading=0 WHERE id=$1",[attacker.id]);
@@ -50,6 +54,10 @@ describe("Gate 9 naval mechanics",()=>{
       await db.query("UPDATE player_ships SET hull=hull-50 WHERE id=$1",[attacker.id]);
       const repaired=await naval.repairShip(a,attacker.id);expect(repaired.hull).toBeGreaterThan(attacker.hull-50);
       const retreat=await naval.retreatShip(a,attacker.id);expect(retreat.retreatUntil).not.toBeNull();
+      const cargo=await inventory.mutate(a,attacker.id,"repair_lumber",2);expect(cargo.find(x=>x.itemId==="repair_lumber")?.quantity).toBe(7);
+      const fleet=await fleets.create(a,"Sea Wolves",attacker.id);expect(fleet.shipIds).toContain(attacker.id);
+      const second=await ships.create(a,"Escort","sloop");const expanded=await fleets.addShip(a,fleet.id,second.id);expect(expanded.shipIds).toContain(second.id);
+      const reduced=await fleets.removeShip(a,fleet.id,second.id);expect(reduced.shipIds).not.toContain(second.id);
       await expect(naval.fireCannon(a,attacker.id,defender.id)).rejects.toThrow("SHIP_RETREATING");
     }finally{await db.end();await app.close();}
   });
