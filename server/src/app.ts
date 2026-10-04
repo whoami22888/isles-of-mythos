@@ -799,6 +799,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
               const code=errorCode(error, "CAPTURE_FAILED");
               if(code==="NO_CAPTURE_ORB")return {type:"error",code:"NO_CAPTURE_ORB"};
               if(code==="CREATURE_ALREADY_CAPTURED")return {type:"error",code:"CREATURE_ALREADY_CAPTURED"};
+              if(code==="POPULATION_LIMIT_REACHED")return {type:"error",code:"POPULATION_LIMIT_REACHED"};
               throw error;
             }
           });
