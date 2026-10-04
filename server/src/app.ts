@@ -441,6 +441,9 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         if (error instanceof Error && error.message === "PLAYER_NOT_FOUND") {
           return reply.code(404).send({ error: "PLAYER_NOT_FOUND" });
         }
+        if (error instanceof Error && error.message === "INVENTORY_LIMIT") {
+          return reply.code(409).send({ error: "INVENTORY_LIMIT" });
+        }
         log("shop_purchase_failed", { message: error instanceof Error ? error.message : String(error) });
         return reply.code(500).send({ error: "PURCHASE_FAILED" });
       }
