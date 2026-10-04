@@ -90,7 +90,7 @@ export class InvasionStore{
   if(inv.phase==="BATTLE" )await this.resolveIfBattleEnded(c,inv);
   const next=nextPhase(inv.phase);if(next==="COMPLETE"){await c.query("UPDATE invasions SET phase='COMPLETE',resolved_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=$1",[inv.id]);return}
   const now=new Date(),end=nextPhaseAt(next,now);await c.query("UPDATE invasions SET phase=$2,phase_started_at=$3,phase_ends_at=$4,updated_at=CURRENT_TIMESTAMP WHERE id=$1",[inv.id,next,now,end]);
-  if(next==="COOLDOWN")await this.applyResolution(c,inv.id,inv.territory_id,inv.target_base_id);
+  if(next==="RESOLUTION")await this.applyResolution(c,inv.id,inv.territory_id,inv.target_base_id);
   if(next==="REWARD")await this.issueRewards(c,inv.id,inv.threat_score);
  }
  private async materializeWaves(c:PoolClient,invasionId:string,threat:number){
