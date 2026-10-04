@@ -175,8 +175,8 @@ export class SocialStore{
       if(!inv.rows[0]) throw new Error("PARTY_INVITATION_NOT_FOUND");
       const already=await c.query("SELECT 1 FROM party_members WHERE user_id=$1",[userId]);
       if(already.rowCount) throw new Error("ALREADY_IN_PARTY");
-      const count=await c.query("SELECT COUNT(*)::int count FROM party_members WHERE party_id=$1 FOR UPDATE",[inv.rows[0].party_id]);
-      if(Number(count.rows[0].count)>=PARTY_LIMIT) throw new Error("PARTY_FULL");
+      const members=await c.query("SELECT user_id FROM party_members WHERE party_id=$1 FOR UPDATE",[inv.rows[0].party_id]);
+      if(members.rowCount!>=PARTY_LIMIT) throw new Error("PARTY_FULL");
       await c.query("INSERT INTO party_members(party_id,user_id,role) VALUES($1,$2,'member')",[inv.rows[0].party_id,userId]);
       await c.query("UPDATE party_invitations SET status='accepted',responded_at=CURRENT_TIMESTAMP WHERE id=$1",[invitationId]);
       return this.partyWithClient(c,inv.rows[0].party_id);
