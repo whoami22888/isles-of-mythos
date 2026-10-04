@@ -1,3 +1,4 @@
+import type { InvasionRole } from "./invasion.js";
 import type { PublicPlayerState } from "./player.js";
 export interface ChunkCoordinate { x:number; y:number; }
 
@@ -41,7 +42,7 @@ export type ClientMessage =
   | { type:"tick_realm_ai"; requestId:string }
   | { type:"list_invasions"; requestId:string; territoryId:string|null }
   | { type:"get_invasion_waves"; requestId:string; invasionId:string }
-  | { type:"join_invasion"; requestId:string; invasionId:string; armyId:string }
+  | { type:"join_invasion"; requestId:string; invasionId:string; armyId:string; role:InvasionRole }
   | { type:"invasion_action"; requestId:string; invasionId:string; action:"attack"|"reinforce"|"retreat"; waveId:string|null }
   | { type:"invite_guild_member"; requestId:string; guildId:string; targetUserId:string }
   | { type:"accept_guild_invite"; requestId:string; invitationId:string }
