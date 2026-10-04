@@ -6,7 +6,6 @@ import {
   parseServerMessage,
   type ArmySummary,
   type CreatureState,
-  type InvasionPhase,
   type InvasionRole,
   type InvasionSummary,
   type InvasionWave,
@@ -57,7 +56,6 @@ class WorldScene extends Phaser.Scene {
   private invasionAttackButton?: Phaser.GameObjects.Text;
   private invasionReinforceButton?: Phaser.GameObjects.Text;
   private invasionRetreatButton?: Phaser.GameObjects.Text;
-  private invasionPollEvent?: Phaser.Time.TimerEvent;
 
   constructor() { super("world"); }
 
@@ -80,7 +78,7 @@ class WorldScene extends Phaser.Scene {
     this.input.keyboard?.on("keyup-B", () => this.setBlocking(false));
     this.createTouchCombatControls();
     this.createInvasionOverlay();
-    this.invasionPollEvent = this.time.addEvent({ delay: 3000, loop: true, callback: () => this.refreshInvasions() });
+    this.time.addEvent({ delay: 3000, loop: true, callback: () => this.refreshInvasions() });
     this.scale.on("resize", () => this.layoutInvasionOverlay());
     this.layoutInvasionOverlay();
     this.input.on("wheel", (_p: Phaser.Input.Pointer, _g: unknown[], _dx: number, dy: number) => this.cameras.main.setZoom(Phaser.Math.Clamp(this.cameras.main.zoom - dy * 0.001, 0.5, 2.5)));
