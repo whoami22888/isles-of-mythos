@@ -87,7 +87,29 @@ export type ClientMessage =
   | { type:"board_ship"; requestId:string; shipId:string; targetShipId:string }
   | { type:"repair_ship"; requestId:string; shipId:string }
   | { type:"retreat_ship"; requestId:string; shipId:string }
-  | { type:"fight_ship_fire"; requestId:string; shipId:string };
+  | { type:"fight_ship_fire"; requestId:string; shipId:string }
+  | { type:"list_friends"; requestId:string }
+  | { type:"add_friend"; requestId:string; targetUserId:string }
+  | { type:"remove_friend"; requestId:string; targetUserId:string }
+  | { type:"block_user"; requestId:string; targetUserId:string }
+  | { type:"unblock_user"; requestId:string; targetUserId:string }
+  | { type:"list_blocks"; requestId:string }
+  | { type:"report_user"; requestId:string; targetUserId:string; reason:string; details:string }
+  | { type:"chat_send"; requestId:string; channel:"local"|"region"|"party"|"guild"|"trade"|"global"|"system"|"whisper"; body:string; recipientUserId:string|null; guildId:string|null; partyId:string|null }
+  | { type:"chat_history"; requestId:string; channel:"local"|"region"|"party"|"guild"|"trade"|"global"|"system"|"whisper"; recipientUserId:string|null; guildId:string|null; partyId:string|null }
+  | { type:"create_party"; requestId:string }
+  | { type:"get_party"; requestId:string }
+  | { type:"party_invitations"; requestId:string }
+  | { type:"party_invite"; requestId:string; targetUserId:string }
+  | { type:"party_accept"; requestId:string; invitationId:string }
+  | { type:"party_leave"; requestId:string }
+  | { type:"party_kick"; requestId:string; targetUserId:string }
+  | { type:"auction_list"; requestId:string; itemId:string|null; minPrice:string|null; maxPrice:string|null }
+  | { type:"auction_create"; requestId:string; itemId:string; quantity:number; startPrice:string; buyNowPrice:string|null; durationMs:number }
+  | { type:"auction_bid"; requestId:string; listingId:string; amount:string }
+  | { type:"auction_buy_now"; requestId:string; listingId:string }
+  | { type:"auction_cancel"; requestId:string; listingId:string }
+  | { type:"auction_history"; requestId:string };
 
 export type ServerMessage =
   | { type:"server_ready"; timestamp:number }
@@ -136,6 +158,19 @@ export type ServerMessage =
   | { type:"fleet_state"; requestId:string; fleet:unknown }
   | { type:"fleet_list"; requestId:string; fleets:unknown[] }
   | { type:"naval_combat_result"; requestId:string; attacker:unknown; target:unknown; damage:number; fireStarted?:boolean; captured?:boolean }
+  | { type:"friends_list"; requestId:string; friends:unknown[] }
+  | { type:"blocks_list"; requestId:string; blockedUserIds:string[] }
+  | { type:"social_operation_ok"; requestId:string }
+  | { type:"social_reported"; requestId:string; reportId:string }
+  | { type:"chat_message"; requestId:string; message:unknown }
+  | { type:"chat_history"; requestId:string; messages:unknown[] }
+  | { type:"party_state"; requestId:string; party:unknown|null }
+  | { type:"party_invitations"; requestId:string; invitations:unknown[] }
+  | { type:"party_operation_ok"; requestId:string }
+  | { type:"auction_list"; requestId:string; listings:unknown[] }
+  | { type:"auction_state"; requestId:string; listing:unknown }
+  | { type:"auction_history"; requestId:string; transactions:unknown[] }
+  | { type:"auction_operation_ok"; requestId:string }
   | { type:"error"; code:
       | "INVALID_MESSAGE"|"UNSUPPORTED_MESSAGE"|"AUTH_REQUIRED"|"INVALID_TOKEN"|"COMBAT_COOLDOWN"|"OUT_OF_RANGE"|"NO_STAMINA"|"NO_AMMO"|"COMBAT_IN_PROGRESS"|"PLAYER_DEAD"|"PLAYER_STUNNED"|"RATE_LIMITED"
       | "CREATURE_TOO_HEALTHY"|"NO_CAPTURE_ORB"|"CREATURE_ALREADY_CAPTURED"|"CREATURE_NOT_FOUND"|"NO_CREATURE_FEED"|"CREATURE_NOT_TAMED"|"INVALID_PARTY_SLOT"
@@ -143,6 +178,8 @@ export type ServerMessage =
       | "INVALID_BUILDING_POSITION"|"BUILDING_POSITION_OCCUPIED"|"BUILDING_PREREQUISITE_MISSING"|"BUILDING_NOT_FOUND"|"BUILDING_MAX_LEVEL"
       | "INSUFFICIENT_STORAGE"|"STORAGE_CAPACITY_EXCEEDED"|"INVALID_STORAGE_QUANTITY"|"INSUFFICIENT_INVENTORY"|"PLAYER_NOT_FOUND"|"INVALID_WORK_TASK"|"CREATURE_IN_PARTY"|"WORKER_CAPACITY_REACHED"|"INVALID_SHIP_CLASS"|"SHIPYARD_REQUIRED"|"INSUFFICIENT_SHIPYARD_RESOURCES"|"INVALID_SHIP_CARGO"|"INSUFFICIENT_SHIP_CARGO"|"SHIP_CARGO_CAPACITY_EXCEEDED"|"FLEET_NOT_FOUND"|"SHIP_ALREADY_IN_FLEET"|"SHIP_NOT_IN_FLEET"|"FLEET_COMMANDER_REQUIRED"|"INVALID_SAIL_INPUT"|"SHIP_NOT_FOUND"|"SHIP_NOT_ACTIVE"|"INSUFFICIENT_SHIP_FUEL"|"INVALID_CREW_ASSIGNMENT"|"SHIP_CREW_CAPACITY_REACHED"|"CREW_CREATURE_NOT_FOUND"|"CREW_CREATURE_NOT_TAMED"|"CREW_CREATURE_IN_PARTY"|"CREW_ALREADY_ASSIGNED"|"INVALID_NAVAL_TARGET"|"TARGET_SHIP_NOT_ACTIVE"|"NAVAL_TARGET_OUT_OF_RANGE"|"CANNON_COOLDOWN"|"NO_CANNON_AMMO"|"CANNON_OUTSIDE_ARC"|"SHIP_RETREATING"|"TARGET_SHIP_RETREATING"|"BOARDING_OUT_OF_RANGE"|"SHIP_FULL_HEALTH"|"NO_REPAIR_LUMBER"|"SHIP_NOT_ON_FIRE"|"INVALID_WIND"
       | "RECIPE_NOT_FOUND"|"INVENTORY_LIMIT"|"SHOP_ITEM_NOT_FOUND"|"INVALID_PURCHASE_QUANTITY"|"INSUFFICIENT_GOLD"|"TRADE_REQUEST_CONFLICT"|"INVALID_TRADE_REQUEST"|"INVALID_TRADE_PARTICIPANTS"|"INVALID_TRADE_ITEMS"|"INVALID_TRADE_ITEM"|"INVALID_TRADE_QUANTITY"
+      | "INVALID_SOCIAL_TARGET"|"SOCIAL_BLOCKED"|"ALREADY_FRIENDS"|"FRIEND_REQUEST_EXISTS"|"CHAT_RATE_LIMITED"|"INVALID_CHAT_CHANNEL"|"INVALID_CHAT_TARGET"|"INVALID_CHAT_CONTEXT"|"PARTY_MEMBERSHIP_REQUIRED"|"GUILD_MEMBERSHIP_REQUIRED"|"ALREADY_IN_PARTY"|"PARTY_NOT_FOUND"|"PARTY_FULL"|"TARGET_IN_PARTY"|"PARTY_INVITATION_NOT_FOUND"|"PARTY_LEADER_REQUIRED"|"INVALID_PARTY_TARGET"|"PARTY_MEMBER_NOT_FOUND"
+      | "INVALID_AUCTION_ITEM"|"INVALID_AUCTION_QUANTITY"|"INVALID_AUCTION_PRICE"|"INVALID_AUCTION_DURATION"|"INVALID_AUCTION_BID"|"AUCTION_NOT_FOUND"|"AUCTION_NOT_ACTIVE"|"AUCTION_SELF_BID"|"AUCTION_BID_TOO_LOW"|"AUCTION_NO_BUY_NOW"|"AUCTION_SELF_BUY"|"AUCTION_OWNER_REQUIRED"|"AUCTION_HAS_BID"
       | "BUILD_FAILED"|"BASE_CREATE_FAILED"|"INVALID_INVASION_ROLE"|"INVASION_ALREADY_PARTICIPATING"|"INVALID_INVASION_THREAT"|"INVALID_INVASION_SOURCE"|"INVASION_ALREADY_ACTIVE"|"INVASION_NOT_FOUND"|"INVASION_NOT_JOINABLE"|"ARMY_NOT_OWNED"|"ARMY_ALREADY_IN_INVASION"|"INVASION_NOT_IN_BATTLE"|"INVASION_NOT_PARTICIPANT"|"INVASION_WAVE_REQUIRED"|"INVASION_WAVE_NOT_FOUND"|"INVASION_WAVE_NOT_ACTIVE"|"INVALID_TERRITORY_COORDINATES"|"TERRITORY_NOT_FOUND"|"INSUFFICIENT_TERRITORY_INFLUENCE"|"INVALID_REPUTATION_DELTA"|"REALM_NOT_FOUND"|"INVALID_TRADE_ROUTE"|"INVALID_TRADE_ROUTE_ENDPOINTS"|"BARRACKS_REQUIRED"|"INVALID_ARMY_UNIT_TYPE"|"INVALID_TRAINING_QUANTITY"|"INSUFFICIENT_BASE_RESOURCES"|"ARMY_NOT_FOUND"|"CREATURE_ALREADY_GARRISONED"|"INVALID_ARMY_ASSIGNMENT"|"INVALID_ARMY_FORMATION"|"GUILD_PERMISSION_DENIED"|"GUILD_MEMBER_NOT_FOUND"|"COMMANDER_NOT_NOMINATED"|"COMMANDER_PERMISSION_DENIED"|"INVALID_COMMANDER_ORDER"|"ARMY_UNIT_NOT_FOUND"|"INVALID_COMMAND_TARGET"|"DEFENDER_ARMY_NOT_FOUND"|"INVALID_BATTLE_ARMIES"|"BATTLE_NOT_FOUND"|"BATTLE_NOT_ACTIVE"|"BATTLE_UNIT_NOT_FOUND"|"INVALID_FORMATION_SLOT"|"INVALID_DEFENSIVE_STRUCTURE"|"INVALID_DEFENSE_POSITION"|"DEFENSE_POSITION_OCCUPIED"|"BATTLE_UNIT_NOT_DEPLOYED"|"ARMY_UNIT_TARGET_REQUIRED"|"INVALID_BATTLE_TARGET"|"DEFENDER_GARRISON_NOT_FOUND"|"NO_AVAILABLE_TRAP"|"CANNON_UNIT_REQUIRED"|"DEFENSE_STRUCTURE_REQUIRED"|"DEFENSE_STRUCTURE_NOT_FOUND"|"BREEDING_PEN_NOT_FOUND"|"BREEDING_CAPACITY_REACHED"|"INVALID_GUILD_NAME"|"INVALID_GUILD_TAG"|"GUILD_NAME_OR_TAG_EXISTS"|"GUILD_HALL_REQUIRED"|"ALREADY_IN_GUILD"|"GUILD_NOT_FOUND"|"GUILD_MEMBERSHIP_REQUIRED"|"INVALID_GUILD_INVITEE"|"TARGET_ALREADY_IN_GUILD"|"GUILD_INVITATION_NOT_FOUND"|"GUILD_MASTER_CANNOT_LEAVE"|"INVALID_GUILD_MEMBER"|"GUILD_MASTER_PROTECTED"|"INVALID_GUILD_RANK"|"INVALID_GUILD_PERMISSION"|"INVALID_GUILD_INFRASTRUCTURE"|"INVALID_GUILD_BANK_QUANTITY"|"INVALID_GUILD_BANK_DEPOSIT"|"INVALID_GUILD_BANK_WITHDRAW"|"INSUFFICIENT_GUILD_BANK"|"GUILD_QUEST_NOT_FOUND"|"GUILD_INFRASTRUCTURE_MAX"|"BREEDING_PEN_BUSY"|"INVALID_BREEDING_DURATION"|"BREEDING_PARENTS_MUST_DIFFER"|"INCOMPATIBLE_BREEDING_PARENTS"|"BREEDING_GENERATION_LIMIT"|"POPULATION_LIMIT_REACHED"|"NO_BREEDING_FEED"|"BREEDING_PARENT_MISSING"|"STORAGE_UPDATE_FAILED"|"UPGRADE_FAILED"|"PERMISSION_UPDATE_FAILED"|"WORKER_UPDATE_FAILED"|"PRIORITY_UPDATE_FAILED" };
 
 function isSafeInteger(value:unknown):value is number{return typeof value==="number"&&Number.isSafeInteger(value);}
@@ -250,6 +287,40 @@ export function parseClientMessage(raw:string):ClientMessage|null{
       const id=(value as {requestId?:unknown}).requestId,targetId=(value as {targetId?:unknown}).targetId,facingX=(value as {facingX?:unknown}).facingX,facingY=(value as {facingY?:unknown}).facingY;
       if(!requestId(id)||typeof targetId!=="string"||targetId.length===0||targetId.length>128||!isFiniteNumber(facingX)||!isFiniteNumber(facingY)||Math.abs(facingX)>1||Math.abs(facingY)>1||(facingX===0&&facingY===0))return null;
       return {type:"attack",requestId:id,targetId,facingX,facingY};
+    }
+    if(type==="list_friends"||type==="list_blocks"||type==="create_party"||type==="get_party"||type==="party_invitations"||type==="party_leave"||type==="auction_history"){
+      const id=(value as {requestId?:unknown}).requestId;return requestId(id)?({type,requestId:id} as ClientMessage):null;
+    }
+    if(type==="add_friend"||type==="remove_friend"||type==="block_user"||type==="unblock_user"||type==="party_invite"||type==="party_kick"||type==="party_accept"||type==="auction_bid"||type==="auction_buy_now"||type==="auction_cancel"){
+      const id=(value as {requestId?:unknown}).requestId;if(!requestId(id))return null;
+      const key=type==="party_accept"?"invitationId":type==="auction_bid"||type==="auction_buy_now"||type==="auction_cancel"?"listingId":"targetUserId";
+      const v=(value as Record<string,unknown>)[key];if(typeof v!=="string"||v.length===0||v.length>128)return null;
+      if(type==="auction_bid"){const amount=(value as {amount?:unknown}).amount;return typeof amount==="string"&&amount.length>0?{type,requestId:id,listingId:v,amount}:null;}
+      return {...value} as ClientMessage;
+    }
+    if(type==="report_user"){
+      const id=(value as {requestId?:unknown}).requestId,target=(value as {targetUserId?:unknown}).targetUserId,reason=(value as {reason?:unknown}).reason,details=(value as {details?:unknown}).details;
+      return requestId(id)&&typeof target==="string"&&target.length>0&&target.length<=128&&typeof reason==="string"&&reason.length>0&&reason.length<=32&&typeof details==="string"&&details.length<=512?{type:"report_user",requestId:id,targetUserId:target,reason,details}:null;
+    }
+    if(type==="chat_send"){
+      const id=(value as {requestId?:unknown}).requestId,ch=(value as {channel?:unknown}).channel,body=(value as {body?:unknown}).body;
+      const recipient=(value as {recipientUserId?:unknown}).recipientUserId,guildId=(value as {guildId?:unknown}).guildId,partyId=(value as {partyId?:unknown}).partyId;
+      const channels=["local","region","party","guild","trade","global","system","whisper"];
+      return requestId(id)&&typeof ch==="string"&&channels.includes(ch)&&typeof body==="string"&&body.trim().length>0&&body.length<=512&&(recipient===null||typeof recipient==="string")&&(guildId===null||typeof guildId==="string")&&(partyId===null||typeof partyId==="string")?{type:"chat_send",requestId:id,channel:ch as Extract<ClientMessage,{type:"chat_send"}>["channel"],body,recipientUserId:recipient as string|null,guildId:guildId as string|null,partyId:partyId as string|null}:null;
+    }
+    if(type==="chat_history"){
+      const id=(value as {requestId?:unknown}).requestId,ch=(value as {channel?:unknown}).channel;
+      const recipient=(value as {recipientUserId?:unknown}).recipientUserId,guildId=(value as {guildId?:unknown}).guildId,partyId=(value as {partyId?:unknown}).partyId;
+      const channels=["local","region","party","guild","trade","global","system","whisper"];
+      return requestId(id)&&typeof ch==="string"&&channels.includes(ch)&&(recipient===null||typeof recipient==="string")&&(guildId===null||typeof guildId==="string")&&(partyId===null||typeof partyId==="string")?{type:"chat_history",requestId:id,channel:ch as Extract<ClientMessage,{type:"chat_history"}>["channel"],recipientUserId:recipient as string|null,guildId:guildId as string|null,partyId:partyId as string|null}:null;
+    }
+    if(type==="auction_list"){
+      const id=(value as {requestId?:unknown}).requestId,item=(value as {itemId?:unknown}).itemId,min=(value as {minPrice?:unknown}).minPrice,max=(value as {maxPrice?:unknown}).maxPrice;
+      return requestId(id)&&(item===null||typeof item==="string")&&(min===null||typeof min==="string")&&(max===null||typeof max==="string")?{type:"auction_list",requestId:id,itemId:item as string|null,minPrice:min as string|null,maxPrice:max as string|null}:null;
+    }
+    if(type==="auction_create"){
+      const id=(value as {requestId?:unknown}).requestId,item=(value as {itemId?:unknown}).itemId,q=(value as {quantity?:unknown}).quantity,start=(value as {startPrice?:unknown}).startPrice,buy=(value as {buyNowPrice?:unknown}).buyNowPrice,d=(value as {durationMs?:unknown}).durationMs;
+      return requestId(id)&&typeof item==="string"&&item.length>0&&item.length<=128&&isSafeInteger(q)&&q>0&&q<=1_000_000&&typeof start==="string"&&start.length>0&&(buy===null||typeof buy==="string")&&isSafeInteger(d)&&d>=60000&&d<=604800000?{type:"auction_create",requestId:id,itemId:item,quantity:q,startPrice:start,buyNowPrice:buy as string|null,durationMs:d}:null;
     }
   }catch{return null;}
   return null;
