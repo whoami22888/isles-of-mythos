@@ -7,7 +7,7 @@ import {BaseStore} from "./base.js";
 import {ShipStore,SHIP_CLASSES,CANNONBALL_ITEM} from "./ship.js";
 
 async function register(app:FastifyInstance,tag:string):Promise<string>{
-  const unique=Date.now()+"_"+tag+"_"+Math.random().toString(36).slice(2,8);
+  const unique=tag.slice(0,8)+"_"+Date.now().toString(36).slice(-7)+"_"+Math.random().toString(36).slice(2,6);
   const response=await app.inject({method:"POST",url:"/auth/register",payload:{username:"ship_"+unique,email:"ship_"+unique+"@example.com",password:"Correct-Horse-Battery-9"}});
   expect(response.statusCode).toBe(201);
   return (JSON.parse(response.body) as {user:{id:string}}).user.id;
