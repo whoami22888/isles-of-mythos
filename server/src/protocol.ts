@@ -106,7 +106,7 @@ export type ClientMessage =
   | { type:"party_accept"; requestId:string; invitationId:string }
   | { type:"party_leave"; requestId:string }
   | { type:"party_kick"; requestId:string; targetUserId:string }
-  | { type:"auction_list"; requestId:string; itemId:string|null; rarity:AuctionRarity|null; category:AuctionCategory|null; minLevel:number|null; maxLevel:number|null; minPrice:string|null; maxPrice:string|null }
+  | { type:"auction_list"; requestId:string; itemId:string|null; rarity?:AuctionRarity|null; category?:AuctionCategory|null; minLevel?:number|null; maxLevel?:number|null; minPrice:string|null; maxPrice:string|null }
   | { type:"auction_create"; requestId:string; itemId:string; quantity:number; startPrice:string; buyNowPrice:string|null; durationMs:number }
   | { type:"auction_bid"; requestId:string; listingId:string; amount:string }
   | { type:"auction_buy_now"; requestId:string; listingId:string }
@@ -319,8 +319,10 @@ export function parseClientMessage(raw:string):ClientMessage|null{
       return requestId(id)&&isChatChannel(ch)&&(recipient===null||typeof recipient==="string")&&(guildId===null||typeof guildId==="string")&&(partyId===null||typeof partyId==="string")?{type:"chat_history",requestId:id,channel:ch,recipientUserId:recipient,guildId,partyId}:null;
     }
     if(type==="auction_list"){
-      const id=(value as {requestId?:unknown}).requestId,item=(value as {itemId?:unknown}).itemId,rarity=(value as {rarity?:unknown}).rarity,category=(value as {category?:unknown}).category,minLevel=(value as {minLevel?:unknown}).minLevel,maxLevel=(value as {maxLevel?:unknown}).maxLevel,min=(value as {minPrice?:unknown}).minPrice,max=(value as {maxPrice?:unknown}).maxPrice;
-      return requestId(id)&&(item===null||typeof item==="string")&&(rarity===null||typeof rarity==="string")&&(category===null||typeof category==="string")&&(minLevel===null||isSafeInteger(minLevel))&&(maxLevel===null||isSafeInteger(maxLevel))&&(min===null||typeof min==="string")&&(max===null||typeof max==="string")?{type:"auction_list",requestId:id,itemId:item,rarity,category,minLevel,maxLevel,minPrice:min,maxPrice:max}:null;
+      const id=(value as {requestId?:unknown}).requestId,item=(value as {itemId?:unknown}).itemId;
+      const rarityRaw=(value as {rarity?:unknown}).rarity,categoryRaw=(value as {category?:unknown}).category,minLevelRaw=(value as {minLevel?:unknown}).minLevel,maxLevelRaw=(value as {maxLevel?:unknown}).maxLevel,min=(value as {minPrice?:unknown}).minPrice,max=(value as {maxPrice?:unknown}).maxPrice;
+      const rarity=rarityRaw===undefined?null:rarityRaw,category=categoryRaw===undefined?null:categoryRaw,minLevel=minLevelRaw===undefined?null:minLevelRaw,maxLevel=maxLevelRaw===undefined?null:maxLevelRaw;
+      return requestId(id)&&(item===null||typeof item==="string")&&(rarity===null||typeof rarity==="string")&&(category===null||typeof category==="string")&&(minLevel===null||isSafeInteger(minLevel))&&(maxLevel===null||isSafeInteger(maxLevel))&&(min===null||typeof min==="string")&&(max===null||typeof max==="string")?{type:"auction_list",requestId:id,itemId:item,rarity:rarity as AuctionRarity|null,category:category as AuctionCategory|null,minLevel:minLevel as number|null,maxLevel:maxLevel as number|null,minPrice:min,maxPrice:max}:null;
     }
     if(type==="auction_create"){
       const id=(value as {requestId?:unknown}).requestId,item=(value as {itemId?:unknown}).itemId,q=(value as {quantity?:unknown}).quantity,start=(value as {startPrice?:unknown}).startPrice,buy=(value as {buyNowPrice?:unknown}).buyNowPrice,d=(value as {durationMs?:unknown}).durationMs;
