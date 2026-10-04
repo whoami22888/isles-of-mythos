@@ -56,6 +56,7 @@ describe("economy transaction concurrency", () => {
       expect(response.statusCode).toBe(201);
       const body = JSON.parse(response.body) as { user: { id: string } };
       const userId = body.user.id;
+      await new PlayerStore(db).loadOrCreate(userId);
 
       await db.query(
         "UPDATE player_profiles SET gold=$2, inventory=$3::jsonb WHERE user_id=$1",
@@ -114,6 +115,7 @@ describe("economy transaction concurrency", () => {
       expect(response.statusCode).toBe(201);
       const body = JSON.parse(response.body) as { user: { id: string } };
       const userId = body.user.id;
+      await new PlayerStore(db).loadOrCreate(userId);
       await db.query(
         "UPDATE player_profiles SET gold=$2, inventory=$3::jsonb WHERE user_id=$1",
         [userId, "500000000", JSON.stringify({ wood: 10 })],
