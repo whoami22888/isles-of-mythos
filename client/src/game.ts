@@ -36,6 +36,8 @@ interface CombatResultMessage {
   missed?: boolean;
 }
 
+type EconomySnapshot = { userId: string; gold: string; inventory: Record<string, number> };
+
 type ServerMessage =
   | { type: "server_ready"; timestamp: number }
   | { type: "pong"; timestamp: number }
@@ -46,6 +48,9 @@ type ServerMessage =
   | CombatResultMessage
   | { type: "creature_state"; requestId?: string; creature: CreatureState }
   | { type: "creature_party"; creatures: CreatureState[] }
+  | { type: "craft_result"; requestId: string; recipeId: string; state: PlayerState }
+  | { type: "shop_purchase_result"; requestId: string; itemId: string; quantity: number; totalGold: string; state: PlayerState }
+  | { type: "trade_result"; requestId: string; from: EconomySnapshot; to: EconomySnapshot }
   | { type: "error"; code: string };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -105,6 +110,24 @@ function parseServerMessage(value: unknown): ServerMessage | null {
         ...(typeof value.requestId === "string" ? { requestId: value.requestId } : {}),
         creature: value.creature,
       };
+    }
+    case "craft_result":
+      return typeof value.requestId === "string" && typeof value.recipeId === "string" && isPlayerState(value.state)
+        ? { type: "craft_result", requestId: value.requestId, recipeId: value.recipeId, state: value.state }
+        : null;
+    case "shop_purchase_result":
+      return typeof value.requestId === "string" && typeof value.itemId === "string" && typeof value.quantity === "number" &&
+        Number.isSafeInteger(value.quantity) && value.quantity > 0 && typeof value.totalGold === "string" && isPlayerState(value.state)
+        ? { type: "shop_purchase_result", requestId: value.requestId, itemId: value.itemId, quantity: value.quantity, totalGold: value.totalGold, state: value.state }
+        : null;
+    case "trade_result": {
+      const isSnapshot = (snapshot: unknown): snapshot is EconomySnapshot => {
+        if (!isRecord(snapshot) || typeof snapshot.userId !== "string" || typeof snapshot.gold !== "string" || !isRecord(snapshot.inventory)) return false;
+        return Object.values(snapshot.inventory).every((quantity) => typeof quantity === "number" && Number.isSafeInteger(quantity) && quantity >= 0);
+      };
+      return typeof value.requestId === "string" && isSnapshot(value.from) && isSnapshot(value.to)
+        ? { type: "trade_result", requestId: value.requestId, from: value.from, to: value.to }
+        : null;
     }
     case "creature_party":
       if (!Array.isArray(value.creatures) || !value.creatures.every(isCreatureState)) return null;
@@ -420,6 +443,23 @@ class WorldScene extends Phaser.Scene {
         this.projectileByRequest.delete(requestId);
       },
     });
+  }
+
+  public craftRecipe(recipeId: string): void {
+    if (!this.socket || this.socket.readyState !== WebSocket.OPEN) return;
+    this.socket.send(JSON.stringify({ type: "craft", requestId: this.nextAttackRequestId(), recipeId }));
+  }
+
+  public purchaseShopItem(itemId: string, quantity: number): void {
+    if (!this.socket || this.socket.readyState !== WebSocket.OPEN) return;
+    if (!Number.isSafeInteger(quantity) || quantity < 1 || quantity > 100) return;
+    this.socket.send(JSON.stringify({ type: "shop_purchase", requestId: this.nextAttackRequestId(), itemId, quantity }));
+  }
+
+  public tradePlayer(toUserId: string, gold: string, items: Array<{ itemId: string; quantity: number }>): void {
+    if (!this.socket || this.socket.readyState !== WebSocket.OPEN) return;
+    if (typeof toUserId !== "string" || toUserId.length === 0 || toUserId.length > 64 || typeof gold !== "string" || gold.length === 0 || gold.length > 32 || items.length > 32) return;
+    this.socket.send(JSON.stringify({ type: "trade", requestId: this.nextAttackRequestId(), toUserId, gold, items }));
   }
 
   private captureNearest(): void {
