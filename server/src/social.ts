@@ -148,10 +148,6 @@ export class SocialStore{
     return {id:p.rows[0].id,leaderUserId:p.rows[0].leader_user_id,members:m.rows.map(x=>({userId:x.user_id,role:x.role,joinedAt:x.joined_at.toISOString()}))};
   }
 
-  async getParty(userId:string):Promise<PartyState|null>{
-    const r=await this.db.query<{party_id:string}>("SELECT party_id FROM party_members WHERE user_id=$1",[userId]);
-    return r.rows[0]?this.partyWithClient(await this.db.connect(),r.rows[0].party_id).catch(async e=>{throw e}):null;
-  }
 
   async inviteToParty(userId:string,targetUserId:string):Promise<string>{
     return transaction(this.db,async c=>{
