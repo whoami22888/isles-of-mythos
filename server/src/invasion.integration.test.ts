@@ -42,6 +42,10 @@ describe("Gate 13 invasion persistence",()=>{
     );
     expect(rewards.rows).toHaveLength(1);
     expect(BigInt(rewards.rows[0]?.gold??"0")).toBeGreaterThan(0n);
+    const inventory=await db2.query<{inventory:Record<string,number>}>("SELECT inventory FROM player_profiles WHERE user_id=$1",[user]);
+    expect(inventory.rows[0]?.inventory["resource.wood"]).toBeGreaterThan(0);
+    expect(inventory.rows[0]?.inventory["resource.steel"]).toBeGreaterThan(0);
+    expect(inventory.rows[0]?.inventory["treasure.map.high-tier"]).toBeGreaterThan(0);
    }finally{await db2.end();}
   }finally{await db.end();if(app.server.listening)await app.close();}
  });
