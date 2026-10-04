@@ -273,6 +273,17 @@ class WorldScene extends Phaser.Scene {
         this.requestChunks();
         return;
       }
+      if (message.type === "craft_result" || message.type === "shop_purchase_result") {
+        this.player = message.state;
+        this.renderPlayer();
+        this.updateHud();
+        this.statusText?.setText(message.type === "craft_result" ? "CRAFT COMPLETE" : "PURCHASE COMPLETE");
+        return;
+      }
+      if (message.type === "trade_result") {
+        this.statusText?.setText("TRADE COMPLETE");
+        return;
+      }
       if (message.type === "world_chunk") {
         this.chunks.render(message.chunk);
         this.updateHud();
