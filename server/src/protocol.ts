@@ -20,7 +20,10 @@ export type ClientMessage =
   | { type:"storage"; requestId:string; changes:Record<string,number> }
   | { type:"set_base_permission"; requestId:string; targetUserId:string; permission:string; enabled:boolean }
   | { type:"assign_worker"; requestId:string; creatureId:string; buildingId:string; task:string }
-  | { type:"set_work_priorities"; requestId:string; priorities:string[] };
+  | { type:"set_work_priorities"; requestId:string; priorities:string[] }
+  | { type:"craft"; requestId:string; recipeId:string }
+  | { type:"shop_purchase"; requestId:string; itemId:string; quantity:number }
+  | { type:"trade"; requestId:string; toUserId:string; gold:string; items:Array<{itemId:string;quantity:number}> };
 
 export type ServerMessage =
   | { type:"server_ready"; timestamp:number }
@@ -34,12 +37,16 @@ export type ServerMessage =
   | { type:"creature_party"; creatures:unknown[] }
   | { type:"base_state"; base:unknown }
   | { type:"building_state"; requestId:string; building:unknown }
+  | { type:"craft_result"; requestId:string; recipeId:string; state:PublicPlayerState }
+  | { type:"shop_purchase_result"; requestId:string; itemId:string; quantity:number; totalGold:string; state:PublicPlayerState }
+  | { type:"trade_result"; requestId:string; from:unknown; to:unknown }
   | { type:"error"; code:
       | "INVALID_MESSAGE"|"UNSUPPORTED_MESSAGE"|"AUTH_REQUIRED"|"INVALID_TOKEN"|"COMBAT_COOLDOWN"|"OUT_OF_RANGE"|"NO_STAMINA"|"NO_AMMO"|"COMBAT_IN_PROGRESS"|"PLAYER_DEAD"|"PLAYER_STUNNED"|"RATE_LIMITED"
       | "CREATURE_TOO_HEALTHY"|"NO_CAPTURE_ORB"|"CREATURE_ALREADY_CAPTURED"|"CREATURE_NOT_FOUND"|"NO_CREATURE_FEED"|"CREATURE_NOT_TAMED"|"INVALID_PARTY_SLOT"
       | "BASE_ALREADY_EXISTS"|"BASE_NOT_FOUND"|"BASE_PERMISSION_DENIED"|"INVALID_BASE_COORDINATES"|"INVALID_BUILDING_TYPE"|"INVALID_BUILDING_LEVEL"
       | "INVALID_BUILDING_POSITION"|"BUILDING_POSITION_OCCUPIED"|"BUILDING_PREREQUISITE_MISSING"|"BUILDING_NOT_FOUND"|"BUILDING_MAX_LEVEL"
       | "INSUFFICIENT_STORAGE"|"STORAGE_CAPACITY_EXCEEDED"|"INVALID_STORAGE_QUANTITY"|"INSUFFICIENT_INVENTORY"|"PLAYER_NOT_FOUND"|"INVALID_WORK_TASK"|"CREATURE_IN_PARTY"
+      | "RECIPE_NOT_FOUND"|"INSUFFICIENT_INVENTORY"|"INVENTORY_LIMIT"|"SHOP_ITEM_NOT_FOUND"|"INVALID_PURCHASE_QUANTITY"|"INSUFFICIENT_GOLD"|"TRADE_REQUEST_CONFLICT"|"INVALID_TRADE_REQUEST"|"INVALID_TRADE_PARTICIPANTS"|"INVALID_TRADE_ITEMS"|"INVALID_TRADE_ITEM"|"INVALID_TRADE_QUANTITY"
       | "BUILD_FAILED"|"BASE_CREATE_FAILED"|"STORAGE_UPDATE_FAILED"|"UPGRADE_FAILED"|"PERMISSION_UPDATE_FAILED"|"WORKER_UPDATE_FAILED"|"PRIORITY_UPDATE_FAILED" };
 
 function isSafeInteger(value:unknown):value is number{return typeof value==="number"&&Number.isSafeInteger(value);}
@@ -81,6 +88,15 @@ export function parseClientMessage(raw:string):ClientMessage|null{
     if(type==="set_base_permission"){const id=(value as {requestId?:unknown}).requestId,targetUserId=(value as {targetUserId?:unknown}).targetUserId,permission=(value as {permission?:unknown}).permission,enabled=(value as {enabled?:unknown}).enabled;return requestId(id)&&typeof targetUserId==="string"&&targetUserId.length>0&&targetUserId.length<=64&&typeof permission==="string"&&permission.length>0&&permission.length<=32&&typeof enabled==="boolean"?{type:"set_base_permission",requestId:id,targetUserId,permission,enabled}:null;}
     if(type==="assign_worker"){const id=(value as {requestId?:unknown}).requestId,creatureId=(value as {creatureId?:unknown}).creatureId,buildingId=(value as {buildingId?:unknown}).buildingId,task=(value as {task?:unknown}).task;return requestId(id)&&typeof creatureId==="string"&&creatureId.length>0&&creatureId.length<=64&&typeof buildingId==="string"&&buildingId.length>0&&buildingId.length<=64&&typeof task==="string"&&task.length>0&&task.length<=32?{type:"assign_worker",requestId:id,creatureId,buildingId,task}:null;}
     if(type==="set_work_priorities"){const id=(value as {requestId?:unknown}).requestId,priorities=(value as {priorities?:unknown}).priorities;if(!requestId(id)||!Array.isArray(priorities)||priorities.length>6||priorities.some(p=>typeof p!=="string"||p.length===0||p.length>32))return null;return {type:"set_work_priorities",requestId:id,priorities:priorities as string[]};}
+    if(type==="craft"){const id=(value as {requestId?:unknown}).requestId,recipeId=(value as {recipeId?:unknown}).recipeId;return requestId(id)&&typeof recipeId==="string"&&recipeId.length>0&&recipeId.length<=64?{type:"craft",requestId:id,recipeId}:null;}
+    if(type==="shop_purchase"){const id=(value as {requestId?:unknown}).requestId,itemId=(value as {itemId?:unknown}).itemId,quantity=(value as {quantity?:unknown}).quantity;return requestId(id)&&typeof itemId==="string"&&itemId.length>0&&itemId.length<=64&&isSafeInteger(quantity)&&quantity>=1&&quantity<=100?{type:"shop_purchase",requestId:id,itemId,quantity}:null;}
+    if(type==="trade"){
+      const id=(value as {requestId?:unknown}).requestId,toUserId=(value as {toUserId?:unknown}).toUserId,gold=(value as {gold?:unknown}).gold,items=(value as {items?:unknown}).items;
+      if(!requestId(id)||typeof toUserId!=="string"||toUserId.length===0||toUserId.length>64||typeof gold!=="string"||gold.length===0||gold.length>32||!Array.isArray(items)||items.length>32)return null;
+      const normalized:Array<{itemId:string;quantity:number}>=[];
+      for(const item of items){if(typeof item!=="object"||item===null||Array.isArray(item))return null;const itemId=(item as {itemId?:unknown}).itemId,quantity=(item as {quantity?:unknown}).quantity;if(typeof itemId!=="string"||itemId.length===0||itemId.length>128||!isSafeInteger(quantity)||quantity<1||quantity>1_000_000)return null;normalized.push({itemId,quantity});}
+      return {type:"trade",requestId:id,toUserId,gold,items:normalized};
+    }
     if(type==="attack"){
       const id=(value as {requestId?:unknown}).requestId,targetId=(value as {targetId?:unknown}).targetId,facingX=(value as {facingX?:unknown}).facingX,facingY=(value as {facingY?:unknown}).facingY;
       if(!requestId(id)||typeof targetId!=="string"||targetId.length===0||targetId.length>128||!isFiniteNumber(facingX)||!isFiniteNumber(facingY)||Math.abs(facingX)>1||Math.abs(facingY)>1||(facingX===0&&facingY===0))return null;
