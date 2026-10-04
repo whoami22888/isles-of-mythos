@@ -1,4 +1,6 @@
 import {describe,expect,it} from "vitest";
+import type {FastifyInstance} from "fastify";
+import type {Pool} from "pg";
 import {buildApp} from "./app.js";
 import {createDbPool} from "./db.js";
 import {BaseStore} from "./base.js";
@@ -6,13 +8,13 @@ import {ShipStore} from "./ship.js";
 import {NavalStore} from "./naval.js";
 import {parseClientMessage} from "./protocol.js";
 
-async function register(app:any,tag:string):Promise<string>{
+async function register(app:FastifyInstance,tag:string):Promise<string>{
   const unique=tag+"_"+Date.now().toString(36).slice(-7)+"_"+Math.random().toString(36).slice(2,5);
   const response=await app.inject({method:"POST",url:"/auth/register",payload:{username:unique,email:unique+"@example.com",password:"Correct-Horse-Battery-9"}});
   expect(response.statusCode).toBe(201);
   return (JSON.parse(response.body) as {user:{id:string}}).user.id;
 }
-async function fixture(db:any,userId:string){
+async function fixture(db:Pool,userId:string){
   const bases=new BaseStore(db);const base=await bases.create(userId,"Naval Base",0,0);
   await db.query("INSERT INTO base_storage(base_id,resource_key,quantity) VALUES($1,'wood',5000),($1,'steel',5000)",[base.id]);
   await db.query("INSERT INTO base_buildings(base_id,type,level,grid_x,grid_y,active) VALUES($1,'shipyard',1,1,0,true)",[base.id]);
