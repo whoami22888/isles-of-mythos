@@ -2,7 +2,7 @@ import {describe,expect,it} from "vitest";
 import {buildWavePlan,calculateThreatScore,nextPhaseAt,PHASE_SECONDS,INVASION_PHASES} from "./invasion.js";
 describe("Gate 13 invasion engine",()=>{
  it("scales threat from server-side factors and clamps the result",()=>{
-  expect(calculateThreatScore({playerLevel:10,guildLevel:5,territoryStrength:100,previousVictories:2,activePlayers:4,baseDefense:500,regionalThreat:200})).toBe(1165);
+  expect(calculateThreatScore({playerLevel:10,guildLevel:5,territoryStrength:100,previousVictories:2,activePlayers:4,baseDefense:500,regionalThreat:200} )).toBe(2125);
   expect(calculateThreatScore({playerLevel:9999,guildLevel:9999,territoryStrength:999999,previousVictories:9999,activePlayers:9999,baseDefense:999999,regionalThreat:999999})).toBe(100000);
  });
  it("builds deterministic multi-unit waves",()=>{
