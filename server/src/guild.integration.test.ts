@@ -23,7 +23,7 @@ describe('Gate 10 guilds',()=>{
       const owner=await register(app,'owner'),member=await register(app,'member');await fixture(db,owner);
       const guilds=new GuildStore(db);const players=new PlayerStore(db);await players.loadOrCreate(owner);await players.loadOrCreate(member);
       const guild=await guilds.create(owner,'Sea Wardens','WARD');
-      expect(guild.myRank).toBe('master');expect(guild.infrastructure.find(x=>x.structureType==='guild_hall')?.level).toBe(1);
+      expect(guild.myRank).toBe('master');expect(guild.infrastructure.find(x=>x.structureType==='guild_hall')?.level).toBe(1);expect(guild.territory).toEqual({});
       await guilds.invite(owner,guild.id,member);
       const invites=await guilds.listInvitations(member);expect(invites).toHaveLength(1);expect(invites[0]?.guildId).toBe(guild.id);
       const invitation=invites[0];if(!invitation)throw new Error('INVITATION_MISSING');const joined=await guilds.acceptInvite(member,invitation.id);expect(joined.myRank).toBe('recruit');
