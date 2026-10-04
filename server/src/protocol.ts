@@ -1,5 +1,4 @@
 import type { InvasionRole } from "./invasion.js";
-import type { InvasionRole } from "./invasion.js";
 import type { PublicPlayerState } from "./player.js";
 export interface ChunkCoordinate { x:number; y:number; }
 
