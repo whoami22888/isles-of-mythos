@@ -1,10 +1,11 @@
 import {describe,expect,it} from "vitest";
+import type {FastifyInstance} from "fastify";
 import {buildApp} from "./app.js";
 import {createDbPool} from "./db.js";
 import {BaseStore} from "./base.js";
 import {BreedingStore} from "./breeding.js";
 
-async function register(app:any,tag:string):Promise<string>{
+async function register(app:FastifyInstance,tag:string):Promise<string>{
   const unique=Date.now()+"_"+tag;
   const response=await app.inject({method:"POST",url:"/auth/register",payload:{username:"breed_"+unique,email:"breed_"+unique+"@example.com",password:"Correct-Horse-Battery-9"}});
   expect(response.statusCode).toBe(201);
