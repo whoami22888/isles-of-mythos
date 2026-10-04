@@ -63,7 +63,7 @@ export class GuildStore{
   constructor(private readonly db:Pool){}
   async create(userId:string,name:string,tag:string):Promise<GuildState>{
     const c=await this.db.connect();try{await c.query('BEGIN');const n=guildName(name),t=guildTag(tag);
-      if((await c.query("SELECT guild_id FROM guild_members WHERE user_id=$1 FOR UPDATE",[userId])).rows[0])throw new Error('ALREADY_IN_GUILD');
+      if((await c.query<{guild_id:string}>("SELECT guild_id FROM guild_members WHERE user_id=$1 FOR UPDATE",[userId])).rows[0])throw new Error('ALREADY_IN_GUILD');
       const b=await c.query<{id:string}>("SELECT id FROM player_bases WHERE owner_user_id=$1 FOR UPDATE",[userId]);if(!b.rows[0])throw new Error('BASE_NOT_FOUND');
       if(!(await c.query("SELECT id FROM base_buildings WHERE base_id=$1 AND type='guild_hall' AND active=true LIMIT 1",[b.rows[0].id])).rows[0])throw new Error('GUILD_HALL_REQUIRED');
       const g=await c.query<{id:string}>("INSERT INTO guilds(name,tag,leader_user_id) VALUES($1,$2,$3) RETURNING id",[n,t,userId]);const id=g.rows[0].id;
