@@ -27,7 +27,7 @@ describe("Gate 12 realms",()=>{
    const realms=new RealmStore(db);const all=await realms.list();expect(all).toHaveLength(6);
    const territory=await realms.territoryAt(-100,0);expect(territory?.name).toBe("Sunken Coast");
    if(!territory)throw new Error("TERRITORY_MISSING");await realms.claimGuildTerritory(user,territory.id,g.id);
-   const owned=(await realms.territories()).find(x=>x.id===territory!.id);expect(owned?.guild_owner_id).toBe(g.id);expect(owned?.realm_owner_id).toBeNull();
+   const owned=(await realms.territories()).find(x=>x.id===territory.id);expect(owned?.guild_owner_id).toBe(g.id);expect(owned?.realm_owner_id).toBeNull();
    const rep=await realms.reputation(user,"Sunken Kingdom",750);expect(rep.tier).toBe("respected");
    const territories=await realms.territories();const destination=territories.find(x=>x.id!==territory.id);if(!destination)throw new Error("DESTINATION_MISSING");
    const route=await realms.createTradeRoute(user,territory.id,destination.id,"iron","1000",60,g.id,null);expect(route).toBeTruthy();
