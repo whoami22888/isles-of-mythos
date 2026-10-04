@@ -1,5 +1,6 @@
 import {describe,expect,it} from "vitest";
 import type {FastifyInstance} from "fastify";
+import type {Pool} from "pg";
 import {buildApp} from "./app.js";
 import {createDbPool} from "./db.js";
 import {BaseStore} from "./base.js";
@@ -12,7 +13,7 @@ async function register(app:FastifyInstance,tag:string):Promise<string>{
   return (JSON.parse(response.body) as {user:{id:string}}).user.id;
 }
 
-async function baseFixture(db:any,userId:string){
+async function baseFixture(db:Pool,userId:string){
   const bases=new BaseStore(db);const base=await bases.create(userId,"Shipyard Base",0,0);
   const pen=await db.query("INSERT INTO base_buildings(base_id,type,level,grid_x,grid_y,active) VALUES($1,'shipyard',1,1,0,true) RETURNING id",[base.id]);
   return {baseId:base.id,shipyardId:pen.rows[0].id};
