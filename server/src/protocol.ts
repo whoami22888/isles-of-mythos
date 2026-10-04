@@ -1,5 +1,7 @@
 import type { InvasionRole } from "./invasion.js";
 import type { PublicPlayerState } from "./player.js";
+import type { AuctionSummary } from "./auction.js";
+import type { ChatMessage, FriendRecord, PartyInvitation, PartyState } from "./social.js";
 export interface ChunkCoordinate { x:number; y:number; }
 
 export type ClientMessage =
@@ -129,7 +131,7 @@ export type ServerMessage =
   | { type:"breeding_started"; requestId:string; job:unknown }
   | { type:"breeding_jobs"; requestId:string; jobs:unknown[] }
   | { type:"guild_state"; requestId:string; guild:unknown }
-  | { type:"guild_invitations"; requestId:string; invitations:Record<string, unknown>[] }
+  | { type:"guild_invitations"; requestId:string; invitations:PartyInvitation[] }
   | { type:"guild_bank_state"; requestId:string; guildId:string; bank:unknown }
   | { type:"guild_operation_ok"; requestId:string; guildId:string }
   | { type:"realm_list"; requestId:string; realms:unknown[] }
@@ -158,17 +160,17 @@ export type ServerMessage =
   | { type:"fleet_state"; requestId:string; fleet:unknown }
   | { type:"fleet_list"; requestId:string; fleets:unknown[] }
   | { type:"naval_combat_result"; requestId:string; attacker:unknown; target:unknown; damage:number; fireStarted?:boolean; captured?:boolean }
-  | { type:"friends_list"; requestId:string; friends:Record<string, unknown>[] }
+  | { type:"friends_list"; requestId:string; friends:FriendRecord[] }
   | { type:"blocks_list"; requestId:string; blockedUserIds:string[] }
   | { type:"social_operation_ok"; requestId:string }
   | { type:"social_reported"; requestId:string; reportId:string }
-  | { type:"chat_message"; requestId:string; message:Record<string, unknown> }
-  | { type:"chat_history"; requestId:string; messages:Record<string, unknown>[] }
-  | { type:"party_state"; requestId:string; party:Record<string, unknown>|null }
+  | { type:"chat_message"; requestId:string; message:ChatMessage }
+  | { type:"chat_history"; requestId:string; messages:ChatMessage[] }
+  | { type:"party_state"; requestId:string; party:PartyState|null }
   | { type:"party_invitations"; requestId:string; invitations:Record<string, unknown>[] }
   | { type:"party_operation_ok"; requestId:string }
-  | { type:"auction_list"; requestId:string; listings:Record<string, unknown>[] }
-  | { type:"auction_state"; requestId:string; listing:Record<string, unknown> }
+  | { type:"auction_list"; requestId:string; listings:AuctionSummary[] }
+  | { type:"auction_state"; requestId:string; listing:AuctionSummary }
   | { type:"auction_history"; requestId:string; transactions:Record<string, unknown>[] }
   | { type:"auction_operation_ok"; requestId:string }
   | { type:"error"; code:
@@ -313,8 +315,8 @@ export function parseClientMessage(raw:string):ClientMessage|null{
     if(type==="chat_history"){
       const id=(value as {requestId?:unknown}).requestId,ch=(value as {channel?:unknown}).channel;
       const recipient=(value as {recipientUserId?:unknown}).recipientUserId,guildId=(value as {guildId?:unknown}).guildId,partyId=(value as {partyId?:unknown}).partyId;
-      const channels=["local","region","party","guild","trade","global","system","whisper"];
-      return requestId(id)&&typeof ch==="string"&&channels.includes(ch)&&(recipient===null||typeof recipient==="string")&&(guildId===null||typeof guildId==="string")&&(partyId===null||typeof partyId==="string")?{type:"chat_history",requestId:id,channel:ch,recipientUserId:recipient,guildId,partyId}:null;
+      
+      return requestId(id)&&isChatChannel(ch)&&(recipient===null||typeof recipient==="string")&&(guildId===null||typeof guildId==="string")&&(partyId===null||typeof partyId==="string")?{type:"chat_history",requestId:id,channel:ch,recipientUserId:recipient,guildId,partyId}:null;
     }
     if(type==="auction_list"){
       const id=(value as {requestId?:unknown}).requestId,item=(value as {itemId?:unknown}).itemId,min=(value as {minPrice?:unknown}).minPrice,max=(value as {maxPrice?:unknown}).maxPrice;
