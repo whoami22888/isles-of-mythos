@@ -25,17 +25,30 @@ describe("Gate 13 invasion persistence",()=>{
     const territory=(await db2.query<{id:string}>("SELECT id FROM territories WHERE name='Sunken Coast'")).rows[0];expect(territory).toBeTruthy();
     const invasion=await invasionStore.create(user,territory.id,"npc_realm",5000);
     expect(invasion.phase).toBe("WARNING");
-    await invasionStore.join(user,invasion.id,army.rows[0].id);
+    await invasionStore.join(user,invasion.id,army.rows[0].id,"tank");
+    const participant=await db2.query<{role:string}>("SELECT role FROM invasion_participants WHERE invasion_id=$1 AND user_id=$2",[invasion.id,user]);
+    expect(participant.rows[0]?.role).toBe("tank");
     await db2.query("UPDATE invasions SET phase='ARRIVAL',phase_started_at=CURRENT_TIMESTAMP-INTERVAL '60 seconds',phase_ends_at=CURRENT_TIMESTAMP-INTERVAL '1 second' WHERE id=$1",[invasion.id]);
-    await invasionStore.tick();
-    expect((await invasionStore.waves(invasion.id)).length).toBeGreaterThan(0);
+    await Promise.all([invasionStore.tick(),new InvasionStore(db2).tick()]);
+    const wavesAfterArrival=await invasionStore.waves(invasion.id);
+    expect(wavesAfterArrival.length).toBeGreaterThan(0);
+    expect(wavesAfterArrival[0]?.aggro_range).toBeGreaterThan(0);
+    await db2.query("INSERT INTO base_defensive_structures(base_id,structure_type,grid_x,grid_y,health,max_health,ammo,active) VALUES($1,'cannon_tower',2,0,500,500,10,true)",[base.id]);
+    const beforeBattleHealth=wavesAfterArrival[0]?.current_health??0;
     await db2.query("UPDATE invasions SET phase='BATTLE',phase_started_at=CURRENT_TIMESTAMP-INTERVAL '120 seconds',phase_ends_at=CURRENT_TIMESTAMP-INTERVAL '1 second' WHERE id=$1",[invasion.id]);
     await invasionStore.tick();
+    const battleDefense=await db2.query<{ammo:number}>("SELECT ammo FROM base_defensive_structures WHERE base_id=$1 AND structure_type='cannon_tower'",[base.id]);
+    expect(battleDefense.rows[0]?.ammo).toBe(9);
+    const afterBattle=await invasionStore.waves(invasion.id);
+    expect(afterBattle[0]?.current_health??beforeBattleHealth).toBeLessThan(beforeBattleHealth);
     const resolution=(await invasionStore.list(territory.id))[0];expect(resolution.phase).toBe("RESOLUTION");
     await db2.query("UPDATE invasions SET phase_ends_at=CURRENT_TIMESTAMP-INTERVAL '1 second' WHERE id=$1",[invasion.id]);await invasionStore.tick();
     const reward=(await invasionStore.list(territory.id))[0];expect(reward.phase).toBe("REWARD");
     await db2.query("UPDATE invasions SET phase_ends_at=CURRENT_TIMESTAMP-INTERVAL '1 second' WHERE id=$1",[invasion.id]);await invasionStore.tick();
     const cooldown=(await invasionStore.list(territory.id))[0];expect(cooldown.phase).toBe("COOLDOWN");
+    await db2.query("UPDATE invasion_schedules SET next_run_at=CURRENT_TIMESTAMP-INTERVAL '1 second' WHERE territory_id=$1",[territory.id]);
+    await invasionStore.tick();
+    expect((await invasionStore.list(territory.id)).length).toBe(1);
     const rewards=await db2.query<{gold:string;triumph_badges:string}>(
      "SELECT gold,triumph_badges FROM invasion_rewards WHERE invasion_id=$1 AND user_id=$2",
      [invasion.id,user],
