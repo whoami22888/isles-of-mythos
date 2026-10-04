@@ -37,7 +37,6 @@ export function buildWavePlan(threat:number,waves=Math.max(2,Math.min(6,Math.cei
  return WAVE_TEMPLATES.map(t=>({...t,quantity:Math.max(1,Math.floor(safeThreat*t.multiplier/100))})).filter(x=>x.quantity>0).slice(0,waves);
 }
 function phaseIndex(p:InvasionPhase){return INVASION_PHASES.indexOf(p)}
-function waveAggroRange(unitType:string):number{return WAVE_TEMPLATES.find(x=>x.unitType===unitType)?.aggroRange??10}
 function nextPhase(p:InvasionPhase):InvasionPhase{return INVASION_PHASES[Math.min(INVASION_PHASES.length-1,phaseIndex(p)+1)]}
 function addSeconds(d:Date,s:number){return new Date(d.getTime()+s*1000)}
 export function nextPhaseAt(phase:InvasionPhase,started:Date){return addSeconds(started,PHASE_SECONDS[phase])}
@@ -53,6 +52,7 @@ export class InvasionStore{
  private async createOnClient(c:PoolClient,territoryId:string,sourceType:InvasionSource,threatScore:number,userId:string|null=null):Promise<InvasionSummary>{
   if(!Number.isSafeInteger(threatScore)||threatScore<500||threatScore>100000)throw new Error("INVALID_INVASION_THREAT");
   if(!INVASION_SOURCES.includes(sourceType))throw new Error("INVALID_INVASION_SOURCE");
+  const scheduler=await c.query<{territory_id:string}>("SELECT territory_id FROM invasion_schedules WHERE territory_id=$1 FOR UPDATE",[territoryId]);if(!scheduler.rows[0])throw new Error("TERRITORY_NOT_FOUND");
   const t=await c.query<{id:string;realm_owner_id:string|null;control_points:number}>("SELECT id,realm_owner_id,control_points FROM territories WHERE id=$1 FOR UPDATE",[territoryId]);if(!t.rows[0])throw new Error("TERRITORY_NOT_FOUND");
   if(await this.activeForTerritory(c,territoryId))throw new Error("INVASION_ALREADY_ACTIVE");
   const target=await c.query<{id:string}>("SELECT b.id FROM player_bases b WHERE b.x BETWEEN (SELECT min_x FROM territories WHERE id=$1) AND (SELECT max_x FROM territories WHERE id=$1) AND b.y BETWEEN (SELECT min_y FROM territories WHERE id=$1) AND (SELECT max_y FROM territories WHERE id=$1) ORDER BY b.updated_at DESC,b.id LIMIT 1",[territoryId]);
@@ -181,13 +181,16 @@ private async advance(c:PoolClient,inv:{id:string;phase:InvasionPhase;phase_star
  private async issueRewards(c:PoolClient,invasionId:string,threat:number){
   const inv=await c.query<{outcome:string|null}>("SELECT outcome FROM invasions WHERE id=$1 FOR UPDATE",[invasionId]);
   if(!inv.rows[0])return;
-  const participants=await c.query<{user_id:string;contribution:string}>("SELECT user_id,contribution FROM invasion_participants WHERE invasion_id=$1 ORDER BY contribution DESC",[invasionId]);
+  const participants=await c.query<{user_id:string;contribution:string}>("SELECT user_id,contribution FROM invasion_participants WHERE invasion_id=$1 ORDER BY contribution DESC,user_id",[invasionId]);
   const participantRows=participants.rows;
   if(participantRows.length===0)return;
   const win=inv.rows[0].outcome==="victory";
+  const userIds=participantRows.map((participant)=>participant.user_id);
+  const profileRows=await c.query<{user_id:string;gold:string;triumph_badges:string;inventory:Inventory}>("SELECT user_id,gold,triumph_badges,inventory FROM player_profiles WHERE user_id=ANY($1::uuid[]) ORDER BY user_id FOR UPDATE",[userIds]);
+  const profileByUser=new Map(profileRows.rows.map((profile)=>[profile.user_id,profile]));
   for(const participant of participantRows){
-   const profile=await c.query<{gold:string;triumph_badges:string;inventory:Inventory}>("SELECT gold,triumph_badges,inventory FROM player_profiles WHERE user_id=$1 FOR UPDATE",[participant.user_id]);
-   if(!profile.rows[0])continue;
+   const profile=profileByUser.get(participant.user_id);
+   if(!profile)continue;
    const gold=BigInt(Math.max(100,Math.floor(threat*5/participantRows.length)));
    const badges=BigInt(Math.max(10,Math.floor(threat/100)*(win?2:1)));
    let inventory=cloneInventory(profile.rows[0].inventory);
