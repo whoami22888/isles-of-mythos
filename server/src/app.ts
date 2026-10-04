@@ -1205,7 +1205,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
               if (message.type === "party_leave") { await social.leaveParty(authenticatedUserId); return {type:"party_operation_ok",requestId:message.requestId}; }
               if (message.type === "party_kick") { await social.kickFromParty(authenticatedUserId,message.targetUserId); return {type:"party_operation_ok",requestId:message.requestId}; }
 
-              if (message.type === "auction_list") return {type:"auction_list",requestId:message.requestId,listings:await auctions.list({itemId:message.itemId,minPrice:message.minPrice,maxPrice:message.maxPrice})};
+              if (message.type === "auction_list") return {type:"auction_list",requestId:message.requestId,listings:await auctions.list({itemId:message.itemId,rarity:message.rarity,category:message.category,minLevel:message.minLevel,maxLevel:message.maxLevel,minPrice:message.minPrice,maxPrice:message.maxPrice})};
               if (message.type === "auction_create") return {type:"auction_state",requestId:message.requestId,listing:await auctions.create(authenticatedUserId,message)};
               if (message.type === "auction_bid") return {type:"auction_state",requestId:message.requestId,listing:await auctions.bid(authenticatedUserId,message.listingId,message.amount)};
               if (message.type === "auction_buy_now") return {type:"auction_state",requestId:message.requestId,listing:await auctions.buyNow(authenticatedUserId,message.listingId)};
@@ -1216,7 +1216,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
               const allowed=[
                 "INVALID_SOCIAL_TARGET","SOCIAL_BLOCKED","ALREADY_FRIENDS","FRIEND_REQUEST_EXISTS","PLAYER_NOT_FOUND","CHAT_RATE_LIMITED","INVALID_CHAT_CHANNEL","INVALID_CHAT_TARGET","INVALID_CHAT_CONTEXT","PARTY_MEMBERSHIP_REQUIRED","GUILD_MEMBERSHIP_REQUIRED",
                 "ALREADY_IN_PARTY","PARTY_NOT_FOUND","PARTY_FULL","TARGET_IN_PARTY","PARTY_INVITATION_NOT_FOUND","PARTY_LEADER_REQUIRED","INVALID_PARTY_TARGET","PARTY_MEMBER_NOT_FOUND",
-                "INVALID_AUCTION_ITEM","INVALID_AUCTION_QUANTITY","INVALID_AUCTION_PRICE","INVALID_AUCTION_DURATION","INVALID_AUCTION_BID","AUCTION_NOT_FOUND","AUCTION_NOT_ACTIVE","AUCTION_SELF_BID","AUCTION_BID_TOO_LOW","AUCTION_NO_BUY_NOW","AUCTION_SELF_BUY","AUCTION_OWNER_REQUIRED","AUCTION_HAS_BID",
+                "INVALID_AUCTION_ITEM","INVALID_AUCTION_QUANTITY","INVALID_AUCTION_PRICE","INVALID_AUCTION_DURATION","INVALID_AUCTION_FILTER","INVALID_AUCTION_BID","AUCTION_NOT_FOUND","AUCTION_NOT_ACTIVE","AUCTION_SELF_BID","AUCTION_BID_TOO_LOW","AUCTION_NO_BUY_NOW","AUCTION_SELF_BUY","AUCTION_OWNER_REQUIRED","AUCTION_HAS_BID",
                 "INVALID_GOLD","GOLD_OVERFLOW","INSUFFICIENT_GOLD","INVALID_ITEM_ID","INVALID_ITEM_QUANTITY","INSUFFICIENT_INVENTORY","INVENTORY_LIMIT"
               ];
               return {type:"error",code:(allowed.includes(code)?code:"INVALID_MESSAGE") as Extract<ServerMessage,{type:"error"}>["code"]};
