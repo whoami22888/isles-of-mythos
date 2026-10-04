@@ -1,6 +1,6 @@
 import type { Pool } from "pg";
 import type { ShopItem } from "./shop.js";
-import { applyInventoryDelta, cloneInventory, parseGoldDoubloons, runEconomyTransaction, subtractGoldDoubloons, type Inventory } from "./economy.js";
+import { applyInventoryDelta, cloneInventory, parseGoldDoubloons, parseTriumphBadges, runEconomyTransaction, subtractGoldDoubloons, type Inventory } from "./economy.js";
 import { TileKind, tileAtWorld } from "./world.js";
 
 export const PLAYER_MAX_HEALTH = 100;
@@ -16,13 +16,13 @@ export const PLAYER_BASE_DEFENSE = 0;
 
 export interface PlayerState {
   userId: string; x: number; y: number; health: number; defense: number; stamina: number; maxStamina: number; hunger: number; oxygen: number;
-  xp: number; level: number; gold: bigint; inventory: Record<string, number>;
+  xp: number; level: number; gold: bigint; triumphBadges: bigint; inventory: Record<string, number>;
   hotbar: Array<string | null>; selectedHotbarSlot: number;
 }
-export type PublicPlayerState = Omit<PlayerState, "gold"> & { gold: string };
+export type PublicPlayerState = Omit<PlayerState, "gold" | "triumphBadges"> & { gold: string; triumphBadges: string };
 
 export function serializePlayerState(state: PlayerState): PublicPlayerState {
-  return { ...state, gold: state.gold.toString(), inventory: { ...state.inventory } };
+  return { ...state, gold: state.gold.toString(), triumphBadges: state.triumphBadges.toString(), inventory: { ...state.inventory } };
 }
 
 export interface PlayerInput { dx: number; dy: number; dt: number; speedMultiplier?: number; }
@@ -64,16 +64,16 @@ export function applyPlayerInput(state: PlayerState, input: PlayerInput): Player
 
 export function createDefaultPlayer(userId: string): PlayerState {
   return { userId, x: 0, y: 0, health: PLAYER_MAX_HEALTH, defense: PLAYER_BASE_DEFENSE, stamina: 100, maxStamina: 100, hunger: PLAYER_MAX_HUNGER, oxygen: PLAYER_MAX_OXYGEN,
-    xp: 0, level: 1, gold: 0n, inventory: { "ammo.flintlock": STARTING_FLINTLOCK_AMMO, "capture.orb": 3, "creature.feed": 4 }, hotbar: ["cutlass", "flintlock", null, null, null, null, null, null], selectedHotbarSlot: 0 };
+    xp: 0, level: 1, gold: 0n, triumphBadges: 0n, inventory: { "ammo.flintlock": STARTING_FLINTLOCK_AMMO, "capture.orb": 3, "creature.feed": 4 }, hotbar: ["cutlass", "flintlock", null, null, null, null, null, null], selectedHotbarSlot: 0 };
 }
 interface PlayerRow {
   user_id: string; x: number; y: number; health: number; defense: number; stamina: number; max_stamina: number; hunger: number; oxygen: number;
-  xp: string; level: number; gold: string; inventory: Record<string, number>;
+  xp: string; level: number; gold: string; triumph_badges: string; inventory: Record<string, number>;
   hotbar: Array<string | null>; selected_hotbar_slot: number;
 }
 function rowToState(row: PlayerRow): PlayerState {
   return { userId: row.user_id, x: row.x, y: row.y, health: row.health, defense: row.defense ?? PLAYER_BASE_DEFENSE, stamina: row.stamina, maxStamina: row.max_stamina, hunger: row.hunger, oxygen: row.oxygen,
-    xp: Number(row.xp), level: row.level, gold: parseGoldDoubloons(row.gold),
+    xp: Number(row.xp), level: row.level, gold: parseGoldDoubloons(row.gold), triumphBadges: parseTriumphBadges(row.triumph_badges),
     inventory: cloneInventory({ "ammo.flintlock": STARTING_FLINTLOCK_AMMO, ...(row.inventory ?? {}) }),
     hotbar: row.hotbar ?? [null, null, null, null, null, null, null, null], selectedHotbarSlot: row.selected_hotbar_slot };
 }
@@ -105,7 +105,7 @@ export class PlayerStore {
       [userId],
     );
     const result = await this.db.query<PlayerRow>(
-      "SELECT user_id, x, y, health, defense, stamina, max_stamina, hunger, oxygen, xp, level, gold, inventory, hotbar, selected_hotbar_slot FROM player_profiles WHERE user_id = $1",
+      "SELECT user_id, x, y, health, defense, stamina, max_stamina, hunger, oxygen, xp, level, gold, triumph_badges, inventory, hotbar, selected_hotbar_slot FROM player_profiles WHERE user_id = $1",
       [userId],
     );
     const row = result.rows[0];
@@ -182,13 +182,14 @@ export class PlayerStore {
 
   async reloadEconomy(userId: string): Promise<PlayerState> {
     const result = await this.db.query<{ gold: string; inventory: Record<string, number> }>(
-      "SELECT gold, inventory FROM player_profiles WHERE user_id=$1",
+      "SELECT gold, triumph_badges, inventory FROM player_profiles WHERE user_id=$1",
       [userId],
     );
     const state = this.active.get(userId);
     const row = result.rows[0];
     if (!state || !row) throw new Error("PLAYER_NOT_FOUND");
     state.gold = parseGoldDoubloons(row.gold);
+    state.triumphBadges = parseTriumphBadges(row.triumph_badges);
     state.inventory = cloneInventory(row.inventory);
     this.economyInventorySnapshots.set(userId, cloneInventory(state.inventory));
     return state;
