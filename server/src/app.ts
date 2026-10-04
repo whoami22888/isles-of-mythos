@@ -14,6 +14,8 @@ import { parseClientMessage, type ServerMessage } from "./protocol.js";
 import { PlayerStore, applyPlayerInput, serializePlayerState } from "./player.js";
 import { WorldChunkCache } from "./world.js";
 import { SHOP_ITEMS, calculatePurchase, getShopItem, serializeShopItem } from "./shop.js";
+import { craftRecipe } from "./crafting.js";
+import { tradePlayers } from "./trading.js";
 import { addThreat, applyDamage, createCombatTarget, creatureAbilityDamage, createProjectile, advanceProjectile, isMeleeHit, distance, mitigateDamage, tickCreatureAi, tickStatusEffects, tickStatuses, weaponFor, type CombatProjectile, type CombatTarget, type StatusEffect } from "./combat.js";
 import { CombatReplayCache } from "./combat-replay.js";
 import { CAPTURE_HEALTH_RATIO, CreatureStore } from "./creature.js";
@@ -81,7 +83,9 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const combatReplay = new CombatReplayCache<Extract<ServerMessage, { type: "combat_result" }>>();
   const creatureReplay = new CombatReplayCache<ServerMessage>();
   const baseReplay = new CombatReplayCache<ServerMessage>();
+  const economyReplay = new CombatReplayCache<ServerMessage>();
   const pendingBaseRequests = new Map<string, Promise<ServerMessage>>();
+  const pendingEconomyRequests = new Map<string, Promise<ServerMessage>>();
   const pendingCreatureRequests = new Map<string, Promise<ServerMessage>>();
   const pendingCreatureOperations = new Map<string, Promise<void>>();
   const pendingPlayerUnloads = new Map<string, Promise<void>>();
@@ -114,6 +118,29 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     } finally {
       if (pendingCreatureRequests.get(key) === task) pendingCreatureRequests.delete(key);
       if (pendingCreatureOperations.get(userId) === drain) pendingCreatureOperations.delete(userId);
+    }
+  }
+
+  async function runEconomyRequest(
+    userId: string,
+    requestId: string,
+    fingerprint: string,
+    operation: () => Promise<ServerMessage> | ServerMessage,
+  ): Promise<ServerMessage> {
+    const replay = economyReplay.lookup(userId, requestId, fingerprint);
+    if (replay.kind === "hit") return replay.response;
+    if (replay.kind === "conflict") return { type: "error", code: "INVALID_MESSAGE" };
+    const key = userId + ":" + requestId;
+    const existing = pendingEconomyRequests.get(key);
+    if (existing) return existing;
+    const task = Promise.resolve().then(operation).then((response) => {
+      economyReplay.remember(userId, requestId, fingerprint, response);
+      return response;
+    });
+    pendingEconomyRequests.set(key, task);
+    try { return await task; }
+    finally {
+      if (pendingEconomyRequests.get(key) === task) pendingEconomyRequests.delete(key);
     }
   }
 
@@ -894,6 +921,89 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             }
           });
           send(socket,response);
+          return;
+        }
+
+        if (message.type === "craft") {
+          if (!userId) { send(socket, { type: "error", code: "AUTH_REQUIRED" }); return; }
+          const authenticatedUserId = userId;
+          const response = await runEconomyRequest(authenticatedUserId, message.requestId, "craft|" + message.recipeId, async () => {
+            try {
+              await players.loadOrCreate(authenticatedUserId);
+              const result = await craftRecipe(db, authenticatedUserId, message.recipeId);
+              const state = await players.reloadEconomy(authenticatedUserId);
+              return { type: "craft_result", requestId: message.requestId, recipeId: result.recipeId, state: serializePlayerState(state) };
+            } catch (error) {
+              const code = errorCode(error, "CRAFT_FAILED");
+              if (code === "RECIPE_NOT_FOUND" || code === "INSUFFICIENT_INVENTORY" || code === "INVENTORY_LIMIT") {
+                return { type: "error", code };
+              }
+              throw error;
+            }
+          });
+          send(socket, response);
+          return;
+        }
+
+        if (message.type === "shop_purchase") {
+          if (!userId) { send(socket, { type: "error", code: "AUTH_REQUIRED" }); return; }
+          const authenticatedUserId = userId;
+          const response = await runEconomyRequest(authenticatedUserId, message.requestId, "shop_purchase|" + message.itemId + "|" + message.quantity, async () => {
+            try {
+              await players.loadOrCreate(authenticatedUserId);
+              const item = getShopItem(message.itemId);
+              if (!item) return { type: "error", code: "SHOP_ITEM_NOT_FOUND" };
+              const totalGold = calculatePurchase(item, message.quantity);
+              if (totalGold === null) return { type: "error", code: "INVALID_PURCHASE_QUANTITY" };
+              const state = await players.purchase(authenticatedUserId, item, message.quantity, totalGold);
+              return {
+                type: "shop_purchase_result",
+                requestId: message.requestId,
+                itemId: item.id,
+                quantity: message.quantity,
+                totalGold: totalGold.toString(),
+                state: serializePlayerState(state),
+              };
+            } catch (error) {
+              const code = errorCode(error, "PURCHASE_FAILED");
+              if (code === "INSUFFICIENT_GOLD" || code === "INVENTORY_LIMIT" || code === "PLAYER_NOT_FOUND") {
+                return { type: "error", code };
+              }
+              throw error;
+            }
+          });
+          send(socket, response);
+          return;
+        }
+
+        if (message.type === "trade") {
+          if (!userId) { send(socket, { type: "error", code: "AUTH_REQUIRED" }); return; }
+          const authenticatedUserId = userId;
+          const response = await runEconomyRequest(authenticatedUserId, message.requestId, "trade|" + message.toUserId + "|" + message.gold + "|" + JSON.stringify(message.items), async () => {
+            try {
+              await players.loadOrCreate(authenticatedUserId);
+              await players.loadOrCreate(message.toUserId);
+              const result = await tradePlayers(db, {
+                requestId: message.requestId,
+                fromUserId: authenticatedUserId,
+                toUserId: message.toUserId,
+                gold: message.gold,
+                items: message.items,
+              });
+              await players.reloadEconomy(authenticatedUserId);
+              if (userSockets.has(message.toUserId)) await players.reloadEconomy(message.toUserId);
+              return { type: "trade_result", requestId: message.requestId, from: result.from, to: result.to };
+            } catch (error) {
+              const code = errorCode(error, "TRADE_FAILED");
+              const allowed = ["TRADE_REQUEST_CONFLICT", "INVALID_TRADE_REQUEST", "INVALID_TRADE_PARTICIPANTS", "INVALID_TRADE_ITEMS", "INVALID_TRADE_ITEM", "INVALID_TRADE_QUANTITY", "PLAYER_NOT_FOUND", "INSUFFICIENT_INVENTORY", "INSUFFICIENT_GOLD", "INVENTORY_LIMIT"];
+              if (allowed.includes(code)) return { type: "error", code } as ServerMessage;
+              throw error;
+            }
+          });
+          send(socket, response);
+          if (response.type === "trade_result" && response.to !== undefined && userSockets.has(message.toUserId)) {
+            for (const recipientSocket of userSockets.get(message.toUserId) ?? []) send(recipientSocket, response);
+          }
           return;
         }
 
