@@ -1051,6 +1051,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         if (message.type === "create_guild" || message.type === "get_guild" || message.type === "list_guild_invitations" || message.type === "invite_guild_member" || message.type === "accept_guild_invite" || message.type === "decline_guild_invite" || message.type === "leave_guild" || message.type === "remove_guild_member" || message.type === "set_guild_rank" || message.type === "set_guild_permission" || message.type === "guild_bank" || message.type === "guild_bank_deposit" || message.type === "guild_bank_withdraw" || message.type === "build_guild_infrastructure") {
           if(!userId){send(socket,{type:"error",code:"AUTH_REQUIRED"});return;}
           const authenticatedUserId=userId;
+          await players.loadOrCreate(authenticatedUserId);
           const response=await runBaseRequest(authenticatedUserId,message.requestId,message.type+"|"+JSON.stringify(message),async()=>{
             try{
               if(message.type==="create_guild")return {type:"guild_state",requestId:message.requestId,guild:await guilds.create(authenticatedUserId,message.name,message.tag)};
