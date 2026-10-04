@@ -17,6 +17,7 @@ export const up=(pgm)=>{
     id:{type:"uuid",primaryKey:true,default:pgm.func("gen_random_uuid()")},
     army_id:{type:"uuid",notNull:true,references:"armies(id)",onDelete:"CASCADE"},
     unit_type:{type:"varchar(32)",notNull:true},
+    source_creature_id:{type:"uuid",references:"player_creatures(id)",onDelete:"SET NULL"},
     category:{type:"varchar(16)",notNull:true},
     quantity:{type:"integer",notNull:true,default:1},
     health:{type:"integer",notNull:true},
