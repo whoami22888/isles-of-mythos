@@ -28,6 +28,7 @@ import { ShipInventoryStore } from "./ship-inventory.js";
 import { GuildStore } from "./guild.js";
 import { ArmyStore } from "./army.js";
 import { RealmStore } from "./realm.js";
+import { InvasionStore } from "./invasion.js";
 
 function errorCode(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
@@ -74,6 +75,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const guilds = new GuildStore(db);
   const armies = new ArmyStore(db);
   const realms = new RealmStore(db);
+  const invasions = new InvasionStore(db);
   const sockets = new Set<WebSocket>();
   const playerConnections = new Map<string, number>();
   const userSockets = new Map<string, Set<WebSocket>>();
@@ -248,7 +250,9 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const survivalTick = setInterval(() => players.tick(1), 1_000);
   const breedingTick = setInterval(() => { void breeding.completeDue().catch((error) => log("breeding_completion_failed",{message:error instanceof Error?error.message:String(error)})); }, 1_000);
   const navalFireTick = setInterval(() => { void naval.tickFires().catch((error) => log("naval_fire_tick_failed",{message:error instanceof Error?error.message:String(error)})); }, 1_000);
+  const invasionTick = setInterval(() => { void invasions.tick().catch((error) => log("invasion_tick_failed",{message:error instanceof Error?error.message:String(error)})); }, 1_000);
   navalFireTick.unref();
+  invasionTick.unref();
   survivalTick.unref();
 
   const combatTick = setInterval(() => {
@@ -392,7 +396,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   persistenceTick.unref();
 
   app.addHook("onClose", async () => {
-    shuttingDown = true;
+    clearInterval(invasionTick);\n    shuttingDown = true;
     clearInterval(heartbeat);
     clearInterval(survivalTick);
     clearInterval(breedingTick);
@@ -1131,6 +1135,25 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
               await realms.tickAI();return {type:"realm_operation_ok",requestId:message.requestId};
             }catch(error){const code=errorCode(error,"REALM_OPERATION_FAILED");const allowed=["INVALID_TERRITORY_COORDINATES","TERRITORY_NOT_FOUND","INSUFFICIENT_TERRITORY_INFLUENCE","INVALID_REPUTATION_DELTA","REALM_NOT_FOUND","INVALID_TRADE_ROUTE","INVALID_TRADE_ROUTE_ENDPOINTS","GUILD_PERMISSION_DENIED","GUILD_MEMBERSHIP_REQUIRED","PLAYER_NOT_FOUND"];return {type:"error",code:(allowed.includes(code)?code:"INVALID_MESSAGE") as Extract<ServerMessage,{type:"error"}>["code"]};}
           });send(socket,response);return;
+        }
+
+        if (message.type === "list_invasions" || message.type === "get_invasion_waves" || message.type === "join_invasion" || message.type === "invasion_action") {
+          if(!userId){send(socket,{type:"error",code:"AUTH_REQUIRED"});return;}
+          const authenticatedUserId=userId;await players.loadOrCreate(authenticatedUserId);
+          const response=await runBaseRequest(authenticatedUserId,message.requestId,message.type+"|"+JSON.stringify(message),async()=>{
+            try{
+              if(message.type==="list_invasions")return {type:"invasion_list",requestId:message.requestId,invasions:await invasions.list(message.territoryId)};
+              if(message.type==="get_invasion_waves")return {type:"invasion_waves",requestId:message.requestId,invasionId:message.invasionId,waves:await invasions.waves(message.invasionId)};
+              if(message.type==="join_invasion"){await invasions.join(authenticatedUserId,message.invasionId,message.armyId);return {type:"invasion_operation_ok",requestId:message.requestId,invasionId:message.invasionId};}
+              const invasion=await invasions.act(authenticatedUserId,message.invasionId,message.action,message.waveId);
+              return {type:"invasion_state",requestId:message.requestId,invasion};
+            }catch(error){
+              const code=errorCode(error,"INVASION_OPERATION_FAILED");
+              const allowed=["INVALID_INVASION_THREAT","INVALID_INVASION_SOURCE","INVASION_ALREADY_ACTIVE","INVASION_NOT_FOUND","INVASION_NOT_JOINABLE","ARMY_NOT_FOUND","ARMY_NOT_OWNED","INVASION_NOT_IN_BATTLE","INVASION_NOT_PARTICIPANT","INVASION_WAVE_REQUIRED","INVASION_WAVE_NOT_FOUND","PLAYER_NOT_FOUND"];
+              return {type:"error",code:(allowed.includes(code)?code:"INVALID_MESSAGE") as Extract<ServerMessage,{type:"error"}>["code"]};
+            }
+          });
+          send(socket,response);return;
         }
 
         if (message.type === "create_ship" || message.type === "list_ships" || message.type === "ship_inventory" || message.type === "ship_cargo" || message.type === "create_fleet" || message.type === "list_fleets" || message.type === "add_fleet_ship" || message.type === "remove_fleet_ship" || message.type === "sail" || message.type === "assign_ship_crew" || message.type === "assign_ship_npc_crew" || message.type === "fire_cannon" || message.type === "board_ship" || message.type === "repair_ship" || message.type === "retreat_ship" || message.type === "fight_ship_fire") {
