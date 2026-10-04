@@ -132,8 +132,9 @@ export class AuctionStore{
     });
   }
 
-  async history(userId:string):Promise<unknown[]>{
-    return (await this.db.query("SELECT id,listing_id,buyer_user_id,seller_user_id,item_id,quantity,gross_gold,seller_fee,net_gold,transaction_type,created_at FROM auction_transactions WHERE seller_user_id=$1 OR buyer_user_id=$1 ORDER BY created_at DESC LIMIT 100",[userId])).rows;
+  async history(userId:string):Promise<Record<string, unknown>[]>{
+    const r=await this.db.query<Record<string, unknown>>("SELECT id,listing_id,buyer_user_id,seller_user_id,item_id,quantity,gross_gold,seller_fee,net_gold,transaction_type,created_at FROM auction_transactions WHERE seller_user_id=$1 OR buyer_user_id=$1 ORDER BY created_at DESC LIMIT 100",[userId]);
+    return r.rows;
   }
 
   private async summaryLocked(c:PoolClient,id:string):Promise<AuctionSummary>{
