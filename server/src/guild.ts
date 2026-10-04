@@ -17,7 +17,7 @@ const QUESTS=[
 export interface GuildMember{userId:string;rank:GuildRank;joinedAt:string;}
 export interface GuildInfrastructureState{structureType:GuildInfrastructure;level:number;}
 export interface GuildQuest{id:string;operationKey:string;title:string;requirementItem:string;targetQuantity:string;progressQuantity:string;rewardXp:string;rewardGold:string;rewardBadges:string;status:'active'|'completed'|'expired';expiresAt:string;}
-export interface GuildState{id:string;name:string;tag:string;leaderUserId:string;level:number;experience:string;treasury:string;myRank:GuildRank;members:GuildMember[];infrastructure:GuildInfrastructureState[];quests:GuildQuest[];}
+export interface GuildState{id:string;name:string;tag:string;leaderUserId:string;level:number;experience:string;treasury:string;territory:Record<string,unknown>;myRank:GuildRank;members:GuildMember[];infrastructure:GuildInfrastructureState[];quests:GuildQuest[];}
 
 function toRank(v:string):GuildRank{if((GUILD_RANKS as readonly string[]).includes(v))return v as GuildRank;throw new Error('INVALID_GUILD_RANK');}
 function toPermission(v:string):GuildPermission{if((GUILD_PERMISSIONS as readonly string[]).includes(v))return v as GuildPermission;throw new Error('INVALID_GUILD_PERMISSION');}
@@ -80,13 +80,13 @@ export class GuildStore{
   }
   private async load(userId:string,guildId:string):Promise<GuildState>{
     const [g,m,i,q]=await Promise.all([
-      this.db.query<{id:string;name:string;tag:string;leader_user_id:string;level:number;experience:string;treasury:string}>("SELECT id,name,tag,leader_user_id,level,experience,treasury FROM guilds WHERE id=$1",[guildId]),
+      this.db.query<{id:string;name:string;tag:string;leader_user_id:string;level:number;experience:string;treasury:string}>("SELECT id,name,tag,leader_user_id,level,experience,treasury,territory FROM guilds WHERE id=$1",[guildId]),
       this.db.query<{user_id:string;rank:string;joined_at:Date}>("SELECT user_id,rank,joined_at FROM guild_members WHERE guild_id=$1 ORDER BY joined_at,user_id",[guildId]),
       this.db.query<{structure_type:string;level:number}>("SELECT structure_type,level FROM guild_infrastructure WHERE guild_id=$1 ORDER BY structure_type",[guildId]),
       this.db.query<{id:string;operation_key:string;title:string;requirement_item:string;target_quantity:string;progress_quantity:string;reward_xp:string;reward_gold:string;reward_badges:string;status:'active'|'completed'|'expired';expires_at:Date}>("SELECT id,operation_key,title,requirement_item,target_quantity,progress_quantity,reward_xp,reward_gold,reward_badges,status,expires_at FROM guild_quests WHERE guild_id=$1 ORDER BY starts_at DESC,operation_key",[guildId])
     ]);
     const row=g.rows[0],mine=m.rows.find(x=>x.user_id===userId);if(!row||!mine)throw new Error('GUILD_NOT_FOUND');
-    return {id:row.id,name:row.name,tag:row.tag,leaderUserId:row.leader_user_id,level:row.level,experience:row.experience,treasury:row.treasury,myRank:toRank(mine.rank),
+    return {id:row.id,name:row.name,tag:row.tag,leaderUserId:row.leader_user_id,level:row.level,experience:row.experience,treasury:row.treasury,territory:row.territory as Record<string,unknown>,myRank:toRank(mine.rank),
       members:m.rows.map(x=>({userId:x.user_id,rank:toRank(x.rank),joinedAt:x.joined_at.toISOString()})),
       infrastructure:i.rows.map(x=>({structureType:toInfrastructure(x.structure_type),level:x.level})),
       quests:q.rows.map(x=>({id:x.id,operationKey:x.operation_key,title:x.title,requirementItem:x.requirement_item,targetQuantity:x.target_quantity,progressQuantity:x.progress_quantity,rewardXp:x.reward_xp,rewardGold:x.reward_gold,rewardBadges:x.reward_badges,status:x.status,expiresAt:x.expires_at.toISOString()}))};
