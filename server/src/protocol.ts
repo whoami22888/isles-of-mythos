@@ -24,6 +24,8 @@ export type ClientMessage =
   | { type:"craft"; requestId:string; recipeId:string }
   | { type:"shop_purchase"; requestId:string; itemId:string; quantity:number }
   | { type:"trade"; requestId:string; toUserId:string; gold:string; items:Array<{itemId:string;quantity:number}> };
+  | { type:"start_breeding"; requestId:string; baseId:string; penBuildingId:string; parentAId:string; parentBId:string; durationMs?:number };
+  | { type:"list_breeding"; requestId:string };
 
 export type ServerMessage =
   | { type:"server_ready"; timestamp:number }
@@ -40,6 +42,8 @@ export type ServerMessage =
   | { type:"craft_result"; requestId:string; recipeId:string; state:PublicPlayerState }
   | { type:"shop_purchase_result"; requestId:string; itemId:string; quantity:number; totalGold:string; state:PublicPlayerState }
   | { type:"trade_result"; requestId:string; from:unknown; to:unknown }
+  | { type:"breeding_started"; requestId:string; job:unknown }
+  | { type:"breeding_jobs"; requestId:string; jobs:unknown[] }
   | { type:"error"; code:
       | "INVALID_MESSAGE"|"UNSUPPORTED_MESSAGE"|"AUTH_REQUIRED"|"INVALID_TOKEN"|"COMBAT_COOLDOWN"|"OUT_OF_RANGE"|"NO_STAMINA"|"NO_AMMO"|"COMBAT_IN_PROGRESS"|"PLAYER_DEAD"|"PLAYER_STUNNED"|"RATE_LIMITED"
       | "CREATURE_TOO_HEALTHY"|"NO_CAPTURE_ORB"|"CREATURE_ALREADY_CAPTURED"|"CREATURE_NOT_FOUND"|"NO_CREATURE_FEED"|"CREATURE_NOT_TAMED"|"INVALID_PARTY_SLOT"
@@ -47,7 +51,7 @@ export type ServerMessage =
       | "INVALID_BUILDING_POSITION"|"BUILDING_POSITION_OCCUPIED"|"BUILDING_PREREQUISITE_MISSING"|"BUILDING_NOT_FOUND"|"BUILDING_MAX_LEVEL"
       | "INSUFFICIENT_STORAGE"|"STORAGE_CAPACITY_EXCEEDED"|"INVALID_STORAGE_QUANTITY"|"INSUFFICIENT_INVENTORY"|"PLAYER_NOT_FOUND"|"INVALID_WORK_TASK"|"CREATURE_IN_PARTY"
       | "RECIPE_NOT_FOUND"|"INVENTORY_LIMIT"|"SHOP_ITEM_NOT_FOUND"|"INVALID_PURCHASE_QUANTITY"|"INSUFFICIENT_GOLD"|"TRADE_REQUEST_CONFLICT"|"INVALID_TRADE_REQUEST"|"INVALID_TRADE_PARTICIPANTS"|"INVALID_TRADE_ITEMS"|"INVALID_TRADE_ITEM"|"INVALID_TRADE_QUANTITY"
-      | "BUILD_FAILED"|"BASE_CREATE_FAILED"|"STORAGE_UPDATE_FAILED"|"UPGRADE_FAILED"|"PERMISSION_UPDATE_FAILED"|"WORKER_UPDATE_FAILED"|"PRIORITY_UPDATE_FAILED" };
+      | "BUILD_FAILED"|"BASE_CREATE_FAILED"|"BREEDING_PEN_NOT_FOUND"|"BREEDING_CAPACITY_REACHED"|"BREEDING_PEN_BUSY"|"INVALID_BREEDING_DURATION"|"BREEDING_PARENTS_MUST_DIFFER"|"INCOMPATIBLE_BREEDING_PARENTS"|"BREEDING_GENERATION_LIMIT"|"POPULATION_LIMIT_REACHED"|"NO_BREEDING_FEED"|"BREEDING_PARENT_MISSING"|"STORAGE_UPDATE_FAILED"|"UPGRADE_FAILED"|"PERMISSION_UPDATE_FAILED"|"WORKER_UPDATE_FAILED"|"PRIORITY_UPDATE_FAILED" };
 
 function isSafeInteger(value:unknown):value is number{return typeof value==="number"&&Number.isSafeInteger(value);}
 function isFiniteNumber(value:unknown):value is number{return typeof value==="number"&&Number.isFinite(value);}
@@ -97,6 +101,8 @@ export function parseClientMessage(raw:string):ClientMessage|null{
       for(const item of items){if(typeof item!=="object"||item===null||Array.isArray(item))return null;const itemId=(item as {itemId?:unknown}).itemId,quantity=(item as {quantity?:unknown}).quantity;if(typeof itemId!=="string"||itemId.length===0||itemId.length>128||!isSafeInteger(quantity)||quantity<1||quantity>1_000_000)return null;normalized.push({itemId,quantity});}
       return {type:"trade",requestId:id,toUserId,gold,items:normalized};
     }
+    if(type==="start_breeding"){const id=(value as {requestId?:unknown}).requestId,baseId=(value as {baseId?:unknown}).baseId,penBuildingId=(value as {penBuildingId?:unknown}).penBuildingId,parentAId=(value as {parentAId?:unknown}).parentAId,parentBId=(value as {parentBId?:unknown}).parentBId,durationMs=(value as {durationMs?:unknown}).durationMs;if(!requestId(id)||![baseId,penBuildingId,parentAId,parentBId].every(v=>typeof v==="string"&&v.length>0&&v.length<=64)||(durationMs!==undefined&&(!isSafeInteger(durationMs)||durationMs<=0||durationMs>86400000)))return null;return {type:"start_breeding",requestId:id,baseId:baseId as string,penBuildingId:penBuildingId as string,parentAId:parentAId as string,parentBId:parentBId as string,...(durationMs===undefined?{}:{durationMs})};}
+    if(type==="list_breeding"){const id=(value as {requestId?:unknown}).requestId;return requestId(id)?{type:"list_breeding",requestId:id}:null;}
     if(type==="attack"){
       const id=(value as {requestId?:unknown}).requestId,targetId=(value as {targetId?:unknown}).targetId,facingX=(value as {facingX?:unknown}).facingX,facingY=(value as {facingY?:unknown}).facingY;
       if(!requestId(id)||typeof targetId!=="string"||targetId.length===0||targetId.length>128||!isFiniteNumber(facingX)||!isFiniteNumber(facingY)||Math.abs(facingX)>1||Math.abs(facingY)>1||(facingX===0&&facingY===0))return null;
