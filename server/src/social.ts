@@ -122,13 +122,24 @@ export class SocialStore{
 
   async chatHistory(userId:string,input:{channel:string;recipientUserId?:string|null;guildId?:string|null;partyId?:string|null;regionId?:number|null;limit?:number}):Promise<ChatMessage[]>{
     const ch=channel(input.channel);const limit=Math.min(100,Math.max(1,input.limit??50));
+    if(ch==="whisper" && !input.recipientUserId) throw new Error("INVALID_CHAT_TARGET");
+    if(ch==="party"){
+      if(!input.partyId) throw new Error("INVALID_CHAT_CONTEXT");
+      const member=await this.db.query("SELECT 1 FROM party_members WHERE party_id=$1 AND user_id=$2",[input.partyId,userId]);
+      if(!member.rowCount) throw new Error("PARTY_MEMBERSHIP_REQUIRED");
+    }
+    if(ch==="guild"){
+      if(!input.guildId) throw new Error("INVALID_CHAT_CONTEXT");
+      const member=await this.db.query("SELECT 1 FROM guild_members WHERE guild_id=$1 AND user_id=$2",[input.guildId,userId]);
+      if(!member.rowCount) throw new Error("GUILD_MEMBERSHIP_REQUIRED");
+    }
     const r=await this.db.query<{id:string;sender_user_id:string;recipient_user_id:string|null;guild_id:string|null;party_id:string|null;channel:ChatChannel;region_id:number|null;body:string;created_at:Date}>(
       ch==="whisper"
         ?"SELECT id::text,sender_user_id,recipient_user_id,guild_id,party_id,channel,region_id,body,created_at FROM chat_messages WHERE channel='whisper' AND ((sender_user_id=$1 AND recipient_user_id=$2) OR (sender_user_id=$2 AND recipient_user_id=$1)) ORDER BY id DESC LIMIT $3"
-        :"SELECT id::text,sender_user_id,recipient_user_id,guild_id,party_id,channel,region_id,body,created_at FROM chat_messages WHERE channel=$2 AND ($3::uuid IS NULL OR guild_id=$3) AND ($4::uuid IS NULL OR party_id=$4) AND ($5::int IS NULL OR region_id=$5) ORDER BY id DESC LIMIT $6",
+        :"SELECT id::text,sender_user_id,recipient_user_id,guild_id,party_id,channel,region_id,body,created_at FROM chat_messages WHERE channel=$1 AND ($2::uuid IS NULL OR guild_id=$2) AND ($3::uuid IS NULL OR party_id=$3) AND ($4::int IS NULL OR region_id=$4) ORDER BY id DESC LIMIT $5",
       ch==="whisper"
         ?[userId,input.recipientUserId??"",limit]
-        : [userId,ch,input.guildId??null,input.partyId??null,input.regionId??null,limit]);
+        : [ch,input.guildId??null,input.partyId??null,input.regionId??null,limit]);
     return r.rows.reverse().map(x=>({id:x.id,senderUserId:x.sender_user_id,recipientUserId:x.recipient_user_id,guildId:x.guild_id,partyId:x.party_id,channel:x.channel,regionId:x.region_id,body:x.body,createdAt:x.created_at.toISOString()}));
   }
 
