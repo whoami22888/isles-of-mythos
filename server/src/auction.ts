@@ -104,7 +104,7 @@ export class AuctionStore{
     if(filters.maxPrice){clauses.push("start_price <= $"+n++);params.push(parseGoldDoubloons(filters.maxPrice).toString());}
     params.push(limit);
     const sql="SELECT id,seller_user_id,item_id,category,rarity,item_level,quantity,remaining_quantity,start_price,buy_now_price,current_bid,highest_bidder_user_id,status,expires_at FROM auction_listings WHERE "+clauses.join(" AND ")+" ORDER BY expires_at,id LIMIT $"+n;
-    const r=await this.db.query<{id:string;seller_user_id:string;item_id:string;quantity:number;remaining_quantity:number;start_price:string;buy_now_price:string|null;current_bid:string;highest_bidder_user_id:string|null;status:string;expires_at:Date}>(sql,params);
+    const r=await this.db.query<{id:string;seller_user_id:string;item_id:string;category:AuctionCategory;rarity:AuctionRarity;item_level:number;quantity:number;remaining_quantity:number;start_price:string;buy_now_price:string|null;current_bid:string;highest_bidder_user_id:string|null;status:string;expires_at:Date}>(sql,params);
     return r.rows.map(x=>({id:x.id,sellerUserId:x.seller_user_id,itemId:x.item_id,category:x.category,rarity:x.rarity,itemLevel:x.item_level,quantity:x.quantity,remainingQuantity:x.remaining_quantity,startPrice:x.start_price,buyNowPrice:x.buy_now_price,currentBid:x.current_bid,highestBidderUserId:x.highest_bidder_user_id,status:x.status,expiresAt:x.expires_at.toISOString()}));
   }
 
@@ -161,7 +161,7 @@ export class AuctionStore{
   }
 
   private async summaryLocked(c:PoolClient,id:string):Promise<AuctionSummary>{
-    const r=await c.query<{id:string;seller_user_id:string;item_id:string;quantity:number;remaining_quantity:number;start_price:string;buy_now_price:string|null;current_bid:string;highest_bidder_user_id:string|null;status:string;expires_at:Date}>("SELECT id,seller_user_id,item_id,quantity,remaining_quantity,start_price,buy_now_price,current_bid,highest_bidder_user_id,status,expires_at FROM auction_listings WHERE id=$1",[id]);const x=r.rows[0];
+    const r=await c.query<{id:string;seller_user_id:string;item_id:string;category:AuctionCategory;rarity:AuctionRarity;item_level:number;quantity:number;remaining_quantity:number;start_price:string;buy_now_price:string|null;current_bid:string;highest_bidder_user_id:string|null;status:string;expires_at:Date}>("SELECT id,seller_user_id,item_id,category,rarity,item_level,quantity,remaining_quantity,start_price,buy_now_price,current_bid,highest_bidder_user_id,status,expires_at FROM auction_listings WHERE id=$1",[id]);const x=r.rows[0];
     if(!x)throw new Error("AUCTION_NOT_FOUND");return {id:x.id,sellerUserId:x.seller_user_id,itemId:x.item_id,category:x.category,rarity:x.rarity,itemLevel:x.item_level,quantity:x.quantity,remainingQuantity:x.remaining_quantity,startPrice:x.start_price,buyNowPrice:x.buy_now_price,currentBid:x.current_bid,highestBidderUserId:x.highest_bidder_user_id,status:x.status,expiresAt:x.expires_at.toISOString()};
   }
 }
