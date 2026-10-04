@@ -1165,7 +1165,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
                     const other=players.get(id); if (other && Math.hypot(other.x-sender.x,other.y-sender.y)<=32) recipients.add(id);
                   }
                 } else if (message.channel === "region") {
-                  for (const [id,p] of userSockets) {
+                  for (const id of userSockets.keys()) {
                     const other=players.get(id);
                     if (other && Math.floor(other.x/1000)*100000+Math.floor(other.y/1000)===regionId) recipients.add(id);
                   }
