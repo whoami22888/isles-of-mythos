@@ -40,7 +40,7 @@ export interface TradeResult {
 function validateTradeRequest(request: TradeRequest): void {
   if (!request.requestId || request.requestId.length > MAX_REQUEST_ID) throw new Error("INVALID_TRADE_REQUEST");
   if (!request.fromUserId || !request.toUserId || request.fromUserId === request.toUserId) throw new Error("INVALID_TRADE_PARTICIPANTS");
-  if (!Array.isArray(request.items) || request.items.length > MAX_TRADE_ITEMS) throw new Error("INVALID_TRADE_ITEMS");
+  if (request.items.length > MAX_TRADE_ITEMS) throw new Error("INVALID_TRADE_ITEMS");
   for (const item of request.items) {
     if (!ITEM_ID_PATTERN.test(item.itemId) || item.itemId.length > 128) throw new Error("INVALID_TRADE_ITEM");
     if (!Number.isSafeInteger(item.quantity) || item.quantity < 1 || item.quantity > 1_000_000) {
