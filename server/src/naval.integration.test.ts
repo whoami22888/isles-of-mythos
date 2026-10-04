@@ -60,7 +60,8 @@ describe("Gate 9 naval mechanics",()=>{
       const reduced=await fleets.removeShip(a,fleet.id,second.id);expect(reduced.shipIds).not.toContain(second.id);
       await expect(naval.fireCannon(a,attacker.id,defender.id)).rejects.toThrow("SHIP_RETREATING");
     }finally{await db.end();await app.close();}
-    it("preserves fleet and cargo invariants under concurrent operations and app restart",async()=>{
+  });
+  it("preserves fleet and cargo invariants under concurrent operations and app restart",async()=>{
     const db=createDbPool();
     const app1=await buildApp({db});
     try{
