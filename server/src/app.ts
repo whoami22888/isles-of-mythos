@@ -386,6 +386,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     clearInterval(heartbeat);
     clearInterval(survivalTick);
     clearInterval(breedingTick);
+    clearInterval(navalFireTick);
     clearInterval(persistenceTick);
     clearInterval(combatTick);
     await players.persistAll();
