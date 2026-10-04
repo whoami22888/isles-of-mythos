@@ -3,10 +3,13 @@ import {
   MAX_GOLD_DOUBLOONS,
   MAX_ITEM_STACK,
   addGoldDoubloons,
+  addTriumphBadges,
   applyInventoryDelta,
   cloneInventory,
   parseGoldDoubloons,
+  parseTriumphBadges,
   subtractGoldDoubloons,
+  subtractTriumphBadges,
   runEconomyTransaction,
 } from "./economy.js";
 import { createDbPool } from "./db.js";
@@ -19,6 +22,15 @@ describe("economy foundation", () => {
     expect(balance).toBe(500000000n);
     expect(addGoldDoubloons(balance, 500000000n)).toBe(1000000000n);
     expect(parseGoldDoubloons(MAX_GOLD_DOUBLOONS)).toBe(MAX_GOLD_DOUBLOONS);
+  });
+
+  it("keeps Triumph Badges exact and bounded as an authoritative integer currency", () => {
+    expect(parseTriumphBadges("500000000")).toBe(500000000n);
+    expect(addTriumphBadges(500000000n, 250n)).toBe(500000250n);
+    expect(parseTriumphBadges(MAX_GOLD_DOUBLOONS)).toBe(MAX_GOLD_DOUBLOONS);
+    expect(() => parseTriumphBadges("-1")).toThrow("INVALID_TRIUMPH_BADGES");
+    expect(() => addTriumphBadges(MAX_GOLD_DOUBLOONS, 1n)).toThrow("TRIUMPH_BADGES_OVERFLOW");
+    expect(() => subtractTriumphBadges(10n, 11n)).toThrow("INSUFFICIENT_TRIUMPH_BADGES");
   });
 
   it("rejects negative and overflowing Gold Doubloons", () => {
