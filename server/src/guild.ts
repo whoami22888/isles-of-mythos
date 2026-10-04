@@ -57,7 +57,7 @@ async function completeQuest(c:PoolClient,guildId:string,userId:string,questId:s
   const nextBadges=addTriumphBadges(parseTriumphBadges(player.rows[0].triumph_badges),badges);
   await c.query("UPDATE player_profiles SET xp=xp+$2,triumph_badges=$3,updated_at=CURRENT_TIMESTAMP WHERE user_id=$1",[userId,xp.toString(),nextBadges.toString()]);
   await c.query("UPDATE guild_quests SET status='completed',completed_at=CURRENT_TIMESTAMP WHERE id=$1",[questId]);
-  await c.query("INSERT INTO guild_bank_transactions(guild_id,user_id,action_type,quantity,gold_before,gold_after,metadata) VALUES($1,$2,'quest_reward',0,$3,$4,$5::jsonb)",[guildId,userId,guild.rows[0].treasury,treasury.toString(),JSON.stringify({questId,xp:xp.toString(),gold:gold.toString(),badges:badges.toString()})]);
+  await c.query("INSERT INTO guild_bank_transactions(guild_id,user_id,action_type,quantity,gold_before,gold_after,metadata) VALUES($1,$2,'quest_reward',0,$3,$4,$5::jsonb)",[guildId,userId,g.rows[0].treasury,treasury.toString(),JSON.stringify({questId,xp:xp.toString(),gold:gold.toString(),badges:badges.toString()})]);
 }
 export class GuildStore{
   constructor(private readonly db:Pool){}
