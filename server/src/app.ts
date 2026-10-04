@@ -22,6 +22,7 @@ import { CAPTURE_HEALTH_RATIO, CreatureStore } from "./creature.js";
 import { BaseStore, BASE_PERMISSIONS, BUILDING_TYPES, WORKER_MODES, type BasePermission, type BuildingType, type WorkerMode } from "./base.js";
 import { BreedingStore } from "./breeding.js";
 import { ShipStore, SHIP_CLASSES, CREW_ROLES, type ShipClass, type CrewRole } from "./ship.js";
+import { NavalStore } from "./naval.js";
 
 function errorCode(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
@@ -62,6 +63,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const bases = new BaseStore(db);
   const breeding = new BreedingStore(db);
   const ships = new ShipStore(db);
+  const naval = new NavalStore(db);
   const sockets = new Set<WebSocket>();
   const playerConnections = new Map<string, number>();
   const userSockets = new Map<string, Set<WebSocket>>();
@@ -235,6 +237,8 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
 
   const survivalTick = setInterval(() => players.tick(1), 1_000);
   const breedingTick = setInterval(() => { void breeding.completeDue().catch((error) => log("breeding_completion_failed",{message:error instanceof Error?error.message:String(error)})); }, 1_000);
+  const navalFireTick = setInterval(() => { void naval.tickFires().catch((error) => log("naval_fire_tick_failed",{message:error instanceof Error?error.message:String(error)})); }, 1_000);
+  navalFireTick.unref();
   survivalTick.unref();
 
   const combatTick = setInterval(() => {
@@ -1037,7 +1041,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           send(socket,response); return;
         }
 
-        if (message.type === "create_ship" || message.type === "list_ships" || message.type === "ship_inventory" || message.type === "sail" || message.type === "assign_ship_crew" || message.type === "fire_cannon") {
+        if (message.type === "create_ship" || message.type === "list_ships" || message.type === "ship_inventory" || message.type === "sail" || message.type === "assign_ship_crew" || message.type === "assign_ship_npc_crew" || message.type === "fire_cannon" || message.type === "board_ship" || message.type === "repair_ship" || message.type === "retreat_ship" || message.type === "fight_ship_fire") {
           if(!userId){send(socket,{type:"error",code:"AUTH_REQUIRED"});return;}
           const authenticatedUserId=userId;
           const response=await runBaseRequest(authenticatedUserId,message.requestId,message.type+"|"+JSON.stringify(message),async()=>{
@@ -1054,11 +1058,16 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
                 if(!CREW_ROLES.includes(message.role as CrewRole))throw new Error("INVALID_CREW_ASSIGNMENT");
                 return {type:"ship_crew",requestId:message.requestId,crew:await ships.assignCrew(authenticatedUserId,message.shipId,message.creatureId,message.role as CrewRole,message.skill,message.morale)};
               }
-              const result=await ships.fireCannon(authenticatedUserId,message.shipId,message.targetShipId);
+              if(message.type==="assign_ship_npc_crew")return {type:"ship_crew",requestId:message.requestId,crew:await naval.assignNpcCrew(authenticatedUserId,message.shipId,message.npcType,message.role as CrewRole,message.skill,message.morale)};
+              if(message.type==="board_ship")return {type:"naval_combat_result",requestId:message.requestId,...await naval.boardShip(authenticatedUserId,message.shipId,message.targetShipId)};
+              if(message.type==="repair_ship")return {type:"ship_state",requestId:message.requestId,ship:await naval.repairShip(authenticatedUserId,message.shipId)};
+              if(message.type==="retreat_ship")return {type:"ship_state",requestId:message.requestId,ship:await naval.retreatShip(authenticatedUserId,message.shipId)};
+              if(message.type==="fight_ship_fire")return {type:"ship_state",requestId:message.requestId,ship:await naval.fightFire(authenticatedUserId,message.shipId)};
+              const result=await naval.fireCannon(authenticatedUserId,message.shipId,message.targetShipId);
               return {type:"naval_combat_result",requestId:message.requestId,...result};
             }catch(error){
               const code=errorCode(error,"SHIP_OPERATION_FAILED");
-              const allowed=["BASE_NOT_FOUND","INVALID_SHIP_CLASS","SHIPYARD_REQUIRED","INSUFFICIENT_SHIPYARD_RESOURCES","INVALID_SAIL_INPUT","SHIP_NOT_FOUND","SHIP_NOT_ACTIVE","INSUFFICIENT_SHIP_FUEL","INVALID_CREW_ASSIGNMENT","SHIP_CREW_CAPACITY_REACHED","CREW_CREATURE_NOT_FOUND","CREW_CREATURE_NOT_TAMED","CREW_CREATURE_IN_PARTY","CREW_ALREADY_ASSIGNED","INVALID_NAVAL_TARGET","TARGET_SHIP_NOT_ACTIVE","NAVAL_TARGET_OUT_OF_RANGE","CANNON_COOLDOWN","NO_CANNON_AMMO"];
+              const allowed=["BASE_NOT_FOUND","INVALID_SHIP_CLASS","SHIPYARD_REQUIRED","INSUFFICIENT_SHIPYARD_RESOURCES","INVALID_SAIL_INPUT","SHIP_NOT_FOUND","SHIP_NOT_ACTIVE","INSUFFICIENT_SHIP_FUEL","INVALID_CREW_ASSIGNMENT","SHIP_CREW_CAPACITY_REACHED","CREW_CREATURE_NOT_FOUND","CREW_CREATURE_NOT_TAMED","CREW_CREATURE_IN_PARTY","CREW_ALREADY_ASSIGNED","INVALID_NAVAL_TARGET","TARGET_SHIP_NOT_ACTIVE","NAVAL_TARGET_OUT_OF_RANGE","CANNON_COOLDOWN","NO_CANNON_AMMO","CANNON_OUTSIDE_ARC","SHIP_RETREATING","TARGET_SHIP_RETREATING","BOARDING_OUT_OF_RANGE","SHIP_FULL_HEALTH","NO_REPAIR_LUMBER","SHIP_NOT_ON_FIRE","INVALID_WIND"];
               return {type:"error",code:(allowed.includes(code)?code:"INVALID_MESSAGE") as Extract<ServerMessage,{type:"error"}>["code"]};
             }
           });
