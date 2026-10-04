@@ -13,10 +13,10 @@ async function register(app:FastifyInstance,tag:string):Promise<string>{
   return (JSON.parse(response.body) as {user:{id:string}}).user.id;
 }
 
-async function baseFixture(db:Pool,userId:string){
+async function baseFixture(db:Pool,userId:string):Promise<{baseId:string;shipyardId:string}>{
   const bases=new BaseStore(db);const base=await bases.create(userId,"Shipyard Base",0,0);
   await db.query("INSERT INTO base_storage(base_id,resource_key,quantity) VALUES($1,'steel',100) ON CONFLICT(base_id,resource_key) DO UPDATE SET quantity=EXCLUDED.quantity",[base.id]);
-  const pen=await db.query("INSERT INTO base_buildings(base_id,type,level,grid_x,grid_y,active) VALUES($1,'shipyard',1,1,0,true) RETURNING id",[base.id]);
+  const pen=await db.query<{id:string}>("INSERT INTO base_buildings(base_id,type,level,grid_x,grid_y,active) VALUES($1,'shipyard',1,1,0,true) RETURNING id",[base.id]);
   return {baseId:base.id,shipyardId:pen.rows[0].id};
 }
 
