@@ -110,7 +110,7 @@ export class SocialStore{
         const m=await c.query("SELECT 1 FROM guild_members WHERE guild_id=$1 AND user_id=$2",[guildId,userId]);
         if(!m.rowCount) throw new Error("GUILD_MEMBERSHIP_REQUIRED");
       }
-      const rate=await c.query("SELECT COUNT(*)::int count FROM chat_messages WHERE sender_user_id=$1 AND created_at>CURRENT_TIMESTAMP-INTERVAL '10 seconds'",[userId]);
+      const rate=await c.query<{count:number}>("SELECT COUNT(*)::int count FROM chat_messages WHERE sender_user_id=$1 AND created_at>CURRENT_TIMESTAMP-INTERVAL '10 seconds'",[userId]);
       if(Number(rate.rows[0]?.count??0)>=8) throw new Error("CHAT_RATE_LIMITED");
       const r=await c.query<{id:string;created_at:Date}>(
         "INSERT INTO chat_messages(sender_user_id,recipient_user_id,guild_id,party_id,channel,region_id,body) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING id,created_at",
@@ -165,7 +165,7 @@ export class SocialStore{
   }
 
   async partyInvitations(userId:string):Promise<unknown[]>{
-    const r=await this.db.query("SELECT id,party_id,inviter_user_id,created_at FROM party_invitations WHERE invitee_user_id=$1 AND status='pending' ORDER BY created_at DESC",[userId]);
+    const r=await this.db.query<{id:string;party_id:string;inviter_user_id:string;created_at:Date}>("SELECT id,party_id,inviter_user_id,created_at FROM party_invitations WHERE invitee_user_id=$1 AND status='pending' ORDER BY created_at DESC",[userId]);
     return r.rows;
   }
 
