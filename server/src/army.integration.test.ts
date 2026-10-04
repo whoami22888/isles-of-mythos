@@ -36,6 +36,7 @@ describe("Gate 11 tactical armies",()=>{
       await armies.deploy(user,battle.id,trained.units[0]?.id ?? (()=>{throw new Error("TRAINED_UNIT_MISSING")})(),0);
       const enemy=await db.query<{id:string}>("SELECT id FROM army_units WHERE army_id=$1",[b.id]);const enemyId=enemy.rows[0]?.id;if(!enemyId)throw new Error("ENEMY_UNIT_MISSING");
       await armies.deploy(user,battle.id,enemyId,1);
+      const acted=await armies.action(user,battle.id,trained.units[0]?.id ?? (()=>{throw new Error("TRAINED_UNIT_MISSING")})(),"ability",enemyId);expect(acted.turn).toBe(1);
       const after=await armies.turn(user,battle.id);expect(after.turn).toBeGreaterThan(1);
       const reloaded=await armies.get(user,a.id);expect(reloaded.garrisonBaseIds).toContain(baseId);
     }finally{await db.end();if(app.server.listening)await app.close();}
