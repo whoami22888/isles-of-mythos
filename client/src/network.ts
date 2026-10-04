@@ -86,7 +86,7 @@ export function isCreatureState(value: unknown): value is CreatureState {
     typeof value.y === "number";
 }
 
-function isWorldChunk(value: unknown): boolean {
+function isWorldChunk(value: unknown): value is WorldChunk {
   if (!isRecord(value)) return false;
   return typeof value.x === "number" && typeof value.y === "number" && typeof value.size === "number" &&
     Array.isArray(value.tiles) && value.tiles.every((tile) => typeof tile === "number");
