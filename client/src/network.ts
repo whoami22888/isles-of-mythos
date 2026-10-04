@@ -65,11 +65,26 @@ export type ServerMessage =
   | { type: "invasion_waves"; requestId: string; invasionId: string; waves: InvasionWave[] }
   | { type: "invasion_state"; requestId: string; invasion: InvasionSummary }
   | { type: "invasion_operation_ok"; requestId: string; invasionId: string }
+  | { type: "friends_list"; requestId: string; friends: Record<string, unknown>[] }
+  | { type: "blocks_list"; requestId: string; blockedUserIds: string[] }
+  | { type: "social_operation_ok"; requestId: string }
+  | { type: "social_reported"; requestId: string; reportId: string }
+  | { type: "chat_message"; requestId: string; message: Record<string, unknown> }
+  | { type: "chat_history"; requestId: string; messages: Record<string, unknown>[] }
+  | { type: "party_state"; requestId: string; party: Record<string, unknown> | null }
+  | { type: "party_invitations"; requestId: string; invitations: Record<string, unknown>[] }
+  | { type: "party_operation_ok"; requestId: string }
+  | { type: "auction_list"; requestId: string; listings: Record<string, unknown>[] }
+  | { type: "auction_state"; requestId: string; listing: Record<string, unknown> }
+  | { type: "auction_history"; requestId: string; transactions: Record<string, unknown>[] }
+  | { type: "auction_operation_ok"; requestId: string }
   | { type: "error"; code: string };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
+
+function isRecordArray(value: unknown): value is Record<string, unknown>[] { return Array.isArray(value) && value.every(isRecord); }
 
 export function isCreatureState(value: unknown): value is CreatureState {
   if (!isRecord(value)) return false;
@@ -183,6 +198,32 @@ export function parseServerMessage(value: unknown): ServerMessage | null {
     case "invasion_operation_ok":
       return typeof value.requestId === "string" && typeof value.invasionId === "string" && value.invasionId.length > 0
         ? { type:"invasion_operation_ok", requestId:value.requestId, invasionId:value.invasionId } : null;
+    case "friends_list":
+      return typeof value.requestId==="string" && isRecordArray(value.friends) ? {type:"friends_list",requestId:value.requestId,friends:value.friends}:null;
+    case "blocks_list":
+      return typeof value.requestId==="string" && Array.isArray(value.blockedUserIds) && value.blockedUserIds.every((id)=>typeof id==="string") ? {type:"blocks_list",requestId:value.requestId,blockedUserIds:value.blockedUserIds}:null;
+    case "social_operation_ok":
+      return typeof value.requestId==="string" ? {type:"social_operation_ok",requestId:value.requestId}:null;
+    case "social_reported":
+      return typeof value.requestId==="string" && typeof value.reportId==="string" ? {type:"social_reported",requestId:value.requestId,reportId:value.reportId}:null;
+    case "chat_message":
+      return typeof value.requestId==="string" && isRecord(value.message) ? {type:"chat_message",requestId:value.requestId,message:value.message}:null;
+    case "chat_history":
+      return typeof value.requestId==="string" && isRecordArray(value.messages) ? {type:"chat_history",requestId:value.requestId,messages:value.messages}:null;
+    case "party_state":
+      return typeof value.requestId==="string" && (value.party===null || isRecord(value.party)) ? {type:"party_state",requestId:value.requestId,party:value.party}:null;
+    case "party_invitations":
+      return typeof value.requestId==="string" && isRecordArray(value.invitations) ? {type:"party_invitations",requestId:value.requestId,invitations:value.invitations}:null;
+    case "party_operation_ok":
+      return typeof value.requestId==="string" ? {type:"party_operation_ok",requestId:value.requestId}:null;
+    case "auction_list":
+      return typeof value.requestId==="string" && isRecordArray(value.listings) ? {type:"auction_list",requestId:value.requestId,listings:value.listings}:null;
+    case "auction_state":
+      return typeof value.requestId==="string" && isRecord(value.listing) ? {type:"auction_state",requestId:value.requestId,listing:value.listing}:null;
+    case "auction_history":
+      return typeof value.requestId==="string" && isRecordArray(value.transactions) ? {type:"auction_history",requestId:value.requestId,transactions:value.transactions}:null;
+    case "auction_operation_ok":
+      return typeof value.requestId==="string" ? {type:"auction_operation_ok",requestId:value.requestId}:null;
     case "combat_result":
       return typeof value.requestId === "string" && value.requestId.length > 0 && value.requestId.length <= 64 &&
         typeof value.targetId === "string" && typeof value.damage === "number" &&
