@@ -35,19 +35,20 @@ export class InvasionStore{
  constructor(private readonly db:Pool){}
  private async activeForTerritory(c:PoolClient,territoryId:string){return (await c.query<{id:string}>("SELECT id FROM invasions WHERE territory_id=$1 AND phase NOT IN ('COMPLETE','COOLDOWN') LIMIT 1",[territoryId])).rows[0]??null}
  async create(userId:string|null,territoryId:string,sourceType:InvasionSource,threatScore:number):Promise<InvasionSummary>{
+  const c=await this.db.connect();try{await c.query("BEGIN");const result=await this.createOnClient(c,territoryId,sourceType,threatScore,userId);await c.query("COMMIT");return result;}catch(e){await c.query("ROLLBACK");throw e}finally{c.release()}
+ }
+ private async createOnClient(c:PoolClient,territoryId:string,sourceType:InvasionSource,threatScore:number,userId:string|null=null):Promise<InvasionSummary>{
   if(!Number.isSafeInteger(threatScore)||threatScore<500||threatScore>100000)throw new Error("INVALID_INVASION_THREAT");
   if(!INVASION_SOURCES.includes(sourceType))throw new Error("INVALID_INVASION_SOURCE");
-  const c=await this.db.connect();try{await c.query("BEGIN");
-   const t=await c.query<{id:string;realm_owner_id:string|null;control_points:number}>("SELECT id,realm_owner_id,control_points FROM territories WHERE id=$1 FOR UPDATE",[territoryId]);if(!t.rows[0])throw new Error("TERRITORY_NOT_FOUND");
-   if(await this.activeForTerritory(c,territoryId))throw new Error("INVASION_ALREADY_ACTIVE");
-   const target=await c.query<{id:string;owner_user_id:string}>("SELECT b.id,b.owner_user_id FROM player_bases b WHERE b.x BETWEEN (SELECT min_x FROM territories WHERE id=$1) AND (SELECT max_x FROM territories WHERE id=$1) AND b.y BETWEEN (SELECT min_y FROM territories WHERE id=$1) AND (SELECT max_y FROM territories WHERE id=$1) ORDER BY b.updated_at DESC,b.id LIMIT 1",[territoryId]);
-   const source=await c.query<{id:string}>("SELECT id FROM realms WHERE id<>$1 ORDER BY military_strength DESC,name LIMIT 1",[t.rows[0].realm_owner_id]);
-   const now=new Date(),phaseEnd=nextPhaseAt("WARNING",now);
-   const r=await c.query<{id:string;phase_ends_at:Date}>("INSERT INTO invasions(territory_id,source_realm_id,source_type,target_base_id,phase,threat_score,started_at,phase_started_at,phase_ends_at,metadata) VALUES($1,$2,$3,$4,'WARNING',$5,$6,$6,$7,$8::jsonb) RETURNING id,phase_ends_at",[territoryId,source.rows[0]?.id??null,sourceType,target.rows[0]?.id??null,threatScore,now,phaseEnd,JSON.stringify({createdBy:userId,controlPoints:t.rows[0].control_points})]);
-   await c.query("UPDATE invasion_schedules SET next_run_at=CURRENT_TIMESTAMP+INTERVAL '900 seconds' WHERE territory_id=$1",[territoryId]);
-   await c.query("UPDATE invasion_threats SET last_invasion_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE territory_id=$1",[territoryId]);
-   await c.query("COMMIT");return {id:r.rows[0].id,territoryId,sourceType,targetBaseId:target.rows[0]?.id??null,phase:"WARNING",threatScore,outcome:null,phaseEndsAt:r.rows[0].phase_ends_at.toISOString()};
-  }catch(e){await c.query("ROLLBACK");throw e}finally{c.release()}
+  const t=await c.query<{id:string;realm_owner_id:string|null;control_points:number}>("SELECT id,realm_owner_id,control_points FROM territories WHERE id=$1 FOR UPDATE",[territoryId]);if(!t.rows[0])throw new Error("TERRITORY_NOT_FOUND");
+  if(await this.activeForTerritory(c,territoryId))throw new Error("INVASION_ALREADY_ACTIVE");
+  const target=await c.query<{id:string}>("SELECT b.id FROM player_bases b WHERE b.x BETWEEN (SELECT min_x FROM territories WHERE id=$1) AND (SELECT max_x FROM territories WHERE id=$1) AND b.y BETWEEN (SELECT min_y FROM territories WHERE id=$1) AND (SELECT max_y FROM territories WHERE id=$1) ORDER BY b.updated_at DESC,b.id LIMIT 1",[territoryId]);
+  const source=await c.query<{id:string}>("SELECT id FROM realms WHERE ($1::uuid IS NULL OR id<>$1::uuid) ORDER BY military_strength DESC,name LIMIT 1",[t.rows[0].realm_owner_id]);
+  const now=new Date(),phaseEnd=nextPhaseAt("WARNING",now);
+  const r=await c.query<{id:string;phase_ends_at:Date}>("INSERT INTO invasions(territory_id,source_realm_id,source_type,target_base_id,phase,threat_score,started_at,phase_started_at,phase_ends_at,metadata) VALUES($1,$2,$3,$4,'WARNING',$5,$6,$6,$7,$8::jsonb) RETURNING id,phase_ends_at",[territoryId,source.rows[0]?.id??null,sourceType,target.rows[0]?.id??null,threatScore,now,phaseEnd,JSON.stringify({createdBy:userId,controlPoints:t.rows[0].control_points})]);
+  await c.query("UPDATE invasion_schedules SET next_run_at=CURRENT_TIMESTAMP+INTERVAL '900 seconds' WHERE territory_id=$1",[territoryId]);
+  await c.query("UPDATE invasion_threats SET last_invasion_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE territory_id=$1",[territoryId]);
+  return {id:r.rows[0].id,territoryId,sourceType,targetBaseId:target.rows[0]?.id??null,phase:"WARNING",threatScore,outcome:null,phaseEndsAt:r.rows[0].phase_ends_at.toISOString()};
  }
  async join(userId:string,invasionId:string,armyId:string):Promise<void>{
   const c=await this.db.connect();try{await c.query("BEGIN");await c.query("SELECT id FROM users WHERE id=$1 FOR UPDATE",[userId]);
@@ -82,7 +83,7 @@ export class InvasionStore{
   for(const row of due.rows){
    const active=await this.activeForTerritory(c,row.territory_id);if(active){await c.query("UPDATE invasion_schedules SET next_run_at=CURRENT_TIMESTAMP+INTERVAL '300 seconds' WHERE territory_id=$1",[row.territory_id]);continue}
    const ctx=await c.query<{territory_strength:number;threat_level:number;victories:number;target_base_defense:string;active_players:string;level:number;guild_level:number}>("SELECT COALESCE(t.control_points,0) territory_strength,COALESCE(it.threat_level,0) threat_level,COALESCE(it.victories,0) victories,COALESCE((SELECT SUM(bd.level*CASE WHEN bd.structure_type LIKE '%tower' OR bd.structure_type='wall' OR bd.structure_type='gate' THEN 100 ELSE 40 END) FROM base_defensive_structures bd JOIN player_bases pb ON pb.id=bd.base_id WHERE pb.x BETWEEN t.min_x AND t.max_x AND pb.y BETWEEN t.min_y AND t.max_y AND bd.active),0)::text target_base_defense,COALESCE((SELECT COUNT(*) FROM player_profiles pp WHERE pp.x BETWEEN t.min_x AND t.max_x AND pp.y BETWEEN t.min_y AND t.max_y),0)::text active_players,COALESCE((SELECT MAX(level) FROM player_profiles pp WHERE pp.x BETWEEN t.min_x AND t.max_x AND pp.y BETWEEN t.min_y AND t.max_y),1) level,1 guild_level FROM territories t LEFT JOIN invasion_threats it ON it.territory_id=t.id WHERE t.id=$1",[row.territory_id]);
-   const x=ctx.rows[0];if(!x)continue;const threat=calculateThreatScore({playerLevel:x.level,guildLevel:x.guild_level,territoryStrength:x.territory_strength,previousVictories:x.victories,activePlayers:Number(x.active_players),baseDefense:Number(x.target_base_defense),regionalThreat:x.threat_level});const source:InvasionSource=INVASION_SOURCES[threat%INVASION_SOURCES.length];await this.create(null,row.territory_id,source,threat);
+   const x=ctx.rows[0];if(!x)continue;const threat=calculateThreatScore({playerLevel:x.level,guildLevel:x.guild_level,territoryStrength:x.territory_strength,previousVictories:x.victories,activePlayers:Number(x.active_players),baseDefense:Number(x.target_base_defense),regionalThreat:x.threat_level});const source:InvasionSource=INVASION_SOURCES[threat%INVASION_SOURCES.length];await this.createOnClient(c,row.territory_id,source,threat,null);
   }
  }
  private async advance(c:PoolClient,inv:{id:string;phase:InvasionPhase;phase_started_at:Date;phase_ends_at:Date;threat_score:number;territory_id:string;target_base_id:string|null}){
@@ -107,7 +108,7 @@ export class InvasionStore{
   const w=await c.query<{power:string}>("SELECT COALESCE(SUM(current_health*(attack+defense)/GREATEST(max_health,1)),0)::bigint power FROM invasion_waves WHERE invasion_id=$1 AND status<>'defeated'",[invasionId]);
   const outcome=BigInt(w.rows[0]?.power??"0")===0n?"victory":"defeat";const severity=outcome==="victory"?0:Math.min(100,Math.max(10,Number(w.rows[0]?.power??0)/1000));
   await c.query("UPDATE invasions SET outcome=$2 WHERE id=$1",[invasionId,outcome]);await c.query("INSERT INTO invasion_consequences(invasion_id,territory_id,base_id,consequence_type,severity,payload) VALUES($1,$2,$3,$4,$5,$6::jsonb)",[invasionId,territoryId,baseId,outcome==="victory"?"defense_success":"territory_damage",severity,JSON.stringify({remainingEnemyPower:w.rows[0]?.power??"0"})]);
-  await c.query("UPDATE invasion_threats SET threat_level=GREATEST(0,LEAST(100000,threat_level+CASE WHEN $2='victory' THEN 250 ELSE 1000 END)),victories=victories+CASE WHEN $2='victory' THEN 1 ELSE 0 END,defeats=defeats+CASE WHEN $2='defeat' THEN 1 ELSE 0 END,updated_at=CURRENT_TIMESTAMP WHERE territory_id=$1",[territoryId,outcome]);
+  await c.query("UPDATE invasion_threats SET threat_level=GREATEST(0,LEAST(100000,threat_level+CASE WHEN $2='victory' THEN -1000 ELSE 1000 END)),victories=victories+CASE WHEN $2='victory' THEN 1 ELSE 0 END,defeats=defeats+CASE WHEN $2='defeat' THEN 1 ELSE 0 END,updated_at=CURRENT_TIMESTAMP WHERE territory_id=$1",[territoryId,outcome]);
   if(outcome==="defeat"){if(baseId)await c.query("UPDATE base_defensive_structures SET health=GREATEST(0,health-$2),active=CASE WHEN health-$2<=0 THEN false ELSE active END WHERE base_id=$1 AND active=true",[baseId,Math.max(10,severity*10)]);await c.query("UPDATE territories SET control_points=GREATEST(0,control_points-$2),updated_at=CURRENT_TIMESTAMP WHERE id=$1",[territoryId,Math.max(1,Math.floor(severity/5))]);}
  }
  private async issueRewards(c:PoolClient,invasionId:string,threat:number){
