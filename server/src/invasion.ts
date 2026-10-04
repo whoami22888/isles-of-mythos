@@ -1,4 +1,5 @@
 import type {Pool,PoolClient} from "pg";
+import { addGoldDoubloons, addTriumphBadges, applyInventoryDelta, cloneInventory, type Inventory } from "./economy.js";
 
 export const INVASION_PHASES=["WARNING","MUSTER","ARRIVAL","ASSAULT","BATTLE","RESOLUTION","REWARD","COOLDOWN","COMPLETE"] as const;
 export type InvasionPhase=typeof INVASION_PHASES[number];
@@ -46,7 +47,7 @@ export class InvasionStore{
   const source=await c.query<{id:string}>("SELECT id FROM realms WHERE ($1::uuid IS NULL OR id<>$1::uuid) ORDER BY military_strength DESC,name LIMIT 1",[t.rows[0].realm_owner_id]);
   const now=new Date(),phaseEnd=nextPhaseAt("WARNING",now);
   const r=await c.query<{id:string;phase_ends_at:Date}>("INSERT INTO invasions(territory_id,source_realm_id,source_type,target_base_id,phase,threat_score,started_at,phase_started_at,phase_ends_at,metadata) VALUES($1,$2,$3,$4,'WARNING',$5,$6,$6,$7,$8::jsonb) RETURNING id,phase_ends_at",[territoryId,source.rows[0]?.id??null,sourceType,target.rows[0]?.id??null,threatScore,now,phaseEnd,JSON.stringify({createdBy:userId,controlPoints:t.rows[0].control_points})]);
-  await c.query("UPDATE invasion_schedules SET next_run_at=CURRENT_TIMESTAMP+INTERVAL '900 seconds' WHERE territory_id=$1",[territoryId]);
+  await c.query("UPDATE invasion_schedules SET next_run_at=CURRENT_TIMESTAMP+(cooldown_seconds*INTERVAL '1 second') WHERE territory_id=$1",[territoryId]);
   await c.query("UPDATE invasion_threats SET last_invasion_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE territory_id=$1",[territoryId]);
   return {id:r.rows[0].id,territoryId,sourceType,targetBaseId:target.rows[0]?.id??null,phase:"WARNING",threatScore,outcome:null,phaseEndsAt:r.rows[0].phase_ends_at.toISOString()};
  }
@@ -81,7 +82,7 @@ export class InvasionStore{
  private async schedule(c:PoolClient){
   const due=await c.query<{territory_id:string}>("SELECT territory_id FROM invasion_schedules WHERE enabled=true AND next_run_at<=CURRENT_TIMESTAMP ORDER BY next_run_at,territory_id FOR UPDATE SKIP LOCKED");
   for(const row of due.rows){
-   const active=await this.activeForTerritory(c,row.territory_id);if(active){await c.query("UPDATE invasion_schedules SET next_run_at=CURRENT_TIMESTAMP+INTERVAL '300 seconds' WHERE territory_id=$1",[row.territory_id]);continue}
+   const active=await this.activeForTerritory(c,row.territory_id);if(active){await c.query("UPDATE invasion_schedules SET next_run_at=CURRENT_TIMESTAMP+(cooldown_seconds*INTERVAL '1 second') WHERE territory_id=$1",[row.territory_id]);continue}
    const ctx=await c.query<{territory_strength:number;threat_level:number;victories:number;target_base_defense:string;active_players:string;level:number;guild_level:number}>("SELECT COALESCE(t.control_points,0) territory_strength,COALESCE(it.threat_level,0) threat_level,COALESCE(it.victories,0) victories,(COALESCE((SELECT SUM(bd.level*CASE WHEN bd.structure_type LIKE '%tower' OR bd.structure_type='wall' OR bd.structure_type='gate' THEN 100 ELSE 40 END) FROM base_defensive_structures bd JOIN player_bases pb ON pb.id=bd.base_id WHERE pb.x BETWEEN t.min_x AND t.max_x AND pb.y BETWEEN t.min_y AND t.max_y AND bd.active),0)+COALESCE((SELECT SUM((au.attack+au.defense)*au.quantity) FROM army_garrisons ag JOIN player_bases pb ON pb.id=ag.base_id JOIN army_units au ON au.army_id=ag.army_id WHERE pb.x BETWEEN t.min_x AND t.max_x AND pb.y BETWEEN t.min_y AND t.max_y),0))::text target_base_defense,COALESCE((SELECT COUNT(*) FROM player_profiles pp WHERE pp.x BETWEEN t.min_x AND t.max_x AND pp.y BETWEEN t.min_y AND t.max_y),0)::text active_players,COALESCE((SELECT MAX(level) FROM player_profiles pp WHERE pp.x BETWEEN t.min_x AND t.max_x AND pp.y BETWEEN t.min_y AND t.max_y),1) level,COALESCE((SELECT MAX(g.level) FROM guilds g JOIN guild_members gm ON gm.guild_id=g.id JOIN player_profiles pp ON pp.user_id=gm.user_id WHERE pp.x BETWEEN t.min_x AND t.max_x AND pp.y BETWEEN t.min_y AND t.max_y),1) guild_level FROM territories t LEFT JOIN invasion_threats it ON it.territory_id=t.id WHERE t.id=$1",[row.territory_id]);
    const x=ctx.rows[0];if(!x)continue;const threat=calculateThreatScore({playerLevel:x.level,guildLevel:x.guild_level,territoryStrength:x.territory_strength,previousVictories:x.victories,activePlayers:Number(x.active_players),baseDefense:Number(x.target_base_defense),regionalThreat:x.threat_level});const source:InvasionSource=INVASION_SOURCES[threat%INVASION_SOURCES.length];await this.createOnClient(c,row.territory_id,source,threat,null);
   }
@@ -90,7 +91,7 @@ export class InvasionStore{
   if(inv.phase==="ARRIVAL")await this.materializeWaves(c,inv.id,inv.threat_score);
   if(inv.phase==="BATTLE" )await this.resolveIfBattleEnded(c,inv);
   const next=nextPhase(inv.phase);if(next==="COMPLETE"){await c.query("UPDATE invasions SET phase='COMPLETE',resolved_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=$1",[inv.id]);return}
-  const now=new Date(),end=nextPhaseAt(next,now);await c.query("UPDATE invasions SET phase=$2,phase_started_at=$3,phase_ends_at=$4,updated_at=CURRENT_TIMESTAMP WHERE id=$1",[inv.id,next,now,end]);
+  const now=new Date(),end=nextPhaseAt(next,now);await c.query("UPDATE invasions SET phase=$2,phase_started_at=$3,phase_ends_at=$4,cooldown_until=CASE WHEN $2='COOLDOWN' THEN $4 ELSE cooldown_until END,updated_at=CURRENT_TIMESTAMP WHERE id=$1",[inv.id,next,now,end]);
   if(next==="RESOLUTION")await this.applyResolution(c,inv.id,inv.territory_id,inv.target_base_id);
   if(next==="REWARD")await this.issueRewards(c,inv.id,inv.threat_score);
  }
@@ -119,11 +120,25 @@ export class InvasionStore{
   if(participantRows.length===0)return;
   const win=inv.rows[0].outcome==="victory";
   for(const participant of participantRows){
-   const badges=BigInt(Math.max(10,Math.floor(threat/100)*(win?2:1)));
+   const profile=await c.query<{gold:string;triumph_badges:string;inventory:Inventory}>("SELECT gold,triumph_badges,inventory FROM player_profiles WHERE user_id=$1 FOR UPDATE",[participant.user_id]);
+   if(!profile.rows[0])continue;
    const gold=BigInt(Math.max(100,Math.floor(threat*5/participantRows.length)));
-   const loot=JSON.stringify({treasure_maps:win?Math.max(1,Math.floor(threat/5000)):0,rare_treasure:win});
-   await c.query("INSERT INTO invasion_rewards(invasion_id,user_id,gold,triumph_badges,loot) VALUES($1,$2,$3,$4,$5::jsonb) ON CONFLICT DO NOTHING",[invasionId,participant.user_id,gold,badges,loot]);
-   await c.query("UPDATE player_profiles SET gold=gold+$2,triumph_badges=triumph_badges+$3,updated_at=CURRENT_TIMESTAMP WHERE user_id=$1",[participant.user_id,gold,badges]);
+   const badges=BigInt(Math.max(10,Math.floor(threat/100)*(win?2:1)));
+   let inventory=cloneInventory(profile.rows[0].inventory);
+   const loot:Record<string,number>={};
+   const wood=Math.min(1_000_000,Math.max(100,Math.floor(threat*(win?20:5))));
+   inventory=applyInventoryDelta(inventory,"resource.wood",wood);loot["resource.wood"]=wood;
+   if(win){
+    const steel=Math.min(1_000_000,Math.max(50,Math.floor(threat*8)));
+    inventory=applyInventoryDelta(inventory,"resource.steel",steel);loot["resource.steel"]=steel;
+    const maps=Math.min(100,Math.max(1,Math.floor(threat/5000)));
+    inventory=applyInventoryDelta(inventory,"treasure.map.high-tier",maps);loot["treasure.map.high-tier"]=maps;
+    inventory=applyInventoryDelta(inventory,"treasure.rare",1);loot["treasure.rare"]=1;
+   }
+   const nextGold=addGoldDoubloons(BigInt(profile.rows[0].gold),gold);
+   const nextBadges=addTriumphBadges(BigInt(profile.rows[0].triumph_badges),badges);
+   await c.query("INSERT INTO invasion_rewards(invasion_id,user_id,gold,triumph_badges,loot) VALUES($1,$2,$3,$4,$5::jsonb) ON CONFLICT DO NOTHING",[invasionId,participant.user_id,gold.toString(),badges.toString(),JSON.stringify(loot)]);
+   await c.query("UPDATE player_profiles SET gold=$2,triumph_badges=$3,inventory=$4::jsonb,updated_at=CURRENT_TIMESTAMP WHERE user_id=$1",[participant.user_id,nextGold.toString(),nextBadges.toString(),JSON.stringify(inventory)]);
   }
  }
  async list(territoryId:string|null=null):Promise<InvasionSummary[]>{
