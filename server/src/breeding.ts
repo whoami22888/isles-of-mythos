@@ -1,6 +1,6 @@
 import type { Pool } from "pg";
 import { CREATURE_STATS, type DamageType } from "./combat.js";
-export const BREEDING_FEED_ITEM="breeding.feed";
+export const BREEDING_FEED_ITEM="creature.feed";
 export const DEFAULT_BREEDING_DURATION_MS=5*60*1000;
 export const MAX_BREEDING_DURATION_MS=24*60*60*1000;
 export const MAX_GENERATION=1000;
