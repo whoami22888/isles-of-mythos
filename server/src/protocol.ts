@@ -187,7 +187,9 @@ function isFiniteNumber(value:unknown):value is number{return typeof value==="nu
 function requestId(value:unknown):value is string{return typeof value==="string"&&value.length>0&&value.length<=64;}
 function recordValue(value:unknown):value is Record<string,unknown>{return typeof value==="object"&&value!==null&&!Array.isArray(value);}
 
-const isChatChannel = (value: unknown): value is "local"|"region"|"party"|"guild"|"trade"|"global"|"system"|"whisper" => typeof value === "string" && ["local","region","party","guild","trade","global","system","whisper"].includes(value);\n\nexport function parseClientMessage(raw:string):ClientMessage|null{
+const isChatChannel = (value: unknown): value is "local"|"region"|"party"|"guild"|"trade"|"global"|"system"|"whisper" => typeof value === "string" && ["local","region","party","guild","trade","global","system","whisper"].includes(value);
+
+export function parseClientMessage(raw:string):ClientMessage|null{
   try{
     const value:unknown=JSON.parse(raw);
     if(typeof value!=="object"||value===null||!("type" in value))return null;
