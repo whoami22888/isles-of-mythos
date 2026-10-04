@@ -1149,7 +1149,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
               return {type:"invasion_state",requestId:message.requestId,invasion};
             }catch(error){
               const code=errorCode(error,"INVASION_OPERATION_FAILED");
-              const allowed=["INVALID_INVASION_THREAT","INVALID_INVASION_SOURCE","INVASION_ALREADY_ACTIVE","INVASION_NOT_FOUND","INVASION_NOT_JOINABLE","ARMY_NOT_FOUND","ARMY_NOT_OWNED","INVASION_NOT_IN_BATTLE","INVASION_NOT_PARTICIPANT","INVASION_WAVE_REQUIRED","INVASION_WAVE_NOT_FOUND","PLAYER_NOT_FOUND"];
+              const allowed=["INVALID_INVASION_THREAT","INVALID_INVASION_SOURCE","INVASION_ALREADY_ACTIVE","INVASION_NOT_FOUND","INVASION_NOT_JOINABLE","ARMY_NOT_FOUND","ARMY_NOT_OWNED","INVASION_NOT_IN_BATTLE","INVASION_NOT_PARTICIPANT","INVASION_WAVE_REQUIRED","INVASION_WAVE_NOT_FOUND","INVASION_WAVE_NOT_ACTIVE","PLAYER_NOT_FOUND"];
               return {type:"error",code:(allowed.includes(code)?code:"INVALID_MESSAGE") as Extract<ServerMessage,{type:"error"}>["code"]};
             }
           });
