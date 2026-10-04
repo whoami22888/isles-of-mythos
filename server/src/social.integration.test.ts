@@ -49,7 +49,9 @@ describe("Gate 14 social authority",()=>{
     const {db,app,a,b,c}=await users();const social=new SocialStore(db);
     try{
       const party=await social.createParty(a);expect(party.leaderUserId).toBe(a);
-      await social.inviteToParty(a,b);const joined=await social.acceptPartyInvite(b,(await social.partyInvitations(b))[0].id);
+      await social.inviteToParty(a,b);
+      await expect(social.inviteToParty(a,b)).rejects.toThrow("PARTY_INVITATION_EXISTS");
+      const joined=await social.acceptPartyInvite(b,(await social.partyInvitations(b))[0].id);
       expect(joined.members.map(x=>x.userId).sort()).toEqual([a,b].sort());
       await social.inviteToParty(a,c);const joined2=await social.acceptPartyInvite(c,(await social.partyInvitations(c))[0].id);
       expect(joined2.members).toHaveLength(3);
