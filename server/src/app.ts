@@ -21,6 +21,7 @@ import { CombatReplayCache } from "./combat-replay.js";
 import { CAPTURE_HEALTH_RATIO, CreatureStore } from "./creature.js";
 import { BaseStore, BASE_PERMISSIONS, BUILDING_TYPES, WORKER_MODES, type BasePermission, type BuildingType, type WorkerMode } from "./base.js";
 import { BreedingStore } from "./breeding.js";
+import { ShipStore, SHIP_CLASSES, CREW_ROLES, type ShipClass, type CrewRole } from "./ship.js";
 
 function errorCode(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
@@ -60,6 +61,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const creatures = new CreatureStore(db);
   const bases = new BaseStore(db);
   const breeding = new BreedingStore(db);
+  const ships = new ShipStore(db);
   const sockets = new Set<WebSocket>();
   const playerConnections = new Map<string, number>();
   const userSockets = new Map<string, Set<WebSocket>>();
@@ -1033,6 +1035,34 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           const authenticatedUserId=userId;
           const response=await runCreatureRequest(authenticatedUserId,message.requestId,"list_breeding",async()=>({type:"breeding_jobs",requestId:message.requestId,jobs:await breeding.list(authenticatedUserId)}));
           send(socket,response); return;
+        }
+
+        if (message.type === "create_ship" || message.type === "list_ships" || message.type === "ship_inventory" || message.type === "sail" || message.type === "assign_ship_crew" || message.type === "fire_cannon") {
+          if(!userId){send(socket,{type:"error",code:"AUTH_REQUIRED"});return;}
+          const authenticatedUserId=userId;
+          const response=await runBaseRequest(authenticatedUserId,message.requestId,message.type+"|"+JSON.stringify(message),async()=>{
+            try{
+              if(message.type==="create_ship"){
+                if(!Object.hasOwn(SHIP_CLASSES,message.shipClass))throw new Error("INVALID_SHIP_CLASS");
+                const ship=await ships.create(authenticatedUserId,message.name,message.shipClass as ShipClass);
+                return {type:"ship_state",requestId:message.requestId,ship};
+              }
+              if(message.type==="list_ships")return {type:"ship_list",requestId:message.requestId,ships:await ships.list(authenticatedUserId)};
+              if(message.type==="ship_inventory")return {type:"ship_inventory",requestId:message.requestId,shipId:message.shipId,items:await ships.inventory(authenticatedUserId,message.shipId)};
+              if(message.type==="sail")return {type:"ship_state",requestId:message.requestId,ship:await ships.sail(authenticatedUserId,message.shipId,message.dx,message.dy,message.dt)};
+              if(message.type==="assign_ship_crew"){
+                if(!CREW_ROLES.includes(message.role as CrewRole))throw new Error("INVALID_CREW_ASSIGNMENT");
+                return {type:"ship_crew",requestId:message.requestId,crew:await ships.assignCrew(authenticatedUserId,message.shipId,message.creatureId,message.role as CrewRole,message.skill,message.morale)};
+              }
+              const result=await ships.fireCannon(authenticatedUserId,message.shipId,message.targetShipId);
+              return {type:"naval_combat_result",requestId:message.requestId,...result};
+            }catch(error){
+              const code=errorCode(error,"SHIP_OPERATION_FAILED");
+              const allowed=["BASE_NOT_FOUND","INVALID_SHIP_CLASS","SHIPYARD_REQUIRED","INSUFFICIENT_SHIPYARD_RESOURCES","INVALID_SAIL_INPUT","SHIP_NOT_FOUND","SHIP_NOT_ACTIVE","INSUFFICIENT_SHIP_FUEL","INVALID_CREW_ASSIGNMENT","SHIP_CREW_CAPACITY_REACHED","CREW_CREATURE_NOT_FOUND","CREW_CREATURE_NOT_TAMED","CREW_CREATURE_IN_PARTY","CREW_ALREADY_ASSIGNED","INVALID_NAVAL_TARGET","TARGET_SHIP_NOT_ACTIVE","NAVAL_TARGET_OUT_OF_RANGE","CANNON_COOLDOWN","NO_CANNON_AMMO"];
+              return {type:"error",code:(allowed.includes(code)?code:"INVALID_MESSAGE") as Extract<ServerMessage,{type:"error"}>["code"]};
+            }
+          });
+          send(socket,response);return;
         }
 
         if (message.type === "subscribe_chunks") {
