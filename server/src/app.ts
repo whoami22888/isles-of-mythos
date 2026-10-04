@@ -75,10 +75,18 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const guilds = new GuildStore(db);
   const armies = new ArmyStore(db);
   const realms = new RealmStore(db);
-  const invasions = new InvasionStore(db);
   const sockets = new Set<WebSocket>();
   const playerConnections = new Map<string, number>();
   const userSockets = new Map<string, Set<WebSocket>>();
+  const invasions = new InvasionStore(db, (bounds) => {
+    const active: string[] = [];
+    for (const [userId, socketsForUser] of userSockets) {
+      if (socketsForUser.size === 0) continue;
+      const player = players.get(userId);
+      if (player && player.x >= bounds.minX && player.x <= bounds.maxX && player.y >= bounds.minY && player.y <= bounds.maxY) active.push(userId);
+    }
+    return active;
+  });
   const combatTargets = new Map<string, CombatTarget>();
   const defeatedCreatures = new Set<string>();
   const capturedWorldCreatures = new Set<string>();
