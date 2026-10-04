@@ -26,6 +26,19 @@ export type ClientMessage =
   | { type:"trade"; requestId:string; toUserId:string; gold:string; items:Array<{itemId:string;quantity:number}> }
   | { type:"start_breeding"; requestId:string; baseId:string; penBuildingId:string; parentAId:string; parentBId:string; durationMs?:number }
   | { type:"list_breeding"; requestId:string }
+  | { type:"create_guild"; requestId:string; name:string; tag:string }
+  | { type:"get_guild"; requestId:string }
+  | { type:"invite_guild_member"; requestId:string; guildId:string; targetUserId:string }
+  | { type:"accept_guild_invite"; requestId:string; invitationId:string }
+  | { type:"decline_guild_invite"; requestId:string; invitationId:string }
+  | { type:"leave_guild"; requestId:string; guildId:string }
+  | { type:"remove_guild_member"; requestId:string; guildId:string; targetUserId:string }
+  | { type:"set_guild_rank"; requestId:string; guildId:string; targetUserId:string; rank:string }
+  | { type:"set_guild_permission"; requestId:string; guildId:string; rank:string; permission:string; enabled:boolean }
+  | { type:"guild_bank"; requestId:string; guildId:string }
+  | { type:"guild_bank_deposit"; requestId:string; guildId:string; itemId:string; quantity:number; gold:string }
+  | { type:"guild_bank_withdraw"; requestId:string; guildId:string; itemId:string; quantity:number; gold:string }
+  | { type:"build_guild_infrastructure"; requestId:string; guildId:string; structureType:string }
   | { type:"create_ship"; requestId:string; name:string; shipClass:string }
   | { type:"list_ships"; requestId:string }
   | { type:"ship_inventory"; requestId:string; shipId:string }
@@ -60,6 +73,9 @@ export type ServerMessage =
   | { type:"trade_result"; requestId:string; from:unknown; to:unknown }
   | { type:"breeding_started"; requestId:string; job:unknown }
   | { type:"breeding_jobs"; requestId:string; jobs:unknown[] }
+  | { type:"guild_state"; requestId:string; guild:unknown }
+  | { type:"guild_bank_state"; requestId:string; guildId:string; bank:unknown }
+  | { type:"guild_operation_ok"; requestId:string; guildId:string }
   | { type:"ship_state"; requestId:string; ship:unknown }
   | { type:"ship_list"; requestId:string; ships:unknown[] }
   | { type:"ship_inventory"; requestId:string; shipId:string; items:unknown[] }
@@ -74,7 +90,7 @@ export type ServerMessage =
       | "INVALID_BUILDING_POSITION"|"BUILDING_POSITION_OCCUPIED"|"BUILDING_PREREQUISITE_MISSING"|"BUILDING_NOT_FOUND"|"BUILDING_MAX_LEVEL"
       | "INSUFFICIENT_STORAGE"|"STORAGE_CAPACITY_EXCEEDED"|"INVALID_STORAGE_QUANTITY"|"INSUFFICIENT_INVENTORY"|"PLAYER_NOT_FOUND"|"INVALID_WORK_TASK"|"CREATURE_IN_PARTY"|"WORKER_CAPACITY_REACHED"|"INVALID_SHIP_CLASS"|"SHIPYARD_REQUIRED"|"INSUFFICIENT_SHIPYARD_RESOURCES"|"INVALID_SHIP_CARGO"|"INSUFFICIENT_SHIP_CARGO"|"SHIP_CARGO_CAPACITY_EXCEEDED"|"FLEET_NOT_FOUND"|"SHIP_ALREADY_IN_FLEET"|"SHIP_NOT_IN_FLEET"|"FLEET_COMMANDER_REQUIRED"|"INVALID_SAIL_INPUT"|"SHIP_NOT_FOUND"|"SHIP_NOT_ACTIVE"|"INSUFFICIENT_SHIP_FUEL"|"INVALID_CREW_ASSIGNMENT"|"SHIP_CREW_CAPACITY_REACHED"|"CREW_CREATURE_NOT_FOUND"|"CREW_CREATURE_NOT_TAMED"|"CREW_CREATURE_IN_PARTY"|"CREW_ALREADY_ASSIGNED"|"INVALID_NAVAL_TARGET"|"TARGET_SHIP_NOT_ACTIVE"|"NAVAL_TARGET_OUT_OF_RANGE"|"CANNON_COOLDOWN"|"NO_CANNON_AMMO"|"CANNON_OUTSIDE_ARC"|"SHIP_RETREATING"|"TARGET_SHIP_RETREATING"|"BOARDING_OUT_OF_RANGE"|"SHIP_FULL_HEALTH"|"NO_REPAIR_LUMBER"|"SHIP_NOT_ON_FIRE"|"INVALID_WIND"
       | "RECIPE_NOT_FOUND"|"INVENTORY_LIMIT"|"SHOP_ITEM_NOT_FOUND"|"INVALID_PURCHASE_QUANTITY"|"INSUFFICIENT_GOLD"|"TRADE_REQUEST_CONFLICT"|"INVALID_TRADE_REQUEST"|"INVALID_TRADE_PARTICIPANTS"|"INVALID_TRADE_ITEMS"|"INVALID_TRADE_ITEM"|"INVALID_TRADE_QUANTITY"
-      | "BUILD_FAILED"|"BASE_CREATE_FAILED"|"BREEDING_PEN_NOT_FOUND"|"BREEDING_CAPACITY_REACHED"|"BREEDING_PEN_BUSY"|"INVALID_BREEDING_DURATION"|"BREEDING_PARENTS_MUST_DIFFER"|"INCOMPATIBLE_BREEDING_PARENTS"|"BREEDING_GENERATION_LIMIT"|"POPULATION_LIMIT_REACHED"|"NO_BREEDING_FEED"|"BREEDING_PARENT_MISSING"|"STORAGE_UPDATE_FAILED"|"UPGRADE_FAILED"|"PERMISSION_UPDATE_FAILED"|"WORKER_UPDATE_FAILED"|"PRIORITY_UPDATE_FAILED" };
+      | "BUILD_FAILED"|"BASE_CREATE_FAILED"|"BREEDING_PEN_NOT_FOUND"|"BREEDING_CAPACITY_REACHED"|"INVALID_GUILD_NAME"|"INVALID_GUILD_TAG"|"GUILD_NAME_OR_TAG_EXISTS"|"GUILD_HALL_REQUIRED"|"ALREADY_IN_GUILD"|"GUILD_NOT_FOUND"|"GUILD_MEMBERSHIP_REQUIRED"|"GUILD_PERMISSION_DENIED"|"PLAYER_NOT_FOUND"|"INVALID_GUILD_INVITEE"|"TARGET_ALREADY_IN_GUILD"|"GUILD_INVITATION_NOT_FOUND"|"GUILD_MASTER_CANNOT_LEAVE"|"INVALID_GUILD_MEMBER"|"GUILD_MEMBER_NOT_FOUND"|"GUILD_MASTER_PROTECTED"|"INVALID_GUILD_RANK"|"INVALID_GUILD_PERMISSION"|"INVALID_GUILD_INFRASTRUCTURE"|"INVALID_GUILD_BANK_QUANTITY"|"INVALID_GUILD_BANK_DEPOSIT"|"INVALID_GUILD_BANK_WITHDRAW"|"INSUFFICIENT_GUILD_BANK"|"GUILD_QUEST_NOT_FOUND"|"GUILD_INFRASTRUCTURE_MAX"|"BREEDING_PEN_BUSY"|"INVALID_BREEDING_DURATION"|"BREEDING_PARENTS_MUST_DIFFER"|"INCOMPATIBLE_BREEDING_PARENTS"|"BREEDING_GENERATION_LIMIT"|"POPULATION_LIMIT_REACHED"|"NO_BREEDING_FEED"|"BREEDING_PARENT_MISSING"|"STORAGE_UPDATE_FAILED"|"UPGRADE_FAILED"|"PERMISSION_UPDATE_FAILED"|"WORKER_UPDATE_FAILED"|"PRIORITY_UPDATE_FAILED" };
 
 function isSafeInteger(value:unknown):value is number{return typeof value==="number"&&Number.isSafeInteger(value);}
 function isFiniteNumber(value:unknown):value is number{return typeof value==="number"&&Number.isFinite(value);}
@@ -126,6 +142,18 @@ export function parseClientMessage(raw:string):ClientMessage|null{
     }
     if(type==="start_breeding"){const id=(value as {requestId?:unknown}).requestId,baseId=(value as {baseId?:unknown}).baseId,penBuildingId=(value as {penBuildingId?:unknown}).penBuildingId,parentAId=(value as {parentAId?:unknown}).parentAId,parentBId=(value as {parentBId?:unknown}).parentBId,durationMs=(value as {durationMs?:unknown}).durationMs;if(!requestId(id)||![baseId,penBuildingId,parentAId,parentBId].every(v=>typeof v==="string"&&v.length>0&&v.length<=64)||(durationMs!==undefined&&(!isSafeInteger(durationMs)||durationMs<=0||durationMs>86400000)))return null;return {type:"start_breeding",requestId:id,baseId:baseId as string,penBuildingId:penBuildingId as string,parentAId:parentAId as string,parentBId:parentBId as string,...(durationMs===undefined?{}:{durationMs})};}
     if(type==="list_breeding"){const id=(value as {requestId?:unknown}).requestId;return requestId(id)?{type:"list_breeding",requestId:id}:null;}
+    if(type==="create_guild"){const id=(value as {requestId?:unknown}).requestId,name=(value as {name?:unknown}).name,tag=(value as {tag?:unknown}).tag;return requestId(id)&&typeof name==="string"&&name.length<=64&&typeof tag==="string"&&tag.length<=8?{type:"create_guild",requestId:id,name,tag}:null;}
+    if(type==="get_guild"){const id=(value as {requestId?:unknown}).requestId;return requestId(id)?{type:"get_guild",requestId:id}:null;}
+    if(type==="invite_guild_member"){const id=(value as {requestId?:unknown}).requestId,guildId=(value as {guildId?:unknown}).guildId,targetUserId=(value as {targetUserId?:unknown}).targetUserId;return requestId(id)&&typeof guildId==="string"&&guildId.length>0&&typeof targetUserId==="string"&&targetUserId.length>0?{type:"invite_guild_member",requestId:id,guildId,targetUserId}:null;}
+    if(type==="accept_guild_invite"||type==="decline_guild_invite"){const id=(value as {requestId?:unknown}).requestId,invitationId=(value as {invitationId?:unknown}).invitationId;return requestId(id)&&typeof invitationId==="string"&&invitationId.length>0?{type,requestId:id,invitationId}:null;}
+    if(type==="leave_guild"){const id=(value as {requestId?:unknown}).requestId,guildId=(value as {guildId?:unknown}).guildId;return requestId(id)&&typeof guildId==="string"&&guildId.length>0?{type:"leave_guild",requestId:id,guildId}:null;}
+    if(type==="remove_guild_member"){const id=(value as {requestId?:unknown}).requestId,guildId=(value as {guildId?:unknown}).guildId,targetUserId=(value as {targetUserId?:unknown}).targetUserId;return requestId(id)&&typeof guildId==="string"&&typeof targetUserId==="string"&&guildId.length>0&&targetUserId.length>0?{type:"remove_guild_member",requestId:id,guildId,targetUserId}:null;}
+    if(type==="set_guild_rank"){const id=(value as {requestId?:unknown}).requestId,guildId=(value as {guildId?:unknown}).guildId,targetUserId=(value as {targetUserId?:unknown}).targetUserId,rank=(value as {rank?:unknown}).rank;return requestId(id)&&typeof guildId==="string"&&typeof targetUserId==="string"&&typeof rank==="string"&&rank.length>0&&rank.length<=16?{type:"set_guild_rank",requestId:id,guildId,targetUserId,rank}:null;}
+    if(type==="set_guild_permission"){const id=(value as {requestId?:unknown}).requestId,guildId=(value as {guildId?:unknown}).guildId,rank=(value as {rank?:unknown}).rank,permission=(value as {permission?:unknown}).permission,enabled=(value as {enabled?:unknown}).enabled;return requestId(id)&&typeof guildId==="string"&&typeof rank==="string"&&typeof permission==="string"&&typeof enabled==="boolean"?{type:"set_guild_permission",requestId:id,guildId,rank,permission,enabled}:null;}
+    if(type==="guild_bank"){const id=(value as {requestId?:unknown}).requestId,guildId=(value as {guildId?:unknown}).guildId;return requestId(id)&&typeof guildId==="string"&&guildId.length>0?{type:"guild_bank",requestId:id,guildId}:null;}
+    if(type==="guild_bank_deposit"||type==="guild_bank_withdraw"){const id=(value as {requestId?:unknown}).requestId,guildId=(value as {guildId?:unknown}).guildId,itemId=(value as {itemId?:unknown}).itemId,quantity=(value as {quantity?:unknown}).quantity,gold=(value as {gold?:unknown}).gold;return requestId(id)&&typeof guildId==="string"&&typeof itemId==="string"&&typeof quantity==="number"&&isSafeInteger(quantity)&&quantity>=0&&quantity<=1000000&&typeof gold==="string"&&gold.length<=32?{type,requestId:id,guildId,itemId,quantity,gold}:null;}
+    if(type==="build_guild_infrastructure"){const id=(value as {requestId?:unknown}).requestId,guildId=(value as {guildId?:unknown}).guildId,structureType=(value as {structureType?:unknown}).structureType;return requestId(id)&&typeof guildId==="string"&&typeof structureType==="string"&&structureType.length>0&&structureType.length<=32?{type:"build_guild_infrastructure",requestId:id,guildId,structureType}:null;}
+
     if(type==="create_ship"){const id=(value as {requestId?:unknown}).requestId,name=(value as {name?:unknown}).name,shipClass=(value as {shipClass?:unknown}).shipClass;if(!requestId(id)||typeof name!=="string"||name.length>64||typeof shipClass!=="string"||shipClass.length===0||shipClass.length>32)return null;return {type:"create_ship",requestId:id,name,shipClass};}
     if(type==="list_ships"){const id=(value as {requestId?:unknown}).requestId;return requestId(id)?{type:"list_ships",requestId:id}:null;}
     if(type==="ship_inventory"){const id=(value as {requestId?:unknown}).requestId,shipId=(value as {shipId?:unknown}).shipId;return requestId(id)&&typeof shipId==="string"&&shipId.length>0&&shipId.length<=64?{type:"ship_inventory",requestId:id,shipId}:null;}
