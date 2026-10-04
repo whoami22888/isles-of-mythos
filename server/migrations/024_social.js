@@ -87,6 +87,9 @@ export const up=(pgm)=>{
     id:{type:"uuid",primaryKey:true,default:pgm.func("gen_random_uuid()")},
     seller_user_id:{type:"uuid",notNull:true,references:"users(id)",onDelete:"RESTRICT"},
     item_id:{type:"varchar(128)",notNull:true},
+    category:{type:"varchar(32)",notNull:true,default:"other"},
+    rarity:{type:"varchar(16)",notNull:true,default:"common"},
+    item_level:{type:"integer",notNull:true,default:1},
     quantity:{type:"integer",notNull:true},
     remaining_quantity:{type:"integer",notNull:true},
     start_price:{type:"bigint",notNull:true},
@@ -99,12 +102,16 @@ export const up=(pgm)=>{
     created_at:{type:"timestamptz",notNull:true,default:pgm.func("CURRENT_TIMESTAMP")},
     updated_at:{type:"timestamptz",notNull:true,default:pgm.func("CURRENT_TIMESTAMP")}
   });
+  pgm.addConstraint("auction_listings","auction_category_check",{check:"category IN ('resource','upgrade','defence','equipment','consumable','other')"});
+  pgm.addConstraint("auction_listings","auction_rarity_check",{check:"rarity IN ('common','uncommon','rare','epic','legendary','mythic')"});
+  pgm.addConstraint("auction_listings","auction_level_check",{check:"item_level BETWEEN 1 AND 100"});
   pgm.addConstraint("auction_listings","auction_quantity_check",{check:"quantity > 0 AND remaining_quantity >= 0 AND remaining_quantity <= quantity"});
   pgm.addConstraint("auction_listings","auction_prices_check",{check:"start_price > 0 AND current_bid >= 0 AND (buy_now_price IS NULL OR buy_now_price >= start_price)"});
   pgm.addConstraint("auction_listings","auction_fee_check",{check:"seller_fee_bps BETWEEN 0 AND 2000"});
   pgm.addConstraint("auction_listings","auction_status_check",{check:"status IN ('active','sold','expired','cancelled')"});
   pgm.createIndex("auction_listings",["status","expires_at"]);
   pgm.createIndex("auction_listings",["item_id","status","expires_at"]);
+  pgm.createIndex("auction_listings",["category","rarity","item_level","status","expires_at"]);
   pgm.createIndex("auction_listings",["seller_user_id","status"]);
 
   pgm.createTable("auction_bids",{
