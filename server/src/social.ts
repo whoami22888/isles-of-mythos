@@ -97,7 +97,7 @@ export class SocialStore{
     const recipient=ch==="whisper"?input.recipientUserId??null:null;
     const guildId=ch==="guild"?input.guildId??null:null;
     const partyId=ch==="party"?input.partyId??null:null;
-    const regionId=input.regionId??null;
+    const regionId=(ch==="local"||ch==="region")?input.regionId??null:null;
     return transaction(this.db,async c=>{
       const blocked=recipient?await c.query("SELECT 1 FROM social_blocks WHERE (blocker_user_id=$1 AND blocked_user_id=$2) OR (blocker_user_id=$2 AND blocked_user_id=$1)",[userId,recipient]):{rowCount:0};
       if(blocked.rowCount) throw new Error("SOCIAL_BLOCKED");
@@ -126,6 +126,7 @@ export class SocialStore{
 
   async chatHistory(userId:string,input:{channel:string;recipientUserId?:string|null;guildId?:string|null;partyId?:string|null;regionId?:number|null;limit?:number}):Promise<ChatMessage[]>{
     const ch=channel(input.channel);const limit=Math.min(100,Math.max(1,input.limit??50));
+    const historyRegion=(ch==="local"||ch==="region")?input.regionId??null:null;
     if(ch==="whisper" && !input.recipientUserId) throw new Error("INVALID_CHAT_TARGET");
     if(ch==="party"){
       if(!input.partyId) throw new Error("INVALID_CHAT_CONTEXT");
@@ -143,7 +144,7 @@ export class SocialStore{
         :"SELECT id::text,sender_user_id,recipient_user_id,guild_id,party_id,channel,region_id,body,created_at FROM chat_messages WHERE channel=$1 AND ($2::uuid IS NULL OR guild_id=$2) AND ($3::uuid IS NULL OR party_id=$3) AND ($4::int IS NULL OR region_id=$4) ORDER BY id DESC LIMIT $5",
       ch==="whisper"
         ?[userId,input.recipientUserId??"",limit]
-        : [ch,input.guildId??null,input.partyId??null,input.regionId??null,limit]);
+        : [ch,input.guildId??null,input.partyId??null,historyRegion,limit]);
     return r.rows.reverse().map(x=>({id:x.id,senderUserId:x.sender_user_id,recipientUserId:x.recipient_user_id,guildId:x.guild_id,partyId:x.party_id,channel:x.channel,regionId:x.region_id,body:x.body,createdAt:x.created_at.toISOString()}));
   }
 
