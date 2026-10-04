@@ -165,7 +165,7 @@ export type ServerMessage =
   | { type:"chat_message"; requestId:string; message:Record<string, unknown> }
   | { type:"chat_history"; requestId:string; messages:Record<string, unknown>[] }
   | { type:"party_state"; requestId:string; party:Record<string, unknown>|null }
-  | { type:"party_invitations"; requestId:string; invitations:unknown[] }
+  | { type:"party_invitations"; requestId:string; invitations:Record<string, unknown>[] }
   | { type:"party_operation_ok"; requestId:string }
   | { type:"auction_list"; requestId:string; listings:Record<string, unknown>[] }
   | { type:"auction_state"; requestId:string; listing:Record<string, unknown> }
