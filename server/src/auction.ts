@@ -79,7 +79,7 @@ export class AuctionStore{
   async tick():Promise<number>{return tx(this.db,c=>this.settleExpired(c,100));}
 
   async create(sellerUserId:string,input:{itemId:string;quantity:number;startPrice:string;buyNowPrice?:string|null;durationMs:number}):Promise<AuctionSummary>{
-    const item=itemId(input.itemId);const quantity=positiveInt(input.quantity,"INVALID_AUCTION_QUANTITY");
+    const item=itemId(input.itemId);const meta=metadataFor(item);const quantity=positiveInt(input.quantity,"INVALID_AUCTION_QUANTITY");
     const start=parseGoldDoubloons(input.startPrice);if(start<=0n)throw new Error("INVALID_AUCTION_PRICE");
     const buy=input.buyNowPrice==null?null:parseGoldDoubloons(input.buyNowPrice);
     if(buy!==null && buy<start)throw new Error("INVALID_AUCTION_PRICE");
@@ -87,21 +87,25 @@ export class AuctionStore{
     return tx(this.db,async c=>{
       await this.settleExpired(c,20);const users=await lockUsers(c,[sellerUserId]);const seller=users.get(sellerUserId)!;
       let inv=cloneInventory(seller.inventory);inv=applyInventoryDelta(inv,item,-quantity);
-      const r=await c.query<{id:string;expires_at:Date}>("INSERT INTO auction_listings(seller_user_id,item_id,quantity,remaining_quantity,start_price,buy_now_price,seller_fee_bps,expires_at) VALUES($1,$2,$3,$3,$4,$5,$6,CURRENT_TIMESTAMP+($7::bigint*INTERVAL '1 millisecond')) RETURNING id,expires_at",[sellerUserId,item,quantity,start.toString(),buy?.toString()??null,DEFAULT_FEE_BPS,input.durationMs]);
+      const r=await c.query<{id:string;expires_at:Date}>("INSERT INTO auction_listings(seller_user_id,item_id,category,rarity,item_level,quantity,remaining_quantity,start_price,buy_now_price,seller_fee_bps,expires_at) VALUES($1,$2,$3,$4,$5,$6,$6,$7,$8,$9,CURRENT_TIMESTAMP+($10::bigint*INTERVAL '1 millisecond')) RETURNING id,expires_at",[sellerUserId,item,meta.category,meta.rarity,meta.itemLevel,quantity,start.toString(),buy?.toString()??null,DEFAULT_FEE_BPS,input.durationMs]);
       await c.query("UPDATE player_profiles SET inventory=$2::jsonb,updated_at=CURRENT_TIMESTAMP WHERE user_id=$1",[sellerUserId,JSON.stringify(inv)]);
-      return {id:r.rows[0].id,sellerUserId,itemId:item,quantity,remainingQuantity:quantity,startPrice:start.toString(),buyNowPrice:buy?.toString()??null,currentBid:"0",highestBidderUserId:null,status:"active",expiresAt:r.rows[0].expires_at.toISOString()};
+      return {id:r.rows[0].id,sellerUserId,itemId:item,category:meta.category,rarity:meta.rarity,itemLevel:meta.itemLevel,quantity,remainingQuantity:quantity,startPrice:start.toString(),buyNowPrice:buy?.toString()??null,currentBid:"0",highestBidderUserId:null,status:"active",expiresAt:r.rows[0].expires_at.toISOString()};
     });
   }
 
-  async list(filters:{itemId?:string|null;minPrice?:string|null;maxPrice?:string|null;limit?:number}={}):Promise<AuctionSummary[]>{
+  async list(filters:{itemId?:string|null;rarity?:AuctionRarity|null;category?:AuctionCategory|null;minLevel?:number|null;maxLevel?:number|null;minPrice?:string|null;maxPrice?:string|null;limit?:number}={}):Promise<AuctionSummary[]>{
     await this.tick();const limit=Math.min(100,Math.max(1,filters.limit??50));const clauses=["status='active'","expires_at>CURRENT_TIMESTAMP"];const params:unknown[]=[];let n=1;
     if(filters.itemId){clauses.push("item_id=$"+n++);params.push(itemId(filters.itemId));}
+    if(filters.rarity){clauses.push("rarity=$"+n++);params.push(filters.rarity);}
+    if(filters.category){clauses.push("category=$"+n++);params.push(filters.category);}
+    if(filters.minLevel!=null){if(!Number.isSafeInteger(filters.minLevel)||filters.minLevel<1||filters.minLevel>100)throw new Error("INVALID_AUCTION_FILTER");clauses.push("item_level >= $"+n++);params.push(filters.minLevel);}
+    if(filters.maxLevel!=null){if(!Number.isSafeInteger(filters.maxLevel)||filters.maxLevel<1||filters.maxLevel>100)throw new Error("INVALID_AUCTION_FILTER");clauses.push("item_level <= $"+n++);params.push(filters.maxLevel);}
     if(filters.minPrice){clauses.push("start_price >= $"+n++);params.push(parseGoldDoubloons(filters.minPrice).toString());}
     if(filters.maxPrice){clauses.push("start_price <= $"+n++);params.push(parseGoldDoubloons(filters.maxPrice).toString());}
     params.push(limit);
-    const sql="SELECT id,seller_user_id,item_id,quantity,remaining_quantity,start_price,buy_now_price,current_bid,highest_bidder_user_id,status,expires_at FROM auction_listings WHERE "+clauses.join(" AND ")+" ORDER BY expires_at,id LIMIT $"+n;
+    const sql="SELECT id,seller_user_id,item_id,category,rarity,item_level,quantity,remaining_quantity,start_price,buy_now_price,current_bid,highest_bidder_user_id,status,expires_at FROM auction_listings WHERE "+clauses.join(" AND ")+" ORDER BY expires_at,id LIMIT $"+n;
     const r=await this.db.query<{id:string;seller_user_id:string;item_id:string;quantity:number;remaining_quantity:number;start_price:string;buy_now_price:string|null;current_bid:string;highest_bidder_user_id:string|null;status:string;expires_at:Date}>(sql,params);
-    return r.rows.map(x=>({id:x.id,sellerUserId:x.seller_user_id,itemId:x.item_id,quantity:x.quantity,remainingQuantity:x.remaining_quantity,startPrice:x.start_price,buyNowPrice:x.buy_now_price,currentBid:x.current_bid,highestBidderUserId:x.highest_bidder_user_id,status:x.status,expiresAt:x.expires_at.toISOString()}));
+    return r.rows.map(x=>({id:x.id,sellerUserId:x.seller_user_id,itemId:x.item_id,category:x.category,rarity:x.rarity,itemLevel:x.item_level,quantity:x.quantity,remainingQuantity:x.remaining_quantity,startPrice:x.start_price,buyNowPrice:x.buy_now_price,currentBid:x.current_bid,highestBidderUserId:x.highest_bidder_user_id,status:x.status,expiresAt:x.expires_at.toISOString()}));
   }
 
   async bid(bidderUserId:string,listingId:string,amount:string):Promise<AuctionSummary>{
@@ -158,6 +162,6 @@ export class AuctionStore{
 
   private async summaryLocked(c:PoolClient,id:string):Promise<AuctionSummary>{
     const r=await c.query<{id:string;seller_user_id:string;item_id:string;quantity:number;remaining_quantity:number;start_price:string;buy_now_price:string|null;current_bid:string;highest_bidder_user_id:string|null;status:string;expires_at:Date}>("SELECT id,seller_user_id,item_id,quantity,remaining_quantity,start_price,buy_now_price,current_bid,highest_bidder_user_id,status,expires_at FROM auction_listings WHERE id=$1",[id]);const x=r.rows[0];
-    if(!x)throw new Error("AUCTION_NOT_FOUND");return {id:x.id,sellerUserId:x.seller_user_id,itemId:x.item_id,quantity:x.quantity,remainingQuantity:x.remaining_quantity,startPrice:x.start_price,buyNowPrice:x.buy_now_price,currentBid:x.current_bid,highestBidderUserId:x.highest_bidder_user_id,status:x.status,expiresAt:x.expires_at.toISOString()};
+    if(!x)throw new Error("AUCTION_NOT_FOUND");return {id:x.id,sellerUserId:x.seller_user_id,itemId:x.item_id,category:x.category,rarity:x.rarity,itemLevel:x.item_level,quantity:x.quantity,remainingQuantity:x.remaining_quantity,startPrice:x.start_price,buyNowPrice:x.buy_now_price,currentBid:x.current_bid,highestBidderUserId:x.highest_bidder_user_id,status:x.status,expiresAt:x.expires_at.toISOString()};
   }
 }
