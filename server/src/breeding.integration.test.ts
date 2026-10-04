@@ -20,7 +20,7 @@ async function fixture(){
   const base=await bases.create(userId,"Breeding Test Base",0,0);
   const pen=await db.query<{id:string}>("INSERT INTO base_buildings(base_id,type,level,grid_x,grid_y,active) VALUES($1,'breeding_pen',1,1,0,true) RETURNING id",[base.id]);
   await db.query("UPDATE player_bases SET maximum_creatures=10,maximum_breeding_slots=1 WHERE id=$1",[base.id]);
-  await db.query("UPDATE player_profiles SET inventory=COALESCE(inventory,'{}'::jsonb) || '{\"creature.feed\":10}'::jsonb,updated_at=CURRENT_TIMESTAMP WHERE user_id=$1",[userId]);
+  await db.query("INSERT INTO player_profiles(user_id,inventory,hotbar,selected_hotbar_slot) VALUES($1,'{\"creature.feed\":10}'::jsonb,'[null,null,null,null,null,null,null,null]'::jsonb,0) ON CONFLICT(user_id) DO UPDATE SET inventory=EXCLUDED.inventory,updated_at=CURRENT_TIMESTAMP",[userId]);
   const feed=await db.query<{value:string|null}>("SELECT inventory->>'creature.feed' AS value FROM player_profiles WHERE user_id=$1",[userId]);
   expect(feed.rows[0]?.value).toBe("10");
   const parents=await db.query<{id:string}>(`
