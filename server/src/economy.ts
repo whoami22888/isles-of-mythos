@@ -2,17 +2,20 @@ import type { Pool, PoolClient } from "pg";
 
 export const MAX_ITEM_STACK = 1_000_000;
 export const MAX_GOLD_DOUBLOONS = 9_223_372_036_854_775_807n;
+export const MAX_TRIUMPH_BADGES = MAX_GOLD_DOUBLOONS;
 
 export type Inventory = Record<string, number>;
 
 export interface EconomyDraft {
   client: PoolClient;
   gold: bigint;
+  triumphBadges: bigint;
   inventory: Inventory;
 }
 
 export interface EconomyMutation<T> {
   gold: bigint;
+  triumphBadges?: bigint;
   inventory: Inventory;
   value: T;
 }
@@ -70,6 +73,27 @@ export function addGoldDoubloons(current: bigint, delta: bigint): bigint {
   return next;
 }
 
+export function parseTriumphBadges(value: string | bigint): bigint {
+  const parsed = typeof value === "bigint"
+    ? value
+    : (/^(0|[1-9][0-9]*)$/.test(value) ? BigInt(value) : (() => { throw new Error("INVALID_TRIUMPH_BADGES"); })());
+  if (parsed < 0n || parsed > MAX_TRIUMPH_BADGES) throw new Error("TRIUMPH_BADGES_OVERFLOW");
+  return parsed;
+}
+
+export function addTriumphBadges(current: bigint, delta: bigint): bigint {
+  const next = parseTriumphBadges(current) + parseTriumphBadges(delta);
+  if (next > MAX_TRIUMPH_BADGES) throw new Error("TRIUMPH_BADGES_OVERFLOW");
+  return next;
+}
+
+export function subtractTriumphBadges(current: bigint, amount: bigint): bigint {
+  const balance = parseTriumphBadges(current);
+  const cost = parseTriumphBadges(amount);
+  if (cost > balance) throw new Error("INSUFFICIENT_TRIUMPH_BADGES");
+  return balance - cost;
+}
+
 export function subtractGoldDoubloons(current: bigint, amount: bigint): bigint {
   const balance = parseGoldDoubloons(current);
   const cost = parseGoldDoubloons(amount);
@@ -85,8 +109,8 @@ export async function runEconomyTransaction<T>(
   const client = await db.connect();
   try {
     await client.query("BEGIN");
-    const result = await client.query<{ gold: string; inventory: Inventory }>(
-      "SELECT gold, inventory FROM player_profiles WHERE user_id=$1 FOR UPDATE",
+    const result = await client.query<{ gold: string; triumph_badges: string; inventory: Inventory }>(
+      "SELECT gold, triumph_badges, inventory FROM player_profiles WHERE user_id=$1 FOR UPDATE",
       [userId],
     );
     const row = result.rows[0];
@@ -95,15 +119,17 @@ export async function runEconomyTransaction<T>(
     const draft: EconomyDraft = {
       client,
       gold: parseGoldDoubloons(row.gold),
+      triumphBadges: parseTriumphBadges(row.triumph_badges),
       inventory: cloneInventory(row.inventory),
     };
     const next = await mutation(draft);
     const gold = parseGoldDoubloons(next.gold);
+    const triumphBadges = parseTriumphBadges(next.triumphBadges ?? draft.triumphBadges);
     const inventory = cloneInventory(next.inventory);
 
     await client.query(
-      "UPDATE player_profiles SET gold=$2, inventory=$3::jsonb, updated_at=CURRENT_TIMESTAMP WHERE user_id=$1",
-      [userId, gold.toString(), JSON.stringify(inventory)],
+      "UPDATE player_profiles SET gold=$2, triumph_badges=$3, inventory=$4::jsonb, updated_at=CURRENT_TIMESTAMP WHERE user_id=$1",
+      [userId, gold.toString(), triumphBadges.toString(), JSON.stringify(inventory)],
     );
     await client.query("COMMIT");
     return next.value;
