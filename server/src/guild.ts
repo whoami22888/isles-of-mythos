@@ -73,7 +73,7 @@ export class GuildStore{
         veteran:['bank_deposit','quest_contribute'],member:['bank_deposit','quest_contribute'],recruit:['bank_deposit']};
       for(const r of GUILD_RANKS)for(const p of defaults[r])await c.query("INSERT INTO guild_permissions(guild_id,rank,permission,enabled) VALUES($1,$2,$3,true)",[id,r,p]);
       await c.query("INSERT INTO guild_infrastructure(guild_id,structure_type,level) VALUES($1,'guild_hall',1)",[id]);await ensureDailyQuests(c,id);await c.query('COMMIT');return this.get(userId);
-    }catch(e){await c.query('ROLLBACK');if(typeof e==='object'&&e!==null&&'code' in e&&(e as {code?:unknown}).code==='23505')throw new Error('GUILD_NAME_OR_TAG_EXISTS');throw e}finally{c.release()}
+    }catch(e){await c.query('ROLLBACK');if(typeof e==='object'&&e!==null&&'code' in e&&(e as {code?:unknown}).code==='23505')throw new Error('GUILD_NAME_OR_TAG_EXISTS',{cause:e});throw e}finally{c.release()}
   }
   async get(userId:string):Promise<GuildState>{
     const c=await this.db.connect();try{await c.query('BEGIN');const m=await c.query<{guild_id:string}>("SELECT guild_id FROM guild_members WHERE user_id=$1 FOR UPDATE",[userId]);if(!m.rows[0])throw new Error('GUILD_NOT_FOUND');await ensureDailyQuests(c,m.rows[0].guild_id);await c.query('COMMIT');return this.load(userId,m.rows[0].guild_id)}catch(e){await c.query('ROLLBACK');throw e}finally{c.release()}
