@@ -94,14 +94,18 @@ export class SocialStore{
   async sendChat(userId:string,input:{channel:string;body:string;recipientUserId?:string|null;guildId?:string|null;partyId?:string|null;regionId?:number|null}):Promise<ChatMessage>{
     const ch=channel(input.channel);
     const body=cleanText(input.body,MAX_CHAT);
-    const recipient=input.recipientUserId??null;
-    const guildId=input.guildId??null;
-    const partyId=input.partyId??null;
+    const recipient=ch==="whisper"?input.recipientUserId??null:null;
+    const guildId=ch==="guild"?input.guildId??null:null;
+    const partyId=ch==="party"?input.partyId??null:null;
     const regionId=input.regionId??null;
     return transaction(this.db,async c=>{
       const blocked=recipient?await c.query("SELECT 1 FROM social_blocks WHERE (blocker_user_id=$1 AND blocked_user_id=$2) OR (blocker_user_id=$2 AND blocked_user_id=$1)",[userId,recipient]):{rowCount:0};
       if(blocked.rowCount) throw new Error("SOCIAL_BLOCKED");
       if(ch==="whisper" && !recipient) throw new Error("INVALID_CHAT_TARGET");
+      if(ch==="whisper"){
+        const target=await c.query("SELECT 1 FROM users WHERE id=$1",[recipient]);
+        if(!target.rowCount) throw new Error("PLAYER_NOT_FOUND");
+      }
       if((ch==="party" || ch==="guild") && !partyId && !guildId) throw new Error("INVALID_CHAT_CONTEXT");
       if(ch==="party"){
         const m=await c.query("SELECT 1 FROM party_members WHERE party_id=$1 AND user_id=$2",[partyId,userId]);
@@ -169,6 +173,8 @@ export class SocialStore{
       if(members.rowCount!>=PARTY_LIMIT) throw new Error("PARTY_FULL");
       const target=await c.query("SELECT 1 FROM users WHERE id=$1",[targetUserId]);
       if(!target.rowCount) throw new Error("PLAYER_NOT_FOUND");
+      const pending=await c.query("SELECT 1 FROM party_invitations WHERE party_id=$1 AND invitee_user_id=$2 AND status='pending' FOR UPDATE",[p.rows[0].party_id,targetUserId]);
+      if(pending.rowCount) throw new Error("PARTY_INVITATION_EXISTS");
       const already=await c.query("SELECT 1 FROM party_members WHERE user_id=$1",[targetUserId]);
       if(already.rowCount) throw new Error("TARGET_IN_PARTY");
       const r=await c.query<{id:string}>("INSERT INTO party_invitations(party_id,inviter_user_id,invitee_user_id) VALUES($1,$2,$3) RETURNING id",[p.rows[0].party_id,userId,targetUserId]);
