@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import { buildApp } from "./app.js";
 import { createDbPool } from "./db.js";
 import { SocialStore } from "./social.js";
-import { PlayerStore } from "./player.js";
 
 async function users(){
   const db=createDbPool();const app=await buildApp({db});
