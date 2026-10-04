@@ -25,7 +25,7 @@ describe('Gate 10 guilds',()=>{
       expect(guild.myRank).toBe('master');expect(guild.infrastructure.find(x=>x.structureType==='guild_hall')?.level).toBe(1);
       await guilds.invite(owner,guild.id,member);
       const invites=await guilds.listInvitations(member);expect(invites).toHaveLength(1);expect(invites[0]?.guildId).toBe(guild.id);
-      const joined=await guilds.acceptInvite(member,invites[0]!.id);expect(joined.myRank).toBe('recruit');
+      const invitation=invites[0];if(!invitation)throw new Error('INVITATION_MISSING');const joined=await guilds.acceptInvite(member,invitation.id);expect(joined.myRank).toBe('recruit');
       await guilds.setRank(owner,guild.id,member,'veteran');
       const afterRank=await guilds.get(member);expect(afterRank.myRank).toBe('veteran');
       await db.query("UPDATE player_profiles SET inventory=jsonb_build_object('wood',1000),gold=5000,triumph_badges=0,xp=0 WHERE user_id=$1",[member]);
