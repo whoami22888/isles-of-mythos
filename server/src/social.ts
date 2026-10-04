@@ -26,6 +26,7 @@ async function transaction<T>(db:Pool,fn:(c:PoolClient)=>Promise<T>):Promise<T>{
 }
 
 export interface FriendRecord{userId:string;status:"pending"|"accepted";requestedBy:string;createdAt:string;}
+export interface PartyInvitation{id:string;party_id:string;inviter_user_id:string;created_at:Date;}
 export interface PartyMember{userId:string;role:"leader"|"member";joinedAt:string;}
 export interface PartyState{id:string;leaderUserId:string;members:PartyMember[];}
 export interface ChatMessage{id:string;senderUserId:string;recipientUserId:string|null;guildId:string|null;partyId:string|null;channel:ChatChannel;regionId:number|null;body:string;createdAt:string;}
@@ -164,7 +165,7 @@ export class SocialStore{
     });
   }
 
-  async partyInvitations(userId:string):Promise<Array<{id:string;party_id:string;inviter_user_id:string;created_at:Date}>>{
+  async partyInvitations(userId:string):Promise<PartyInvitation[]>{
     const r=await this.db.query<{id:string;party_id:string;inviter_user_id:string;created_at:Date}>("SELECT id,party_id,inviter_user_id,created_at FROM party_invitations WHERE invitee_user_id=$1 AND status='pending' ORDER BY created_at DESC",[userId]);
     return r.rows;
   }
