@@ -1,6 +1,6 @@
 import Phaser from "phaser";
 import { getAccessToken } from "./auth.js";
-import { CHUNK_SIZE, TILE_SIZE, ChunkRenderer, type WorldChunk } from "./world.js";
+import { CHUNK_SIZE, TILE_SIZE, ChunkRenderer } from "./world.js";
 import type { PlayerState } from "./player.js";
 import {
   parseServerMessage,
