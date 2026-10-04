@@ -60,5 +60,29 @@ describe("Gate 9 naval mechanics",()=>{
       const reduced=await fleets.removeShip(a,fleet.id,second.id);expect(reduced.shipIds).not.toContain(second.id);
       await expect(naval.fireCannon(a,attacker.id,defender.id)).rejects.toThrow("SHIP_RETREATING");
     }finally{await db.end();await app.close();}
+    it("preserves fleet and cargo invariants under concurrent operations and app restart",async()=>{
+    const db=createDbPool();
+    const app1=await buildApp({db});
+    try{
+      const user=await register(app1,"nr");
+      await fixture(db,user);
+      const ships=new ShipStore(db),fleets=new FleetStore(db),inventory=new ShipInventoryStore(db);
+      const a=await ships.create(user,"Concurrency One","sloop");
+      const b=await ships.create(user,"Concurrency Two","sloop");
+      const fleetResults=await Promise.allSettled([fleets.create(user,"Concurrent Fleet",a.id),fleets.create(user,"Second Fleet",a.id)]);
+      expect(fleetResults.filter(x=>x.status==="fulfilled")).toHaveLength(1);
+      const cargoResults=await Promise.allSettled([inventory.mutate(user,a.id,"repair_lumber",1),inventory.mutate(user,a.id,"repair_lumber",1)]);
+      expect(cargoResults.filter(x=>x.status==="fulfilled")).toHaveLength(2);
+      const cargo=await inventory.mutate(user,a.id,"repair_lumber",-1);
+      expect(cargo.find(x=>x.itemId==="repair_lumber")?.quantity).toBe(1);
+      const listed=await fleets.list(user);expect(listed).toHaveLength(1);
+      await app1.close();
+      const app2=await buildApp({db});
+      try{
+        const afterRestart=await ships.list(user);
+        expect(afterRestart.map(x=>x.id)).toEqual(expect.arrayContaining([a.id,b.id]));
+      }finally{await app2.close();}
+    }finally{await db.end();}
   });
+});
 });
