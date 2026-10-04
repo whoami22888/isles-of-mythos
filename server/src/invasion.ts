@@ -124,7 +124,7 @@ export class InvasionStore{
    const loot=JSON.stringify({treasure_maps:win?Math.max(1,Math.floor(threat/5000)):0,rare_treasure:win});
    await c.query("INSERT INTO invasion_rewards(invasion_id,user_id,gold,triumph_badges,loot) VALUES($1,$2,$3,$4,$5::jsonb) ON CONFLICT DO NOTHING",[invasionId,participant.user_id,gold,badges,loot]);
    await c.query("UPDATE player_profiles SET gold=gold+$2,triumph_badges=triumph_badges+$3,updated_at=CURRENT_TIMESTAMP WHERE user_id=$1",[participant.user_id,gold,badges]);
-  }}
+  }
  }
  async list(territoryId:string|null=null):Promise<InvasionSummary[]>{
   const q=territoryId?await this.db.query<{id:string;territory_id:string;source_type:InvasionSource;target_base_id:string|null;phase:InvasionPhase;threat_score:number;outcome:string|null;phase_ends_at:Date}>("SELECT id,territory_id,source_type,target_base_id,phase,threat_score,outcome,phase_ends_at FROM invasions WHERE territory_id=$1 ORDER BY started_at DESC",[territoryId]):await this.db.query<{id:string;territory_id:string;source_type:InvasionSource;target_base_id:string|null;phase:InvasionPhase;threat_score:number;outcome:string|null;phase_ends_at:Date}>("SELECT id,territory_id,source_type,target_base_id,phase,threat_score,outcome,phase_ends_at FROM invasions ORDER BY started_at DESC LIMIT 100");
