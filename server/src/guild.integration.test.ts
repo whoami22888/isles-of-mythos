@@ -5,6 +5,7 @@ import {buildApp} from './app.js';
 import {createDbPool} from './db.js';
 import {BaseStore} from './base.js';
 import {GuildStore} from './guild.js';
+import {PlayerStore} from './player.js';
 
 async function register(app:FastifyInstance,tag:string):Promise<string>{
   const unique='guild_'+tag+'_'+Date.now().toString(36).slice(-6)+'_'+Math.random().toString(36).slice(2,5);
@@ -20,7 +21,7 @@ describe('Gate 10 guilds',()=>{
     const app=await buildApp();const db=createDbPool();
     try{
       const owner=await register(app,'owner'),member=await register(app,'member');await fixture(db,owner);
-      const guilds=new GuildStore(db);
+      const guilds=new GuildStore(db);const players=new PlayerStore(db);await players.loadOrCreate(owner);await players.loadOrCreate(member);
       const guild=await guilds.create(owner,'Sea Wardens','WARD');
       expect(guild.myRank).toBe('master');expect(guild.infrastructure.find(x=>x.structureType==='guild_hall')?.level).toBe(1);
       await guilds.invite(owner,guild.id,member);
