@@ -151,6 +151,85 @@ describe("player trading transactions", () => {
     }
   });
 
+  it("serializes concurrent duplicate requests into one transfer", async () => {
+    const { db, app, fromUserId, toUserId } = await createTradePlayers();
+    try {
+      await setEconomy(db, fromUserId, "1000", { "resource.wood": 10 });
+      await setEconomy(db, toUserId, "100", {});
+      const request = {
+        requestId: "trade-concurrent-replay",
+        fromUserId,
+        toUserId,
+        gold: "250",
+        items: [{ itemId: "resource.wood", quantity: 4 }],
+      };
+      const [first, second] = await Promise.all([tradePlayers(db, request), tradePlayers(db, request)]);
+      expect(second).toEqual(first);
+      const rows = await db.query<{ user_id: string; gold: string; inventory: Record<string, number> }>(
+        "SELECT user_id, gold, inventory FROM player_profiles WHERE user_id = ANY($1::uuid[]) ORDER BY user_id",
+        [[fromUserId, toUserId]],
+      );
+      expect(rows.rows).toEqual([
+        { user_id: fromUserId, gold: "750", inventory: { "resource.wood": 6 } },
+        { user_id: toUserId, gold: "350", inventory: { "resource.wood": 4 } },
+      ].sort((a, b) => a.user_id.localeCompare(b.user_id)));
+    } finally {
+      await app.close();
+      await db.end();
+    }
+  });
+
+  it("rejects invalid currency/participant inputs before mutation", async () => {
+    const { db, app, fromUserId, toUserId } = await createTradePlayers();
+    try {
+      await setEconomy(db, fromUserId, "1000", { "resource.wood": 10 });
+      await setEconomy(db, toUserId, "100", {});
+      await expect(tradePlayers(db, {
+        requestId: "trade-negative-gold",
+        fromUserId,
+        toUserId,
+        gold: "-1",
+        items: [],
+      })).rejects.toThrow("INVALID_GOLD");
+      await expect(tradePlayers(db, {
+        requestId: "trade-self",
+        fromUserId,
+        toUserId: fromUserId,
+        gold: "1",
+        items: [],
+      })).rejects.toThrow("INVALID_TRADE_PARTICIPANTS");
+    } finally {
+      await app.close();
+      await db.end();
+    }
+  });
+
+  it("rolls back when recipient Gold Doubloons would overflow", async () => {
+    const { db, app, fromUserId, toUserId } = await createTradePlayers();
+    try {
+      await setEconomy(db, fromUserId, "1000", {});
+      await setEconomy(db, toUserId, "9223372036854775700", {});
+      await expect(tradePlayers(db, {
+        requestId: "trade-gold-overflow",
+        fromUserId,
+        toUserId,
+        gold: "1000",
+        items: [],
+      })).rejects.toThrow("GOLD_OVERFLOW");
+      const rows = await db.query<{ user_id: string; gold: string }>(
+        "SELECT user_id, gold FROM player_profiles WHERE user_id = ANY($1::uuid[]) ORDER BY user_id",
+        [[fromUserId, toUserId]],
+      );
+      expect(rows.rows).toEqual([
+        { user_id: fromUserId, gold: "1000" },
+        { user_id: toUserId, gold: "9223372036854775700" },
+      ].sort((a, b) => a.user_id.localeCompare(b.user_id)));
+    } finally {
+      await app.close();
+      await db.end();
+    }
+  });
+
   it("rejects the same request id with different trade contents", async () => {
     const { db, app, fromUserId, toUserId } = await createTradePlayers();
     try {
