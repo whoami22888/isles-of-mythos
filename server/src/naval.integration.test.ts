@@ -16,7 +16,7 @@ async function register(app:FastifyInstance,tag:string):Promise<string>{
 }
 async function fixture(db:Pool,userId:string){
   const bases=new BaseStore(db);const base=await bases.create(userId,"Naval Base",0,0);
-  await db.query("INSERT INTO base_storage(base_id,resource_key,quantity) VALUES($1,'wood',5000),($1,'steel',5000)",[base.id]);
+  await db.query("INSERT INTO base_storage(base_id,resource_key,quantity) VALUES($1,'wood',5000),($1,'steel',5000) ON CONFLICT (base_id,resource_key) DO UPDATE SET quantity=EXCLUDED.quantity",[base.id]);
   await db.query("INSERT INTO base_buildings(base_id,type,level,grid_x,grid_y,active) VALUES($1,'shipyard',1,1,0,true)",[base.id]);
 }
 describe("Gate 9 naval mechanics",()=>{
