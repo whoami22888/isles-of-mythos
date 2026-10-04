@@ -76,7 +76,7 @@ describe("Gate 14 auction authority",()=>{
       const listing=await auction.create(seller,{itemId:"resource.wood",quantity:1,startPrice:"100",buyNowPrice:null,durationMs:60000});
       await auction.bid(buyer,listing.id,"100");
       await expect(auction.cancel(seller,listing.id)).rejects.toThrow("AUCTION_HAS_BID");
-      expect((await db.query<{inventory:Record<string,number>}>("SELECT inventory FROM player_profiles WHERE user_id=$1",[seller])).rows[0].inventory).toEqual({});
+      expect((await db.query<{inventory:Record<string,number>}>("SELECT inventory FROM player_profiles WHERE user_id=$1",[seller])).rows[0].inventory).toEqual({"resource.wood":0});
     }finally{await app.close();await db.end();}
   });
 });
