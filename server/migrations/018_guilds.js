@@ -85,12 +85,13 @@ export const up=(pgm)=>{
     progress_quantity:{type:"bigint",notNull:true,default:0},
     reward_xp:{type:"bigint",notNull:true},
     reward_gold:{type:"bigint",notNull:true},
+    reward_badges:{type:"bigint",notNull:true,default:0},
     status:{type:"varchar(16)",notNull:true,default:"active"},
     starts_at:{type:"timestamptz",notNull:true,default:pgm.func("CURRENT_TIMESTAMP")},
     expires_at:{type:"timestamptz",notNull:true},
     completed_at:{type:"timestamptz",default:null}
   });
-  pgm.addConstraint("guild_quests","guild_quests_target_check",{check:"target_quantity > 0 AND progress_quantity >= 0 AND reward_xp >= 0 AND reward_gold >= 0"});
+  pgm.addConstraint("guild_quests","guild_quests_target_check",{check:"target_quantity > 0 AND progress_quantity >= 0 AND reward_xp >= 0 AND reward_gold >= 0 AND reward_badges >= 0"});
   pgm.addConstraint("guild_quests","guild_quests_status_check",{check:"status IN ('active','completed','expired')"});
   pgm.createIndex("guild_quests",["guild_id","status","expires_at"]);
   pgm.createIndex("guild_quests",["guild_id","operation_key"],{unique:true});
