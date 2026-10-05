@@ -42,7 +42,7 @@ function toSummary(row:EventRow):WorldEventSummary{
 }
 function rewardFor(type:WorldEventType,contribution:bigint,rank:number):{gold:bigint;items:Record<string,number>}{
   const base=contribution>0n?BigInt(Math.min(250_000,Math.max(100,rank===1?5_000:1_000))):0n;
-  if(type==="treasure_storm") return {gold:base,items:{"treasure.map":Math.max(1,rank===1?3:1)}};
+  if(type==="treasure_storm") return {gold:base,items:{"resource.pearl":Math.max(1,rank===1?3:1)}};
   if(type==="ghost_fleet") return {gold:base+2_000n,items:{"resource.ancient-relics":Math.max(1,rank===1?2:1)}};
   if(type==="dragon_migration") return {gold:base+3_000n,items:{"resource.dragon-scales":Math.max(1,rank===1?3:1)}};
   if(type==="kraken") return {gold:base+5_000n,items:{"resource.mermaid-pearls":Math.max(1,rank===1?3:1)}};
@@ -148,7 +148,7 @@ export class WorldEventCoordinator {
       const profile=await client.query<{gold:string;inventory:Record<string,number>}>("SELECT gold,inventory FROM player_profiles WHERE user_id=$1 FOR UPDATE",[userId]);
       if(!profile.rows[0]) throw new Error("PLAYER_NOT_FOUND");
       const gold=parseGoldDoubloons(profile.rows[0].gold)+BigInt(row.reward.gold);
-      const inventory=applyInventoryDelta(cloneInventory(profile.rows[0].inventory),row.reward.items);
+      let inventory=cloneInventory(profile.rows[0].inventory); for(const [itemId,quantity] of Object.entries(row.reward.items)) inventory=applyInventoryDelta(inventory,itemId,quantity);
       await client.query("UPDATE player_profiles SET gold=$2,inventory=$3::jsonb,updated_at=CURRENT_TIMESTAMP WHERE user_id=$1",[userId,gold.toString(),JSON.stringify(inventory)]);
       await client.query("UPDATE world_event_rewards SET claimed_at=CURRENT_TIMESTAMP WHERE event_id=$1 AND user_id=$2",[eventId,userId]);
       await client.query("COMMIT");
