@@ -31,6 +31,7 @@ import { RealmStore } from "./realm.js";
 import { InvasionStore } from "./invasion.js";
 import { SocialStore } from "./social.js";
 import { AuctionStore } from "./auction.js";
+import { WorldEventCoordinator } from "./world-events.js";
 
 function errorCode(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
@@ -79,6 +80,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const realms = new RealmStore(db);
   const social = new SocialStore(db);
   const auctions = new AuctionStore(db);
+  const worldEvents = new WorldEventCoordinator(db, (userId) => players.get(userId)?.level);
   const sockets = new Set<WebSocket>();
   const playerConnections = new Map<string, number>();
   const userSockets = new Map<string, Set<WebSocket>>();
@@ -264,9 +266,17 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const navalFireTick = setInterval(() => { void naval.tickFires().catch((error) => log("naval_fire_tick_failed",{message:error instanceof Error?error.message:String(error)})); }, 1_000);
   const invasionTick = setInterval(() => { void invasions.tick().catch((error) => log("invasion_tick_failed",{message:error instanceof Error?error.message:String(error)})); }, 1_000);
   const auctionTick = setInterval(() => { void auctions.tick().catch((error) => log("auction_tick_failed",{message:error instanceof Error ? error.message : String(error)})); }, 5_000);
+  const worldEventTick = setInterval(() => {
+    void worldEvents.tick().then(async(changed)=>{
+      if(changed===0) return;
+      const events=await worldEvents.listActive();
+      for(const socket of sockets) send(socket,{type:"world_event_list",requestId:"system",events});
+    }).catch((error)=>log("world_event_tick_failed",{message:error instanceof Error?error.message:String(error)}));
+  },1_000);
   navalFireTick.unref();
   invasionTick.unref();
   auctionTick.unref();
+  worldEventTick.unref();
   survivalTick.unref();
 
   const combatTick = setInterval(() => {
@@ -412,6 +422,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   app.addHook("onClose", async () => {
     clearInterval(invasionTick);
     clearInterval(auctionTick);
+    clearInterval(worldEventTick);
     shuttingDown = true;
     clearInterval(heartbeat);
     clearInterval(survivalTick);
@@ -1275,6 +1286,28 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
               await realms.tickAI();return {type:"realm_operation_ok",requestId:message.requestId};
             }catch(error){const code=errorCode(error,"REALM_OPERATION_FAILED");const allowed=["INVALID_TERRITORY_COORDINATES","TERRITORY_NOT_FOUND","INSUFFICIENT_TERRITORY_INFLUENCE","INVALID_REPUTATION_DELTA","REALM_NOT_FOUND","INVALID_TRADE_ROUTE","INVALID_TRADE_ROUTE_ENDPOINTS","GUILD_PERMISSION_DENIED","GUILD_MEMBERSHIP_REQUIRED","PLAYER_NOT_FOUND"];return {type:"error",code:(allowed.includes(code)?code:"INVALID_MESSAGE") as Extract<ServerMessage,{type:"error"}>["code"]};}
           });send(socket,response);return;
+        }
+
+        if (message.type === "list_world_events" || message.type === "world_event_contribute" || message.type === "world_event_reward") {
+          if(!userId){send(socket,{type:"error",code:"AUTH_REQUIRED"});return;}
+          const authenticatedUserId=userId;
+          await players.loadOrCreate(authenticatedUserId);
+          const response=await runBaseRequest(authenticatedUserId,message.requestId,message.type+"|"+JSON.stringify(message),async()=>{
+            try{
+              if(message.type==="list_world_events") return {type:"world_event_list",requestId:message.requestId,events:await worldEvents.listActive()};
+              if(message.type==="world_event_contribute"){
+                const event=await worldEvents.contribute(authenticatedUserId,message.eventId);
+                return {type:"world_event_state",requestId:message.requestId,event};
+              }
+              const reward=await worldEvents.claimReward(authenticatedUserId,message.eventId);
+              await players.reloadEconomy(authenticatedUserId);
+              const state=players.get(authenticatedUserId);
+              if(state) for(const playerSocket of userSockets.get(authenticatedUserId)??[]) send(playerSocket,{type:"player_state",state:serializePlayerState(state)});
+              return {type:"world_event_reward",requestId:message.requestId,eventId:message.eventId,gold:reward.gold,items:reward.items};
+            }catch(error){return {type:"error",code:errorCode(error,"WORLD_EVENT_OPERATION_FAILED")} as ServerMessage}
+          });
+          send(socket,response);
+          return;
         }
 
         if (message.type === "list_invasions" || message.type === "get_invasion_waves" || message.type === "join_invasion" || message.type === "invasion_action") {

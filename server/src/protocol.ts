@@ -1,4 +1,5 @@
 import type { InvasionRole } from "./invasion.js";
+import type { WorldEventSummary } from "./world-events.js";
 import type { PublicPlayerState } from "./player.js";
 import type { AuctionCategory, AuctionRarity, AuctionSummary } from "./auction.js";
 import type { ChatMessage, FriendRecord, PartyInvitation, PartyState } from "./social.js";
@@ -111,7 +112,11 @@ export type ClientMessage =
   | { type:"auction_bid"; requestId:string; listingId:string; amount:string }
   | { type:"auction_buy_now"; requestId:string; listingId:string }
   | { type:"auction_cancel"; requestId:string; listingId:string }
-  | { type:"auction_history"; requestId:string };
+  | { type:"auction_history"; requestId:string }
+  | { type:"list_world_events"; requestId:string }
+  | { type:"world_event_contribute"; requestId:string; eventId:string }
+  | { type:"world_event_reward"; requestId:string; eventId:string };
+
 
 export type ServerMessage =
   | { type:"server_ready"; timestamp:number }
@@ -173,6 +178,9 @@ export type ServerMessage =
   | { type:"auction_state"; requestId:string; listing:AuctionSummary }
   | { type:"auction_history"; requestId:string; transactions:Record<string, unknown>[] }
   | { type:"auction_operation_ok"; requestId:string }
+  | { type:"world_event_list"; requestId:string; events:WorldEventSummary[] }
+  | { type:"world_event_state"; requestId:string; event:WorldEventSummary }
+  | { type:"world_event_reward"; requestId:string; eventId:string; gold:string; items:Record<string,number> }
   | { type:"error"; code:
       | "INVALID_MESSAGE"|"UNSUPPORTED_MESSAGE"|"AUTH_REQUIRED"|"INVALID_TOKEN"|"COMBAT_COOLDOWN"|"OUT_OF_RANGE"|"NO_STAMINA"|"NO_AMMO"|"COMBAT_IN_PROGRESS"|"PLAYER_DEAD"|"PLAYER_STUNNED"|"RATE_LIMITED"
       | "CREATURE_TOO_HEALTHY"|"NO_CAPTURE_ORB"|"CREATURE_ALREADY_CAPTURED"|"CREATURE_NOT_FOUND"|"NO_CREATURE_FEED"|"CREATURE_NOT_TAMED"|"INVALID_PARTY_SLOT"
@@ -321,7 +329,15 @@ export function parseClientMessage(raw:string):ClientMessage|null{
       
       return requestId(id)&&isChatChannel(ch)&&(recipient===null||typeof recipient==="string")&&(guildId===null||typeof guildId==="string")&&(partyId===null||typeof partyId==="string")?{type:"chat_history",requestId:id,channel:ch,recipientUserId:recipient,guildId,partyId}:null;
     }
-    if(type==="auction_list"){
+    if(type==="list_world_events" || type==="world_event_contribute" || type==="world_event_reward"){
+    const id=(value as {requestId?:unknown}).requestId,eventId=(value as {eventId?:unknown}).eventId;
+    if(typeof id!=="string") return null;
+    if(type!=="list_world_events" && (typeof eventId!=="string" || eventId.length<1 || eventId.length>64)) return null;
+    if(type==="list_world_events") return {type:"list_world_events",requestId:id};
+    if(type==="world_event_contribute") return {type:"world_event_contribute",requestId:id,eventId:eventId as string};
+    return {type:"world_event_reward",requestId:id,eventId:eventId as string};
+  }
+  if(type==="auction_list"){
       const id=(value as {requestId?:unknown}).requestId,item=(value as {itemId?:unknown}).itemId;
       const rarityRaw=(value as {rarity?:unknown}).rarity,categoryRaw=(value as {category?:unknown}).category,minLevelRaw=(value as {minLevel?:unknown}).minLevel,maxLevelRaw=(value as {maxLevel?:unknown}).maxLevel,min=(value as {minPrice?:unknown}).minPrice,max=(value as {maxPrice?:unknown}).maxPrice;
       const rarity=rarityRaw===undefined?null:rarityRaw,category=categoryRaw===undefined?null:categoryRaw,minLevel=minLevelRaw===undefined?null:minLevelRaw,maxLevel=maxLevelRaw===undefined?null:maxLevelRaw;
