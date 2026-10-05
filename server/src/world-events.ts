@@ -1,6 +1,6 @@
 import { randomInt } from "node:crypto";
 import type { Pool, PoolClient } from "pg";
-import { applyInventoryDelta, runEconomyTransaction } from "./economy.js";
+import { applyInventoryDelta, cloneInventory, parseGoldDoubloons } from "./economy.js";
 
 export type WorldEventType = "world_boss"|"treasure_storm"|"ghost_fleet"|"kraken"|"dragon_migration";
 export type WorldEventStatus = "active"|"completed"|"expired";
@@ -140,13 +140,19 @@ export class WorldEventCoordinator {
   }
 
   async claimReward(userId:string,eventId:string):Promise<{gold:string;items:Record<string,number>}>{
-    const reward=await this.db.query<{reward:{gold:string;items:Record<string,number>};claimed_at:Date|null}>("SELECT reward,claimed_at FROM world_event_rewards WHERE event_id=$1 AND user_id=$2 FOR UPDATE",[eventId,userId]);
-    const row=reward.rows[0]; if(!row) throw new Error("WORLD_EVENT_REWARD_NOT_FOUND"); if(row.claimed_at) throw new Error("WORLD_EVENT_REWARD_ALREADY_CLAIMED");
-    const result=await runEconomyTransaction(this.db,userId,async draft=>{
-      const gold=BigInt(row.reward.gold); const inventory=applyInventoryDelta(draft.inventory,row.reward.items);
-      return {gold:draft.gold+gold,inventory,value:{gold:gold.toString(),items:row.reward.items}};
-    });
-    await this.db.query("UPDATE world_event_rewards SET claimed_at=CURRENT_TIMESTAMP WHERE event_id=$1 AND user_id=$2",[eventId,userId]);
-    return result;
+    const client=await this.db.connect();
+    try{
+      await client.query("BEGIN");
+      const reward=await client.query<{reward:{gold:string;items:Record<string,number>};claimed_at:Date|null}>("SELECT reward,claimed_at FROM world_event_rewards WHERE event_id=$1 AND user_id=$2 FOR UPDATE",[eventId,userId]);
+      const row=reward.rows[0]; if(!row) throw new Error("WORLD_EVENT_REWARD_NOT_FOUND"); if(row.claimed_at) throw new Error("WORLD_EVENT_REWARD_ALREADY_CLAIMED");
+      const profile=await client.query<{gold:string;inventory:Record<string,number>}>("SELECT gold,inventory FROM player_profiles WHERE user_id=$1 FOR UPDATE",[userId]);
+      if(!profile.rows[0]) throw new Error("PLAYER_NOT_FOUND");
+      const gold=parseGoldDoubloons(profile.rows[0].gold)+BigInt(row.reward.gold);
+      const inventory=applyInventoryDelta(cloneInventory(profile.rows[0].inventory),row.reward.items);
+      await client.query("UPDATE player_profiles SET gold=$2,inventory=$3::jsonb,updated_at=CURRENT_TIMESTAMP WHERE user_id=$1",[userId,gold.toString(),JSON.stringify(inventory)]);
+      await client.query("UPDATE world_event_rewards SET claimed_at=CURRENT_TIMESTAMP WHERE event_id=$1 AND user_id=$2",[eventId,userId]);
+      await client.query("COMMIT");
+      return {gold:row.reward.gold,items:row.reward.items};
+    }catch(e){await client.query("ROLLBACK");throw e}finally{client.release()}
   }
 }
