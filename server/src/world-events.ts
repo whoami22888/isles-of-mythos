@@ -47,7 +47,7 @@ function toSummary(row:EventRow):WorldEventSummary{
   return {id:row.id,eventType:row.event_type,status:row.status,regionId:row.region_id,centerX:row.center_x,centerY:row.center_y,
     maxHealth:row.max_health,currentHealth:row.current_health,state:row.state,startedAt:row.started_at.toISOString(),endsAt:row.ends_at.toISOString()};
 }
-function rewardFor(type:WorldEventType,contribution:bigint,rank:number):{gold:bigint;items:Record<string,number>}{
+export function calculateWorldEventReward(type:WorldEventType,contribution:bigint,rank:number):{gold:bigint;items:Record<string,number>}{
   const base=contribution>0n?BigInt(Math.min(250_000,Math.max(100,rank===1?5_000:1_000))):0n;
   if(type==="treasure_storm") return {gold:base,items:{"resource.pearl":Math.max(1,rank===1?3:1)}};
   if(type==="ghost_fleet") return {gold:base+2_000n,items:{"resource.ancient-relics":Math.max(1,rank===1?2:1)}};
@@ -114,7 +114,7 @@ export class WorldEventCoordinator {
     const row=event.rows[0]; if(!row || row.status!=="active") return;
     const contributions=await client.query<{user_id:string;contribution:string}>("SELECT user_id,contribution FROM world_event_contributions WHERE event_id=$1 AND contribution>0 ORDER BY contribution DESC,user_id",[eventId]);
     for(let i=0;i<contributions.rows.length;i++){
-      const c=contributions.rows[i], reward=rewardFor(row.event_type,BigInt(c.contribution),i+1);
+      const c=contributions.rows[i], reward=calculateWorldEventReward(row.event_type,BigInt(c.contribution),i+1);
       await client.query("INSERT INTO world_event_rewards(event_id,user_id,reward) VALUES($1,$2,$3::jsonb) ON CONFLICT(event_id,user_id) DO NOTHING",[eventId,c.user_id,JSON.stringify({gold:reward.gold.toString(),items:reward.items})]);
     }
     await client.query("UPDATE world_events SET status='completed',completed_at=CURRENT_TIMESTAMP,current_health=0,updated_at=CURRENT_TIMESTAMP WHERE id=$1",[eventId]);
@@ -132,7 +132,7 @@ export class WorldEventCoordinator {
         else {
           const contributors=await client.query<{user_id:string;contribution:string}>("SELECT user_id,contribution FROM world_event_contributions WHERE event_id=$1 AND contribution>0 ORDER BY contribution DESC,user_id",[row.id]);
           for(let i=0;i<contributors.rows.length;i++){
-            const reward=rewardFor(row.event_type,BigInt(contributors.rows[i].contribution),i+1);
+            const reward=calculateWorldEventReward(row.event_type,BigInt(contributors.rows[i].contribution),i+1);
             await client.query("INSERT INTO world_event_rewards(event_id,user_id,reward) VALUES($1,$2,$3::jsonb) ON CONFLICT(event_id,user_id) DO NOTHING",[row.id,contributors.rows[i].user_id,JSON.stringify({gold:reward.gold.toString(),items:reward.items})]);
           }
           await client.query("UPDATE world_events SET status='expired',completed_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=$1",[row.id]);
