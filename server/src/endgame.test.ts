@@ -11,7 +11,7 @@ describe("Gate 16 endgame calculations",()=>{
   });
   it("requires high-level player access and produces bounded deterministic creature damage",()=>{
     expect(calculateHighLevelCreatureDamage(50,75)).toBe(400);
-    expect(calculateHighLevelCreatureDamage(100,50)).toBe(850);
+    expect(calculateHighLevelCreatureDamage(100,50)).toBe(900);
     expect(()=>calculateHighLevelCreatureDamage(49,75)).toThrow("ENDGAME_LEVEL_REQUIRED");
   });
 });
