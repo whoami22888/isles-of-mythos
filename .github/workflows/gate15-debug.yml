@@ -1,6 +1,7 @@
 name: Gate 15 Typecheck Diagnostic
 on:
-  workflow_dispatch:
+  push:
+    branches: ["phase-15-world-events"]
 jobs:
   typecheck:
     runs-on: ubuntu-latest
