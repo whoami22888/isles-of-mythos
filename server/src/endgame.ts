@@ -98,7 +98,7 @@ export class EndgameStore {
   }
 
   async guildBattles():Promise<GuildBattleSummary[]>{
-    const r=await this.db.query<any>("SELECT id,attacker_guild_id,defender_guild_id,target_territory_id,status,phase,attacker_score,defender_score,winner_guild_id,ends_at FROM guild_battles ORDER BY ends_at,id");
+    const r=await this.db.query<GuildBattleDbRow>("SELECT id,attacker_guild_id,defender_guild_id,target_territory_id,status,phase,attacker_score,defender_score,winner_guild_id,ends_at FROM guild_battles ORDER BY ends_at,id");
     return r.rows.map(x=>({id:x.id,attackerGuildId:x.attacker_guild_id,defenderGuildId:x.defender_guild_id,targetTerritoryId:x.target_territory_id,status:x.status,phase:x.phase,attackerScore:String(x.attacker_score),defenderScore:String(x.defender_score),winnerGuildId:x.winner_guild_id,endsAt:x.ends_at.toISOString()}));
   }
 
@@ -138,12 +138,12 @@ export class EndgameStore {
   }
 
   async creatures():Promise<EndgameCreatureSummary[]>{
-    const r=await this.db.query<any>("SELECT e.id,t.species,t.rarity,t.level,t.element,e.health,t.max_health,t.attack,t.defense,e.x,e.y,e.status,t.mythic_content_key FROM endgame_creatures e JOIN endgame_creature_templates t ON t.id=e.template_id WHERE e.status='wild' ORDER BY t.level DESC,t.species,e.id");
+    const r=await this.db.query<CreatureDbRow>("SELECT e.id,t.species,t.rarity,t.level,t.element,e.health,t.max_health,t.attack,t.defense,e.x,e.y,e.status,t.mythic_content_key FROM endgame_creatures e JOIN endgame_creature_templates t ON t.id=e.template_id WHERE e.status='wild' ORDER BY t.level DESC,t.species,e.id");
     return r.rows.map(x=>({id:x.id,species:x.species,rarity:x.rarity,level:x.level,element:x.element,health:x.health,maxHealth:x.max_health,attack:x.attack,defense:x.defense,x:x.x,y:x.y,status:x.status,mythicContentKey:x.mythic_content_key}));
   }
 
   async mythic():Promise<MythicContentSummary[]>{
-    const r=await this.db.query<any>("SELECT content_key,title,tier,unlock_level,description,reward,active FROM mythic_content WHERE active=true ORDER BY unlock_level,content_key");
+    const r=await this.db.query<MythicDbRow>("SELECT content_key,title,tier,unlock_level,description,reward,active FROM mythic_content WHERE active=true ORDER BY unlock_level,content_key");
     return r.rows.map(x=>({contentKey:x.content_key,title:x.title,tier:x.tier,unlockLevel:x.unlock_level,description:x.description,reward:x.reward,active:x.active}));
   }
 
