@@ -68,12 +68,18 @@ export class WorldEventCoordinator {
     if(!EVENT_TYPES.includes(type)) throw new Error("INVALID_WORLD_EVENT_TYPE");
     const duration=durationFor(type), health=bossHealth(type), effect=effectFor(type);
     const seed=BigInt(randomInt(1,2_000_000_000));
-    const r=await this.db.query<EventRow>(
-      "INSERT INTO world_events(event_type,region_id,center_x,center_y,max_health,current_health,state,seed,ends_at) VALUES($1,$2,$3,$4,$5,$5,$6::jsonb,$7,CURRENT_TIMESTAMP+($8::bigint*INTERVAL '1 millisecond')) RETURNING id,event_type,status,region_id,center_x,center_y,max_health,current_health,state,started_at,ends_at",
-      [type,regionId,centerX,centerY,health?.toString()??null,JSON.stringify(eventState(type)),seed.toString(),duration]);
-    if(!r.rows[0]) throw new Error("WORLD_EVENT_CREATE_FAILED");
-    await this.db.query("INSERT INTO world_event_effects(event_id,effect_key,effect_value,expires_at) VALUES($1,$2,$3::jsonb,CURRENT_TIMESTAMP+($4::bigint*INTERVAL '1 millisecond'))",[r.rows[0].id,effect.key,JSON.stringify(effect.value),duration]);
-    return toSummary(r.rows[0]);
+    const client=await this.db.connect();
+    try{
+      await client.query("BEGIN");
+      await client.query("SELECT pg_advisory_xact_lock(15015)");
+      const r=await client.query<EventRow>(
+        "INSERT INTO world_events(event_type,region_id,center_x,center_y,max_health,current_health,state,seed,ends_at) VALUES($1,$2,$3,$4,$5,$5,$6::jsonb,$7,CURRENT_TIMESTAMP+($8::bigint*INTERVAL '1 millisecond')) RETURNING id,event_type,status,region_id,center_x,center_y,max_health,current_health,state,started_at,ends_at",
+        [type,regionId,centerX,centerY,health?.toString()??null,JSON.stringify(eventState(type)),seed.toString(),duration]);
+      if(!r.rows[0]) throw new Error("WORLD_EVENT_CREATE_FAILED");
+      await client.query("INSERT INTO world_event_effects(event_id,effect_key,effect_value,expires_at) VALUES($1,$2,$3::jsonb,CURRENT_TIMESTAMP+($4::bigint*INTERVAL '1 millisecond'))",[r.rows[0].id,effect.key,JSON.stringify(effect.value),duration]);
+      await client.query("COMMIT");
+      return toSummary(r.rows[0]);
+    }catch(e){await client.query("ROLLBACK");throw e}finally{client.release()}
   }
 
   async contribute(userId:string,eventId:string):Promise<WorldEventSummary>{
