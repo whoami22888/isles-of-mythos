@@ -31,9 +31,9 @@ export async function up(pgm) {
     contribution:{type:"bigint",notNull:true,default:0},
     actions:{type:"integer",notNull:true,default:0},
     joined_at:{type:"timestamptz",notNull:true,default:pgm.func("CURRENT_TIMESTAMP")},
-    updated_at:{type:"timestamptz",notNull:true,default:pgm.func("CURRENT_TIMESTAMP")},
-    primaryKey:["war_id","guild_id"]
+    updated_at:{type:"timestamptz",notNull:true,default:pgm.func("CURRENT_TIMESTAMP")}
   });
+  pgm.addConstraint("realm_war_participants","realm_war_participants_pk",{primaryKey:["war_id","guild_id"]});
   pgm.addConstraint("realm_war_participants","realm_war_participants_contribution_check",{check:"contribution >= 0 AND actions >= 0"});
   pgm.createIndex("realm_war_participants",["guild_id","war_id"]);
 
@@ -67,9 +67,9 @@ export async function up(pgm) {
     contribution:{type:"bigint",notNull:true,default:0},
     actions:{type:"integer",notNull:true,default:0},
     joined_at:{type:"timestamptz",notNull:true,default:pgm.func("CURRENT_TIMESTAMP")},
-    updated_at:{type:"timestamptz",notNull:true,default:pgm.func("CURRENT_TIMESTAMP")},
-    primaryKey:["battle_id","army_id"]
+    updated_at:{type:"timestamptz",notNull:true,default:pgm.func("CURRENT_TIMESTAMP")}
   });
+  pgm.addConstraint("guild_battle_armies","guild_battle_armies_pk",{primaryKey:["battle_id","army_id"]});
   pgm.addConstraint("guild_battle_armies","guild_battle_armies_side_check",{check:"side IN ('attacker','defender')"});
   pgm.addConstraint("guild_battle_armies","guild_battle_armies_contribution_check",{check:"contribution >= 0 AND actions >= 0"});
   pgm.createIndex("guild_battle_armies",["battle_id","side"]);
