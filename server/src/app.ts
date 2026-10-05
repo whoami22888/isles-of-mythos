@@ -32,6 +32,7 @@ import { InvasionStore } from "./invasion.js";
 import { SocialStore } from "./social.js";
 import { AuctionStore } from "./auction.js";
 import { WorldEventCoordinator } from "./world-events.js";
+import { EndgameStore } from "./endgame.js";
 
 function errorCode(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
@@ -81,6 +82,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const social = new SocialStore(db);
   const auctions = new AuctionStore(db);
   const worldEvents = new WorldEventCoordinator(db, (userId) => players.get(userId)?.level);
+  const endgame = new EndgameStore(db);
   const sockets = new Set<WebSocket>();
   const playerConnections = new Map<string, number>();
   const userSockets = new Map<string, Set<WebSocket>>();
@@ -266,6 +268,9 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const navalFireTick = setInterval(() => { void naval.tickFires().catch((error) => log("naval_fire_tick_failed",{message:error instanceof Error?error.message:String(error)})); }, 1_000);
   const invasionTick = setInterval(() => { void invasions.tick().catch((error) => log("invasion_tick_failed",{message:error instanceof Error?error.message:String(error)})); }, 1_000);
   const auctionTick = setInterval(() => { void auctions.tick().catch((error) => log("auction_tick_failed",{message:error instanceof Error ? error.message : String(error)})); }, 5_000);
+  const endgameTick = setInterval(() => {
+    void Promise.all([endgame.tick(),endgame.spawnCreaturesIfNeeded()]).catch((error)=>log("endgame_tick_failed",{message:error instanceof Error?error.message:String(error)}));
+  },5_000);
   const worldEventTick = setInterval(() => {
     void worldEvents.tick().then(async(changed)=>{
       if(changed===0) return;
@@ -277,6 +282,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   invasionTick.unref();
   auctionTick.unref();
   worldEventTick.unref();
+  endgameTick.unref();
   survivalTick.unref();
 
   const combatTick = setInterval(() => {
@@ -423,6 +429,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     clearInterval(invasionTick);
     clearInterval(auctionTick);
     clearInterval(worldEventTick);
+    clearInterval(endgameTick);
     shuttingDown = true;
     clearInterval(heartbeat);
     clearInterval(survivalTick);
@@ -1263,6 +1270,37 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             }catch(error){
               const code=errorCode(error,"ARMY_OPERATION_FAILED");
               const allowed=["BASE_NOT_FOUND","BARRACKS_REQUIRED","INVALID_ARMY_UNIT_TYPE","INVALID_TRAINING_QUANTITY","INSUFFICIENT_BASE_RESOURCES","ARMY_NOT_FOUND","CREATURE_NOT_FOUND","CREATURE_NOT_TAMED","CREATURE_IN_PARTY","CREATURE_ALREADY_GARRISONED","INVALID_ARMY_ASSIGNMENT","INVALID_ARMY_FORMATION","GUILD_PERMISSION_DENIED","GUILD_MEMBER_NOT_FOUND","COMMANDER_NOT_NOMINATED","COMMANDER_PERMISSION_DENIED","INVALID_COMMANDER_ORDER","ARMY_UNIT_NOT_FOUND","INVALID_COMMAND_TARGET","DEFENDER_ARMY_NOT_FOUND","INVALID_BATTLE_ARMIES","BATTLE_NOT_FOUND","BATTLE_NOT_ACTIVE","BATTLE_UNIT_NOT_FOUND","INVALID_FORMATION_SLOT","INVALID_DEFENSIVE_STRUCTURE","INVALID_DEFENSE_POSITION","DEFENSE_POSITION_OCCUPIED","BATTLE_UNIT_NOT_DEPLOYED","ARMY_UNIT_TARGET_REQUIRED","INVALID_BATTLE_TARGET","DEFENDER_GARRISON_NOT_FOUND","NO_AVAILABLE_TRAP","CANNON_UNIT_REQUIRED","DEFENSE_STRUCTURE_REQUIRED","DEFENSE_STRUCTURE_NOT_FOUND","PLAYER_NOT_FOUND","INSUFFICIENT_STORAGE"];
+              return {type:"error",code:(allowed.includes(code)?code:"INVALID_MESSAGE") as Extract<ServerMessage,{type:"error"}>["code"]};
+            }
+          });
+          send(socket,response);return;
+        }
+
+        if (message.type === "list_realm_wars" || message.type === "create_realm_war" || message.type === "join_realm_war" || message.type === "realm_war_action" || message.type === "list_guild_battles" || message.type === "create_guild_battle" || message.type === "join_guild_battle" || message.type === "guild_battle_action" || message.type === "list_endgame_creatures" || message.type === "engage_endgame_creature" || message.type === "list_mythic_content") {
+          if(!userId){send(socket,{type:"error",code:"AUTH_REQUIRED"});return;}
+          const authenticatedUserId=userId;await players.loadOrCreate(authenticatedUserId);
+          const response=await runBaseRequest(authenticatedUserId,message.requestId,message.type+"|"+JSON.stringify(message),async()=>{
+            try{
+              if(message.type==="list_realm_wars")return {type:"realm_war_list",requestId:message.requestId,wars:await endgame.realmWars()};
+              if(message.type==="create_realm_war")return {type:"realm_war_state",requestId:message.requestId,war:await endgame.createRealmWar(authenticatedUserId,message.attackerRealmId,message.defenderRealmId,message.targetTerritoryId)};
+              if(message.type==="join_realm_war"){await endgame.joinRealmWar(authenticatedUserId,message.warId,message.guildId,message.realmId);return {type:"realm_war_state",requestId:message.requestId,war:(await endgame.realmWars()).find(w=>w.id===message.warId)!};}
+              if(message.type==="realm_war_action")return {type:"realm_war_state",requestId:message.requestId,war:await endgame.realmWarAction(authenticatedUserId,message.warId,message.guildId,message.armyId)};
+              if(message.type==="list_guild_battles")return {type:"guild_battle_list",requestId:message.requestId,battles:await endgame.guildBattles()};
+              if(message.type==="create_guild_battle")return {type:"guild_battle_state",requestId:message.requestId,battle:await endgame.createGuildBattle(authenticatedUserId,message.attackerGuildId,message.defenderGuildId,message.targetTerritoryId)};
+              if(message.type==="join_guild_battle"){await endgame.joinGuildBattle(authenticatedUserId,message.battleId,message.armyId);return {type:"guild_battle_state",requestId:message.requestId,battle:(await endgame.guildBattles()).find(b=>b.id===message.battleId)!};}
+              if(message.type==="guild_battle_action")return {type:"guild_battle_state",requestId:message.requestId,battle:await endgame.guildBattleAction(authenticatedUserId,message.battleId,message.armyId)};
+              if(message.type==="list_endgame_creatures")return {type:"endgame_creature_list",requestId:message.requestId,creatures:await endgame.creatures()};
+              if(message.type==="engage_endgame_creature"){
+                const player=players.get(authenticatedUserId);if(!player)throw new Error("PLAYER_NOT_FOUND");
+                const creature=await endgame.engageCreature(authenticatedUserId,message.creatureId,player.level);
+                await players.reloadEconomy(authenticatedUserId);
+                const state=players.get(authenticatedUserId);if(state)for(const playerSocket of userSockets.get(authenticatedUserId)??[])send(playerSocket,{type:"player_state",state:serializePlayerState(state)});
+                return {type:"endgame_creature_state",requestId:message.requestId,creature};
+              }
+              return {type:"mythic_content_list",requestId:message.requestId,content:await endgame.mythic()};
+            }catch(error){
+              const code=errorCode(error,"ENDGAME_OPERATION_FAILED");
+              const allowed=["ENDGAME_LEVEL_REQUIRED","ENDGAME_INVALID_SCORE","ENDGAME_INVALID_CREATURE","ENDGAME_INVALID_REALM_SIDES","ENDGAME_INVALID_GUILD_SIDES","ENDGAME_TARGET_NOT_DEFENDER_TERRITORY","ENDGAME_WAR_ALREADY_ACTIVE","ENDGAME_WAR_NOT_FOUND","ENDGAME_WAR_NOT_ACTIVE","ENDGAME_ALREADY_PARTICIPATING","ENDGAME_INVALID_REALM_SIDE","ENDGAME_NO_ARMY_POWER","ENDGAME_GUILD_NOT_PARTICIPANT","ENDGAME_GUILD_BATTLE_ALREADY_ACTIVE","ENDGAME_GUILD_BATTLE_NOT_FOUND","ENDGAME_GUILD_BATTLE_NOT_ACTIVE","ENDGAME_ARMY_NOT_DEPLOYED","ENDGAME_CREATURE_NOT_FOUND","ENDGAME_CREATURE_DEFEATED","GUILD_PERMISSION_DENIED","GUILD_MEMBERSHIP_REQUIRED","ARMY_NOT_FOUND","ARMY_NOT_OWNED","PLAYER_NOT_FOUND","TERRITORY_NOT_FOUND"];
               return {type:"error",code:(allowed.includes(code)?code:"INVALID_MESSAGE") as Extract<ServerMessage,{type:"error"}>["code"]};
             }
           });
