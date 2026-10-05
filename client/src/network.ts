@@ -33,6 +33,9 @@ export interface CreatureState {
 
 export type EconomySnapshot = { userId: string; gold: string; inventory: Record<string, number> };
 
+export type WorldEventType="world_boss"|"treasure_storm"|"ghost_fleet"|"kraken"|"dragon_migration";
+export interface WorldEventSummary { id:string; eventType:WorldEventType; status:"active"|"completed"|"expired"; regionId:number|null; centerX:number; centerY:number; maxHealth:string|null; currentHealth:string|null; state:Record<string,unknown>; startedAt:string; endsAt:string; }
+
 export type InvasionPhase="WARNING"|"MUSTER"|"ARRIVAL"|"ASSAULT"|"BATTLE"|"RESOLUTION"|"REWARD"|"COOLDOWN"|"COMPLETE";
 export type InvasionRole="tank"|"damage"|"support"|"scout"|"commander"|"logistics";
 export interface InvasionSummary {
@@ -65,6 +68,9 @@ export type ServerMessage =
   | { type: "invasion_waves"; requestId: string; invasionId: string; waves: InvasionWave[] }
   | { type: "invasion_state"; requestId: string; invasion: InvasionSummary }
   | { type: "invasion_operation_ok"; requestId: string; invasionId: string }
+  | { type:"world_event_list"; requestId:string; events:WorldEventSummary[] }
+  | { type:"world_event_state"; requestId:string; event:WorldEventSummary }
+  | { type:"world_event_reward"; requestId:string; eventId:string; gold:string; items:Record<string,number> }
   | { type: "friends_list"; requestId: string; friends: Record<string, unknown>[] }
   | { type: "blocks_list"; requestId: string; blockedUserIds: string[] }
   | { type: "social_operation_ok"; requestId: string }
@@ -134,6 +140,19 @@ function isInvasionWave(value: unknown): value is InvasionWave {
     (value.target_user_id === null || typeof value.target_user_id === "string");
 }
 
+function isWorldEvent(value: unknown): value is WorldEventSummary {
+  if(!isRecord(value)) return false;
+  const types=["world_boss","treasure_storm","ghost_fleet","kraken","dragon_migration"];
+  const statuses=["active","completed","expired"];
+  return typeof value.id==="string" && types.includes(value.eventType as string) && statuses.includes(value.status as string) &&
+    (value.regionId===null || (typeof value.regionId==="number" && Number.isSafeInteger(value.regionId))) &&
+    typeof value.centerX==="number" && Number.isSafeInteger(value.centerX) &&
+    typeof value.centerY==="number" && Number.isSafeInteger(value.centerY) &&
+    (value.maxHealth===null || typeof value.maxHealth==="string") &&
+    (value.currentHealth===null || typeof value.currentHealth==="string") &&
+    isRecord(value.state) && typeof value.startedAt==="string" && typeof value.endsAt==="string";
+}
+
 function isArmySummary(value: unknown): value is ArmySummary {
   return isRecord(value) &&
     typeof value.id === "string" &&
@@ -185,6 +204,13 @@ export function parseServerMessage(value: unknown): ServerMessage | null {
     case "army_list":
       return typeof value.requestId === "string" && Array.isArray(value.armies) && value.armies.every(isArmySummary)
         ? { type:"army_list", requestId:value.requestId, armies:value.armies } : null;
+    case "world_event_list":
+      return typeof value.requestId==="string" && Array.isArray(value.events) && value.events.every(isWorldEvent) ? {type:"world_event_list",requestId:value.requestId,events:value.events}:null;
+    case "world_event_state":
+      return typeof value.requestId==="string" && isWorldEvent(value.event) ? {type:"world_event_state",requestId:value.requestId,event:value.event}:null;
+    case "world_event_reward":
+      return typeof value.requestId==="string" && typeof value.eventId==="string" && typeof value.gold==="string" && isRecord(value.items) && Object.values(value.items).every((n)=>typeof n==="number" && Number.isSafeInteger(n) && n>0)
+        ? {type:"world_event_reward",requestId:value.requestId,eventId:value.eventId,gold:value.gold,items:value.items as Record<string,number>}:null;
     case "invasion_list":
       return typeof value.requestId === "string" && Array.isArray(value.invasions) && value.invasions.every(isInvasionSummary)
         ? { type:"invasion_list", requestId:value.requestId, invasions:value.invasions } : null;
