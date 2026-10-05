@@ -333,7 +333,9 @@ export function parseClientMessage(raw:string):ClientMessage|null{
     const id=(value as {requestId?:unknown}).requestId,eventId=(value as {eventId?:unknown}).eventId;
     if(typeof id!=="string") return null;
     if(type!=="list_world_events" && (typeof eventId!=="string" || eventId.length<1 || eventId.length>64)) return null;
-    return type==="list_world_events"?{type,requestId:id}:{type,requestId:id,eventId:eventId as string};
+    if(type==="list_world_events") return {type:"list_world_events",requestId:id};
+    if(type==="world_event_contribute") return {type:"world_event_contribute",requestId:id,eventId:eventId as string};
+    return {type:"world_event_reward",requestId:id,eventId:eventId as string};
   }
   if(type==="auction_list"){
       const id=(value as {requestId?:unknown}).requestId,item=(value as {itemId?:unknown}).itemId;
