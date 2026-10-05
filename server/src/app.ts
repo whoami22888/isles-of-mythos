@@ -33,6 +33,7 @@ import { SocialStore } from "./social.js";
 import { AuctionStore } from "./auction.js";
 import { WorldEventCoordinator } from "./world-events.js";
 import { EndgameStore } from "./endgame.js";
+import { TerritorySeasonStore } from "./territory-seasons.js";
 
 function errorCode(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
@@ -83,6 +84,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const auctions = new AuctionStore(db);
   const worldEvents = new WorldEventCoordinator(db, (userId) => players.get(userId)?.level);
   const endgame = new EndgameStore(db);
+  const territorySeasons = new TerritorySeasonStore(db);
   const sockets = new Set<WebSocket>();
   const playerConnections = new Map<string, number>();
   const userSockets = new Map<string, Set<WebSocket>>();
@@ -271,6 +273,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const endgameTick = setInterval(() => {
     void Promise.all([endgame.tick(),endgame.spawnCreaturesIfNeeded()]).catch((error)=>log("endgame_tick_failed",{message:error instanceof Error?error.message:String(error)}));
   },5_000);
+  const territorySeasonTick = setInterval(() => { void territorySeasons.tick().catch((error)=>log("territory_season_tick_failed",{message:error instanceof Error?error.message:String(error)})); },60_000);
   const worldEventTick = setInterval(() => {
     void worldEvents.tick().then(async(changed)=>{
       if(changed===0) return;
@@ -283,6 +286,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   auctionTick.unref();
   worldEventTick.unref();
   endgameTick.unref();
+  territorySeasonTick.unref();
   survivalTick.unref();
 
   const combatTick = setInterval(() => {
@@ -430,6 +434,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     clearInterval(auctionTick);
     clearInterval(worldEventTick);
     clearInterval(endgameTick);
+    clearInterval(territorySeasonTick);
     shuttingDown = true;
     clearInterval(heartbeat);
     clearInterval(survivalTick);
@@ -1273,6 +1278,12 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
               return {type:"error",code:(allowed.includes(code)?code:"INVALID_MESSAGE") as Extract<ServerMessage,{type:"error"}>["code"]};
             }
           });
+          send(socket,response);return;
+        }
+
+        if (message.type === "list_territory_season") {
+          if(!userId){send(socket,{type:"error",code:"AUTH_REQUIRED"});return;}
+          const response=await runBaseRequest(userId,message.requestId,message.type,async()=>({type:"territory_season_state",requestId:message.requestId,season:await territorySeasons.active(),standings:await territorySeasons.standings()}));
           send(socket,response);return;
         }
 
