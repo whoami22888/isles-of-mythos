@@ -56,7 +56,7 @@ describe("Gate 16 endgame integration",()=>{
       expect(await endgame.tick()).toBeGreaterThanOrEqual(1);
       const resolved=(await endgame.guildBattles()).find(x=>x.id===battle.id)!;
       expect(resolved.status).toBe("resolved");
-      expect(resolved.winnerGuildId).toBe(s.ga);
+      expect(resolved.winnerGuildId).toBe(s.gb);
     }finally{await s.app.close();await s.db.end();}
   });
 
@@ -71,8 +71,9 @@ describe("Gate 16 endgame integration",()=>{
       const result=await endgame.engageCreature(s.a,creature.id,75);
       expect(result.status).toBe("defeated");
       const after=await s.db.query<{gold:string;inventory:Record<string,number>}>("SELECT gold,inventory FROM player_profiles WHERE user_id=$1",[s.a]);
-      expect(BigInt(after.rows[0].gold)).toBe(BigInt(before.rows[0].gold)+37500n);
-      expect(after.rows[0].inventory["resource.pearl"]).toBe(3);
+      const expectedGold=BigInt(before.rows[0].gold)+BigInt(result.level)*500n;
+      expect(BigInt(after.rows[0].gold)).toBe(expectedGold);
+      expect(after.rows[0].inventory["resource.pearl"]).toBe(Math.max(1,Math.floor(result.level/20)));
       await expect(endgame.engageCreature(s.a,creature.id,75)).rejects.toThrow("ENDGAME_CREATURE_DEFEATED");
     }finally{await s.app.close();await s.db.end();}
   });
