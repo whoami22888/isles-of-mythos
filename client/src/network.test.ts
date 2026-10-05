@@ -47,3 +47,13 @@ describe("Gate 14 client social protocol",()=>{
     expect(parseServerMessage({type:"auction_list",requestId:"a1",listings:[]})).toMatchObject({type:"auction_list"});
   });
 });
+
+
+describe("Gate 15 client world event protocol",()=>{
+  it("parses global event state and rejects malformed health values",()=>{
+    const event={id:"event-1",eventType:"kraken",status:"active",regionId:null,centerX:10,centerY:-4,maxHealth:"10000000",currentHealth:"9999990",state:{phase:1},startedAt:"2026-10-05T00:00:00.000Z",endsAt:"2026-10-05T00:15:00.000Z"};
+    expect(parseServerMessage({type:"world_event_state",requestId:"e1",event})).toMatchObject({type:"world_event_state",event:{eventType:"kraken"}});
+    expect(parseServerMessage({type:"world_event_list",requestId:"e2",events:[event]})).toMatchObject({type:"world_event_list",requestId:"e2"});
+    expect(parseServerMessage({...event,maxHealth:100,currentHealth:50,type:"world_event_state",requestId:"e3"})).toBeNull();
+  });
+});
