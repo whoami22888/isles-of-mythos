@@ -7,7 +7,6 @@ export const MYTHIC_TIERS = ["mythic","ancient","celestial"] as const;
 export type MythicTier = typeof MYTHIC_TIERS[number];
 
 function ensureLevel(level:number,minimum:number){if(!Number.isSafeInteger(level)||level<minimum)throw new Error("ENDGAME_LEVEL_REQUIRED");}
-function bigintScore(v:string|number|bigint){const n=BigInt(v);if(n<0n)throw new Error("ENDGAME_INVALID_SCORE");return n;}
 function sideOf(row:{attacker_realm_id:string;defender_realm_id:string},realmId:string):"attacker"|"defender"|null{return row.attacker_realm_id===realmId?"attacker":row.defender_realm_id===realmId?"defender":null;}
 
 export interface RealmWarSummary {id:string;attackerRealmId:string;defenderRealmId:string;targetTerritoryId:string;status:string;phase:EndgamePhase;attackerScore:string;defenderScore:string;winnerRealmId:string|null;endsAt:string;}
