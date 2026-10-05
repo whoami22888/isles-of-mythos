@@ -1,4 +1,4 @@
-import type { Pool, PoolClient } from "pg";
+import type { Pool } from "pg";
 
 export const SEASON_INTERVAL_SECONDS=60;
 interface SeasonRow{id:string;season_number:number;name:string;status:"active"|"resolved";starts_at:Date;ends_at:Date;resolved_at:Date|null;winner_type:"realm"|"guild"|null;winner_id:string|null;}
