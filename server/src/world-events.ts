@@ -97,7 +97,9 @@ export class WorldEventCoordinator {
       await client.query("INSERT INTO world_event_contributions(event_id,user_id,contribution,actions) VALUES($1,$2,$3,1) ON CONFLICT(event_id,user_id) DO UPDATE SET contribution=world_event_contributions.contribution+EXCLUDED.contribution,actions=world_event_contributions.actions+1,last_contributed_at=CURRENT_TIMESTAMP",[eventId,userId,contribution]);
       if(row.max_health!==null && row.current_health!==null){
         const rawNext=BigInt(row.current_health)-BigInt(contribution); const next=rawNext>0n?rawNext:0n;
-        await client.query("UPDATE world_events SET current_health=$2,state=jsonb_set(state,'{phase}',to_jsonb(GREATEST(1,LEAST(5,1+FLOOR((1.0-($2::numeric/$3::numeric))*5)))),true),updated_at=CURRENT_TIMESTAMP WHERE id=$1",[eventId,next.toString(),row.max_health]);
+        const ratio=Number(next)/Number(row.max_health); const phase=Math.max(1,Math.min(5,1+Math.floor((1-ratio)*5)));
+        const mechanics={...row.state,phase,enraged:phase>=5,areaAttackPhase:phase>=2,summonWave:Math.min(4,Math.floor((1-ratio)*4)),environmentalEffect:phase>=2};
+        await client.query("UPDATE world_events SET current_health=$2,state=$3::jsonb,updated_at=CURRENT_TIMESTAMP WHERE id=$1",[eventId,next.toString(),JSON.stringify(mechanics)]);
         if(next===0n) await this.completeLocked(client,eventId);
       }
       const updated=await client.query<EventRow>("SELECT id,event_type,status,region_id,center_x,center_y,max_health,current_health,state,started_at,ends_at FROM world_events WHERE id=$1",[eventId]);
