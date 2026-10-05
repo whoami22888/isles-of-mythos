@@ -1,6 +1,7 @@
 import type { InvasionRole } from "./invasion.js";
 import type { WorldEventSummary } from "./world-events.js";
 import type { GuildBattleSummary, RealmWarSummary, EndgameCreatureSummary, MythicContentSummary } from "./endgame.js";
+import type { TerritorySeasonStanding, TerritorySeasonSummary } from "./territory-seasons.js";
 import type { PublicPlayerState } from "./player.js";
 import type { AuctionCategory, AuctionRarity, AuctionSummary } from "./auction.js";
 import type { ChatMessage, FriendRecord, PartyInvitation, PartyState } from "./social.js";
@@ -127,7 +128,8 @@ export type ClientMessage =
   | { type:"guild_battle_action"; requestId:string; battleId:string; armyId:string }
   | { type:"list_endgame_creatures"; requestId:string }
   | { type:"engage_endgame_creature"; requestId:string; creatureId:string }
-  | { type:"list_mythic_content"; requestId:string };
+  | { type:"list_mythic_content"; requestId:string }
+  | { type:"list_territory_season"; requestId:string };
 
 
 export type ServerMessage =
@@ -200,6 +202,7 @@ export type ServerMessage =
   | { type:"endgame_creature_list"; requestId:string; creatures:EndgameCreatureSummary[] }
   | { type:"endgame_creature_state"; requestId:string; creature:EndgameCreatureSummary }
   | { type:"mythic_content_list"; requestId:string; content:MythicContentSummary[] }
+  | { type:"territory_season_state"; requestId:string; season:TerritorySeasonSummary|null; standings:TerritorySeasonStanding[] }
   | { type:"error"; code:
       | "INVALID_MESSAGE"|"UNSUPPORTED_MESSAGE"|"AUTH_REQUIRED"|"INVALID_TOKEN"|"COMBAT_COOLDOWN"|"OUT_OF_RANGE"|"NO_STAMINA"|"NO_AMMO"|"COMBAT_IN_PROGRESS"|"PLAYER_DEAD"|"PLAYER_STUNNED"|"RATE_LIMITED"
       | "CREATURE_TOO_HEALTHY"|"NO_CAPTURE_ORB"|"CREATURE_ALREADY_CAPTURED"|"CREATURE_NOT_FOUND"|"NO_CREATURE_FEED"|"CREATURE_NOT_TAMED"|"INVALID_PARTY_SLOT"
@@ -267,6 +270,7 @@ export function parseClientMessage(raw:string):ClientMessage|null{
     }
     if(type==="start_breeding"){const id=(value as {requestId?:unknown}).requestId,baseId=(value as {baseId?:unknown}).baseId,penBuildingId=(value as {penBuildingId?:unknown}).penBuildingId,parentAId=(value as {parentAId?:unknown}).parentAId,parentBId=(value as {parentBId?:unknown}).parentBId,durationMs=(value as {durationMs?:unknown}).durationMs;if(!requestId(id)||![baseId,penBuildingId,parentAId,parentBId].every(v=>typeof v==="string"&&v.length>0&&v.length<=64)||(durationMs!==undefined&&(!isSafeInteger(durationMs)||durationMs<=0||durationMs>86400000)))return null;return {type:"start_breeding",requestId:id,baseId:baseId as string,penBuildingId:penBuildingId as string,parentAId:parentAId as string,parentBId:parentBId as string,...(durationMs===undefined?{}:{durationMs})};}
     if(type==="list_breeding"){const id=(value as {requestId?:unknown}).requestId;return requestId(id)?{type:"list_breeding",requestId:id}:null;}
+    if(type==="list_territory_season"){const id=(value as {requestId?:unknown}).requestId;return requestId(id)?{type,requestId:id}:null;}
     if(type==="list_realm_wars"||type==="list_guild_battles"||type==="list_endgame_creatures"||type==="list_mythic_content"){const id=(value as {requestId?:unknown}).requestId;return requestId(id)?{type,requestId:id}:null;}
     if(type==="create_realm_war"){const id=(value as {requestId?:unknown}).requestId,a=(value as {attackerRealmId?:unknown}).attackerRealmId,d=(value as {defenderRealmId?:unknown}).defenderRealmId,t=(value as {targetTerritoryId?:unknown}).targetTerritoryId;return requestId(id)&&typeof a==="string"&&a.length>0&&a.length<=64&&typeof d==="string"&&d.length>0&&d.length<=64&&typeof t==="string"&&t.length>0&&t.length<=64?{type,requestId:id,attackerRealmId:a,defenderRealmId:d,targetTerritoryId:t}:null;}
     if(type==="join_realm_war"){const id=(value as {requestId?:unknown}).requestId,w=(value as {warId?:unknown}).warId,g=(value as {guildId?:unknown}).guildId,r=(value as {realmId?:unknown}).realmId;return requestId(id)&&typeof w==="string"&&w.length>0&&w.length<=64&&typeof g==="string"&&g.length>0&&g.length<=64&&typeof r==="string"&&r.length>0&&r.length<=64?{type,requestId:id,warId:w,guildId:g,realmId:r}:null;}
