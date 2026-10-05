@@ -36,6 +36,13 @@ function eventState(type:WorldEventType):Record<string,unknown>{
   if(type==="ghost_fleet") return {fleet:"spectral_armada",encounters:0};
   return {treasureMapMultiplier:3};
 }
+function effectFor(type:WorldEventType):{key:string;value:Record<string,unknown>}{
+  if(type==="treasure_storm") return {key:"treasure_map_find_multiplier",value:{multiplier:3}};
+  if(type==="ghost_fleet") return {key:"ghost_fleet_active",value:{active:true}};
+  if(type==="kraken") return {key:"kraken_hazard_active",value:{active:true}};
+  if(type==="dragon_migration") return {key:"dragon_migration_spawn_multiplier",value:{multiplier:3}};
+  return {key:"world_boss_active",value:{active:true}};
+}
 function toSummary(row:EventRow):WorldEventSummary{
   return {id:row.id,eventType:row.event_type,status:row.status,regionId:row.region_id,centerX:row.center_x,centerY:row.center_y,
     maxHealth:row.max_health,currentHealth:row.current_health,state:row.state,startedAt:row.started_at.toISOString(),endsAt:row.ends_at.toISOString()};
@@ -59,12 +66,13 @@ export class WorldEventCoordinator {
 
   async spawn(type:WorldEventType, regionId:number|null, centerX:number, centerY:number):Promise<WorldEventSummary>{
     if(!EVENT_TYPES.includes(type)) throw new Error("INVALID_WORLD_EVENT_TYPE");
-    const duration=durationFor(type), health=bossHealth(type);
+    const duration=durationFor(type), health=bossHealth(type), effect=effectFor(type);
     const seed=BigInt(randomInt(1,2_000_000_000));
     const r=await this.db.query<EventRow>(
       "INSERT INTO world_events(event_type,region_id,center_x,center_y,max_health,current_health,state,seed,ends_at) VALUES($1,$2,$3,$4,$5,$5,$6::jsonb,$7,CURRENT_TIMESTAMP+($8::bigint*INTERVAL '1 millisecond')) RETURNING id,event_type,status,region_id,center_x,center_y,max_health,current_health,state,started_at,ends_at",
       [type,regionId,centerX,centerY,health?.toString()??null,JSON.stringify(eventState(type)),seed.toString(),duration]);
     if(!r.rows[0]) throw new Error("WORLD_EVENT_CREATE_FAILED");
+    await this.db.query("INSERT INTO world_event_effects(event_id,effect_key,effect_value,expires_at) VALUES($1,$2,$3::jsonb,CURRENT_TIMESTAMP+($4::bigint*INTERVAL '1 millisecond'))",[r.rows[0].id,effect.key,JSON.stringify(effect.value),duration]);
     return toSummary(r.rows[0]);
   }
 
@@ -72,10 +80,13 @@ export class WorldEventCoordinator {
     const client=await this.db.connect();
     try{
       await client.query("BEGIN");
+      await client.query("SELECT pg_advisory_xact_lock(15015)");
       const event=await client.query<EventRow>("SELECT id,event_type,status,region_id,center_x,center_y,max_health,current_health,state,started_at,ends_at FROM world_events WHERE id=$1 FOR UPDATE",[eventId]);
       const row=event.rows[0]; if(!row) throw new Error("WORLD_EVENT_NOT_FOUND");
       if(row.status!=="active" || row.ends_at.getTime()<=Date.now()) throw new Error("WORLD_EVENT_NOT_ACTIVE");
       const level=this.playerLevel(userId); if(level===undefined) throw new Error("PLAYER_NOT_LOADED");
+      const prior=await client.query<{last_contributed_at:Date}>("SELECT last_contributed_at FROM world_event_contributions WHERE event_id=$1 AND user_id=$2 FOR UPDATE",[eventId,userId]);
+      if(prior.rows[0] && Date.now()-prior.rows[0].last_contributed_at.getTime()<2_000) throw new Error("WORLD_EVENT_RATE_LIMITED");
       const contribution=Math.max(1,Math.min(1000,level*10));
       await client.query("INSERT INTO world_event_contributions(event_id,user_id,contribution,actions) VALUES($1,$2,$3,1) ON CONFLICT(event_id,user_id) DO UPDATE SET contribution=world_event_contributions.contribution+EXCLUDED.contribution,actions=world_event_contributions.actions+1,last_contributed_at=CURRENT_TIMESTAMP",[eventId,userId,contribution]);
       if(row.max_health!==null && row.current_health!==null){
@@ -119,6 +130,7 @@ export class WorldEventCoordinator {
         }
         changed++;
       }
+      await client.query("SELECT pg_advisory_xact_lock(15015)");
       const latest=await client.query<{created_at:Date}>("SELECT created_at FROM world_events ORDER BY created_at DESC LIMIT 1");
       const last=latest.rows[0]?.created_at?.getTime()??0;
       if(Date.now()-last>=SPAWN_INTERVAL_MS){
@@ -126,7 +138,9 @@ export class WorldEventCoordinator {
         const x=randomInt(-500,501),y=randomInt(-500,501);
         const duration=durationFor(type),health=bossHealth(type);
         const seed=BigInt(randomInt(1,2_000_000_000));
-        await client.query("INSERT INTO world_events(event_type,region_id,center_x,center_y,max_health,current_health,state,seed,ends_at) VALUES($1,$2,$3,$4,$5,$5,$6::jsonb,$7,CURRENT_TIMESTAMP+($8::bigint*INTERVAL '1 millisecond'))",[type,null,x,y,health?.toString()??null,JSON.stringify(eventState(type)),seed.toString(),duration]);
+        const effect=effectFor(type);
+        const inserted=await client.query<{id:string}>("INSERT INTO world_events(event_type,region_id,center_x,center_y,max_health,current_health,state,seed,ends_at) VALUES($1,$2,$3,$4,$5,$5,$6::jsonb,$7,CURRENT_TIMESTAMP+($8::bigint*INTERVAL '1 millisecond')) RETURNING id",[type,null,x,y,health?.toString()??null,JSON.stringify(eventState(type)),seed.toString(),duration]);
+        if(inserted.rows[0]) await client.query("INSERT INTO world_event_effects(event_id,effect_key,effect_value,expires_at) VALUES($1,$2,$3::jsonb,CURRENT_TIMESTAMP+($4::bigint*INTERVAL '1 millisecond'))",[inserted.rows[0].id,effect.key,JSON.stringify(effect.value),duration]);
         changed++;
       }
       await client.query("DELETE FROM world_event_effects WHERE expires_at<=CURRENT_TIMESTAMP");
