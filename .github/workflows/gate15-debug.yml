@@ -19,6 +19,7 @@ jobs:
           npm run typecheck -w server > server-typecheck.log 2>&1
           status=$?
           cat server-typecheck.log
+          cat server-typecheck.log >> "$GITHUB_STEP_SUMMARY"
           exit $status
       - name: Upload diagnostic
         if: ${{ always() }}
