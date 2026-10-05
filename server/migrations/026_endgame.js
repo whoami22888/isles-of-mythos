@@ -18,9 +18,9 @@ export async function up(pgm) {
     updated_at:{type:"timestamptz",notNull:true,default:pgm.func("CURRENT_TIMESTAMP")}
   });
   pgm.addConstraint("realm_wars","realm_wars_distinct_sides",{check:"attacker_realm_id <> defender_realm_id"});
-  pgm.addConstraint("realm_wars_status_check",{check:"status IN ('active','resolved','cancelled')"});
-  pgm.addConstraint("realm_wars_phase_check",{check:"phase IN ('mobilization','assault','resolution')"});
-  pgm.addConstraint("realm_wars_score_check",{check:"attacker_score >= 0 AND defender_score >= 0"});
+  pgm.addConstraint("realm_wars","realm_wars_status_check",{check:"status IN ('active','resolved','cancelled')"});
+  pgm.addConstraint("realm_wars","realm_wars_phase_check",{check:"phase IN ('mobilization','assault','resolution')"});
+  pgm.addConstraint("realm_wars","realm_wars_score_check",{check:"attacker_score >= 0 AND defender_score >= 0"});
   pgm.createIndex("realm_wars",["status","ends_at"]);
   pgm.createIndex("realm_wars",["target_territory_id","status"]);
 
