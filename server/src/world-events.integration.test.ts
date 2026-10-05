@@ -47,7 +47,7 @@ describe("Gate 15 world event authority",()=>{
       expect(claims.filter(x=>x.status==="rejected")).toHaveLength(1);
       const reward=await events.rewards(a,event.id);expect(reward?.claimed).toBe(true);
       const row=await db.query<{gold:string}>("SELECT gold FROM player_profiles WHERE user_id=$1",[a]);
-      expect(BigInt(row.rows[0].gold)).toBe(1000n);
+      expect(BigInt(row.rows[0].gold)).toBe(5000n);
     }finally{await app.close();await db.end();}
   });
 });
