@@ -61,7 +61,7 @@ export class EndgameStore {
       if(!territory.rows[0])throw new Error("TERRITORY_NOT_FOUND");
       if(territory.rows[0].realm_owner_id!==defenderRealmId)throw new Error("ENDGAME_TARGET_NOT_DEFENDER_TERRITORY");
       const active=await c.query("SELECT id FROM realm_wars WHERE target_territory_id=$1 AND status='active' FOR UPDATE",[targetTerritoryId]);if(active.rows[0])throw new Error("ENDGAME_WAR_ALREADY_ACTIVE");
-      const r=await c.query<{id:string;ends_at:Date}>("INSERT INTO realm_wars(attacker_realm_id,defender_realm_id,target_territory_id,ends_at,state) VALUES($1,$2,$3,CURRENT_TIMESTAMP+INTERVAL '30 minutes','{"phase":"mobilization"}') RETURNING id,ends_at",[attackerRealmId,defenderRealmId,targetTerritoryId]);
+      const r=await c.query<{id:string;ends_at:Date}>("INSERT INTO realm_wars(attacker_realm_id,defender_realm_id,target_territory_id,ends_at,state) VALUES($1,$2,$3,CURRENT_TIMESTAMP+INTERVAL '30 minutes',$4::jsonb) RETURNING id,ends_at",[attackerRealmId,defenderRealmId,targetTerritoryId,JSON.stringify({phase:"mobilization"})]);
       await c.query("INSERT INTO realm_war_participants(war_id,guild_id,realm_id) VALUES($1,$2,$3)",[r.rows[0].id,guild.rows[0].guild_id,attackerRealmId]);
       await c.query("COMMIT");return (await this.realmWars()).find(x=>x.id===r.rows[0].id)!;
     }catch(e){await c.query("ROLLBACK");throw e}finally{c.release();}
@@ -101,7 +101,7 @@ export class EndgameStore {
       await guildMembership(c,userId,attackerGuildId,true);
       if(!(await c.query("SELECT id FROM territories WHERE id=$1 FOR UPDATE",[targetTerritoryId])).rows[0])throw new Error("TERRITORY_NOT_FOUND");
       const active=await c.query("SELECT id FROM guild_battles WHERE target_territory_id=$1 AND status='active' FOR UPDATE",[targetTerritoryId]);if(active.rows[0])throw new Error("ENDGAME_GUILD_BATTLE_ALREADY_ACTIVE");
-      const r=await c.query<{id:string;ends_at:Date}>("INSERT INTO guild_battles(attacker_guild_id,defender_guild_id,target_territory_id,ends_at,state) VALUES($1,$2,$3,CURRENT_TIMESTAMP+INTERVAL '20 minutes','{"phase":"deployment"}') RETURNING id,ends_at",[attackerGuildId,defenderGuildId,targetTerritoryId]);
+      const r=await c.query<{id:string;ends_at:Date}>("INSERT INTO guild_battles(attacker_guild_id,defender_guild_id,target_territory_id,ends_at,state) VALUES($1,$2,$3,CURRENT_TIMESTAMP+INTERVAL '20 minutes',$4::jsonb) RETURNING id,ends_at",[attackerGuildId,defenderGuildId,targetTerritoryId,JSON.stringify({phase:"deployment"})]);
       await c.query("COMMIT");return (await this.guildBattles()).find(x=>x.id===r.rows[0].id)!;
     }catch(e){await c.query("ROLLBACK");throw e}finally{c.release();}
   }
