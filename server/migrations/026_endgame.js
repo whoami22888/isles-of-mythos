@@ -54,9 +54,9 @@ export async function up(pgm) {
     updated_at:{type:"timestamptz",notNull:true,default:pgm.func("CURRENT_TIMESTAMP")}
   });
   pgm.addConstraint("guild_battles","guild_battles_distinct_sides",{check:"attacker_guild_id <> defender_guild_id"});
-  pgm.addConstraint("guild_battles_status_check",{check:"status IN ('active','resolved','cancelled')"});
-  pgm.addConstraint("guild_battles_phase_check",{check:"phase IN ('deployment','engagement','resolution')"});
-  pgm.addConstraint("guild_battles_score_check",{check:"attacker_score >= 0 AND defender_score >= 0"});
+  pgm.addConstraint("guild_battles","guild_battles_status_check",{check:"status IN ('active','resolved','cancelled')"});
+  pgm.addConstraint("guild_battles","guild_battles_phase_check",{check:"phase IN ('deployment','engagement','resolution')"});
+  pgm.addConstraint("guild_battles","guild_battles_score_check",{check:"attacker_score >= 0 AND defender_score >= 0"});
   pgm.createIndex("guild_battles",["status","ends_at"]);
 
   pgm.createTable("guild_battle_armies", {
