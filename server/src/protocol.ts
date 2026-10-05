@@ -1,5 +1,6 @@
 import type { InvasionRole } from "./invasion.js";
 import type { WorldEventSummary } from "./world-events.js";
+import type { GuildBattleSummary, RealmWarSummary, EndgameCreatureSummary, MythicContentSummary } from "./endgame.js";
 import type { PublicPlayerState } from "./player.js";
 import type { AuctionCategory, AuctionRarity, AuctionSummary } from "./auction.js";
 import type { ChatMessage, FriendRecord, PartyInvitation, PartyState } from "./social.js";
@@ -115,7 +116,18 @@ export type ClientMessage =
   | { type:"auction_history"; requestId:string }
   | { type:"list_world_events"; requestId:string }
   | { type:"world_event_contribute"; requestId:string; eventId:string }
-  | { type:"world_event_reward"; requestId:string; eventId:string };
+  | { type:"world_event_reward"; requestId:string; eventId:string }
+  | { type:"list_realm_wars"; requestId:string }
+  | { type:"create_realm_war"; requestId:string; attackerRealmId:string; defenderRealmId:string; targetTerritoryId:string }
+  | { type:"join_realm_war"; requestId:string; warId:string; guildId:string; realmId:string }
+  | { type:"realm_war_action"; requestId:string; warId:string; guildId:string; armyId:string }
+  | { type:"list_guild_battles"; requestId:string }
+  | { type:"create_guild_battle"; requestId:string; attackerGuildId:string; defenderGuildId:string; targetTerritoryId:string }
+  | { type:"join_guild_battle"; requestId:string; battleId:string; armyId:string }
+  | { type:"guild_battle_action"; requestId:string; battleId:string; armyId:string }
+  | { type:"list_endgame_creatures"; requestId:string }
+  | { type:"engage_endgame_creature"; requestId:string; creatureId:string }
+  | { type:"list_mythic_content"; requestId:string };
 
 
 export type ServerMessage =
@@ -181,6 +193,13 @@ export type ServerMessage =
   | { type:"world_event_list"; requestId:string; events:WorldEventSummary[] }
   | { type:"world_event_state"; requestId:string; event:WorldEventSummary }
   | { type:"world_event_reward"; requestId:string; eventId:string; gold:string; items:Record<string,number> }
+  | { type:"realm_war_list"; requestId:string; wars:RealmWarSummary[] }
+  | { type:"realm_war_state"; requestId:string; war:RealmWarSummary }
+  | { type:"guild_battle_list"; requestId:string; battles:GuildBattleSummary[] }
+  | { type:"guild_battle_state"; requestId:string; battle:GuildBattleSummary }
+  | { type:"endgame_creature_list"; requestId:string; creatures:EndgameCreatureSummary[] }
+  | { type:"endgame_creature_state"; requestId:string; creature:EndgameCreatureSummary }
+  | { type:"mythic_content_list"; requestId:string; content:MythicContentSummary[] }
   | { type:"error"; code:
       | "INVALID_MESSAGE"|"UNSUPPORTED_MESSAGE"|"AUTH_REQUIRED"|"INVALID_TOKEN"|"COMBAT_COOLDOWN"|"OUT_OF_RANGE"|"NO_STAMINA"|"NO_AMMO"|"COMBAT_IN_PROGRESS"|"PLAYER_DEAD"|"PLAYER_STUNNED"|"RATE_LIMITED"
       | "CREATURE_TOO_HEALTHY"|"NO_CAPTURE_ORB"|"CREATURE_ALREADY_CAPTURED"|"CREATURE_NOT_FOUND"|"NO_CREATURE_FEED"|"CREATURE_NOT_TAMED"|"INVALID_PARTY_SLOT"
@@ -248,6 +267,13 @@ export function parseClientMessage(raw:string):ClientMessage|null{
     }
     if(type==="start_breeding"){const id=(value as {requestId?:unknown}).requestId,baseId=(value as {baseId?:unknown}).baseId,penBuildingId=(value as {penBuildingId?:unknown}).penBuildingId,parentAId=(value as {parentAId?:unknown}).parentAId,parentBId=(value as {parentBId?:unknown}).parentBId,durationMs=(value as {durationMs?:unknown}).durationMs;if(!requestId(id)||![baseId,penBuildingId,parentAId,parentBId].every(v=>typeof v==="string"&&v.length>0&&v.length<=64)||(durationMs!==undefined&&(!isSafeInteger(durationMs)||durationMs<=0||durationMs>86400000)))return null;return {type:"start_breeding",requestId:id,baseId:baseId as string,penBuildingId:penBuildingId as string,parentAId:parentAId as string,parentBId:parentBId as string,...(durationMs===undefined?{}:{durationMs})};}
     if(type==="list_breeding"){const id=(value as {requestId?:unknown}).requestId;return requestId(id)?{type:"list_breeding",requestId:id}:null;}
+    if(type==="list_realm_wars"||type==="list_guild_battles"||type==="list_endgame_creatures"||type==="list_mythic_content"){const id=(value as {requestId?:unknown}).requestId;return requestId(id)?{type,requestId:id}:null;}
+    if(type==="create_realm_war"){const id=(value as {requestId?:unknown}).requestId,a=(value as {attackerRealmId?:unknown}).attackerRealmId,d=(value as {defenderRealmId?:unknown}).defenderRealmId,t=(value as {targetTerritoryId?:unknown}).targetTerritoryId;return requestId(id)&&typeof a==="string"&&typeof d==="string"&&typeof t==="string"?{type,requestId:id,attackerRealmId:a,defenderRealmId:d,targetTerritoryId:t}:null;}
+    if(type==="join_realm_war"){const id=(value as {requestId?:unknown}).requestId,w=(value as {warId?:unknown}).warId,g=(value as {guildId?:unknown}).guildId,r=(value as {realmId?:unknown}).realmId;return requestId(id)&&typeof w==="string"&&typeof g==="string"&&typeof r==="string"?{type,requestId:id,warId:w,guildId:g,realmId:r}:null;}
+    if(type==="realm_war_action"){const id=(value as {requestId?:unknown}).requestId,w=(value as {warId?:unknown}).warId,g=(value as {guildId?:unknown}).guildId,a=(value as {armyId?:unknown}).armyId;return requestId(id)&&typeof w==="string"&&typeof g==="string"&&typeof a==="string"?{type,requestId:id,warId:w,guildId:g,armyId:a}:null;}
+    if(type==="create_guild_battle"){const id=(value as {requestId?:unknown}).requestId,a=(value as {attackerGuildId?:unknown}).attackerGuildId,d=(value as {defenderGuildId?:unknown}).defenderGuildId,t=(value as {targetTerritoryId?:unknown}).targetTerritoryId;return requestId(id)&&typeof a==="string"&&typeof d==="string"&&typeof t==="string"?{type,requestId:id,attackerGuildId:a,defenderGuildId:d,targetTerritoryId:t}:null;}
+    if(type==="join_guild_battle"||type==="guild_battle_action"){const id=(value as {requestId?:unknown}).requestId,b=(value as {battleId?:unknown}).battleId,a=(value as {armyId?:unknown}).armyId;return requestId(id)&&typeof b==="string"&&typeof a==="string"?{type,requestId:id,battleId:b,armyId:a}:null;}
+    if(type==="engage_endgame_creature"){const id=(value as {requestId?:unknown}).requestId,c=(value as {creatureId?:unknown}).creatureId;return requestId(id)&&typeof c==="string"?{type,requestId:id,creatureId:c}:null;}
     if(type==="list_realms"||type==="list_territories"||type==="list_realm_fortresses"||type==="my_realm_reputation"||type==="list_trade_routes"||type==="tick_realm_ai"){const id=(value as {requestId?:unknown}).requestId;return requestId(id)?{type,requestId:id}:null;}
     if(type==="territory_at"){const id=(value as {requestId?:unknown}).requestId,x=(value as {x?:unknown}).x,y=(value as {y?:unknown}).y;return requestId(id)&&isSafeInteger(x)&&isSafeInteger(y)?{type:"territory_at",requestId:id,x,y}:null;}
     if(type==="claim_guild_territory"){const id=(value as {requestId?:unknown}).requestId,t=(value as {territoryId?:unknown}).territoryId,g=(value as {guildId?:unknown}).guildId;return requestId(id)&&typeof t==="string"&&typeof g==="string"?{type:"claim_guild_territory",requestId:id,territoryId:t,guildId:g}:null;}
