@@ -116,6 +116,7 @@ export class WorldEventCoordinator {
       await client.query("INSERT INTO world_event_rewards(event_id,user_id,reward) VALUES($1,$2,$3::jsonb) ON CONFLICT(event_id,user_id) DO NOTHING",[eventId,c.user_id,JSON.stringify({gold:reward.gold.toString(),items:reward.items})]);
     }
     await client.query("UPDATE world_events SET status='completed',completed_at=CURRENT_TIMESTAMP,current_health=0,updated_at=CURRENT_TIMESTAMP WHERE id=$1",[eventId]);
+    await client.query("DELETE FROM world_event_effects WHERE event_id=$1",[eventId]);
   }
 
   async tick():Promise<number>{
@@ -133,6 +134,7 @@ export class WorldEventCoordinator {
             await client.query("INSERT INTO world_event_rewards(event_id,user_id,reward) VALUES($1,$2,$3::jsonb) ON CONFLICT(event_id,user_id) DO NOTHING",[row.id,contributors.rows[i].user_id,JSON.stringify({gold:reward.gold.toString(),items:reward.items})]);
           }
           await client.query("UPDATE world_events SET status='expired',completed_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=$1",[row.id]);
+          await client.query("DELETE FROM world_event_effects WHERE event_id=$1",[row.id]);
         }
         changed++;
       }
