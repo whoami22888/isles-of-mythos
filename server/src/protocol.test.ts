@@ -100,3 +100,16 @@ describe("combat protocol", () => {
     expect(parseClientMessage(JSON.stringify({type:"storage",requestId:"s1",changes:{}}))).toBeNull();
   });
 });
+
+
+describe("Gate 15 world event protocol",()=>{
+  it("accepts world event queries and participation",()=>{
+    expect(parseClientMessage(JSON.stringify({type:"list_world_events",requestId:"e1"}))).toEqual({type:"list_world_events",requestId:"e1"});
+    expect(parseClientMessage(JSON.stringify({type:"world_event_contribute",requestId:"e2",eventId:"event-1"}))).toEqual({type:"world_event_contribute",requestId:"e2",eventId:"event-1"});
+    expect(parseClientMessage(JSON.stringify({type:"world_event_reward",requestId:"e3",eventId:"event-1"}))).toEqual({type:"world_event_reward",requestId:"e3",eventId:"event-1"});
+  });
+  it("rejects malformed world event identifiers",()=>{
+    expect(parseClientMessage(JSON.stringify({type:"world_event_contribute",requestId:"e2",eventId:""}))).toBeNull();
+    expect(parseClientMessage(JSON.stringify({type:"world_event_reward",requestId:"e3",eventId:"x".repeat(65)}))).toBeNull();
+  });
+});
