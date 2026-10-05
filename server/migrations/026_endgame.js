@@ -1,5 +1,3 @@
-import { randomUUID } from "node:crypto";
-
 export async function up(pgm) {
   pgm.createTable("realm_wars", {
     id:{type:"uuid",primaryKey:true,default:pgm.func("gen_random_uuid()")},
