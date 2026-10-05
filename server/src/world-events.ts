@@ -80,7 +80,7 @@ export class WorldEventCoordinator {
     const client=await this.db.connect();
     try{
       await client.query("BEGIN");
-      await client.query("SELECT pg_advisory_xact_lock(15015)");
+      await client.query("SELECT pg_advisory_xact_lock(hashtext($1))",[eventId]);
       const event=await client.query<EventRow>("SELECT id,event_type,status,region_id,center_x,center_y,max_health,current_health,state,started_at,ends_at FROM world_events WHERE id=$1 FOR UPDATE",[eventId]);
       const row=event.rows[0]; if(!row) throw new Error("WORLD_EVENT_NOT_FOUND");
       if(row.status!=="active" || row.ends_at.getTime()<=Date.now()) throw new Error("WORLD_EVENT_NOT_ACTIVE");
