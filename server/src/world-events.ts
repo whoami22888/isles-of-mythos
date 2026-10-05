@@ -79,7 +79,7 @@ export class WorldEventCoordinator {
       const contribution=Math.max(1,Math.min(1000,level*10));
       await client.query("INSERT INTO world_event_contributions(event_id,user_id,contribution,actions) VALUES($1,$2,$3,1) ON CONFLICT(event_id,user_id) DO UPDATE SET contribution=world_event_contributions.contribution+EXCLUDED.contribution,actions=world_event_contributions.actions+1,last_contributed_at=CURRENT_TIMESTAMP",[eventId,userId,contribution]);
       if(row.max_health!==null && row.current_health!==null){
-        const next=Math.max(0,BigInt(row.current_health)-BigInt(contribution));
+        const rawNext=BigInt(row.current_health)-BigInt(contribution); const next=rawNext>0n?rawNext:0n;
         await client.query("UPDATE world_events SET current_health=$2,state=jsonb_set(state,'{phase}',to_jsonb(GREATEST(1,LEAST(5,1+FLOOR((1.0-($2::numeric/$3::numeric))*5)))),true),updated_at=CURRENT_TIMESTAMP WHERE id=$1",[eventId,next.toString(),row.max_health]);
         if(next===0n) await this.completeLocked(client,eventId);
       }
