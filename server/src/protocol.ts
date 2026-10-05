@@ -1,5 +1,5 @@
 import type { InvasionRole } from "./invasion.js";
-import type { WorldEventType, WorldEventSummary } from "./world-events.js";
+import type { WorldEventSummary } from "./world-events.js";
 import type { PublicPlayerState } from "./player.js";
 import type { AuctionCategory, AuctionRarity, AuctionSummary } from "./auction.js";
 import type { ChatMessage, FriendRecord, PartyInvitation, PartyState } from "./social.js";
