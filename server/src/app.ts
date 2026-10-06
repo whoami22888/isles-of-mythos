@@ -7,6 +7,7 @@ import websocket from "@fastify/websocket";
 import type { WebSocket } from "ws";
 import type { Pool } from "pg";
 import { config } from "./config.js";
+import { recordHttpRequest, renderPrometheusMetrics, setWebSocketAuthenticated, setWebSocketConnections } from "./metrics.js";
 import { createDbPool } from "./db.js";
 import { registerAuthRoutes } from "./auth.js";
 import { log } from "./logger.js";
@@ -86,6 +87,23 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const endgame = new EndgameStore(db);
   const territorySeasons = new TerritorySeasonStore(db);
   const sockets = new Set<WebSocket>();
+
+  const httpRequestStartedAt = new WeakMap<object, bigint>();
+  app.addHook("onRequest", (request) => {
+    httpRequestStartedAt.set(request, process.hrtime.bigint());
+  });
+  app.addHook("onResponse", (request, reply) => {
+    const started = httpRequestStartedAt.get(request);
+    if (started !== undefined) {
+      const durationMs = Number(process.hrtime.bigint() - started) / 1e6;
+      recordHttpRequest(durationMs, reply.statusCode);
+    }
+  });
+
+  app.get("/metrics", {
+    schema: { tags: ["system"] },
+    config: { rateLimit: { max: 1200, timeWindow: "1 minute" } },
+  }, () => renderPrometheusMetrics());
   const playerConnections = new Map<string, number>();
   const userSockets = new Map<string, Set<WebSocket>>();
   const invasions = new InvasionStore(db, (bounds) => {
@@ -544,6 +562,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
 
   app.get("/ws", { websocket: true, config: { rateLimit: { max: 2000, timeWindow: "1 minute" } } }, (socket: WebSocket) => {
     sockets.add(socket);
+    setWebSocketConnections(sockets.size);
     let userId: string | null = null;
     let messageWindowStartedAt = Date.now();
     let messageWindowCount = 0;
@@ -588,6 +607,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             const payload = app.jwt.verify<{ sub: string; username: string }>(message.token);
             if (typeof payload.sub !== "string" || payload.sub.length === 0) throw new Error("invalid_subject");
             const authenticatedUserId = payload.sub;
+            setWebSocketAuthenticated(sockets.size);
             const pendingUnload = pendingPlayerUnloads.get(authenticatedUserId);
             if (pendingUnload) await pendingUnload;
             const state = await players.loadOrCreate(authenticatedUserId);
@@ -1444,6 +1464,8 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         authDeadline = null;
       }
       sockets.delete(socket);
+      setWebSocketConnections(sockets.size);
+      if (userId !== null) setWebSocketAuthenticated(Math.max(0, sockets.size));
       if (shuttingDown || !userId) return;
       const disconnectedUserId=userId;
       const connections = (playerConnections.get(disconnectedUserId) ?? 1) - 1;
