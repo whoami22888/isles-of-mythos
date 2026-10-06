@@ -12,7 +12,7 @@ Required production variables:
 - `POSTGRES_PASSWORD`
 - `DATABASE_URL`
 - `JWT_SECRET` (minimum 32 characters)
-- `CORS_ORIGIN`
+- `CORS_ORIGIN`\n- `PUBLIC_DOMAIN` (public DNS name used by Caddy for automatic HTTPS)\n- `ACME_EMAIL` (certificate account email)
 - Optional `SERVER_PORT` (defaults to `3000`)
 
 Start:
