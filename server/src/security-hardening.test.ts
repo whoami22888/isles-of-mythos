@@ -55,8 +55,7 @@ describe("security hardening", () => {
       });
 
       expect(response.statusCode).toBe(201);
-      const body = response.json<{ user?: Record<string, unknown> }>();
-      expect(body).toMatchObject({
+      expect(response.json<{ user?: Record<string, unknown> }>()).toMatchObject({
         user: expect.not.objectContaining({ role: expect.anything() }),
       });
     } finally {
