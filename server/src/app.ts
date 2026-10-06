@@ -449,7 +449,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     if (ownsDb) await db.end();
   });
 
-  app.get("/health", { schema: { tags: ["system"] } }, () => ({
+  app.get("/health", { schema: { tags: ["system"] }, config: { rateLimit: { max: 1000, timeWindow: "1 minute" } } }, () => ({
     status: "ok",
     service: "isles-of-mythos-server",
     environment: config.environment,
