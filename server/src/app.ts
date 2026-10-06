@@ -87,6 +87,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const endgame = new EndgameStore(db);
   const territorySeasons = new TerritorySeasonStore(db);
   const sockets = new Set<WebSocket>();
+  let authenticatedSocketCount = 0;
 
   const httpRequestStartedAt = new WeakMap<object, bigint>();
   app.addHook("onRequest", (request) => {
@@ -607,7 +608,8 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             const payload = app.jwt.verify<{ sub: string; username: string }>(message.token);
             if (typeof payload.sub !== "string" || payload.sub.length === 0) throw new Error("invalid_subject");
             const authenticatedUserId = payload.sub;
-            setWebSocketAuthenticated(sockets.size);
+            authenticatedSocketCount++;
+            setWebSocketAuthenticated(authenticatedSocketCount);
             const pendingUnload = pendingPlayerUnloads.get(authenticatedUserId);
             if (pendingUnload) await pendingUnload;
             const state = await players.loadOrCreate(authenticatedUserId);
@@ -1465,7 +1467,10 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       }
       sockets.delete(socket);
       setWebSocketConnections(sockets.size);
-      if (userId !== null) setWebSocketAuthenticated(Math.max(0, sockets.size));
+      if (userId !== null) {
+        authenticatedSocketCount = Math.max(0, authenticatedSocketCount - 1);
+        setWebSocketAuthenticated(authenticatedSocketCount);
+      }
       if (shuttingDown || !userId) return;
       const disconnectedUserId=userId;
       const connections = (playerConnections.get(disconnectedUserId) ?? 1) - 1;
