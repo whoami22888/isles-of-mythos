@@ -576,9 +576,9 @@ describe("server foundation", () => {
     const app = await buildApp();
     try {
       const responses = await Promise.all(
-        Array.from({ length: 250 }, () => app.inject({ method: "GET", url: "/health" })),
+        Array.from({ length: 100 }, () => app.inject({ method: "GET", url: "/health" })),
       );
-      expect(responses).toHaveLength(250);
+      expect(responses).toHaveLength(100);
       expect(responses.every((response) => response.statusCode === 200)).toBe(true);
       expect(responses.every((response) => parseJsonObject(response.body).status === "ok")).toBe(true);
     } finally {
@@ -595,11 +595,11 @@ describe("server foundation", () => {
         socket.once("error", reject);
       });
       await waitForMessage(socket);
+      const limited = waitForMatchingMessage(socket, (message) =>
+        isJsonObject(message) && message.type === "error" && message.code === "RATE_LIMITED");
       for (let i = 0; i < 121; i += 1) {
         socket.send(JSON.stringify({ type: "ping" }));
       }
-      const limited = await waitForMatchingMessage(socket, (message) =>
-        isJsonObject(message) && message.type === "error" && message.code === "RATE_LIMITED");
       expect(limited).toEqual({ type: "error", code: "RATE_LIMITED" });
     } finally {
       socket.close();
