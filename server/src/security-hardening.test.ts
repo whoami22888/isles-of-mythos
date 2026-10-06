@@ -55,7 +55,8 @@ describe("security hardening", () => {
       });
 
       expect(response.statusCode).toBe(201);
-      expect(response.json()).toMatchObject({
+      const body: unknown = JSON.parse(response.payload);
+      expect(body).toMatchObject({
         user: expect.not.objectContaining({ role: expect.anything() }),
       });
     } finally {
