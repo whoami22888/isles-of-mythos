@@ -2,7 +2,7 @@ import { createHmac } from "node:crypto";
 import { WebSocket } from "ws";
 
 const baseUrl = process.env.LOADTEST_BASE_URL ?? "http://127.0.0.1:3000";
-const wsUrl = baseUrl.replace(/^http/, "ws");
+const wsUrl = `${baseUrl.replace(/^http/, "ws")}/ws`;
 const durationMs = Number(process.env.LOADTEST_DURATION_MS ?? 10000);
 const httpRequests = Number(process.env.LOADTEST_HTTP_REQUESTS ?? 100);
 const levels = [1, 50, 250, 1000];
@@ -58,6 +58,27 @@ async function httpLoad() {
     p95Ms: percentile(latencies, 0.95),
     p99Ms: percentile(latencies, 0.99),
   };
+}
+
+async function waitForPong(socket) {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      socket.off("message", onMessage);
+      resolve(false);
+    }, 2000);
+
+    function onMessage(raw) {
+      try {
+        if (JSON.parse(raw.toString()).type !== "pong") return;
+        clearTimeout(timer);
+        socket.off("message", onMessage);
+        resolve(true);
+      } catch {}
+    }
+
+    socket.on("message", onMessage);
+    socket.send(JSON.stringify({ type: "ping" }));
+  });
 }
 
 async function wsLoad(playerCount) {
@@ -127,37 +148,35 @@ async function wsLoad(playerCount) {
     }, Math.max(60000, durationMs * 6));
   });
 
+  if (connected !== playerCount || authenticated !== playerCount || errors !== 0) {
+    for (const socket of sockets) socket.close();
+    throw new Error(`Player-load establishment failed: requested=${playerCount} connected=${connected} authenticated=${authenticated} errors=${errors}`);
+  }
+
   const end = Date.now() + durationMs;
   let pings = 0;
   let pongs = 0;
 
   while (Date.now() < end) {
     const active = sockets.filter((socket) => socket.readyState === WebSocket.OPEN);
-
-    await Promise.all(active.map((socket) => new Promise((resolve) => {
+    await Promise.all(active.map(async (socket) => {
       const started = performance.now();
-      const timer = setTimeout(resolve, 2000);
-
-      socket.once("message", (raw) => {
-        clearTimeout(timer);
-        try {
-          if (JSON.parse(raw.toString()).type === "pong") {
-            pongs++;
-            latencies.push(performance.now() - started);
-          }
-        } catch {}
-        resolve();
-      });
-
-      socket.send(JSON.stringify({ type: "ping" }));
       pings++;
-    })));
-
+      if (await waitForPong(socket)) {
+        pongs++;
+        latencies.push(performance.now() - started);
+      }
+    }));
     await sleep(250);
   }
 
   for (const socket of sockets) socket.close();
   await sleep(100);
+
+  const pingSuccessRate = pings ? pongs / pings : 0;
+  if (pings === 0 || pongs !== pings) {
+    throw new Error(`Player-load ping failure: requested=${playerCount} pings=${pings} pongs=${pongs}`);
+  }
 
   return {
     requestedPlayers: playerCount,
@@ -166,7 +185,7 @@ async function wsLoad(playerCount) {
     errors,
     pings,
     pongs,
-    pingSuccessRate: pings ? pongs / pings : 0,
+    pingSuccessRate,
     p50Ms: percentile(latencies, 0.5),
     p95Ms: percentile(latencies, 0.95),
     p99Ms: percentile(latencies, 0.99),
@@ -181,6 +200,9 @@ for (const players of levels) {
     http: await httpLoad(),
     websocket: await wsLoad(players),
   };
+  if (result.http.errors !== 0) {
+    throw new Error(`HTTP load failed at ${players} players: ${result.http.errors} errors`);
+  }
   scenarios.push(result);
   console.log(JSON.stringify(result));
 }
