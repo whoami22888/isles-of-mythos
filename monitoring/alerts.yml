@@ -1,0 +1,23 @@
+groups:
+  - name: isles-server
+    rules:
+      - alert: IslesServerDown
+        expr: up{job="isles-server"} == 0
+        for: 2m
+        labels:
+          severity: critical
+      - alert: IslesWebSocketCapacity
+        expr: isles_websocket_connections > 900
+        for: 5m
+        labels:
+          severity: warning
+      - alert: IslesPostgresDown
+        expr: pg_up == 0
+        for: 2m
+        labels:
+          severity: critical
+      - alert: IslesHttp5xxRate
+        expr: rate(isles_http_errors_total[5m]) > 1
+        for: 5m
+        labels:
+          severity: critical
