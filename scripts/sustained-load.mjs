@@ -10,9 +10,14 @@ const secret = process.env.JWT_SECRET ?? "loadtest-secret";
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+function userIdFor(index) {
+  const hex = createHmac("sha256", "isles-of-mythos-loadtest").update(String(index)).digest("hex");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-8${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
+}
+
 function tokenFor(index) {
   const header = Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url");
-  const payload = Buffer.from(JSON.stringify({ sub: `loadtest-${index}`, iat: Math.floor(Date.now() / 1000) })).toString("base64url");
+  const payload = Buffer.from(JSON.stringify({ sub: userIdFor(index), iat: Math.floor(Date.now() / 1000) })).toString("base64url");
   const data = `${header}.${payload}`;
   const signature = createHmac("sha256", secret).update(data).digest("base64url");
   return `${data}.${signature}`;
