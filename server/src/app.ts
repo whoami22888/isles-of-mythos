@@ -7,6 +7,7 @@ import websocket from "@fastify/websocket";
 import type { WebSocket } from "ws";
 import type { Pool } from "pg";
 import { config } from "./config.js";
+import { recordHttpRequest, recordTick, renderPrometheusMetrics, setDatabaseUp, setWebSocketAuthenticated, setWebSocketConnections } from "./metrics.js";
 import { createDbPool } from "./db.js";
 import { registerAuthRoutes } from "./auth.js";
 import { log } from "./logger.js";
@@ -126,7 +127,29 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const pendingCreatureOperations = new Map<string, Promise<void>>();
   const pendingPlayerUnloads = new Map<string, Promise<void>>();
   let shuttingDown = false;
+  let authenticatedSocketCount = 0;
   const app = Fastify({ logger: false });
+
+  const httpRequestStartedAt = new WeakMap<object, bigint>();
+  app.addHook("onRequest", (request) => {
+    httpRequestStartedAt.set(request, process.hrtime.bigint());
+  });
+  app.addHook("onResponse", (request, reply) => {
+    const started = httpRequestStartedAt.get(request);
+    if (started !== undefined) {
+      recordHttpRequest(Number(process.hrtime.bigint() - started) / 1e6, reply.statusCode);
+    }
+  });
+
+  app.get("/metrics", { schema: { tags: ["system"] }, config: { rateLimit: { max: 1200, timeWindow: "1 minute" } } }, async (_request, reply) => {
+    try {
+      await db.query("SELECT 1");
+      setDatabaseUp(true);
+    } catch {
+      setDatabaseUp(false);
+    }
+    reply.type("text/plain; version=0.0.4").send(renderPrometheusMetrics());
+  });
 
   async function runCreatureRequest(
     userId: string,
@@ -290,6 +313,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   survivalTick.unref();
 
   const combatTick = setInterval(() => {
+    const tickStartedAt = process.hrtime.bigint();
     const now = Date.now();
     tickPlayerStatuses(250);
 
@@ -373,6 +397,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       const state = players.get(userId);
       return state && state.health > 0 ? [{ userId, x: state.x, y: state.y }] : [];
     });
+    recordTick(Number(process.hrtime.bigint() - tickStartedAt) / 1e6);
     for (const target of combatTargets.values()) {
       const ai = tickCreatureAi(target, candidates, now, 250);
       const userId = ai.targetUserId;
@@ -544,6 +569,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
 
   app.get("/ws", { websocket: true, config: { rateLimit: { max: 2000, timeWindow: "1 minute" } } }, (socket: WebSocket) => {
     sockets.add(socket);
+    setWebSocketConnections(sockets.size);
     let userId: string | null = null;
     let messageWindowStartedAt = Date.now();
     let messageWindowCount = 0;
@@ -588,6 +614,8 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             const payload = app.jwt.verify<{ sub: string; username: string }>(message.token);
             if (typeof payload.sub !== "string" || payload.sub.length === 0) throw new Error("invalid_subject");
             const authenticatedUserId = payload.sub;
+            authenticatedSocketCount += 1;
+            setWebSocketAuthenticated(authenticatedSocketCount);
             const pendingUnload = pendingPlayerUnloads.get(authenticatedUserId);
             if (pendingUnload) await pendingUnload;
             const state = await players.loadOrCreate(authenticatedUserId);
@@ -1444,6 +1472,11 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         authDeadline = null;
       }
       sockets.delete(socket);
+      setWebSocketConnections(sockets.size);
+      if (userId !== null) {
+        authenticatedSocketCount = Math.max(0, authenticatedSocketCount - 1);
+        setWebSocketAuthenticated(authenticatedSocketCount);
+      }
       if (shuttingDown || !userId) return;
       const disconnectedUserId=userId;
       const connections = (playerConnections.get(disconnectedUserId) ?? 1) - 1;
