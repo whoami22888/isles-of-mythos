@@ -66,6 +66,14 @@ jobs:
           ACME_EMAIL: test@example.invalid
         run: docker compose config -q
 
+      - name: Validate Caddy TLS configuration
+        run: |
+          docker run --rm \
+            -e PUBLIC_DOMAIN=localhost \
+            -e ACME_EMAIL=test@example.invalid \
+            -v "$GITHUB_WORKSPACE/Caddyfile:/etc/caddy/Caddyfile:ro" \
+            caddy:2.10-alpine caddy validate --config /etc/caddy/Caddyfile
+
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run test
