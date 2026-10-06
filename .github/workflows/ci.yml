@@ -2,11 +2,16 @@ name: CI
 
 on:
   push:
-    branches: ["main", "phase-*"]
+    branches: ["main"]
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   verify:
@@ -38,7 +43,7 @@ jobs:
           node-version: 24
           package-manager-cache: false
       - name: Install dependencies
-        run: npm install --ignore-scripts
+        run: npm install --ignore-scripts --no-audit --no-fund --prefer-offline
       - name: Rebuild reviewed native dependencies
         run: npm rebuild argon2 esbuild
       - name: Verify no unreviewed install scripts
@@ -46,6 +51,26 @@ jobs:
           pending="$(npm install-scripts ls)"
           echo "$pending"
           echo "$pending" | grep -F "No packages with unreviewed install scripts."
+      - name: Run lint and typecheck in parallel
+        shell: bash
+        run: |
+          set +e
+          npm run lint > "$RUNNER_TEMP/lint.log" 2>&1 &
+          lint_pid=$!
+          npm run typecheck > "$RUNNER_TEMP/typecheck.log" 2>&1 &
+          typecheck_pid=$!
+
+          wait "$lint_pid"
+          lint_status=$?
+          wait "$typecheck_pid"
+          typecheck_status=$?
+
+          cat "$RUNNER_TEMP/lint.log"
+          cat "$RUNNER_TEMP/typecheck.log"
+
+          if [ "$lint_status" -ne 0 ] || [ "$typecheck_status" -ne 0 ]; then
+            exit 1
+          fi
       - run: npm audit --audit-level=high
       - run: npm run migrate:up
       - name: Verify PostgreSQL backup and restore
@@ -64,8 +89,6 @@ jobs:
           CORS_ORIGIN: http://localhost:5173
         run: docker compose config -q
 
-      - run: npm run lint
-      - run: npm run typecheck
       - run: npm run test
       - run: npm run build
 
