@@ -3,6 +3,8 @@
 }
 
 {$PUBLIC_DOMAIN} {
+  @metrics path /metrics
+  respond @metrics 404
   encode zstd gzip
   reverse_proxy server:3000
 }
