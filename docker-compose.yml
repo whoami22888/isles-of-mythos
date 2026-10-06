@@ -67,13 +67,6 @@ services:
       timeout: 5s
       retries: 12
       start_period: 20s
-
-volumes:
-  postgres_data:
-  caddy_data:
-  caddy_config:
-  prometheus_data:
-
   caddy:
     image: caddy:2.10-alpine
     restart: unless-stopped
@@ -114,3 +107,9 @@ volumes:
     depends_on:
       postgres:
         condition: service_healthy
+
+volumes:
+  postgres_data:
+  caddy_data:
+  caddy_config:
+  prometheus_data:
