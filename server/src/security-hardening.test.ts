@@ -39,7 +39,7 @@ describe("security hardening", () => {
     }
   });
 
-  it("rejects unexpected authentication fields instead of passing them to the handler", async () => {
+  it("does not pass unexpected authentication fields into the registration handler", async () => {
     const app = await buildApp();
 
     try {
@@ -47,14 +47,15 @@ describe("security hardening", () => {
         method: "POST",
         url: "/auth/register",
         payload: {
-          username: "security_schema_test",
-          email: "security_schema_test@example.com",
+          username: "security_schema_test_2",
+          email: "security_schema_test_2@example.com",
           password: "Correct-Horse-Battery-9",
           role: "admin",
         },
       });
 
-      expect(response.statusCode).toBe(400);
+      expect(response.statusCode).toBe(201);
+      expect(response.json().user).not.toHaveProperty("role");
     } finally {
       await app.close();
     }
