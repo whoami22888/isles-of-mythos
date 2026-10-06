@@ -7,8 +7,8 @@ COPY package.json ./
 COPY client/package.json ./client/package.json
 COPY server/package.json ./server/package.json
 
-RUN npm install --ignore-scripts
-RUN npm rebuild argon2 esbuild
+RUN --mount=type=cache,target=/root/.npm npm install --ignore-scripts --no-audit --no-fund --prefer-offline
+RUN --mount=type=cache,target=/root/.npm npm rebuild argon2 esbuild
 
 COPY . .
 RUN npm run build
