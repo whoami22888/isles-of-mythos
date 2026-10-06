@@ -542,7 +542,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     },
   );
 
-  app.get("/ws", { websocket: true }, (socket: WebSocket) => {
+  app.get("/ws", { websocket: true, config: { rateLimit: { max: 2000, timeWindow: "1 minute" } } }, (socket: WebSocket) => {
     sockets.add(socket);
     let userId: string | null = null;
     let messageWindowStartedAt = Date.now();
