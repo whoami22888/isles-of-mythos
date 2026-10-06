@@ -23,6 +23,9 @@ export function setWebSocketConnections(value: number): void {
 
 export function setWebSocketAuthenticated(value: number): void {
   websocketAuthenticated = value;
+}
+
+export function setActivePlayers(value: number): void {
   activePlayers = value;
 }
 
