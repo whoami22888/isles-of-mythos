@@ -55,7 +55,9 @@ describe("security hardening", () => {
       });
 
       expect(response.statusCode).toBe(201);
-      expect(response.json().user).not.toHaveProperty("role");
+      expect(response.json()).toMatchObject({
+        user: expect.not.objectContaining({ role: expect.anything() }),
+      });
     } finally {
       await app.close();
     }
