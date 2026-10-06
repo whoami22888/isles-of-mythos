@@ -74,7 +74,7 @@ jobs:
             done
           ) > performance-system.log 2>&1 &
       - name: Run sustained player-load scenarios
-        run: node scripts/sustained-load.mjs > performance-results.json
+        run: node scripts/sustained-load.mjs
       - name: Stop server
         if: always()
         run: |
