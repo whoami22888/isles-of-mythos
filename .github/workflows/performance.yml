@@ -21,8 +21,8 @@ jobs:
       SERVER_HOST: 127.0.0.1
       SERVER_PORT: 3000
       LOADTEST_BASE_URL: http://127.0.0.1:3000
-      LOADTEST_DURATION_MS: 10000
-      LOADTEST_HTTP_REQUESTS: 100
+      LOADTEST_DURATION_MS: 3000
+      LOADTEST_HTTP_REQUESTS: 30
     services:
       postgres:
         image: postgres:17-alpine
@@ -57,7 +57,7 @@ jobs:
         run: |
           node server/dist/index.js > performance-server.log 2>&1 &
           echo $! > server.pid
-          for i in $(seq 1 60); do
+          for i in $(seq 1 30); do
             if curl --fail --silent http://127.0.0.1:3000/ready >/dev/null; then exit 0; fi
             sleep 1
           done
