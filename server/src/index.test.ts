@@ -571,4 +571,40 @@ describe("server foundation", () => {
       await app.close();
     }
   });
+
+  it("handles bounded concurrent HTTP health traffic", async () => {
+    const app = await buildApp();
+    try {
+      const responses = await Promise.all(
+        Array.from({ length: 250 }, () => app.inject({ method: "GET", url: "/health" })),
+      );
+      expect(responses).toHaveLength(250);
+      expect(responses.every((response) => response.statusCode === 200)).toBe(true);
+      expect(responses.every((response) => parseJsonObject(response.body).status === "ok")).toBe(true);
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("rate-limits excessive WebSocket messages per connection", async () => {
+    const app = await buildApp();
+    const socket = await openSocket(app);
+    try {
+      await new Promise<void>((resolve, reject) => {
+        socket.once("open", () => resolve());
+        socket.once("error", reject);
+      });
+      await waitForMessage(socket);
+      for (let i = 0; i < 121; i += 1) {
+        socket.send(JSON.stringify({ type: "ping" }));
+      }
+      const limited = await waitForMatchingMessage(socket, (message) =>
+        isJsonObject(message) && message.type === "error" && message.code === "RATE_LIMITED");
+      expect(limited).toEqual({ type: "error", code: "RATE_LIMITED" });
+    } finally {
+      socket.close();
+      await app.close();
+    }
+  });
+
 });
