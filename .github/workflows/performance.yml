@@ -49,6 +49,8 @@ jobs:
         run: npm rebuild argon2 esbuild
       - name: Migrate database
         run: npm run migrate:up
+      - name: Seed 1,000 player identities
+        run: PGPASSWORD=postgres psql "$DATABASE_URL" -c "INSERT INTO users (username, email, password_hash) SELECT 'loadtest_' || g, 'loadtest_' || g || '@example.invalid', 'loadtest-password-hash' FROM generate_series(0, 999) AS g ON CONFLICT DO NOTHING;"
       - name: Build
         run: npm run build
       - name: Start server
