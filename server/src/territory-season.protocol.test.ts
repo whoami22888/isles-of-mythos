@@ -1,0 +1,3 @@
+import {describe,expect,it} from "vitest";
+import {parseClientMessage} from "./protocol.js";
+describe("territory season protocol",()=>{it("accepts season listing",()=>expect(parseClientMessage(JSON.stringify({type:"list_territory_season",requestId:"season"}))).toEqual({type:"list_territory_season",requestId:"season"}));it("rejects empty request ids",()=>expect(parseClientMessage(JSON.stringify({type:"list_territory_season",requestId:""}))).toBeNull());});
