@@ -2,15 +2,11 @@ name: CI
 
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "phase-*"]
   pull_request:
 
 permissions:
   contents: read
-
-concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
 
 jobs:
   verify:
@@ -35,21 +31,23 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 20
-
     steps:
       - uses: actions/checkout@v5
-
       - uses: actions/setup-node@v7
         with:
           node-version: 24
           package-manager-cache: false
-
-      - run: npm install --ignore-scripts
-      - run: npm rebuild argon2 esbuild
+      - name: Install dependencies
+        run: npm install --ignore-scripts
+      - name: Rebuild reviewed native dependencies
+        run: npm rebuild argon2 esbuild
+      - name: Verify no unreviewed install scripts
+        run: |
+          pending="$(npm install-scripts ls)"
+          echo "$pending"
+          echo "$pending" | grep -F "No packages with unreviewed install scripts."
       - run: npm audit --audit-level=high
-
       - run: npm run migrate:up
-
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run test

@@ -39,7 +39,7 @@ const TILE_COLORS: Record<number, number> = {
 
 export class ChunkRenderer {
   private readonly chunks = new Map<string, Phaser.GameObjects.Graphics>();
-  private readonly creatures = new Map<string, { marker: Phaser.GameObjects.Graphics; species: CreatureSpawn["species"]; x: number; y: number }>();
+  private readonly creatures = new Map<string, Phaser.GameObjects.Graphics>();
 
   constructor(private readonly scene: Phaser.Scene) {}
 
@@ -73,7 +73,14 @@ export class ChunkRenderer {
 
     for (const creature of chunk.creatures ?? []) {
       if (this.creatures.has(creature.id)) continue;
-      this.createCreatureMarker(creature);
+      const marker = this.scene.add.graphics();
+      const color = creature.species === "raptor" ? 0xd95f59 : creature.species === "boar" ? 0x8b6f47 : 0x6bcf63;
+      marker.fillStyle(color, 1);
+      marker.fillCircle(creature.x * TILE_SIZE + TILE_SIZE / 2, creature.y * TILE_SIZE + TILE_SIZE / 2, TILE_SIZE * 0.25);
+      marker.lineStyle(1, 0xffffff, 0.8);
+      marker.strokeCircle(creature.x * TILE_SIZE + TILE_SIZE / 2, creature.y * TILE_SIZE + TILE_SIZE / 2, TILE_SIZE * 0.28);
+      marker.setDepth(10);
+      this.creatures.set(creature.id, marker);
     }
   }
 
@@ -83,45 +90,26 @@ export class ChunkRenderer {
       if (Math.abs(x - centerChunkX) > radius || Math.abs(y - centerChunkY) > radius) {
         graphics.destroy();
         this.chunks.delete(key);
-        for (const [creatureId, creature] of this.creatures) {
-          const cx = Math.floor(creature.x / CHUNK_SIZE);
-          const cy = Math.floor(creature.y / CHUNK_SIZE);
-          if (cx === x && cy === y) {
-            creature.marker.destroy();
-            this.creatures.delete(creatureId);
+        for (const [creatureId, marker] of this.creatures) {
+          if (creatureId.startsWith("creature:")) {
+            const parts = creatureId.split(":").map(Number);
+            const cx = Math.floor(parts[1] / CHUNK_SIZE);
+            const cy = Math.floor(parts[2] / CHUNK_SIZE);
+            if (cx === x && cy === y) {
+              marker.destroy();
+              this.creatures.delete(creatureId);
+            }
           }
         }
       }
     }
   }
 
-  private createCreatureMarker(creature: CreatureSpawn): void {
-    const marker = this.scene.add.graphics();
-    const color = creature.species === "raptor" ? 0xd95f59 : creature.species === "boar" ? 0x8b6f47 : 0x6bcf63;
-    marker.fillStyle(color, 1);
-    marker.fillCircle(TILE_SIZE / 2, TILE_SIZE / 2, TILE_SIZE * 0.25);
-    marker.lineStyle(1, 0xffffff, 0.8);
-    marker.strokeCircle(TILE_SIZE / 2, TILE_SIZE / 2, TILE_SIZE * 0.28);
-    marker.setDepth(10);
-    marker.setPosition(creature.x * TILE_SIZE, creature.y * TILE_SIZE);
-    this.creatures.set(creature.id, { marker, species: creature.species, x: creature.x, y: creature.y });
-  }
-
-  updateCreature(id: string, species: CreatureSpawn["species"], x: number, y: number, active: boolean): void {
-    const existing = this.creatures.get(id);
-    if (!active) {
-      existing?.marker.destroy();
-      this.creatures.delete(id);
-      return;
-    }
-    if (!existing) {
-      this.createCreatureMarker({ id, species, x, y, level: 1 });
-      return;
-    }
-    existing.species = species;
-    existing.x = x;
-    existing.y = y;
-    existing.marker.setPosition(x * TILE_SIZE, y * TILE_SIZE);
+  removeCreature(id: string): void {
+    const marker = this.creatures.get(id);
+    if (!marker) return;
+    marker.destroy();
+    this.creatures.delete(id);
   }
 
   get loadedCount(): number {
@@ -131,9 +119,9 @@ export class ChunkRenderer {
   nearestCreature(x: number, y: number, maxDistance = 10): { id: string; x: number; y: number } | null {
     let nearest: { id: string; x: number; y: number } | null = null;
     let nearestDistance = maxDistance;
-    for (const [id, creature] of this.creatures) {
-      const worldX = creature.x;
-      const worldY = creature.y;
+    for (const [id, marker] of this.creatures) {
+      const worldX = marker.x / TILE_SIZE;
+      const worldY = marker.y / TILE_SIZE;
       const d = Math.hypot(worldX - x, worldY - y);
       if (d < nearestDistance) {
         nearest = { id, x: worldX, y: worldY };
