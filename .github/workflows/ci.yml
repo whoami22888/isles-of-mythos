@@ -52,3 +52,6 @@ jobs:
       - run: npm run typecheck
       - run: npm run test
       - run: npm run build
+
+      - name: Build production Docker image
+        run: docker build --pull --tag isles-of-mythos:ci .

@@ -1,15 +1,54 @@
 # Deployment
 
-## Current development deployment
-1. Configure `.env` from `.env.example`.
-2. Start PostgreSQL with Docker Compose.
-3. Install dependencies.
-4. Apply migrations.
-5. Run lint, typecheck, tests, and build.
-6. Deploy the server and client through the intended hosting layer.
+## CI / local verification
 
-## CI gate
-The verification workflow provisions PostgreSQL, installs with scripts disabled, rebuilds reviewed native dependencies, checks high/critical audit findings, applies migrations, runs lint/typecheck/tests/build, and cleans up service containers.
+The CI workflow verifies dependency installation, reviewed native dependency rebuilds, install-script policy, high/critical npm audit findings, migrations, lint, typecheck, full tests, build, and the production Docker image.
 
-## Production requirements still ahead
-External secret management, TLS termination, observability, backups, controlled migration rollout, horizontal simulation/shard strategy, CDN/static asset delivery, capacity testing, and mobile network performance validation remain later production gates.
+## Production Docker deployment
+
+The repository includes a multi-stage backend Docker image and a Compose deployment stack. The runtime image contains only the compiled server and production dependencies and runs as the unprivileged `node` user.
+
+Required production variables:
+- `POSTGRES_PASSWORD`
+- `DATABASE_URL`
+- `JWT_SECRET` (minimum 32 characters)
+- `CORS_ORIGIN`
+- Optional `SERVER_PORT` (defaults to `3000`)
+
+Start:
+```bash
+docker compose up -d --build
+```
+
+Compose waits for PostgreSQL health before running migrations, then starts the server only after the migration job succeeds.
+
+Validate:
+```bash
+docker compose ps
+curl http://localhost:3000/health
+curl http://localhost:3000/ready
+```
+
+PostgreSQL and Redis are internal-only in this Compose stack; only the application port is published.
+
+## Security
+
+Do not commit production `.env` files or secrets. Use an external secret manager or Docker secrets for production credentials.
+
+Production configuration requires `DATABASE_URL`, `CORS_ORIGIN`, and a strong `JWT_SECRET`. Development/test defaults remain available only outside production.
+
+## Database recovery
+
+The PostgreSQL named volume provides persistence across container replacement, but it is not a backup. Production acceptance still requires an external PostgreSQL backup/restore procedure and a successful restore drill.
+
+## Client deployment
+
+The client remains a separately built static web application. Build with `npm run build -w client` and deploy `client/dist` through the intended static/CDN layer.
+
+## Remaining production evidence
+
+- sustained capacity/load testing at target player concurrency
+- external database backup and restore drill
+- TLS termination and certificate automation
+- production observability/alerting
+- horizontal scaling/shard strategy

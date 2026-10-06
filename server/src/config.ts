@@ -28,17 +28,23 @@ function parseCorsOrigin(value: string | undefined, environment: "development" |
 
 const environment = parseEnvironment(process.env.ENVIRONMENT);
 
-if (environment === "production" && !process.env.JWT_SECRET) {
-  throw new Error("JWT_SECRET is required in production");
+const databaseUrl = process.env.DATABASE_URL?.trim() ?? "";
+const jwtSecret = process.env.JWT_SECRET ?? "";
+
+if (environment === "production" && !databaseUrl) {
+  throw new Error("DATABASE_URL is required in production");
+}
+if (environment === "production" && jwtSecret.length < 32) {
+  throw new Error("JWT_SECRET must be at least 32 characters in production");
 }
 
 export const config = {
   host: process.env.SERVER_HOST ?? "0.0.0.0",
   port: parsePort(process.env.SERVER_PORT),
   environment,
-  databaseUrl: process.env.DATABASE_URL ?? "postgres://postgres:postgres@localhost:5432/isles",
+  databaseUrl: databaseUrl || "postgres://postgres:postgres@localhost:5432/isles",
   redisUrl: process.env.REDIS_URL ?? "redis://localhost:6379",
-  jwtSecret: process.env.JWT_SECRET ?? "development-only-secret-change-me",
+  jwtSecret: jwtSecret || "development-only-secret-change-me",
   corsOrigin: parseCorsOrigin(process.env.CORS_ORIGIN, environment),
   websocketMaxPayloadBytes: 64 * 1024,
 } as const;
