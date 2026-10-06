@@ -1,0 +1,92 @@
+name: Performance Acceptance
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sustained-load:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      ENVIRONMENT: test
+      DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/isles_test
+      JWT_SECRET: performance-test-secret-012345678901234567890123
+      CORS_ORIGIN: http://127.0.0.1:5173
+      SERVER_HOST: 127.0.0.1
+      SERVER_PORT: 3000
+      LOADTEST_BASE_URL: http://127.0.0.1:3000
+      LOADTEST_DURATION_MS: 10000
+      LOADTEST_HTTP_REQUESTS: 100
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: isles_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d isles_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - name: Install dependencies
+        run: npm install --ignore-scripts
+      - name: Rebuild reviewed native dependencies
+        run: npm rebuild argon2 esbuild
+      - name: Migrate database
+        run: npm run migrate:up
+      - name: Seed 1,000 player identities
+        run: PGPASSWORD=postgres psql "$DATABASE_URL" -c "INSERT INTO users (username, email, password_hash) SELECT 'loadtest_' || g, 'loadtest_' || g || '@example.invalid', 'loadtest-password-hash' FROM generate_series(0, 999) AS g ON CONFLICT DO NOTHING;"
+      - name: Build
+        run: npm run build
+      - name: Start server
+        run: |
+          node server/dist/index.js > performance-server.log 2>&1 &
+          echo $! > server.pid
+          for i in $(seq 1 60); do
+            if curl --fail --silent http://127.0.0.1:3000/ready >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat performance-server.log
+          exit 1
+      - name: Capture host and PostgreSQL metrics during load
+        run: |
+          (
+            while kill -0 "$(cat server.pid)" 2>/dev/null; do
+              printf '%s\n' "--- $(date -Is) ---"
+              ps -p "$(cat server.pid)" -o pid=,pcpu=,pmem=,rss=,etime=
+              PGPASSWORD=postgres psql "$DATABASE_URL" -Atc "SELECT now(), numbackends, xact_commit, xact_rollback, blks_read, blks_hit FROM pg_stat_database WHERE datname='isles_test';"
+              sleep 1
+            done
+          ) > performance-system.log 2>&1 &
+      - name: Run sustained player-load scenarios
+        run: node scripts/sustained-load.mjs
+      - name: Stop server
+        if: always()
+        run: |
+          kill "$(cat server.pid)" 2>/dev/null || true
+          wait "$(cat server.pid)" 2>/dev/null || true
+      - name: Upload acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-acceptance-evidence
+          path: |
+            performance-results.json
+            performance-system.log
+            performance-server.log
+          if-no-files-found: warn
