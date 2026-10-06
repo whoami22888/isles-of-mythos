@@ -7,7 +7,7 @@ import websocket from "@fastify/websocket";
 import type { WebSocket } from "ws";
 import type { Pool } from "pg";
 import { config } from "./config.js";
-import { recordHttpRequest, recordTick, renderPrometheusMetrics, setDatabaseUp, setWebSocketAuthenticated, setWebSocketConnections } from "./metrics.js";
+import { recordHttpRequest, recordTick, renderPrometheusMetrics, setActivePlayers, setDatabaseUp, setWebSocketAuthenticated, setWebSocketConnections } from "./metrics.js";
 import { createDbPool } from "./db.js";
 import { registerAuthRoutes } from "./auth.js";
 import { log } from "./logger.js";
@@ -614,8 +614,6 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             const payload = app.jwt.verify<{ sub: string; username: string }>(message.token);
             if (typeof payload.sub !== "string" || payload.sub.length === 0) throw new Error("invalid_subject");
             const authenticatedUserId = payload.sub;
-            authenticatedSocketCount += 1;
-            setWebSocketAuthenticated(authenticatedSocketCount);
             const pendingUnload = pendingPlayerUnloads.get(authenticatedUserId);
             if (pendingUnload) await pendingUnload;
             const state = await players.loadOrCreate(authenticatedUserId);
@@ -632,6 +630,9 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             const socketsForUser = userSockets.get(authenticatedUserId) ?? new Set<WebSocket>();
             socketsForUser.add(socket);
             userSockets.set(authenticatedUserId, socketsForUser);
+            authenticatedSocketCount += 1;
+            setWebSocketAuthenticated(authenticatedSocketCount);
+            setActivePlayers(userSockets.size);
             send(socket, { type: "auth_ok", userId: authenticatedUserId });
             send(socket, { type: "player_state", state: serializePlayerState(state) });
             send(socket, { type: "creature_party", creatures: ownedCreatures });
@@ -1483,6 +1484,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       const socketsForUser = userSockets.get(disconnectedUserId);
       socketsForUser?.delete(socket);
       if (socketsForUser && socketsForUser.size === 0) userSockets.delete(disconnectedUserId);
+      setActivePlayers(userSockets.size);
       if (connections <= 0) {
         playerConnections.delete(disconnectedUserId);
         attackCooldowns.delete(disconnectedUserId);
