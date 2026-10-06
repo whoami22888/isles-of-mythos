@@ -11,6 +11,11 @@ groups:
         for: 5m
         labels:
           severity: warning
+      - alert: IslesPostgresDown
+        expr: pg_up == 0
+        for: 2m
+        labels:
+          severity: critical
       - alert: IslesHttp5xxRate
         expr: rate(isles_http_errors_total[5m]) > 1
         for: 5m
