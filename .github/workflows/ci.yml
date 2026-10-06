@@ -62,6 +62,8 @@ jobs:
           DATABASE_URL: postgres://postgres:postgres@postgres:5432/isles
           JWT_SECRET: test-only-jwt-secret-not-for-production
           CORS_ORIGIN: http://localhost:5173
+          PUBLIC_DOMAIN: localhost
+          ACME_EMAIL: test@example.invalid
         run: docker compose config -q
 
       - run: npm run lint
