@@ -590,17 +590,18 @@ describe("server foundation", () => {
     const app = await buildApp();
     const socket = await openSocket(app);
     try {
+      const ready = waitForMessage(socket);
       await new Promise<void>((resolve, reject) => {
         socket.once("open", () => resolve());
         socket.once("error", reject);
       });
-      await waitForMessage(socket);
+      await ready;
       const limited = waitForMatchingMessage(socket, (message) =>
         isJsonObject(message) && message.type === "error" && message.code === "RATE_LIMITED");
       for (let i = 0; i < 121; i += 1) {
         socket.send(JSON.stringify({ type: "ping" }));
       }
-      expect(limited).toEqual({ type: "error", code: "RATE_LIMITED" });
+      await expect(limited).resolves.toEqual({ type: "error", code: "RATE_LIMITED" });
     } finally {
       socket.close();
       await app.close();
