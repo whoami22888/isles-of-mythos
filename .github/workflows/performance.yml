@@ -63,6 +63,9 @@ jobs:
           done
           cat performance-server.log
           exit 1
+      - name: Verify metrics endpoint
+        run: |
+          curl --fail --silent http://127.0.0.1:3000/metrics | grep -F "isles_http_requests_total"
       - name: Capture host and PostgreSQL metrics during load
         run: |
           (
