@@ -89,22 +89,6 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const sockets = new Set<WebSocket>();
   let authenticatedSocketCount = 0;
 
-  const httpRequestStartedAt = new WeakMap<object, bigint>();
-  app.addHook("onRequest", (request) => {
-    httpRequestStartedAt.set(request, process.hrtime.bigint());
-  });
-  app.addHook("onResponse", (request, reply) => {
-    const started = httpRequestStartedAt.get(request);
-    if (started !== undefined) {
-      const durationMs = Number(process.hrtime.bigint() - started) / 1e6;
-      recordHttpRequest(durationMs, reply.statusCode);
-    }
-  });
-
-  app.get("/metrics", {
-    schema: { tags: ["system"] },
-    config: { rateLimit: { max: 1200, timeWindow: "1 minute" } },
-  }, () => renderPrometheusMetrics());
   const playerConnections = new Map<string, number>();
   const userSockets = new Map<string, Set<WebSocket>>();
   const invasions = new InvasionStore(db, (bounds) => {
@@ -146,6 +130,24 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const pendingPlayerUnloads = new Map<string, Promise<void>>();
   let shuttingDown = false;
   const app = Fastify({ logger: false });
+
+  const httpRequestStartedAt = new WeakMap<object, bigint>();
+  app.addHook("onRequest", (request) => {
+    httpRequestStartedAt.set(request, process.hrtime.bigint());
+  });
+  app.addHook("onResponse", (request, reply) => {
+    const started = httpRequestStartedAt.get(request);
+    if (started !== undefined) {
+      const durationMs = Number(process.hrtime.bigint() - started) / 1e6;
+      recordHttpRequest(durationMs, reply.statusCode);
+    }
+  });
+
+  app.get("/metrics", {
+    schema: { tags: ["system"] },
+    config: { rateLimit: { max: 1200, timeWindow: "1 minute" } },
+  }, () => renderPrometheusMetrics());
+
 
   async function runCreatureRequest(
     userId: string,
