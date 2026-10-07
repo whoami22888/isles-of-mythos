@@ -80,7 +80,7 @@ describe("shop catalogue", () => {
         method: "POST",
         url: "/shop/purchase",
         headers: { authorization: `Bearer ${token}` },
-        payload: { itemId: "resource.wood", quantity: 2 },
+        payload: { requestId: "purchase-1", itemId: "resource.wood", quantity: 2 },
       });
       expect(response.statusCode).toBe(200);
       expect(JSON.parse(response.body)).toMatchObject({
@@ -89,6 +89,74 @@ describe("shop catalogue", () => {
         totalGold: "20",
         state: { gold: "80", inventory: { "resource.wood": 2 } },
       });
+    } finally {
+      await app.close();
+      await db.end();
+    }
+  });
+
+  it("executes an HTTP purchase only once for a repeated request id", async () => {
+    const { db, app, userId, token } = await createShopPlayer();
+    try {
+      await db.query("UPDATE player_profiles SET gold=$2, inventory=$3::jsonb WHERE user_id=$1", [
+        userId,
+        "100",
+        JSON.stringify({}),
+      ]);
+      const first = await app.inject({
+        method: "POST",
+        url: "/shop/purchase",
+        headers: { authorization: `Bearer ${token}` },
+        payload: { requestId: "purchase-once", itemId: "resource.wood", quantity: 2 },
+      });
+      const second = await app.inject({
+        method: "POST",
+        url: "/shop/purchase",
+        headers: { authorization: `Bearer ${token}` },
+        payload: { requestId: "purchase-once", itemId: "resource.wood", quantity: 2 },
+      });
+      expect(first.statusCode).toBe(200);
+      expect(second.statusCode).toBe(200);
+      expect(JSON.parse(second.body)).toEqual(JSON.parse(first.body));
+      const row = await db.query<{ gold: string; inventory: Record<string, number> }>(
+        "SELECT gold, inventory FROM player_profiles WHERE user_id=$1",
+        [userId],
+      );
+      expect(row.rows[0]).toEqual({ gold: "80", inventory: { "resource.wood": 2 } });
+    } finally {
+      await app.close();
+      await db.end();
+    }
+  });
+
+  it("rejects reuse of a shop request id with different purchase parameters", async () => {
+    const { db, app, userId, token } = await createShopPlayer();
+    try {
+      await db.query("UPDATE player_profiles SET gold=$2, inventory=$3::jsonb WHERE user_id=$1", [
+        userId,
+        "100",
+        JSON.stringify({}),
+      ]);
+      const first = await app.inject({
+        method: "POST",
+        url: "/shop/purchase",
+        headers: { authorization: `Bearer ${token}` },
+        payload: { requestId: "purchase-conflict", itemId: "resource.wood", quantity: 1 },
+      });
+      const conflict = await app.inject({
+        method: "POST",
+        url: "/shop/purchase",
+        headers: { authorization: `Bearer ${token}` },
+        payload: { requestId: "purchase-conflict", itemId: "resource.wood", quantity: 2 },
+      });
+      expect(first.statusCode).toBe(200);
+      expect(conflict.statusCode).toBe(409);
+      expect(JSON.parse(conflict.body)).toEqual({ error: "SHOP_REQUEST_CONFLICT" });
+      const row = await db.query<{ gold: string; inventory: Record<string, number> }>(
+        "SELECT gold, inventory FROM player_profiles WHERE user_id=$1",
+        [userId],
+      );
+      expect(row.rows[0]).toEqual({ gold: "90", inventory: { "resource.wood": 1 } });
     } finally {
       await app.close();
       await db.end();
@@ -107,7 +175,7 @@ describe("shop catalogue", () => {
         method: "POST",
         url: "/shop/purchase",
         headers: { authorization: `Bearer ${token}` },
-        payload: { itemId: "resource.wood", quantity: 1 },
+        payload: { requestId: "purchase-insufficient", itemId: "resource.wood", quantity: 1 },
       });
       expect(response.statusCode).toBe(409);
       const row = await db.query<{ gold: string; inventory: Record<string, number> }>(
@@ -133,7 +201,7 @@ describe("shop catalogue", () => {
         method: "POST",
         url: "/shop/purchase",
         headers: { authorization: `Bearer ${token}` },
-        payload: { itemId: "resource.wood", quantity: 1 },
+        payload: { requestId: "purchase-capacity", itemId: "resource.wood", quantity: 1 },
       });
       expect(response.statusCode).toBe(409);
       expect(JSON.parse(response.body)).toEqual({ error: "INVENTORY_LIMIT" });
