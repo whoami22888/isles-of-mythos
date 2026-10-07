@@ -3,11 +3,11 @@
 FROM node:24-alpine AS build
 WORKDIR /app
 
-COPY package.json ./
+COPY package.json package-lock.json ./
 COPY client/package.json ./client/package.json
 COPY server/package.json ./server/package.json
 
-RUN --mount=type=cache,target=/root/.npm npm install --ignore-scripts --no-audit --no-fund --prefer-offline
+RUN --mount=type=cache,target=/root/.npm npm ci --ignore-scripts --no-audit --no-fund
 RUN --mount=type=cache,target=/root/.npm npm rebuild argon2 esbuild
 
 COPY . .
