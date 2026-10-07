@@ -281,6 +281,10 @@ export function parseServerMessage(value: unknown): ServerMessage | null {
         (value.missed === undefined || typeof value.missed === "boolean")
         ? { type:"combat_result", requestId:value.requestId, targetId:value.targetId, damage:value.damage, critical:value.critical, killed:value.killed, targetHealth:value.targetHealth,
           ...(value.missed === undefined ? {} : { missed:value.missed }), ...(value.status === undefined ? {} : { status:value.status }) } : null;
+    case "guild_operation_ok":
+      return typeof value.requestId === "string" && typeof value.guildId === "string" &&
+        (value.transactionId === undefined || typeof value.transactionId === "string")
+        ? { type: "guild_operation_ok", requestId: value.requestId, guildId: value.guildId, ...(value.transactionId === undefined ? {} : { transactionId: value.transactionId }) } : null;
     default: {
       const genericTypes = new Set<GenericSystemResponseType>([
         "base_state","building_state","breeding_started","breeding_jobs","guild_state","guild_invitations","guild_bank_state","guild_operation_ok",
