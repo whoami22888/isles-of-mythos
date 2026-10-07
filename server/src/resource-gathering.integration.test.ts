@@ -73,6 +73,7 @@ describe("resource gathering websocket flow", () => {
         resourceId: node.id,
       }));
       const gathered = await waitFor(socket, "resource_gathered", (value) => value.type === "resource_gathered" || value.type === "error");
+      if (gathered.type === "error") throw new Error("GATHER_FAILED:" + String(gathered.code));
       expect(gathered.type).toBe("resource_gathered");
       expect(gathered).toMatchObject({
         requestId: "resource-flow-1",
