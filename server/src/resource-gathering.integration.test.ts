@@ -57,7 +57,7 @@ describe("resource gathering websocket flow", () => {
       expect(register.statusCode).toBe(201);
       const body = JSON.parse(register.body) as { accessToken: string; user: { id: string } };
       userId = body.user.id;
-      await db.query("UPDATE player_profiles SET x=$2,y=$3 WHERE user_id=$1", [body.user.id, node.x, node.y]);
+      await db.query("INSERT INTO player_profiles(user_id,x,y) VALUES($1,$2,$3) ON CONFLICT(user_id) DO UPDATE SET x=EXCLUDED.x,y=EXCLUDED.y", [body.user.id, node.x, node.y]);
 
       await app.listen({ host: "127.0.0.1", port: 0 });
       const address = app.server.address();
