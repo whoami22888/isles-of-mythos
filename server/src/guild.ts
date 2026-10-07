@@ -138,7 +138,7 @@ export class GuildStore{
     const c=await this.db.connect();try{await c.query('BEGIN');
       const requestKey=userId+':'+requestId;
       const inserted=await c.query<{transaction_id:string}>("INSERT INTO guild_bank_requests(request_key,user_id,fingerprint,response) VALUES($1,$2,$3,'{}'::jsonb) ON CONFLICT(request_key) DO NOTHING RETURNING transaction_id",[requestKey,userId,fingerprint]);
-      let transactionId:string;
+      const transactionId=inserted.rows[0].transaction_id;
       if(!inserted.rows[0]){
         const existing=await c.query<{fingerprint:string;transaction_id:string;response:{transactionId?:string;rewardTransactionIds?:string[]}}>("SELECT fingerprint,transaction_id,response FROM guild_bank_requests WHERE request_key=$1 FOR UPDATE",[requestKey]);
         if(!existing.rows[0])throw new Error('GUILD_BANK_REQUEST_NOT_FOUND');
@@ -147,7 +147,6 @@ export class GuildStore{
         await c.query('COMMIT');
         return {transactionId:existing.rows[0].transaction_id,rewardTransactionIds:existing.rows[0].response.rewardTransactionIds??[]};
       }
-      transactionId=inserted.rows[0].transaction_id;
       await requirePermission(c,guildId,userId,'bank_deposit');const p=await c.query<{gold:string;inventory:Record<string,number>}>("SELECT gold,inventory FROM player_profiles WHERE user_id=$1 FOR UPDATE",[userId]);if(!p.rows[0])throw new Error('PLAYER_NOT_FOUND');
       let inv=cloneInventory(p.rows[0].inventory);if(quantity>0)inv=applyInventoryDelta(inv,itemId,-quantity);const playerGold=subtractGoldDoubloons(BigInt(p.rows[0].gold),gld);
       const gr=await c.query<{treasury:string}>("SELECT treasury FROM guilds WHERE id=$1 FOR UPDATE",[guildId]);if(!gr.rows[0])throw new Error('GUILD_NOT_FOUND');const guildGold=addGoldDoubloons(BigInt(gr.rows[0].treasury),gld);
@@ -162,7 +161,7 @@ export class GuildStore{
     const c=await this.db.connect();try{await c.query('BEGIN');
       const requestKey=userId+':'+requestId;
       const inserted=await c.query<{transaction_id:string}>("INSERT INTO guild_bank_requests(request_key,user_id,fingerprint,response) VALUES($1,$2,$3,'{}'::jsonb) ON CONFLICT(request_key) DO NOTHING RETURNING transaction_id",[requestKey,userId,fingerprint]);
-      let transactionId:string;
+      const transactionId=inserted.rows[0].transaction_id;
       if(!inserted.rows[0]){
         const existing=await c.query<{fingerprint:string;transaction_id:string;response:{transactionId?:string}}>("SELECT fingerprint,transaction_id,response FROM guild_bank_requests WHERE request_key=$1 FOR UPDATE",[requestKey]);
         if(!existing.rows[0])throw new Error('GUILD_BANK_REQUEST_NOT_FOUND');
@@ -171,7 +170,6 @@ export class GuildStore{
         await c.query('COMMIT');
         return {transactionId:existing.rows[0].transaction_id};
       }
-      transactionId=inserted.rows[0].transaction_id;
       await requirePermission(c,guildId,userId,'bank_withdraw');const gr=await c.query<{treasury:string}>("SELECT treasury FROM guilds WHERE id=$1 FOR UPDATE",[guildId]);if(!gr.rows[0])throw new Error('GUILD_NOT_FOUND');const guildGold=subtractGoldDoubloons(BigInt(gr.rows[0].treasury),gld);
       if(quantity>0){const item=await c.query<{quantity:string}>("SELECT quantity FROM guild_bank_items WHERE guild_id=$1 AND item_id=$2 FOR UPDATE",[guildId,itemId]);if(BigInt(item.rows[0]?.quantity??'0')<BigInt(quantity))throw new Error('INSUFFICIENT_GUILD_BANK');}
       const p=await c.query<{gold:string;inventory:Record<string,number>}>("SELECT gold,inventory FROM player_profiles WHERE user_id=$1 FOR UPDATE",[userId]);if(!p.rows[0])throw new Error('PLAYER_NOT_FOUND');let inv=cloneInventory(p.rows[0].inventory);if(quantity>0)inv=applyInventoryDelta(inv,itemId,quantity);const playerGold=addGoldDoubloons(BigInt(p.rows[0].gold),gld);
