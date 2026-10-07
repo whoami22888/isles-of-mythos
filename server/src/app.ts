@@ -293,7 +293,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   let combatTick: ReturnType<typeof setInterval> | undefined;
   let persistenceTick: ReturnType<typeof setInterval> | undefined;
 
-  app.addHook("onListen", async () => {
+  app.addHook("onListen", () => {
   heartbeat = setInterval(() => {
     for (const socket of sockets) {
       if (socket.readyState === socket.OPEN) socket.ping();
@@ -474,7 +474,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     if (auctionTick) clearInterval(auctionTick);
     if (worldEventTick) clearInterval(worldEventTick);
     if (endgameTick) clearInterval(endgameTick);
-    clearInterval(territorySeasonTick);
+    if (territorySeasonTick) clearInterval(territorySeasonTick);
     shuttingDown = true;
     if (heartbeat) clearInterval(heartbeat);
     if (survivalTick) clearInterval(survivalTick);
