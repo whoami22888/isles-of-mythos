@@ -14,8 +14,8 @@ import {
 } from "./network.js";
 
 const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL;
-const API_BASE_URL = (configuredBaseUrl ?? "http://localhost:3000").replace(/\/$/, "");
-const WS_URL = API_BASE_URL.replace(/^http/, "ws") + "/ws";
+const API_BASE_URL = (configuredBaseUrl ?? window.location.origin).replace(/\/$/, "");
+const WS_URL = API_BASE_URL.replace(/^http/, (protocol) => protocol === "https" ? "wss" : "ws") + "/ws";
 const VISIBLE_CHUNK_RADIUS = 1;
 const MOVE_SEND_INTERVAL_MS = 50;
 const ATTACK_INPUT_COOLDOWN_MS = 150;
