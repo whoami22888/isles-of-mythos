@@ -60,8 +60,13 @@ describe("Gate 9 naval mechanics",()=>{
       const fleet=await fleets.create(a,"Sea Wolves",attacker.id);expect(fleet.shipIds).toContain(attacker.id);
       const second=await ships.create(a,"Escort","sloop");const expanded=await fleets.addShip(a,fleet.id,second.id);expect(expanded.shipIds).toContain(second.id);
       const reduced=await fleets.removeShip(a,fleet.id,second.id);expect(reduced.shipIds).not.toContain(second.id);
+      await app.close();
+      const restartedInventory=new ShipInventoryStore(db);
+      const restartReplay=await restartedInventory.mutate(a,attacker.id,"repair_lumber",2,"cargo-replay","ship_cargo|repair_lumber|2");
+      expect(restartReplay.transactionId).toBe(cargo.transactionId);expect(restartReplay.items.find(x=>x.itemId==="repair_lumber")?.quantity).toBe(6);
+      await expect(restartedInventory.mutate(a,attacker.id,"repair_lumber",1,"cargo-replay","ship_cargo|repair_lumber|1")).rejects.toThrow("SHIP_CARGO_REQUEST_CONFLICT");
       await expect(naval.fireCannon(a,attacker.id,defender.id)).rejects.toThrow("SHIP_RETREATING");
-    }finally{await db.end();await app.close();}
+    }finally{await db.end();if(app.server.listening)await app.close();}
   });
   it("preserves fleet and cargo invariants under concurrent operations and app restart",async()=>{
     const db=createDbPool();
