@@ -128,10 +128,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   let shuttingDown = false;
   const app = Fastify({ logger: false });
 
-  const httpRequestStartedAt = new WeakMap<object, bigint>();
-  app.addHook("onRequest", (request) => {
-    httpRequestStartedAt.set(request, process.hrtime.bigint());
-  });
+  app.addHook("onRequest", () => {});
 
 
 
