@@ -18,7 +18,7 @@ describe("external boundary error handling", () => {
       const response = await app.inject({
         method: "POST",
         url: "/shop/purchase",
-        payload: { itemId: "resource.wood", quantity: 1 },
+        payload: { requestId: "unauthenticated-shop", itemId: "resource.wood", quantity: 1 },
       });
 
       expect(response.statusCode).toBe(401);
