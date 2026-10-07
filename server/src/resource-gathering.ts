@@ -105,7 +105,7 @@ export async function gatherResource(
       };
     }
 
-    const economy = await runEconomyMutation(client, userId, ({ gold, inventory }) => ({
+    await runEconomyMutation(client, userId, ({ gold, inventory }) => ({
       gold,
       inventory: applyInventoryDelta(inventory, reward.itemId, reward.quantity),
       value: undefined,
@@ -124,7 +124,6 @@ export async function gatherResource(
     );
 
     await client.query("COMMIT");
-    void economy;
     return {
       nodeId: node.id,
       itemId: reward.itemId,
