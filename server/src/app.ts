@@ -1266,7 +1266,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
               if(message.type==="create_guild")return {type:"guild_state",requestId:message.requestId,guild:await guilds.create(authenticatedUserId,message.name,message.tag)};
               if(message.type==="get_guild")return {type:"guild_state",requestId:message.requestId,guild:await guilds.get(authenticatedUserId)};
               if(message.type==="list_guild_invitations")return {type:"guild_invitations",requestId:message.requestId,invitations:await guilds.listInvitations(authenticatedUserId)};
-              if(message.type==="invite_guild_member"){await guilds.invite(authenticatedUserId,message.guildId,message.targetUserId);return {type:"guild_operation_ok",requestId:message.requestId,guildId:message.guildId};}
+              if(message.type==="invite_guild_member"){await guilds.invite(authenticatedUserId,message.guildId,message.targetUserId);return {type:"guild_operation_ok",requestId:message.requestId,guildId:message.guildId,transactionId:result.transactionId};}
               if(message.type==="accept_guild_invite")return {type:"guild_state",requestId:message.requestId,guild:await guilds.acceptInvite(authenticatedUserId,message.invitationId)};
               if(message.type==="decline_guild_invite"){await guilds.declineInvite(authenticatedUserId,message.invitationId);return {type:"guild_operation_ok",requestId:message.requestId,guildId:""};}
               if(message.type==="leave_guild"){await guilds.leave(authenticatedUserId,message.guildId);return {type:"guild_operation_ok",requestId:message.requestId,guildId:message.guildId};}
@@ -1274,9 +1274,9 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
               if(message.type==="set_guild_rank"){await guilds.setRank(authenticatedUserId,message.guildId,message.targetUserId,message.rank);return {type:"guild_operation_ok",requestId:message.requestId,guildId:message.guildId};}
               if(message.type==="set_guild_permission"){await guilds.setPermission(authenticatedUserId,message.guildId,message.rank,message.permission,message.enabled);return {type:"guild_operation_ok",requestId:message.requestId,guildId:message.guildId};}
               if(message.type==="guild_bank")return {type:"guild_bank_state",requestId:message.requestId,guildId:message.guildId,bank:await guilds.bank(authenticatedUserId,message.guildId)};
-              if(message.type==="guild_bank_deposit"){await guilds.bankDeposit(authenticatedUserId,message.guildId,message.itemId,message.quantity,message.gold);return {type:"guild_operation_ok",requestId:message.requestId,guildId:message.guildId};}
-              if(message.type==="guild_bank_withdraw"){await guilds.bankWithdraw(authenticatedUserId,message.guildId,message.itemId,message.quantity,message.gold);return {type:"guild_operation_ok",requestId:message.requestId,guildId:message.guildId};}
-              await guilds.buildInfrastructure(authenticatedUserId,message.guildId,message.structureType);
+              if(message.type==="guild_bank_deposit"){const result=await guilds.bankDeposit(authenticatedUserId,message.guildId,message.itemId,message.quantity,message.gold);return {type:"guild_operation_ok",requestId:message.requestId,guildId:message.guildId,transactionId:result.transactionId};}
+              if(message.type==="guild_bank_withdraw"){const result=await guilds.bankWithdraw(authenticatedUserId,message.guildId,message.itemId,message.quantity,message.gold);return {type:"guild_operation_ok",requestId:message.requestId,guildId:message.guildId,transactionId:result.transactionId};}
+              const result=await guilds.buildInfrastructure(authenticatedUserId,message.guildId,message.structureType);
               return {type:"guild_operation_ok",requestId:message.requestId,guildId:message.guildId};
             }catch(error){
               const code=errorCode(error,"GUILD_OPERATION_FAILED");
