@@ -574,6 +574,11 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     async (request, reply) => {
       try {
         await request.jwtVerify();
+      } catch {
+        return reply.code(401).send({ error: "UNAUTHORIZED", message: "Invalid credentials" });
+      }
+
+      try {
         const userId = request.user.sub;
         const item = getShopItem(request.body.itemId);
         if (!item) return reply.code(404).send({ error: "SHOP_ITEM_NOT_FOUND" });
