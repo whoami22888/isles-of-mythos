@@ -45,8 +45,36 @@ function metadataFor(itemId:string):AuctionMetadata{
 
 export interface AuctionSummary{id:string;sellerUserId:string;itemId:string;category:AuctionCategory;rarity:AuctionRarity;itemLevel:number;quantity:number;remainingQuantity:number;startPrice:string;buyNowPrice:string|null;currentBid:string;highestBidderUserId:string|null;status:string;expiresAt:string;}
 
+export interface AuctionMutation { listing: AuctionSummary; transactionId: string; }
+
 export class AuctionStore{
   constructor(private readonly db:Pool){}
+
+  private async beginRequest<T>(c:PoolClient,userId:string,requestId:string,fingerprint:string):Promise<{requestKey:string;transactionId:string;response:T|null}>{
+    if(typeof requestId!=="string"||requestId.length<1||requestId.length>64) throw new Error("INVALID_REQUEST_ID");
+    const requestKey=userId+":"+requestId;
+    const inserted=await c.query<{transaction_id:string}>(
+      "INSERT INTO auction_requests(request_key,user_id,fingerprint,response) VALUES($1,$2,$3,'{}'::jsonb) ON CONFLICT(request_key) DO NOTHING RETURNING transaction_id",
+      [requestKey,userId,fingerprint],
+    );
+    if(inserted.rowCount===1){
+      const transactionId=inserted.rows[0]?.transaction_id;
+      if(!transactionId) throw new Error("AUCTION_TRANSACTION_ID_MISSING");
+      return {requestKey,transactionId,response:null};
+    }
+    const existing=await c.query<{transaction_id:string;fingerprint:string;response:T}>(
+      "SELECT transaction_id,fingerprint,response FROM auction_requests WHERE request_key=$1 FOR UPDATE",[requestKey],
+    );
+    const row=existing.rows[0];
+    if(!row) throw new Error("AUCTION_REQUEST_NOT_FOUND");
+    if(row.fingerprint!==fingerprint) throw new Error("AUCTION_REQUEST_CONFLICT");
+    if(row.response && Object.keys(row.response).length>0) return {requestKey,transactionId:row.transaction_id,response:row.response};
+    throw new Error("AUCTION_REQUEST_INCOMPLETE");
+  }
+
+  private async completeRequest(c:PoolClient,requestKey:string,response:unknown):Promise<void>{
+    await c.query("UPDATE auction_requests SET response=$2::jsonb WHERE request_key=$1",[requestKey,JSON.stringify(response)]);
+  }
 
   private async settleExpired(c:PoolClient,limit=50):Promise<number>{
     const rows=await c.query<{id:string}>("SELECT id FROM auction_listings WHERE status='active' AND expires_at<=CURRENT_TIMESTAMP ORDER BY expires_at,id LIMIT $1 FOR UPDATE SKIP LOCKED",[limit]);
@@ -78,18 +106,23 @@ export class AuctionStore{
 
   async tick():Promise<number>{return tx(this.db,c=>this.settleExpired(c,100));}
 
-  async create(sellerUserId:string,input:{itemId:string;quantity:number;startPrice:string;buyNowPrice?:string|null;durationMs:number}):Promise<AuctionSummary>{
+  async create(sellerUserId:string,requestId:string,input:{itemId:string;quantity:number;startPrice:string;buyNowPrice?:string|null;durationMs:number}):Promise<AuctionMutation>{
     const item=itemId(input.itemId);const meta=metadataFor(item);const quantity=positiveInt(input.quantity,"INVALID_AUCTION_QUANTITY");
     const start=parseGoldDoubloons(input.startPrice);if(start<=0n)throw new Error("INVALID_AUCTION_PRICE");
     const buy=input.buyNowPrice==null?null:parseGoldDoubloons(input.buyNowPrice);
-    if(buy!==null && buy<start)throw new Error("INVALID_AUCTION_PRICE");
+    if(buy!==null&&buy<start)throw new Error("INVALID_AUCTION_PRICE");
     if(!Number.isSafeInteger(input.durationMs)||input.durationMs<60_000||input.durationMs>MAX_DURATION_MS)throw new Error("INVALID_AUCTION_DURATION");
     return tx(this.db,async c=>{
-      await this.settleExpired(c,20);const users=await lockUsers(c,[sellerUserId]);const seller=users.get(sellerUserId)!;
+      await this.settleExpired(c,20);
+      const req=await this.beginRequest<AuctionSummary>(c,sellerUserId,requestId,JSON.stringify({type:"create",itemId:item,quantity,startPrice:start.toString(),buyNowPrice:buy?.toString()??null,durationMs:input.durationMs}));
+      if(req.response)return {listing:req.response,transactionId:req.transactionId};
+      const users=await lockUsers(c,[sellerUserId]);const seller=users.get(sellerUserId)!;
       let inv=cloneInventory(seller.inventory);inv=applyInventoryDelta(inv,item,-quantity);
       const r=await c.query<{id:string;expires_at:Date}>("INSERT INTO auction_listings(seller_user_id,item_id,category,rarity,item_level,quantity,remaining_quantity,start_price,buy_now_price,seller_fee_bps,expires_at) VALUES($1,$2,$3,$4,$5,$6,$6,$7,$8,$9,CURRENT_TIMESTAMP+($10::bigint*INTERVAL '1 millisecond')) RETURNING id,expires_at",[sellerUserId,item,meta.category,meta.rarity,meta.itemLevel,quantity,start.toString(),buy?.toString()??null,DEFAULT_FEE_BPS,input.durationMs]);
       await c.query("UPDATE player_profiles SET inventory=$2::jsonb,updated_at=CURRENT_TIMESTAMP WHERE user_id=$1",[sellerUserId,JSON.stringify(inv)]);
-      return {id:r.rows[0].id,sellerUserId,itemId:item,category:meta.category,rarity:meta.rarity,itemLevel:meta.itemLevel,quantity,remainingQuantity:quantity,startPrice:start.toString(),buyNowPrice:buy?.toString()??null,currentBid:"0",highestBidderUserId:null,status:"active",expiresAt:r.rows[0].expires_at.toISOString()};
+      const listing={id:r.rows[0].id,sellerUserId,itemId:item,category:meta.category,rarity:meta.rarity,itemLevel:meta.itemLevel,quantity,remainingQuantity:quantity,startPrice:start.toString(),buyNowPrice:buy?.toString()??null,currentBid:"0",highestBidderUserId:null,status:"active",expiresAt:r.rows[0].expires_at.toISOString()};
+      await this.completeRequest(c,req.requestKey,listing);
+      return {listing,transactionId:req.transactionId};
     });
   }
 
@@ -108,10 +141,12 @@ export class AuctionStore{
     return r.rows.map(x=>({id:x.id,sellerUserId:x.seller_user_id,itemId:x.item_id,category:x.category,rarity:x.rarity,itemLevel:x.item_level,quantity:x.quantity,remainingQuantity:x.remaining_quantity,startPrice:x.start_price,buyNowPrice:x.buy_now_price,currentBid:x.current_bid,highestBidderUserId:x.highest_bidder_user_id,status:x.status,expiresAt:x.expires_at.toISOString()}));
   }
 
-  async bid(bidderUserId:string,listingId:string,amount:string):Promise<AuctionSummary>{
+  async bid(bidderUserId:string,requestId:string,listingId:string,amount:string):Promise<AuctionMutation>{
     const bid=parseGoldDoubloons(amount);if(bid<=0n)throw new Error("INVALID_AUCTION_BID");
     return tx(this.db,async c=>{
       await this.settleExpired(c,20);
+      const req=await this.beginRequest<AuctionSummary>(c,bidderUserId,requestId,JSON.stringify({type:"bid",listingId,amount:bid.toString()}));
+      if(req.response)return {listing:req.response,transactionId:req.transactionId};
       const l=await c.query<{id:string;seller_user_id:string;item_id:string;remaining_quantity:number;start_price:string;buy_now_price:string|null;current_bid:string;highest_bidder_user_id:string|null;seller_fee_bps:number;status:string;expires_at:Date}>("SELECT id,seller_user_id,item_id,remaining_quantity,start_price,buy_now_price,current_bid,highest_bidder_user_id,seller_fee_bps,status,expires_at FROM auction_listings WHERE id=$1 FOR UPDATE",[listingId]);
       const listing=l.rows[0];if(!listing)throw new Error("AUCTION_NOT_FOUND");if(listing.status!=="active"||new Date(listing.expires_at).getTime()<=Date.now())throw new Error("AUCTION_NOT_ACTIVE");
       if(listing.seller_user_id===bidderUserId)throw new Error("AUCTION_SELF_BID");
@@ -122,13 +157,17 @@ export class AuctionStore{
       if(listing.highest_bidder_user_id){const previous=users.get(listing.highest_bidder_user_id)!;const refunded=addGoldDoubloons(parseGoldDoubloons(previous.gold),current);await c.query("UPDATE player_profiles SET gold=$2,updated_at=CURRENT_TIMESTAMP WHERE user_id=$1",[previous.user_id,refunded.toString()]);await c.query("UPDATE auction_bids SET status='refunded',settled_at=CURRENT_TIMESTAMP WHERE listing_id=$1 AND bidder_user_id=$2 AND status='held'",[listingId,previous.user_id]);}
       await c.query("INSERT INTO auction_bids(listing_id,bidder_user_id,amount,status) VALUES($1,$2,$3,'held')",[listingId,bidderUserId,bid.toString()]);
       await c.query("UPDATE auction_listings SET current_bid=$2,highest_bidder_user_id=$3,updated_at=CURRENT_TIMESTAMP WHERE id=$1",[listingId,bid.toString(),bidderUserId]);
-      return this.summaryLocked(c,listingId);
+      const listingState=await this.summaryLocked(c,listingId);
+      await this.completeRequest(c,req.requestKey,listingState);
+      return {listing:listingState,transactionId:req.transactionId};
     });
   }
 
-  async buyNow(buyerUserId:string,listingId:string):Promise<AuctionSummary>{
+  async buyNow(buyerUserId:string,requestId:string,listingId:string):Promise<AuctionMutation>{
     return tx(this.db,async c=>{
       await this.settleExpired(c,20);
+      const req=await this.beginRequest<AuctionSummary>(c,buyerUserId,requestId,JSON.stringify({type:"buy_now",listingId}));
+      if(req.response)return {listing:req.response,transactionId:req.transactionId};
       const l=await c.query<{id:string;seller_user_id:string;item_id:string;remaining_quantity:number;buy_now_price:string|null;current_bid:string;highest_bidder_user_id:string|null;seller_fee_bps:number;status:string;expires_at:Date}>("SELECT id,seller_user_id,item_id,remaining_quantity,buy_now_price,current_bid,highest_bidder_user_id,seller_fee_bps,status,expires_at FROM auction_listings WHERE id=$1 FOR UPDATE",[listingId]);
       const listing=l.rows[0];if(!listing)throw new Error("AUCTION_NOT_FOUND");if(listing.status!=="active")throw new Error("AUCTION_NOT_ACTIVE");if(!listing.buy_now_price)throw new Error("AUCTION_NO_BUY_NOW");
       if(listing.seller_user_id===buyerUserId)throw new Error("AUCTION_SELF_BUY");const price=parseGoldDoubloons(listing.buy_now_price);
@@ -138,25 +177,32 @@ export class AuctionStore{
       await c.query("UPDATE player_profiles SET gold=$2,inventory=$3::jsonb,updated_at=CURRENT_TIMESTAMP WHERE user_id=$1",[buyerUserId,buyerGold.toString(),JSON.stringify(buyerInv)]);
       await c.query("UPDATE player_profiles SET gold=$2,updated_at=CURRENT_TIMESTAMP WHERE user_id=$1",[seller.user_id,sellerGold.toString()]);
       if(listing.highest_bidder_user_id){const held=users.get(listing.highest_bidder_user_id)!;const refundBase=held.user_id===buyerUserId?buyerGold:parseGoldDoubloons(held.gold);const refund=addGoldDoubloons(refundBase,BigInt(listing.current_bid));await c.query("UPDATE player_profiles SET gold=$2,updated_at=CURRENT_TIMESTAMP WHERE user_id=$1",[held.user_id,refund.toString()]);await c.query("UPDATE auction_bids SET status='refunded',settled_at=CURRENT_TIMESTAMP WHERE listing_id=$1 AND status='held'",[listingId]);}
-      await c.query("INSERT INTO auction_transactions(listing_id,buyer_user_id,seller_user_id,item_id,quantity,gross_gold,seller_fee,net_gold,transaction_type) VALUES($1,$2,$3,$4,$5,$6,$7,$8,'buy_now')",[listingId,buyerUserId,seller.user_id,listing.item_id,listing.remaining_quantity,price.toString(),sellerFee.toString(),(price-sellerFee).toString()]);
-      await c.query("UPDATE auction_listings SET status='sold',remaining_quantity=0,updated_at=CURRENT_TIMESTAMP WHERE id=$1",[listingId]);return this.summaryLocked(c,listingId);
+      await c.query("INSERT INTO auction_transactions(transaction_id,listing_id,buyer_user_id,seller_user_id,item_id,quantity,gross_gold,seller_fee,net_gold,transaction_type) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,'buy_now')",[req.transactionId,listingId,buyerUserId,seller.user_id,listing.item_id,listing.remaining_quantity,price.toString(),sellerFee.toString(),(price-sellerFee).toString()]);
+      await c.query("UPDATE auction_listings SET status='sold',remaining_quantity=0,updated_at=CURRENT_TIMESTAMP WHERE id=$1",[listingId]);
+      const listingState=await this.summaryLocked(c,listingId);
+      await this.completeRequest(c,req.requestKey,listingState);
+      return {listing:listingState,transactionId:req.transactionId};
     });
   }
 
-  async cancel(sellerUserId:string,listingId:string):Promise<void>{
-    await tx(this.db,async c=>{
+  async cancel(sellerUserId:string,requestId:string,listingId:string):Promise<{transactionId:string}>{
+    return tx(this.db,async c=>{
+      const req=await this.beginRequest<{ok:true}>(c,sellerUserId,requestId,JSON.stringify({type:"cancel",listingId}));
+      if(req.response)return {transactionId:req.transactionId};
       const l=await c.query<{seller_user_id:string;item_id:string;remaining_quantity:number;status:string}>("SELECT seller_user_id,item_id,remaining_quantity,status FROM auction_listings WHERE id=$1 FOR UPDATE",[listingId]);const listing=l.rows[0];
       if(!listing)throw new Error("AUCTION_NOT_FOUND");if(listing.seller_user_id!==sellerUserId)throw new Error("AUCTION_OWNER_REQUIRED");if(listing.status!=="active")throw new Error("AUCTION_NOT_ACTIVE");
       if((await c.query("SELECT 1 FROM auction_bids WHERE listing_id=$1 AND status='held'",[listingId])).rowCount)throw new Error("AUCTION_HAS_BID");
       const users=await lockUsers(c,[sellerUserId]);const seller=users.get(sellerUserId)!;let inv=cloneInventory(seller.inventory);inv=applyInventoryDelta(inv,listing.item_id,listing.remaining_quantity);
       await c.query("UPDATE player_profiles SET inventory=$2::jsonb,updated_at=CURRENT_TIMESTAMP WHERE user_id=$1",[sellerUserId,JSON.stringify(inv)]);
-      await c.query("INSERT INTO auction_transactions(listing_id,buyer_user_id,seller_user_id,item_id,quantity,gross_gold,seller_fee,net_gold,transaction_type) VALUES($1,NULL,$2,$3,$4,0,0,0,'cancel_return')",[listingId,sellerUserId,listing.item_id,listing.remaining_quantity]);
+      await c.query("INSERT INTO auction_transactions(transaction_id,listing_id,buyer_user_id,seller_user_id,item_id,quantity,gross_gold,seller_fee,net_gold,transaction_type) VALUES($1,$2,NULL,$3,$4,$5,0,0,0,'cancel_return')",[req.transactionId,listingId,sellerUserId,listing.item_id,listing.remaining_quantity]);
       await c.query("UPDATE auction_listings SET status='cancelled',remaining_quantity=0,updated_at=CURRENT_TIMESTAMP WHERE id=$1",[listingId]);
+      await this.completeRequest(c,req.requestKey,{ok:true});
+      return {transactionId:req.transactionId};
     });
   }
 
   async history(userId:string):Promise<Record<string, unknown>[]>{
-    const r=await this.db.query<Record<string, unknown>>("SELECT id,listing_id,buyer_user_id,seller_user_id,item_id,quantity,gross_gold,seller_fee,net_gold,transaction_type,created_at FROM auction_transactions WHERE seller_user_id=$1 OR buyer_user_id=$1 ORDER BY created_at DESC LIMIT 100",[userId]);
+    const r=await this.db.query<Record<string, unknown>>("SELECT id,transaction_id,listing_id,buyer_user_id,seller_user_id,item_id,quantity,gross_gold,seller_fee,net_gold,transaction_type,created_at FROM auction_transactions WHERE seller_user_id=$1 OR buyer_user_id=$1 ORDER BY created_at DESC LIMIT 100",[userId]);
     return r.rows;
   }
 

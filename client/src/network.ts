@@ -96,9 +96,9 @@ export type ServerMessage =
   | { type: "party_invitations"; requestId: string; invitations: Record<string, unknown>[] }
   | { type: "party_operation_ok"; requestId: string }
   | { type: "auction_list"; requestId: string; listings: Record<string, unknown>[] }
-  | { type: "auction_state"; requestId: string; listing: Record<string, unknown> }
+  | { type: "auction_state"; requestId: string; transactionId:string; listing: Record<string, unknown> }
   | { type: "auction_history"; requestId: string; transactions: Record<string, unknown>[] }
-  | { type: "auction_operation_ok"; requestId: string }
+  | { type: "auction_operation_ok"; requestId: string; transactionId:string }
   | GenericSystemResponse
   | { type: "error"; code: string };
 
@@ -268,11 +268,11 @@ export function parseServerMessage(value: unknown): ServerMessage | null {
     case "auction_list":
       return typeof value.requestId==="string" && isRecordArray(value.listings) ? {type:"auction_list",requestId:value.requestId,listings:value.listings}:null;
     case "auction_state":
-      return typeof value.requestId==="string" && isRecord(value.listing) ? {type:"auction_state",requestId:value.requestId,listing:value.listing}:null;
+      return typeof value.requestId==="string" && typeof value.transactionId==="string" && isRecord(value.listing) ? {type:"auction_state",requestId:value.requestId,transactionId:value.transactionId,listing:value.listing}:null;
     case "auction_history":
       return typeof value.requestId==="string" && isRecordArray(value.transactions) ? {type:"auction_history",requestId:value.requestId,transactions:value.transactions}:null;
     case "auction_operation_ok":
-      return typeof value.requestId==="string" ? {type:"auction_operation_ok",requestId:value.requestId}:null;
+      return typeof value.requestId==="string" && typeof value.transactionId==="string" ? {type:"auction_operation_ok",requestId:value.requestId,transactionId:value.transactionId}:null;
     case "combat_result":
       return typeof value.requestId === "string" && value.requestId.length > 0 && value.requestId.length <= 64 &&
         typeof value.targetId === "string" && typeof value.damage === "number" &&

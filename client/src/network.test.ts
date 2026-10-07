@@ -182,3 +182,13 @@ describe("system response parser", () => {
     }
   });
 });
+
+describe("auction transaction protocol", () => {
+  it("requires transaction ids on auction mutations", () => {
+    const listing = { id:"auction-1", sellerUserId:"seller", itemId:"resource.wood", category:"resource", rarity:"common", itemLevel:1, quantity:1, remainingQuantity:1, startPrice:"10", buyNowPrice:null, currentBid:"0", highestBidderUserId:null, status:"active", expiresAt:"2026-10-08T00:00:00.000Z" };
+    expect(parseServerMessage({ type:"auction_state", requestId:"auction-1", transactionId:"550e8400-e29b-41d4-a716-446655440000", listing })).toMatchObject({ type:"auction_state", transactionId:"550e8400-e29b-41d4-a716-446655440000" });
+    expect(parseServerMessage({ type:"auction_state", requestId:"auction-2", transactionId:123, listing })).toBeNull();
+    expect(parseServerMessage({ type:"auction_operation_ok", requestId:"auction-3", transactionId:"550e8400-e29b-41d4-a716-446655440000" })).toMatchObject({ type:"auction_operation_ok" });
+    expect(parseServerMessage({ type:"auction_operation_ok", requestId:"auction-4" })).toBeNull();
+  });
+});

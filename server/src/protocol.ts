@@ -191,9 +191,9 @@ export type ServerMessage =
   | { type:"party_invitations"; requestId:string; invitations:PartyInvitation[] }
   | { type:"party_operation_ok"; requestId:string }
   | { type:"auction_list"; requestId:string; listings:AuctionSummary[] }
-  | { type:"auction_state"; requestId:string; listing:AuctionSummary }
+  | { type:"auction_state"; requestId:string; transactionId:string; listing:AuctionSummary }
   | { type:"auction_history"; requestId:string; transactions:Record<string, unknown>[] }
-  | { type:"auction_operation_ok"; requestId:string }
+  | { type:"auction_operation_ok"; requestId:string; transactionId:string }
   | { type:"world_event_list"; requestId:string; events:WorldEventSummary[] }
   | { type:"world_event_state"; requestId:string; event:WorldEventSummary }
   | { type:"world_event_reward"; requestId:string; eventId:string; gold:string; items:Record<string,number> }
