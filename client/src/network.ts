@@ -75,7 +75,7 @@ export type ServerMessage =
   | CombatResultMessage
   | { type: "creature_state"; requestId?: string; creature: CreatureState }
   | { type: "creature_party"; creatures: CreatureState[] }
-  | { type: "craft_result"; requestId: string; recipeId: string; state: PlayerState }
+  | { type: "craft_result"; requestId: string; transactionId: string; recipeId: string; state: PlayerState }
   | { type: "shop_purchase_result"; requestId: string; transactionId: string; itemId: string; quantity: number; totalGold: string; state: PlayerState }
   | { type: "trade_result"; requestId: string; transactionId: string; from: EconomySnapshot; to: EconomySnapshot }
   | { type: "army_list"; requestId: string; armies: ArmySummary[] }
@@ -211,8 +211,8 @@ export function parseServerMessage(value: unknown): ServerMessage | null {
     case "creature_party":
       return Array.isArray(value.creatures) && value.creatures.every(isCreatureState) ? { type:"creature_party", creatures:value.creatures } : null;
     case "craft_result":
-      return typeof value.requestId === "string" && typeof value.recipeId === "string" && isPlayerState(value.state)
-        ? { type:"craft_result", requestId:value.requestId, recipeId:value.recipeId, state:value.state } : null;
+      return typeof value.requestId === "string" && typeof value.transactionId === "string" && typeof value.recipeId === "string" && isPlayerState(value.state)
+        ? { type:"craft_result", requestId:value.requestId, transactionId:value.transactionId, recipeId:value.recipeId, state:value.state } : null;
     case "shop_purchase_result":
       return typeof value.requestId === "string" && typeof value.transactionId === "string" && typeof value.itemId === "string" && typeof value.quantity === "number" &&
         Number.isSafeInteger(value.quantity) && value.quantity > 0 && typeof value.totalGold === "string" && isPlayerState(value.state)

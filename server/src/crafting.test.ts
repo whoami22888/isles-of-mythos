@@ -35,7 +35,7 @@ describe("crafting transactions", () => {
         [userId, JSON.stringify({ "resource.wood": 8 })],
       );
 
-      const result = await craftRecipe(db, userId, "tool.wooden-club");
+      const result = await craftRecipe(db, userId, "craft-1", "tool.wooden-club");
       expect(result.inventory).toEqual({
         "resource.wood": 0,
         "tool.wooden-club": 1,
@@ -60,7 +60,7 @@ describe("crafting transactions", () => {
         [userId, JSON.stringify({ "resource.wood": 7 })],
       );
 
-      await expect(craftRecipe(db, userId, "tool.wooden-club")).rejects.toThrow(
+      await expect(craftRecipe(db, userId, "craft-insufficient", "tool.wooden-club")).rejects.toThrow(
         "INSUFFICIENT_INVENTORY",
       );
 
@@ -89,7 +89,7 @@ describe("crafting transactions", () => {
         ],
       );
 
-      await expect(craftRecipe(db, userId, "tool.wooden-club")).rejects.toThrow(
+      await expect(craftRecipe(db, userId, "craft-overflow", "tool.wooden-club")).rejects.toThrow(
         "INVENTORY_LIMIT",
       );
 
@@ -116,7 +116,7 @@ describe("crafting transactions", () => {
       );
 
       const results = await Promise.all(
-        Array.from({ length: 4 }, () => craftRecipe(db, userId, "tool.wooden-club")),
+        Array.from({ length: 4 }, () => craftRecipe(db, userId, randomUUID(), "tool.wooden-club")),
       );
       expect(results).toHaveLength(4);
 
@@ -134,3 +134,26 @@ describe("crafting transactions", () => {
     }
   });
 });
+
+  it("replays the same transaction after restart and rejects conflicting request reuse", async () => {
+    const { db, app, userId } = await createPlayer();
+    try {
+      await db.query("UPDATE player_profiles SET inventory=$2::jsonb WHERE user_id=$1", [userId, JSON.stringify({ "resource.wood": 8 })]);
+      const first = await craftRecipe(db, userId, "craft-restart", "tool.wooden-club");
+      const restarted = await buildApp({ db });
+      try {
+        const replay = await craftRecipe(db, userId, "craft-restart", "tool.wooden-club");
+        expect(replay).toEqual(first);
+        await expect(craftRecipe(db, userId, "craft-restart", "tool.stone-axe")).rejects.toThrow("CRAFT_REQUEST_CONFLICT");
+      } finally {
+        await restarted.close();
+      }
+      const row = await db.query<{ inventory: Record<string, number> }>("SELECT inventory FROM player_profiles WHERE user_id=$1", [userId]);
+      expect(row.rows[0]?.inventory).toEqual({ "resource.wood": 0, "tool.wooden-club": 1 });
+      const ledger = await db.query<{ transaction_id: string }>("SELECT transaction_id FROM craft_requests WHERE request_key=$1", [userId + ":craft-restart"]);
+      expect(ledger.rows[0]?.transaction_id).toBe(first.transactionId);
+    } finally {
+      await app.close();
+      await db.end();
+    }
+  });

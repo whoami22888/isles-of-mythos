@@ -1156,9 +1156,9 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           const response = await runEconomyRequest(authenticatedUserId, message.requestId, "craft|" + message.recipeId, async () => {
             try {
               await players.loadOrCreate(authenticatedUserId);
-              const result = await craftRecipe(db, authenticatedUserId, message.recipeId);
+              const result = await craftRecipe(db, authenticatedUserId, message.requestId, message.recipeId);
               const state = await players.reloadEconomy(authenticatedUserId);
-              return { type: "craft_result", requestId: message.requestId, recipeId: result.recipeId, state: serializePlayerState(state) };
+              return { type: "craft_result", requestId: message.requestId, transactionId: result.transactionId, recipeId: result.recipeId, state: serializePlayerState(state) };
             } catch (error) {
               const code = errorCode(error, "CRAFT_FAILED");
               if (code === "RECIPE_NOT_FOUND" || code === "INSUFFICIENT_INVENTORY" || code === "INVENTORY_LIMIT") {

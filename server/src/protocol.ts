@@ -146,7 +146,7 @@ export type ServerMessage =
   | { type:"creature_party"; creatures:unknown[] }
   | { type:"base_state"; base:unknown }
   | { type:"building_state"; requestId:string; building:unknown }
-  | { type:"craft_result"; requestId:string; recipeId:string; state:PublicPlayerState }
+  | { type:"craft_result"; requestId:string; transactionId:string; recipeId:string; state:PublicPlayerState }
   | { type:"shop_purchase_result"; requestId:string; transactionId:string; itemId:string; quantity:number; totalGold:string; state:PublicPlayerState }
   | { type:"trade_result"; requestId:string; transactionId:string; from:unknown; to:unknown }
   | { type:"breeding_started"; requestId:string; job:unknown }
