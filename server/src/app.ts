@@ -108,7 +108,16 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     for (const row of capturedRows.rows) capturedWorldCreatures.add(row.wild_source_id);
     capturedWorldCreaturesLoaded = true;
   };
-  let capturedWorldCreaturesReady: Promise<void> = Promise.resolve();
+  let capturedWorldCreaturesReady: Promise<void> | undefined;
+  const ensureCapturedWorldCreaturesLoaded = (): Promise<void> => {
+    if (!capturedWorldCreaturesReady) {
+      capturedWorldCreaturesReady = loadCapturedWorldCreatures().catch((error) => {
+        capturedWorldCreaturesReady = undefined;
+        throw error;
+      });
+    }
+    return capturedWorldCreaturesReady;
+  };
   const visibleWorldChunk = (x: number, y: number) => {
     const chunk = world.get(x, y);
     if (capturedWorldCreatures.size === 0) return chunk;
@@ -293,7 +302,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   let persistenceTick: ReturnType<typeof setInterval> | undefined;
 
   app.addHook("onListen", () => {
-  capturedWorldCreaturesReady = loadCapturedWorldCreatures().catch((error) => {
+  void ensureCapturedWorldCreaturesLoaded().catch((error) => {
     log("captured_world_creatures_load_failed", {
       message: error instanceof Error ? error.message : String(error),
     });
@@ -330,33 +339,34 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   survivalTick.unref();
 
   combatTick = setInterval(() => {
-    if (!capturedWorldCreaturesLoaded) return;
     const tickStartedAt = process.hrtime.bigint();
     const now = Date.now();
     tickPlayerStatuses(250);
 
+    if (capturedWorldCreaturesLoaded) {
     for (const [connectedUserId, nextActivationAt] of combatActivationNextAt) {
-      if (now < nextActivationAt) continue;
-      const player = players.get(connectedUserId);
-      if (!player || player.health <= 0 || !userSockets.has(connectedUserId)) {
-        combatActivationNextAt.delete(connectedUserId);
-        continue;
-      }
-      const centerChunkX = Math.floor(player.x / 32);
-      const centerChunkY = Math.floor(player.y / 32);
-      for (let chunkY = centerChunkY - 1; chunkY <= centerChunkY + 1; chunkY += 1) {
-        for (let chunkX = centerChunkX - 1; chunkX <= centerChunkX + 1; chunkX += 1) {
-          for (const spawn of visibleWorldChunk(chunkX, chunkY).creatures) {
-            if (defeatedCreatures.has(spawn.id) || combatTargets.has(spawn.id)) continue;
-            const activationDistance = Math.hypot(player.x - spawn.x, player.y - spawn.y);
-            if (activationDistance <= 8) {
-              combatTargets.set(spawn.id, createCombatTarget(spawn.id, spawn.species, spawn.x, spawn.y, spawn.level));
+        if (now < nextActivationAt) continue;
+        const player = players.get(connectedUserId);
+        if (!player || player.health <= 0 || !userSockets.has(connectedUserId)) {
+          combatActivationNextAt.delete(connectedUserId);
+          continue;
+        }
+        const centerChunkX = Math.floor(player.x / 32);
+        const centerChunkY = Math.floor(player.y / 32);
+        for (let chunkY = centerChunkY - 1; chunkY <= centerChunkY + 1; chunkY += 1) {
+          for (let chunkX = centerChunkX - 1; chunkX <= centerChunkX + 1; chunkX += 1) {
+            for (const spawn of visibleWorldChunk(chunkX, chunkY).creatures) {
+              if (defeatedCreatures.has(spawn.id) || combatTargets.has(spawn.id)) continue;
+              const activationDistance = Math.hypot(player.x - spawn.x, player.y - spawn.y);
+              if (activationDistance <= 8) {
+                combatTargets.set(spawn.id, createCombatTarget(spawn.id, spawn.species, spawn.x, spawn.y, spawn.level));
+              }
             }
           }
         }
+        combatActivationNextAt.set(connectedUserId, now + 500);
       }
-      combatActivationNextAt.set(connectedUserId, now + 500);
-    }
+      }
     for (const [projectileId, projectile] of projectiles) {
       const target = combatTargets.get(projectile.targetId);
       const requestId = projectileId.slice(projectileId.indexOf(":") + 1).replace(projectile.ownerUserId + ":", "");
@@ -528,7 +538,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       },
     },
     async (request, reply) => {
-      await capturedWorldCreaturesReady;
+      await ensureCapturedWorldCreaturesLoaded();
       const x = Number(request.params.x);
       const y = Number(request.params.y);
       if (!Number.isSafeInteger(x) || !Number.isSafeInteger(y)) {
@@ -887,7 +897,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           if(state.health<=0){send(socket,{type:"error",code:"PLAYER_DEAD"});return;}
           const coords=parseCreatureTargetId(message.targetId);
           if(!coords){send(socket,{type:"error",code:"INVALID_MESSAGE"});return;}
-          await capturedWorldCreaturesReady;
+          await ensureCapturedWorldCreaturesLoaded();
           const chunk=visibleWorldChunk(Math.floor(coords.x/32),Math.floor(coords.y/32));
           const spawn=chunk.creatures.find(c=>c.id===message.targetId);
           if(!spawn||defeatedCreatures.has(message.targetId)){send(socket,{type:"error",code:"INVALID_MESSAGE"});return;}
