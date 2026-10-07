@@ -9,6 +9,7 @@ const RESOURCE_YIELDS: Record<ResourceNode["type"], { itemId: string; quantity: 
 };
 
 export interface ResourceGatherResult {
+  transactionId: string;
   nodeId: string;
   itemId: string;
   quantity: number;
@@ -35,12 +36,13 @@ export async function gatherResource(
 
     const existing = await client.query<{
       fingerprint: string;
+      transaction_id: string;
       node_id: string;
       item_id: string;
       quantity: number;
       respawns_at: string;
     }>(
-      "SELECT fingerprint,node_id,item_id,quantity,respawns_at FROM resource_gather_requests WHERE user_id=$1 AND request_id=$2 FOR UPDATE",
+      "SELECT fingerprint,transaction_id,node_id,item_id,quantity,respawns_at FROM resource_gather_requests WHERE user_id=$1 AND request_id=$2 FOR UPDATE",
       [userId, requestId],
     );
     if (existing.rows[0]) {
@@ -48,6 +50,7 @@ export async function gatherResource(
       if (row.fingerprint !== fingerprint) throw new Error("RESOURCE_REQUEST_CONFLICT");
       await client.query("COMMIT");
       return {
+        transactionId: row.transaction_id,
         nodeId: row.node_id,
         itemId: row.item_id,
         quantity: row.quantity,
@@ -78,19 +81,20 @@ export async function gatherResource(
       throw new Error("RESOURCE_DEPLETED");
     }
 
-    const requestInsert = await client.query(
-      "INSERT INTO resource_gather_requests(user_id,request_id,fingerprint,node_id,item_id,quantity,respawns_at) VALUES($1,$2,$3,$4,$5,$6,CURRENT_TIMESTAMP + ($7 * interval '1 millisecond')) ON CONFLICT(user_id,request_id) DO NOTHING RETURNING request_id",
+    const requestInsert = await client.query<{ request_id: string; transaction_id: string }>(
+      "INSERT INTO resource_gather_requests(user_id,request_id,fingerprint,node_id,item_id,quantity,respawns_at) VALUES($1,$2,$3,$4,$5,$6,CURRENT_TIMESTAMP + ($7 * interval '1 millisecond')) ON CONFLICT(user_id,request_id) DO NOTHING RETURNING request_id,transaction_id",
       [userId, requestId, fingerprint, node.id, reward.itemId, reward.quantity, reward.respawnMs],
     );
     if (requestInsert.rowCount !== 1) {
       const retry = await client.query<{
         fingerprint: string;
+        transaction_id: string;
         node_id: string;
         item_id: string;
         quantity: number;
         respawns_at: string;
       }>(
-        "SELECT fingerprint,node_id,item_id,quantity,respawns_at FROM resource_gather_requests WHERE user_id=$1 AND request_id=$2 FOR UPDATE",
+        "SELECT fingerprint,transaction_id,node_id,item_id,quantity,respawns_at FROM resource_gather_requests WHERE user_id=$1 AND request_id=$2 FOR UPDATE",
         [userId, requestId],
       );
       const row = retry.rows[0];
@@ -98,6 +102,7 @@ export async function gatherResource(
       if (row.fingerprint !== fingerprint) throw new Error("RESOURCE_REQUEST_CONFLICT");
       await client.query("COMMIT");
       return {
+        transactionId: row.transaction_id,
         nodeId: row.node_id,
         itemId: row.item_id,
         quantity: row.quantity,
@@ -125,6 +130,7 @@ export async function gatherResource(
 
     await client.query("COMMIT");
     return {
+      transactionId: requestInsert.rows[0]?.transaction_id ?? (()=>{throw new Error("RESOURCE_TRANSACTION_ID_MISSING");})(),
       nodeId: node.id,
       itemId: reward.itemId,
       quantity: reward.quantity,

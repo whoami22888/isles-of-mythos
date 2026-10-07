@@ -69,7 +69,7 @@ export type ServerMessage =
   | { type: "pong"; timestamp: number }
   | { type: "auth_ok"; userId: string }
   | { type: "player_state"; state: PlayerState }
-  | { type:"resource_gathered"; requestId:string; resourceId:string; itemId:string; quantity:number; respawnsAt:string; state:PlayerState }
+  | { type:"resource_gathered"; requestId:string; transactionId:string; resourceId:string; itemId:string; quantity:number; respawnsAt:string; state:PlayerState }
   | { type: "world_chunk"; requestId: string; chunk: WorldChunk }
   | ProjectileSpawnMessage
   | CombatResultMessage
@@ -192,9 +192,9 @@ export function parseServerMessage(value: unknown): ServerMessage | null {
     case "player_state":
       return isPlayerState(value.state) ? { type: "player_state", state: value.state } : null;
     case "resource_gathered":
-      return typeof value.requestId==="string" && typeof value.resourceId==="string" && typeof value.itemId==="string" &&
+      return typeof value.requestId==="string" && typeof value.transactionId==="string" && typeof value.resourceId==="string" && typeof value.itemId==="string" &&
         typeof value.quantity==="number" && Number.isSafeInteger(value.quantity) && value.quantity>0 && typeof value.respawnsAt==="string" && isPlayerState(value.state)
-        ? {type:"resource_gathered",requestId:value.requestId,resourceId:value.resourceId,itemId:value.itemId,quantity:value.quantity,respawnsAt:value.respawnsAt,state:value.state} : null;
+        ? {type:"resource_gathered",requestId:value.requestId,transactionId:value.transactionId,resourceId:value.resourceId,itemId:value.itemId,quantity:value.quantity,respawnsAt:value.respawnsAt,state:value.state} : null;
     case "world_chunk":
       return typeof value.requestId === "string" && isWorldChunk(value.chunk) ? { type: "world_chunk", requestId: value.requestId, chunk: value.chunk } : null;
     case "projectile_spawn":

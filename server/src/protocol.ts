@@ -138,7 +138,7 @@ export type ServerMessage =
   | { type:"pong"; timestamp:number }
   | { type:"auth_ok"; userId:string }
   | { type:"player_state"; state:PublicPlayerState }
-  | { type:"resource_gathered"; requestId:string; resourceId:string; itemId:string; quantity:number; respawnsAt:string; state:PublicPlayerState }
+  | { type:"resource_gathered"; requestId:string; transactionId:string; resourceId:string; itemId:string; quantity:number; respawnsAt:string; state:PublicPlayerState }
   | { type:"world_chunk"; requestId:string; chunk:unknown }
   | { type:"projectile_spawn"; projectileId:string; ownerUserId:string; targetId:string; x:number; y:number; vx:number; vy:number; expiresAt:number }
   | { type:"combat_result"; requestId:string; targetId:string; damage:number; critical:boolean; killed:boolean; targetHealth:number; status?:string; missed?:boolean }
