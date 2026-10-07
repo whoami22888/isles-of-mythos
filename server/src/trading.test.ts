@@ -50,6 +50,7 @@ describe("player trading transactions", () => {
         items: [{ itemId: "resource.wood", quantity: 4 }],
       });
 
+      expect(result.transactionId).toMatch(/^[0-9a-f-]{36}$/);
       expect(result.from).toEqual({
         userId: fromUserId,
         gold: "750",
@@ -136,6 +137,7 @@ describe("player trading transactions", () => {
       const first = await tradePlayers(db, request);
       const second = await tradePlayers(db, request);
       expect(second).toEqual(first);
+      expect(second.transactionId).toBe(first.transactionId);
 
       const rows = await db.query<{ user_id: string; gold: string; inventory: Record<string, number> }>(
         "SELECT user_id, gold, inventory FROM player_profiles WHERE user_id = ANY($1::uuid[]) ORDER BY user_id",
@@ -165,6 +167,7 @@ describe("player trading transactions", () => {
       };
       const [first, second] = await Promise.all([tradePlayers(db, request), tradePlayers(db, request)]);
       expect(second).toEqual(first);
+      expect(second.transactionId).toBe(first.transactionId);
       const rows = await db.query<{ user_id: string; gold: string; inventory: Record<string, number> }>(
         "SELECT user_id, gold, inventory FROM player_profiles WHERE user_id = ANY($1::uuid[]) ORDER BY user_id",
         [[fromUserId, toUserId]],
