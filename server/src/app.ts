@@ -128,7 +128,6 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   let shuttingDown = false;
   const app = Fastify({ logger: false });
 
-  app.addHook("onRequest", () => {});
 
 
 
