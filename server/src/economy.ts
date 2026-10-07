@@ -101,6 +101,36 @@ export function subtractGoldDoubloons(current: bigint, amount: bigint): bigint {
   return balance - cost;
 }
 
+export async function runEconomyMutation<T>(
+  client: PoolClient,
+  userId: string,
+  mutation: (draft: EconomyDraft) => EconomyMutation<T> | Promise<EconomyMutation<T>>,
+): Promise<T> {
+  const result = await client.query<{ gold: string; triumph_badges: string; inventory: Inventory }>(
+    "SELECT gold, triumph_badges, inventory FROM player_profiles WHERE user_id=$1 FOR UPDATE",
+    [userId],
+  );
+  const row = result.rows[0];
+  if (!row) throw new Error("PLAYER_NOT_FOUND");
+
+  const draft: EconomyDraft = {
+    client,
+    gold: parseGoldDoubloons(row.gold),
+    triumphBadges: parseTriumphBadges(row.triumph_badges),
+    inventory: cloneInventory(row.inventory),
+  };
+  const next = await mutation(draft);
+  const gold = parseGoldDoubloons(next.gold);
+  const triumphBadges = parseTriumphBadges(next.triumphBadges ?? draft.triumphBadges);
+  const inventory = cloneInventory(next.inventory);
+
+  await client.query(
+    "UPDATE player_profiles SET gold=$2, triumph_badges=$3, inventory=$4::jsonb, updated_at=CURRENT_TIMESTAMP WHERE user_id=$1",
+    [userId, gold.toString(), triumphBadges.toString(), JSON.stringify(inventory)],
+  );
+  return next.value;
+}
+
 export async function runEconomyTransaction<T>(
   db: Pool,
   userId: string,
@@ -109,30 +139,9 @@ export async function runEconomyTransaction<T>(
   const client = await db.connect();
   try {
     await client.query("BEGIN");
-    const result = await client.query<{ gold: string; triumph_badges: string; inventory: Inventory }>(
-      "SELECT gold, triumph_badges, inventory FROM player_profiles WHERE user_id=$1 FOR UPDATE",
-      [userId],
-    );
-    const row = result.rows[0];
-    if (!row) throw new Error("PLAYER_NOT_FOUND");
-
-    const draft: EconomyDraft = {
-      client,
-      gold: parseGoldDoubloons(row.gold),
-      triumphBadges: parseTriumphBadges(row.triumph_badges),
-      inventory: cloneInventory(row.inventory),
-    };
-    const next = await mutation(draft);
-    const gold = parseGoldDoubloons(next.gold);
-    const triumphBadges = parseTriumphBadges(next.triumphBadges ?? draft.triumphBadges);
-    const inventory = cloneInventory(next.inventory);
-
-    await client.query(
-      "UPDATE player_profiles SET gold=$2, triumph_badges=$3, inventory=$4::jsonb, updated_at=CURRENT_TIMESTAMP WHERE user_id=$1",
-      [userId, gold.toString(), triumphBadges.toString(), JSON.stringify(inventory)],
-    );
+    const value = await runEconomyMutation(client, userId, mutation);
     await client.query("COMMIT");
-    return next.value;
+    return value;
   } catch (error) {
     await client.query("ROLLBACK");
     throw error;

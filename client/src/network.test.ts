@@ -57,3 +57,35 @@ describe("Gate 15 client world event protocol",()=>{
     expect(parseServerMessage({type:"world_event_state",requestId:"e3",event:{...event,maxHealth:100,currentHealth:50}})).toBeNull();
   });
 });
+
+
+describe("resource gathering messages", () => {
+  it("parses a resource reward with updated player state", () => {
+    expect(parseServerMessage({
+      type: "resource_gathered",
+      requestId: "gather-1",
+      resourceId: "wood:10:20",
+      itemId: "resource.wood",
+      quantity: 2,
+      respawnsAt: "2026-10-07T08:00:00.000Z",
+      state: {
+        userId: "user-1",
+        x: 10,
+        y: 20,
+        health: 100,
+        defense: 0,
+        stamina: 100,
+        maxStamina: 100,
+        hunger: 100,
+        oxygen: 100,
+        xp: 0,
+        level: 1,
+        gold: "0",
+        triumphBadges: "0",
+        inventory: { "resource.wood": 2 },
+        hotbar: [null, null, null, null, null, null, null, null],
+        selectedHotbarSlot: 0,
+      },
+    })).toMatchObject({ type: "resource_gathered", resourceId: "wood:10:20", itemId: "resource.wood", quantity: 2 });
+  });
+});

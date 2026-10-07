@@ -11,6 +11,7 @@ export type ClientMessage =
   | { type:"ping" }
   | { type:"auth"; token:string }
   | { type:"subscribe_chunks"; requestId:string; chunks:ChunkCoordinate[] }
+  | { type:"gather_resource"; requestId:string; resourceId:string }
   | { type:"move"; dx:number; dy:number; dt:number }
   | { type:"select_hotbar"; slot:number }
   | { type:"attack"; requestId:string; targetId:string; facingX:number; facingY:number }
@@ -137,6 +138,7 @@ export type ServerMessage =
   | { type:"pong"; timestamp:number }
   | { type:"auth_ok"; userId:string }
   | { type:"player_state"; state:PublicPlayerState }
+  | { type:"resource_gathered"; requestId:string; resourceId:string; itemId:string; quantity:number; respawnsAt:string; state:PublicPlayerState }
   | { type:"world_chunk"; requestId:string; chunk:unknown }
   | { type:"projectile_spawn"; projectileId:string; ownerUserId:string; targetId:string; x:number; y:number; vx:number; vy:number; expiresAt:number }
   | { type:"combat_result"; requestId:string; targetId:string; damage:number; critical:boolean; killed:boolean; targetHealth:number; status?:string; missed?:boolean }
@@ -205,6 +207,7 @@ export type ServerMessage =
   | { type:"territory_season_state"; requestId:string; season:TerritorySeasonSummary|null; standings:TerritorySeasonStanding[] }
   | { type:"error"; code:
       | "INVALID_MESSAGE"|"UNSUPPORTED_MESSAGE"|"AUTH_REQUIRED"|"INVALID_TOKEN"|"INTERNAL_SERVER_ERROR"|"COMBAT_COOLDOWN"|"OUT_OF_RANGE"|"NO_STAMINA"|"NO_AMMO"|"COMBAT_IN_PROGRESS"|"PLAYER_DEAD"|"PLAYER_STUNNED"|"RATE_LIMITED"
+      | "RESOURCE_NOT_FOUND"|"RESOURCE_DEPLETED"|"RESOURCE_OUT_OF_RANGE"|"RESOURCE_REQUEST_CONFLICT"|"RESOURCE_NODE_MISMATCH"|"RESOURCE_NODE_UPDATE_FAILED"
       | "CREATURE_TOO_HEALTHY"|"NO_CAPTURE_ORB"|"CREATURE_ALREADY_CAPTURED"|"CREATURE_NOT_FOUND"|"NO_CREATURE_FEED"|"CREATURE_NOT_TAMED"|"INVALID_PARTY_SLOT"
       | "BASE_ALREADY_EXISTS"|"BASE_NOT_FOUND"|"BASE_PERMISSION_DENIED"|"INVALID_BASE_COORDINATES"|"INVALID_BUILDING_TYPE"|"INVALID_BUILDING_LEVEL"
       | "INVALID_BUILDING_POSITION"|"BUILDING_POSITION_OCCUPIED"|"BUILDING_PREREQUISITE_MISSING"|"BUILDING_NOT_FOUND"|"BUILDING_MAX_LEVEL"
@@ -259,6 +262,7 @@ export function parseClientMessage(raw:string):ClientMessage|null{
     if(type==="set_base_permission"){const id=(value as {requestId?:unknown}).requestId,targetUserId=(value as {targetUserId?:unknown}).targetUserId,permission=(value as {permission?:unknown}).permission,enabled=(value as {enabled?:unknown}).enabled;return requestId(id)&&typeof targetUserId==="string"&&targetUserId.length>0&&targetUserId.length<=64&&typeof permission==="string"&&permission.length>0&&permission.length<=32&&typeof enabled==="boolean"?{type:"set_base_permission",requestId:id,targetUserId,permission,enabled}:null;}
     if(type==="assign_worker"){const id=(value as {requestId?:unknown}).requestId,creatureId=(value as {creatureId?:unknown}).creatureId,buildingId=(value as {buildingId?:unknown}).buildingId,task=(value as {task?:unknown}).task;return requestId(id)&&typeof creatureId==="string"&&creatureId.length>0&&creatureId.length<=64&&typeof buildingId==="string"&&buildingId.length>0&&buildingId.length<=64&&typeof task==="string"&&task.length>0&&task.length<=32?{type:"assign_worker",requestId:id,creatureId,buildingId,task}:null;}
     if(type==="set_work_priorities"){const id=(value as {requestId?:unknown}).requestId,priorities=(value as {priorities?:unknown}).priorities;if(!requestId(id)||!Array.isArray(priorities)||priorities.length>6||priorities.some(p=>typeof p!=="string"||p.length===0||p.length>32))return null;return {type:"set_work_priorities",requestId:id,priorities:priorities as string[]};}
+    if(type==="gather_resource"){const id=(value as {requestId?:unknown}).requestId,resourceId=(value as {resourceId?:unknown}).resourceId;return requestId(id)&&typeof resourceId==="string"&&resourceId.length>0&&resourceId.length<=128?{type:"gather_resource",requestId:id,resourceId}:null;}
     if(type==="craft"){const id=(value as {requestId?:unknown}).requestId,recipeId=(value as {recipeId?:unknown}).recipeId;return requestId(id)&&typeof recipeId==="string"&&recipeId.length>0&&recipeId.length<=64?{type:"craft",requestId:id,recipeId}:null;}
     if(type==="shop_purchase"){const id=(value as {requestId?:unknown}).requestId,itemId=(value as {itemId?:unknown}).itemId,quantity=(value as {quantity?:unknown}).quantity;return requestId(id)&&typeof itemId==="string"&&itemId.length>0&&itemId.length<=64&&isSafeInteger(quantity)&&quantity>=1&&quantity<=100?{type:"shop_purchase",requestId:id,itemId,quantity}:null;}
     if(type==="trade"){

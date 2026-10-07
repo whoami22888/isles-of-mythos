@@ -75,6 +75,7 @@ class WorldScene extends Phaser.Scene {
     this.input.keyboard?.on("keydown-T", () => this.tameSelected());
     this.input.keyboard?.on("keydown-P", () => this.togglePartySelected());
     this.input.keyboard?.on("keydown-I", () => this.cycleSelectedAi());
+    this.input.keyboard?.on("keydown-G", () => this.gatherNearest());
     this.input.keyboard?.on("keyup-B", () => this.setBlocking(false));
     this.createTouchCombatControls();
     this.createInvasionOverlay();
@@ -180,6 +181,13 @@ class WorldScene extends Phaser.Scene {
         this.renderPlayer();
         this.updateHud();
         this.requestChunks();
+        return;
+      }
+      if (message.type === "resource_gathered") {
+        this.player = message.state;
+        this.chunks.removeResource(message.resourceId);
+        this.updateHud();
+        this.statusText?.setText("GATHERED " + message.quantity + " " + message.itemId + " • RESPAWNS " + new Date(message.respawnsAt).toLocaleTimeString());
         return;
       }
       if (message.type === "craft_result" || message.type === "shop_purchase_result") {
@@ -455,6 +463,7 @@ class WorldScene extends Phaser.Scene {
     makeButton("TAME", 410, 650, () => this.tameSelected());
     makeButton("PARTY", 490, 650, () => this.togglePartySelected());
     makeButton("AI", 570, 650, () => this.cycleSelectedAi());
+    makeButton("GATHER", 660, 650, () => this.gatherNearest());
   }
 
   private renderProjectile(message: ProjectileSpawnMessage): void {
@@ -496,6 +505,20 @@ class WorldScene extends Phaser.Scene {
     if (!this.socket || this.socket.readyState !== WebSocket.OPEN) return;
     if (typeof toUserId !== "string" || toUserId.length === 0 || toUserId.length > 64 || typeof gold !== "string" || gold.length === 0 || gold.length > 32 || items.length > 32) return;
     this.socket.send(JSON.stringify({ type: "trade", requestId: this.nextAttackRequestId(), toUserId, gold, items }));
+  }
+
+  private gatherNearest(): void {
+    if (!this.player || this.socket?.readyState !== WebSocket.OPEN) return;
+    const resource = this.chunks.nearestResource(this.player.x, this.player.y, 2.5);
+    if (!resource) {
+      this.combatText?.setText("NO RESOURCE IN GATHER RANGE");
+      return;
+    }
+    this.socket.send(JSON.stringify({
+      type: "gather_resource",
+      requestId: this.nextAttackRequestId(),
+      resourceId: resource.id,
+    }));
   }
 
   private captureNearest(): void {

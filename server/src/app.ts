@@ -16,6 +16,7 @@ import { PlayerStore, applyPlayerInput, serializePlayerState } from "./player.js
 import { WorldChunkCache } from "./world.js";
 import { SHOP_ITEMS, calculatePurchase, getShopItem, serializeShopItem } from "./shop.js";
 import { craftRecipe } from "./crafting.js";
+import { gatherResource, resourceGatherFingerprint } from "./resource-gathering.js";
 import { tradePlayers } from "./trading.js";
 import { addThreat, applyDamage, createCombatTarget, creatureAbilityDamage, createProjectile, advanceProjectile, isMeleeHit, distance, mitigateDamage, tickCreatureAi, tickStatusEffects, tickStatuses, weaponFor, type CombatProjectile, type CombatTarget, type StatusEffect } from "./combat.js";
 import { CombatReplayCache } from "./combat-replay.js";
@@ -128,6 +129,20 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     const creatures = chunk.creatures.filter((spawn) => !capturedWorldCreatures.has(spawn.id));
     return creatures.length === chunk.creatures.length ? chunk : { ...chunk, creatures };
   };
+  const visibleClientWorldChunk = async (x: number, y: number) => {
+    const chunk = visibleWorldChunk(x, y);
+    if (chunk.resources.length === 0) return chunk;
+    const resourceIds = chunk.resources.map((resource) => resource.id);
+    const result = await db.query<{ node_id: string }>(
+      "SELECT node_id FROM world_resource_nodes WHERE node_id = ANY($1::varchar[]) AND depleted_until > CURRENT_TIMESTAMP",
+      [resourceIds],
+    );
+    if (result.rows.length === 0) return chunk;
+    const depleted = new Set(result.rows.map((row) => row.node_id));
+    const resources = chunk.resources.filter((resource) => !depleted.has(resource.id));
+    return resources.length === chunk.resources.length ? chunk : { ...chunk, resources };
+  };
+
   const projectiles = new Map<string, CombatProjectile>();
   const pendingCombatRequests = new Map<string, number>();
   const attackCooldowns = new Map<string, number>();
@@ -574,7 +589,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       if (!Number.isSafeInteger(x) || !Number.isSafeInteger(y)) {
         return reply.code(400).send({ error: "INVALID_CHUNK_COORDINATE" });
       }
-      return visibleWorldChunk(x, y);
+      return visibleClientWorldChunk(x, y);
     },
   );
 
@@ -1085,6 +1100,50 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           return;
         }
 
+        if (message.type === "gather_resource") {
+          if (!userId) { send(socket, { type: "error", code: "AUTH_REQUIRED" }); return; }
+          const authenticatedUserId = userId;
+          const state = players.get(authenticatedUserId);
+          if (!state) { send(socket, { type: "error", code: "AUTH_REQUIRED" }); return; }
+          if (state.health <= 0) { send(socket, { type: "error", code: "PLAYER_DEAD" }); return; }
+          if (playerHasStatus(authenticatedUserId, "stun")) { send(socket, { type: "error", code: "PLAYER_STUNNED" }); return; }
+          const node = world.getResourceNode(message.resourceId);
+          if (!node) { send(socket, { type: "error", code: "RESOURCE_NOT_FOUND" }); return; }
+          const fingerprint = resourceGatherFingerprint(node.id);
+          const response = await runEconomyRequest(authenticatedUserId, message.requestId, fingerprint, async () => {
+            if (distance(state, node) > 2.5) return { type: "error", code: "RESOURCE_OUT_OF_RANGE" };
+            try {
+              const result = await gatherResource(db, authenticatedUserId, message.requestId, fingerprint, node);
+              const refreshed = await players.reloadEconomy(authenticatedUserId);
+              return {
+                type: "resource_gathered",
+                requestId: message.requestId,
+                resourceId: result.nodeId,
+                itemId: result.itemId,
+                quantity: result.quantity,
+                respawnsAt: result.respawnsAt,
+                state: serializePlayerState(refreshed),
+              };
+            } catch (error) {
+              const code = errorCode(error, "RESOURCE_GATHER_FAILED");
+              const allowed = [
+                "RESOURCE_NOT_FOUND",
+                "RESOURCE_DEPLETED",
+                "RESOURCE_REQUEST_CONFLICT",
+                "RESOURCE_NODE_MISMATCH",
+                "RESOURCE_NODE_UPDATE_FAILED",
+                "INVENTORY_LIMIT",
+                "INSUFFICIENT_INVENTORY",
+                "PLAYER_NOT_FOUND",
+              ];
+              if (allowed.includes(code)) return { type: "error", code } as ServerMessage;
+              throw error;
+            }
+          });
+          send(socket, response);
+          return;
+        }
+
         if (message.type === "craft") {
           if (!userId) { send(socket, { type: "error", code: "AUTH_REQUIRED" }); return; }
           const authenticatedUserId = userId;
@@ -1522,7 +1581,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             send(socket, {
               type: "world_chunk",
               requestId: message.requestId,
-              chunk: visibleWorldChunk(coordinate.x, coordinate.y),
+              chunk: await visibleClientWorldChunk(coordinate.x, coordinate.y),
             });
           }
         }
