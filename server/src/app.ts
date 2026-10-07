@@ -1081,7 +1081,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
                 return {type:"building_state",requestId:message.requestId,building};
               }
               if(message.type==="storage"){
-                const storage=await bases.mutateStorage(authenticatedUserId,message.changes);
+                const result=await bases.mutateStorage(authenticatedUserId,message.changes,message.requestId,message.type+"|"+JSON.stringify(message.changes));
                 return {type:"base_state",requestId:message.requestId,transactionId:result.transactionId,base:{...(bases.get(authenticatedUserId)??{}),storage:result.storage}};
               }
               if(message.type==="set_base_permission"){
