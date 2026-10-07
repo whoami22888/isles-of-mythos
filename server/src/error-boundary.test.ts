@@ -51,7 +51,7 @@ describe("external boundary error handling", () => {
 
   it("returns a safe 500 response for an unhandled HTTP failure", async () => {
     const app = await buildApp({ db: unavailableDb() });
-    app.get("/__error-boundary-test", async () => {
+    app.get("/__error-boundary-test", () => {
       throw new Error("DATABASE_UNAVAILABLE");
     });
     try {
