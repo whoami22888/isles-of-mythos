@@ -18,7 +18,7 @@ describe("external boundary error handling", () => {
       const response = await app.inject({
         method: "POST",
         url: "/shop/purchase",
-        payload: { itemId: "resource.wood", quantity: 1 },
+        payload: { requestId: "unauthenticated-shop", itemId: "resource.wood", quantity: 1 },
       });
 
       expect(response.statusCode).toBe(401);
@@ -26,6 +26,21 @@ describe("external boundary error handling", () => {
         error: "UNAUTHORIZED",
         message: "Invalid credentials",
       });
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("returns 400 for an unauthenticated shop request with invalid request data", async () => {
+    const app = await buildApp({ db: unavailableDb() });
+    try {
+      const response = await app.inject({
+        method: "POST",
+        url: "/shop/purchase",
+        payload: { itemId: "resource.wood", quantity: 1 },
+      });
+
+      expect(response.statusCode).toBe(400);
     } finally {
       await app.close();
     }

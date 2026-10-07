@@ -599,7 +599,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     items: SHOP_ITEMS.map(serializeShopItem),
   }));
 
-  app.post<{ Body: { itemId: string; quantity: number } }>(
+  app.post<{ Body: { requestId: string; itemId: string; quantity: number } }>(
     "/shop/purchase",
     {
       schema: {
@@ -607,9 +607,10 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         security: [{ bearerAuth: [] }],
         body: {
           type: "object",
-          required: ["itemId", "quantity"],
+          required: ["requestId", "itemId", "quantity"],
           additionalProperties: false,
           properties: {
+            requestId: { type: "string", minLength: 1, maxLength: 64 },
             itemId: { type: "string", minLength: 1, maxLength: 64 },
             quantity: { type: "integer", minimum: 1, maximum: 100 },
           },
@@ -630,8 +631,8 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         const totalGold = calculatePurchase(item, request.body.quantity);
         if (totalGold === null) return reply.code(400).send({ error: "INVALID_PURCHASE_QUANTITY" });
         await players.loadOrCreate(userId);
-        const state = await players.purchase(userId, item, request.body.quantity, totalGold);
-        return { itemId: item.id, quantity: request.body.quantity, totalGold: totalGold.toString(), state: serializePlayerState(state) };
+        const state = await players.purchase(userId, request.body.requestId, item, request.body.quantity, totalGold);
+        return { requestId: request.body.requestId, itemId: item.id, quantity: request.body.quantity, totalGold: totalGold.toString(), state };
       } catch (error) {
         if (error instanceof Error && error.message === "INSUFFICIENT_GOLD") {
           return reply.code(409).send({ error: "INSUFFICIENT_GOLD" });
@@ -642,7 +643,12 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         if (error instanceof Error && error.message === "INVENTORY_LIMIT") {
           return reply.code(409).send({ error: "INVENTORY_LIMIT" });
         }
-        log("shop_purchase_failed", { message: error instanceof Error ? error.message : String(error) });
+        if (error instanceof Error && error.message === "SHOP_REQUEST_CONFLICT") {
+          return reply.code(409).send({ error: "SHOP_REQUEST_CONFLICT" });
+        }
+        if (error instanceof Error && error.message === "INVALID_REQUEST_ID") {
+          return reply.code(400).send({ error: "INVALID_REQUEST_ID" });
+        }
         return reply.code(500).send({ error: "PURCHASE_FAILED" });
       }
     },
@@ -1175,18 +1181,18 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
               if (!item) return { type: "error", code: "SHOP_ITEM_NOT_FOUND" };
               const totalGold = calculatePurchase(item, message.quantity);
               if (totalGold === null) return { type: "error", code: "INVALID_PURCHASE_QUANTITY" };
-              const state = await players.purchase(authenticatedUserId, item, message.quantity, totalGold);
+              const state = await players.purchase(authenticatedUserId, message.requestId, item, message.quantity, totalGold);
               return {
                 type: "shop_purchase_result",
                 requestId: message.requestId,
                 itemId: item.id,
                 quantity: message.quantity,
                 totalGold: totalGold.toString(),
-                state: serializePlayerState(state),
+                state,
               };
             } catch (error) {
               const code = errorCode(error, "PURCHASE_FAILED");
-              if (code === "INSUFFICIENT_GOLD" || code === "INVENTORY_LIMIT" || code === "PLAYER_NOT_FOUND") {
+              if (code === "INSUFFICIENT_GOLD" || code === "INVENTORY_LIMIT" || code === "PLAYER_NOT_FOUND" || code === "SHOP_REQUEST_CONFLICT" || code === "INVALID_REQUEST_ID") {
                 return { type: "error", code };
               }
               throw error;
