@@ -77,7 +77,9 @@ describe("resource gathering transactions", () => {
         gatherResource(db, userId, "gather-b", "gather_resource|" + node.id, node),
       ]);
       expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
-      expect(results.filter((result) => result.status === "rejected").map((result) => result.reason.message)).toEqual(["RESOURCE_DEPLETED"]);
+      const rejected = results.filter((result): result is PromiseRejectedResult => result.status === "rejected");
+      expect(rejected).toHaveLength(1);
+      expect(rejected[0]?.reason instanceof Error ? rejected[0].reason.message : rejected[0]?.reason).toBe("RESOURCE_DEPLETED");
       const player = await db.query<{ inventory: Record<string, number> }>("SELECT inventory FROM player_profiles WHERE user_id=$1", [userId]);
       expect(Object.values(player.rows[0]?.inventory ?? {}).reduce((sum, value) => sum + value, 0)).toBeGreaterThan(0);
     } finally {
