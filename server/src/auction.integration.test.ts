@@ -37,6 +37,11 @@ describe("Gate 14 auction authority",()=>{
       expect(byUser.get(seller)).toMatchObject({gold:"237"});
       expect(byUser.get(buyer)).toMatchObject({gold:"750",inventory:{"resource.wood":4}});
       expect((await auction.history(seller)).some((x)=>x.transaction_type==="buy_now")).toBe(true);
+      const restarted=new AuctionStore(db);
+      const replay=await restarted.buyNow(buyer,"buy-1",listing.listing.id);
+      expect(replay).toEqual(sold);
+      await expect(restarted.buyNow(buyer,"buy-1",listing.listing.id)).resolves.toEqual(sold);
+      await expect(restarted.buyNow(buyer,"buy-1",listing.listing.id+"-different")).rejects.toThrow("AUCTION_REQUEST_CONFLICT");
     }finally{await app.close();await db.end();}
   });
 
