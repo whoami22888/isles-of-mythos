@@ -105,12 +105,73 @@ async function prepareMutationUser(user, node) {
   const pool = new Pool({ connectionString: process.env.DATABASE_URL });
   try {
     await pool.query(
-      "INSERT INTO player_profiles(user_id,x,y) VALUES($1,$2,$3) ON CONFLICT(user_id) DO UPDATE SET x=EXCLUDED.x,y=EXCLUDED.y",
-      [user.id, node.x, node.y],
+      "INSERT INTO player_profiles(user_id,x,y,inventory) VALUES($1,$2,$3,$4::jsonb) ON CONFLICT(user_id) DO UPDATE SET x=EXCLUDED.x,y=EXCLUDED.y,inventory=EXCLUDED.inventory",
+      [user.id, node.x, node.y, JSON.stringify({ "resource.wood": 8 })],
     );
   } finally {
     await pool.end();
   }
+}
+
+async function exerciseCraftMutation(socket, user, scenario) {
+  const requestId = `performance-craft-${scenario}`;
+  const result = await new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      socket.off("message", onMessage);
+      reject(new Error(`Gameplay mutation timed out: craft ${requestId}`));
+    }, 5000);
+
+    function onMessage(raw) {
+      try {
+        const value = JSON.parse(raw.toString());
+        if (value.type !== "craft_result" && value.type !== "error") return;
+        clearTimeout(timer);
+        socket.off("message", onMessage);
+        resolve(value);
+      } catch {}
+    }
+
+    socket.on("message", onMessage);
+    socket.send(JSON.stringify({ type: "craft", requestId, recipeId: "tool.wooden-club" }));
+  });
+
+  if (result.type === "error") throw new Error(`Gameplay mutation failed: craft ${result.code}`);
+  if (result.type !== "craft_result" ||
+      result.requestId !== requestId ||
+      result.recipeId !== "tool.wooden-club" ||
+      typeof result.transactionId !== "string") {
+    throw new Error(`Gameplay mutation returned invalid craft result for ${requestId}`);
+  }
+
+  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  try {
+    const profile = await pool.query(
+      "SELECT inventory FROM player_profiles WHERE user_id=$1",
+      [user.id],
+    );
+    const inventory = profile.rows[0]?.inventory;
+    if (inventory?.["resource.wood"] !== 0 || inventory?.["tool.wooden-club"] !== 1) {
+      throw new Error(`Gameplay craft did not persist expected inventory for ${requestId}`);
+    }
+
+    const ledger = await pool.query(
+      "SELECT transaction_id, response FROM craft_requests WHERE request_key=$1",
+      [`${user.id}:${requestId}`],
+    );
+    const row = ledger.rows[0];
+    if (!row || row.transaction_id !== result.transactionId || row.response?.recipeId !== "tool.wooden-club") {
+      throw new Error(`Gameplay craft transaction was not durably persisted for ${requestId}`);
+    }
+  } finally {
+    await pool.end();
+  }
+
+  return {
+    action: "craft",
+    recipeId: "tool.wooden-club",
+    transactionId: result.transactionId,
+    persisted: true,
+  };
 }
 
 async function exerciseGatherMutation(socket, user, node, scenario) {
@@ -267,6 +328,7 @@ async function wsLoad(playerCount, users, mutationUser, mutationNode, scenario) 
     for (const socket of sockets) socket.close();
     throw new Error("Performance mutation user was not included in this scenario");
   }
+  const gameplayCraft = await exerciseCraftMutation(sockets[mutationIndex], mutationUser, scenario);
   const gameplayMutation = await exerciseGatherMutation(sockets[mutationIndex], mutationUser, mutationNode, scenario);
 
   const end = Date.now() + durationMs;
@@ -299,6 +361,7 @@ async function wsLoad(playerCount, users, mutationUser, mutationNode, scenario) 
     connected,
     authenticated,
     errors,
+    gameplayCraft,
     gameplayMutation,
     pings,
     pongs,
