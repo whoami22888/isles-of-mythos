@@ -187,7 +187,7 @@ export class AuctionStore{
 
   async cancel(sellerUserId:string,requestId:string,listingId:string):Promise<{transactionId:string}>{
     return tx(this.db,async c=>{
-      const req=await this.beginRequest<null>(c,sellerUserId,requestId,JSON.stringify({type:"cancel",listingId}));
+      const req=await this.beginRequest<{ok:true}>(c,sellerUserId,requestId,JSON.stringify({type:"cancel",listingId}));
       if(req.response)return {transactionId:req.transactionId};
       const l=await c.query<{seller_user_id:string;item_id:string;remaining_quantity:number;status:string}>("SELECT seller_user_id,item_id,remaining_quantity,status FROM auction_listings WHERE id=$1 FOR UPDATE",[listingId]);const listing=l.rows[0];
       if(!listing)throw new Error("AUCTION_NOT_FOUND");if(listing.seller_user_id!==sellerUserId)throw new Error("AUCTION_OWNER_REQUIRED");if(listing.status!=="active")throw new Error("AUCTION_NOT_ACTIVE");
