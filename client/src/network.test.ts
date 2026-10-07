@@ -142,6 +142,7 @@ describe("resource gathering messages", () => {
     expect(parseServerMessage({
       type: "resource_gathered",
       requestId: "gather-1",
+      transactionId: "550e8400-e29b-41d4-a716-446655440000",
       resourceId: "wood:10:20",
       itemId: "resource.wood",
       quantity: 2,
