@@ -33,6 +33,8 @@ describe('Gate 10 guilds',()=>{
       await db.query("UPDATE player_profiles SET gold=5000 WHERE user_id=$1",[owner]);
       const deposit=await guilds.bankDeposit(member,guild.id,'wood',1000,'0');
       expect(deposit.transactionId).toMatch(/^[0-9a-f-]{36}$/i);
+      expect(deposit.rewardTransactionIds).toHaveLength(1);
+      expect(deposit.rewardTransactionIds[0]).toMatch(/^[0-9a-f-]{36}$/i);
       const afterQuest=await guilds.get(member);
       expect(afterQuest.quests.some(q=>q.requirementItem==='wood'&&q.status==='completed')).toBe(true);
       expect(afterQuest.experience).toBe('250');expect(afterQuest.treasury).toBe('100');
