@@ -1124,6 +1124,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
               return {
                 type: "resource_gathered",
                 requestId: message.requestId,
+                transactionId: result.transactionId,
                 resourceId: result.nodeId,
                 itemId: result.itemId,
                 quantity: result.quantity,
