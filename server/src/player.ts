@@ -163,7 +163,7 @@ export class PlayerStore {
     }
     if ((this.revisions.get(userId) ?? 0) === revision) this.dirty.delete(userId);
   }
-  async purchase(userId: string, requestId: string, item: ShopItem, quantity: number, totalGold: bigint): Promise<PublicPlayerState> {
+  async purchase(userId: string, requestId: string, item: ShopItem, quantity: number, totalGold: bigint): Promise<{ transactionId: string; state: PublicPlayerState }> {
     return this.runExclusive(userId, async () => {
       if (!requestId || requestId.length > 64) throw new Error("INVALID_REQUEST_ID");
       const requestKey = userId + ":" + requestId;
@@ -171,21 +171,23 @@ export class PlayerStore {
       const client = await this.db.connect();
       try {
         await client.query("BEGIN");
-        const inserted = await client.query(
-          "INSERT INTO shop_purchase_requests (request_key, user_id, fingerprint, response) VALUES ($1, $2, $3, '{}'::jsonb) ON CONFLICT (request_key) DO NOTHING RETURNING request_key",
+        const inserted = await client.query<{ request_key: string; transaction_id: string }>(
+          "INSERT INTO shop_purchase_requests (request_key, user_id, fingerprint, response) VALUES ($1, $2, $3, '{}'::jsonb) ON CONFLICT (request_key) DO NOTHING RETURNING request_key, transaction_id",
           [requestKey, userId, fingerprint],
         );
         if (inserted.rowCount === 0) {
-          const existing = await client.query<{ fingerprint: string; response: PublicPlayerState }>(
-            "SELECT fingerprint, response FROM shop_purchase_requests WHERE request_key=$1 FOR UPDATE",
+          const existing = await client.query<{ fingerprint: string; transaction_id: string; response: PublicPlayerState }>(
+            "SELECT fingerprint, transaction_id, response FROM shop_purchase_requests WHERE request_key=$1 FOR UPDATE",
             [requestKey],
           );
           const row = existing.rows[0];
           if (!row) throw new Error("SHOP_REQUEST_NOT_FOUND");
           if (row.fingerprint !== fingerprint) throw new Error("SHOP_REQUEST_CONFLICT");
           await client.query("COMMIT");
-          return row.response;
+          return { transactionId: row.transaction_id, state: row.response };
         }
+        const transactionId = inserted.rows[0]?.transaction_id;
+        if (!transactionId) throw new Error("SHOP_TRANSACTION_ID_MISSING");
         const result = await client.query<{ gold: string; inventory: Inventory }>(
           "SELECT gold, inventory FROM player_profiles WHERE user_id=$1 FOR UPDATE",
           [userId],
@@ -212,7 +214,7 @@ export class PlayerStore {
         state.inventory = nextInventory;
         this.economyInventorySnapshots.set(userId, cloneInventory(nextInventory));
         this.markDirty(userId);
-        return response;
+        return { transactionId, state: response };
       } catch (error) {
         await client.query("ROLLBACK");
         throw error;
