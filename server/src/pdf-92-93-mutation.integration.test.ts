@@ -40,6 +40,10 @@ describe("PDF §92/§93 base storage durability",()=>{
       const ledger=await db.query<{transaction_id:string;response:{transactionId:string;storage:Record<string,number>}}>("SELECT transaction_id,response FROM base_storage_requests WHERE request_key=$1",[userId+":base-storage-replay"]);
       expect(ledger.rows[0]?.transaction_id).toBe(first.transactionId);
       expect(ledger.rows[0]?.response.transactionId).toBe(first.transactionId);
+
+      const second=await restarted.mutateStorage(userId,{wood:5},"base-storage-second","storage|wood|5");
+      expect(second.transactionId).not.toBe(first.transactionId);
+      expect(second.storage.wood).toBe(15);
     }finally{
       if(app.server.listening)await app.close();
       await db.end();
