@@ -192,11 +192,11 @@ export class AuctionStore{
       const l=await c.query<{seller_user_id:string;item_id:string;remaining_quantity:number;status:string}>("SELECT seller_user_id,item_id,remaining_quantity,status FROM auction_listings WHERE id=$1 FOR UPDATE",[listingId]);const listing=l.rows[0];
       if(!listing)throw new Error("AUCTION_NOT_FOUND");if(listing.seller_user_id!==sellerUserId)throw new Error("AUCTION_OWNER_REQUIRED");if(listing.status!=="active")throw new Error("AUCTION_NOT_ACTIVE");
       if((await c.query("SELECT 1 FROM auction_bids WHERE listing_id=$1 AND status='held'",[listingId])).rowCount)throw new Error("AUCTION_HAS_BID");
-      const users=await lockUsers(c,[sellerUserId]);const seller=users.get(sellerUserId)!;let inv=cloneInventory(seller.inventory);inv=applyInventoryDelta(seller.inventory,listing.item_id,listing.remaining_quantity);
+      const users=await lockUsers(c,[sellerUserId]);const seller=users.get(sellerUserId)!;let inv=cloneInventory(seller.inventory);inv=applyInventoryDelta(inv,listing.item_id,listing.remaining_quantity);
       await c.query("UPDATE player_profiles SET inventory=$2::jsonb,updated_at=CURRENT_TIMESTAMP WHERE user_id=$1",[sellerUserId,JSON.stringify(inv)]);
       await c.query("INSERT INTO auction_transactions(transaction_id,listing_id,buyer_user_id,seller_user_id,item_id,quantity,gross_gold,seller_fee,net_gold,transaction_type) VALUES($1,$2,NULL,$3,$4,$5,0,0,0,'cancel_return')",[req.transactionId,listingId,sellerUserId,listing.item_id,listing.remaining_quantity]);
       await c.query("UPDATE auction_listings SET status='cancelled',remaining_quantity=0,updated_at=CURRENT_TIMESTAMP WHERE id=$1",[listingId]);
-      await this.completeRequest(c,req.requestKey,{});
+      await this.completeRequest(c,req.requestKey,{ok:true});
       return {transactionId:req.transactionId};
     });
   }
