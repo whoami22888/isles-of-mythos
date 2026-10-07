@@ -2,9 +2,12 @@ import { describe, expect, it } from "vitest";
 import type { Pool } from "pg";
 import { buildApp } from "./app.js";
 
+const unavailableQuery = () =>
+  Promise.reject(new Error("DATABASE_UNAVAILABLE"));
+
 function unavailableDb(): Pool {
   return {
-    query: () => Promise.reject(new Error("DATABASE_UNAVAILABLE")),
+    query: unavailableQuery,
   } as unknown as Pool;
 }
 
