@@ -631,8 +631,8 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         const totalGold = calculatePurchase(item, request.body.quantity);
         if (totalGold === null) return reply.code(400).send({ error: "INVALID_PURCHASE_QUANTITY" });
         await players.loadOrCreate(userId);
-        const state = await players.purchase(userId, request.body.requestId, item, request.body.quantity, totalGold);
-        return { requestId: request.body.requestId, itemId: item.id, quantity: request.body.quantity, totalGold: totalGold.toString(), state };
+        const purchase = await players.purchase(userId, request.body.requestId, item, request.body.quantity, totalGold);
+        return { requestId: request.body.requestId, transactionId: purchase.transactionId, itemId: item.id, quantity: request.body.quantity, totalGold: totalGold.toString(), state: purchase.state };
       } catch (error) {
         if (error instanceof Error && error.message === "INSUFFICIENT_GOLD") {
           return reply.code(409).send({ error: "INSUFFICIENT_GOLD" });
@@ -1181,14 +1181,15 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
               if (!item) return { type: "error", code: "SHOP_ITEM_NOT_FOUND" };
               const totalGold = calculatePurchase(item, message.quantity);
               if (totalGold === null) return { type: "error", code: "INVALID_PURCHASE_QUANTITY" };
-              const state = await players.purchase(authenticatedUserId, message.requestId, item, message.quantity, totalGold);
+              const purchase = await players.purchase(authenticatedUserId, message.requestId, item, message.quantity, totalGold);
               return {
                 type: "shop_purchase_result",
                 requestId: message.requestId,
+                transactionId: purchase.transactionId,
                 itemId: item.id,
                 quantity: message.quantity,
                 totalGold: totalGold.toString(),
-                state,
+                state: purchase.state,
               };
             } catch (error) {
               const code = errorCode(error, "PURCHASE_FAILED");
