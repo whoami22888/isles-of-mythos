@@ -7,6 +7,7 @@ import websocket from "@fastify/websocket";
 import type { WebSocket } from "ws";
 import type { Pool } from "pg";
 import { config } from "./config.js";
+import { recordHttpRequest, renderPrometheusMetrics, setDatabaseUp } from "./metrics.js";
 import { createDbPool } from "./db.js";
 import { registerAuthRoutes } from "./auth.js";
 import { log } from "./logger.js";
@@ -127,6 +128,27 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const pendingPlayerUnloads = new Map<string, Promise<void>>();
   let shuttingDown = false;
   const app = Fastify({ logger: false });
+
+  const httpRequestStartedAt = new WeakMap<object, bigint>();
+  app.addHook("onRequest", (request) => {
+    httpRequestStartedAt.set(request, process.hrtime.bigint());
+  });
+  app.addHook("onResponse", (request, reply) => {
+    const started = httpRequestStartedAt.get(request);
+    if (started !== undefined) {
+      recordHttpRequest(Number(process.hrtime.bigint() - started) / 1e6, reply.statusCode);
+    }
+  });
+
+  app.get("/metrics", { schema: { tags: ["system"] }, config: { rateLimit: { max: 1200, timeWindow: "1 minute" } } }, async (_request, reply) => {
+    try {
+      await db.query("SELECT 1");
+      setDatabaseUp(true);
+    } catch {
+      setDatabaseUp(false);
+    }
+    reply.type("text/plain; version=0.0.4").send(renderPrometheusMetrics());
+  });
 
   async function runCreatureRequest(
     userId: string,
