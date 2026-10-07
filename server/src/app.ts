@@ -150,7 +150,8 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   });
 
   app.setErrorHandler((error, request, reply) => {
-    const statusCode = typeof error.statusCode === "number" && error.statusCode >= 400 && error.statusCode < 600
+    const statusCode = error !== null && typeof error === "object" && "statusCode" in error
+      && typeof error.statusCode === "number" && error.statusCode >= 400 && error.statusCode < 600
       ? error.statusCode
       : 500;
     const clientError = statusCode === 400 ? "INVALID_REQUEST"
