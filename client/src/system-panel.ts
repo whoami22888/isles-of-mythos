@@ -81,6 +81,9 @@ export class SystemPanel {
       ask("MY GUILD", "get_guild"), ask("INVITES", "list_guild_invitations"),
       { label: "CREATE", run: () => { const name = this.prompt("Guild name"); const tag = this.prompt("Guild tag"); if (name && tag) this.request("create_guild", { name, tag }); } },
       { label: "INVITE", run: () => { const guildId = this.prompt("Guild ID"); const targetUserId = this.prompt("Target user ID"); if (guildId && targetUserId) this.request("invite_guild_member", { guildId, targetUserId }); } },
+      { label: "ACCEPT INVITE", run: () => { const invitationId = this.prompt("Invitation ID"); if (invitationId) this.request("accept_guild_invite", { invitationId }); } },
+      { label: "RANK", run: () => { const guildId = this.prompt("Guild ID"); const targetUserId = this.prompt("Member user ID"); const rank = this.prompt("Rank"); if (guildId && targetUserId && rank) this.request("set_guild_rank", { guildId, targetUserId, rank }); } },
+      { label: "PERMISSION", run: () => { const guildId = this.prompt("Guild ID"); const rank = this.prompt("Rank"); const permission = this.prompt("Permission"); const enabled = this.prompt("Enable? yes/no") === "yes"; if (guildId && rank && permission) this.request("set_guild_permission", { guildId, rank, permission, enabled }); } },
       { label: "BANK", run: () => { const guildId = this.prompt("Guild ID"); if (guildId) this.request("guild_bank", { guildId }); } },
       { label: "LEAVE", run: () => { const guildId = this.prompt("Guild ID"); if (guildId) this.request("leave_guild", { guildId }); } },
       { label: "BUILD INFRA", run: () => { const guildId = this.prompt("Guild ID"); const structureType = this.prompt("Structure type"); if (guildId && structureType) this.request("build_guild_infrastructure", { guildId, structureType }); } },
@@ -107,14 +110,22 @@ export class SystemPanel {
       ask("SHIPS", "list_ships"), ask("FLEETS", "list_fleets"),
       { label: "CREATE SHIP", run: () => { const name = this.prompt("Ship name"); const shipClass = this.prompt("Ship class"); if (name && shipClass) this.request("create_ship", { name, shipClass }); } },
       { label: "SHIP INVENTORY", run: () => { const shipId = this.prompt("Ship ID"); if (shipId) this.request("ship_inventory", { shipId }); } },
+      { label: "CARGO", run: () => { const shipId = this.prompt("Ship ID"); const itemId = this.prompt("Item ID"); const quantity = Number(this.prompt("Quantity")); if (shipId && itemId && Number.isSafeInteger(quantity)) this.request("ship_cargo", { shipId, itemId, quantity }); } },
+      { label: "CREW", run: () => { const shipId = this.prompt("Ship ID"); const creatureId = this.prompt("Creature ID"); const role = this.prompt("Crew role"); const skill = Number(this.prompt("Skill")); const morale = Number(this.prompt("Morale")); if (shipId && creatureId && role && Number.isSafeInteger(skill) && Number.isSafeInteger(morale)) this.request("assign_ship_crew", { shipId, creatureId, role, skill, morale }); } },
       { label: "SAIL", run: () => { const shipId = this.prompt("Ship ID"); const dx = Number(this.prompt("Direction X")); const dy = Number(this.prompt("Direction Y")); const dt = Number(this.prompt("Duration seconds")); if (shipId && Number.isFinite(dx) && Number.isFinite(dy) && Number.isFinite(dt)) this.request("sail", { shipId, dx, dy, dt }); } },
       { label: "REPAIR", run: () => { const shipId = this.prompt("Ship ID"); if (shipId) this.request("repair_ship", { shipId }); } },
+      { label: "CANNON", run: () => { const shipId = this.prompt("Your ship ID"); const targetShipId = this.prompt("Target ship ID"); if (shipId && targetShipId) this.request("fire_cannon", { shipId, targetShipId }); } },
+      { label: "BOARD", run: () => { const shipId = this.prompt("Your ship ID"); const targetShipId = this.prompt("Target ship ID"); if (shipId && targetShipId) this.request("board_ship", { shipId, targetShipId }); } },
+      { label: "RETREAT", run: () => { const shipId = this.prompt("Ship ID"); if (shipId) this.request("retreat_ship", { shipId }); } },
       { label: "CREATE FLEET", run: () => { const name = this.prompt("Fleet name"); const shipId = this.prompt("Initial ship ID"); if (name && shipId) this.request("create_fleet", { name, shipId }); } },
     ];
     if (this.category === "REALMS") return [
       ask("REALMS", "list_realms"), ask("TERRITORIES", "list_territories"), ask("FORTRESSES", "list_realm_fortresses"),
       ask("ROUTES", "list_trade_routes"), ask("REPUTATION", "my_realm_reputation"), ask("SEASON", "list_territory_season"),
       { label: "TERRITORY", run: () => { const x = Number(this.prompt("World X")); const y = Number(this.prompt("World Y")); if (Number.isSafeInteger(x) && Number.isSafeInteger(y)) this.request("territory_at", { x, y }); } },
+      { label: "CLAIM", run: () => { const territoryId = this.prompt("Territory ID"); const guildId = this.prompt("Guild ID"); if (territoryId && guildId) this.request("claim_guild_territory", { territoryId, guildId }); } },
+      { label: "REPUTATION", run: () => { const realm = this.prompt("Realm"); const delta = Number(this.prompt("Reputation delta")); if (realm && Number.isSafeInteger(delta)) this.request("change_realm_reputation", { realm, delta }); } },
+      ask("REALM AI TICK", "tick_realm_ai"),
       { label: "TRADE ROUTE", run: () => {
         const sourceTerritoryId = this.prompt("Source territory ID"); const destinationTerritoryId = this.prompt("Destination territory ID");
         const resourceKey = this.prompt("Resource key"); const quantity = this.prompt("Quantity"); const travelSeconds = Number(this.prompt("Travel seconds"));
@@ -140,6 +151,9 @@ export class SystemPanel {
       { label: "TRAIN", run: () => { const armyId = this.prompt("Army ID"); const unitType = this.prompt("Unit type"); const quantity = Number(this.prompt("Quantity")); if (armyId && unitType && Number.isSafeInteger(quantity)) this.request("train_army", { armyId, unitType, quantity }); } },
       { label: "REALM WAR", run: () => { const attackerRealmId = this.prompt("Attacker realm ID"); const defenderRealmId = this.prompt("Defender realm ID"); const targetTerritoryId = this.prompt("Target territory ID"); if (attackerRealmId && defenderRealmId && targetTerritoryId) this.request("create_realm_war", { attackerRealmId, defenderRealmId, targetTerritoryId }); } },
       { label: "GUILD BATTLE", run: () => { const attackerGuildId = this.prompt("Attacker guild ID"); const defenderGuildId = this.prompt("Defender guild ID"); const targetTerritoryId = this.prompt("Target territory ID"); if (attackerGuildId && defenderGuildId && targetTerritoryId) this.request("create_guild_battle", { attackerGuildId, defenderGuildId, targetTerritoryId }); } },
+      { label: "GARRISON", run: () => { const armyId = this.prompt("Army ID"); const baseId = this.prompt("Base ID"); if (armyId && baseId) this.request("garrison_army", { armyId, baseId }); } },
+      { label: "ASSIGN", run: () => { const armyId = this.prompt("Army ID"); const assignment = this.prompt("Assignment"); if (armyId && assignment) this.request("set_army_assignment", { armyId, assignment }); } },
+      { label: "BATTLE", run: () => { const attackerArmyId = this.prompt("Attacker army ID"); const defenderArmyId = this.prompt("Defender army ID (blank for none)"); const targetX = Number(this.prompt("Target X")); const targetY = Number(this.prompt("Target Y")); if (attackerArmyId && Number.isFinite(targetX) && Number.isFinite(targetY)) this.request("create_army_battle", { attackerArmyId, defenderArmyId: defenderArmyId || null, targetX, targetY }); } },
     ];
     if (this.category === "ENDGAME") return [
       ask("ENDGAME CREATURES", "list_endgame_creatures"), ask("MYTHIC CONTENT", "list_mythic_content"),
