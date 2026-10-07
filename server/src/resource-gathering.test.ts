@@ -43,7 +43,10 @@ describe("resource gathering transactions", () => {
     try {
       const first = await gatherResource(db, userId, "gather-1", "gather_resource|" + node.id, node);
       const replay = await gatherResource(db, userId, "gather-1", "gather_resource|" + node.id, node);
+      expect(first.transactionId).toMatch(/^[0-9a-f-]{36}$/i);
       expect(replay).toEqual(first);
+      const ledger = await db.query<{ transaction_id:string }>("SELECT transaction_id FROM resource_gather_requests WHERE user_id=$1 AND request_id=$2",[userId,"gather-1"]);
+      expect(ledger.rows[0]?.transaction_id).toBe(first.transactionId);
 
       const player = await db.query<{ inventory: Record<string, number> }>(
         "SELECT inventory FROM player_profiles WHERE user_id=$1",
