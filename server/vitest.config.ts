@@ -5,5 +5,7 @@ export default defineConfig({
     pool: "forks",
     maxWorkers: 2,
     fileParallelism: true,
+    detectAsyncLeaks: true,
+    detectAsyncLeaks: true,
   },
 });
