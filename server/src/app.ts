@@ -1095,9 +1095,9 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           if (playerHasStatus(authenticatedUserId, "stun")) { send(socket, { type: "error", code: "PLAYER_STUNNED" }); return; }
           const node = world.getResourceNode(message.resourceId);
           if (!node) { send(socket, { type: "error", code: "RESOURCE_NOT_FOUND" }); return; }
-          if (distance(state, node) > 2.5) { send(socket, { type: "error", code: "RESOURCE_OUT_OF_RANGE" }); return; }
           const fingerprint = resourceGatherFingerprint(node.id);
           const response = await runEconomyRequest(authenticatedUserId, message.requestId, fingerprint, async () => {
+            if (distance(state, node) > 2.5) return { type: "error", code: "RESOURCE_OUT_OF_RANGE" };
             try {
               const result = await gatherResource(db, authenticatedUserId, message.requestId, fingerprint, node);
               const refreshed = await players.reloadEconomy(authenticatedUserId);
