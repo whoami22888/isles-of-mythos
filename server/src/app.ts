@@ -7,7 +7,6 @@ import websocket from "@fastify/websocket";
 import type { WebSocket } from "ws";
 import type { Pool } from "pg";
 import { config } from "./config.js";
-import { recordHttpRequest, recordTick, renderPrometheusMetrics, setActivePlayers, setDatabaseUp, setWebSocketAuthenticated, setWebSocketConnections } from "./metrics.js";
 import { createDbPool } from "./db.js";
 import { registerAuthRoutes } from "./auth.js";
 import { log } from "./logger.js";
@@ -101,11 +100,8 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const combatTargets = new Map<string, CombatTarget>();
   const defeatedCreatures = new Set<string>();
   const capturedWorldCreatures = new Set<string>();
-  const loadCapturedWorldCreatures = async (): Promise<void> => {
-    const capturedRows = await db.query<{ wild_source_id: string }>("SELECT wild_source_id FROM player_creatures");
-    capturedWorldCreatures.clear();
-    for (const row of capturedRows.rows) capturedWorldCreatures.add(row.wild_source_id);
-  };
+  const capturedRows = await db.query<{ wild_source_id: string }>("SELECT wild_source_id FROM player_creatures");
+  for (const row of capturedRows.rows) capturedWorldCreatures.add(row.wild_source_id);
   const visibleWorldChunk = (x: number, y: number) => {
     const chunk = world.get(x, y);
     if (capturedWorldCreatures.size === 0) return chunk;
@@ -130,29 +126,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const pendingCreatureOperations = new Map<string, Promise<void>>();
   const pendingPlayerUnloads = new Map<string, Promise<void>>();
   let shuttingDown = false;
-  let authenticatedSocketCount = 0;
   const app = Fastify({ logger: false });
-
-  const httpRequestStartedAt = new WeakMap<object, bigint>();
-  app.addHook("onRequest", (request) => {
-    httpRequestStartedAt.set(request, process.hrtime.bigint());
-  });
-  app.addHook("onResponse", (request, reply) => {
-    const started = httpRequestStartedAt.get(request);
-    if (started !== undefined) {
-      recordHttpRequest(Number(process.hrtime.bigint() - started) / 1e6, reply.statusCode);
-    }
-  });
-
-  app.get("/metrics", { schema: { tags: ["system"] }, config: { rateLimit: { max: 1200, timeWindow: "1 minute" } } }, async (_request, reply) => {
-    try {
-      await db.query("SELECT 1");
-      setDatabaseUp(true);
-    } catch {
-      setDatabaseUp(false);
-    }
-    reply.type("text/plain; version=0.0.4").send(renderPrometheusMetrics());
-  });
 
   async function runCreatureRequest(
     userId: string,
@@ -284,39 +258,23 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     },
   });
 
-  let heartbeat: ReturnType<typeof setInterval> | undefined;
-  let survivalTick: ReturnType<typeof setInterval> | undefined;
-  let breedingTick: ReturnType<typeof setInterval> | undefined;
-  let navalFireTick: ReturnType<typeof setInterval> | undefined;
-  let invasionTick: ReturnType<typeof setInterval> | undefined;
-  let auctionTick: ReturnType<typeof setInterval> | undefined;
-  let endgameTick: ReturnType<typeof setInterval> | undefined;
-  let territorySeasonTick: ReturnType<typeof setInterval> | undefined;
-  let worldEventTick: ReturnType<typeof setInterval> | undefined;
-  let combatTick: ReturnType<typeof setInterval> | undefined;
-  let persistenceTick: ReturnType<typeof setInterval> | undefined;
-
-  app.addHook("onListen", () => {
-  void loadCapturedWorldCreatures().catch((error) => log("captured_world_creatures_load_failed", {
-    message: error instanceof Error ? error.message : String(error),
-  }));
-  heartbeat = setInterval(() => {
+  const heartbeat = setInterval(() => {
     for (const socket of sockets) {
       if (socket.readyState === socket.OPEN) socket.ping();
     }
   }, 30_000);
   heartbeat.unref();
 
-  survivalTick = setInterval(() => players.tick(1), 1_000);
-  breedingTick = setInterval(() => { void breeding.completeDue().catch((error) => log("breeding_completion_failed",{message:error instanceof Error?error.message:String(error)})); }, 1_000);
-  navalFireTick = setInterval(() => { void naval.tickFires().catch((error) => log("naval_fire_tick_failed",{message:error instanceof Error?error.message:String(error)})); }, 1_000);
-  invasionTick = setInterval(() => { void invasions.tick().catch((error) => log("invasion_tick_failed",{message:error instanceof Error?error.message:String(error)})); }, 1_000);
-  auctionTick = setInterval(() => { void auctions.tick().catch((error) => log("auction_tick_failed",{message:error instanceof Error ? error.message : String(error)})); }, 5_000);
-  endgameTick = setInterval(() => {
+  const survivalTick = setInterval(() => players.tick(1), 1_000);
+  const breedingTick = setInterval(() => { void breeding.completeDue().catch((error) => log("breeding_completion_failed",{message:error instanceof Error?error.message:String(error)})); }, 1_000);
+  const navalFireTick = setInterval(() => { void naval.tickFires().catch((error) => log("naval_fire_tick_failed",{message:error instanceof Error?error.message:String(error)})); }, 1_000);
+  const invasionTick = setInterval(() => { void invasions.tick().catch((error) => log("invasion_tick_failed",{message:error instanceof Error?error.message:String(error)})); }, 1_000);
+  const auctionTick = setInterval(() => { void auctions.tick().catch((error) => log("auction_tick_failed",{message:error instanceof Error ? error.message : String(error)})); }, 5_000);
+  const endgameTick = setInterval(() => {
     void Promise.all([endgame.tick(),endgame.spawnCreaturesIfNeeded()]).catch((error)=>log("endgame_tick_failed",{message:error instanceof Error?error.message:String(error)}));
   },5_000);
-  territorySeasonTick = setInterval(() => { void territorySeasons.tick().catch((error)=>log("territory_season_tick_failed",{message:error instanceof Error?error.message:String(error)})); },60_000);
-  worldEventTick = setInterval(() => {
+  const territorySeasonTick = setInterval(() => { void territorySeasons.tick().catch((error)=>log("territory_season_tick_failed",{message:error instanceof Error?error.message:String(error)})); },60_000);
+  const worldEventTick = setInterval(() => {
     void worldEvents.tick().then(async(changed)=>{
       if(changed===0) return;
       const events=await worldEvents.listActive();
@@ -331,8 +289,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   territorySeasonTick.unref();
   survivalTick.unref();
 
-  combatTick = setInterval(() => {
-    const tickStartedAt = process.hrtime.bigint();
+  const combatTick = setInterval(() => {
     const now = Date.now();
     tickPlayerStatuses(250);
 
@@ -416,7 +373,6 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       const state = players.get(userId);
       return state && state.health > 0 ? [{ userId, x: state.x, y: state.y }] : [];
     });
-    recordTick(Number(process.hrtime.bigint() - tickStartedAt) / 1e6);
     for (const target of combatTargets.values()) {
       const ai = tickCreatureAi(target, candidates, now, 250);
       const userId = ai.targetUserId;
@@ -464,7 +420,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   }, 250);
   combatTick.unref();
 
-  persistenceTick = setInterval(() => {
+  const persistenceTick = setInterval(() => {
     void Promise.all([players.persistDirty(), creatures.persistDirty(), bases.processAll()]).catch((error) => {
       log("player_persistence_failed", {
         message: error instanceof Error ? error.message : String(error),
@@ -473,21 +429,19 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   }, 10_000);
   persistenceTick.unref();
 
-  });
-  
   app.addHook("onClose", async () => {
-    if (invasionTick) clearInterval(invasionTick);
-    if (auctionTick) clearInterval(auctionTick);
-    if (worldEventTick) clearInterval(worldEventTick);
-    if (endgameTick) clearInterval(endgameTick);
-    if (territorySeasonTick) clearInterval(territorySeasonTick);
+    clearInterval(invasionTick);
+    clearInterval(auctionTick);
+    clearInterval(worldEventTick);
+    clearInterval(endgameTick);
+    clearInterval(territorySeasonTick);
     shuttingDown = true;
-    if (heartbeat) clearInterval(heartbeat);
-    if (survivalTick) clearInterval(survivalTick);
-    if (breedingTick) clearInterval(breedingTick);
-    if (navalFireTick) clearInterval(navalFireTick);
-    if (persistenceTick) clearInterval(persistenceTick);
-    if (combatTick) clearInterval(combatTick);
+    clearInterval(heartbeat);
+    clearInterval(survivalTick);
+    clearInterval(breedingTick);
+    clearInterval(navalFireTick);
+    clearInterval(persistenceTick);
+    clearInterval(combatTick);
     await players.persistAll();
     await creatures.persistAll();
     await bases.processAll();
@@ -590,7 +544,6 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
 
   app.get("/ws", { websocket: true, config: { rateLimit: { max: 2000, timeWindow: "1 minute" } } }, (socket: WebSocket) => {
     sockets.add(socket);
-    setWebSocketConnections(sockets.size);
     let userId: string | null = null;
     let messageWindowStartedAt = Date.now();
     let messageWindowCount = 0;
@@ -651,9 +604,6 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             const socketsForUser = userSockets.get(authenticatedUserId) ?? new Set<WebSocket>();
             socketsForUser.add(socket);
             userSockets.set(authenticatedUserId, socketsForUser);
-            authenticatedSocketCount += 1;
-            setWebSocketAuthenticated(authenticatedSocketCount);
-            setActivePlayers(userSockets.size);
             send(socket, { type: "auth_ok", userId: authenticatedUserId });
             send(socket, { type: "player_state", state: serializePlayerState(state) });
             send(socket, { type: "creature_party", creatures: ownedCreatures });
@@ -1494,18 +1444,12 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         authDeadline = null;
       }
       sockets.delete(socket);
-      setWebSocketConnections(sockets.size);
-      if (userId !== null) {
-        authenticatedSocketCount = Math.max(0, authenticatedSocketCount - 1);
-        setWebSocketAuthenticated(authenticatedSocketCount);
-      }
       if (shuttingDown || !userId) return;
       const disconnectedUserId=userId;
       const connections = (playerConnections.get(disconnectedUserId) ?? 1) - 1;
       const socketsForUser = userSockets.get(disconnectedUserId);
       socketsForUser?.delete(socket);
       if (socketsForUser && socketsForUser.size === 0) userSockets.delete(disconnectedUserId);
-      setActivePlayers(userSockets.size);
       if (connections <= 0) {
         playerConnections.delete(disconnectedUserId);
         attackCooldowns.delete(disconnectedUserId);
