@@ -54,7 +54,9 @@ describe("Gate 9 naval mechanics",()=>{
       await db.query("UPDATE player_ships SET hull=hull-50 WHERE id=$1",[attacker.id]);
       const repaired=await naval.repairShip(a,attacker.id);expect(repaired.hull).toBeGreaterThan(attacker.hull-50);
       const retreat=await naval.retreatShip(a,attacker.id);expect(retreat.retreatUntil).not.toBeNull();
-      const cargo=await inventory.mutate(a,attacker.id,"repair_lumber",2);expect(cargo.find(x=>x.itemId==="repair_lumber")?.quantity).toBe(6);
+      const cargo=await inventory.mutate(a,attacker.id,"repair_lumber",2,"cargo-replay","ship_cargo|repair_lumber|2");expect(cargo.find(x=>x.itemId==="repair_lumber")?.quantity).toBe(6);
+      const replay=await inventory.mutate(a,attacker.id,"repair_lumber",2,"cargo-replay","ship_cargo|repair_lumber|2");
+      expect(replay.transactionId).toBeDefined();expect(replay.items.find(x=>x.itemId==="repair_lumber")?.quantity).toBe(6);
       const fleet=await fleets.create(a,"Sea Wolves",attacker.id);expect(fleet.shipIds).toContain(attacker.id);
       const second=await ships.create(a,"Escort","sloop");const expanded=await fleets.addShip(a,fleet.id,second.id);expect(expanded.shipIds).toContain(second.id);
       const reduced=await fleets.removeShip(a,fleet.id,second.id);expect(reduced.shipIds).not.toContain(second.id);
@@ -72,9 +74,9 @@ describe("Gate 9 naval mechanics",()=>{
       const b=await ships.create(user,"Concurrency Two","sloop");
       const fleetResults=await Promise.allSettled([fleets.create(user,"Concurrent Fleet",a.id),fleets.create(user,"Second Fleet",a.id)]);
       expect(fleetResults.filter(x=>x.status==="fulfilled")).toHaveLength(1);
-      const cargoResults=await Promise.allSettled([inventory.mutate(user,a.id,"repair_lumber",1),inventory.mutate(user,a.id,"repair_lumber",1)]);
+      const cargoResults=await Promise.allSettled([inventory.mutate(user,a.id,"repair_lumber",1,"cargo-concurrent-1","ship_cargo|repair_lumber|1"),inventory.mutate(user,a.id,"repair_lumber",1,"cargo-concurrent-2","ship_cargo|repair_lumber|1")]);
       expect(cargoResults.filter(x=>x.status==="fulfilled")).toHaveLength(2);
-      const cargo=await inventory.mutate(user,a.id,"repair_lumber",-1);
+      const cargo=await inventory.mutate(user,a.id,"repair_lumber",-1,"cargo-decrement","ship_cargo|repair_lumber|-1");
       expect(cargo.find(x=>x.itemId==="repair_lumber")?.quantity).toBe(1);
       const listed=await fleets.list(user);expect(listed).toHaveLength(1);
       await app1.close();
