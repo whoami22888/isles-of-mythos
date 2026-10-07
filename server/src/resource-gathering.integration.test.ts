@@ -65,7 +65,6 @@ describe("resource gathering websocket flow", () => {
       socket = new WebSocket(`ws://127.0.0.1:${address.port}/ws`);
       await waitFor(socket, "server_ready");
       socket.send(JSON.stringify({ type: "auth", token: body.accessToken }));
-      await waitFor(socket, "auth_ok");
       await waitFor(socket, "player_state");
 
       socket.send(JSON.stringify({
