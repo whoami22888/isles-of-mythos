@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { buildApp } from "./app.js";
+import { safePath } from "./frontend.js";
 
 describe("production frontend delivery", () => {
   const tempDirectories: string[] = [];
@@ -35,8 +36,11 @@ describe("production frontend delivery", () => {
       expect(spa.statusCode).toBe(200);
       expect(spa.body).toContain("Isles of Mythos");
 
-      const traversal = await app.inject({ method: "GET", url: "/%2e%2e/%2e%2e/package.json" });
-      expect(traversal.statusCode).toBe(400);
+      expect(safePath(directory, "/%2e%2e/%2e%2e/package.json")).toBeNull();
+
+      const packagePath = await app.inject({ method: "GET", url: "/package.json" });
+      expect(packagePath.statusCode).toBe(200);
+      expect(packagePath.body).toContain("Isles of Mythos");
 
       const backend = await app.inject({ method: "GET", url: "/health" });
       expect(backend.statusCode).toBe(200);
