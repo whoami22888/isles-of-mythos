@@ -34,6 +34,10 @@ describe("guild transaction protocol", () => {
     })).toBeNull();
 
     expect(parseServerMessage({
+      type:"guild_operation_ok", requestId:"guild-2b", guildId:"guild-1", rewardTransactionIds:[123],
+    })).toBeNull();
+
+    expect(parseServerMessage({
       type:"guild_operation_ok", requestId:"guild-3", guildId:"guild-1",
     })).toMatchObject({type:"guild_operation_ok",guildId:"guild-1"});
   });
