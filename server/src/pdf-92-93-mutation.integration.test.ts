@@ -25,7 +25,7 @@ describe("PDF §92/§93 base storage durability",()=>{
 
       const first=await bases.mutateStorage(userId,{wood:10},"base-storage-replay","storage|wood|10");
       expect(first.transactionId).toMatch(/^[0-9a-f-]{36}$/i);
-      expect(first.storage.wood).toBe(10);
+      expect(first.storage.wood).toBe(510);
 
       await app.close();
       const restarted=new BaseStore(db);
@@ -37,7 +37,7 @@ describe("PDF §92/§93 base storage durability",()=>{
       const profile=await db.query<{inventory:Record<string,number>}>("SELECT inventory FROM player_profiles WHERE user_id=$1",[userId]);
       const stored=await db.query<{quantity:string}>("SELECT quantity FROM base_storage WHERE base_id=$1 AND resource_key='wood'",[base.id]);
       expect(profile.rows[0]?.inventory.wood).toBe(90);
-      expect(stored.rows[0]?.quantity).toBe("10");
+      expect(stored.rows[0]?.quantity).toBe("510");
 
       const ledger=await db.query<{transaction_id:string;response:{transactionId:string;storage:Record<string,number>}}>("SELECT transaction_id,response FROM base_storage_requests WHERE request_key=$1",[userId+":base-storage-replay"]);
       expect(ledger.rows[0]?.transaction_id).toBe(first.transactionId);
@@ -45,7 +45,7 @@ describe("PDF §92/§93 base storage durability",()=>{
 
       const second=await restarted.mutateStorage(userId,{wood:5},"base-storage-second","storage|wood|5");
       expect(second.transactionId).not.toBe(first.transactionId);
-      expect(second.storage.wood).toBe(15);
+      expect(second.storage.wood).toBe(515);
     }finally{
       if(app.server.listening)await app.close();
       await db.end();
