@@ -554,7 +554,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     items: SHOP_ITEMS.map(serializeShopItem),
   }));
 
-  app.post<{ Body: { itemId: string; quantity: number } }>(
+  app.post<{ Body: { requestId: string; itemId: string; quantity: number } }>(
     "/shop/purchase",
     {
       schema: {
