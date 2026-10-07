@@ -21,6 +21,7 @@ ENV NODE_ENV=production
 COPY --from=build --chown=node:node /app/package.json ./package.json
 COPY --from=build --chown=node:node /app/client/package.json ./client/package.json
 COPY --from=build --chown=node:node /app/server/package.json ./server/package.json
+COPY --from=build --chown=node:node /app/client/dist ./client/dist
 COPY --from=build --chown=node:node /app/server/dist ./server/dist
 COPY --from=build --chown=node:node /app/server/migrations ./server/migrations
 COPY --from=build --chown=node:node /app/node_modules ./node_modules
