@@ -1392,10 +1392,10 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
               if (message.type === "party_kick") { await social.kickFromParty(authenticatedUserId,message.targetUserId); return {type:"party_operation_ok",requestId:message.requestId}; }
 
               if (message.type === "auction_list") return {type:"auction_list",requestId:message.requestId,listings:await auctions.list({itemId:message.itemId,rarity:message.rarity,category:message.category,minLevel:message.minLevel,maxLevel:message.maxLevel,minPrice:message.minPrice,maxPrice:message.maxPrice})};
-              if (message.type === "auction_create") return {type:"auction_state",requestId:message.requestId,listing:await auctions.create(authenticatedUserId,message)};
-              if (message.type === "auction_bid") return {type:"auction_state",requestId:message.requestId,listing:await auctions.bid(authenticatedUserId,message.listingId,message.amount)};
-              if (message.type === "auction_buy_now") return {type:"auction_state",requestId:message.requestId,listing:await auctions.buyNow(authenticatedUserId,message.listingId)};
-              if (message.type === "auction_cancel") { await auctions.cancel(authenticatedUserId,message.listingId); return {type:"auction_operation_ok",requestId:message.requestId}; }
+              if (message.type === "auction_create") { const result=await auctions.create(authenticatedUserId,message.requestId,message); return {type:"auction_state",requestId:message.requestId,transactionId:result.transactionId,listing:result.listing}; }
+              if (message.type === "auction_bid") { const result=await auctions.bid(authenticatedUserId,message.requestId,message.listingId,message.amount); return {type:"auction_state",requestId:message.requestId,transactionId:result.transactionId,listing:result.listing}; }
+              if (message.type === "auction_buy_now") { const result=await auctions.buyNow(authenticatedUserId,message.requestId,message.listingId); return {type:"auction_state",requestId:message.requestId,transactionId:result.transactionId,listing:result.listing}; }
+              if (message.type === "auction_cancel") { const result=await auctions.cancel(authenticatedUserId,message.requestId,message.listingId); return {type:"auction_operation_ok",requestId:message.requestId,transactionId:result.transactionId}; }
               return {type:"auction_history",requestId:message.requestId,transactions:await auctions.history(authenticatedUserId)};
             } catch (error) {
               const code=errorCode(error,"SOCIAL_OPERATION_FAILED");
