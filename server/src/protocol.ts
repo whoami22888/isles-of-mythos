@@ -176,7 +176,7 @@ export type ServerMessage =
   | { type:"defense_list"; requestId:string; defenses:unknown[] }
   | { type:"ship_state"; requestId:string; ship:unknown }
   | { type:"ship_list"; requestId:string; ships:unknown[] }
-  | { type:"ship_inventory"; requestId:string; shipId:string; items:unknown[] }
+  | { type:"ship_inventory"; requestId:string; shipId:string; items:unknown[]; transactionId?:string }
   | { type:"ship_crew"; requestId:string; crew:unknown }
   | { type:"fleet_state"; requestId:string; fleet:unknown }
   | { type:"fleet_list"; requestId:string; fleets:unknown[] }
