@@ -9,6 +9,7 @@ import {NavalStore} from "./naval.js";
 import {parseClientMessage} from "./protocol.js";
 import {FleetStore} from "./fleet.js";
 import {ShipInventoryStore} from "./ship-inventory.js";
+import {PlayerStore} from "./player.js";
 
 async function register(app:FastifyInstance,tag:string):Promise<string>{
   const unique=tag+"_"+Date.now().toString(36).slice(-7)+"_"+Math.random().toString(36).slice(2,5);
@@ -17,6 +18,7 @@ async function register(app:FastifyInstance,tag:string):Promise<string>{
   return (JSON.parse(response.body) as {user:{id:string}}).user.id;
 }
 async function fixture(db:Pool,userId:string){
+  await new PlayerStore(db).loadOrCreate(userId);
   const bases=new BaseStore(db);const base=await bases.create(userId,"Naval Base",0,0);
   await db.query("INSERT INTO base_storage(base_id,resource_key,quantity) VALUES($1,'wood',5000),($1,'steel',5000) ON CONFLICT (base_id,resource_key) DO UPDATE SET quantity=EXCLUDED.quantity",[base.id]);
   await db.query("INSERT INTO base_buildings(base_id,type,level,grid_x,grid_y,active) VALUES($1,'shipyard',1,1,0,true)",[base.id]);
