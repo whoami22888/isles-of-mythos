@@ -136,6 +136,8 @@ export class GuildStore{
     if(quantity<0||!Number.isSafeInteger(quantity)||quantity>1_000_000)throw new Error('INVALID_GUILD_BANK_QUANTITY');const gld=parseGoldDoubloons(gold);if(quantity===0&&gld===0n)throw new Error('INVALID_GUILD_BANK_DEPOSIT');
     if(!requestId||requestId.length>128)throw new Error('INVALID_REQUEST_ID');
     const c=await this.db.connect();try{await c.query('BEGIN');
+      const playerLock=await c.query("SELECT 1 FROM player_profiles WHERE user_id=$1 FOR UPDATE",[userId]);
+      if(!playerLock.rows[0])throw new Error('PLAYER_NOT_FOUND');
       const requestKey=userId+':'+requestId;
       const inserted=await c.query<{transaction_id:string}>("INSERT INTO guild_bank_requests(request_key,user_id,fingerprint,response) VALUES($1,$2,$3,'{}'::jsonb) ON CONFLICT(request_key) DO NOTHING RETURNING transaction_id",[requestKey,userId,fingerprint]);
       if(!inserted.rows[0]){
