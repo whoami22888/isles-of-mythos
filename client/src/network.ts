@@ -221,8 +221,8 @@ export function parseServerMessage(value: unknown): ServerMessage | null {
       const isSnapshot = (snapshot: unknown): snapshot is EconomySnapshot =>
         isRecord(snapshot) && typeof snapshot.userId === "string" && typeof snapshot.gold === "string" &&
         isRecord(snapshot.inventory) && Object.values(snapshot.inventory).every((quantity) => typeof quantity === "number" && Number.isSafeInteger(quantity) && quantity >= 0);
-      return typeof value.requestId === "string" && isSnapshot(value.from) && isSnapshot(value.to)
-        ? { type:"trade_result", requestId:value.requestId, from:value.from, to:value.to } : null;
+      return typeof value.requestId === "string" && typeof value.transactionId === "string" && isSnapshot(value.from) && isSnapshot(value.to)
+        ? { type:"trade_result", requestId:value.requestId, transactionId:value.transactionId, from:value.from, to:value.to } : null;
     }
     case "army_list":
       return typeof value.requestId === "string" && Array.isArray(value.armies) && value.armies.every(isArmySummary)
