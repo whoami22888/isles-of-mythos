@@ -31,6 +31,21 @@ describe("external boundary error handling", () => {
     }
   });
 
+  it("returns 400 for an unauthenticated shop request with invalid request data", async () => {
+    const app = await buildApp({ db: unavailableDb() });
+    try {
+      const response = await app.inject({
+        method: "POST",
+        url: "/shop/purchase",
+        payload: { itemId: "resource.wood", quantity: 1 },
+      });
+
+      expect(response.statusCode).toBe(400);
+    } finally {
+      await app.close();
+    }
+  });
+
   it("returns a structured readiness failure when the database is unavailable", async () => {
     const app = await buildApp({ db: unavailableDb() });
     try {
