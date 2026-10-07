@@ -163,20 +163,64 @@ export class PlayerStore {
     }
     if ((this.revisions.get(userId) ?? 0) === revision) this.dirty.delete(userId);
   }
-  async purchase(userId: string, item: ShopItem, quantity: number, totalGold: bigint): Promise<PlayerState> {
+  async purchase(userId: string, requestId: string, item: ShopItem, quantity: number, totalGold: bigint): Promise<PublicPlayerState> {
     return this.runExclusive(userId, async () => {
-      const result = await runEconomyTransaction(this.db, userId, ({ gold, inventory }) => {
+      if (!requestId || requestId.length > 64) throw new Error("INVALID_REQUEST_ID");
+      const requestKey = userId + ":" + requestId;
+      const fingerprint = JSON.stringify({ itemId: item.id, quantity, totalGold: totalGold.toString() });
+      const client = await this.db.connect();
+      try {
+        await client.query("BEGIN");
+        const inserted = await client.query(
+          "INSERT INTO shop_purchase_requests (request_key, user_id, fingerprint, response) VALUES ($1, $2, $3, '{}'::jsonb) ON CONFLICT (request_key) DO NOTHING RETURNING request_key",
+          [requestKey, userId, fingerprint],
+        );
+        if (inserted.rowCount === 0) {
+          const existing = await client.query<{ fingerprint: string; response: PublicPlayerState }>(
+            "SELECT fingerprint, response FROM shop_purchase_requests WHERE request_key=$1 FOR UPDATE",
+            [requestKey],
+          );
+          const row = existing.rows[0];
+          if (!row) throw new Error("SHOP_REQUEST_NOT_FOUND");
+          if (row.fingerprint !== fingerprint) throw new Error("SHOP_REQUEST_CONFLICT");
+          await client.query("COMMIT");
+          return row.response;
+        }
+
+        const result = await client.query<{ gold: string; inventory: Inventory }>(
+          "SELECT gold, inventory FROM player_profiles WHERE user_id=$1 FOR UPDATE",
+          [userId],
+        );
+        const row = result.rows[0];
+        if (!row) throw new Error("PLAYER_NOT_FOUND");
+        const gold = parseGoldDoubloons(row.gold);
+        const inventory = cloneInventory(row.inventory);
         const nextInventory = applyInventoryDelta(inventory, item.id, quantity);
         const nextGold = subtractGoldDoubloons(gold, totalGold);
-        return { gold: nextGold, inventory: nextInventory, value: { gold: nextGold, inventory: nextInventory } };
-      });
-      const state = this.active.get(userId);
-      if (!state) throw new Error("PLAYER_NOT_FOUND");
-      state.gold = result.gold;
-      state.inventory = result.inventory;
-      this.economyInventorySnapshots.set(userId, cloneInventory(result.inventory));
-      this.markDirty(userId);
-      return state;
+        await client.query(
+          "UPDATE player_profiles SET gold=$2, inventory=$3::jsonb, updated_at=CURRENT_TIMESTAMP WHERE user_id=$1",
+          [userId, nextGold.toString(), JSON.stringify(nextInventory)],
+        );
+
+        const state = this.active.get(userId);
+        if (!state) throw new Error("PLAYER_NOT_FOUND");
+        state.gold = nextGold;
+        state.inventory = nextInventory;
+        this.economyInventorySnapshots.set(userId, cloneInventory(nextInventory));
+        this.markDirty(userId);
+        const response = serializePlayerState(state);
+        await client.query(
+          "UPDATE shop_purchase_requests SET response=$2::jsonb WHERE request_key=$1",
+          [requestKey, JSON.stringify(response)],
+        );
+        await client.query("COMMIT");
+        return response;
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      } finally {
+        client.release();
+      }
     });
   }
 
