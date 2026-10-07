@@ -22,7 +22,7 @@ async function cleanupResource(db: ReturnType<typeof createDbPool>, userId: stri
 
 async function createPlayer() {
   const db = createDbPool();
-  const unique = randomUUID().replace(/-/g, "").slice(0, 24);
+  const unique = randomUUID().replace(/-/g, "").slice(0, 20);
   const user = await db.query<{ user_id: string }>(
     "INSERT INTO users(username,email,password_hash) VALUES($1,$2,$3) RETURNING id AS user_id",
     [`gather_${unique}`, `gather_${unique}@example.com`, "test"],
@@ -70,6 +70,7 @@ describe("resource gathering transactions", () => {
       const request = await db.query("SELECT request_id FROM resource_gather_requests WHERE user_id=$1", [userId]);
       expect(request.rows).toHaveLength(0);
     } finally {
+      await cleanupResource(db, userId, node.id);
       await db.end();
     }
   });
@@ -89,6 +90,7 @@ describe("resource gathering transactions", () => {
       const player = await db.query<{ inventory: Record<string, number> }>("SELECT inventory FROM player_profiles WHERE user_id=$1", [userId]);
       expect(Object.values(player.rows[0]?.inventory ?? {}).reduce((sum, value) => sum + value, 0)).toBeGreaterThan(0);
     } finally {
+      await cleanupResource(db, userId, node.id);
       await db.end();
     }
   });
@@ -100,6 +102,7 @@ describe("resource gathering transactions", () => {
       await gatherResource(db, userId, "gather-conflict", "gather_resource|" + node.id, node);
       await expect(gatherResource(db, userId, "gather-conflict", "gather_resource|other-node", node)).rejects.toThrow("RESOURCE_REQUEST_CONFLICT");
     } finally {
+      await cleanupResource(db, userId, node.id);
       await db.end();
     }
   });
