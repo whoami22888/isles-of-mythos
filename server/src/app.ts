@@ -149,6 +149,24 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     recordHttpRequest(reply.elapsedTime, reply.statusCode);
   });
 
+  app.setErrorHandler((error, request, reply) => {
+    const statusCode = typeof error.statusCode === "number" && error.statusCode >= 400 && error.statusCode < 600
+      ? error.statusCode
+      : 500;
+    const clientError = statusCode < 500 ? error.message : "INTERNAL_SERVER_ERROR";
+    log("http_request_failed", {
+      method: request.method,
+      url: request.url,
+      statusCode,
+      message: error instanceof Error ? error.message : String(error),
+    });
+    if (reply.sent) return;
+    reply.code(statusCode).send({
+      error: statusCode >= 500 ? "INTERNAL_SERVER_ERROR" : clientError,
+      message: statusCode >= 500 ? "Internal server error" : clientError,
+    });
+  });
+
   app.get("/metrics", { schema: { tags: ["system"] }, config: { rateLimit: { max: 1200, timeWindow: "1 minute" } } }, async (_request, reply) => {
     try {
       await db.query("SELECT 1");
@@ -1500,7 +1518,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         log("websocket_message_failed", {
           message: error instanceof Error ? error.message : String(error),
         });
-        send(socket, { type: "error", code: "INVALID_MESSAGE" });
+        send(socket, { type: "error", code: "INTERNAL_SERVER_ERROR" });
       });
     });
 
