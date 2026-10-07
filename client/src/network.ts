@@ -283,7 +283,8 @@ export function parseServerMessage(value: unknown): ServerMessage | null {
           ...(value.missed === undefined ? {} : { missed:value.missed }), ...(value.status === undefined ? {} : { status:value.status }) } : null;
     case "guild_operation_ok":
       return typeof value.requestId === "string" && typeof value.guildId === "string" &&
-        (value.transactionId === undefined || typeof value.transactionId === "string" && (value.rewardTransactionIds === undefined || (Array.isArray(value.rewardTransactionIds) && value.rewardTransactionIds.every((id) => typeof id === "string"))))
+        (value.transactionId === undefined || typeof value.transactionId === "string") &&
+        (value.rewardTransactionIds === undefined || (Array.isArray(value.rewardTransactionIds) && value.rewardTransactionIds.every((id) => typeof id === "string")))
         ? { type: "guild_operation_ok", requestId: value.requestId, guildId: value.guildId, ...(value.transactionId === undefined ? {} : { transactionId: value.transactionId }), ...(value.rewardTransactionIds === undefined ? {} : { rewardTransactionIds: value.rewardTransactionIds }) } : null;
     default: {
       const genericTypes = new Set<GenericSystemResponseType>([
