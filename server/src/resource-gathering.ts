@@ -102,6 +102,7 @@ export async function gatherResource(
       if (row.fingerprint !== fingerprint) throw new Error("RESOURCE_REQUEST_CONFLICT");
       await client.query("COMMIT");
       return {
+        transactionId: row.transaction_id,
         nodeId: row.node_id,
         itemId: row.item_id,
         quantity: row.quantity,
