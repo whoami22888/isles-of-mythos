@@ -2,6 +2,8 @@ import type { PlayerState } from "./player.js";
 import { isPlayerState } from "./player.js";
 import type { WorldChunk } from "./world.js";
 
+export interface ResourceNode { id:string; type:"wood"|"stone"|"herb"; x:number; y:number; }
+
 export interface ProjectileSpawnMessage {
   type: "projectile_spawn";
   projectileId: string;
@@ -55,6 +57,7 @@ export type ServerMessage =
   | { type: "pong"; timestamp: number }
   | { type: "auth_ok"; userId: string }
   | { type: "player_state"; state: PlayerState }
+  | { type:"resource_gathered"; requestId:string; resourceId:string; itemId:string; quantity:number; respawnsAt:string; state:PlayerState }
   | { type: "world_chunk"; requestId: string; chunk: WorldChunk }
   | ProjectileSpawnMessage
   | CombatResultMessage
@@ -110,7 +113,10 @@ export function isCreatureState(value: unknown): value is CreatureState {
 function isWorldChunk(value: unknown): value is WorldChunk {
   if (!isRecord(value)) return false;
   return typeof value.x === "number" && typeof value.y === "number" && typeof value.size === "number" &&
-    Array.isArray(value.tiles) && value.tiles.every((tile) => typeof tile === "number");
+    Array.isArray(value.tiles) && value.tiles.every((tile) => typeof tile === "number") &&
+    (value.resources === undefined || Array.isArray(value.resources) && value.resources.every((resource) => isRecord(resource) &&
+      typeof resource.id === "string" && (resource.type === "wood" || resource.type === "stone" || resource.type === "herb") &&
+      typeof resource.x === "number" && Number.isFinite(resource.x) && typeof resource.y === "number" && Number.isFinite(resource.y)));
 }
 
 function isInvasionSummary(value: unknown): value is InvasionSummary {
@@ -172,6 +178,10 @@ export function parseServerMessage(value: unknown): ServerMessage | null {
       return typeof value.userId === "string" ? { type: "auth_ok", userId: value.userId } : null;
     case "player_state":
       return isPlayerState(value.state) ? { type: "player_state", state: value.state } : null;
+    case "resource_gathered":
+      return typeof value.requestId==="string" && typeof value.resourceId==="string" && typeof value.itemId==="string" &&
+        typeof value.quantity==="number" && Number.isSafeInteger(value.quantity) && value.quantity>0 && typeof value.respawnsAt==="string" && isPlayerState(value.state)
+        ? {type:"resource_gathered",requestId:value.requestId,resourceId:value.resourceId,itemId:value.itemId,quantity:value.quantity,respawnsAt:value.respawnsAt,state:value.state} : null;
     case "world_chunk":
       return typeof value.requestId === "string" && isWorldChunk(value.chunk) ? { type: "world_chunk", requestId: value.requestId, chunk: value.chunk } : null;
     case "projectile_spawn":
