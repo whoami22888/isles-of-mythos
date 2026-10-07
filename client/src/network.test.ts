@@ -26,8 +26,8 @@ describe("guild transaction protocol", () => {
   it("accepts transaction ids for mutating guild operations", () => {
     expect(parseServerMessage({
       type:"guild_operation_ok", requestId:"guild-1", guildId:"guild-1",
-      transactionId:"550e8400-e29b-41d4-a716-446655440000",
-    })).toMatchObject({type:"guild_operation_ok",transactionId:"550e8400-e29b-41d4-a716-446655440000"});
+      transactionId:"550e8400-e29b-41d4-a716-446655440000", rewardTransactionIds:["550e8400-e29b-41d4-a716-446655440001"],
+    })).toMatchObject({type:"guild_operation_ok",transactionId:"550e8400-e29b-41d4-a716-446655440000",rewardTransactionIds:["550e8400-e29b-41d4-a716-446655440001"]});
 
     expect(parseServerMessage({
       type:"guild_operation_ok", requestId:"guild-2", guildId:"guild-1", transactionId:123,
