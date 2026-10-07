@@ -64,7 +64,7 @@ describe('guild bank durable idempotency',()=>{
   it('replays deposit and withdrawal across GuildStore instances without duplicating the mutation',async()=>{
     const db=createDbPool();const app=await buildApp({db});
     try{
-      const owner=await register(app,'idem_owner');await fixture(db,owner);const guilds=new GuildStore(db);await guilds.create(owner,'Idempotent Guild','IDEM');
+      const owner=await register(app,'idem_owner');await new PlayerStore(db).loadOrCreate(owner);await fixture(db,owner);const guilds=new GuildStore(db);await guilds.create(owner,'Idempotent Guild','IDEM');
       await db.query("UPDATE player_profiles SET inventory=jsonb_build_object('wood',10),gold=1000 WHERE user_id=$1",[owner]);
       const first=await guilds.bankDeposit(owner,(await guilds.get(owner)).id,'deposit-replay','wood',4,'100');
       const second=await new GuildStore(db).bankDeposit(owner,(await guilds.get(owner)).id,'deposit-replay','wood',4,'100');
