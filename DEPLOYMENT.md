@@ -13,6 +13,8 @@ Required production variables:
 - `DATABASE_URL`
 - `JWT_SECRET` (minimum 32 characters)
 - `CORS_ORIGIN`
+- `PUBLIC_DOMAIN` (public DNS name used by Caddy for automatic HTTPS)
+- `ACME_EMAIL` (certificate account email)
 - Optional `SERVER_PORT` (defaults to `3000`)
 
 Start:

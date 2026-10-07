@@ -114,6 +114,24 @@ describe("server foundation", () => {
     }
   });
 
+  it("does not perform captured-creature DB loading during application construction", async () => {
+    const database = (await import("./db.js")).createDbPool();
+    let queryCount = 0;
+    const originalQuery = database.query.bind(database);
+    database.query = ((...args: Parameters<typeof database.query>) => {
+      queryCount += 1;
+      return originalQuery(...args);
+    }) as typeof database.query;
+
+    const app = await buildApp({ db: database });
+    try {
+      expect(queryCount).toBe(0);
+    } finally {
+      await app.close();
+      await database.end();
+    }
+  });
+
   it("parses only supported protocol messages", () => {
     expect(parseClientMessage('{"type":"ping"}')).toEqual({ type: "ping" });
     expect(parseClientMessage('{"type":"auth","token":"abc"}')).toEqual({ type: "auth", token: "abc" });

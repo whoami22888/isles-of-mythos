@@ -1,0 +1,9 @@
+{
+  email {$ACME_EMAIL}
+}
+
+{$PUBLIC_DOMAIN} {
+  encode zstd gzip
+  respond /metrics 404
+  reverse_proxy server:3000
+}
