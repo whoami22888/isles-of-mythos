@@ -1,3 +1,24 @@
+
+describe("shop transaction protocol", () => {
+  const state = {
+    userId:"user-1", x:0, y:0, health:100, defense:0, stamina:100, maxStamina:100,
+    hunger:100, oxygen:100, xp:0, level:1, gold:"80", triumphBadges:"0",
+    inventory:{"resource.wood":2}, hotbar:[null,null,null,null,null,null,null,null], selectedHotbarSlot:0,
+  };
+
+  it("requires a server-generated transaction id on shop results", () => {
+    expect(parseServerMessage({
+      type:"shop_purchase_result", requestId:"purchase-1", transactionId:"550e8400-e29b-41d4-a716-446655440000",
+      itemId:"resource.wood", quantity:2, totalGold:"20", state,
+    })).toMatchObject({type:"shop_purchase_result", transactionId:"550e8400-e29b-41d4-a716-446655440000"});
+
+    expect(parseServerMessage({
+      type:"shop_purchase_result", requestId:"purchase-2", transactionId:123,
+      itemId:"resource.wood", quantity:2, totalGold:"20", state,
+    })).toBeNull();
+  });
+});
+
 import { describe, expect, it } from "vitest";
 import { parseServerMessage } from "./network.js";
 

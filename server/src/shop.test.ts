@@ -83,12 +83,16 @@ describe("shop catalogue", () => {
         payload: { requestId: "purchase-1", itemId: "resource.wood", quantity: 2 },
       });
       expect(response.statusCode).toBe(200);
-      expect(JSON.parse(response.body)).toMatchObject({
+      const body = JSON.parse(response.body) as { transactionId: string; itemId: string; quantity: number; totalGold: string; state: { gold: string; inventory: Record<string, number> } };
+      expect(body).toMatchObject({
         itemId: "resource.wood",
         quantity: 2,
         totalGold: "20",
         state: { gold: "80", inventory: { "resource.wood": 2 } },
       });
+      expect(body.transactionId).toMatch(/^[0-9a-f-]{36}$/i);
+      const ledger = await db.query<{ transaction_id: string }>("SELECT transaction_id FROM shop_purchase_requests WHERE request_key=$1", [userId + ":purchase-1"]);
+      expect(ledger.rows[0]?.transaction_id).toBe(body.transactionId);
     } finally {
       await app.close();
       await db.end();
@@ -106,6 +110,10 @@ describe("shop catalogue", () => {
       const second = await restartedApp.inject({ method: "POST", url: "/shop/purchase", headers: { authorization: `Bearer ${token}` }, payload: { requestId: "purchase-once", itemId: "resource.wood", quantity: 2 } });
       expect(second.statusCode).toBe(200);
       expect(JSON.parse(second.body)).toEqual(JSON.parse(first.body));
+      const firstBody = JSON.parse(first.body) as { transactionId: string };
+      expect(firstBody.transactionId).toMatch(/^[0-9a-f-]{36}$/i);
+      const ledger = await db.query<{ transaction_id: string }>("SELECT transaction_id FROM shop_purchase_requests WHERE request_key=$1", [userId + ":purchase-once"]);
+      expect(ledger.rows[0]?.transaction_id).toBe(firstBody.transactionId);
       await restartedApp.close();
       const row = await db.query<{ gold: string; inventory: Record<string, number> }>("SELECT gold, inventory FROM player_profiles WHERE user_id=$1", [userId]);
       expect(row.rows[0]).toEqual({ gold: "80", inventory: { "resource.wood": 2 } });
