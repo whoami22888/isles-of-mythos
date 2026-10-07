@@ -4,6 +4,18 @@ import type { WorldChunk } from "./world.js";
 
 export interface ResourceNode { id:string; type:"wood"|"stone"|"herb"; x:number; y:number; }
 
+export type GenericSystemResponseType =
+  | "base_state" | "building_state" | "breeding_started" | "breeding_jobs"
+  | "guild_state" | "guild_invitations" | "guild_bank_state" | "guild_operation_ok"
+  | "realm_list" | "territory_list" | "fortress_list" | "territory_state" | "realm_reputation"
+  | "trade_route_state" | "trade_route_list" | "realm_operation_ok"
+  | "army_state" | "army_training" | "army_operation_ok" | "battle_state" | "defense_state" | "defense_list"
+  | "ship_state" | "ship_list" | "ship_inventory" | "ship_crew" | "fleet_state" | "fleet_list" | "naval_combat_result"
+  | "realm_war_list" | "realm_war_state" | "guild_battle_list" | "guild_battle_state"
+  | "endgame_creature_list" | "endgame_creature_state" | "mythic_content_list" | "territory_season_state";
+
+export type GenericSystemResponse = { type: GenericSystemResponseType; requestId: string; [key: string]: unknown };
+
 export interface ProjectileSpawnMessage {
   type: "projectile_spawn";
   projectileId: string;
@@ -268,6 +280,19 @@ export function parseServerMessage(value: unknown): ServerMessage | null {
         (value.missed === undefined || typeof value.missed === "boolean")
         ? { type:"combat_result", requestId:value.requestId, targetId:value.targetId, damage:value.damage, critical:value.critical, killed:value.killed, targetHealth:value.targetHealth,
           ...(value.missed === undefined ? {} : { missed:value.missed }), ...(value.status === undefined ? {} : { status:value.status }) } : null;
+    default: {
+      const genericTypes = new Set<GenericSystemResponseType>([
+        "base_state","building_state","breeding_started","breeding_jobs","guild_state","guild_invitations","guild_bank_state","guild_operation_ok",
+        "realm_list","territory_list","fortress_list","territory_state","realm_reputation","trade_route_state","trade_route_list","realm_operation_ok",
+        "army_state","army_training","army_operation_ok","battle_state","defense_state","defense_list","ship_state","ship_list","ship_inventory","ship_crew",
+        "fleet_state","fleet_list","naval_combat_result","realm_war_list","realm_war_state","guild_battle_list","guild_battle_state",
+        "endgame_creature_list","endgame_creature_state","mythic_content_list","territory_season_state",
+      ]);
+      return genericTypes.has(value.type as GenericSystemResponseType) &&
+        typeof value.requestId === "string" && value.requestId.length > 0 && value.requestId.length <= 64
+        ? value as GenericSystemResponse
+        : null;
+    }
     case "error":
       return typeof value.code === "string" ? { type:"error", code:value.code } : null;
     default:
