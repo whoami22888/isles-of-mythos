@@ -129,6 +129,20 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     const creatures = chunk.creatures.filter((spawn) => !capturedWorldCreatures.has(spawn.id));
     return creatures.length === chunk.creatures.length ? chunk : { ...chunk, creatures };
   };
+  const visibleClientWorldChunk = async (x: number, y: number) => {
+    const chunk = visibleWorldChunk(x, y);
+    if (chunk.resources.length === 0) return chunk;
+    const resourceIds = chunk.resources.map((resource) => resource.id);
+    const result = await db.query<{ node_id: string }>(
+      "SELECT node_id FROM world_resource_nodes WHERE node_id = ANY($1::varchar[]) AND depleted_until > CURRENT_TIMESTAMP",
+      [resourceIds],
+    );
+    if (result.rows.length === 0) return chunk;
+    const depleted = new Set(result.rows.map((row) => row.node_id));
+    const resources = chunk.resources.filter((resource) => !depleted.has(resource.id));
+    return resources.length === chunk.resources.length ? chunk : { ...chunk, resources };
+  };
+
   const projectiles = new Map<string, CombatProjectile>();
   const pendingCombatRequests = new Map<string, number>();
   const attackCooldowns = new Map<string, number>();
@@ -575,7 +589,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       if (!Number.isSafeInteger(x) || !Number.isSafeInteger(y)) {
         return reply.code(400).send({ error: "INVALID_CHUNK_COORDINATE" });
       }
-      return visibleWorldChunk(x, y);
+      return visibleClientWorldChunk(x, y);
     },
   );
 
@@ -1567,7 +1581,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             send(socket, {
               type: "world_chunk",
               requestId: message.requestId,
-              chunk: visibleWorldChunk(coordinate.x, coordinate.y),
+              chunk: await visibleClientWorldChunk(coordinate.x, coordinate.y),
             });
           }
         }
