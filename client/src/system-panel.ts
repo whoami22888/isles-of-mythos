@@ -194,7 +194,7 @@ export class SystemPanel {
     const x = this.scene.scale.width - width - 8;
     const y = 70;
     this.toggle.setPosition(Math.max(8, this.scene.scale.width - this.toggle.width - 8), 12);
-    this.panel.setPosition(x, y).setSize(width, Math.min(560, Math.max(430, this.scene.scale.height - 90)));
+    this.panel.setPosition(x, y).setSize(width, Math.min(560, Math.max(300, this.scene.scale.height - 90)));
     this.title.setPosition(x + 12, y + 10);
     let bx = x + 10;
     let by = y + 42;
