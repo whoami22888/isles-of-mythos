@@ -144,7 +144,7 @@ describe("crafting transactions", () => {
       try {
         const replay = await craftRecipe(db, userId, "craft-restart", "tool.wooden-club");
         expect(replay).toEqual(first);
-        await expect(craftRecipe(db, userId, "craft-restart", "tool.wooden-axe")).rejects.toThrow("CRAFT_REQUEST_CONFLICT");
+        await expect(craftRecipe(db, userId, "craft-restart", "tool.stone-axe")).rejects.toThrow("CRAFT_REQUEST_CONFLICT");
       } finally {
         await restarted.close();
       }
