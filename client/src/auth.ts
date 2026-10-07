@@ -62,7 +62,7 @@ async function validateExistingToken(baseUrl: string, token: string): Promise<bo
 
 export async function ensureAuthenticated(): Promise<void> {
   const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL;
-  const baseUrl = (configuredBaseUrl ?? "http://localhost:3000").replace(/\/$/, "");
+  const baseUrl = (configuredBaseUrl ?? window.location.origin).replace(/\/$/, "");
   const existingToken = getAccessToken();
   if (existingToken && await validateExistingToken(baseUrl, existingToken)) return;
 
