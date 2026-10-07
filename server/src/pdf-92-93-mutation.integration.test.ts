@@ -1,6 +1,5 @@
 import {describe,expect,it} from "vitest";
 import type {FastifyInstance} from "fastify";
-import type {Pool} from "pg";
 import {buildApp} from "./app.js";
 import {createDbPool} from "./db.js";
 import {BaseStore} from "./base.js";
