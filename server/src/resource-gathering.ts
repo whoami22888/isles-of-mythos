@@ -51,6 +51,7 @@ export async function gatherResource(
       await client.query("COMMIT");
       return {
         transactionId: row.transaction_id,
+        transactionId: row.transaction_id,
         nodeId: row.node_id,
         itemId: row.item_id,
         quantity: row.quantity,
@@ -81,7 +82,7 @@ export async function gatherResource(
       throw new Error("RESOURCE_DEPLETED");
     }
 
-    const requestInsert = await client.query(
+    const requestInsert = await client.query<{ request_id: string; transaction_id: string }>(
       "INSERT INTO resource_gather_requests(user_id,request_id,fingerprint,node_id,item_id,quantity,respawns_at) VALUES($1,$2,$3,$4,$5,$6,CURRENT_TIMESTAMP + ($7 * interval '1 millisecond')) ON CONFLICT(user_id,request_id) DO NOTHING RETURNING request_id,transaction_id",
       [userId, requestId, fingerprint, node.id, reward.itemId, reward.quantity, reward.respawnMs],
     );
