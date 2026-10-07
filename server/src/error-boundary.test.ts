@@ -4,9 +4,7 @@ import { buildApp } from "./app.js";
 
 function unavailableDb(): Pool {
   return {
-    query: async () => {
-      throw new Error("DATABASE_UNAVAILABLE");
-    },
+    query: () => Promise.reject(new Error("DATABASE_UNAVAILABLE")),
   } as unknown as Pool;
 }
 
