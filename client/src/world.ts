@@ -12,6 +12,13 @@ export enum TileKind {
   Reef = 5,
 }
 
+export interface ResourceNode {
+  id: string;
+  type: "wood" | "stone" | "herb";
+  x: number;
+  y: number;
+}
+
 export interface CreatureSpawn {
   id: string;
   species: "slime" | "boar" | "raptor";
@@ -25,6 +32,7 @@ export interface WorldChunk {
   y: number;
   size: number;
   tiles: number[];
+  resources?: ResourceNode[];
   creatures?: CreatureSpawn[];
 }
 
@@ -40,6 +48,7 @@ const TILE_COLORS: Record<number, number> = {
 export class ChunkRenderer {
   private readonly chunks = new Map<string, Phaser.GameObjects.Graphics>();
   private readonly creatures = new Map<string, Phaser.GameObjects.Graphics>();
+  private readonly resources = new Map<string, Phaser.GameObjects.Graphics>();
 
   constructor(private readonly scene: Phaser.Scene) {}
 
@@ -71,6 +80,18 @@ export class ChunkRenderer {
     graphics.setDepth(-100);
     this.chunks.set(key, graphics);
 
+    for (const resource of chunk.resources ?? []) {
+      if (this.resources.has(resource.id)) continue;
+      const marker = this.scene.add.graphics();
+      const color = resource.type === "wood" ? 0x8b6f47 : resource.type === "stone" ? 0x9aa0a6 : 0x76b852;
+      marker.fillStyle(color, 1);
+      marker.fillCircle(resource.x * TILE_SIZE + TILE_SIZE / 2, resource.y * TILE_SIZE + TILE_SIZE / 2, TILE_SIZE * 0.2);
+      marker.lineStyle(1, 0xffffff, 0.75);
+      marker.strokeCircle(resource.x * TILE_SIZE + TILE_SIZE / 2, resource.y * TILE_SIZE + TILE_SIZE / 2, TILE_SIZE * 0.24);
+      marker.setDepth(9);
+      this.resources.set(resource.id, marker);
+    }
+
     for (const creature of chunk.creatures ?? []) {
       if (this.creatures.has(creature.id)) continue;
       const marker = this.scene.add.graphics();
@@ -90,6 +111,17 @@ export class ChunkRenderer {
       if (Math.abs(x - centerChunkX) > radius || Math.abs(y - centerChunkY) > radius) {
         graphics.destroy();
         this.chunks.delete(key);
+        for (const [resourceId, marker] of this.resources) {
+          if (resourceId.startsWith("wood:") || resourceId.startsWith("stone:") || resourceId.startsWith("herb:")) {
+            const parts = resourceId.split(":").map(Number);
+            const cx = Math.floor(parts[1] / CHUNK_SIZE);
+            const cy = Math.floor(parts[2] / CHUNK_SIZE);
+            if (cx === x && cy === y) {
+              marker.destroy();
+              this.resources.delete(resourceId);
+            }
+          }
+        }
         for (const [creatureId, marker] of this.creatures) {
           if (creatureId.startsWith("creature:")) {
             const parts = creatureId.split(":").map(Number);
@@ -103,6 +135,31 @@ export class ChunkRenderer {
         }
       }
     }
+  }
+
+  removeResource(id: string): void {
+    const marker = this.resources.get(id);
+    if (!marker) return;
+    marker.destroy();
+    this.resources.delete(id);
+  }
+
+  nearestResource(x: number, y: number, maxDistance = 2.5): ResourceNode | null {
+    let nearest: ResourceNode | null = null;
+    let nearestDistance = maxDistance;
+    for (const [id, marker] of this.resources) {
+      const worldX = marker.x / TILE_SIZE;
+      const worldY = marker.y / TILE_SIZE;
+      const d = Math.hypot(worldX - x, worldY - y);
+      if (d < nearestDistance) {
+        const parts = id.split(":");
+        const type = parts[0];
+        if (type !== "wood" && type !== "stone" && type !== "herb") continue;
+        nearest = { id, type, x: worldX, y: worldY };
+        nearestDistance = d;
+      }
+    }
+    return nearest;
   }
 
   removeCreature(id: string): void {
