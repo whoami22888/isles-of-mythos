@@ -60,7 +60,7 @@ describe("Gate 14 auction authority",()=>{
     const {db,app,seller,buyer}=await users();const auction=new AuctionStore(db);
     try{
       await setEconomy(db,seller,"0",{"resource.wood":3});await setEconomy(db,buyer,"500",{});
-      const listing=await auction.create(seller,{itemId:"resource.wood",quantity:3,startPrice:"100",buyNowPrice:null,durationMs:60000});
+      const listing=await auction.create(seller,"create-1",{itemId:"resource.wood",quantity:3,startPrice:"100",buyNowPrice:null,durationMs:60000});
       await auction.bid(buyer,"bid-expire",listing.listing.id,"200");
       await db.query("UPDATE auction_listings SET expires_at=CURRENT_TIMESTAMP-INTERVAL '1 second' WHERE id=$1",[listing.id]);
       const settled=await auction.tick();expect(settled).toBeGreaterThanOrEqual(1);
@@ -76,7 +76,7 @@ describe("Gate 14 auction authority",()=>{
     const {db,app,seller,buyer,other}=await users();const auction=new AuctionStore(db);
     try{
       await setEconomy(db,seller,"0",{"resource.wood":2});await setEconomy(db,buyer,"500",{});await setEconomy(db,other,"500",{});
-      const listing=await auction.create(seller,{itemId:"resource.wood",quantity:2,startPrice:"100",buyNowPrice:null,durationMs:60000});
+      const listing=await auction.create(seller,"create-1",{itemId:"resource.wood",quantity:2,startPrice:"100",buyNowPrice:null,durationMs:60000});
       const results=await Promise.allSettled([auction.bid(buyer,"concurrent-1",listing.listing.id,"150"),auction.bid(other,"concurrent-2",listing.listing.id,"200")]);
       expect(results.some(x=>x.status==="fulfilled")).toBe(true);
       const row=await db.query<{current_bid:string;highest_bidder_user_id:string|null}>("SELECT current_bid,highest_bidder_user_id FROM auction_listings WHERE id=$1",[listing.id]);
@@ -93,7 +93,7 @@ describe("Gate 14 auction authority",()=>{
     const {db,app,seller,buyer}=await users();const auction=new AuctionStore(db);
     try{
       await setEconomy(db,seller,"0",{"resource.wood":1});await setEconomy(db,buyer,"500",{});
-      const listing=await auction.create(seller,{itemId:"resource.wood",quantity:1,startPrice:"100",buyNowPrice:null,durationMs:60000});
+      const listing=await auction.create(seller,"create-1",{itemId:"resource.wood",quantity:1,startPrice:"100",buyNowPrice:null,durationMs:60000});
       await auction.bid(buyer,"bid-cancel",listing.listing.id,"100");
       await expect(auction.cancel(seller,"cancel-1",listing.listing.id)).rejects.toThrow("AUCTION_HAS_BID");
       expect((await db.query<{inventory:Record<string,number>}>("SELECT inventory FROM player_profiles WHERE user_id=$1",[seller])).rows[0].inventory).toEqual({"resource.wood":0});
