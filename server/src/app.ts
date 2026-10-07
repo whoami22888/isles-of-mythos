@@ -258,23 +258,37 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     },
   });
 
-  const heartbeat = setInterval(() => {
+  let heartbeat: ReturnType<typeof setInterval> | undefined;
+  let survivalTick: ReturnType<typeof setInterval> | undefined;
+  let breedingTick: ReturnType<typeof setInterval> | undefined;
+  let navalFireTick: ReturnType<typeof setInterval> | undefined;
+  let invasionTick: ReturnType<typeof setInterval> | undefined;
+  let auctionTick: ReturnType<typeof setInterval> | undefined;
+  let endgameTick: ReturnType<typeof setInterval> | undefined;
+  let territorySeasonTick: ReturnType<typeof setInterval> | undefined;
+  let worldEventTick: ReturnType<typeof setInterval> | undefined;
+  let combatTick: ReturnType<typeof setInterval> | undefined;
+  let persistenceTick: ReturnType<typeof setInterval> | undefined;
+
+  app.addHook("onListen", async () => {
+  await loadCapturedWorldCreatures();
+  heartbeat = setInterval(() => {
     for (const socket of sockets) {
       if (socket.readyState === socket.OPEN) socket.ping();
     }
   }, 30_000);
   heartbeat.unref();
 
-  const survivalTick = setInterval(() => players.tick(1), 1_000);
-  const breedingTick = setInterval(() => { void breeding.completeDue().catch((error) => log("breeding_completion_failed",{message:error instanceof Error?error.message:String(error)})); }, 1_000);
-  const navalFireTick = setInterval(() => { void naval.tickFires().catch((error) => log("naval_fire_tick_failed",{message:error instanceof Error?error.message:String(error)})); }, 1_000);
-  const invasionTick = setInterval(() => { void invasions.tick().catch((error) => log("invasion_tick_failed",{message:error instanceof Error?error.message:String(error)})); }, 1_000);
-  const auctionTick = setInterval(() => { void auctions.tick().catch((error) => log("auction_tick_failed",{message:error instanceof Error ? error.message : String(error)})); }, 5_000);
-  const endgameTick = setInterval(() => {
+  survivalTick = setInterval(() => players.tick(1), 1_000);
+  breedingTick = setInterval(() => { void breeding.completeDue().catch((error) => log("breeding_completion_failed",{message:error instanceof Error?error.message:String(error)})); }, 1_000);
+  navalFireTick = setInterval(() => { void naval.tickFires().catch((error) => log("naval_fire_tick_failed",{message:error instanceof Error?error.message:String(error)})); }, 1_000);
+  invasionTick = setInterval(() => { void invasions.tick().catch((error) => log("invasion_tick_failed",{message:error instanceof Error?error.message:String(error)})); }, 1_000);
+  auctionTick = setInterval(() => { void auctions.tick().catch((error) => log("auction_tick_failed",{message:error instanceof Error ? error.message : String(error)})); }, 5_000);
+  endgameTick = setInterval(() => {
     void Promise.all([endgame.tick(),endgame.spawnCreaturesIfNeeded()]).catch((error)=>log("endgame_tick_failed",{message:error instanceof Error?error.message:String(error)}));
   },5_000);
-  const territorySeasonTick = setInterval(() => { void territorySeasons.tick().catch((error)=>log("territory_season_tick_failed",{message:error instanceof Error?error.message:String(error)})); },60_000);
-  const worldEventTick = setInterval(() => {
+  territorySeasonTick = setInterval(() => { void territorySeasons.tick().catch((error)=>log("territory_season_tick_failed",{message:error instanceof Error?error.message:String(error)})); },60_000);
+  worldEventTick = setInterval(() => {
     void worldEvents.tick().then(async(changed)=>{
       if(changed===0) return;
       const events=await worldEvents.listActive();
@@ -289,7 +303,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   territorySeasonTick.unref();
   survivalTick.unref();
 
-  const combatTick = setInterval(() => {
+  combatTick = setInterval(() => {
     const now = Date.now();
     tickPlayerStatuses(250);
 
@@ -420,7 +434,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   }, 250);
   combatTick.unref();
 
-  const persistenceTick = setInterval(() => {
+  persistenceTick = setInterval(() => {
     void Promise.all([players.persistDirty(), creatures.persistDirty(), bases.processAll()]).catch((error) => {
       log("player_persistence_failed", {
         message: error instanceof Error ? error.message : String(error),
@@ -429,6 +443,8 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   }, 10_000);
   persistenceTick.unref();
 
+  });
+  
   app.addHook("onClose", async () => {
     clearInterval(invasionTick);
     clearInterval(auctionTick);
