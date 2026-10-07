@@ -86,7 +86,7 @@ describe("Gate 16 territory seasons", () => {
       expect(realms.rows).toHaveLength(2);
 
       const season = await db.query<{ id: string }>(
-        "INSERT INTO territory_seasons(season_number,name,ends_at,state) VALUES($1,$2,CURRENT_TIMESTAMP-INTERVAL '1 second',$3::jsonb) RETURNING id",
+        "INSERT INTO territory_seasons(season_number,name,starts_at,ends_at,state) VALUES($1,$2,CURRENT_TIMESTAMP-INTERVAL '2 seconds',CURRENT_TIMESTAMP-INTERVAL '1 second',$3::jsonb) RETURNING id",
         [seasonNumber, "Gate 16 Expiry Verification", JSON.stringify({ version: 1 })],
       );
 
@@ -136,7 +136,7 @@ describe("Gate 16 territory seasons", () => {
       expect(realms.rows).toHaveLength(2);
 
       const season = await db.query<{ id: string }>(
-        "INSERT INTO territory_seasons(season_number,name,ends_at,state) VALUES($1,$2,CURRENT_TIMESTAMP-INTERVAL '1 second',$3::jsonb) RETURNING id",
+        "INSERT INTO territory_seasons(season_number,name,starts_at,ends_at,state) VALUES($1,$2,CURRENT_TIMESTAMP-INTERVAL '2 seconds',CURRENT_TIMESTAMP-INTERVAL '1 second',$3::jsonb) RETURNING id",
         [seasonNumber, "Gate 16 Tie Verification", JSON.stringify({ version: 1 })],
       );
       await db.query(
