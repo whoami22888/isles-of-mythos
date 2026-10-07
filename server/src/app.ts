@@ -130,15 +130,8 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   let authenticatedSocketCount = 0;
   const app = Fastify({ logger: false });
 
-  const httpRequestStartedAt = new WeakMap<object, bigint>();
-  app.addHook("onRequest", (request) => {
-    httpRequestStartedAt.set(request, process.hrtime.bigint());
-  });
-  app.addHook("onResponse", (request, reply) => {
-    const started = httpRequestStartedAt.get(request);
-    if (started !== undefined) {
-      recordHttpRequest(Number(process.hrtime.bigint() - started) / 1e6, reply.statusCode);
-    }
+  app.addHook("onResponse", (_request, reply) => {
+    recordHttpRequest(reply.elapsedTime, reply.statusCode);
   });
 
   app.get("/metrics", { schema: { tags: ["system"] }, config: { rateLimit: { max: 1200, timeWindow: "1 minute" } } }, async (_request, reply) => {
