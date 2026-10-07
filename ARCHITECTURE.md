@@ -1,22 +1,25 @@
 # Architecture
 
-## Current state
-Isles of Mythos uses a split client/server architecture. The server is authoritative for persistent gameplay state and combat. The current client is a Phaser renderer and input layer; it does not own persistent inventory, combat damage, creature ownership, or progression.
+## Current verified state
+Isles of Mythos uses a split client/server architecture with server-authoritative persistent gameplay. Current main is verified through Phase 16 / Endgame.
 
 ### Server
 - Fastify HTTP API and authenticated WebSocket endpoint.
-- PostgreSQL persistence through PlayerStore and CreatureStore.
+- PostgreSQL persistence with transactional gameplay state.
 - Deterministic 32x32 world chunks with bounded cache.
-- Server-side combat targets, projectiles, status effects, threat, and creature AI.
+- Server-side combat, projectiles, status effects, threat and creature AI.
+- Persistent systems for player, creatures, bases, crafting/economy, breeding, ships/naval combat, guilds, armies, realms, invasions, social/auction systems, world events, endgame warfare and territory seasons.
+- Background simulation starts only from the server listening lifecycle and is cleaned deterministically on close.
 
 ### Client
-- Phaser world renderer.
+- Phaser renderer and input layer.
 - Chunk streaming around the player.
-- WebSocket input/output for movement, combat, capture, taming, party assignment, and AI mode.
-- Incoming server messages are shape-validated before use.
+- WebSocket gameplay transport.
+- Server-message shape validation before use.
+- Client does not own persistent inventory, currency, combat outcomes, creature ownership or progression.
 
-## Phase boundary
-Phase 4 combat remains frozen at the verified hardening baseline. Phase 5 adds persistent creature capture, taming, party state, AI modes, and creature protocol/client support. Guilds, ships, breeding, territory warfare, large-scale armies, and the production Unity client remain later phases.
+### Endgame
+Phase 16 provides realm wars, large guild battles, high-level creatures, mythic content and territory seasons. Endgame persistence uses PostgreSQL transactions, row/advisory locks and server-side validation.
 
-## Engineering rule
-Implement one gated phase at a time. Use BUILD -> TEST -> INSPECT -> FIX -> RETEST -> VERIFY -> DOCUMENT -> CONTINUE. Never treat a build without runtime/test evidence as completion.
+## Verification rule
+Current main b879b1606acc72c232ee7486de21d1a194b987bd is the verified Phase 16 integration baseline. CI #858, Performance Acceptance #78 and Static Security #50 all passed. Do not describe implemented systems as future work without evidence.

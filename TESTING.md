@@ -1,16 +1,19 @@
 # Testing
 
-## Required gate
-A phase is not verified until migrations, lint, client typecheck, server typecheck, client tests, server tests, production build, and cleanup all pass.
+## Required verification chain
+A phase is not verified until migrations, lint, typecheck, tests, production build and cleanup pass, with security/performance evidence where required.
 
 ## Debugging procedure
-Use BUILD -> TEST -> INSPECT -> FIX -> RETEST -> VERIFY -> DOCUMENT -> CONTINUE. For every failure record the exact failure, location, root cause, why, fix, regression risk, and evidence.
+Use BUILD -> TEST -> INSPECT -> FIX -> RETEST -> VERIFY -> DOCUMENT -> CONTINUE. For every failure record exact failure, location, root cause, contributing factor, fix, regression risk and evidence.
 
 ## Anti-loop rule
-Do not repeatedly rerun the same failure. Every retry requires a new root-cause hypothesis or a targeted correction. Never increase a timeout merely to hide an unresolved synchronization or logic defect.
+Do not repeatedly rerun the same failure. Every retry requires new evidence or a targeted correction. Never increase a timeout merely to hide an unresolved synchronization or logic defect.
 
-## Phase 5 coverage
-Creature verification covers authoritative combat damage, capture threshold and item consumption, owned-creature persistence, taming, party assignment, AI mode changes, disconnect persistence, and cross-account capture ownership protection.
+## Current acceptance
+The current main Phase 16 baseline passed:
+- CI #858: migrations, audit, lint/typecheck, full test suite, build, Docker Compose validation, backup/restore and production image.
+- Performance Acceptance #78: 1,000-player seeded sustained-load scenario with host/PostgreSQL metrics capture.
+- Static Security #50.
 
-## Evidence
-Passing tests prove only the behaviours they exercise. Untested functionality remains unverified.
+## Evidence rule
+Passing tests prove only the behaviours they exercise. PDF post-Phase-16 architecture, scaling, mobile/GPU and production requirements remain separately classified until direct evidence exists.
