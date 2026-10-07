@@ -1,4 +1,22 @@
 
+describe("resource gather transaction protocol", () => {
+  const state = {
+    userId:"user-1", x:0, y:0, health:100, defense:0, stamina:100, maxStamina:100,
+    hunger:100, oxygen:100, xp:0, level:1, gold:"80", triumphBadges:"0",
+    inventory:{"resource.wood":2}, hotbar:[null,null,null,null,null,null,null,null], selectedHotbarSlot:0,
+  };
+  it("requires a valid transaction id on resource gather results", () => {
+    expect(parseServerMessage({
+      type:"resource_gathered", requestId:"gather-1", transactionId:"550e8400-e29b-41d4-a716-446655440000",
+      resourceId:"node-1", itemId:"resource.wood", quantity:2, respawnsAt:"2026-10-07T14:00:00.000Z", state,
+    })).toMatchObject({type:"resource_gathered",transactionId:"550e8400-e29b-41d4-a716-446655440000"});
+    expect(parseServerMessage({
+      type:"resource_gathered", requestId:"gather-2", transactionId:123,
+      resourceId:"node-1", itemId:"resource.wood", quantity:2, respawnsAt:"2026-10-07T14:00:00.000Z", state,
+    })).toBeNull();
+  });
+});
+
 describe("craft transaction protocol", () => {
   const state = {
     userId:"user-1", x:0, y:0, health:100, defense:0, stamina:100, maxStamina:100,
