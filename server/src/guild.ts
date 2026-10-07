@@ -43,7 +43,7 @@ async function ensureDailyQuests(c:PoolClient,guildId:string){
     "INSERT INTO guild_quests(guild_id,operation_key,title,requirement_item,target_quantity,reward_xp,reward_gold,reward_badges,expires_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,CURRENT_TIMESTAMP+INTERVAL '1 day') ON CONFLICT(guild_id,operation_key) DO NOTHING",
     [guildId,day+':'+q.key,q.title,q.item,q.target.toString(),q.xp.toString(),q.gold.toString(),q.badges.toString()]);
 }
-async function completeQuest(c:PoolClient,guildId:string,userId:string,questId:string){
+async function completeQuest(c:PoolClient,guildId:string,userId:string,questId:string):Promise<string>{
   const q=await c.query<{reward_xp:string;reward_gold:string;reward_badges:string}>("SELECT reward_xp,reward_gold,reward_badges FROM guild_quests WHERE id=$1 AND guild_id=$2 AND status='active' FOR UPDATE",[questId,guildId]);
   if(!q.rows[0])throw new Error('GUILD_QUEST_NOT_FOUND');
   const xp=BigInt(q.rows[0].reward_xp),gold=BigInt(q.rows[0].reward_gold),badges=BigInt(q.rows[0].reward_badges);
@@ -57,7 +57,8 @@ async function completeQuest(c:PoolClient,guildId:string,userId:string,questId:s
   const nextBadges=addTriumphBadges(parseTriumphBadges(player.rows[0].triumph_badges),badges);
   await c.query("UPDATE player_profiles SET xp=xp+$2,triumph_badges=$3,updated_at=CURRENT_TIMESTAMP WHERE user_id=$1",[userId,xp.toString(),nextBadges.toString()]);
   await c.query("UPDATE guild_quests SET status='completed',completed_at=CURRENT_TIMESTAMP WHERE id=$1",[questId]);
-  await c.query("INSERT INTO guild_bank_transactions(guild_id,user_id,action_type,quantity,gold_before,gold_after,metadata) VALUES($1,$2,'quest_reward',0,$3,$4,$5::jsonb) RETURNING transaction_id",[guildId,userId,g.rows[0].treasury,treasury.toString(),JSON.stringify({questId,xp:xp.toString(),gold:gold.toString(),badges:badges.toString()})]);
+  const transaction=await c.query<{transaction_id:string}>("INSERT INTO guild_bank_transactions(guild_id,user_id,action_type,quantity,gold_before,gold_after,metadata) VALUES($1,$2,'quest_reward',0,$3,$4,$5::jsonb) RETURNING transaction_id",[guildId,userId,g.rows[0].treasury,treasury.toString(),JSON.stringify({questId,xp:xp.toString(),gold:gold.toString(),badges:badges.toString()})]);
+  return transaction.rows[0].transaction_id;
 }
 export class GuildStore{
   constructor(private readonly db:Pool){}
@@ -138,7 +139,7 @@ export class GuildStore{
       const gr=await c.query<{treasury:string}>("SELECT treasury FROM guilds WHERE id=$1 FOR UPDATE",[guildId]);if(!gr.rows[0])throw new Error('GUILD_NOT_FOUND');const guildGold=addGoldDoubloons(BigInt(gr.rows[0].treasury),gld);
       if(quantity>0)await c.query("INSERT INTO guild_bank_items(guild_id,item_id,quantity) VALUES($1,$2,$3) ON CONFLICT(guild_id,item_id) DO UPDATE SET quantity=guild_bank_items.quantity+EXCLUDED.quantity,updated_at=CURRENT_TIMESTAMP",[guildId,itemId,quantity]);
       await c.query("UPDATE player_profiles SET gold=$2,inventory=$3::jsonb,updated_at=CURRENT_TIMESTAMP WHERE user_id=$1",[userId,playerGold.toString(),JSON.stringify(inv)]);await c.query("UPDATE guilds SET treasury=$2,updated_at=CURRENT_TIMESTAMP WHERE id=$1",[guildId,guildGold.toString()]);
-      await this.progressDeposits(c,guildId,userId,itemId,quantity);const tx=await c.query<{transaction_id:string}>("INSERT INTO guild_bank_transactions(guild_id,user_id,action_type,item_id,quantity,gold_before,gold_after,metadata) VALUES($1,$2,'deposit',$3,$4,$5,$6,$7::jsonb) RETURNING transaction_id",[guildId,userId,itemId||null,quantity,p.rows[0].gold,playerGold.toString(),JSON.stringify({gold:gld.toString()})]);await c.query('COMMIT');return {transactionId:tx.rows[0].transaction_id};
+      const rewardTransactionIds=await this.progressDeposits(c,guildId,userId,itemId,quantity);const tx=await c.query<{transaction_id:string}>("INSERT INTO guild_bank_transactions(guild_id,user_id,action_type,item_id,quantity,gold_before,gold_after,metadata) VALUES($1,$2,'deposit',$3,$4,$5,$6,$7::jsonb) RETURNING transaction_id",[guildId,userId,itemId||null,quantity,p.rows[0].gold,playerGold.toString(),JSON.stringify({gold:gld.toString()})]);await c.query('COMMIT');return {transactionId:tx.rows[0].transaction_id,rewardTransactionIds};
     }catch(e){await c.query('ROLLBACK');throw e}finally{c.release()}
   }
   async bankWithdraw(userId:string,guildId:string,itemId:string,quantity:number,gold:string):Promise<{transactionId:string}>{
@@ -150,9 +151,11 @@ export class GuildStore{
       const tx=await c.query<{transaction_id:string}>("INSERT INTO guild_bank_transactions(guild_id,user_id,action_type,item_id,quantity,gold_before,gold_after,metadata) VALUES($1,$2,'withdraw',$3,$4,$5,$6,$7::jsonb) RETURNING transaction_id",[guildId,userId,itemId||null,quantity,gr.rows[0].treasury,guildGold.toString(),JSON.stringify({gold:gld.toString()})]);await c.query('COMMIT');return {transactionId:tx.rows[0].transaction_id};
     }catch(e){await c.query('ROLLBACK');throw e}finally{c.release()}
   }
-  private async progressDeposits(c:PoolClient,guildId:string,userId:string,itemId:string,quantity:number){
-    if(quantity<=0)return;const qs=await c.query<{id:string;progress_quantity:string;target_quantity:string}>("SELECT id,progress_quantity,target_quantity FROM guild_quests WHERE guild_id=$1 AND requirement_item=$2 AND status='active' AND expires_at>CURRENT_TIMESTAMP FOR UPDATE",[guildId,itemId]);
-    for(const q of qs.rows){const progress=BigInt(q.progress_quantity)+BigInt(quantity);const next=progress>BigInt(q.target_quantity)?BigInt(q.target_quantity):progress;await c.query("UPDATE guild_quests SET progress_quantity=$2 WHERE id=$1",[q.id,next.toString()]);if(next>=BigInt(q.target_quantity))await completeQuest(c,guildId,userId,q.id);}
+  private async progressDeposits(c:PoolClient,guildId:string,userId:string,itemId:string,quantity:number):Promise<string[]>{
+    if(quantity<=0)return [];const qs=await c.query<{id:string;progress_quantity:string;target_quantity:string}>("SELECT id,progress_quantity,target_quantity FROM guild_quests WHERE guild_id=$1 AND requirement_item=$2 AND status='active' AND expires_at>CURRENT_TIMESTAMP FOR UPDATE",[guildId,itemId]);
+    const transactionIds:string[]=[];
+    for(const q of qs.rows){const progress=BigInt(q.progress_quantity)+BigInt(quantity);const next=progress>BigInt(q.target_quantity)?BigInt(q.target_quantity):progress;await c.query("UPDATE guild_quests SET progress_quantity=$2 WHERE id=$1",[q.id,next.toString()]);if(next>=BigInt(q.target_quantity))transactionIds.push(await completeQuest(c,guildId,userId,q.id));}
+    return transactionIds;
   }
   async buildInfrastructure(userId:string,guildId:string,structureType:string):Promise<{transactionId:string}>{
     const s=toInfrastructure(structureType),c=await this.db.connect();try{await c.query('BEGIN');await requirePermission(c,guildId,userId,'infrastructure_manage');const g=await c.query<{treasury:string}>("SELECT treasury FROM guilds WHERE id=$1 FOR UPDATE",[guildId]);if(!g.rows[0])throw new Error('GUILD_NOT_FOUND');
