@@ -29,10 +29,11 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if git diff --quiet -- package-lock.json; then
+          if test -f package-lock.json && git diff --quiet -- package-lock.json && git ls-files --error-unmatch package-lock.json >/dev/null 2>&1; then
             echo "package-lock.json is already current"
             exit 0
           fi
+          test -s package-lock.json
           git add package-lock.json
           git commit -m "chore: add reproducible npm lockfile"
           git push
