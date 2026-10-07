@@ -84,6 +84,14 @@ describe("resource gathering websocket flow", () => {
         quantity: node.type === "herb" ? 1 : 2,
       });
 
+      const chunkResponse = await app.inject({
+        method: "GET",
+        url: "/world/chunks/" + Math.floor(node.x / 32) + "/" + Math.floor(node.y / 32),
+      });
+      expect(chunkResponse.statusCode).toBe(200);
+      const visibleChunk = JSON.parse(chunkResponse.body) as { resources: Array<{ id: string }> };
+      expect(visibleChunk.resources.some((resource) => resource.id === node.id)).toBe(false);
+
       const row = await db.query<{ inventory: Record<string, number> }>(
         "SELECT inventory FROM player_profiles WHERE user_id=$1",
         [body.user.id],
