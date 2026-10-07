@@ -101,11 +101,14 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const combatTargets = new Map<string, CombatTarget>();
   const defeatedCreatures = new Set<string>();
   const capturedWorldCreatures = new Set<string>();
+  let capturedWorldCreaturesLoaded = false;
   const loadCapturedWorldCreatures = async (): Promise<void> => {
     const capturedRows = await db.query<{ wild_source_id: string }>("SELECT wild_source_id FROM player_creatures");
     capturedWorldCreatures.clear();
     for (const row of capturedRows.rows) capturedWorldCreatures.add(row.wild_source_id);
+    capturedWorldCreaturesLoaded = true;
   };
+  let capturedWorldCreaturesReady: Promise<void> = Promise.resolve();
   const visibleWorldChunk = (x: number, y: number) => {
     const chunk = world.get(x, y);
     if (capturedWorldCreatures.size === 0) return chunk;
@@ -290,9 +293,11 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   let persistenceTick: ReturnType<typeof setInterval> | undefined;
 
   app.addHook("onListen", () => {
-  void loadCapturedWorldCreatures().catch((error) => log("captured_world_creatures_load_failed", {
-    message: error instanceof Error ? error.message : String(error),
-  }));
+  capturedWorldCreaturesReady = loadCapturedWorldCreatures().catch((error) => {
+    log("captured_world_creatures_load_failed", {
+      message: error instanceof Error ? error.message : String(error),
+    });
+  });
   heartbeat = setInterval(() => {
     for (const socket of sockets) {
       if (socket.readyState === socket.OPEN) socket.ping();
@@ -325,6 +330,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   survivalTick.unref();
 
   combatTick = setInterval(() => {
+    if (!capturedWorldCreaturesLoaded) return;
     const tickStartedAt = process.hrtime.bigint();
     const now = Date.now();
     tickPlayerStatuses(250);
@@ -522,6 +528,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       },
     },
     async (request, reply) => {
+      await capturedWorldCreaturesReady;
       const x = Number(request.params.x);
       const y = Number(request.params.y);
       if (!Number.isSafeInteger(x) || !Number.isSafeInteger(y)) {
@@ -880,6 +887,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           if(state.health<=0){send(socket,{type:"error",code:"PLAYER_DEAD"});return;}
           const coords=parseCreatureTargetId(message.targetId);
           if(!coords){send(socket,{type:"error",code:"INVALID_MESSAGE"});return;}
+          await capturedWorldCreaturesReady;
           const chunk=visibleWorldChunk(Math.floor(coords.x/32),Math.floor(coords.y/32));
           const spawn=chunk.creatures.find(c=>c.id===message.targetId);
           if(!spawn||defeatedCreatures.has(message.targetId)){send(socket,{type:"error",code:"INVALID_MESSAGE"});return;}
