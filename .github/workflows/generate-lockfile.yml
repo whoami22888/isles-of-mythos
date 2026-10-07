@@ -3,6 +3,7 @@ name: Generate Dependency Lockfile
 on:
   push:
     branches: ["chore/generate-lockfile"]
+  pull_request:
   workflow_dispatch:
 
 permissions:
