@@ -101,8 +101,11 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const combatTargets = new Map<string, CombatTarget>();
   const defeatedCreatures = new Set<string>();
   const capturedWorldCreatures = new Set<string>();
-  const capturedRows = await db.query<{ wild_source_id: string }>("SELECT wild_source_id FROM player_creatures");
-  for (const row of capturedRows.rows) capturedWorldCreatures.add(row.wild_source_id);
+  const loadCapturedWorldCreatures = async (): Promise<void> => {
+    const capturedRows = await db.query<{ wild_source_id: string }>("SELECT wild_source_id FROM player_creatures");
+    capturedWorldCreatures.clear();
+    for (const row of capturedRows.rows) capturedWorldCreatures.add(row.wild_source_id);
+  };
   const visibleWorldChunk = (x: number, y: number) => {
     const chunk = world.get(x, y);
     if (capturedWorldCreatures.size === 0) return chunk;
@@ -293,7 +296,8 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   let combatTick: ReturnType<typeof setInterval> | undefined;
   let persistenceTick: ReturnType<typeof setInterval> | undefined;
 
-  app.addHook("onListen", () => {
+  app.addHook("onListen", async () => {
+  await loadCapturedWorldCreatures();
   heartbeat = setInterval(() => {
     for (const socket of sockets) {
       if (socket.readyState === socket.OPEN) socket.ping();
