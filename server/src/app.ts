@@ -133,12 +133,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   app.addHook("onRequest", (request) => {
     httpRequestStartedAt.set(request, process.hrtime.bigint());
   });
-  app.addHook("onResponse", (request, reply) => {
-    const started = httpRequestStartedAt.get(request);
-    if (started !== undefined) {
-      recordHttpRequest(Number(process.hrtime.bigint() - started) / 1e6, reply.statusCode);
-    }
-  });
+
 
 
   async function runCreatureRequest(
