@@ -96,3 +96,31 @@ jobs:
 
       - name: Build production Docker image
         run: docker build --pull --tag isles-of-mythos:ci .
+
+      - name: Smoke test production frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          container="isles-production-smoke"
+          trap 'docker rm -f "$container" >/dev/null 2>&1 || true' EXIT
+          docker run --detach --network host --name "$container" \
+            -e ENVIRONMENT=test \
+            -e DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5432/isles_test \
+            -e JWT_SECRET=test-only-jwt-secret-not-for-production \
+            -e CORS_ORIGIN=http://127.0.0.1:3000 \
+            -e SERVER_HOST=127.0.0.1 \
+            -e SERVER_PORT=3000 \
+            isles-of-mythos:ci
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:3000/health >/dev/null; then break; fi
+            if [ "$attempt" -eq 30 ]; then
+              docker logs "$container"
+              exit 1
+            fi
+            sleep 1
+          done
+          index="$(curl --fail --silent http://127.0.0.1:3000/)"
+          printf '%s' "$index" | grep -F '<script type="module"'
+          asset="$(printf '%s' "$index" | sed -n 's/.*src="\([^"]*\.js\)".*/\1/p' | head -n 1)"
+          test -n "$asset"
+          curl --fail --silent "http://127.0.0.1:3000$asset" >/dev/null
