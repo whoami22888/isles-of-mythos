@@ -65,6 +65,8 @@ describe("Gate 9 naval mechanics",()=>{
       const restartReplay=await restartedInventory.mutate(a,attacker.id,"repair_lumber",2,"cargo-replay","ship_cargo|repair_lumber|2");
       expect(restartReplay.transactionId).toBe(cargo.transactionId);expect(restartReplay.items.find(x=>x.itemId==="repair_lumber")?.quantity).toBe(6);
       await expect(restartedInventory.mutate(a,attacker.id,"repair_lumber",1,"cargo-replay","ship_cargo|repair_lumber|1")).rejects.toThrow("SHIP_CARGO_REQUEST_CONFLICT");
+      const ledger=await db.query<{transaction_id:string;response:{transactionId:string}}> ("SELECT transaction_id,response FROM ship_cargo_requests WHERE request_key=$1",[a+":cargo-replay"]);
+      expect(ledger.rows[0]?.transaction_id).toBe(cargo.transactionId);expect(ledger.rows[0]?.response.transactionId).toBe(cargo.transactionId);
       await expect(naval.fireCannon(a,attacker.id,defender.id)).rejects.toThrow("SHIP_RETREATING");
     }finally{await db.end();if(app.server.listening)await app.close();}
   });
