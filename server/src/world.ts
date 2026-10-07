@@ -102,5 +102,17 @@ export class WorldChunkCache {
     }
     return generated;
   }
+  getResourceNode(resourceId: string): ResourceNode | null {
+    const parts = resourceId.split(":");
+    if (parts.length !== 3) return null;
+    const [type, xRaw, yRaw] = parts;
+    if (type !== "wood" && type !== "stone" && type !== "herb") return null;
+    const x = Number(xRaw);
+    const y = Number(yRaw);
+    if (!Number.isSafeInteger(x) || !Number.isSafeInteger(y) || Math.abs(x) > 1_000_000 || Math.abs(y) > 1_000_000) return null;
+    const chunk = this.get(Math.floor(x / CHUNK_SIZE), Math.floor(y / CHUNK_SIZE));
+    return chunk.resources.find((resource) => resource.id === resourceId && resource.type === type && resource.x === x && resource.y === y) ?? null;
+  }
+
   get size(): number { return this.chunks.size; }
 }
