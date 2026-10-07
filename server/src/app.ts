@@ -1218,7 +1218,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
               });
               await players.reloadEconomy(authenticatedUserId);
               if (userSockets.has(message.toUserId)) await players.reloadEconomy(message.toUserId);
-              return { type: "trade_result", requestId: message.requestId, from: result.from, to: result.to };
+              return { type: "trade_result", requestId: message.requestId, transactionId: result.transactionId, from: result.from, to: result.to };
             } catch (error) {
               const code = errorCode(error, "TRADE_FAILED");
               const allowed = ["TRADE_REQUEST_CONFLICT", "INVALID_TRADE_REQUEST", "INVALID_TRADE_PARTICIPANTS", "INVALID_TRADE_ITEMS", "INVALID_TRADE_ITEM", "INVALID_TRADE_QUANTITY", "PLAYER_NOT_FOUND", "INSUFFICIENT_INVENTORY", "INSUFFICIENT_GOLD", "INVENTORY_LIMIT"];
