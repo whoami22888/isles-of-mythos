@@ -1274,15 +1274,15 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
               if(message.type==="set_guild_rank"){await guilds.setRank(authenticatedUserId,message.guildId,message.targetUserId,message.rank);return {type:"guild_operation_ok",requestId:message.requestId,guildId:message.guildId};}
               if(message.type==="set_guild_permission"){await guilds.setPermission(authenticatedUserId,message.guildId,message.rank,message.permission,message.enabled);return {type:"guild_operation_ok",requestId:message.requestId,guildId:message.guildId};}
               if(message.type==="guild_bank")return {type:"guild_bank_state",requestId:message.requestId,guildId:message.guildId,bank:await guilds.bank(authenticatedUserId,message.guildId)};
-              if(message.type==="guild_bank_deposit"){await guilds.bankDeposit(authenticatedUserId,message.guildId,message.itemId,message.quantity,message.gold);return {type:"guild_operation_ok",requestId:message.requestId,guildId:message.guildId};}
-              if(message.type==="guild_bank_withdraw"){await guilds.bankWithdraw(authenticatedUserId,message.guildId,message.itemId,message.quantity,message.gold);return {type:"guild_operation_ok",requestId:message.requestId,guildId:message.guildId};}
-              await guilds.buildInfrastructure(authenticatedUserId,message.guildId,message.structureType);
-              return {type:"guild_operation_ok",requestId:message.requestId,guildId:message.guildId};
+              if(message.type==="guild_bank_deposit"){const result=await guilds.bankDeposit(authenticatedUserId,message.guildId,message.itemId,message.quantity,message.gold);return {type:"guild_operation_ok",requestId:message.requestId,guildId:message.guildId,transactionId:result.transactionId,...(result.rewardTransactionIds?.length ? { rewardTransactionIds: result.rewardTransactionIds } : {})};}
+              if(message.type==="guild_bank_withdraw"){const result=await guilds.bankWithdraw(authenticatedUserId,message.guildId,message.itemId,message.quantity,message.gold);return {type:"guild_operation_ok",requestId:message.requestId,guildId:message.guildId,transactionId:result.transactionId};}
+              if(message.type==="build_guild_infrastructure"){const result=await guilds.buildInfrastructure(authenticatedUserId,message.guildId,message.structureType);return {type:"guild_operation_ok",requestId:message.requestId,guildId:message.guildId,transactionId:result.transactionId};}
             }catch(error){
               const code=errorCode(error,"GUILD_OPERATION_FAILED");
               const allowed=["INVALID_GUILD_NAME","INVALID_GUILD_TAG","GUILD_NAME_OR_TAG_EXISTS","GUILD_HALL_REQUIRED","ALREADY_IN_GUILD","GUILD_NOT_FOUND","GUILD_MEMBERSHIP_REQUIRED","GUILD_PERMISSION_DENIED","PLAYER_NOT_FOUND","INVALID_GUILD_INVITEE","TARGET_ALREADY_IN_GUILD","GUILD_INVITATION_NOT_FOUND","GUILD_MASTER_CANNOT_LEAVE","INVALID_GUILD_MEMBER","GUILD_MEMBER_NOT_FOUND","GUILD_MASTER_PROTECTED","INVALID_GUILD_RANK","INVALID_GUILD_PERMISSION","INVALID_GUILD_INFRASTRUCTURE","INVALID_GUILD_BANK_QUANTITY","INVALID_GUILD_BANK_DEPOSIT","INVALID_GUILD_BANK_WITHDRAW","INSUFFICIENT_GUILD_BANK","GUILD_QUEST_NOT_FOUND","GUILD_INFRASTRUCTURE_MAX","INVALID_GOLD","GOLD_OVERFLOW","INSUFFICIENT_GOLD","INVALID_ITEM_ID","INVALID_ITEM_QUANTITY","INVENTORY_LIMIT","INSUFFICIENT_INVENTORY"];
               return {type:"error",code:(allowed.includes(code)?code:"INVALID_MESSAGE") as Extract<ServerMessage,{type:"error"}>["code"]};
             }
+             return {type:"error",code:"INVALID_MESSAGE"};
           });
           send(socket,response);return;
         }
@@ -1589,7 +1589,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
               type: "world_chunk",
               requestId: message.requestId,
               chunk: await visibleClientWorldChunk(coordinate.x, coordinate.y),
-            });
+           });
           }
         }
       }).catch((error) => {
