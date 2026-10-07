@@ -296,8 +296,10 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   let combatTick: ReturnType<typeof setInterval> | undefined;
   let persistenceTick: ReturnType<typeof setInterval> | undefined;
 
-  app.addHook("onListen", async () => {
-  await loadCapturedWorldCreatures();
+  app.addHook("onListen", () => {
+  void loadCapturedWorldCreatures().catch((error) => log("captured_world_creatures_load_failed", {
+    message: error instanceof Error ? error.message : String(error),
+  }));
   heartbeat = setInterval(() => {
     for (const socket of sockets) {
       if (socket.readyState === socket.OPEN) socket.ping();
