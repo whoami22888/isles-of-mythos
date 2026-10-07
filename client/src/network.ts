@@ -69,7 +69,7 @@ export type ServerMessage =
   | { type: "pong"; timestamp: number }
   | { type: "auth_ok"; userId: string }
   | { type: "player_state"; state: PlayerState }
-  | { type:"resource_gathered"; requestId:string; resourceId:string; itemId:string; quantity:number; respawnsAt:string; state:PlayerState }
+  | { type:"resource_gathered"; requestId:string; transactionId:string; resourceId:string; itemId:string; quantity:number; respawnsAt:string; state:PlayerState }
   | { type: "world_chunk"; requestId: string; chunk: WorldChunk }
   | ProjectileSpawnMessage
   | CombatResultMessage
