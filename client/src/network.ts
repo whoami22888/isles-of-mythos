@@ -77,7 +77,7 @@ export type ServerMessage =
   | { type: "creature_party"; creatures: CreatureState[] }
   | { type: "craft_result"; requestId: string; recipeId: string; state: PlayerState }
   | { type: "shop_purchase_result"; requestId: string; itemId: string; quantity: number; totalGold: string; state: PlayerState }
-  | { type: "trade_result"; requestId: string; from: EconomySnapshot; to: EconomySnapshot }
+  | { type: "trade_result"; requestId: string; transactionId: string; from: EconomySnapshot; to: EconomySnapshot }
   | { type: "army_list"; requestId: string; armies: ArmySummary[] }
   | { type: "invasion_list"; requestId: string; invasions: InvasionSummary[] }
   | { type: "invasion_waves"; requestId: string; invasionId: string; waves: InvasionWave[] }
