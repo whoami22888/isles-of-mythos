@@ -1,13 +1,31 @@
 # Game Design
 
 ## Core fantasy
-A persistent nautical high-fantasy MMORPG where players explore islands, gather resources, build settlements, collect mythical creatures, and eventually participate in guild and realm strategy.
+A persistent nautical high-fantasy MMORPG where players explore islands, gather resources, build settlements, collect mythical creatures, sail, cooperate through guilds, command armies and participate in realm-scale endgame warfare.
 
-## Creature system - current
-Wild creatures are generated as world spawns and become server-side combat targets when activated near players. A weakened wild creature can be captured with a capture orb, persisted as an owned creature, and then tamed with creature feed. Tamed creatures can occupy one of three party slots and use follow, assist, or stay modes.
+## Verified progression
+The repository has implemented and verified the numbered phases through Phase 16:
+1. Engine Foundation
+2. World
+3. Player
+4. Combat
+5. Creatures
+6. Bases
+7. Crafting & Economy
+8. Breeding
+9. Ships
+10. Guilds
+11. Tactical Armies
+12. Realm System
+13. Invasions
+14. MMO Social System
+15. World Events
+16. Endgame
 
-## Creature progression
-Creature level, health, attack, defense, element, abilities, tame progress, party slot, AI mode, and position are persisted. Taming advances in 25-point increments to 100.
+Phase 16 includes realm wars, large guild battles, high-level creatures, mythic content and territory seasons.
 
-## Planned systems
-Training, creature work assignments, breeding/genetics, base automation, ships, guilds, territory warfare, invasions, and large-scale armies are later gates. They must not be represented as implemented until tested end-to-end.
+## Authority
+Persistent state, currency, combat outcomes, creature ownership, territory, guild/army state and endgame outcomes remain server-authoritative. Important mutations are transactionally persisted.
+
+## Post-Phase-16 scope
+The PDF continues with architecture, scalability, performance, deployment and final acceptance requirements after the numbered phases. These must be audited and evidenced separately; no additional numbered gate is implied by the PDF.
