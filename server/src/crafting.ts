@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import type { Pool } from "pg";
 import { applyInventoryDelta, cloneInventory, runEconomyMutation, type Inventory } from "./economy.js";
 import { getRecipe } from "./recipe.js";
@@ -58,10 +57,10 @@ export async function craftRecipe(
 
     await client.query(
       "UPDATE craft_requests SET response=$2::jsonb WHERE request_key=$1",
-      [requestKey, JSON.stringify(result.value)],
+      [requestKey, JSON.stringify(result)],
     );
     await client.query("COMMIT");
-    return { ...result.value, transactionId };
+    return { ...result, transactionId };
   } catch (error) {
     await client.query("ROLLBACK");
     throw error;
