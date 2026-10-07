@@ -12,6 +12,7 @@ import {
   type ProjectileSpawnMessage,
   type ServerMessage,
 } from "./network.js";
+import { SystemPanel } from "./system-panel.js";
 
 const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL;
 const API_BASE_URL = (configuredBaseUrl ?? window.location.origin).replace(/\/$/, "");
@@ -56,6 +57,7 @@ class WorldScene extends Phaser.Scene {
   private invasionAttackButton?: Phaser.GameObjects.Text;
   private invasionReinforceButton?: Phaser.GameObjects.Text;
   private invasionRetreatButton?: Phaser.GameObjects.Text;
+  private systems?: SystemPanel;
 
   constructor() { super("world"); }
 
@@ -78,6 +80,7 @@ class WorldScene extends Phaser.Scene {
     this.input.keyboard?.on("keydown-G", () => this.gatherNearest());
     this.input.keyboard?.on("keyup-B", () => this.setBlocking(false));
     this.createTouchCombatControls();
+    this.systems = new SystemPanel(this, (message) => this.sendSystemMessage(message), () => this.player ? { x: this.player.x, y: this.player.y } : null);
     this.createInvasionOverlay();
     this.time.addEvent({ delay: 3000, loop: true, callback: () => this.refreshInvasions() });
     this.scale.on("resize", () => this.layoutInvasionOverlay());
@@ -134,6 +137,7 @@ class WorldScene extends Phaser.Scene {
         this.statusText?.setText("INVALID SERVER MESSAGE");
         return;
       }
+      this.systems?.handleMessage(message);
       if (message.type === "auth_ok") {
         this.connected = true;
         this.reconnectAttempt = 0;
@@ -268,6 +272,19 @@ class WorldScene extends Phaser.Scene {
       this.reconnectTimer = undefined;
       this.connect();
     }, delay);
+  }
+
+  private sendSystemMessage(message: Record<string, unknown>): void {
+    if (this.socket?.readyState !== WebSocket.OPEN) {
+      this.statusText?.setText("SYSTEMS OFFLINE");
+      return;
+    }
+    try {
+      this.socket.send(JSON.stringify(message));
+    } catch {
+      this.connected = false;
+      this.statusText?.setText("SYSTEMS SEND FAILED");
+    }
   }
 
   private requestArmies(): void {
