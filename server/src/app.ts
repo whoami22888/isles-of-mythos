@@ -153,7 +153,14 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     const statusCode = typeof error.statusCode === "number" && error.statusCode >= 400 && error.statusCode < 600
       ? error.statusCode
       : 500;
-    const clientError = statusCode < 500 ? error.message : "INTERNAL_SERVER_ERROR";
+    const clientError = statusCode === 400 ? "INVALID_REQUEST"
+      : statusCode === 401 ? "UNAUTHORIZED"
+      : statusCode === 403 ? "FORBIDDEN"
+      : statusCode === 404 ? "NOT_FOUND"
+      : statusCode === 405 ? "METHOD_NOT_ALLOWED"
+      : statusCode === 409 ? "CONFLICT"
+      : statusCode === 429 ? "RATE_LIMITED"
+      : "HTTP_ERROR";
     log("http_request_failed", {
       method: request.method,
       url: request.url,
