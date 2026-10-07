@@ -293,9 +293,5 @@ export function parseServerMessage(value: unknown): ServerMessage | null {
         ? value as GenericSystemResponse
         : null;
     }
-    case "error":
-      return typeof value.code === "string" ? { type:"error", code:value.code } : null;
-    default:
-      return null;
   }
 }
