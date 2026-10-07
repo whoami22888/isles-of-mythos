@@ -140,15 +140,6 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     }
   });
 
-  app.get("/metrics", { schema: { tags: ["system"] }, config: { rateLimit: { max: 1200, timeWindow: "1 minute" } } }, async (_request, reply) => {
-    try {
-      await db.query("SELECT 1");
-      setDatabaseUp(true);
-    } catch {
-      setDatabaseUp(false);
-    }
-    reply.type("text/plain; version=0.0.4").send(renderPrometheusMetrics());
-  });
 
   async function runCreatureRequest(
     userId: string,
