@@ -43,7 +43,7 @@ jobs:
           node-version: 24
           package-manager-cache: false
       - name: Install dependencies
-        run: npm install --ignore-scripts --no-audit --no-fund --prefer-offline
+        run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Rebuild reviewed native dependencies
         run: npm rebuild argon2 esbuild
       - name: Verify no unreviewed install scripts
