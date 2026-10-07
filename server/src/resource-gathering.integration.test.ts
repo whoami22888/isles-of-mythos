@@ -41,7 +41,7 @@ describe("resource gathering websocket flow", () => {
     const db = createDbPool();
     const app = await buildApp({ db });
     const node = findResource();
-    const unique = randomUUID().replace(/-/g, "").slice(0, 24);
+    const unique = randomUUID().replace(/-/g, "").slice(0, 20);
     let socket: WebSocket | undefined;
     try {
       const register = await app.inject({
@@ -86,6 +86,8 @@ describe("resource gathering websocket flow", () => {
       expect(row.rows[0]?.inventory[itemId]).toBe(node.type === "herb" ? 1 : 2);
     } finally {
       socket?.close();
+      await db.query("DELETE FROM resource_gather_requests WHERE user_id=$1", [body?.user?.id ?? "00000000-0000-0000-0000-000000000000"]).catch(() => undefined);
+      await db.query("DELETE FROM world_resource_nodes WHERE node_id=$1", [node.id]).catch(() => undefined);
       await app.close();
       await db.end();
     }
