@@ -1246,6 +1246,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
               const allowed=["BASE_NOT_FOUND","BREEDING_PEN_NOT_FOUND","BREEDING_CAPACITY_REACHED","BREEDING_PEN_BUSY","INVALID_BREEDING_DURATION","CREATURE_NOT_FOUND","BREEDING_PARENTS_MUST_DIFFER","INCOMPATIBLE_BREEDING_PARENTS","BREEDING_GENERATION_LIMIT","POPULATION_LIMIT_REACHED","NO_BREEDING_FEED"];
               return {type:"error",code:(allowed.includes(code)?code:"INVALID_MESSAGE") as Extract<ServerMessage,{type:"error"}>["code"]};
             }
+            return {type:"error",code:"INVALID_MESSAGE"};
           });
           send(socket,response); return;
         }
