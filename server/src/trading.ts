@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { Pool } from "pg";
 import {
   addGoldDoubloons,
@@ -33,6 +34,7 @@ export interface TradeParticipantSnapshot {
 
 export interface TradeResult {
   readonly requestId: string;
+  readonly transactionId: string;
   readonly from: TradeParticipantSnapshot;
   readonly to: TradeParticipantSnapshot;
 }
@@ -66,26 +68,27 @@ export async function tradePlayers(db: Pool, request: TradeRequest): Promise<Tra
   validateTradeRequest(request);
   const requestKey = request.fromUserId + ":" + request.requestId;
   const fingerprint = fingerprintRequest(request);
+  const transactionId = randomUUID();
   const client = await db.connect();
 
   try {
     await client.query("BEGIN");
 
     const inserted = await client.query(
-      "INSERT INTO trade_requests (request_key, user_id, fingerprint, response) VALUES ($1, $2, $3, '{}'::jsonb) ON CONFLICT (request_key) DO NOTHING RETURNING request_key",
-      [requestKey, request.fromUserId, fingerprint],
+      "INSERT INTO trade_requests (request_key, transaction_id, user_id, fingerprint, response) VALUES ($1, $2, $3, $4, '{}'::jsonb) ON CONFLICT (request_key) DO NOTHING RETURNING request_key",
+      [requestKey, transactionId, request.fromUserId, fingerprint],
     );
 
     if (inserted.rowCount === 0) {
-      const existing = await client.query<{ fingerprint: string; response: TradeResult }>(
-        "SELECT fingerprint, response FROM trade_requests WHERE request_key=$1 FOR UPDATE",
+      const existing = await client.query<{ transaction_id: string; fingerprint: string; response: TradeResult }>(
+        "SELECT transaction_id, fingerprint, response FROM trade_requests WHERE request_key=$1 FOR UPDATE",
         [requestKey],
       );
       const row = existing.rows[0];
       if (!row) throw new Error("TRADE_REQUEST_NOT_FOUND");
       if (row.fingerprint !== fingerprint) throw new Error("TRADE_REQUEST_CONFLICT");
       await client.query("COMMIT");
-      return row.response;
+      return { ...row.response, transactionId: row.transaction_id };
     }
 
     const userIds = [request.fromUserId, request.toUserId].sort();
@@ -124,6 +127,7 @@ export async function tradePlayers(db: Pool, request: TradeRequest): Promise<Tra
 
     const response: TradeResult = {
       requestId: request.requestId,
+      transactionId,
       from: { userId: request.fromUserId, gold: fromGold.toString(), inventory: fromInventory },
       to: { userId: request.toUserId, gold: toGold.toString(), inventory: toInventory },
     };
