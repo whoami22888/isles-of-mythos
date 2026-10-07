@@ -15,7 +15,7 @@ async function register(app:FastifyInstance){
 }
 describe("Gate 12 realms",()=>{
  it("persists realms, territory ownership, routes, reputation and AI state",async()=>{
-  const app=await buildApp();const db=createDbPool();
+  const db=createDbPool();const app=await buildApp({db});
   try{
    const user=await register(app);await new PlayerStore(db).loadOrCreate(user);
    const base=await new BaseStore(db).create(user,"Realm Base",-100,0);

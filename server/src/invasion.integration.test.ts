@@ -13,7 +13,7 @@ async function register(app:FastifyInstance){
 }
 describe("Gate 13 invasion persistence",()=>{
  it("creates, joins, advances, resolves and rewards a persistent invasion",async()=>{
-  const app=await buildApp();const db=createDbPool();
+  const db=createDbPool();const app=await buildApp({db});
   try{
    const user=await register(app);await new PlayerStore(db).loadOrCreate(user);
    const base=await new BaseStore(db).create(user,"Invasion Base",-100,0);
