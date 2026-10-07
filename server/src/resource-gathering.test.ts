@@ -15,6 +15,11 @@ function findResource(): ResourceNode {
   throw new Error("TEST_RESOURCE_NODE_NOT_FOUND");
 }
 
+async function cleanupResource(db: ReturnType<typeof createDbPool>, userId: string, nodeId: string): Promise<void> {
+  await db.query("DELETE FROM resource_gather_requests WHERE user_id=$1", [userId]);
+  await db.query("DELETE FROM world_resource_nodes WHERE node_id=$1", [nodeId]);
+}
+
 async function createPlayer() {
   const db = createDbPool();
   const unique = randomUUID().replace(/-/g, "").slice(0, 24);
@@ -48,6 +53,7 @@ describe("resource gathering transactions", () => {
 
       await expect(gatherResource(db, userId, "gather-2", "gather_resource|" + node.id, node)).rejects.toThrow("RESOURCE_DEPLETED");
     } finally {
+      await cleanupResource(db, userId, node.id);
       await db.end();
     }
   });
