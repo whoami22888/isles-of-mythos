@@ -105,6 +105,7 @@ export async function runEconomyMutation<T>(
   client: PoolClient,
   userId: string,
   mutation: (draft: EconomyDraft) => EconomyMutation<T> | Promise<EconomyMutation<T>>,
+  operation = "economy_mutation",
 ): Promise<T> {
   const result = await client.query<{ gold: string; triumph_badges: string; inventory: Inventory }>(
     "SELECT gold, triumph_badges, inventory FROM player_profiles WHERE user_id=$1 FOR UPDATE",
@@ -128,6 +129,21 @@ export async function runEconomyMutation<T>(
     "UPDATE player_profiles SET gold=$2, triumph_badges=$3, inventory=$4::jsonb, updated_at=CURRENT_TIMESTAMP WHERE user_id=$1",
     [userId, gold.toString(), triumphBadges.toString(), JSON.stringify(inventory)],
   );
+
+  await client.query(
+    "INSERT INTO economy_transactions (user_id, operation, gold_before, gold_after, triumph_badges_before, triumph_badges_after, inventory_before, inventory_after) VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8::jsonb)",
+    [
+      userId,
+      operation,
+      draft.gold.toString(),
+      gold.toString(),
+      draft.triumphBadges.toString(),
+      triumphBadges.toString(),
+      JSON.stringify(draft.inventory),
+      JSON.stringify(inventory),
+    ],
+  );
+
   return next.value;
 }
 
@@ -135,11 +151,12 @@ export async function runEconomyTransaction<T>(
   db: Pool,
   userId: string,
   mutation: (draft: EconomyDraft) => EconomyMutation<T> | Promise<EconomyMutation<T>>,
+  operation = "economy_mutation",
 ): Promise<T> {
   const client = await db.connect();
   try {
     await client.query("BEGIN");
-    const value = await runEconomyMutation(client, userId, mutation);
+    const value = await runEconomyMutation(client, userId, mutation, operation);
     await client.query("COMMIT");
     return value;
   } catch (error) {

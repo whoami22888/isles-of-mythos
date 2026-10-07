@@ -79,8 +79,16 @@ describe("economy transaction concurrency", () => {
         const nextGold = subtractGoldDoubloons(gold, 1000n);
         const nextInventory = applyInventoryDelta(inventory, "wood", 100);
         return { gold: nextGold, inventory: nextInventory, value: true };
-      }));
+      }, "economy_concurrency"));
       await Promise.all(operations);
+
+      const ledger = await db.query<{ transaction_id: string; operation: string }>(
+        "SELECT transaction_id, operation FROM economy_transactions WHERE user_id=$1 ORDER BY created_at",
+        [userId],
+      );
+      expect(ledger.rows).toHaveLength(32);
+      expect(new Set(ledger.rows.map((entry) => entry.transaction_id)).size).toBe(32);
+      expect(ledger.rows.every((entry) => entry.operation === "economy_concurrency")).toBe(true);
 
       const row = await db.query<{ gold: string; inventory: Record<string, number> }>(
         "SELECT gold, inventory FROM player_profiles WHERE user_id=$1",
@@ -103,6 +111,12 @@ describe("economy transaction concurrency", () => {
       );
       expect(afterRollback.rows[0].gold).toBe("499968000");
       expect(afterRollback.rows[0].inventory.wood).toBe(3200);
+
+      const ledgerAfterRollback = await db.query<{ transaction_id: string }>(
+        "SELECT transaction_id FROM economy_transactions WHERE user_id=$1",
+        [userId],
+      );
+      expect(ledgerAfterRollback.rows).toHaveLength(32);
     } finally {
       await app.close();
       await db.end();
