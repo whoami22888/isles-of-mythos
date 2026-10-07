@@ -1,4 +1,22 @@
 
+describe("craft transaction protocol", () => {
+  const state = {
+    userId:"user-1", x:0, y:0, health:100, defense:0, stamina:100, maxStamina:100,
+    hunger:100, oxygen:100, xp:0, level:1, gold:"80", triumphBadges:"0",
+    inventory:{"resource.wood":1}, hotbar:[null,null,null,null,null,null,null,null], selectedHotbarSlot:0,
+  };
+  it("requires a valid transaction id on craft results", () => {
+    expect(parseServerMessage({
+      type:"craft_result", requestId:"craft-1", transactionId:"550e8400-e29b-41d4-a716-446655440000",
+      recipeId:"tool.wooden-club", state,
+    })).toMatchObject({type:"craft_result",transactionId:"550e8400-e29b-41d4-a716-446655440000"});
+    expect(parseServerMessage({
+      type:"craft_result", requestId:"craft-2", transactionId:123,
+      recipeId:"tool.wooden-club", state,
+    })).toBeNull();
+  });
+});
+
 describe("shop transaction protocol", () => {
   const state = {
     userId:"user-1", x:0, y:0, health:100, defense:0, stamina:100, maxStamina:100,
