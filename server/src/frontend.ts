@@ -23,7 +23,7 @@ function contentType(path: string): string {
   return CONTENT_TYPES[extension] ?? "application/octet-stream";
 }
 
-function safePath(root: string, pathname: string): string | null {
+export function safePath(root: string, pathname: string): string | null {
   let decodedPath: string;
   try {
     decodedPath = pathname.split("/").map((segment) => decodeURIComponent(segment)).join("/");
