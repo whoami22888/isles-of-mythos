@@ -1589,7 +1589,8 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
               type: "world_chunk",
               requestId: message.requestId,
               chunk: await visibleClientWorldChunk(coordinate.x, coordinate.y),
-            });
+              return {type:"error",code:"INVALID_MESSAGE"};
+           });
           }
         }
       }).catch((error) => {
