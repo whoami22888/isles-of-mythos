@@ -35,6 +35,8 @@ import { AuctionStore } from "./auction.js";
 import { WorldEventCoordinator } from "./world-events.js";
 import { EndgameStore } from "./endgame.js";
 import { TerritorySeasonStore } from "./territory-seasons.js";
+import { registerFrontendRoutes } from "./frontend.js";
+import { resolve } from "node:path";
 
 function errorCode(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
@@ -64,9 +66,11 @@ function parseCreatureTargetId(targetId: string): { x: number; y: number } | nul
 
 export interface BuildAppOptions {
   db?: Pool;
+  clientDistDir?: string;
 }
 
 export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyInstance> {
+  const clientDistDir = options.clientDistDir ?? resolve(process.cwd(), "client/dist");
   const db = options.db ?? createDbPool();
   const ownsDb = options.db === undefined;
   const world = new WorldChunkCache(256);
@@ -1561,6 +1565,8 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       sockets.delete(socket);
     });
   });
+
+  registerFrontendRoutes(app, clientDistDir);
 
   return app;
 }
