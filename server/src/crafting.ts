@@ -24,6 +24,9 @@ export async function craftRecipe(
   try {
     await client.query("BEGIN");
 
+    const playerExists = await client.query("SELECT 1 FROM player_profiles WHERE user_id=$1 FOR UPDATE", [userId]);
+    if (!playerExists.rows[0]) throw new Error("PLAYER_NOT_FOUND");
+
     const inserted = await client.query<{ transaction_id: string }>(
       "INSERT INTO craft_requests(request_key,user_id,fingerprint,response) VALUES($1,$2,$3,'{}'::jsonb) ON CONFLICT(request_key) DO NOTHING RETURNING transaction_id",
       [requestKey, userId, fingerprint],
