@@ -154,7 +154,7 @@ export type ServerMessage =
   | { type:"guild_state"; requestId:string; guild:unknown }
   | { type:"guild_invitations"; requestId:string; invitations:unknown[] }
   | { type:"guild_bank_state"; requestId:string; guildId:string; bank:unknown }
-  | { type:"guild_operation_ok"; requestId:string; guildId:string }
+  | { type:"guild_operation_ok"; requestId:string; guildId:string; transactionId?:string }
   | { type:"realm_list"; requestId:string; realms:unknown[] }
   | { type:"territory_list"; requestId:string; territories:unknown[] }
   | { type:"fortress_list"; requestId:string; fortresses:unknown[] }
