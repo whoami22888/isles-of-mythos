@@ -16,6 +16,7 @@ import { PlayerStore, applyPlayerInput, serializePlayerState } from "./player.js
 import { WorldChunkCache } from "./world.js";
 import { SHOP_ITEMS, calculatePurchase, getShopItem, serializeShopItem } from "./shop.js";
 import { craftRecipe } from "./crafting.js";
+import { gatherResource, resourceGatherFingerprint } from "./resource-gathering.js";
 import { tradePlayers } from "./trading.js";
 import { addThreat, applyDamage, createCombatTarget, creatureAbilityDamage, createProjectile, advanceProjectile, isMeleeHit, distance, mitigateDamage, tickCreatureAi, tickStatusEffects, tickStatuses, weaponFor, type CombatProjectile, type CombatTarget, type StatusEffect } from "./combat.js";
 import { CombatReplayCache } from "./combat-replay.js";
@@ -1082,6 +1083,50 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             }
           });
           send(socket,response);
+          return;
+        }
+
+        if (message.type === "gather_resource") {
+          if (!userId) { send(socket, { type: "error", code: "AUTH_REQUIRED" }); return; }
+          const authenticatedUserId = userId;
+          const state = players.get(authenticatedUserId);
+          if (!state) { send(socket, { type: "error", code: "AUTH_REQUIRED" }); return; }
+          if (state.health <= 0) { send(socket, { type: "error", code: "PLAYER_DEAD" }); return; }
+          if (playerHasStatus(authenticatedUserId, "stun")) { send(socket, { type: "error", code: "PLAYER_STUNNED" }); return; }
+          const node = world.getResourceNode(message.resourceId);
+          if (!node) { send(socket, { type: "error", code: "RESOURCE_NOT_FOUND" }); return; }
+          if (distance(state, node) > 2.5) { send(socket, { type: "error", code: "RESOURCE_OUT_OF_RANGE" }); return; }
+          const fingerprint = resourceGatherFingerprint(node.id);
+          const response = await runEconomyRequest(authenticatedUserId, message.requestId, fingerprint, async () => {
+            try {
+              const result = await gatherResource(db, authenticatedUserId, message.requestId, fingerprint, node);
+              const refreshed = await players.reloadEconomy(authenticatedUserId);
+              return {
+                type: "resource_gathered",
+                requestId: message.requestId,
+                resourceId: result.nodeId,
+                itemId: result.itemId,
+                quantity: result.quantity,
+                respawnsAt: result.respawnsAt,
+                state: serializePlayerState(refreshed),
+              };
+            } catch (error) {
+              const code = errorCode(error, "RESOURCE_GATHER_FAILED");
+              const allowed = [
+                "RESOURCE_NOT_FOUND",
+                "RESOURCE_DEPLETED",
+                "RESOURCE_REQUEST_CONFLICT",
+                "RESOURCE_NODE_MISMATCH",
+                "RESOURCE_NODE_UPDATE_FAILED",
+                "INVENTORY_LIMIT",
+                "INSUFFICIENT_INVENTORY",
+                "PLAYER_NOT_FOUND",
+              ];
+              if (allowed.includes(code)) return { type: "error", code } as ServerMessage;
+              throw error;
+            }
+          });
+          send(socket, response);
           return;
         }
 
