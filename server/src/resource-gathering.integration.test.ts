@@ -43,6 +43,7 @@ describe("resource gathering websocket flow", () => {
     const node = findResource();
     const unique = randomUUID().replace(/-/g, "").slice(0, 20);
     let socket: WebSocket | undefined;
+    let userId: string | undefined;
     try {
       const register = await app.inject({
         method: "POST",
@@ -55,6 +56,7 @@ describe("resource gathering websocket flow", () => {
       });
       expect(register.statusCode).toBe(201);
       const body = JSON.parse(register.body) as { accessToken: string; user: { id: string } };
+      userId = body.user.id;
       await db.query("UPDATE player_profiles SET x=$2,y=$3 WHERE user_id=$1", [body.user.id, node.x, node.y]);
 
       await app.listen({ host: "127.0.0.1", port: 0 });
@@ -86,7 +88,7 @@ describe("resource gathering websocket flow", () => {
       expect(row.rows[0]?.inventory[itemId]).toBe(node.type === "herb" ? 1 : 2);
     } finally {
       socket?.close();
-      await db.query("DELETE FROM resource_gather_requests WHERE user_id=$1", [body?.user?.id ?? "00000000-0000-0000-0000-000000000000"]).catch(() => undefined);
+      if (userId) await db.query("DELETE FROM resource_gather_requests WHERE user_id=$1", [userId]);
       await db.query("DELETE FROM world_resource_nodes WHERE node_id=$1", [node.id]).catch(() => undefined);
       await app.close();
       await db.end();
