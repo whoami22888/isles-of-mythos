@@ -89,3 +89,17 @@ describe("resource gathering messages", () => {
     })).toMatchObject({ type: "resource_gathered", resourceId: "wood:10:20", itemId: "resource.wood", quantity: 2 });
   });
 });
+
+
+describe("system response parser", () => {
+  it("accepts authoritative state responses for client system flows", () => {
+    const types = [
+      "guild_state","guild_invitations","guild_bank_state","realm_list","territory_list","fortress_list",
+      "trade_route_list","army_list","battle_state","defense_list","ship_list","fleet_list","breeding_jobs",
+      "realm_war_list","guild_battle_list","endgame_creature_list","mythic_content_list","territory_season_state",
+    ];
+    for (const type of types) {
+      expect(parseServerMessage({ type, requestId: "system-1", state: "server-state" })).toMatchObject({ type, requestId: "system-1" });
+    }
+  });
+});
