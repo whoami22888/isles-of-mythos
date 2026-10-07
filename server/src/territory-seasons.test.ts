@@ -91,7 +91,7 @@ describe("Gate 16 territory seasons", () => {
       );
 
       const standings = await db.query(
-        "INSERT INTO territory_season_standings(season_id,actor_type,actor_id,points,territories_controlled,wins) VALUES($1,'realm',$2,100,2,4),($1,'realm',$3,100,1,9)",
+        "INSERT INTO territory_season_standings(season_id,actor_type,actor_id,points,territories_controlled,wins) VALUES($1,'realm',$2,100,2,4),($1,'realm',$3,99,1,9)",
         [season.rows[0].id, realms.rows[0].id, realms.rows[1].id],
       );
       expect(standings.rowCount).toBe(2);
