@@ -12,6 +12,7 @@ import {
   type ProjectileSpawnMessage,
   type ServerMessage,
 } from "./network.js";
+import { SystemPanel } from "./system-panel.js";
 
 const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL;
 const API_BASE_URL = (configuredBaseUrl ?? window.location.origin).replace(/\/$/, "");
