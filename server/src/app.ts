@@ -7,7 +7,6 @@ import websocket from "@fastify/websocket";
 import type { WebSocket } from "ws";
 import type { Pool } from "pg";
 import { config } from "./config.js";
-import { recordHttpRequest } from "./metrics.js";
 import { createDbPool } from "./db.js";
 import { registerAuthRoutes } from "./auth.js";
 import { log } from "./logger.js";
