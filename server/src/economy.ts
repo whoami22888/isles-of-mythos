@@ -101,4 +101,51 @@ export function subtractGoldDoubloons(current: bigint, amount: bigint): bigint {
   return balance - cost;
 }
 
-export async function runEconomyMutation<T>(\n  client: PoolClient,\n  userId: string,\n  mutation: (draft: EconomyDraft) => EconomyMutation<T> | Promise<EconomyMutation<T>>,\n): Promise<T> {\n  const result = await client.query<{ gold: string; triumph_badges: string; inventory: Inventory }>(\n    "SELECT gold, triumph_badges, inventory FROM player_profiles WHERE user_id=$1 FOR UPDATE",\n    [userId],\n  );\n  const row = result.rows[0];\n  if (!row) throw new Error("PLAYER_NOT_FOUND");\n\n  const draft: EconomyDraft = {\n    client,\n    gold: parseGoldDoubloons(row.gold),\n    triumphBadges: parseTriumphBadges(row.triumph_badges),\n    inventory: cloneInventory(row.inventory),\n  };\n  const next = await mutation(draft);\n  const gold = parseGoldDoubloons(next.gold);\n  const triumphBadges = parseTriumphBadges(next.triumphBadges ?? draft.triumphBadges);\n  const inventory = cloneInventory(next.inventory);\n\n  await client.query(\n    "UPDATE player_profiles SET gold=$2, triumph_badges=$3, inventory=$4::jsonb, updated_at=CURRENT_TIMESTAMP WHERE user_id=$1",\n    [userId, gold.toString(), triumphBadges.toString(), JSON.stringify(inventory)],\n  );\n  return next.value;\n}\n\nexport async function runEconomyTransaction<T>(\n  db: Pool,\n  userId: string,\n  mutation: (draft: EconomyDraft) => EconomyMutation<T> | Promise<EconomyMutation<T>>,\n): Promise<T> {\n  const client = await db.connect();\n  try {\n    await client.query("BEGIN");\n    const value = await runEconomyMutation(client, userId, mutation);\n    await client.query("COMMIT");\n    return value;\n  } catch (error) {\n    await client.query("ROLLBACK");\n    throw error;\n  } finally {\n    client.release();\n  }\n}\n
+export async function runEconomyMutation<T>(
+  client: PoolClient,
+  userId: string,
+  mutation: (draft: EconomyDraft) => EconomyMutation<T> | Promise<EconomyMutation<T>>,
+): Promise<T> {
+  const result = await client.query<{ gold: string; triumph_badges: string; inventory: Inventory }>(
+    "SELECT gold, triumph_badges, inventory FROM player_profiles WHERE user_id=$1 FOR UPDATE",
+    [userId],
+  );
+  const row = result.rows[0];
+  if (!row) throw new Error("PLAYER_NOT_FOUND");
+
+  const draft: EconomyDraft = {
+    client,
+    gold: parseGoldDoubloons(row.gold),
+    triumphBadges: parseTriumphBadges(row.triumph_badges),
+    inventory: cloneInventory(row.inventory),
+  };
+  const next = await mutation(draft);
+  const gold = parseGoldDoubloons(next.gold);
+  const triumphBadges = parseTriumphBadges(next.triumphBadges ?? draft.triumphBadges);
+  const inventory = cloneInventory(next.inventory);
+
+  await client.query(
+    "UPDATE player_profiles SET gold=$2, triumph_badges=$3, inventory=$4::jsonb, updated_at=CURRENT_TIMESTAMP WHERE user_id=$1",
+    [userId, gold.toString(), triumphBadges.toString(), JSON.stringify(inventory)],
+  );
+  return next.value;
+}
+
+export async function runEconomyTransaction<T>(
+  db: Pool,
+  userId: string,
+  mutation: (draft: EconomyDraft) => EconomyMutation<T> | Promise<EconomyMutation<T>>,
+): Promise<T> {
+  const client = await db.connect();
+  try {
+    await client.query("BEGIN");
+    const value = await runEconomyMutation(client, userId, mutation);
+    await client.query("COMMIT");
+    return value;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
