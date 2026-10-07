@@ -68,7 +68,7 @@ export class AuctionStore{
     const row=existing.rows[0];
     if(!row) throw new Error("AUCTION_REQUEST_NOT_FOUND");
     if(row.fingerprint!==fingerprint) throw new Error("AUCTION_REQUEST_CONFLICT");
-    if(row.response && Object.keys(row.response as object).length>0) return {requestKey,transactionId:row.transaction_id,response:row.response};
+    if(row.response && Object.keys(row.response).length>0) return {requestKey,transactionId:row.transaction_id,response:row.response};
     throw new Error("AUCTION_REQUEST_INCOMPLETE");
   }
 
