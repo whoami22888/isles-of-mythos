@@ -109,15 +109,18 @@ describe("shop catalogue", () => {
         headers: { authorization: `Bearer ${token}` },
         payload: { requestId: "purchase-once", itemId: "resource.wood", quantity: 2 },
       });
-      const second = await app.inject({
+      expect(first.statusCode).toBe(200);
+      await app.close();
+      const restartedApp = await buildApp({ db });
+      const second = await restartedApp.inject({
         method: "POST",
         url: "/shop/purchase",
         headers: { authorization: `Bearer ${token}` },
         payload: { requestId: "purchase-once", itemId: "resource.wood", quantity: 2 },
       });
-      expect(first.statusCode).toBe(200);
       expect(second.statusCode).toBe(200);
       expect(JSON.parse(second.body)).toEqual(JSON.parse(first.body));
+      await restartedApp.close();
       const row = await db.query<{ gold: string; inventory: Record<string, number> }>(
         "SELECT gold, inventory FROM player_profiles WHERE user_id=$1",
         [userId],
