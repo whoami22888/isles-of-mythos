@@ -3,6 +3,7 @@ import type {FastifyInstance} from "fastify";
 import {buildApp} from "./app.js";
 import {createDbPool} from "./db.js";
 import {BaseStore} from "./base.js";
+import {PlayerStore} from "./player.js";
 
 async function register(app:FastifyInstance,tag:string):Promise<string>{
   const unique=tag+"_"+Date.now().toString(36)+"_"+Math.random().toString(36).slice(2,6);
@@ -17,6 +18,7 @@ describe("PDF §92/§93 base storage durability",()=>{
     const app=await buildApp({db});
     try{
       const userId=await register(app,"base_storage");
+      await new PlayerStore(db).loadOrCreate(userId);
       const bases=new BaseStore(db);
       const base=await bases.create(userId,"Storage Base",0,0);
       await db.query("UPDATE player_profiles SET inventory=jsonb_build_object('wood',100) WHERE user_id=$1",[userId]);
