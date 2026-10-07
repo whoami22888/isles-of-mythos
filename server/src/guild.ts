@@ -134,7 +134,7 @@ export class GuildStore{
   }
   async bankDeposit(userId:string,guildId:string,itemId:string,quantity:number,gold:string,requestId:string,fingerprint:string):Promise<{transactionId:string;rewardTransactionIds:string[]}>{
     if(quantity<0||!Number.isSafeInteger(quantity)||quantity>1_000_000)throw new Error('INVALID_GUILD_BANK_QUANTITY');const gld=parseGoldDoubloons(gold);if(quantity===0&&gld===0n)throw new Error('INVALID_GUILD_BANK_DEPOSIT');
-    if(!requestId||requestId.length>128)throw new Error('INVALID_REQUEST_ID');
+    if(!requestId||requestId.length>64)throw new Error('INVALID_REQUEST_ID');
     const c=await this.db.connect();try{await c.query('BEGIN');
       const requestKey=userId+':'+requestId;
       const inserted=await c.query<{transaction_id:string}>("INSERT INTO guild_bank_requests(request_key,user_id,fingerprint,response) VALUES($1,$2,$3,'{}'::jsonb) ON CONFLICT(request_key) DO NOTHING RETURNING transaction_id",[requestKey,userId,fingerprint]);
@@ -157,7 +157,7 @@ export class GuildStore{
   }
   async bankWithdraw(userId:string,guildId:string,itemId:string,quantity:number,gold:string,requestId:string,fingerprint:string):Promise<{transactionId:string}>{
     if(quantity<0||!Number.isSafeInteger(quantity)||quantity>1_000_000)throw new Error('INVALID_GUILD_BANK_QUANTITY');const gld=parseGoldDoubloons(gold);if(quantity===0&&gld===0n)throw new Error('INVALID_GUILD_BANK_WITHDRAW');
-    if(!requestId||requestId.length>128)throw new Error('INVALID_REQUEST_ID');
+    if(!requestId||requestId.length>64)throw new Error('INVALID_REQUEST_ID');
     const c=await this.db.connect();try{await c.query('BEGIN');
       const requestKey=userId+':'+requestId;
       const inserted=await c.query<{transaction_id:string}>("INSERT INTO guild_bank_requests(request_key,user_id,fingerprint,response) VALUES($1,$2,$3,'{}'::jsonb) ON CONFLICT(request_key) DO NOTHING RETURNING transaction_id",[requestKey,userId,fingerprint]);
