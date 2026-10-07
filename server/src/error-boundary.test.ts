@@ -49,6 +49,27 @@ describe("external boundary error handling", () => {
     }
   });
 
+  it("returns a safe 500 response for an unhandled HTTP failure", async () => {
+    const app = await buildApp({ db: unavailableDb() });
+    app.get("/__error-boundary-test", () => {
+      throw new Error("DATABASE_UNAVAILABLE");
+    });
+    try {
+      const response = await app.inject({
+        method: "GET",
+        url: "/__error-boundary-test",
+      });
+
+      expect(response.statusCode).toBe(500);
+      expect(response.json()).toEqual({
+        error: "INTERNAL_SERVER_ERROR",
+        message: "Internal server error",
+      });
+    } finally {
+      await app.close();
+    }
+  });
+
   it("rejects malformed request data at the HTTP boundary", async () => {
     const app = await buildApp({ db: unavailableDb() });
     try {
