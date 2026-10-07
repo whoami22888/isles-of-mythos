@@ -204,16 +204,16 @@ export class PlayerStore {
 
         const state = this.active.get(userId);
         if (!state) throw new Error("PLAYER_NOT_FOUND");
-        state.gold = nextGold;
-        state.inventory = nextInventory;
-        this.economyInventorySnapshots.set(userId, cloneInventory(nextInventory));
-        this.markDirty(userId);
-        const response = serializePlayerState(state);
+        const response = serializePlayerState({ ...state, gold: nextGold, inventory: nextInventory });
         await client.query(
           "UPDATE shop_purchase_requests SET response=$2::jsonb WHERE request_key=$1",
           [requestKey, JSON.stringify(response)],
         );
         await client.query("COMMIT");
+        state.gold = nextGold;
+        state.inventory = nextInventory;
+        this.economyInventorySnapshots.set(userId, cloneInventory(nextInventory));
+        this.markDirty(userId);
         return response;
       } catch (error) {
         await client.query("ROLLBACK");
