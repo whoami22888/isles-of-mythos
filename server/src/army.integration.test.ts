@@ -20,7 +20,7 @@ async function fixture(db:Pool,userId:string){
 }
 describe("Gate 11 tactical armies",()=>{
   it("persists armies, training, formations, garrison, defense and server battle resolution",async()=>{
-    const app=await buildApp();const db=createDbPool();
+    const db=createDbPool();const app=await buildApp({db});
     try{
       const user=await register(app,"owner");await new PlayerStore(db).loadOrCreate(user);const baseId=await fixture(db,user);const armies=new ArmyStore(db);
       const a=await armies.create(user,"Defenders"),b=await armies.create(user,"Raiders");
