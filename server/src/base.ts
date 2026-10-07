@@ -273,7 +273,6 @@ export class BaseStore {
         await client.query("BEGIN");
         const requestKey=userId+":"+requestId;
         const inserted=await client.query<{transaction_id:string}>("INSERT INTO base_storage_requests(request_key,user_id,fingerprint,response) VALUES($1,$2,$3,'{}'::jsonb) ON CONFLICT(request_key) DO NOTHING RETURNING transaction_id",[requestKey,userId,fingerprint]);
-        let transactionId:string;
         if(!inserted.rows[0]){
           const existing=await client.query<{fingerprint:string;transaction_id:string;response:{transactionId?:string;storage?:Record<string,number>}}>("SELECT fingerprint,transaction_id,response FROM base_storage_requests WHERE request_key=$1 FOR UPDATE",[requestKey]);
           if(!existing.rows[0])throw new Error("BASE_STORAGE_REQUEST_NOT_FOUND");
@@ -282,7 +281,7 @@ export class BaseStore {
           await client.query("COMMIT");
           return {storage:existing.rows[0].response.storage??{},transactionId:existing.rows[0].transaction_id};
         }
-        transactionId=inserted.rows[0].transaction_id;
+        const transactionId=inserted.rows[0].transaction_id;
         const profile=await client.query<{inventory:Record<string,number>}>("SELECT inventory FROM player_profiles WHERE user_id=$1 FOR UPDATE",[userId]);
         if(!profile.rows[0])throw new Error("PLAYER_NOT_FOUND");
         const inventory={...(profile.rows[0].inventory??{})};
