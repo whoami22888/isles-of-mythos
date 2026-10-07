@@ -15,12 +15,12 @@ function findResource(): ResourceNode {
   throw new Error("TEST_RESOURCE_NODE_NOT_FOUND");
 }
 
-async function waitFor(socket: WebSocket, type: string): Promise<Record<string, unknown>> {
+async function waitFor(socket: WebSocket, type: string, predicate?: (message: Record<string, unknown>) => boolean): Promise<Record<string, unknown>> {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error("TIMEOUT_" + type)), 2_000);
     const onMessage = (raw: Buffer) => {
       const value = JSON.parse(raw.toString()) as Record<string, unknown>;
-      if (value.type !== type) return;
+      if (predicate ? !predicate(value) : value.type !== type) return;
       clearTimeout(timer);
       socket.off("message", onMessage);
       socket.off("error", onError);
@@ -72,7 +72,8 @@ describe("resource gathering websocket flow", () => {
         requestId: "resource-flow-1",
         resourceId: node.id,
       }));
-      const gathered = await waitFor(socket, "resource_gathered");
+      const gathered = await waitFor(socket, "resource_gathered", (value) => value.type === "resource_gathered" || value.type === "error");
+      expect(gathered.type).toBe("resource_gathered");
       expect(gathered).toMatchObject({
         requestId: "resource-flow-1",
         resourceId: node.id,
