@@ -3,16 +3,14 @@
 ## Current storage
 PostgreSQL is the persistent store and node-pg-migrate applies schema changes.
 
-## Key entities
-- `users` and `player_profiles` store account/player state.
-- `player_creatures` stores owned creature state.
-- `wild_source_id` has a global unique index to prevent one world spawn being owned by multiple accounts.
-
-## Creature persistence
-Owned creatures store identity, owner, wild source, species, level/XP, health, combat stats, element, abilities, tame progress, party slot, AI mode, coordinates, and timestamps.
+## Persistent domains
+The schema covers users/player profiles, creatures, bases, crafting/economy, breeding, ships/fleets, guilds, armies, realms/territories, invasions, social/auction systems, world events, endgame warfare, mythic content and territory seasons.
 
 ## Consistency
-Important creature inventory operations use PostgreSQL transactions and row locks. Revision tracking prevents asynchronous persistence from clearing newer in-memory mutations.
+Important mutations use PostgreSQL transactions and row/advisory locks. Currency and inventory operations are server-authoritative. Creature ownership uses a global unique wild-source constraint. Revision tracking protects asynchronous persistence from clearing newer in-memory mutations.
+
+## Endgame persistence
+Realm wars, guild battles, endgame creatures, mythic content and territory seasons are represented by dedicated migrations and server-side stores. Scores, contributions, rewards and season standings are persisted in PostgreSQL.
 
 ## Migrations
-Migration 006 creates the creature schema and backfills creature starter inventory keys for existing players without overwriting existing inventory values. Migration 007 enforces global wild-spawn ownership.
+Migrations are forward-only project history and are exercised in CI. CI #858 successfully applied migrations and completed PostgreSQL backup/restore verification.
