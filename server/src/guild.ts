@@ -132,7 +132,7 @@ export class GuildStore{
       return {treasury:g.rows[0].treasury,items:items.rows.map(x=>({itemId:x.item_id,quantity:x.quantity})),transactions:tx.rows};
     }catch(e){await c.query('ROLLBACK');throw e}finally{c.release()}
   }
-  async bankDeposit(userId:string,guildId:string,itemId:string,quantity:number,gold:string):Promise<{transactionId:string}>{
+  async bankDeposit(userId:string,guildId:string,itemId:string,quantity:number,gold:string):Promise<{transactionId:string;rewardTransactionIds:string[]}>{
     if(quantity<0||!Number.isSafeInteger(quantity)||quantity>1_000_000)throw new Error('INVALID_GUILD_BANK_QUANTITY');const gld=parseGoldDoubloons(gold);if(quantity===0&&gld===0n)throw new Error('INVALID_GUILD_BANK_DEPOSIT');
     const c=await this.db.connect();try{await c.query('BEGIN');await requirePermission(c,guildId,userId,'bank_deposit');const p=await c.query<{gold:string;inventory:Record<string,number>}>("SELECT gold,inventory FROM player_profiles WHERE user_id=$1 FOR UPDATE",[userId]);if(!p.rows[0])throw new Error('PLAYER_NOT_FOUND');
       let inv=cloneInventory(p.rows[0].inventory);if(quantity>0)inv=applyInventoryDelta(inv,itemId,-quantity);const playerGold=subtractGoldDoubloons(BigInt(p.rows[0].gold),gld);
