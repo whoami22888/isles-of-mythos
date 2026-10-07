@@ -6,8 +6,8 @@ import { createDbPool } from "./db.js";
 import { generateChunk, type ResourceNode } from "./world.js";
 
 function findResource(): ResourceNode {
-  for (let chunkY = -4; chunkY <= 4; chunkY += 1) {
-    for (let chunkX = -4; chunkX <= 4; chunkX += 1) {
+  for (let chunkY = 8; chunkY <= 16; chunkY += 1) {
+    for (let chunkX = 8; chunkX <= 16; chunkX += 1) {
       const node = generateChunk(chunkX, chunkY).resources[0];
       if (node) return node;
     }
