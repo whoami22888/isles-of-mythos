@@ -99,6 +99,7 @@ export type ServerMessage =
   | { type: "auction_state"; requestId: string; listing: Record<string, unknown> }
   | { type: "auction_history"; requestId: string; transactions: Record<string, unknown>[] }
   | { type: "auction_operation_ok"; requestId: string }
+  | GenericSystemResponse
   | { type: "error"; code: string };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
