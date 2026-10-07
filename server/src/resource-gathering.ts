@@ -51,7 +51,6 @@ export async function gatherResource(
       await client.query("COMMIT");
       return {
         transactionId: row.transaction_id,
-        transactionId: row.transaction_id,
         nodeId: row.node_id,
         itemId: row.item_id,
         quantity: row.quantity,
