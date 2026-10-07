@@ -82,6 +82,95 @@ async function httpLoad() {
   };
 }
 
+async function loadMutationNodes(required) {
+  const nodes = [];
+  for (let chunkY = 8; chunkY <= 16 && nodes.length < required; chunkY += 1) {
+    for (let chunkX = 8; chunkX <= 16 && nodes.length < required; chunkX += 1) {
+      const response = await fetch(`${baseUrl}/world/chunks/${chunkX}/${chunkY}`);
+      if (!response.ok) throw new Error(`Failed to load performance resource chunk ${chunkX}/${chunkY}: ${response.status}`);
+      const chunk = await response.json();
+      for (const resource of chunk.resources ?? []) {
+        if (resource?.id && resource?.type && Number.isSafeInteger(resource.x) && Number.isSafeInteger(resource.y)) {
+          nodes.push(resource);
+          if (nodes.length === required) break;
+        }
+      }
+    }
+  }
+  if (nodes.length < required) throw new Error(`Expected ${required} generated performance resource nodes, found ${nodes.length}`);
+  return nodes;
+}
+
+async function prepareMutationUser(user, node) {
+  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  try {
+    await pool.query(
+      "INSERT INTO player_profiles(user_id,x,y) VALUES($1,$2,$3) ON CONFLICT(user_id) DO UPDATE SET x=EXCLUDED.x,y=EXCLUDED.y",
+      [user.id, node.x, node.y],
+    );
+  } finally {
+    await pool.end();
+  }
+}
+
+async function exerciseGatherMutation(socket, user, node, scenario) {
+  const requestId = `performance-gather-${scenario}`;
+  const itemId = node.type === "wood" ? "resource.wood" : node.type === "stone" ? "resource.stone" : "resource.herb";
+  const expectedQuantity = node.type === "herb" ? 1 : 2;
+
+  const result = await new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      socket.off("message", onMessage);
+      reject(new Error(`Gameplay mutation timed out: gather_resource ${node.id}`));
+    }, 5000);
+
+    function onMessage(raw) {
+      try {
+        const value = JSON.parse(raw.toString());
+        if (value.type !== "resource_gathered" && value.type !== "error") return;
+        clearTimeout(timer);
+        socket.off("message", onMessage);
+        resolve(value);
+      } catch {}
+    }
+
+    socket.on("message", onMessage);
+    socket.send(JSON.stringify({ type: "gather_resource", requestId, resourceId: node.id }));
+  });
+
+  if (result.type === "error") throw new Error(`Gameplay mutation failed: ${result.code}`);
+  if (result.type !== "resource_gathered" ||
+      result.requestId !== requestId ||
+      result.resourceId !== node.id ||
+      result.itemId !== itemId ||
+      result.quantity !== expectedQuantity) {
+    throw new Error(`Gameplay mutation returned invalid result for ${node.id}`);
+  }
+
+  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  try {
+    const profile = await pool.query(
+      "SELECT inventory->>$2 AS quantity FROM player_profiles WHERE user_id=$1",
+      [user.id, itemId],
+    );
+    if (Number(profile.rows[0]?.quantity ?? 0) < expectedQuantity) {
+      throw new Error(`Gameplay mutation did not persist inventory for ${node.id}`);
+    }
+    const nodeState = await pool.query(
+      "SELECT depleted_until FROM world_resource_nodes WHERE node_id=$1",
+      [node.id],
+    );
+    const depletedUntil = nodeState.rows[0]?.depleted_until;
+    if (!depletedUntil || new Date(depletedUntil).getTime() <= Date.now()) {
+      throw new Error(`Gameplay mutation did not persist resource depletion for ${node.id}`);
+    }
+  } finally {
+    await pool.end();
+  }
+
+  return { action: "gather_resource", resourceId: node.id, itemId, quantity: expectedQuantity, persisted: true };
+}
+
 async function waitForPong(socket) {
   return new Promise((resolve) => {
     const timer = setTimeout(() => {
@@ -103,7 +192,7 @@ async function waitForPong(socket) {
   });
 }
 
-async function wsLoad(playerCount, users) {
+async function wsLoad(playerCount, users, mutationUser, mutationNode, scenario) {
   const sockets = [];
   const latencies = [];
   let connected = 0;
@@ -173,6 +262,13 @@ async function wsLoad(playerCount, users) {
     throw new Error(`Player-load establishment failed: requested=${playerCount} connected=${connected} authenticated=${authenticated} errors=${errors}`);
   }
 
+  const mutationIndex = users.findIndex((user) => user.id === mutationUser.id);
+  if (mutationIndex < 0 || mutationIndex >= sockets.length) {
+    for (const socket of sockets) socket.close();
+    throw new Error("Performance mutation user was not included in this scenario");
+  }
+  const gameplayMutation = await exerciseGatherMutation(sockets[mutationIndex], mutationUser, mutationNode, scenario);
+
   const end = Date.now() + durationMs;
   let pings = 0;
   let pongs = 0;
@@ -203,6 +299,7 @@ async function wsLoad(playerCount, users) {
     connected,
     authenticated,
     errors,
+    gameplayMutation,
     pings,
     pongs,
     pingSuccessRate,
@@ -213,13 +310,19 @@ async function wsLoad(playerCount, users) {
 }
 
 const users = await loadTestUsers();
+const mutationNodes = await loadMutationNodes(levels.length);
 const scenarios = [];
 
-for (const players of levels) {
+for (let index = 0; index < levels.length; index += 1) {
+  const players = levels[index];
+  const mutationUser = users[index];
+  const mutationNode = mutationNodes[index];
+  await prepareMutationUser(mutationUser, mutationNode);
+
   const result = {
     players,
     http: await httpLoad(),
-    websocket: await wsLoad(players, users),
+    websocket: await wsLoad(players, users, mutationUser, mutationNode, index + 1),
   };
   if (result.http.errors !== 0) {
     throw new Error(`HTTP load failed at ${players} players: ${result.http.errors} errors`);
