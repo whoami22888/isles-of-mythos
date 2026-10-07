@@ -35,6 +35,7 @@ import { AuctionStore } from "./auction.js";
 import { WorldEventCoordinator } from "./world-events.js";
 import { EndgameStore } from "./endgame.js";
 import { TerritorySeasonStore } from "./territory-seasons.js";
+import { registerFrontendRoutes } from "./frontend.js";
 
 function errorCode(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
