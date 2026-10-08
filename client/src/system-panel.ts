@@ -178,7 +178,6 @@ export class SystemPanel {
       } },
     ];
     if (this.category === "BASE") return [
-      ask("CURRENT BASE", "get_base"),
       { label: "CREATE BASE", run: () => { const position = this.playerPosition(); const name = this.prompt("Base name"); if (name && position) this.request("create_base", { name, x: Math.round(position.x), y: Math.round(position.y) }); } },
       { label: "DEFENSES", run: () => { if (this.selectedBaseId) this.request("list_defenses", { baseId: this.selectedBaseId }); } },
       { label: "BUILD", run: () => { const buildingType = this.prompt("Building type"); const level = Number(this.prompt("Level") ?? "1"); const gridX = Number(this.prompt("Grid X") ?? "0"); const gridY = Number(this.prompt("Grid Y") ?? "0"); if (this.selectedBaseId && buildingType && Number.isSafeInteger(level) && Number.isSafeInteger(gridX) && Number.isSafeInteger(gridY)) this.request("build", { baseId: this.selectedBaseId, buildingType, level, gridX, gridY }); } },
