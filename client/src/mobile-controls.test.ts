@@ -31,7 +31,8 @@ describe("mobile touch controls", () => {
   it("uses the same safe layout strategy for portrait and landscape", () => {
     const portrait = getMobileLayout(480, 800);
     const landscape = getMobileLayout(800, 480);
-    expect(portrait.joystickX).toBeLessThan(landscape.joystickX);
+    expect(portrait.joystickX).toBe(landscape.joystickX);
+    expect(portrait.radius).toBe(landscape.radius);
     expect(portrait.joystickY).toBeGreaterThan(landscape.joystickY);
   });
 });
