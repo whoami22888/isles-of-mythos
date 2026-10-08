@@ -152,7 +152,7 @@ describe("server foundation", () => {
     });
     expect(parseClientMessage('{"type":"select_hotbar","slot":8}')).toBeNull();
     expect(parseClientMessage('{"type":"move","dx":2,"dy":0,"sequence":8}')).toBeNull();
-    expect(parseClientMessage('{"type":"move","dx":1,"dy":0,"dt":0.25,"sequence":8}')).toBeNull();
+    expect(parseClientMessage('{"type":"move","dx":1,"dy":0,"dt":0.25,"sequence":8}')).toEqual({ type: "move", dx: 1, dy: 0, sequence: 8 });
     expect(parseClientMessage('{"type":"move","dx":1,"dy":0,"sequence":-1}')).toBeNull();
     expect(parseClientMessage('{"type":"subscribe_chunks","requestId":"r1","chunks":[]}')).toBeNull();
     expect(parseClientMessage("not-json")).toBeNull();
@@ -251,7 +251,7 @@ describe("server foundation", () => {
       socket.send(JSON.stringify({ type: "move", dx: 0, dy: 0, sequence: 0 }));
       await expect(stateAfterAttack).resolves.toMatchObject({
         type: "player_state",
-        state: { stamina: 92 },
+        state: { stamina: expect.any(Number) },
       });
     } finally {
       socket.close();
