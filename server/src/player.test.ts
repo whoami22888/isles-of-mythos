@@ -52,11 +52,11 @@ describe("player survival and movement", () => {
     const authority = new MovementAuthority();
     authority.evaluate("flood", { dx: 1, dy: 0, sequence: 0 }, 1_000);
     let decision = authority.evaluate("flood", { dx: 1, dy: 0, sequence: 1 }, 1_001);
-    for (let sequence = 2; sequence <= MOVEMENT_MAX_PACKETS_PER_SECOND; sequence += 1) {
+    for (let sequence = 2; sequence < MOVEMENT_MAX_PACKETS_PER_SECOND; sequence += 1) {
       decision = authority.evaluate("flood", { dx: 1, dy: 0, sequence }, 1_001 + sequence);
     }
     expect(decision.accepted).toBe(true);
-    expect(authority.evaluate("flood", { dx: 1, dy: 0, sequence: MOVEMENT_MAX_PACKETS_PER_SECOND + 1 }, 1_040).reason).toBe("RATE_LIMITED");
+    expect(authority.evaluate("flood", { dx: 1, dy: 0, sequence: MOVEMENT_MAX_PACKETS_PER_SECOND }, 1_041).reason).toBe("RATE_LIMITED");
   });
   it("bounds sustained movement to server time rather than packet count", () => {
     const authority = new MovementAuthority();
