@@ -25,7 +25,23 @@ export type ClientMessage =
   | { type:"shop_purchase"; requestId:string; itemId:string; quantity:number }
   | { type:"trade"; requestId:string; toUserId:string; gold:string; items:Array<{itemId:string;quantity:number}> }
   | { type:"start_breeding"; requestId:string; baseId:string; penBuildingId:string; parentAId:string; parentBId:string; durationMs?:number }
-  | { type:"list_breeding"; requestId:string };
+  | { type:"list_breeding"; requestId:string }
+  | { type:"create_ship"; requestId:string; name:string; shipClass:string }
+  | { type:"list_ships"; requestId:string }
+  | { type:"ship_inventory"; requestId:string; shipId:string }
+  | { type:"ship_cargo"; requestId:string; shipId:string; itemId:string; quantity:number }
+  | { type:"create_fleet"; requestId:string; name:string; shipId:string }
+  | { type:"list_fleets"; requestId:string }
+  | { type:"add_fleet_ship"; requestId:string; fleetId:string; shipId:string }
+  | { type:"remove_fleet_ship"; requestId:string; fleetId:string; shipId:string }
+  | { type:"sail"; requestId:string; shipId:string; dx:number; dy:number; dt:number }
+  | { type:"assign_ship_crew"; requestId:string; shipId:string; creatureId:string; role:string; skill:number; morale:number }
+  | { type:"fire_cannon"; requestId:string; shipId:string; targetShipId:string }
+  | { type:"assign_ship_npc_crew"; requestId:string; shipId:string; npcType:"pirate"|"mermaid"|"dragon"|"npc_specialist"; role:string; skill:number; morale:number }
+  | { type:"board_ship"; requestId:string; shipId:string; targetShipId:string }
+  | { type:"repair_ship"; requestId:string; shipId:string }
+  | { type:"retreat_ship"; requestId:string; shipId:string }
+  | { type:"fight_ship_fire"; requestId:string; shipId:string };
 
 export type ServerMessage =
   | { type:"server_ready"; timestamp:number }
@@ -44,12 +60,19 @@ export type ServerMessage =
   | { type:"trade_result"; requestId:string; from:unknown; to:unknown }
   | { type:"breeding_started"; requestId:string; job:unknown }
   | { type:"breeding_jobs"; requestId:string; jobs:unknown[] }
+  | { type:"ship_state"; requestId:string; ship:unknown }
+  | { type:"ship_list"; requestId:string; ships:unknown[] }
+  | { type:"ship_inventory"; requestId:string; shipId:string; items:unknown[] }
+  | { type:"ship_crew"; requestId:string; crew:unknown }
+  | { type:"fleet_state"; requestId:string; fleet:unknown }
+  | { type:"fleet_list"; requestId:string; fleets:unknown[] }
+  | { type:"naval_combat_result"; requestId:string; attacker:unknown; target:unknown; damage:number; fireStarted?:boolean; captured?:boolean }
   | { type:"error"; code:
       | "INVALID_MESSAGE"|"UNSUPPORTED_MESSAGE"|"AUTH_REQUIRED"|"INVALID_TOKEN"|"COMBAT_COOLDOWN"|"OUT_OF_RANGE"|"NO_STAMINA"|"NO_AMMO"|"COMBAT_IN_PROGRESS"|"PLAYER_DEAD"|"PLAYER_STUNNED"|"RATE_LIMITED"
       | "CREATURE_TOO_HEALTHY"|"NO_CAPTURE_ORB"|"CREATURE_ALREADY_CAPTURED"|"CREATURE_NOT_FOUND"|"NO_CREATURE_FEED"|"CREATURE_NOT_TAMED"|"INVALID_PARTY_SLOT"
       | "BASE_ALREADY_EXISTS"|"BASE_NOT_FOUND"|"BASE_PERMISSION_DENIED"|"INVALID_BASE_COORDINATES"|"INVALID_BUILDING_TYPE"|"INVALID_BUILDING_LEVEL"
       | "INVALID_BUILDING_POSITION"|"BUILDING_POSITION_OCCUPIED"|"BUILDING_PREREQUISITE_MISSING"|"BUILDING_NOT_FOUND"|"BUILDING_MAX_LEVEL"
-      | "INSUFFICIENT_STORAGE"|"STORAGE_CAPACITY_EXCEEDED"|"INVALID_STORAGE_QUANTITY"|"INSUFFICIENT_INVENTORY"|"PLAYER_NOT_FOUND"|"INVALID_WORK_TASK"|"CREATURE_IN_PARTY"|"WORKER_CAPACITY_REACHED"
+      | "INSUFFICIENT_STORAGE"|"STORAGE_CAPACITY_EXCEEDED"|"INVALID_STORAGE_QUANTITY"|"INSUFFICIENT_INVENTORY"|"PLAYER_NOT_FOUND"|"INVALID_WORK_TASK"|"CREATURE_IN_PARTY"|"WORKER_CAPACITY_REACHED"|"INVALID_SHIP_CLASS"|"SHIPYARD_REQUIRED"|"INSUFFICIENT_SHIPYARD_RESOURCES"|"INVALID_SHIP_CARGO"|"INSUFFICIENT_SHIP_CARGO"|"SHIP_CARGO_CAPACITY_EXCEEDED"|"FLEET_NOT_FOUND"|"SHIP_ALREADY_IN_FLEET"|"SHIP_NOT_IN_FLEET"|"FLEET_COMMANDER_REQUIRED"|"INVALID_SAIL_INPUT"|"SHIP_NOT_FOUND"|"SHIP_NOT_ACTIVE"|"INSUFFICIENT_SHIP_FUEL"|"INVALID_CREW_ASSIGNMENT"|"SHIP_CREW_CAPACITY_REACHED"|"CREW_CREATURE_NOT_FOUND"|"CREW_CREATURE_NOT_TAMED"|"CREW_CREATURE_IN_PARTY"|"CREW_ALREADY_ASSIGNED"|"INVALID_NAVAL_TARGET"|"TARGET_SHIP_NOT_ACTIVE"|"NAVAL_TARGET_OUT_OF_RANGE"|"CANNON_COOLDOWN"|"NO_CANNON_AMMO"|"CANNON_OUTSIDE_ARC"|"SHIP_RETREATING"|"TARGET_SHIP_RETREATING"|"BOARDING_OUT_OF_RANGE"|"SHIP_FULL_HEALTH"|"NO_REPAIR_LUMBER"|"SHIP_NOT_ON_FIRE"|"INVALID_WIND"
       | "RECIPE_NOT_FOUND"|"INVENTORY_LIMIT"|"SHOP_ITEM_NOT_FOUND"|"INVALID_PURCHASE_QUANTITY"|"INSUFFICIENT_GOLD"|"TRADE_REQUEST_CONFLICT"|"INVALID_TRADE_REQUEST"|"INVALID_TRADE_PARTICIPANTS"|"INVALID_TRADE_ITEMS"|"INVALID_TRADE_ITEM"|"INVALID_TRADE_QUANTITY"
       | "BUILD_FAILED"|"BASE_CREATE_FAILED"|"BREEDING_PEN_NOT_FOUND"|"BREEDING_CAPACITY_REACHED"|"BREEDING_PEN_BUSY"|"INVALID_BREEDING_DURATION"|"BREEDING_PARENTS_MUST_DIFFER"|"INCOMPATIBLE_BREEDING_PARENTS"|"BREEDING_GENERATION_LIMIT"|"POPULATION_LIMIT_REACHED"|"NO_BREEDING_FEED"|"BREEDING_PARENT_MISSING"|"STORAGE_UPDATE_FAILED"|"UPGRADE_FAILED"|"PERMISSION_UPDATE_FAILED"|"WORKER_UPDATE_FAILED"|"PRIORITY_UPDATE_FAILED" };
 
@@ -103,6 +126,19 @@ export function parseClientMessage(raw:string):ClientMessage|null{
     }
     if(type==="start_breeding"){const id=(value as {requestId?:unknown}).requestId,baseId=(value as {baseId?:unknown}).baseId,penBuildingId=(value as {penBuildingId?:unknown}).penBuildingId,parentAId=(value as {parentAId?:unknown}).parentAId,parentBId=(value as {parentBId?:unknown}).parentBId,durationMs=(value as {durationMs?:unknown}).durationMs;if(!requestId(id)||![baseId,penBuildingId,parentAId,parentBId].every(v=>typeof v==="string"&&v.length>0&&v.length<=64)||(durationMs!==undefined&&(!isSafeInteger(durationMs)||durationMs<=0||durationMs>86400000)))return null;return {type:"start_breeding",requestId:id,baseId:baseId as string,penBuildingId:penBuildingId as string,parentAId:parentAId as string,parentBId:parentBId as string,...(durationMs===undefined?{}:{durationMs})};}
     if(type==="list_breeding"){const id=(value as {requestId?:unknown}).requestId;return requestId(id)?{type:"list_breeding",requestId:id}:null;}
+    if(type==="create_ship"){const id=(value as {requestId?:unknown}).requestId,name=(value as {name?:unknown}).name,shipClass=(value as {shipClass?:unknown}).shipClass;if(!requestId(id)||typeof name!=="string"||name.length>64||typeof shipClass!=="string"||shipClass.length===0||shipClass.length>32)return null;return {type:"create_ship",requestId:id,name,shipClass};}
+    if(type==="list_ships"){const id=(value as {requestId?:unknown}).requestId;return requestId(id)?{type:"list_ships",requestId:id}:null;}
+    if(type==="ship_inventory"){const id=(value as {requestId?:unknown}).requestId,shipId=(value as {shipId?:unknown}).shipId;return requestId(id)&&typeof shipId==="string"&&shipId.length>0&&shipId.length<=64?{type:"ship_inventory",requestId:id,shipId}:null;}
+    if(type==="ship_cargo"){const id=(value as {requestId?:unknown}).requestId,shipId=(value as {shipId?:unknown}).shipId,itemId=(value as {itemId?:unknown}).itemId,quantity=(value as {quantity?:unknown}).quantity;return requestId(id)&&typeof shipId==="string"&&shipId.length>0&&shipId.length<=64&&typeof itemId==="string"&&itemId.length>0&&itemId.length<=128&&isSafeInteger(quantity)&&quantity!==0&&Math.abs(quantity)<=1_000_000?{type:"ship_cargo",requestId:id,shipId,itemId,quantity}:null;}
+    if(type==="create_fleet"){const id=(value as {requestId?:unknown}).requestId,name=(value as {name?:unknown}).name,shipId=(value as {shipId?:unknown}).shipId;return requestId(id)&&typeof name==="string"&&name.length>0&&name.length<=64&&typeof shipId==="string"&&shipId.length>0&&shipId.length<=64?{type:"create_fleet",requestId:id,name,shipId}:null;}
+    if(type==="list_fleets"){const id=(value as {requestId?:unknown}).requestId;return requestId(id)?{type:"list_fleets",requestId:id}:null;}
+    if(type==="add_fleet_ship"||type==="remove_fleet_ship"){const id=(value as {requestId?:unknown}).requestId,fleetId=(value as {fleetId?:unknown}).fleetId,shipId=(value as {shipId?:unknown}).shipId;return requestId(id)&&typeof fleetId==="string"&&fleetId.length>0&&fleetId.length<=64&&typeof shipId==="string"&&shipId.length>0&&shipId.length<=64?{type,requestId:id,fleetId,shipId}:null;}
+    if(type==="sail"){const id=(value as {requestId?:unknown}).requestId,shipId=(value as {shipId?:unknown}).shipId,dx=(value as {dx?:unknown}).dx,dy=(value as {dy?:unknown}).dy,dt=(value as {dt?:unknown}).dt;return requestId(id)&&typeof shipId==="string"&&shipId.length>0&&shipId.length<=64&&isFiniteNumber(dx)&&isFiniteNumber(dy)&&isFiniteNumber(dt)&&dt>0&&dt<=60&&Math.abs(dx)<=1&&Math.abs(dy)<=1&&(dx!==0||dy!==0)?{type:"sail",requestId:id,shipId,dx,dy,dt}:null;}
+    if(type==="assign_ship_crew"){const id=(value as {requestId?:unknown}).requestId,shipId=(value as {shipId?:unknown}).shipId,creatureId=(value as {creatureId?:unknown}).creatureId,role=(value as {role?:unknown}).role,skill=(value as {skill?:unknown}).skill,morale=(value as {morale?:unknown}).morale;return requestId(id)&&typeof shipId==="string"&&typeof creatureId==="string"&&typeof role==="string"&&shipId.length>0&&creatureId.length>0&&role.length>0&&role.length<=32&&isSafeInteger(skill)&&skill>=1&&skill<=100&&isSafeInteger(morale)&&morale>=0&&morale<=100?{type:"assign_ship_crew",requestId:id,shipId,creatureId,role,skill,morale}:null;}
+    if(type==="fire_cannon"){const id=(value as {requestId?:unknown}).requestId,shipId=(value as {shipId?:unknown}).shipId,targetShipId=(value as {targetShipId?:unknown}).targetShipId;return requestId(id)&&typeof shipId==="string"&&typeof targetShipId==="string"&&shipId.length>0&&targetShipId.length>0?{type:"fire_cannon",requestId:id,shipId,targetShipId}:null;}
+    if(type==="assign_ship_npc_crew"){const id=(value as {requestId?:unknown}).requestId,shipId=(value as {shipId?:unknown}).shipId,npcType=(value as {npcType?:unknown}).npcType,role=(value as {role?:unknown}).role,skill=(value as {skill?:unknown}).skill,morale=(value as {morale?:unknown}).morale;return requestId(id)&&typeof shipId==="string"&&shipId.length>0&&typeof npcType==="string"&&["pirate","mermaid","dragon","npc_specialist"].includes(npcType)&&typeof role==="string"&&role.length>0&&role.length<=32&&isSafeInteger(skill)&&skill>=1&&skill<=100&&isSafeInteger(morale)&&morale>=0&&morale<=100?{type:"assign_ship_npc_crew",requestId:id,shipId,npcType:npcType as "pirate"|"mermaid"|"dragon"|"npc_specialist",role,skill,morale}:null;}
+    if(type==="board_ship"){const id=(value as {requestId?:unknown}).requestId,shipId=(value as {shipId?:unknown}).shipId,targetShipId=(value as {targetShipId?:unknown}).targetShipId;return requestId(id)&&typeof shipId==="string"&&typeof targetShipId==="string"&&shipId.length>0&&targetShipId.length>0?{type:"board_ship",requestId:id,shipId,targetShipId}:null;}
+    if(type==="repair_ship"||type==="retreat_ship"||type==="fight_ship_fire"){const id=(value as {requestId?:unknown}).requestId,shipId=(value as {shipId?:unknown}).shipId;return requestId(id)&&typeof shipId==="string"&&shipId.length>0&&shipId.length<=64?{type,requestId:id,shipId}:null;}
     if(type==="attack"){
       const id=(value as {requestId?:unknown}).requestId,targetId=(value as {targetId?:unknown}).targetId,facingX=(value as {facingX?:unknown}).facingX,facingY=(value as {facingY?:unknown}).facingY;
       if(!requestId(id)||typeof targetId!=="string"||targetId.length===0||targetId.length>128||!isFiniteNumber(facingX)||!isFiniteNumber(facingY)||Math.abs(facingX)>1||Math.abs(facingY)>1||(facingX===0&&facingY===0))return null;
