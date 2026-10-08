@@ -267,7 +267,7 @@ export class BaseStore {
       const base=await this.load(userId); if(!base)throw new Error("BASE_NOT_FOUND");
       if(!BaseStore.can(userId,base,"storage"))throw new Error("BASE_PERMISSION_DENIED");
       this.validateStorageChanges(base,changes);
-      if(!requestId||requestId.length>128)throw new Error("INVALID_REQUEST_ID");
+      if(!requestId||requestId.length>64)throw new Error("INVALID_REQUEST_ID");
       const client=await this.db.connect();
       try{
         await client.query("BEGIN");
