@@ -140,18 +140,20 @@ describe("server foundation", () => {
       requestId: "r1",
       chunks: [{ x: 0, y: 0 }],
     });
-    expect(parseClientMessage('{"type":"move","dx":1,"dy":0,"dt":0.1}')).toEqual({
+    expect(parseClientMessage('{"type":"move","dx":1,"dy":0,"sequence":7}')).toEqual({
       type: "move",
       dx: 1,
       dy: 0,
-      dt: 0.1,
+      sequence: 7,
     });
     expect(parseClientMessage('{"type":"select_hotbar","slot":7}')).toEqual({
       type: "select_hotbar",
       slot: 7,
     });
     expect(parseClientMessage('{"type":"select_hotbar","slot":8}')).toBeNull();
-    expect(parseClientMessage('{"type":"move","dx":2,"dy":0,"dt":0.1}')).toBeNull();
+    expect(parseClientMessage('{"type":"move","dx":2,"dy":0,"sequence":8}')).toBeNull();
+    expect(parseClientMessage('{"type":"move","dx":1,"dy":0,"dt":0.25,"sequence":8}')).toBeNull();
+    expect(parseClientMessage('{"type":"move","dx":1,"dy":0,"sequence":-1}')).toBeNull();
     expect(parseClientMessage('{"type":"subscribe_chunks","requestId":"r1","chunks":[]}')).toBeNull();
     expect(parseClientMessage("not-json")).toBeNull();
   });
