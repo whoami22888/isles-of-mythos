@@ -13,4 +13,6 @@ Important mutations use PostgreSQL transactions and row/advisory locks. Currency
 Realm wars, guild battles, endgame creatures, mythic content and territory seasons are represented by dedicated migrations and server-side stores. Scores, contributions, rewards and season standings are persisted in PostgreSQL.
 
 ## Migrations
-Migrations are forward-only project history and are exercised in CI. CI #858 successfully applied migrations and completed PostgreSQL backup/restore verification.
+Migrations are forward-only project history and are exercised in CI. Historical CI #858 successfully applied migrations and completed PostgreSQL backup/restore verification on its original workflow commit; that historical result must not be treated as current-main evidence.
+
+Current main HEAD is `83e4c14b94861c0585c1a50993f7297ad0dda497`, verified from GitHub on 2026-10-08.
