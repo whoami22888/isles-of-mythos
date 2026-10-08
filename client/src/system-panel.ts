@@ -103,7 +103,7 @@ export class SystemPanel {
   private actions(): Action[] {
     const ask = (label: string, type: string, payload: Record<string, unknown> = {}): Action => ({ label, run: () => this.request(type, payload) });
     if (this.category === "INVENTORY") {
-      return [{ label: "REFRESH INVENTORY", run: () => this.request("get_player_state") }];
+      return [];
     }
     if (this.category === "CRAFT") return RECIPES.map(([id, name, ingredients]) => ({
       label: name + " • " + ingredients,
@@ -115,9 +115,8 @@ export class SystemPanel {
     }));
     if (this.category === "TRADE") return [
       { label: "LOAD FRIENDS", run: () => this.request("list_friends") },
-      { label: "TRADE SELECTED FRIEND", run: () => {
-        if (!this.selectedTradeTarget) return;
-        this.request("trade", { toUserId: this.selectedTradeTarget, gold: "0", items: [] });
+      { label: "SELECTED FRIEND", run: () => {
+        this.result.setText(this.selectedTradeTarget ? "Selected trade target: " + this.selectedTradeTarget : "Load friends first.");
       } },
     ];
     if (this.category === "SOCIAL") return [
