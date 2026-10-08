@@ -46,6 +46,8 @@ export class SystemPanel {
   private selectedGuildId?: string;
   private selectedGuildInvitationId?: string;
   private selectedBaseId?: string;
+  private selectedShipId?: string;
+  private selectedFleetId?: string;
   private open = false;
   private readonly pending = new Set<string>();
 
@@ -93,6 +95,18 @@ export class SystemPanel {
       const first = isRecord(message.invitations) ? message.invitations["0"] : undefined;
       this.selectedGuildInvitationId = isRecord(first) && typeof first.id === "string" ? first.id : undefined;
       this.result.setText(this.selectedGuildInvitationId ? "Invitation selected." : "No guild invitations.");
+      return;
+    }
+    if (message.type === "ship_list") {
+      const first = isRecord(message.ships) ? message.ships["0"] : undefined;
+      this.selectedShipId = isRecord(first) && typeof first.id === "string" ? first.id : undefined;
+      this.result.setText(this.selectedShipId ? "Ship selected: " + this.selectedShipId : "No ships available.");
+      return;
+    }
+    if (message.type === "fleet_list") {
+      const first = isRecord(message.fleets) ? message.fleets["0"] : undefined;
+      this.selectedFleetId = isRecord(first) && typeof first.id === "string" ? first.id : undefined;
+      this.result.setText(this.selectedFleetId ? "Fleet selected: " + this.selectedFleetId : "No fleets available.");
       return;
     }
     if (message.type === "base_state") {
@@ -196,17 +210,17 @@ export class SystemPanel {
       } },
     ];
     if (this.category === "SHIPS") return [
-      ask("SHIPS", "list_ships"), ask("FLEETS", "list_fleets"),
+      ask("LOAD SHIPS", "list_ships"), ask("LOAD FLEETS", "list_fleets"),
       { label: "CREATE SHIP", run: () => { const name = this.prompt("Ship name"); const shipClass = this.prompt("Ship class"); if (name && shipClass) this.request("create_ship", { name, shipClass }); } },
-      { label: "SHIP INVENTORY", run: () => { const shipId = this.prompt("Ship ID"); if (shipId) this.request("ship_inventory", { shipId }); } },
-      { label: "CARGO", run: () => { const shipId = this.prompt("Ship ID"); const itemId = this.prompt("Item ID"); const quantity = Number(this.prompt("Quantity")); if (shipId && itemId && Number.isSafeInteger(quantity)) this.request("ship_cargo", { shipId, itemId, quantity }); } },
-      { label: "CREW", run: () => { const shipId = this.prompt("Ship ID"); const creatureId = this.prompt("Creature ID"); const role = this.prompt("Crew role"); const skill = Number(this.prompt("Skill")); const morale = Number(this.prompt("Morale")); if (shipId && creatureId && role && Number.isSafeInteger(skill) && Number.isSafeInteger(morale)) this.request("assign_ship_crew", { shipId, creatureId, role, skill, morale }); } },
-      { label: "SAIL", run: () => { const shipId = this.prompt("Ship ID"); const dx = Number(this.prompt("Direction X")); const dy = Number(this.prompt("Direction Y")); const dt = Number(this.prompt("Duration seconds")); if (shipId && Number.isFinite(dx) && Number.isFinite(dy) && Number.isFinite(dt)) this.request("sail", { shipId, dx, dy, dt }); } },
-      { label: "REPAIR", run: () => { const shipId = this.prompt("Ship ID"); if (shipId) this.request("repair_ship", { shipId }); } },
-      { label: "CANNON", run: () => { const shipId = this.prompt("Your ship ID"); const targetShipId = this.prompt("Target ship ID"); if (shipId && targetShipId) this.request("fire_cannon", { shipId, targetShipId }); } },
-      { label: "BOARD", run: () => { const shipId = this.prompt("Your ship ID"); const targetShipId = this.prompt("Target ship ID"); if (shipId && targetShipId) this.request("board_ship", { shipId, targetShipId }); } },
-      { label: "RETREAT", run: () => { const shipId = this.prompt("Ship ID"); if (shipId) this.request("retreat_ship", { shipId }); } },
-      { label: "CREATE FLEET", run: () => { const name = this.prompt("Fleet name"); const shipId = this.prompt("Initial ship ID"); if (name && shipId) this.request("create_fleet", { name, shipId }); } },
+      { label: "SHIP INVENTORY", run: () => { if (this.selectedShipId) this.request("ship_inventory", { shipId: this.selectedShipId }); } },
+      { label: "CARGO", run: () => { const itemId = this.prompt("Item ID"); const quantity = Number(this.prompt("Quantity")); if (this.selectedShipId && itemId && Number.isSafeInteger(quantity)) this.request("ship_cargo", { shipId: this.selectedShipId, itemId, quantity }); } },
+      { label: "CREW", run: () => { const creatureId = this.prompt("Creature ID"); const role = this.prompt("Crew role"); const skill = Number(this.prompt("Skill")); const morale = Number(this.prompt("Morale")); if (this.selectedShipId && creatureId && role && Number.isSafeInteger(skill) && Number.isSafeInteger(morale)) this.request("assign_ship_crew", { shipId: this.selectedShipId, creatureId, role, skill, morale }); } },
+      { label: "SAIL", run: () => { const dx = Number(this.prompt("Direction X")); const dy = Number(this.prompt("Direction Y")); const dt = Number(this.prompt("Duration seconds")); if (this.selectedShipId && Number.isFinite(dx) && Number.isFinite(dy) && Number.isFinite(dt)) this.request("sail", { shipId: this.selectedShipId, dx, dy, dt }); } },
+      { label: "REPAIR", run: () => { if (this.selectedShipId) this.request("repair_ship", { shipId: this.selectedShipId }); } },
+      { label: "CANNON", run: () => { const targetShipId = this.prompt("Target ship ID"); if (this.selectedShipId && targetShipId) this.request("fire_cannon", { shipId: this.selectedShipId, targetShipId }); } },
+      { label: "BOARD", run: () => { const targetShipId = this.prompt("Target ship ID"); if (this.selectedShipId && targetShipId) this.request("board_ship", { shipId: this.selectedShipId, targetShipId }); } },
+      { label: "RETREAT", run: () => { if (this.selectedShipId) this.request("retreat_ship", { shipId: this.selectedShipId }); } },
+      { label: "CREATE FLEET", run: () => { const name = this.prompt("Fleet name"); if (name && this.selectedShipId) this.request("create_fleet", { name, shipId: this.selectedShipId }); } },
     ];
     if (this.category === "REALMS") return [
       ask("REALMS", "list_realms"), ask("TERRITORIES", "list_territories"), ask("FORTRESSES", "list_realm_fortresses"),
