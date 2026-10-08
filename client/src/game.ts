@@ -480,7 +480,6 @@ class WorldScene extends Phaser.Scene {
       if (action === "dodge") this.dodge();
       if (action === "capture") this.captureNearest();
       if (action === "gather") this.gatherNearest();
-      if (action === "inventory") this.systems?.openCategory("CRAFT");
     });
     this.mobileHud = this.add.container(0, 0).setScrollFactor(0).setDepth(1400);
     this.mobileStatus = this.add.text(0, 0, "TOUCH CONTROLS", {
