@@ -38,6 +38,7 @@ class WorldScene extends Phaser.Scene {
   private combatText?: Phaser.GameObjects.Text;
   private attackAccumulator = 0;
   private attackRequestSequence = 0;
+  private movementSequence = 0;
   private reconnectTimer?: number;
   private reconnectAttempt = 0;
   private dodgeAccumulator = 0;
@@ -107,7 +108,8 @@ class WorldScene extends Phaser.Scene {
     if (this.cursors?.up.isDown || this.keys?.W.isDown) dy -= 1;
     if (this.cursors?.down.isDown || this.keys?.S.isDown) dy += 1;
     try {
-      this.socket.send(JSON.stringify({ type: "move", dx, dy, dt }));
+      this.movementSequence += 1;
+      this.socket.send(JSON.stringify({ type: "move", dx, dy, sequence: this.movementSequence }));
     } catch {
       this.connected = false;
       this.statusText?.setText("WORLD CONNECTION FAILED");
