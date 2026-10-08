@@ -12,7 +12,7 @@ export type ClientMessage =
   | { type:"auth"; token:string }
   | { type:"subscribe_chunks"; requestId:string; chunks:ChunkCoordinate[] }
   | { type:"gather_resource"; requestId:string; resourceId:string }
-  | { type:"move"; dx:number; dy:number; dt:number }
+  | { type:"move"; dx:number; dy:number; sequence:number }
   | { type:"select_hotbar"; slot:number }
   | { type:"attack"; requestId:string; targetId:string; facingX:number; facingY:number }
   | { type:"dodge"; facingX:number; facingY:number }
@@ -240,7 +240,7 @@ export function parseClientMessage(raw:string):ClientMessage|null{
       const coordinates:ChunkCoordinate[]=[]; for(const chunk of chunks){if(typeof chunk!=="object"||chunk===null)return null;const x=(chunk as {x?:unknown}).x,y=(chunk as {y?:unknown}).y;if(!isSafeInteger(x)||!isSafeInteger(y)||Math.abs(x)>1_000_000||Math.abs(y)>1_000_000)return null;coordinates.push({x,y});}
       return {type:"subscribe_chunks",requestId:id,chunks:coordinates};
     }
-    if(type==="move"){const dx=(value as {dx?:unknown}).dx,dy=(value as {dy?:unknown}).dy,dt=(value as {dt?:unknown}).dt;if(!isFiniteNumber(dx)||!isFiniteNumber(dy)||!isFiniteNumber(dt)||Math.abs(dx)>1||Math.abs(dy)>1||dt<0||dt>0.25)return null;return {type:"move",dx,dy,dt};}
+    if(type==="move"){const dx=(value as {dx?:unknown}).dx,dy=(value as {dy?:unknown}).dy,sequence=(value as {sequence?:unknown}).sequence;if(!isFiniteNumber(dx)||!isFiniteNumber(dy)||!isSafeInteger(sequence)||sequence<0||Math.abs(dx)>1||Math.abs(dy)>1)return null;return {type:"move",dx,dy,sequence};}
     if(type==="select_hotbar"){const slot=(value as {slot?:unknown}).slot;return isSafeInteger(slot)&&slot>=0&&slot<8?{type:"select_hotbar",slot}:null;}
     if(type==="dodge"){const facingX=(value as {facingX?:unknown}).facingX,facingY=(value as {facingY?:unknown}).facingY;if(!isFiniteNumber(facingX)||!isFiniteNumber(facingY)||Math.abs(facingX)>1||Math.abs(facingY)>1||(facingX===0&&facingY===0))return null;return {type:"dodge",facingX,facingY};}
     if(type==="block"){const active=(value as {active?:unknown}).active;return typeof active==="boolean"?{type:"block",active}:null;}
