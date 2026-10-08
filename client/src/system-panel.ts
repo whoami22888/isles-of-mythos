@@ -1,8 +1,10 @@
 import type Phaser from "phaser";
 import type { ServerMessage } from "./network.js";
+import type { PlayerState } from "./player.js";
 
 type SendMessage = (message: Record<string, unknown>) => void;
 type PlayerPosition = () => { x: number; y: number } | null;
+type PlayerStateReader = () => PlayerState | null;
 
 type Action = { label: string; run: () => void };
 const RECIPES = [
@@ -45,6 +47,7 @@ export class SystemPanel {
     private readonly scene: Phaser.Scene,
     private readonly send: SendMessage,
     private readonly playerPosition: PlayerPosition,
+    private readonly playerState: PlayerStateReader,
   ) {
     this.toggle = scene.add.text(0, 0, "SYSTEMS", this.buttonStyle()).setScrollFactor(0).setDepth(1300).setInteractive({ useHandCursor: true });
     this.toggle.on("pointerdown", () => this.setOpen(!this.open));
@@ -220,7 +223,16 @@ export class SystemPanel {
   }
 
   private render(): void {
-    this.title.setText("SYSTEMS • " + this.category);
+    this.title.setText("PLAYER • " + this.category);
+    if (this.category === "INVENTORY") {
+      const state = this.playerState();
+      if (state) {
+        const lines = Object.entries(state.inventory).filter(([, quantity]) => quantity > 0).map(([item, quantity]) => item + " × " + quantity);
+        this.result.setText("GOLD " + state.gold + " • BADGES " + state.triumphBadges + "\n" + (lines.length ? lines.join("\n") : "Inventory empty"));
+      } else {
+        this.result.setText("Connect to the world to view inventory.");
+      }
+    }
     this.actionButtons.splice(0).forEach((button) => button.destroy());
     const actions = this.actions();
     for (const action of actions) {
