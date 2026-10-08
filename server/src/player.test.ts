@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PLAYER_MAX_HEALTH, PLAYER_MAX_HUNGER, PLAYER_MAX_OXYGEN, PLAYER_BASE_DEFENSE, STARTING_FLINTLOCK_AMMO, applyPlayerInput, createDefaultPlayer, meleeHitbox, playerHitbox } from "./player.js";
+import { PLAYER_MAX_HEALTH, PLAYER_MAX_HUNGER, PLAYER_MAX_OXYGEN, PLAYER_BASE_DEFENSE, STARTING_FLINTLOCK_AMMO, MOVEMENT_MAX_PACKETS_PER_SECOND, MovementAuthority, applyAuthoritativePlayerInput, applyPlayerInput, createDefaultPlayer, meleeHitbox, playerHitbox } from "./player.js";
 
 describe("player survival and movement", () => {
   it("creates a valid default player state", () => {
@@ -25,6 +25,48 @@ describe("player survival and movement", () => {
     applyPlayerInput(normal, { dx: 1, dy: 0, dt: 0.25 });
     applyPlayerInput(slowed, { dx: 1, dy: 0, dt: 0.25, speedMultiplier: 0.35 });
     expect(slowed.x).toBeCloseTo(normal.x * 0.35, 6);
+  });
+  it("ignores manipulated client time and uses the server monotonic clock", () => {
+    const authority = new MovementAuthority();
+    const player = createDefaultPlayer("speedhack");
+    const first = authority.evaluate("speedhack", { dx: 1, dy: 0, sequence: 0 }, 1_000);
+    const second = authority.evaluate("speedhack", { dx: 1, dy: 0, sequence: 1 }, 1_050);
+    expect(first.accepted).toBe(false);
+    expect(second.serverDt).toBeCloseTo(0.05, 6);
+    applyAuthoritativePlayerInput(player, { dx: 1, dy: 0, sequence: 1 }, second.serverDt);
+    expect(player.x).toBeCloseTo(0.2, 6);
+  });
+  it("caps delayed packets to one authoritative movement budget", () => {
+    const authority = new MovementAuthority();
+    authority.evaluate("laggy", { dx: 1, dy: 0, sequence: 0 }, 1_000);
+    const delayed = authority.evaluate("laggy", { dx: 1, dy: 0, sequence: 1 }, 3_000);
+    expect(delayed.serverDt).toBe(0.1);
+  });
+  it("rejects duplicated or out-of-order movement sequences", () => {
+    const authority = new MovementAuthority();
+    authority.evaluate("dup", { dx: 1, dy: 0, sequence: 4 }, 1_000);
+    expect(authority.evaluate("dup", { dx: 1, dy: 0, sequence: 4 }, 1_050).reason).toBe("DUPLICATE_SEQUENCE");
+    expect(authority.evaluate("dup", { dx: 1, dy: 0, sequence: 3 }, 1_100).reason).toBe("DUPLICATE_SEQUENCE");
+  });
+  it("rate-limits movement packets independently of client time", () => {
+    const authority = new MovementAuthority();
+    authority.evaluate("flood", { dx: 1, dy: 0, sequence: 0 }, 1_000);
+    let decision = authority.evaluate("flood", { dx: 1, dy: 0, sequence: 1 }, 1_001);
+    for (let sequence = 2; sequence <= MOVEMENT_MAX_PACKETS_PER_SECOND; sequence += 1) {
+      decision = authority.evaluate("flood", { dx: 1, dy: 0, sequence }, 1_001 + sequence);
+    }
+    expect(decision.accepted).toBe(true);
+    expect(authority.evaluate("flood", { dx: 1, dy: 0, sequence: MOVEMENT_MAX_PACKETS_PER_SECOND + 1 }, 1_040).reason).toBe("RATE_LIMITED");
+  });
+  it("bounds sustained movement to server time rather than packet count", () => {
+    const authority = new MovementAuthority();
+    const player = createDefaultPlayer("bounded");
+    authority.evaluate("bounded", { dx: 1, dy: 0, sequence: 0 }, 1_000);
+    for (let sequence = 1; sequence <= 20; sequence += 1) {
+      const decision = authority.evaluate("bounded", { dx: 1, dy: 0, sequence }, 1_000 + sequence * 50);
+      if (decision.accepted) applyAuthoritativePlayerInput(player, { dx: 1, dy: 0, sequence }, decision.serverDt);
+    }
+    expect(player.x).toBeCloseTo(4, 6);
   });
   it("produces player and melee hitboxes", () => {
     const player = createDefaultPlayer("user-1");
