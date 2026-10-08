@@ -5,7 +5,7 @@ export class ShipInventoryStore {
 
   async mutate(userId:string,shipId:string,itemId:string,delta:number,requestId:string,fingerprint:string):Promise<{items:Array<{itemId:string;quantity:number}>;transactionId:string}>{
     if(!itemId || !Number.isSafeInteger(delta) || delta===0 || Math.abs(delta)>1_000_000) throw new Error("INVALID_SHIP_CARGO");
-    if(!requestId||requestId.length>128) throw new Error("INVALID_REQUEST_ID");
+    if(!requestId||requestId.length>64) throw new Error("INVALID_REQUEST_ID");
 
     const requestKey=userId+":"+requestId;
     const c=await this.db.connect();
