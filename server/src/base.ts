@@ -262,14 +262,26 @@ export class BaseStore {
       }catch(error){await client.query("ROLLBACK");throw error;}finally{client.release();}
     });
   }
-  async mutateStorage(userId:string,changes:Record<string,number>):Promise<Record<string,number>>{
+  async mutateStorage(userId:string,changes:Record<string,number>,requestId:string,fingerprint:string):Promise<{storage:Record<string,number>;transactionId:string}>{
     return this.runExclusive(userId,async()=>{
       const base=await this.load(userId); if(!base)throw new Error("BASE_NOT_FOUND");
       if(!BaseStore.can(userId,base,"storage"))throw new Error("BASE_PERMISSION_DENIED");
       this.validateStorageChanges(base,changes);
+      if(!requestId||requestId.length>128)throw new Error("INVALID_REQUEST_ID");
       const client=await this.db.connect();
       try{
         await client.query("BEGIN");
+        const requestKey=userId+":"+requestId;
+        const inserted=await client.query<{transaction_id:string}>("INSERT INTO base_storage_requests(request_key,user_id,fingerprint,response) VALUES($1,$2,$3,'{}'::jsonb) ON CONFLICT(request_key) DO NOTHING RETURNING transaction_id",[requestKey,userId,fingerprint]);
+        if(!inserted.rows[0]){
+          const existing=await client.query<{fingerprint:string;transaction_id:string;response:{transactionId?:string;storage?:Record<string,number>}}>("SELECT fingerprint,transaction_id,response FROM base_storage_requests WHERE request_key=$1 FOR UPDATE",[requestKey]);
+          if(!existing.rows[0])throw new Error("BASE_STORAGE_REQUEST_NOT_FOUND");
+          if(existing.rows[0].fingerprint!==fingerprint)throw new Error("BASE_STORAGE_REQUEST_CONFLICT");
+          if(!existing.rows[0].response.transactionId)throw new Error("BASE_STORAGE_REQUEST_INCOMPLETE");
+          await client.query("COMMIT");
+          return {storage:existing.rows[0].response.storage??{},transactionId:existing.rows[0].transaction_id};
+        }
+        const transactionId=inserted.rows[0].transaction_id;
         const profile=await client.query<{inventory:Record<string,number>}>("SELECT inventory FROM player_profiles WHERE user_id=$1 FOR UPDATE",[userId]);
         if(!profile.rows[0])throw new Error("PLAYER_NOT_FOUND");
         const inventory={...(profile.rows[0].inventory??{})};
@@ -292,8 +304,10 @@ export class BaseStore {
         }
         if(Object.values(nextStorage).reduce((sum,n)=>sum+n,0)>storageCapacity(base))throw new Error("STORAGE_CAPACITY_EXCEEDED");
         await client.query("UPDATE player_profiles SET inventory=$2::jsonb,updated_at=CURRENT_TIMESTAMP WHERE user_id=$1",[userId,JSON.stringify(inventory)]);
+        const response={storage:{...nextStorage},transactionId};
+        await client.query("UPDATE base_storage_requests SET response=$2::jsonb WHERE request_key=$1",[requestKey,JSON.stringify(response)]);
         await client.query("COMMIT");
-        base.storage=nextStorage; return {...base.storage};
+        base.storage=nextStorage; return response;
       }catch(error){await client.query("ROLLBACK");throw error;}finally{client.release();}
     });
   }
