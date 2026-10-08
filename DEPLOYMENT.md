@@ -24,7 +24,8 @@ PostgreSQL persistence uses a named volume, with CI backup/restore verification.
 The PDF requires regional server topology, cross-server synchronization, battle instancing, adaptive rendering and load testing beyond the current verified single-region/single-server deployment. These remain post-Phase-16 compliance items unless separately evidenced.
 
 ## Current acceptance evidence
-Main b879b1606acc72c232ee7486de21d1a194b987bd:
-- CI #858 PASS
-- Performance Acceptance #78 PASS
-- Static Security #50 PASS
+Current main is `83e4c14b94861c0585c1a50993f7297ad0dda497`, verified from the GitHub `main` ref on 2026-10-08.
+
+Exact-head CI, Performance Acceptance and Static Security workflow evidence for this commit must be recorded separately when available. Historical CI #858, Performance Acceptance #78 and Static Security #50 belong to an earlier commit and are not current-head evidence.
+
+Every current verification statement MUST identify the exact Git commit SHA, verification date, workflow/run ID where applicable, and verification status.
