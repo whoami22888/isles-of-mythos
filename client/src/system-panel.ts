@@ -45,6 +45,7 @@ export class SystemPanel {
   private selectedTradeTarget?: string;
   private selectedGuildId?: string;
   private selectedGuildInvitationId?: string;
+  private selectedBaseId?: string;
   private open = false;
   private readonly pending = new Set<string>();
 
@@ -92,6 +93,11 @@ export class SystemPanel {
       const first = isRecord(message.invitations) ? message.invitations["0"] : undefined;
       this.selectedGuildInvitationId = isRecord(first) && typeof first.id === "string" ? first.id : undefined;
       this.result.setText(this.selectedGuildInvitationId ? "Invitation selected." : "No guild invitations.");
+      return;
+    }
+    if (message.type === "base_state") {
+      if (isRecord(message.base) && typeof message.base.id === "string") this.selectedBaseId = message.base.id;
+      this.result.setText(this.selectedBaseId ? "Base selected: " + this.selectedBaseId : "No active base.");
       return;
     }
     if (message.type === "player_state") {
@@ -173,8 +179,8 @@ export class SystemPanel {
     ];
     if (this.category === "BASE") return [
       { label: "CREATE BASE", run: () => { const position = this.playerPosition(); const name = this.prompt("Base name"); if (name && position) this.request("create_base", { name, x: Math.round(position.x), y: Math.round(position.y) }); } },
-      { label: "DEFENSES", run: () => { const baseId = this.prompt("Base ID"); if (baseId) this.request("list_defenses", { baseId }); } },
-      { label: "BUILD", run: () => { const baseId = this.prompt("Base ID"); const buildingType = this.prompt("Building type"); const level = Number(this.prompt("Level") ?? "1"); const gridX = Number(this.prompt("Grid X") ?? "0"); const gridY = Number(this.prompt("Grid Y") ?? "0"); if (baseId && buildingType && Number.isSafeInteger(level) && Number.isSafeInteger(gridX) && Number.isSafeInteger(gridY)) this.request("build", { baseId, buildingType, level, gridX, gridY }); } },
+      { label: "DEFENSES", run: () => { if (this.selectedBaseId) this.request("list_defenses", { baseId: this.selectedBaseId }); } },
+      { label: "BUILD", run: () => { const buildingType = this.prompt("Building type"); const level = Number(this.prompt("Level") ?? "1"); const gridX = Number(this.prompt("Grid X") ?? "0"); const gridY = Number(this.prompt("Grid Y") ?? "0"); if (this.selectedBaseId && buildingType && Number.isSafeInteger(level) && Number.isSafeInteger(gridX) && Number.isSafeInteger(gridY)) this.request("build", { baseId: this.selectedBaseId, buildingType, level, gridX, gridY }); } },
       { label: "UPGRADE", run: () => { const buildingId = this.prompt("Building ID"); if (buildingId) this.request("upgrade_building", { buildingId }); } },
       { label: "STORAGE", run: () => { const itemId = this.prompt("Item ID"); const delta = Number(this.prompt("Quantity delta")); if (itemId && Number.isSafeInteger(delta)) this.request("storage", { changes: { [itemId]: delta } }); } },
       { label: "WORKER", run: () => { const creatureId = this.prompt("Creature ID"); const buildingId = this.prompt("Building ID"); const task = this.prompt("Task"); if (creatureId && buildingId && task) this.request("assign_worker", { creatureId, buildingId, task }); } },
@@ -183,7 +189,7 @@ export class SystemPanel {
     if (this.category === "BREEDING") return [
       ask("JOBS", "list_breeding"),
       { label: "START", run: () => {
-        const baseId = this.prompt("Base ID"); const penBuildingId = this.prompt("Breeding pen ID");
+        const baseId = this.selectedBaseId; const penBuildingId = this.prompt("Breeding pen ID");
         const parentAId = this.prompt("Parent A creature ID"); const parentBId = this.prompt("Parent B creature ID");
         const durationMs = Number(this.prompt("Duration ms") ?? "3600000");
         if (baseId && penBuildingId && parentAId && parentBId && Number.isSafeInteger(durationMs)) this.request("start_breeding", { baseId, penBuildingId, parentAId, parentBId, durationMs });
