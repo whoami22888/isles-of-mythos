@@ -48,6 +48,8 @@ export class SystemPanel {
   private selectedBaseId?: string;
   private selectedShipId?: string;
   private selectedFleetId?: string;
+  private selectedAuctionListingId?: string;
+  private selectedWorldEventId?: string;
   private open = false;
   private readonly pending = new Set<string>();
 
@@ -95,6 +97,18 @@ export class SystemPanel {
       const first = isRecord(message.invitations) ? message.invitations["0"] : undefined;
       this.selectedGuildInvitationId = isRecord(first) && typeof first.id === "string" ? first.id : undefined;
       this.result.setText(this.selectedGuildInvitationId ? "Invitation selected." : "No guild invitations.");
+      return;
+    }
+    if (message.type === "auction_list") {
+      const first = isRecord(message.listings) ? message.listings["0"] : undefined;
+      this.selectedAuctionListingId = isRecord(first) && typeof first.id === "string" ? first.id : undefined;
+      this.result.setText(this.selectedAuctionListingId ? "Auction listing selected: " + this.selectedAuctionListingId : "No auction listings.");
+      return;
+    }
+    if (message.type === "world_event_list") {
+      const first = isRecord(message.events) ? message.events["0"] : undefined;
+      this.selectedWorldEventId = isRecord(first) && typeof first.id === "string" ? first.id : undefined;
+      this.result.setText(this.selectedWorldEventId ? "World event selected: " + this.selectedWorldEventId : "No active world events.");
       return;
     }
     if (message.type === "ship_list") {
@@ -236,17 +250,17 @@ export class SystemPanel {
       } },
     ];
     if (this.category === "AUCTION") return [
-      { label: "LIST", run: () => this.request("auction_list", { itemId: null, rarity: null, category: null, minLevel: null, maxLevel: null, minPrice: null, maxPrice: null }) },
+      { label: "LOAD LISTINGS", run: () => this.request("auction_list", { itemId: null, rarity: null, category: null, minLevel: null, maxLevel: null, minPrice: null, maxPrice: null }) },
       ask("HISTORY", "auction_history"),
       { label: "CREATE", run: () => { const itemId = this.prompt("Item ID"); const quantity = Number(this.prompt("Quantity")); const startPrice = this.prompt("Start price"); const buyNowPrice = this.prompt("Buy-now price (blank for none)"); const durationMs = Number(this.prompt("Duration ms")); if (itemId && Number.isSafeInteger(quantity) && quantity > 0 && startPrice && Number.isSafeInteger(durationMs)) this.request("auction_create", { itemId, quantity, startPrice, buyNowPrice: buyNowPrice || null, durationMs }); } },
-      { label: "BID", run: () => { const listingId = this.prompt("Listing ID"); const amount = this.prompt("Bid amount"); if (listingId && amount) this.request("auction_bid", { listingId, amount }); } },
-      { label: "BUY NOW", run: () => { const listingId = this.prompt("Listing ID"); if (listingId) this.request("auction_buy_now", { listingId }); } },
-      { label: "CANCEL", run: () => { const listingId = this.prompt("Listing ID"); if (listingId) this.request("auction_cancel", { listingId }); } },
+      { label: "BID SELECTED", run: () => { const amount = this.prompt("Bid amount"); if (this.selectedAuctionListingId && amount) this.request("auction_bid", { listingId: this.selectedAuctionListingId, amount }); } },
+      { label: "BUY SELECTED", run: () => { if (this.selectedAuctionListingId) this.request("auction_buy_now", { listingId: this.selectedAuctionListingId }); } },
+      { label: "CANCEL SELECTED", run: () => { if (this.selectedAuctionListingId) this.request("auction_cancel", { listingId: this.selectedAuctionListingId }); } },
     ];
     if (this.category === "WORLD") return [
-      ask("EVENTS", "list_world_events"),
-      { label: "CONTRIBUTE", run: () => { const eventId = this.prompt("World event ID"); if (eventId) this.request("world_event_contribute", { eventId }); } },
-      { label: "REWARD", run: () => { const eventId = this.prompt("World event ID"); if (eventId) this.request("world_event_reward", { eventId }); } },
+      ask("LOAD EVENTS", "list_world_events"),
+      { label: "CONTRIBUTE SELECTED", run: () => { if (this.selectedWorldEventId) this.request("world_event_contribute", { eventId: this.selectedWorldEventId }); } },
+      { label: "REWARD SELECTED", run: () => { if (this.selectedWorldEventId) this.request("world_event_reward", { eventId: this.selectedWorldEventId }); } },
     ];
     if (this.category === "STRATEGY") return [
       ask("ARMIES", "list_armies"), ask("INVASIONS", "list_invasions", { territoryId: null }), ask("REALM WARS", "list_realm_wars"), ask("GUILD BATTLES", "list_guild_battles"),
