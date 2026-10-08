@@ -13,6 +13,7 @@ import {
   type ServerMessage,
 } from "./network.js";
 import { SystemPanel } from "./system-panel.js";
+import { TouchControls, getMobileLayout } from "./mobile-controls.js";
 
 const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL;
 const API_BASE_URL = (configuredBaseUrl ?? window.location.origin).replace(/\/$/, "");
@@ -59,6 +60,9 @@ class WorldScene extends Phaser.Scene {
   private invasionReinforceButton?: Phaser.GameObjects.Text;
   private invasionRetreatButton?: Phaser.GameObjects.Text;
   private systems?: SystemPanel;
+  private touchControls?: TouchControls;
+  private mobileHud?: Phaser.GameObjects.Container;
+  private mobileStatus?: Phaser.GameObjects.Text;
 
   constructor() { super("world"); }
 
@@ -81,10 +85,11 @@ class WorldScene extends Phaser.Scene {
     this.input.keyboard?.on("keydown-G", () => this.gatherNearest());
     this.input.keyboard?.on("keyup-B", () => this.setBlocking(false));
     this.createTouchCombatControls();
+    this.createMobileControls();
     this.systems = new SystemPanel(this, (message) => this.sendSystemMessage(message), () => this.player ? { x: this.player.x, y: this.player.y } : null);
     this.createInvasionOverlay();
     this.time.addEvent({ delay: 3000, loop: true, callback: () => this.refreshInvasions() });
-    this.scale.on("resize", () => this.layoutInvasionOverlay());
+    this.scale.on("resize", () => { this.layoutInvasionOverlay(); this.layoutMobileControls(); });
     this.layoutInvasionOverlay();
     this.input.on("wheel", (_p: Phaser.Input.Pointer, _g: unknown[], _dx: number, dy: number) => this.cameras.main.setZoom(Phaser.Math.Clamp(this.cameras.main.zoom - dy * 0.001, 0.5, 2.5)));
     const hotbarKeys = ["ONE","TWO","THREE","FOUR","FIVE","SIX","SEVEN","EIGHT"];
@@ -101,11 +106,14 @@ class WorldScene extends Phaser.Scene {
     this.dodgeAccumulator = Math.max(0, this.dodgeAccumulator - delta);
     if (this.moveAccumulator < MOVE_SEND_INTERVAL_MS) return;
     this.moveAccumulator = 0;
-    let dx = 0, dy = 0;
-    if (this.cursors?.left.isDown || this.keys?.A.isDown) dx -= 1;
-    if (this.cursors?.right.isDown || this.keys?.D.isDown) dx += 1;
-    if (this.cursors?.up.isDown || this.keys?.W.isDown) dy -= 1;
-    if (this.cursors?.down.isDown || this.keys?.S.isDown) dy += 1;
+    let dx = this.touchControls?.movement.x ?? 0;
+    let dy = this.touchControls?.movement.y ?? 0;
+    if (dx === 0 && dy === 0) {
+      if (this.cursors?.left.isDown || this.keys?.A.isDown) dx -= 1;
+      if (this.cursors?.right.isDown || this.keys?.D.isDown) dx += 1;
+      if (this.cursors?.up.isDown || this.keys?.W.isDown) dy -= 1;
+      if (this.cursors?.down.isDown || this.keys?.S.isDown) dy += 1;
+    }
     try {
       this.movementSequence += 1;
       this.socket.send(JSON.stringify({ type: "move", dx, dy, sequence: this.movementSequence }));
@@ -463,6 +471,31 @@ class WorldScene extends Phaser.Scene {
       this.connected = false;
       this.statusText?.setText("WORLD CONNECTION FAILED");
     }
+  }
+
+  private createMobileControls(): void {
+    this.touchControls = new TouchControls(this);
+    this.touchControls.onAction((action) => {
+      if (action === "attack") this.attackNearest();
+      if (action === "dodge") this.dodge();
+      if (action === "capture") this.captureNearest();
+      if (action === "gather") this.gatherNearest();
+      if (action === "inventory") this.systems?.openCategory("CRAFT");
+    });
+    this.mobileHud = this.add.container(0, 0).setScrollFactor(0).setDepth(1400);
+    this.mobileStatus = this.add.text(0, 0, "TOUCH CONTROLS", {
+      fontFamily: "sans-serif", fontSize: "12px", color: "#ffffff",
+      backgroundColor: "#07131fcc", padding: { left: 8, right: 8, top: 6, bottom: 6 },
+    }).setScrollFactor(0);
+    this.mobileHud.add(this.mobileStatus);
+    this.layoutMobileControls();
+  }
+
+  private layoutMobileControls(): void {
+    if (!this.touchControls || !this.mobileHud) return;
+    const layout = getMobileLayout(this.scale.width, this.scale.height);
+    this.touchControls.layout(layout.joystickX, layout.joystickY, layout.radius, layout.actionX, layout.actionY);
+    this.mobileStatus?.setPosition(layout.statusX, layout.statusY);
   }
 
   private createTouchCombatControls(): void {
