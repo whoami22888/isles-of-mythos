@@ -201,16 +201,13 @@ No future item is described here as implemented merely because it appears in the
 
 ### Exact current-main evidence
 
-**Verified source:** `83e4c14b94861c0585c1a50993f7297ad0dda497`  
-**Verification date:** 2026-10-08
+**Source HEAD:** 0d4817acdd14cab9fda75366da857e82236c6933  
+**Queried:** 2026-10-08  
+**CI:** NOT VERIFIED  
+**Performance Acceptance:** NOT VERIFIED  
+**Static Security Quality:** NOT VERIFIED
 
-- CI #1010 / run `37759539832` — **PASS**
-- Performance Acceptance #230 / run `37759539777` — **PASS**
-- Static Security Quality #202 / run `37759539823` — **PASS**
-
-These results apply only to the exact SHA above.
-
-The Master Project Index records the independent audit result for this SHA as **NOT AUDIT-PASS / NOT PRODUCTION-READY**. In particular, the audit found a movement-authority cheat vector and incomplete production mobile/graphics/player-UX architecture.
+GitHub currently reports no workflow runs associated with this exact SHA. Historical workflow evidence from earlier commits is not transferable.
 
 ### Evidence boundary
 
