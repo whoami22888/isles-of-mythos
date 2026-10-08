@@ -5,8 +5,28 @@ type SendMessage = (message: Record<string, unknown>) => void;
 type PlayerPosition = () => { x: number; y: number } | null;
 
 type Action = { label: string; run: () => void };
+const RECIPES = [
+  ["tool.wooden-club", "Wooden Club", "8 Wood → 1 Club"],
+  ["tool.stone-axe", "Stone Axe", "6 Wood + 4 Stone → 1 Axe"],
+  ["tool.stone-pickaxe", "Stone Pickaxe", "6 Wood + 5 Stone → 1 Pickaxe"],
+  ["structure.campfire", "Campfire", "8 Wood + 4 Stone → 1 Campfire"],
+  ["structure.wooden-wall", "Wooden Wall", "10 Wood → 1 Wall"],
+  ["consumable.herb-bandage", "Herb Bandage", "3 Herb → 1 Bandage"],
+] as const;
+const SHOP = [
+  ["resource.wood", "Wood Bundle", "10"],
+  ["resource.stone", "Stone Bundle", "15"],
+  ["resource.iron", "Iron Ore Bundle", "25"],
+  ["resource.herb", "Herb Bundle", "12"],
+  ["upgrade.camp.tier2", "Camp Tier II", "500"],
+  ["upgrade.storage.tier2", "Storage Tier II", "350"],
+  ["upgrade.forge.tier2", "Forge Tier II", "450"],
+  ["defence.wall.segment", "Defensive Wall", "40"],
+  ["defence.cannon", "Defensive Cannon", "250"],
+  ["defence.watchtower", "Watchtower", "400"],
+] as const;
 
-const categories = ["SOCIAL", "GUILD", "BASE", "BREEDING", "SHIPS", "REALMS", "AUCTION", "WORLD", "STRATEGY", "ENDGAME", "CRAFT"] as const;
+const categories = ["INVENTORY", "CRAFT", "SHOP", "TRADE", "SOCIAL", "GUILD", "BASE", "BREEDING", "SHIPS", "REALMS", "AUCTION", "WORLD", "STRATEGY", "ENDGAME"] as const;
 type Category = typeof categories[number];
 
 export class SystemPanel {
@@ -16,7 +36,8 @@ export class SystemPanel {
   private readonly result: Phaser.GameObjects.Text;
   private readonly categoryButtons: Phaser.GameObjects.Text[] = [];
   private readonly actionButtons: Phaser.GameObjects.Text[] = [];
-  private category: Category = "SOCIAL";
+  private category: Category = "INVENTORY";
+  private selectedTradeTarget?: string;
   private open = false;
   private readonly pending = new Set<string>();
 
@@ -47,6 +68,23 @@ export class SystemPanel {
     const requestId = "requestId" in message && typeof message.requestId === "string" ? message.requestId : undefined;
     if (!requestId || !this.pending.has(requestId)) return;
     this.pending.delete(requestId);
+    if (message.type === "friends_list") {
+      const first = message.friends[0];
+      const target = first && typeof first === "object" && "userId" in first && typeof first.userId === "string" ? first.userId : undefined;
+      this.selectedTradeTarget = target;
+      this.result.setText(target ? "Trade target selected from your friends: " + target : "No tradeable friends found.");
+      return;
+    }
+    if (message.type === "player_state") {
+      const inventory = message.state.inventory;
+      const lines = Object.entries(inventory).filter(([, quantity]) => quantity > 0).map(([item, quantity]) => item + " × " + quantity);
+      this.result.setText("INVENTORY\nGold: " + message.state.gold + "\nBadges: " + message.state.triumphBadges + "\n" + (lines.length ? lines.join("\n") : "Empty"));
+      return;
+    }
+    if (message.type === "craft_result" || message.type === "shop_purchase_result" || message.type === "trade_result") {
+      this.result.setText(JSON.stringify(message, null, 2).slice(0, 6000));
+      return;
+    }
     this.result.setText(JSON.stringify(message, null, 2).slice(0, 6000));
   }
 
@@ -54,10 +92,7 @@ export class SystemPanel {
     return { fontFamily: "sans-serif", fontSize: "12px", color: "#ffffff", backgroundColor: "#17314dcc", padding: { left: 7, right: 7, top: 6, bottom: 6 } };
   }
 
-  private prompt(label: string): string | null {
-    const value = window.prompt(label);
-    return value === null ? null : value.trim();
-  }
+
 
   private request(type: string, payload: Record<string, unknown> = {}): void {
     const requestId = Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8);
@@ -67,6 +102,24 @@ export class SystemPanel {
 
   private actions(): Action[] {
     const ask = (label: string, type: string, payload: Record<string, unknown> = {}): Action => ({ label, run: () => this.request(type, payload) });
+    if (this.category === "INVENTORY") {
+      return [{ label: "REFRESH INVENTORY", run: () => this.request("get_player_state") }];
+    }
+    if (this.category === "CRAFT") return RECIPES.map(([id, name, ingredients]) => ({
+      label: name + " • " + ingredients,
+      run: () => this.request("craft", { recipeId: id }),
+    }));
+    if (this.category === "SHOP") return SHOP.map(([id, name, price]) => ({
+      label: name + " • " + price + " GOLD",
+      run: () => this.request("shop_purchase", { itemId: id, quantity: 1 }),
+    }));
+    if (this.category === "TRADE") return [
+      { label: "LOAD FRIENDS", run: () => this.request("list_friends") },
+      { label: "TRADE SELECTED FRIEND", run: () => {
+        if (!this.selectedTradeTarget) return;
+        this.request("trade", { toUserId: this.selectedTradeTarget, gold: "0", items: [] });
+      } },
+    ];
     if (this.category === "SOCIAL") return [
       ask("FRIENDS", "list_friends"), ask("BLOCKS", "list_blocks"), ask("PARTY", "get_party"), ask("INVITES", "party_invitations"),
       { label: "ADD FRIEND", run: () => { const id = this.prompt("Target user ID"); if (id) this.request("add_friend", { targetUserId: id }); } },
@@ -159,11 +212,7 @@ export class SystemPanel {
       ask("ENDGAME CREATURES", "list_endgame_creatures"), ask("MYTHIC CONTENT", "list_mythic_content"),
       { label: "ENGAGE", run: () => { const creatureId = this.prompt("Endgame creature ID"); if (creatureId) this.request("engage_endgame_creature", { creatureId }); } },
     ];
-    return [
-      { label: "CRAFT", run: () => { const recipeId = this.prompt("Recipe ID"); if (recipeId) this.request("craft", { recipeId }); } },
-      { label: "SHOP", run: () => { const itemId = this.prompt("Shop item ID"); const quantity = Number(this.prompt("Quantity")); if (itemId && Number.isSafeInteger(quantity)) this.request("shop_purchase", { itemId, quantity }); } },
-      { label: "TRADE", run: () => { const toUserId = this.prompt("Target user ID"); const gold = this.prompt("Gold"); const itemId = this.prompt("Item ID (blank for none)"); const quantity = Number(this.prompt("Quantity")); if (toUserId && gold) this.request("trade", { toUserId, gold, items: itemId ? [{ itemId, quantity: Number.isSafeInteger(quantity) ? quantity : 0 }] : [] }); } },
-    ];
+    return [];
   }
 
   private render(): void {
