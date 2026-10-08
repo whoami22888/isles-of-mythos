@@ -7,6 +7,9 @@ type PlayerPosition = () => { x: number; y: number } | null;
 type PlayerStateReader = () => PlayerState | null;
 
 type Action = { label: string; run: () => void };
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
 const RECIPES = [
   ["tool.wooden-club", "Wooden Club", "8 Wood → 1 Club"],
   ["tool.stone-axe", "Stone Axe", "6 Wood + 4 Stone → 1 Axe"],
@@ -40,6 +43,8 @@ export class SystemPanel {
   private readonly actionButtons: Phaser.GameObjects.Text[] = [];
   private category: Category = "INVENTORY";
   private selectedTradeTarget?: string;
+  private selectedGuildId?: string;
+  private selectedGuildInvitationId?: string;
   private open = false;
   private readonly pending = new Set<string>();
 
@@ -76,6 +81,17 @@ export class SystemPanel {
       const target = first && typeof first === "object" && "userId" in first && typeof first.userId === "string" ? first.userId : undefined;
       this.selectedTradeTarget = target;
       this.result.setText(target ? "Selected friend: " + target : "No friends available.");
+      return;
+    }
+    if (message.type === "guild_state") {
+      if (isRecord(message.guild) && typeof message.guild.id === "string") this.selectedGuildId = message.guild.id;
+      this.result.setText(this.selectedGuildId ? "Guild selected: " + this.selectedGuildId : "No active guild.");
+      return;
+    }
+    if (message.type === "guild_invitations") {
+      const first = isRecord(message.invitations) ? message.invitations["0"] : undefined;
+      this.selectedGuildInvitationId = isRecord(first) && typeof first.id === "string" ? first.id : undefined;
+      this.result.setText(this.selectedGuildInvitationId ? "Invitation selected." : "No guild invitations.");
       return;
     }
     if (message.type === "player_state") {
@@ -141,15 +157,19 @@ export class SystemPanel {
       ask("LEAVE PARTY", "party_leave"),
     ];
     if (this.category === "GUILD") return [
-      ask("MY GUILD", "get_guild"), ask("INVITES", "list_guild_invitations"),
-      { label: "CREATE", run: () => { const name = this.prompt("Guild name"); const tag = this.prompt("Guild tag"); if (name && tag) this.request("create_guild", { name, tag }); } },
-      { label: "INVITE", run: () => { const guildId = this.prompt("Guild ID"); const targetUserId = this.prompt("Target user ID"); if (guildId && targetUserId) this.request("invite_guild_member", { guildId, targetUserId }); } },
-      { label: "ACCEPT INVITE", run: () => { const invitationId = this.prompt("Invitation ID"); if (invitationId) this.request("accept_guild_invite", { invitationId }); } },
-      { label: "RANK", run: () => { const guildId = this.prompt("Guild ID"); const targetUserId = this.prompt("Member user ID"); const rank = this.prompt("Rank"); if (guildId && targetUserId && rank) this.request("set_guild_rank", { guildId, targetUserId, rank }); } },
-      { label: "PERMISSION", run: () => { const guildId = this.prompt("Guild ID"); const rank = this.prompt("Rank"); const permission = this.prompt("Permission"); const enabled = this.prompt("Enable? yes/no") === "yes"; if (guildId && rank && permission) this.request("set_guild_permission", { guildId, rank, permission, enabled }); } },
-      { label: "BANK", run: () => { const guildId = this.prompt("Guild ID"); if (guildId) this.request("guild_bank", { guildId }); } },
-      { label: "LEAVE", run: () => { const guildId = this.prompt("Guild ID"); if (guildId) this.request("leave_guild", { guildId }); } },
-      { label: "BUILD INFRA", run: () => { const guildId = this.prompt("Guild ID"); const structureType = this.prompt("Structure type"); if (guildId && structureType) this.request("build_guild_infrastructure", { guildId, structureType }); } },
+      ask("MY GUILD", "get_guild"),
+      ask("INVITES", "list_guild_invitations"),
+      { label: "ACCEPT SELECTED", run: () => { if (this.selectedGuildInvitationId) this.request("accept_guild_invite", { invitationId: this.selectedGuildInvitationId }); } },
+      { label: "BANK", run: () => { if (this.selectedGuildId) this.request("guild_bank", { guildId: this.selectedGuildId }); } },
+      { label: "LEAVE GUILD", run: () => { if (this.selectedGuildId) this.request("leave_guild", { guildId: this.selectedGuildId }); } },
+      { label: "BUILD INFRA", run: () => {
+        const structureType = this.prompt("Structure type");
+        if (this.selectedGuildId && structureType) this.request("build_guild_infrastructure", { guildId: this.selectedGuildId, structureType });
+      } },
+      { label: "CREATE GUILD", run: () => {
+        const name = this.prompt("Guild name"); const tag = this.prompt("Guild tag");
+        if (name && tag) this.request("create_guild", { name, tag });
+      } },
     ];
     if (this.category === "BASE") return [
       { label: "CREATE BASE", run: () => { const position = this.playerPosition(); const name = this.prompt("Base name"); if (name && position) this.request("create_base", { name, x: Math.round(position.x), y: Math.round(position.y) }); } },
