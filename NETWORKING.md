@@ -16,4 +16,6 @@ Combat request IDs are replay-protected. Ranged projectiles are resolved server-
 The PDF requires spatial interest management, regional servers, cross-region synchronization, battle instancing and adaptive LOD/network strategies. These remain architectural/scaling requirements beyond the currently verified single-server implementation unless separately evidenced.
 
 ## Verification
-Current main b879b1606acc72c232ee7486de21d1a194b987bd passed full CI and sustained-load acceptance. Do not claim multi-region production deployment or battle sharding without direct evidence.
+The documentation update was based on authoritative main HEAD `83e4c14b94861c0585c1a50993f7297ad0dda497`, verified on 2026-10-08 before this documentation change. Exact-head evidence for that source state was CI #1010 PASS, Performance Acceptance #230 PASS, and Static Security Quality #202 PASS.
+
+This is a source-state record, not a claim that a later commit has the same verification. After any HEAD change, obtain fresh exact-head evidence before describing the new HEAD as verified. Follow `.project/VERIFICATION-STANDARD.md`.
