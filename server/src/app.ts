@@ -760,7 +760,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             speedMultiplier: slow ? Math.max(0, Math.min(1, 1 - slow.magnitude)) : 1,
           });
           const evidence = antiCheat.observeMovement(userId, movement);
-          if (evidence) log("anti_cheat_event", evidence);
+          if (evidence) log("anti_cheat_event", { ...evidence });
           if (!movement.accepted) {
             send(socket, { type: "error", code: movement.reason === "RATE_LIMITED" ? "RATE_LIMITED" : "INVALID_MESSAGE" });
             return;
