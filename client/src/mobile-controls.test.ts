@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getMobileLayout, normalizeStick } from "./mobile-controls.js";
+import { getMobileLayout, normalizeStick } from "./mobile-layout.js";
 
 describe("mobile touch controls", () => {
   it("normalizes a centered stick to zero", () => {
