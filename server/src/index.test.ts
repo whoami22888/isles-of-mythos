@@ -249,10 +249,10 @@ describe("server foundation", () => {
 
       const stateAfterAttack = waitForMatchingMessage(socket, (message) => typeof message === "object" && message !== null && (message as JsonObject).type === "player_state");
       socket.send(JSON.stringify({ type: "move", dx: 0, dy: 0, sequence: 0 }));
-      await expect(stateAfterAttack).resolves.toMatchObject({
-        type: "player_state",
-        state: { stamina: expect.any(Number) },
-      });
+      const stateAfterAttackMessage = await stateAfterAttack;
+      if (!isJsonObject(stateAfterAttackMessage)) throw new Error("Expected player_state message");
+      const stateAfterAttackObject = getObject(stateAfterAttackMessage, "state");
+      expect(typeof stateAfterAttackObject.stamina).toBe("number");
     } finally {
       socket.close();
       await database.end();
