@@ -100,7 +100,6 @@ class WorldScene extends Phaser.Scene {
     this.attackAccumulator = Math.max(0, this.attackAccumulator - delta);
     this.dodgeAccumulator = Math.max(0, this.dodgeAccumulator - delta);
     if (this.moveAccumulator < MOVE_SEND_INTERVAL_MS) return;
-    const dt = Math.min(this.moveAccumulator / 1000, 0.25);
     this.moveAccumulator = 0;
     let dx = 0, dy = 0;
     if (this.cursors?.left.isDown || this.keys?.A.isDown) dx -= 1;
