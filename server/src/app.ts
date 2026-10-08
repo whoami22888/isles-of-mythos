@@ -26,6 +26,7 @@ import { NavalStore } from "./naval.js";
 import { FleetStore } from "./fleet.js";
 import { ShipInventoryStore } from "./ship-inventory.js";
 import { GuildStore } from "./guild.js";
+import { ArmyStore } from "./army.js";
 
 function errorCode(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
@@ -70,6 +71,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const fleets = new FleetStore(db);
   const shipInventory = new ShipInventoryStore(db);
   const guilds = new GuildStore(db);
+  const armies = new ArmyStore(db);
   const sockets = new Set<WebSocket>();
   const playerConnections = new Map<string, number>();
   const userSockets = new Map<string, Set<WebSocket>>();
@@ -1072,6 +1074,38 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             }catch(error){
               const code=errorCode(error,"GUILD_OPERATION_FAILED");
               const allowed=["INVALID_GUILD_NAME","INVALID_GUILD_TAG","GUILD_NAME_OR_TAG_EXISTS","GUILD_HALL_REQUIRED","ALREADY_IN_GUILD","GUILD_NOT_FOUND","GUILD_MEMBERSHIP_REQUIRED","GUILD_PERMISSION_DENIED","PLAYER_NOT_FOUND","INVALID_GUILD_INVITEE","TARGET_ALREADY_IN_GUILD","GUILD_INVITATION_NOT_FOUND","GUILD_MASTER_CANNOT_LEAVE","INVALID_GUILD_MEMBER","GUILD_MEMBER_NOT_FOUND","GUILD_MASTER_PROTECTED","INVALID_GUILD_RANK","INVALID_GUILD_PERMISSION","INVALID_GUILD_INFRASTRUCTURE","INVALID_GUILD_BANK_QUANTITY","INVALID_GUILD_BANK_DEPOSIT","INVALID_GUILD_BANK_WITHDRAW","INSUFFICIENT_GUILD_BANK","GUILD_QUEST_NOT_FOUND","GUILD_INFRASTRUCTURE_MAX","INVALID_GOLD","GOLD_OVERFLOW","INSUFFICIENT_GOLD","INVALID_ITEM_ID","INVALID_ITEM_QUANTITY","INVENTORY_LIMIT","INSUFFICIENT_INVENTORY"];
+              return {type:"error",code:(allowed.includes(code)?code:"INVALID_MESSAGE") as Extract<ServerMessage,{type:"error"}>["code"]};
+            }
+          });
+          send(socket,response);return;
+        }
+
+        if (message.type === "create_army" || message.type === "list_armies" || message.type === "train_army" || message.type === "garrison_army" || message.type === "add_army_creature" || message.type === "set_army_assignment" || message.type === "set_army_formation" || message.type === "nominate_commander" || message.type === "assign_army_commander" || message.type === "issue_army_order" || message.type === "create_army_battle" || message.type === "deploy_battle_unit" || message.type === "execute_battle_turn" || message.type === "get_army_battle" || message.type === "army_tactical_action" || message.type === "build_defense" || message.type === "list_defenses") {
+          if(!userId){send(socket,{type:"error",code:"AUTH_REQUIRED"});return;}
+          const authenticatedUserId=userId;
+          await players.loadOrCreate(authenticatedUserId);
+          const response=await runBaseRequest(authenticatedUserId,message.requestId,message.type+"|"+JSON.stringify(message),async()=>{
+            try{
+              if(message.type==="create_army")return {type:"army_state",requestId:message.requestId,army:await armies.create(authenticatedUserId,message.name)};
+              if(message.type==="list_armies")return {type:"army_list",requestId:message.requestId,armies:await armies.list(authenticatedUserId)};
+              if(message.type==="train_army"){const q=await armies.train(authenticatedUserId,message.armyId,message.unitType,message.quantity);return {type:"army_training",requestId:message.requestId,queueId:q.queueId,completesAt:q.completesAt};}
+              if(message.type==="garrison_army"){await armies.garrison(authenticatedUserId,message.armyId,message.baseId);return {type:"army_operation_ok",requestId:message.requestId};}
+              if(message.type==="add_army_creature"){await armies.addCreature(authenticatedUserId,message.armyId,message.creatureId);return {type:"army_operation_ok",requestId:message.requestId};}
+              if(message.type==="set_army_assignment")return {type:"army_state",requestId:message.requestId,army:await armies.assignment(authenticatedUserId,message.armyId,message.assignment)};
+              if(message.type==="set_army_formation")return {type:"army_state",requestId:message.requestId,army:await armies.formation(authenticatedUserId,message.armyId,message.name,message.formationType,message.layout)};
+              if(message.type==="nominate_commander"){await armies.nominateCommander(authenticatedUserId,message.guildId,message.targetUserId);return {type:"army_operation_ok",requestId:message.requestId};}
+              if(message.type==="assign_army_commander")return {type:"army_state",requestId:message.requestId,army:await armies.commander(authenticatedUserId,message.armyId,message.commanderUserId)};
+              if(message.type==="issue_army_order"){await armies.order(authenticatedUserId,message.armyId,message.battleId,message.orderType,message.targetUnitId,message.targetX,message.targetY,message.payload);return {type:"army_operation_ok",requestId:message.requestId};}
+              if(message.type==="create_army_battle")return {type:"battle_state",requestId:message.requestId,battle:await armies.battleCreate(authenticatedUserId,message.attackerArmyId,message.defenderArmyId,message.targetX,message.targetY)};
+              if(message.type==="deploy_battle_unit"){await armies.deploy(authenticatedUserId,message.battleId,message.unitId,message.formationSlot);return {type:"army_operation_ok",requestId:message.requestId};}
+              if(message.type==="execute_battle_turn")return {type:"battle_state",requestId:message.requestId,battle:await armies.turn(authenticatedUserId,message.battleId)};
+              if(message.type==="army_tactical_action")return {type:"battle_state",requestId:message.requestId,battle:await armies.action(authenticatedUserId,message.battleId,message.unitId,message.actionType,message.targetUnitId)};
+              if(message.type==="get_army_battle")return {type:"battle_state",requestId:message.requestId,battle:await armies.battle(message.battleId,authenticatedUserId)};
+              if(message.type==="build_defense")return {type:"defense_state",requestId:message.requestId,defense:await armies.defense(authenticatedUserId,message.baseId,message.structureType,message.gridX,message.gridY)};
+              return {type:"defense_list",requestId:message.requestId,defenses:await armies.defenses(authenticatedUserId,message.baseId)};
+            }catch(error){
+              const code=errorCode(error,"ARMY_OPERATION_FAILED");
+              const allowed=["BASE_NOT_FOUND","BARRACKS_REQUIRED","INVALID_ARMY_UNIT_TYPE","INVALID_TRAINING_QUANTITY","INSUFFICIENT_BASE_RESOURCES","ARMY_NOT_FOUND","CREATURE_NOT_FOUND","CREATURE_NOT_TAMED","CREATURE_IN_PARTY","CREATURE_ALREADY_GARRISONED","INVALID_ARMY_ASSIGNMENT","INVALID_ARMY_FORMATION","GUILD_PERMISSION_DENIED","GUILD_MEMBER_NOT_FOUND","COMMANDER_NOT_NOMINATED","COMMANDER_PERMISSION_DENIED","INVALID_COMMANDER_ORDER","ARMY_UNIT_NOT_FOUND","INVALID_COMMAND_TARGET","DEFENDER_ARMY_NOT_FOUND","INVALID_BATTLE_ARMIES","BATTLE_NOT_FOUND","BATTLE_NOT_ACTIVE","BATTLE_UNIT_NOT_FOUND","INVALID_FORMATION_SLOT","INVALID_DEFENSIVE_STRUCTURE","INVALID_DEFENSE_POSITION","DEFENSE_POSITION_OCCUPIED","BATTLE_UNIT_NOT_DEPLOYED","ARMY_UNIT_TARGET_REQUIRED","INVALID_BATTLE_TARGET","DEFENDER_GARRISON_NOT_FOUND","NO_AVAILABLE_TRAP","CANNON_UNIT_REQUIRED","DEFENSE_STRUCTURE_REQUIRED","DEFENSE_STRUCTURE_NOT_FOUND","PLAYER_NOT_FOUND","INSUFFICIENT_STORAGE"];
               return {type:"error",code:(allowed.includes(code)?code:"INVALID_MESSAGE") as Extract<ServerMessage,{type:"error"}>["code"]};
             }
           });
