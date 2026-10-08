@@ -4,6 +4,9 @@ import {buildApp} from "./app.js";
 import {createDbPool} from "./db.js";
 import {BaseStore} from "./base.js";
 import {PlayerStore} from "./player.js";
+import {GuildStore} from "./guild.js";
+import {ShipStore} from "./ship.js";
+import {ShipInventoryStore} from "./ship-inventory.js";
 
 async function register(app:FastifyInstance,tag:string):Promise<string>{
   const unique=tag+"_"+Date.now().toString(36)+"_"+Math.random().toString(36).slice(2,6);
@@ -46,6 +49,50 @@ describe("PDF §92/§93 base storage durability",()=>{
       const second=await restarted.mutateStorage(userId,{wood:5},"base-storage-second","storage|wood|5");
       expect(second.transactionId).not.toBe(first.transactionId);
       expect(second.storage.wood).toBe(515);
+    }finally{
+      if(app.server.listening)await app.close();
+      await db.end();
+    }
+  });
+});
+
+
+describe("PDF §92/§93 request ID persistence bounds",()=>{
+  it("rejects oversized request IDs before guild, ship, or base mutation",async()=>{
+    const db=createDbPool();
+    const app=await buildApp({db});
+    const oversized="x".repeat(65);
+    try{
+      const userId=await register(app,"request_id_bounds");
+      await new PlayerStore(db).loadOrCreate(userId);
+
+      const bases=new BaseStore(db);
+      const base=await bases.create(userId,"Bounds Base",0,0);
+      await db.query("UPDATE player_profiles SET inventory=jsonb_build_object('wood',10),gold=100 WHERE user_id=$1",[userId]);
+
+      const guilds=new GuildStore(db);
+      const guild=await guilds.create(userId,"Bounds Guild","BND");
+      await expect(guilds.bankDeposit(userId,guild.id,"wood",1,"1",oversized,"guild_bank_deposit|wood|1|1")).rejects.toThrow("INVALID_REQUEST_ID");
+      const guildProfile=await db.query<{inventory:Record<string,number>;gold:string}>("SELECT inventory,gold FROM player_profiles WHERE user_id=$1",[userId]);
+      expect(guildProfile.rows[0]?.inventory.wood).toBe(10);
+      expect(guildProfile.rows[0]?.gold).toBe("100");
+      const guildLedger=await db.query<{count:string}>("SELECT COUNT(*)::text AS count FROM guild_bank_requests WHERE request_key LIKE $1",[userId+":%"]);
+      expect(guildLedger.rows[0]?.count).toBe("0");
+
+      const ships=new ShipStore(db);
+      const ship=await ships.create(userId,"Bounds Sloop","sloop");
+      const inventory=new ShipInventoryStore(db);
+      await expect(inventory.mutate(userId,ship.id,"wood",1,oversized,"ship_cargo|wood|1")).rejects.toThrow("INVALID_REQUEST_ID");
+      const shipLedger=await db.query<{count:string}>("SELECT COUNT(*)::text AS count FROM ship_cargo_requests WHERE request_key LIKE $1",[userId+":%"]);
+      expect(shipLedger.rows[0]?.count).toBe("0");
+      const shipInventory=await db.query<{count:string}>("SELECT COUNT(*)::text AS count FROM ship_inventory WHERE ship_id=$1",[ship.id]);
+      expect(shipInventory.rows[0]?.count).toBe("0");
+
+      await expect(bases.mutateStorage(userId,{wood:10},oversized,"storage|wood|10")).rejects.toThrow("INVALID_REQUEST_ID");
+      const baseLedger=await db.query<{count:string}>("SELECT COUNT(*)::text AS count FROM base_storage_requests WHERE request_key LIKE $1",[userId+":%"]);
+      expect(baseLedger.rows[0]?.count).toBe("0");
+      const stored=await db.query<{count:string}>("SELECT COUNT(*)::text AS count FROM base_storage WHERE base_id=$1",[base.id]);
+      expect(stored.rows[0]?.count).toBe("0");
     }finally{
       if(app.server.listening)await app.close();
       await db.end();
