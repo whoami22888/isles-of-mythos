@@ -75,7 +75,7 @@ export class SystemPanel {
       const first = message.friends[0];
       const target = first && typeof first === "object" && "userId" in first && typeof first.userId === "string" ? first.userId : undefined;
       this.selectedTradeTarget = target;
-      this.result.setText(target ? "Trade target selected from your friends: " + target : "No tradeable friends found.");
+      this.result.setText(target ? "Selected friend: " + target : "No friends available.");
       return;
     }
     if (message.type === "player_state") {
@@ -128,13 +128,16 @@ export class SystemPanel {
       } },
     ];
     if (this.category === "SOCIAL") return [
-      ask("FRIENDS", "list_friends"), ask("BLOCKS", "list_blocks"), ask("PARTY", "get_party"), ask("INVITES", "party_invitations"),
-      { label: "ADD FRIEND", run: () => { const id = this.prompt("Target user ID"); if (id) this.request("add_friend", { targetUserId: id }); } },
-      { label: "REMOVE FRIEND", run: () => { const id = this.prompt("Target user ID"); if (id) this.request("remove_friend", { targetUserId: id }); } },
-      { label: "CHAT", run: () => this.request("chat_history", { channel: "global", recipientUserId: null, guildId: null, partyId: null }) },
-      { label: "SEND CHAT", run: () => { const body = this.prompt("Global chat message"); if (body) this.request("chat_send", { channel: "global", body, recipientUserId: null, guildId: null, partyId: null }); } },
+      ask("LOAD FRIENDS", "list_friends"),
+      ask("BLOCKS", "list_blocks"),
+      ask("PARTY", "get_party"),
+      ask("INVITES", "party_invitations"),
+      { label: "ADD SELECTED", run: () => { if (this.selectedTradeTarget) this.request("add_friend", { targetUserId: this.selectedTradeTarget }); } },
+      { label: "REMOVE SELECTED", run: () => { if (this.selectedTradeTarget) this.request("remove_friend", { targetUserId: this.selectedTradeTarget }); } },
+      { label: "BLOCK SELECTED", run: () => { if (this.selectedTradeTarget) this.request("block_user", { targetUserId: this.selectedTradeTarget }); } },
+      { label: "CHAT HISTORY", run: () => this.request("chat_history", { channel: "global", recipientUserId: null, guildId: null, partyId: null }) },
       ask("CREATE PARTY", "create_party"),
-      { label: "PARTY INVITE", run: () => { const id = this.prompt("Target user ID"); if (id) this.request("party_invite", { targetUserId: id }); } },
+      { label: "INVITE SELECTED", run: () => { if (this.selectedTradeTarget) this.request("party_invite", { targetUserId: this.selectedTradeTarget }); } },
       ask("LEAVE PARTY", "party_leave"),
     ];
     if (this.category === "GUILD") return [
