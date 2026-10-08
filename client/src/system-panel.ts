@@ -94,6 +94,11 @@ export class SystemPanel {
 
 
 
+  private prompt(label: string): string | null {
+    const value = window.prompt(label);
+    return value === null ? null : value.trim();
+  }
+
   private request(type: string, payload: Record<string, unknown> = {}): void {
     const requestId = Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8);
     this.pending.add(requestId);
