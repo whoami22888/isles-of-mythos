@@ -1,10 +1,8 @@
 # Isles of Mythos: Sunken Tides
 
-Step 4 — Combat Foundation.
+Phase 16 / Endgame integration is present on the current main branch. GitHub verifies current main as `83e4c14b94861c0585c1a50993f7297ad0dda497` on 2026-10-08. This is a repository HEAD check, not a claim of current-head CI/performance/security PASS.
 
-The combat foundation is server-authoritative: movement, stamina, cooldowns, hit validation, damage, creature AI, replay protection, and projectile simulation are resolved by the server.
-
-CI verifies lint, type safety, database migrations, integration tests, builds, and high/critical dependency vulnerabilities.
+The combat foundation remains server-authoritative: movement, stamina, cooldowns, hit validation, damage, creature AI, replay protection, and projectile simulation are resolved by the server.
 
 ## Combat foundation
 
@@ -39,3 +37,7 @@ CI verifies lint, type safety, database migrations, integration tests, builds, a
 7. Run `npm run build`.
 
 The server is authoritative; the client never becomes authoritative for persistent gameplay state.
+
+## Verification documentation standard
+
+Every current verification statement MUST identify the exact Git commit SHA, verification date, workflow/run ID where applicable, and verification status. Historical evidence must remain explicitly tied to its original commit and must never be presented as current-main evidence.
