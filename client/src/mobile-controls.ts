@@ -1,4 +1,4 @@
-import type Phaser from "phaser";
+import Phaser from "phaser";
 
 export type MobileAction = "attack" | "dodge" | "capture" | "gather";
 
