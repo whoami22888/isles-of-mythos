@@ -248,7 +248,7 @@ describe("server foundation", () => {
       await expect(cooldown).resolves.toEqual({ type: "error", code: "COMBAT_COOLDOWN" });
 
       const stateAfterAttack = waitForMatchingMessage(socket, (message) => typeof message === "object" && message !== null && (message as JsonObject).type === "player_state");
-      socket.send(JSON.stringify({ type: "move", dx: 0, dy: 0, dt: 0 }));
+      socket.send(JSON.stringify({ type: "move", dx: 0, dy: 0, sequence: 0 }));
       await expect(stateAfterAttack).resolves.toMatchObject({
         type: "player_state",
         state: { stamina: 92 },
@@ -326,7 +326,7 @@ describe("server foundation", () => {
       await expect(hit).resolves.toMatchObject({ type: "combat_result", requestId: "ammo-1", targetId });
 
       const stateAfterAttack = waitForMatchingMessage(socket, (message) => isJsonObject(message) && message.type === "player_state");
-      socket.send(JSON.stringify({ type: "move", dx: 0, dy: 0, dt: 0 }));
+      socket.send(JSON.stringify({ type: "move", dx: 0, dy: 0, sequence: 0 }));
       await expect(stateAfterAttack).resolves.toMatchObject({
         type: "player_state",
         state: { inventory: { "ammo.flintlock": 0 } },
@@ -560,7 +560,7 @@ describe("server foundation", () => {
       expect(authenticatedStateObject.oxygen).toBe(100);
 
       const moved = waitForMessage(socket);
-      socket.send(JSON.stringify({ type: "move", dx: 1, dy: 0, dt: 0.25 }));
+      socket.send(JSON.stringify({ type: "move", dx: 1, dy: 0, sequence: 0 }));
       const movedMessage = await moved;
       const movedObject = movedMessage as JsonObject;
       const movedState = getObject(movedObject, "state");
