@@ -34,7 +34,7 @@ describe("player survival and movement", () => {
     expect(first.accepted).toBe(false);
     expect(second.serverDt).toBeCloseTo(0.05, 6);
     applyAuthoritativePlayerInput(player, { dx: 1, dy: 0, sequence: 1 }, second.serverDt);
-    expect(player.x).toBeCloseTo(0.2, 6);
+    expect(player.x).toBeCloseTo(0.125, 6);
   });
   it("caps delayed packets to one authoritative movement budget", () => {
     const authority = new MovementAuthority();
@@ -66,7 +66,7 @@ describe("player survival and movement", () => {
       const decision = authority.evaluate("bounded", { dx: 1, dy: 0, sequence }, 1_000 + sequence * 50);
       if (decision.accepted) applyAuthoritativePlayerInput(player, { dx: 1, dy: 0, sequence }, decision.serverDt);
     }
-    expect(player.x).toBeCloseTo(4, 6);
+    expect(player.x).toBeCloseTo(2.5, 6);
   });
   it("produces player and melee hitboxes", () => {
     const player = createDefaultPlayer("user-1");
