@@ -130,6 +130,13 @@ export class MovementAuthority {
     };
   }
 
+  prime(userId: string, nowMs = performance.now()): void {
+    this.lastSequence.delete(userId);
+    this.lastServerTimeMs.set(userId, nowMs);
+    this.windowStartMs.set(userId, nowMs);
+    this.windowCount.set(userId, 0);
+  }
+
   reset(userId: string): void {
     this.lastSequence.delete(userId);
     this.lastServerTimeMs.delete(userId);
@@ -199,7 +206,7 @@ export class PlayerStore {
     this.active.set(userId, state);
     this.economyInventorySnapshots.set(userId, cloneInventory(state.inventory));
     this.revisions.set(userId, 0);
-    this.movementAuthority.reset(userId);
+    this.movementAuthority.prime(userId);
     this.dirty.delete(userId);
     return state;
   }
