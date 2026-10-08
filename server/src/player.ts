@@ -1,4 +1,5 @@
 import type { Pool } from "pg";
+import { performance } from "node:perf_hooks";
 import type { ShopItem } from "./shop.js";
 import { applyInventoryDelta, cloneInventory, parseGoldDoubloons, parseTriumphBadges, runEconomyTransaction, subtractGoldDoubloons, type Inventory } from "./economy.js";
 import { TileKind, tileAtWorld } from "./world.js";
@@ -26,6 +27,20 @@ export function serializePlayerState(state: PlayerState): PublicPlayerState {
 }
 
 export interface PlayerInput { dx: number; dy: number; dt: number; speedMultiplier?: number; }
+export interface AuthoritativeMovementInput {
+  dx: number;
+  dy: number;
+  sequence: number;
+  speedMultiplier?: number;
+}
+export interface MovementDecision {
+  accepted: boolean;
+  serverDt: number;
+  reason?: "DUPLICATE_SEQUENCE" | "INVALID_SEQUENCE" | "RATE_LIMITED";
+  sequenceGap: number;
+}
+export const MOVEMENT_MAX_SERVER_DT_SECONDS = 0.1;
+export const MOVEMENT_MAX_PACKETS_PER_SECOND = 40;
 export interface Hitbox { x: number; y: number; width: number; height: number; }
 
 export function playerHitbox(state: Pick<PlayerState, "x" | "y">): Hitbox {
@@ -40,26 +55,102 @@ export function meleeHitbox(state: Pick<PlayerState, "x" | "y">, facingX = 0, fa
 function clamp(value: number, min: number, max: number): number { return Math.max(min, Math.min(max, value)); }
 
 export function applyPlayerInput(state: PlayerState, input: PlayerInput): PlayerState {
-  const dt = clamp(input.dt, 0, 0.25);
-  const dx = Number.isFinite(input.dx) ? input.dx : 0, dy = Number.isFinite(input.dy) ? input.dy : 0;
-  const length = Math.hypot(dx, dy);
-  if (length > 0 && dt > 0) {
-    const nx = dx / length, ny = dy / length;
-    const speedMultiplier = clamp(input.speedMultiplier ?? 1, 0, 1);
+  return applyPlayerSimulation(state, input.dx, input.dy, clamp(input.dt, 0, 0.25), input.speedMultiplier ?? 1);
+}
+
+
+function applyPlayerSimulation(state: PlayerState, dx: number, dy: number, dt: number, speedMultiplier = 1): PlayerState {
+  const safeDt = clamp(dt, 0, MOVEMENT_MAX_SERVER_DT_SECONDS);
+  const safeDx = Number.isFinite(dx) ? dx : 0;
+  const safeDy = Number.isFinite(dy) ? dy : 0;
+  const length = Math.hypot(safeDx, safeDy);
+  if (length > 0 && safeDt > 0) {
+    const nx = safeDx / length, ny = safeDy / length;
+    const multiplier = clamp(speedMultiplier, 0, 1);
     const tile = tileAtWorld(Math.floor(state.x), Math.floor(state.y));
     const inWater = tile === TileKind.Ocean || tile === TileKind.Shallow;
     const speed = inWater ? PLAYER_WATER_SPEED : PLAYER_LAND_SPEED;
-    state.x = clamp(state.x + nx * speed * dt * speedMultiplier, -1_000_000, 1_000_000);
-    state.y = clamp(state.y + ny * speed * dt * speedMultiplier, -1_000_000, 1_000_000);
+    state.x = clamp(state.x + nx * speed * safeDt * multiplier, -1_000_000, 1_000_000);
+    state.y = clamp(state.y + ny * speed * safeDt * multiplier, -1_000_000, 1_000_000);
   }
   const tile = tileAtWorld(Math.floor(state.x), Math.floor(state.y));
   const inWater = tile === TileKind.Ocean || tile === TileKind.Shallow;
-  state.stamina = clamp(state.stamina + dt * 12, 0, state.maxStamina);
-  state.hunger = clamp(state.hunger - dt * 0.12, 0, PLAYER_MAX_HUNGER);
-  state.oxygen = inWater ? clamp(state.oxygen - dt * 0.35, 0, PLAYER_MAX_OXYGEN)
-    : clamp(state.oxygen + dt * 0.8, 0, PLAYER_MAX_OXYGEN);
-  if (state.hunger === 0 || state.oxygen === 0) state.health = clamp(state.health - dt * 2, 0, PLAYER_MAX_HEALTH);
+  state.stamina = clamp(state.stamina + safeDt * 12, 0, state.maxStamina);
+  state.hunger = clamp(state.hunger - safeDt * 0.12, 0, PLAYER_MAX_HUNGER);
+  state.oxygen = inWater ? clamp(state.oxygen - safeDt * 0.35, 0, PLAYER_MAX_OXYGEN)
+    : clamp(state.oxygen + safeDt * 0.8, 0, PLAYER_MAX_OXYGEN);
+  if (state.hunger === 0 || state.oxygen === 0) state.health = clamp(state.health - safeDt * 2, 0, PLAYER_MAX_HEALTH);
   return state;
+}
+
+export class MovementAuthority {
+  private readonly lastSequence = new Map<string, number>();
+  private readonly lastServerTimeMs = new Map<string, number>();
+  private readonly windowStartMs = new Map<string, number>();
+  private readonly windowCount = new Map<string, number>();
+
+  evaluate(userId: string, input: AuthoritativeMovementInput, nowMs = performance.now()): MovementDecision {
+    if (!Number.isSafeInteger(input.sequence) || input.sequence < 0) {
+      return { accepted: false, serverDt: 0, reason: "INVALID_SEQUENCE", sequenceGap: 0 };
+    }
+    const previousSequence = this.lastSequence.get(userId);
+    if (previousSequence !== undefined && input.sequence <= previousSequence) {
+      return { accepted: false, serverDt: 0, reason: "DUPLICATE_SEQUENCE", sequenceGap: 0 };
+    }
+
+    const windowStarted = this.windowStartMs.get(userId) ?? nowMs;
+    let count = this.windowCount.get(userId) ?? 0;
+    if (nowMs - windowStarted >= 1_000) {
+      this.windowStartMs.set(userId, nowMs);
+      count = 0;
+    }
+    count += 1;
+    this.windowCount.set(userId, count);
+    if (count > MOVEMENT_MAX_PACKETS_PER_SECOND) {
+      this.lastSequence.set(userId, input.sequence);
+      this.lastServerTimeMs.set(userId, nowMs);
+      return {
+        accepted: false,
+        serverDt: 0,
+        reason: "RATE_LIMITED",
+        sequenceGap: previousSequence === undefined ? 0 : Math.max(0, input.sequence - previousSequence - 1),
+      };
+    }
+
+    const previousTime = this.lastServerTimeMs.get(userId);
+    this.lastSequence.set(userId, input.sequence);
+    this.lastServerTimeMs.set(userId, nowMs);
+    const serverDt = previousTime === undefined
+      ? 0
+      : clamp((nowMs - previousTime) / 1_000, 0, MOVEMENT_MAX_SERVER_DT_SECONDS);
+    return {
+      accepted: serverDt > 0,
+      serverDt,
+      sequenceGap: previousSequence === undefined ? 0 : Math.max(0, input.sequence - previousSequence - 1),
+    };
+  }
+
+  prime(userId: string, nowMs = performance.now()): void {
+    this.lastSequence.delete(userId);
+    this.lastServerTimeMs.set(userId, nowMs);
+    this.windowStartMs.set(userId, nowMs);
+    this.windowCount.set(userId, 0);
+  }
+
+  reset(userId: string): void {
+    this.lastSequence.delete(userId);
+    this.lastServerTimeMs.delete(userId);
+    this.windowStartMs.delete(userId);
+    this.windowCount.delete(userId);
+  }
+}
+
+export function applyAuthoritativePlayerInput(
+  state: PlayerState,
+  input: AuthoritativeMovementInput,
+  serverDt: number,
+): PlayerState {
+  return applyPlayerSimulation(state, input.dx, input.dy, serverDt, input.speedMultiplier ?? 1);
 }
 
 export function createDefaultPlayer(userId: string): PlayerState {
@@ -83,6 +174,7 @@ export class PlayerStore {
   private readonly revisions = new Map<string, number>();
   private readonly operations = new Map<string, Promise<void>>();
   private readonly economyInventorySnapshots = new Map<string, Inventory>();
+  private readonly movementAuthority = new MovementAuthority();
   constructor(private readonly db: Pool) {}
   async runExclusive<T>(userId: string, operation: () => Promise<T>): Promise<T> {
     const previous = this.operations.get(userId) ?? Promise.resolve();
@@ -114,6 +206,7 @@ export class PlayerStore {
     this.active.set(userId, state);
     this.economyInventorySnapshots.set(userId, cloneInventory(state.inventory));
     this.revisions.set(userId, 0);
+    this.movementAuthority.prime(userId);
     this.dirty.delete(userId);
     return state;
   }
@@ -122,6 +215,16 @@ export class PlayerStore {
     if (!this.active.has(userId)) return;
     this.dirty.add(userId);
     this.revisions.set(userId, (this.revisions.get(userId) ?? 0) + 1);
+  }
+  applyAuthoritativeMovement(userId: string, input: AuthoritativeMovementInput): MovementDecision {
+    const state = this.active.get(userId);
+    if (!state) throw new Error("PLAYER_NOT_FOUND");
+    const decision = this.movementAuthority.evaluate(userId, input);
+    if (decision.accepted) {
+      applyAuthoritativePlayerInput(state, input, decision.serverDt);
+      this.markDirty(userId);
+    }
+    return decision;
   }
   tick(dt: number): void {
     for (const [userId, state] of this.active) {
@@ -265,6 +368,7 @@ export class PlayerStore {
       this.dirty.delete(userId);
       this.revisions.delete(userId);
       this.economyInventorySnapshots.delete(userId);
+      this.movementAuthority.reset(userId);
     });
   }
   async persistDirty(): Promise<void> {

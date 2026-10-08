@@ -12,7 +12,7 @@ import { createDbPool } from "./db.js";
 import { registerAuthRoutes } from "./auth.js";
 import { log } from "./logger.js";
 import { parseClientMessage, type ServerMessage } from "./protocol.js";
-import { PlayerStore, applyPlayerInput, serializePlayerState } from "./player.js";
+import { PlayerStore, serializePlayerState } from "./player.js";
 import { WorldChunkCache } from "./world.js";
 import { SHOP_ITEMS, calculatePurchase, getShopItem, serializeShopItem } from "./shop.js";
 import { craftRecipe } from "./crafting.js";
@@ -751,8 +751,16 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             return;
           }
           const slow = (playerStatuses.get(userId) ?? []).find((status) => status.id === "slow");
-          applyPlayerInput(state, { ...message, speedMultiplier: slow ? Math.max(0, Math.min(1, 1 - slow.magnitude)) : 1 });
-          players.markDirty(userId);
+          const movement = players.applyAuthoritativeMovement(userId, {
+            dx: message.dx,
+            dy: message.dy,
+            sequence: message.sequence,
+            speedMultiplier: slow ? Math.max(0, Math.min(1, 1 - slow.magnitude)) : 1,
+          });
+          if (!movement.accepted) {
+            send(socket, { type: "error", code: movement.reason === "RATE_LIMITED" ? "RATE_LIMITED" : "INVALID_MESSAGE" });
+            return;
+          }
           send(socket, { type: "player_state", state: serializePlayerState(state) });
           return;
         }
