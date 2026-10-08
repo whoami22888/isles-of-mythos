@@ -89,7 +89,8 @@ export class SystemPanel {
       return;
     }
     if (message.type === "guild_invitations") {
-      const first = message.invitations[0];
+      const invitations = Array.isArray(message.invitations) ? message.invitations : [];
+      const first = invitations[0];
       this.selectedGuildInvitationId = isRecord(first) && typeof first.id === "string" ? first.id : undefined;
       this.result.setText(this.selectedGuildInvitationId ? "Invitation selected." : "No guild invitations.");
       return;
