@@ -69,6 +69,8 @@ describe("PDF §92/§93 request ID persistence bounds",()=>{
       const bases=new BaseStore(db);
       const base=await bases.create(userId,"Bounds Base",0,0);
       await db.query("INSERT INTO base_buildings(base_id,type,level,grid_x,grid_y,active) VALUES($1,'guild_hall',1,1,0,true)",[base.id]);
+      await db.query("INSERT INTO base_buildings(base_id,type,level,grid_x,grid_y,active) VALUES($1,'shipyard',1,2,0,true)",[base.id]);
+      await db.query("INSERT INTO base_storage(base_id,resource_key,quantity) VALUES($1,'wood',300),($1,'steel',50)",[base.id]);
       await db.query("UPDATE player_profiles SET inventory=jsonb_build_object('wood',10),gold=100 WHERE user_id=$1",[userId]);
 
       const guilds=new GuildStore(db);
@@ -83,17 +85,19 @@ describe("PDF §92/§93 request ID persistence bounds",()=>{
       const ships=new ShipStore(db);
       const ship=await ships.create(userId,"Bounds Sloop","sloop");
       const inventory=new ShipInventoryStore(db);
+      const shipInventoryBefore=await db.query<{item_id:string;quantity:string}>("SELECT item_id,quantity FROM ship_inventory WHERE ship_id=$1 ORDER BY item_id",[ship.id]);
       await expect(inventory.mutate(userId,ship.id,"wood",1,oversized,"ship_cargo|wood|1")).rejects.toThrow("INVALID_REQUEST_ID");
       const shipLedger=await db.query<{count:string}>("SELECT COUNT(*)::text AS count FROM ship_cargo_requests WHERE request_key LIKE $1",[userId+":%"]);
       expect(shipLedger.rows[0]?.count).toBe("0");
-      const shipInventory=await db.query<{count:string}>("SELECT COUNT(*)::text AS count FROM ship_inventory WHERE ship_id=$1",[ship.id]);
-      expect(shipInventory.rows[0]?.count).toBe("0");
+      const shipInventoryAfter=await db.query<{item_id:string;quantity:string}>("SELECT item_id,quantity FROM ship_inventory WHERE ship_id=$1 ORDER BY item_id",[ship.id]);
+      expect(shipInventoryAfter.rows).toEqual(shipInventoryBefore.rows);
 
+      const baseStorageBefore=await db.query<{resource_key:string;quantity:string}>("SELECT resource_key,quantity FROM base_storage WHERE base_id=$1 ORDER BY resource_key",[base.id]);
       await expect(bases.mutateStorage(userId,{wood:10},oversized,"storage|wood|10")).rejects.toThrow("INVALID_REQUEST_ID");
       const baseLedger=await db.query<{count:string}>("SELECT COUNT(*)::text AS count FROM base_storage_requests WHERE request_key LIKE $1",[userId+":%"]);
       expect(baseLedger.rows[0]?.count).toBe("0");
-      const stored=await db.query<{count:string}>("SELECT COUNT(*)::text AS count FROM base_storage WHERE base_id=$1",[base.id]);
-      expect(stored.rows[0]?.count).toBe("0");
+      const baseStorageAfter=await db.query<{resource_key:string;quantity:string}>("SELECT resource_key,quantity FROM base_storage WHERE base_id=$1 ORDER BY resource_key",[base.id]);
+      expect(baseStorageAfter.rows).toEqual(baseStorageBefore.rows);
     }finally{
       if(app.server.listening)await app.close();
       await db.end();
