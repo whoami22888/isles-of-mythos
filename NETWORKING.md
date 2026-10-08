@@ -16,4 +16,8 @@ Combat request IDs are replay-protected. Ranged projectiles are resolved server-
 The PDF requires spatial interest management, regional servers, cross-region synchronization, battle instancing and adaptive LOD/network strategies. These remain architectural/scaling requirements beyond the currently verified single-server implementation unless separately evidenced.
 
 ## Verification
-Current main b879b1606acc72c232ee7486de21d1a194b987bd passed full CI and sustained-load acceptance. Do not claim multi-region production deployment or battle sharding without direct evidence.
+GitHub verifies current main as `83e4c14b94861c0585c1a50993f7297ad0dda497` on 2026-10-08. No workflow evidence is claimed here unless a workflow/run is explicitly tied to that exact SHA.
+
+Historical workflow results from earlier commits remain historical and must not be presented as current-main verification.
+
+Every current verification statement MUST identify the exact Git commit SHA, verification date, workflow/run ID where applicable, and verification status.
