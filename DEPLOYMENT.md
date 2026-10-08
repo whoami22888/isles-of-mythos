@@ -20,13 +20,35 @@ Production Compose includes Caddy TLS termination, Prometheus and PostgreSQL exp
 ## Recovery
 PostgreSQL persistence uses a named volume, with CI backup/restore verification. Production operations still require an external backup policy and restore drill appropriate to the deployment environment.
 
-## Scaling
-The PDF requires regional server topology, cross-server synchronization, battle instancing, adaptive rendering and load testing beyond the current verified single-region/single-server deployment. These remain post-Phase-16 compliance items unless separately evidenced.
+## Deployment architecture status
+
+**Current implementation is effectively single-server/single-region.**
+
+The current deployment stack provides a deployable server/database/edge environment, but it does not establish production global-MMO infrastructure.
+
+### Global MMO classification
+- **Regional server topology — FUTURE GATE:** no multi-region fleet/control-plane deployment is implemented.
+- **Cross-server synchronisation — FUTURE GATE:** no cross-region replication/authority-consistency service is implemented.
+- **Battle instancing — PARTIAL:** local server-side tactical battle instances exist; distributed battle-server allocation/routing does not.
+- **Regional routing — FUTURE GATE:** no verified global gateway, server discovery or capacity/latency routing layer.
+- **World ownership transfer — PARTIAL:** current territory ownership is authoritative and transferable within the world model; cross-region transfer is absent.
+- **Cross-server persistence/failover — PARTIAL:** PostgreSQL persistence and backup/restore exist, but no regional authority failover/takeover protocol is implemented.
+
+## Production global MMO requirements
+The PDF requires, at minimum:
+- Global control plane.
+- Geographically distributed region/edge game servers.
+- Global services separated from regional simulation services.
+- Cross-region gateway and battle/session coordinator.
+- Server transfer with locked/persisted/validated state and no duplication.
+- Dynamic server allocation and server discovery.
+- Region load balancing using capacity/latency/health signals.
+- Cross-server persistence and authority recovery.
+- Regional failure, cross-region consistency and distributed capacity/load testing.
+
+These remain **FUTURE GATE** work. They must not be represented as production-ready merely because the current single-server deployment is containerised or PostgreSQL-backed.
 
 ## Verification evidence
-Documentation source state: main HEAD `83e4c14b94861c0585c1a50993f7297ad0dda497`, verified 2026-10-08 before this documentation change.
-- CI #1010 PASS
-- Performance Acceptance #230 PASS
-- Static Security Quality #202 PASS
+Source state for this documentation change: main HEAD 0d4817acdd14cab9fda75366da857e82236c6933, queried directly from GitHub on 2026-10-08. GitHub currently reports no workflow runs attached to this exact SHA, so this change makes no current-head CI/Performance/Security PASS claim.
 
-These results apply only to the exact source-state SHA above. They must not be transferred to later commits. Follow `.project/VERIFICATION-STANDARD.md` for current verification claims.
+Follow .project/VERIFICATION-STANDARD.md for exact-SHA evidence rules.
