@@ -10,10 +10,12 @@ Use BUILD -> TEST -> INSPECT -> FIX -> RETEST -> VERIFY -> DOCUMENT -> CONTINUE.
 Do not repeatedly rerun the same failure. Every retry requires new evidence or a targeted correction. Never increase a timeout merely to hide an unresolved synchronization or logic defect.
 
 ## Current acceptance
-The current main Phase 16 baseline passed:
-- CI #858: migrations, audit, lint/typecheck, full test suite, build, Docker Compose validation, backup/restore and production image.
-- Performance Acceptance #78: 1,000-player seeded sustained-load scenario with host/PostgreSQL metrics capture.
-- Static Security #50.
+Current main is `83e4c14b94861c0585c1a50993f7297ad0dda497`, verified from the GitHub `main` ref on 2026-10-08.
+
+No current-head PASS is claimed here for CI, Performance Acceptance or Static Security until workflow runs are tied directly to this exact SHA. Historical workflow results must remain explicitly historical.
 
 ## Evidence rule
 Passing tests prove only the behaviours they exercise. PDF post-Phase-16 architecture, scaling, mobile/GPU and production requirements remain separately classified until direct evidence exists.
+
+## Verification documentation standard
+Every current verification statement MUST identify the exact Git commit SHA, verification date, workflow/run ID where applicable, and verification status. Changing HEAD invalidates current-head workflow claims until fresh evidence is obtained.
