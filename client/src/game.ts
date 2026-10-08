@@ -86,7 +86,7 @@ class WorldScene extends Phaser.Scene {
     this.input.keyboard?.on("keyup-B", () => this.setBlocking(false));
     this.createTouchCombatControls();
     this.createMobileControls();
-    this.systems = new SystemPanel(this, (message) => this.sendSystemMessage(message), () => this.player ? { x: this.player.x, y: this.player.y } : null);
+    this.systems = new SystemPanel(this, (message) => this.sendSystemMessage(message), () => this.player ? { x: this.player.x, y: this.player.y } : null, () => this.player ?? null);
     this.createInvasionOverlay();
     this.time.addEvent({ delay: 3000, loop: true, callback: () => this.refreshInvasions() });
     this.scale.on("resize", () => { this.layoutInvasionOverlay(); this.layoutMobileControls(); });
