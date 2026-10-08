@@ -38,6 +38,7 @@ import { EndgameStore } from "./endgame.js";
 import { TerritorySeasonStore } from "./territory-seasons.js";
 import { registerFrontendRoutes } from "./frontend.js";
 import { resolve } from "node:path";
+import { AntiCheatService } from "./anti-cheat.js";
 
 function errorCode(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
@@ -91,6 +92,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const worldEvents = new WorldEventCoordinator(db, (userId) => players.get(userId)?.level);
   const endgame = new EndgameStore(db);
   const territorySeasons = new TerritorySeasonStore(db);
+  const antiCheat = new AntiCheatService();
   const sockets = new Set<WebSocket>();
   const playerConnections = new Map<string, number>();
   const userSockets = new Map<string, Set<WebSocket>>();
@@ -757,6 +759,8 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             sequence: message.sequence,
             speedMultiplier: slow ? Math.max(0, Math.min(1, 1 - slow.magnitude)) : 1,
           });
+          const evidence = antiCheat.observeMovement(userId, movement);
+          if (evidence) log("anti_cheat_event", { ...evidence });
           if (!movement.accepted) {
             send(socket, { type: "error", code: movement.reason === "RATE_LIMITED" ? "RATE_LIMITED" : "INVALID_MESSAGE" });
             return;
