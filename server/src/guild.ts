@@ -132,24 +132,53 @@ export class GuildStore{
       return {treasury:g.rows[0].treasury,items:items.rows.map(x=>({itemId:x.item_id,quantity:x.quantity})),transactions:tx.rows};
     }catch(e){await c.query('ROLLBACK');throw e}finally{c.release()}
   }
-  async bankDeposit(userId:string,guildId:string,requestId:string,itemId:string,quantity:number,gold:string):Promise<{transactionId:string;rewardTransactionIds:string[]}>{
+  async bankDeposit(userId:string,guildId:string,itemId:string,quantity:number,gold:string,requestId:string,fingerprint:string):Promise<{transactionId:string;rewardTransactionIds:string[]}>{
     if(quantity<0||!Number.isSafeInteger(quantity)||quantity>1_000_000)throw new Error('INVALID_GUILD_BANK_QUANTITY');const gld=parseGoldDoubloons(gold);if(quantity===0&&gld===0n)throw new Error('INVALID_GUILD_BANK_DEPOSIT');
-    const requestKey=userId+":"+requestId;const fingerprint=JSON.stringify({guildId,itemId,quantity,gold});const c=await this.db.connect();try{await c.query('BEGIN');await requirePermission(c,guildId,userId,'bank_deposit');const existing=await c.query<{transaction_id:string;fingerprint:string;response:{transactionId:string;rewardTransactionIds:string[]}}>("SELECT transaction_id,fingerprint,response FROM guild_bank_transactions WHERE request_key=$1 FOR UPDATE",[requestKey]);if(existing.rows[0]){if(existing.rows[0].fingerprint!==fingerprint)throw new Error('GUILD_BANK_REQUEST_CONFLICT');await c.query('COMMIT');return existing.rows[0].response;}const p=await c.query<{gold:string;inventory:Record<string,number>}>("SELECT gold,inventory FROM player_profiles WHERE user_id=$1 FOR UPDATE",[userId]);if(!p.rows[0])throw new Error('PLAYER_NOT_FOUND');
-      const responseBase={guildId,requestId,transactionId:"",rewardTransactionIds:[] as string[]};
+    if(!requestId||requestId.length>64)throw new Error('INVALID_REQUEST_ID');
+    const c=await this.db.connect();try{await c.query('BEGIN');
+      const playerLock=await c.query("SELECT 1 FROM player_profiles WHERE user_id=$1 FOR UPDATE",[userId]);
+      if(!playerLock.rows[0])throw new Error('PLAYER_NOT_FOUND');
+      const requestKey=userId+':'+requestId;
+      const inserted=await c.query<{transaction_id:string}>("INSERT INTO guild_bank_requests(request_key,user_id,fingerprint,response) VALUES($1,$2,$3,'{}'::jsonb) ON CONFLICT(request_key) DO NOTHING RETURNING transaction_id",[requestKey,userId,fingerprint]);
+      if(!inserted.rows[0]){
+        const existing=await c.query<{fingerprint:string;transaction_id:string;response:{transactionId?:string;rewardTransactionIds?:string[]}}>("SELECT fingerprint,transaction_id,response FROM guild_bank_requests WHERE request_key=$1 FOR UPDATE",[requestKey]);
+        if(!existing.rows[0])throw new Error('GUILD_BANK_REQUEST_NOT_FOUND');
+        if(existing.rows[0].fingerprint!==fingerprint)throw new Error('GUILD_BANK_REQUEST_CONFLICT');
+        if(!existing.rows[0].response.transactionId)throw new Error('GUILD_BANK_REQUEST_INCOMPLETE');
+        await c.query('COMMIT');
+        return {transactionId:existing.rows[0].transaction_id,rewardTransactionIds:existing.rows[0].response.rewardTransactionIds??[]};
+      }
+      const transactionId=inserted.rows[0].transaction_id;
+      await requirePermission(c,guildId,userId,'bank_deposit');const p=await c.query<{gold:string;inventory:Record<string,number>}>("SELECT gold,inventory FROM player_profiles WHERE user_id=$1 FOR UPDATE",[userId]);if(!p.rows[0])throw new Error('PLAYER_NOT_FOUND');
       let inv=cloneInventory(p.rows[0].inventory);if(quantity>0)inv=applyInventoryDelta(inv,itemId,-quantity);const playerGold=subtractGoldDoubloons(BigInt(p.rows[0].gold),gld);
       const gr=await c.query<{treasury:string}>("SELECT treasury FROM guilds WHERE id=$1 FOR UPDATE",[guildId]);if(!gr.rows[0])throw new Error('GUILD_NOT_FOUND');const guildGold=addGoldDoubloons(BigInt(gr.rows[0].treasury),gld);
       if(quantity>0)await c.query("INSERT INTO guild_bank_items(guild_id,item_id,quantity) VALUES($1,$2,$3) ON CONFLICT(guild_id,item_id) DO UPDATE SET quantity=guild_bank_items.quantity+EXCLUDED.quantity,updated_at=CURRENT_TIMESTAMP",[guildId,itemId,quantity]);
       await c.query("UPDATE player_profiles SET gold=$2,inventory=$3::jsonb,updated_at=CURRENT_TIMESTAMP WHERE user_id=$1",[userId,playerGold.toString(),JSON.stringify(inv)]);await c.query("UPDATE guilds SET treasury=$2,updated_at=CURRENT_TIMESTAMP WHERE id=$1",[guildId,guildGold.toString()]);
-      const rewardTransactionIds=await this.progressDeposits(c,guildId,userId,itemId,quantity);const tx=await c.query<{transaction_id:string}>("INSERT INTO guild_bank_transactions(guild_id,user_id,action_type,item_id,quantity,gold_before,gold_after,request_key,fingerprint,response,metadata) VALUES($1,$2,'deposit',$3,$4,$5,$6,$7,$8,$9::jsonb,$10::jsonb) RETURNING transaction_id",[guildId,userId,itemId||null,quantity,p.rows[0].gold,playerGold.toString(),requestKey,fingerprint,JSON.stringify({...responseBase,rewardTransactionIds}),JSON.stringify({gold:gld.toString()})]);const response={...responseBase,transactionId:tx.rows[0].transaction_id,rewardTransactionIds};await c.query("UPDATE guild_bank_transactions SET response=$2::jsonb WHERE transaction_id=$1",[tx.rows[0].transaction_id,JSON.stringify(response)]);await c.query('COMMIT');return response;
+      const rewardTransactionIds=await this.progressDeposits(c,guildId,userId,itemId,quantity);await c.query("INSERT INTO guild_bank_transactions(transaction_id,guild_id,user_id,action_type,item_id,quantity,gold_before,gold_after,metadata) VALUES($1,$2,$3,'deposit',$4,$5,$6,$7,$8::jsonb)",[transactionId,guildId,userId,itemId||null,quantity,p.rows[0].gold,playerGold.toString(),JSON.stringify({gold:gld.toString()})]);const response={transactionId,rewardTransactionIds};await c.query("UPDATE guild_bank_requests SET response=$2::jsonb WHERE request_key=$1",[requestKey,JSON.stringify(response)]);await c.query('COMMIT');return response;
     }catch(e){await c.query('ROLLBACK');throw e}finally{c.release()}
   }
-  async bankWithdraw(userId:string,guildId:string,requestId:string,itemId:string,quantity:number,gold:string):Promise<{transactionId:string}>{
+  async bankWithdraw(userId:string,guildId:string,itemId:string,quantity:number,gold:string,requestId:string,fingerprint:string):Promise<{transactionId:string}>{
     if(quantity<0||!Number.isSafeInteger(quantity)||quantity>1_000_000)throw new Error('INVALID_GUILD_BANK_QUANTITY');const gld=parseGoldDoubloons(gold);if(quantity===0&&gld===0n)throw new Error('INVALID_GUILD_BANK_WITHDRAW');
-    const requestKey=userId+":"+requestId;const fingerprint=JSON.stringify({guildId,itemId,quantity,gold});const c=await this.db.connect();try{await c.query('BEGIN');await requirePermission(c,guildId,userId,'bank_withdraw');const existing=await c.query<{transaction_id:string;fingerprint:string;response:{transactionId:string}}>("SELECT transaction_id,fingerprint,response FROM guild_bank_transactions WHERE request_key=$1 FOR UPDATE",[requestKey]);if(existing.rows[0]){if(existing.rows[0].fingerprint!==fingerprint)throw new Error('GUILD_BANK_REQUEST_CONFLICT');await c.query('COMMIT');return existing.rows[0].response;}const gr=await c.query<{treasury:string}>("SELECT treasury FROM guilds WHERE id=$1 FOR UPDATE",[guildId]);if(!gr.rows[0])throw new Error('GUILD_NOT_FOUND');const guildGold=subtractGoldDoubloons(BigInt(gr.rows[0].treasury),gld);
+    if(!requestId||requestId.length>64)throw new Error('INVALID_REQUEST_ID');
+    const c=await this.db.connect();try{await c.query('BEGIN');
+      const playerLock=await c.query("SELECT 1 FROM player_profiles WHERE user_id=$1 FOR UPDATE",[userId]);
+      if(!playerLock.rows[0])throw new Error('PLAYER_NOT_FOUND');
+      const requestKey=userId+':'+requestId;
+      const inserted=await c.query<{transaction_id:string}>("INSERT INTO guild_bank_requests(request_key,user_id,fingerprint,response) VALUES($1,$2,$3,'{}'::jsonb) ON CONFLICT(request_key) DO NOTHING RETURNING transaction_id",[requestKey,userId,fingerprint]);
+      if(!inserted.rows[0]){
+        const existing=await c.query<{fingerprint:string;transaction_id:string;response:{transactionId?:string}}>("SELECT fingerprint,transaction_id,response FROM guild_bank_requests WHERE request_key=$1 FOR UPDATE",[requestKey]);
+        if(!existing.rows[0])throw new Error('GUILD_BANK_REQUEST_NOT_FOUND');
+        if(existing.rows[0].fingerprint!==fingerprint)throw new Error('GUILD_BANK_REQUEST_CONFLICT');
+        if(!existing.rows[0].response.transactionId)throw new Error('GUILD_BANK_REQUEST_INCOMPLETE');
+        await c.query('COMMIT');
+        return {transactionId:existing.rows[0].transaction_id};
+      }
+      const transactionId=inserted.rows[0].transaction_id;
+      await requirePermission(c,guildId,userId,'bank_withdraw');const gr=await c.query<{treasury:string}>("SELECT treasury FROM guilds WHERE id=$1 FOR UPDATE",[guildId]);if(!gr.rows[0])throw new Error('GUILD_NOT_FOUND');const guildGold=subtractGoldDoubloons(BigInt(gr.rows[0].treasury),gld);
       if(quantity>0){const item=await c.query<{quantity:string}>("SELECT quantity FROM guild_bank_items WHERE guild_id=$1 AND item_id=$2 FOR UPDATE",[guildId,itemId]);if(BigInt(item.rows[0]?.quantity??'0')<BigInt(quantity))throw new Error('INSUFFICIENT_GUILD_BANK');}
       const p=await c.query<{gold:string;inventory:Record<string,number>}>("SELECT gold,inventory FROM player_profiles WHERE user_id=$1 FOR UPDATE",[userId]);if(!p.rows[0])throw new Error('PLAYER_NOT_FOUND');let inv=cloneInventory(p.rows[0].inventory);if(quantity>0)inv=applyInventoryDelta(inv,itemId,quantity);const playerGold=addGoldDoubloons(BigInt(p.rows[0].gold),gld);
       if(quantity>0)await c.query("UPDATE guild_bank_items SET quantity=quantity-$3,updated_at=CURRENT_TIMESTAMP WHERE guild_id=$1 AND item_id=$2",[guildId,itemId,quantity]);await c.query("UPDATE guilds SET treasury=$2,updated_at=CURRENT_TIMESTAMP WHERE id=$1",[guildId,guildGold.toString()]);await c.query("UPDATE player_profiles SET gold=$2,inventory=$3::jsonb,updated_at=CURRENT_TIMESTAMP WHERE user_id=$1",[userId,playerGold.toString(),JSON.stringify(inv)]);
-      const tx=await c.query<{transaction_id:string}>("INSERT INTO guild_bank_transactions(guild_id,user_id,action_type,item_id,quantity,gold_before,gold_after,request_key,fingerprint,response,metadata) VALUES($1,$2,'withdraw',$3,$4,$5,$6,$7,$8,$9::jsonb,$10::jsonb) RETURNING transaction_id",[guildId,userId,itemId||null,quantity,gr.rows[0].treasury,guildGold.toString(),requestKey,fingerprint,JSON.stringify({transactionId:""}),JSON.stringify({gold:gld.toString()})]);const response={transactionId:tx.rows[0].transaction_id};await c.query("UPDATE guild_bank_transactions SET response=$2::jsonb WHERE transaction_id=$1",[tx.rows[0].transaction_id,JSON.stringify(response)]);await c.query('COMMIT');return response;
+      await c.query("INSERT INTO guild_bank_transactions(transaction_id,guild_id,user_id,action_type,item_id,quantity,gold_before,gold_after,metadata) VALUES($1,$2,$3,'withdraw',$4,$5,$6,$7,$8::jsonb)",[transactionId,guildId,userId,itemId||null,quantity,gr.rows[0].treasury,guildGold.toString(),JSON.stringify({gold:gld.toString()})]);const response={transactionId};await c.query("UPDATE guild_bank_requests SET response=$2::jsonb WHERE request_key=$1",[requestKey,JSON.stringify(response)]);await c.query('COMMIT');return response;
     }catch(e){await c.query('ROLLBACK');throw e}finally{c.release()}
   }
   private async progressDeposits(c:PoolClient,guildId:string,userId:string,itemId:string,quantity:number):Promise<string[]>{
