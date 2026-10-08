@@ -70,6 +70,7 @@ describe("PDF §92/§93 request ID persistence bounds",()=>{
       const base=await bases.create(userId,"Bounds Base",0,0);
       await db.query("INSERT INTO base_buildings(base_id,type,level,grid_x,grid_y,active) VALUES($1,'guild_hall',1,1,0,true)",[base.id]);
       await db.query("INSERT INTO base_buildings(base_id,type,level,grid_x,grid_y,active) VALUES($1,'shipyard',1,2,0,true)",[base.id]);
+      await db.query("INSERT INTO base_storage(base_id,resource_key,quantity) VALUES($1,'steel',50)",[base.id]);
       await db.query("UPDATE player_profiles SET inventory=jsonb_build_object('wood',10),gold=100 WHERE user_id=$1",[userId]);
 
       const guilds=new GuildStore(db);
