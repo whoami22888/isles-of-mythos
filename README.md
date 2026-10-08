@@ -1,10 +1,15 @@
 # Isles of Mythos: Sunken Tides
 
-Step 4 — Combat Foundation.
+## Verified project state
 
-The combat foundation is server-authoritative: movement, stamina, cooldowns, hit validation, damage, creature AI, replay protection, and projectile simulation are resolved by the server.
+The repository contains the server-authoritative implementation through Phase 16 / Endgame. This README describes the verified implementation scope; remaining post-Phase-16 PDF requirements are not implied to be complete.
 
-CI verifies lint, type safety, database migrations, integration tests, builds, and high/critical dependency vulnerabilities.
+Documentation source state: main HEAD `83e4c14b94861c0585c1a50993f7297ad0dda497`, verified 2026-10-08 before this documentation change.
+- CI #1010 PASS
+- Performance Acceptance #230 PASS
+- Static Security Quality #202 PASS
+
+These results apply only to that exact source-state SHA. After any repository change, fresh exact-head verification is required.
 
 ## Combat foundation
 
@@ -32,10 +37,12 @@ CI verifies lint, type safety, database migrations, integration tests, builds, a
 
 1. Copy `.env.example` to `.env`.
 2. Start infrastructure with `docker compose up -d`.
-3. Install dependencies with `npm install`.
+3. Install dependencies with `npm ci`.
 4. Apply PostgreSQL migrations with `npm run migrate:up`.
 5. Run `npm run typecheck`.
 6. Run `npm run test`.
 7. Run `npm run build`.
 
 The server is authoritative; the client never becomes authoritative for persistent gameplay state.
+
+For mandatory verification and SHA documentation rules, see `.project/VERIFICATION-STANDARD.md`.

@@ -23,8 +23,10 @@ PostgreSQL persistence uses a named volume, with CI backup/restore verification.
 ## Scaling
 The PDF requires regional server topology, cross-server synchronization, battle instancing, adaptive rendering and load testing beyond the current verified single-region/single-server deployment. These remain post-Phase-16 compliance items unless separately evidenced.
 
-## Current acceptance evidence
-Main b879b1606acc72c232ee7486de21d1a194b987bd:
-- CI #858 PASS
-- Performance Acceptance #78 PASS
-- Static Security #50 PASS
+## Verification evidence
+Documentation source state: main HEAD `83e4c14b94861c0585c1a50993f7297ad0dda497`, verified 2026-10-08 before this documentation change.
+- CI #1010 PASS
+- Performance Acceptance #230 PASS
+- Static Security Quality #202 PASS
+
+These results apply only to the exact source-state SHA above. They must not be transferred to later commits. Follow `.project/VERIFICATION-STANDARD.md` for current verification claims.
