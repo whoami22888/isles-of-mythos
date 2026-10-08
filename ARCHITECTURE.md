@@ -1,7 +1,7 @@
 # Architecture
 
 ## Current verified state
-Isles of Mythos uses a split client/server architecture with server-authoritative persistent gameplay. Current main is verified through Phase 16 / Endgame.
+Isles of Mythos uses a split client/server architecture with server-authoritative persistent gameplay. Current main is verified by GitHub as `83e4c14b94861c0585c1a50993f7297ad0dda497` on 2026-10-08. This HEAD verification does not, by itself, transfer workflow evidence from earlier commits.
 
 ### Server
 - Fastify HTTP API and authenticated WebSocket endpoint.
@@ -21,5 +21,9 @@ Isles of Mythos uses a split client/server architecture with server-authoritativ
 ### Endgame
 Phase 16 provides realm wars, large guild battles, high-level creatures, mythic content and territory seasons. Endgame persistence uses PostgreSQL transactions, row/advisory locks and server-side validation.
 
-## Verification rule
-Current main b879b1606acc72c232ee7486de21d1a194b987bd is the verified Phase 16 integration baseline. CI #858, Performance Acceptance #78 and Static Security #50 all passed. Do not describe implemented systems as future work without evidence.
+## Verification standard
+Every current verification statement MUST identify the exact Git commit SHA, verification date, workflow/run ID where applicable, and verification status.
+
+For this repository, a HEAD check alone is not workflow evidence. Workflow evidence is valid only for the exact commit it executed against. When HEAD changes, current-head workflow claims must be reverified.
+
+Do not describe implemented systems as future work without evidence.
