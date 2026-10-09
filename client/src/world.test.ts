@@ -17,12 +17,12 @@ function createFakeScene() {
   const makeGraphics = () => {
     created += 1;
     const graphics = {
-      fillStyle: (_color: number, _alpha: number) => graphics,
-      fillRect: (_x: number, _y: number, _width: number, _height: number) => graphics,
-      fillCircle: (_x: number, _y: number, _radius: number) => graphics,
-      lineStyle: (_width: number, _color: number, _alpha: number) => graphics,
-      strokeCircle: (_x: number, _y: number, _radius: number) => graphics,
-      setDepth: (_depth: number) => graphics,
+      fillStyle: () => graphics,
+      fillRect: () => graphics,
+      fillCircle: () => graphics,
+      lineStyle: () => graphics,
+      strokeCircle: () => graphics,
+      setDepth: () => graphics,
       clear: () => graphics,
       destroy: () => { destroyed += 1; },
     };
