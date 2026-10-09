@@ -22,6 +22,22 @@ Isles of Mythos uses a split client/server architecture with server-authoritativ
 Phase 16 provides realm wars, large guild battles, high-level creatures, mythic content and territory seasons. Endgame persistence uses PostgreSQL transactions, row/advisory locks and server-side validation.
 
 ## Verification rule
-The documentation update was based on authoritative main HEAD `83e4c14b94861c0585c1a50993f7297ad0dda497`, verified on 2026-10-08 before this documentation change. Exact-head evidence for that source state was CI #1010 PASS, Performance Acceptance #230 PASS, and Static Security Quality #202 PASS.
+The documentation update was based on authoritative main HEAD `d4de5d278369b5dc3d57aeee13c86bb4bec70c8e`, queried directly from GitHub on 2026-10-09 before this documentation change. Exact-head evidence for that source state was verify run 37915489570 PASS, sustained-load run 37915489672 PASS, and static-security run 37915489593 PASS.
 
 This is a source-state record, not a claim that a later commit has the same verification. After any HEAD change, obtain fresh exact-head evidence before describing the new HEAD as verified. Follow `.project/VERIFICATION-STANDARD.md` for the mandatory evidence format.
+
+
+## Global MMO architecture classification
+
+- Regional server topology/control plane: **FUTURE GATE**; no verified multi-region server fleet is implemented.
+- Cross-server synchronization and regional authority consistency: **FUTURE GATE**; region identifiers alone are not evidence of synchronization.
+- Battle instancing: **PARTIAL**; local tactical instances exist, but distributed battle-server routing does not.
+- Regional routing/load balancing: **FUTURE GATE**; no verified global gateway, server discovery, or latency/capacity routing.
+- World ownership transfer: **PARTIAL** within the current world model; cross-region authority handoff is absent.
+- Cross-server persistence/failover: **PARTIAL**; database persistence exists, but regional authority failover is not implemented.
+
+The PDF target additionally requires a global control plane, regional servers, global/regional service boundaries, cross-region gateways, battle/session coordination, dynamic allocation, and regional failure/consistency/load testing. These remain future requirements, not current production capabilities.
+
+## Renderer status
+
+The current Phaser prototype now batches terrain and entity markers into two Graphics objects per loaded chunk. This is an incremental object-count improvement, not the production renderer. Atlas/tilemap terrain, LOD/culling, asset streaming, adaptive quality and physical-device GPU profiling remain future work. See GRAPHICS_ENGINE_ARCHITECTURE.md for the design proposal.
