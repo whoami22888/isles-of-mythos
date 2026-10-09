@@ -12,10 +12,13 @@ The server uses world chunks and nearby-entity activation to limit active simula
 ## Reliability
 Combat request IDs are replay-protected. Ranged projectiles are resolved server-side. Economy, capture, crafting, trading, guild, army, realm and endgame mutations use server validation and transactional persistence where required. Persistence failures are logged.
 
-## Scaling direction
-The PDF requires spatial interest management, regional servers, cross-region synchronization, battle instancing and adaptive LOD/network strategies. These remain architectural/scaling requirements beyond the currently verified single-server implementation unless separately evidenced.
+## Global MMO boundary
+
+Current deployment is effectively single-server/single-region. Regional server topology, cross-server synchronization, regional routing and capacity/latency load balancing are **FUTURE GATE** requirements. Local battle instancing, current-world ownership changes and PostgreSQL persistence are **PARTIAL** capabilities; they do not establish distributed battle routing, cross-region ownership transfer or regional failover. The PDF's global gateway, service separation, dynamic allocation, failure recovery and distributed consistency/load tests remain future requirements.
+
+Movement timing is server-owned and anti-cheat movement evidence is implemented. Detection coverage for resource collection, attack frequency, coordinates and inventory mutation remains incomplete.
 
 ## Verification
-The documentation update was based on authoritative main HEAD `83e4c14b94861c0585c1a50993f7297ad0dda497`, verified on 2026-10-08 before this documentation change. Exact-head evidence for that source state was CI #1010 PASS, Performance Acceptance #230 PASS, and Static Security Quality #202 PASS.
+The documentation update was based on authoritative main HEAD `d4de5d278369b5dc3d57aeee13c86bb4bec70c8e`, queried directly from GitHub on 2026-10-09 before this documentation change. Exact-head evidence for that source state was verify run 37915489570 PASS, sustained-load run 37915489672 PASS, and static-security run 37915489593 PASS.
 
 This is a source-state record, not a claim that a later commit has the same verification. After any HEAD change, obtain fresh exact-head evidence before describing the new HEAD as verified. Follow `.project/VERIFICATION-STANDARD.md`.
