@@ -6,17 +6,17 @@
 |---|---|
 | Repository | `whoami22888/isles-of-mythos` |
 | Branch | `main` |
-| Authoritative HEAD | `83e4c14b94861c0585c1a50993f7297ad0dda497` |
-| Verification date | 2026-10-08 |
+| Authoritative HEAD | `3766078adfcdeda08dc768b0b8d4bce05d914827` |
+| Verification date | 2026-10-09 |
 | Latest numbered phase represented by current project records | **Phase 16 — Endgame** |
 | Gate state | Gates 1–16 are treated as frozen in the Master Project Index; no new numbered gate is inferred from the PDF |
-| Current exact-HEAD CI | **CI #1010 — PASS** |
-| Current exact-HEAD performance | **Performance Acceptance #230 — PASS** |
-| Current exact-HEAD security | **Static Security Quality #202 — PASS** |
+| Current exact-HEAD CI | **verify run 37878375179 — PASS** |
+| Current exact-HEAD performance | **sustained-load run 37878375176 — PASS** |
+| Current exact-HEAD security | **static-security run 37878375323 — PASS** |
 | Independent audit status | **NOT AUDIT-PASS** |
 | Production readiness | **NOT PRODUCTION-READY** |
 
-The exact current `main` HEAD was queried from GitHub before this documentation repair. The three listed workflow results are attached to that exact SHA; evidence from other commits is not transferred to it.
+The exact current `main` HEAD was queried from GitHub on 2026-10-09. The three listed workflow results are attached to that exact SHA; evidence from other commits is not transferred to it.
 
 The current audit identifies material remaining risks, including server-derived movement authority, anti-cheat detection/telemetry, mobile-first UX, production rendering/performance architecture, and global MMO/network scaling. These are audit findings, not evidence that the corresponding future work is already complete.
 
@@ -201,12 +201,12 @@ No future item is described here as implemented merely because it appears in the
 
 ### Exact current-main evidence
 
-**Verified source:** `83e4c14b94861c0585c1a50993f7297ad0dda497`  
+**Verified source:** `3766078adfcdeda08dc768b0b8d4bce05d914827`  
 **Verification date:** 2026-10-08
 
-- CI #1010 / run `37759539832` — **PASS**
-- Performance Acceptance #230 / run `37759539777` — **PASS**
-- Static Security Quality #202 / run `37759539823` — **PASS**
+- `verify` / run `37878375179` — **PASS**
+- `sustained-load` / run `37878375176` — **PASS**
+- `static-security` / run `37878375323` — **PASS**
 
 These results apply only to the exact SHA above.
 
