@@ -378,7 +378,9 @@ const scenarios = [];
 
 for (let index = 0; index < levels.length; index += 1) {
   const players = levels[index];
-  const mutationUser = users[index];
+  // Use a player outside all earlier cohorts so its active server state cannot be stale.
+const mutationUserIndexes = [0, 1, 50, 250];
+const mutationUser = users[mutationUserIndexes[index]];
   const mutationNode = mutationNodes[index];
   await prepareMutationUser(mutationUser, mutationNode);
 
