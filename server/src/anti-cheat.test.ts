@@ -44,4 +44,48 @@ describe("anti-cheat evidence service", () => {
     }
     expect(service.listRecent("u1", 20)).toHaveLength(20);
   });
+  it("detects repeated attack attempts rejected by the server cooldown", () => {
+    const service = new AntiCheatService();
+    for (let index = 0; index < 7; index += 1) {
+      expect(service.observeRejectedAction("u1", "ATTACK_COOLDOWN_SPAM", { cooldownRemainingMs: 100 }, 1_000 + index * 100)).toBeNull();
+    }
+    const event = service.observeRejectedAction("u1", "ATTACK_COOLDOWN_SPAM", { cooldownRemainingMs: 100 }, 1_700);
+    expect(event).toMatchObject({
+      type: "ATTACK_COOLDOWN_SPAM",
+      severity: "HIGH",
+      evidence: { rejectedCount: 8, windowMs: 5_000 },
+    });
+    expect(service.suspicionScore("u1", 1_700)).toBe(5);
+  });
+
+  it("does not flag isolated out-of-range resource requests", () => {
+    const service = new AntiCheatService();
+    for (let index = 0; index < 4; index += 1) {
+      expect(service.observeRejectedAction("u1", "RESOURCE_RANGE_ABUSE", { distance: 8 }, 2_000 + index * 100)).toBeNull();
+    }
+    const event = service.observeRejectedAction("u1", "RESOURCE_RANGE_ABUSE", { distance: 8 }, 2_400);
+    expect(event).toMatchObject({
+      type: "RESOURCE_RANGE_ABUSE",
+      severity: "MEDIUM",
+      evidence: { rejectedCount: 5, windowMs: 10_000 },
+    });
+  });
+
+  it("expires rejected-action counts outside the observation window", () => {
+    const service = new AntiCheatService();
+    for (let index = 0; index < 4; index += 1) {
+      service.observeRejectedAction("u1", "RESOURCE_RANGE_ABUSE", {}, 1_000 + index * 100);
+    }
+    expect(service.observeRejectedAction("u1", "RESOURCE_RANGE_ABUSE", {}, 12_000)).toBeNull();
+  });
+
+  it("clears rejected-action windows when a user is reset", () => {
+    const service = new AntiCheatService();
+    for (let index = 0; index < 4; index += 1) {
+      service.observeRejectedAction("u1", "RESOURCE_RANGE_ABUSE", {}, 1_000 + index * 100);
+    }
+    service.reset("u1");
+    expect(service.observeRejectedAction("u1", "RESOURCE_RANGE_ABUSE", {}, 1_500)).toBeNull();
+  });
+
 });
