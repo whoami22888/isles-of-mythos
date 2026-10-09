@@ -884,8 +884,6 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
               send(socket, { type: "error", code: "INVALID_MESSAGE" });
               return;
             }
-            attackCooldowns.set(userId, now + weapon.cooldownMs);
-            state.stamina -= weapon.staminaCost;
             if (ammoType) {
               try {
                 await players.consumeInventory(userId, ammoType, 1);
@@ -897,6 +895,9 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
                 throw error;
               }
             }
+            // Commit combat costs only after authoritative ammunition consumption succeeds.
+            attackCooldowns.set(userId, now + weapon.cooldownMs);
+            state.stamina -= weapon.staminaCost;
             players.markDirty(userId);
             projectiles.set(projectileId, projectile);
             pendingCombatRequests.set(pendingKey, projectile.expiresAt);
