@@ -488,7 +488,7 @@ describe("server foundation", () => {
     const appB = await buildApp({ db: databaseB });
     let socketA: WebSocket | null = null;
     let socketB: WebSocket | null = null;
-    let lockClient: Awaited<ReturnType<typeof lockDatabase.connect>> | null = null;
+    let lockClient: import("pg").PoolClient | null = null;
 
     try {
       const unique = Date.now();
@@ -544,9 +544,10 @@ describe("server foundation", () => {
 
       // Hold the player row so both independent server instances must finish
       // cooldown validation before either can commit ammunition consumption.
-      lockClient = await lockDatabase.connect();
-      await lockClient.query("BEGIN");
-      await lockClient.query("SELECT user_id FROM player_profiles WHERE user_id=$1 FOR UPDATE", [userId]);
+      const activeLockClient = await lockDatabase.connect();
+      lockClient = activeLockClient;
+      await activeLockClient.query("BEGIN");
+      await activeLockClient.query("SELECT user_id FROM player_profiles WHERE user_id=$1 FOR UPDATE", [userId]);
 
       const outcomeA = waitForMatchingMessage(socketA, (message) => (
         isJsonObject(message) && (
@@ -576,7 +577,7 @@ describe("server foundation", () => {
       }
       expect(waitingTransactions).toBe(2);
 
-      await lockClient.query("COMMIT");
+      await activeLockClient.query("COMMIT");
       const outcomes = await Promise.all([outcomeA, outcomeB]);
       expect(outcomes.filter((message) => isJsonObject(message) && message.type === "projectile_spawn")).toHaveLength(1);
       expect(outcomes.filter((message) => isJsonObject(message) && message.type === "error" && message.code === "COMBAT_COOLDOWN")).toHaveLength(1);
