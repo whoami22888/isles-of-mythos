@@ -1,8 +1,9 @@
 #!/usr/bin/env node
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 
 const roots = ["server/src", "client/src"];
+const workflowRoot = ".github/workflows";
 const findings = { errors: [], reviews: [] };
 
 function walk(root) {
@@ -36,6 +37,30 @@ function scan(file) {
 }
 
 for (const root of roots) walk(root);
+
+// Keep workflow security policy inside the required static-security gate.
+if (!existsSync(workflowRoot)) {
+  findings.errors.push("workflow-policy missing .github/workflows directory");
+} else {
+  for (const name of readdirSync(workflowRoot).sort()) {
+    if (!/\.ya?ml$/i.test(name)) continue;
+    const file = join(workflowRoot, name);
+    const content = readFileSync(file, "utf8");
+    const lines = content.split(/\r?\n/);
+    lines.forEach((line, index) => {
+      const n = index + 1;
+      if (line.includes("\\${{")) add(findings.errors, "escaped-workflow-expression", file, n, line);
+      const action = line.match(/^\s*uses:\s*([A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+)@([^\s#]+)(?:\s+#.*)?$/);
+      if (action && !/^[0-9a-f]{40}$/i.test(action[2])) {
+        add(findings.errors, "unpinned-workflow-action", file, n, line);
+      }
+    });
+    if (!/^permissions:\s*$/m.test(content) || !/^  contents:\s*read\s*$/m.test(content)) {
+      add(findings.errors, "workflow-permissions-policy", file, 1, "Workflow must explicitly grant contents: read at top-level permissions");
+    }
+  }
+}
+
 console.log("Static security scan: " + (findings.errors.length === 0 ? "PASS" : "FAIL"));
 for (const item of findings.errors) console.log("ERROR " + item);
 for (const item of findings.reviews.slice(0, 200)) console.log("REVIEW " + item);
