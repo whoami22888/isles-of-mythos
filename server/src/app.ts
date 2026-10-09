@@ -835,6 +835,10 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           const now = Date.now();
           const nextAttack = attackCooldowns.get(userId) ?? 0;
           if (now < nextAttack) {
+            const evidence = antiCheat.observeRejectedAction(userId, "ATTACK_COOLDOWN_SPAM", {
+              cooldownRemainingMs: nextAttack - now,
+            }, now);
+            if (evidence) log("anti_cheat_event", { ...evidence });
             send(socket, { type: "error", code: "COMBAT_COOLDOWN" });
             return;
           }
@@ -1129,7 +1133,16 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           if (!node) { send(socket, { type: "error", code: "RESOURCE_NOT_FOUND" }); return; }
           const fingerprint = resourceGatherFingerprint(node.id);
           const response = await runEconomyRequest(authenticatedUserId, message.requestId, fingerprint, async () => {
-            if (distance(state, node) > 2.5) return { type: "error", code: "RESOURCE_OUT_OF_RANGE" };
+            const resourceDistance = distance(state, node);
+            if (resourceDistance > 2.5) {
+              const evidence = antiCheat.observeRejectedAction(authenticatedUserId, "RESOURCE_RANGE_ABUSE", {
+                distance: Number(resourceDistance.toFixed(3)),
+                maxDistance: 2.5,
+                resourceId: node.id,
+              });
+              if (evidence) log("anti_cheat_event", { ...evidence });
+              return { type: "error", code: "RESOURCE_OUT_OF_RANGE" };
+            }
             try {
               const result = await gatherResource(db, authenticatedUserId, message.requestId, fingerprint, node);
               const refreshed = await players.reloadEconomy(authenticatedUserId);
