@@ -58,7 +58,10 @@ describe("anti-cheat evidence service", () => {
     expect(service.suspicionScore("u1", 1_700)).toBe(5);
   });
 
-  it("does not flag isolated out-of-range resource requests", () => {
+  it("detects repeated out-of-range resource requests", () => {
+    const isolatedService = new AntiCheatService();
+    expect(isolatedService.observeRejectedAction("u1", "RESOURCE_RANGE_ABUSE", { distance: 8 }, 1_900)).toBeNull();
+
     const service = new AntiCheatService();
     for (let index = 0; index < 4; index += 1) {
       expect(service.observeRejectedAction("u1", "RESOURCE_RANGE_ABUSE", { distance: 8 }, 2_000 + index * 100)).toBeNull();
