@@ -516,6 +516,9 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       }
     }
     for (const [key, expiresAt] of pendingCombatRequests) if (expiresAt <= now) pendingCombatRequests.delete(key);
+    // Keep unexpired combat cooldowns across reconnects, then prune them to bound memory.
+    for (const [cooldownUserId, until] of attackCooldowns) if (until <= now) attackCooldowns.delete(cooldownUserId);
+    for (const [cooldownUserId, until] of dodgeCooldowns) if (until <= now) dodgeCooldowns.delete(cooldownUserId);
     for (const [userId, until] of invulnerableUntil) if (until <= now) invulnerableUntil.delete(userId);
   }, 250);
   combatTick.unref();
@@ -1647,8 +1650,6 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       setActivePlayers(userSockets.size);
       if (connections <= 0) {
         playerConnections.delete(disconnectedUserId);
-        attackCooldowns.delete(disconnectedUserId);
-        dodgeCooldowns.delete(disconnectedUserId);
         blocking.delete(disconnectedUserId);
         invulnerableUntil.delete(disconnectedUserId);
         playerStatuses.delete(disconnectedUserId);
