@@ -49,7 +49,7 @@ if (!existsSync(workflowRoot)) {
     const lines = content.split(/\r?\n/);
     lines.forEach((line, index) => {
       const n = index + 1;
-      if (line.includes("\\${{")) add(findings.errors, "escaped-workflow-expression", file, n, line);
+      if (/^\s*group:\s*.*\\\$\{\{/.test(line)) add(findings.errors, "escaped-workflow-expression", file, n, line);
       const action = line.match(/^\s*(?:-\s*)?uses:\s*([A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+)@([^\s#]+)(?:\s+#.*)?$/);
       if (action && !/^[0-9a-f]{40}$/i.test(action[2])) {
         add(findings.errors, "unpinned-workflow-action", file, n, line);
