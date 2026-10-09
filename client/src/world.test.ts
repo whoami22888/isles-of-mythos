@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CHUNK_SIZE, TILE_SIZE, TileKind } from "./world.js";
+import { CHUNK_SIZE, TILE_SIZE, TileKind, ChunkRenderer } from "./world.js";
 
 describe("client world constants", () => {
   it("uses the same chunk geometry as the server contract", () => {
@@ -8,5 +8,93 @@ describe("client world constants", () => {
     expect(TileKind.Ocean).toBe(0);
     expect(TileKind.Grass).toBe(3);
     expect(TileKind.Reef).toBe(5);
+  });
+});
+
+function createFakeScene() {
+  let created = 0;
+  let destroyed = 0;
+  const makeGraphics = () => {
+    created += 1;
+    const graphics = {
+      fillStyle: (_color: number, _alpha: number) => graphics,
+      fillRect: (_x: number, _y: number, _width: number, _height: number) => graphics,
+      fillCircle: (_x: number, _y: number, _radius: number) => graphics,
+      lineStyle: (_width: number, _color: number, _alpha: number) => graphics,
+      strokeCircle: (_x: number, _y: number, _radius: number) => graphics,
+      setDepth: (_depth: number) => graphics,
+      clear: () => graphics,
+      destroy: () => { destroyed += 1; },
+    };
+    return graphics;
+  };
+  return {
+    scene: { add: { graphics: makeGraphics } },
+    created: () => created,
+    destroyed: () => destroyed,
+  };
+}
+
+describe("chunk entity batching", () => {
+  it("uses two graphics objects per chunk regardless of entity count", () => {
+    const fake = createFakeScene();
+    const renderer = new ChunkRenderer(fake.scene as never);
+    renderer.render({
+      x: 0,
+      y: 0,
+      size: 1,
+      tiles: [TileKind.Grass],
+      resources: [
+        { id: "wood:0:0", type: "wood", x: 0, y: 0 },
+        { id: "stone:1:0", type: "stone", x: 1, y: 0 },
+      ],
+      creatures: [
+        { id: "creature:0:0", species: "slime", x: 0, y: 1, level: 1 },
+        { id: "creature:1:0", species: "raptor", x: 1, y: 1, level: 2 },
+      ],
+    });
+
+    expect(renderer.loadedCount).toBe(1);
+    expect(fake.created()).toBe(2);
+    expect(renderer.nearestResource(0, 0)?.id).toBe("wood:0:0");
+    expect(renderer.nearestCreature(0, 1)?.id).toBe("creature:0:0");
+  });
+
+  it("redraws a shared marker layer when entities are removed without allocating more objects", () => {
+    const fake = createFakeScene();
+    const renderer = new ChunkRenderer(fake.scene as never);
+    renderer.render({
+      x: 0,
+      y: 0,
+      size: 1,
+      tiles: [TileKind.Grass],
+      resources: [{ id: "wood:0:0", type: "wood", x: 0, y: 0 }],
+      creatures: [{ id: "creature:0:0", species: "slime", x: 1, y: 1, level: 1 }],
+    });
+
+    renderer.removeResource("wood:0:0");
+    renderer.removeCreature("creature:0:0");
+    expect(renderer.nearestResource(0, 0)).toBeNull();
+    expect(renderer.nearestCreature(1, 1)).toBeNull();
+    expect(fake.created()).toBe(2);
+  });
+
+  it("destroys both shared layers and indexed entities when unloading a chunk", () => {
+    const fake = createFakeScene();
+    const renderer = new ChunkRenderer(fake.scene as never);
+    renderer.render({
+      x: 0,
+      y: 0,
+      size: 1,
+      tiles: [TileKind.Grass],
+      resources: [{ id: "wood:0:0", type: "wood", x: 0, y: 0 }],
+      creatures: [{ id: "creature:0:0", species: "slime", x: 1, y: 1, level: 1 }],
+    });
+
+    renderer.unloadOutside(0, 1, 1);
+    expect(renderer.loadedCount).toBe(0);
+    expect(fake.destroyed()).toBe(2);
+    expect(renderer.nearestResource(0, 0)).toBeNull();
+    expect(renderer.nearestCreature(1, 1)).toBeNull();
   });
 });
