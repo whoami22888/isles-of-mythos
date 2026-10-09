@@ -51,6 +51,8 @@ export class SystemPanel {
   private selectedAuctionListingId?: string;
   private selectedWorldEventId?: string;
   private selectedArmyId?: string;
+  private selectedEndgameCreatureId?: string;
+  private selectedMythicContentId?: string;
   private open = false;
   private readonly pending = new Set<string>();
 
@@ -98,6 +100,18 @@ export class SystemPanel {
       const first = isRecord(message.invitations) ? message.invitations["0"] : undefined;
       this.selectedGuildInvitationId = isRecord(first) && typeof first.id === "string" ? first.id : undefined;
       this.result.setText(this.selectedGuildInvitationId ? "Invitation selected." : "No guild invitations.");
+      return;
+    }
+    if (message.type === "endgame_creature_list") {
+      const first = isRecord(message.creatures) ? message.creatures["0"] : undefined;
+      this.selectedEndgameCreatureId = isRecord(first) && typeof first.id === "string" ? first.id : undefined;
+      this.result.setText(this.selectedEndgameCreatureId ? "Endgame creature selected: " + this.selectedEndgameCreatureId : "No endgame creatures available.");
+      return;
+    }
+    if (message.type === "mythic_content_list") {
+      const first = isRecord(message.content) ? message.content["0"] : undefined;
+      this.selectedMythicContentId = isRecord(first) && typeof first.id === "string" ? first.id : undefined;
+      this.result.setText(this.selectedMythicContentId ? "Mythic content selected: " + this.selectedMythicContentId : "No mythic content available.");
       return;
     }
     if (message.type === "army_list") {
@@ -281,7 +295,7 @@ export class SystemPanel {
     ];
     if (this.category === "ENDGAME") return [
       ask("ENDGAME CREATURES", "list_endgame_creatures"), ask("MYTHIC CONTENT", "list_mythic_content"),
-      { label: "ENGAGE", run: () => { const creatureId = this.prompt("Endgame creature ID"); if (creatureId) this.request("engage_endgame_creature", { creatureId }); } },
+      { label: "ENGAGE SELECTED", run: () => { if (this.selectedEndgameCreatureId) this.request("engage_endgame_creature", { creatureId: this.selectedEndgameCreatureId }); } },
     ];
     return [];
   }
