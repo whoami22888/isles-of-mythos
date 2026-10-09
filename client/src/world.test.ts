@@ -57,7 +57,9 @@ describe("chunk entity batching", () => {
     expect(renderer.loadedCount).toBe(1);
     expect(fake.created()).toBe(2);
     expect(renderer.nearestResource(0, 0)?.id).toBe("wood:0:0");
+    expect(renderer.nearestResource(1, 0)?.id).toBe("stone:1:0");
     expect(renderer.nearestCreature(0, 1)?.id).toBe("creature:0:0");
+    expect(renderer.nearestCreature(1, 1)?.id).toBe("creature:1:0");
   });
 
   it("redraws a shared marker layer when entities are removed without allocating more objects", () => {
