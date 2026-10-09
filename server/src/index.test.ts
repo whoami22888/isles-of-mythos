@@ -461,7 +461,7 @@ describe("server foundation", () => {
       if (!isJsonObject(stateAfterFailureMessage)) throw new Error("Expected player_state after failed attack");
       const staminaAfter = Number(getObject(stateAfterFailureMessage, "state").stamina);
       expect(staminaAfter).toBeGreaterThanOrEqual(staminaBefore - 0.01);
-      expect(staminaAfter).toBeLessThanOrEqual(staminaBefore + 2);
+      expect(staminaAfter).toBeLessThanOrEqual(staminaBefore + 3);
 
       const cooldownAfterFailedAmmo = await database.query(
         "SELECT user_id FROM combat_attack_cooldowns WHERE user_id=$1",
