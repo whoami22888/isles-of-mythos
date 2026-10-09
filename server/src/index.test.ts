@@ -76,7 +76,9 @@ function getString(value: JsonObject, key: string): string {
 }
 
 async function openSocket(app: Awaited<ReturnType<typeof buildApp>>): Promise<WebSocket> {
-  await app.listen({ host: "127.0.0.1", port: 0 });
+  if (!app.server.listening) {
+    await app.listen({ host: "127.0.0.1", port: 0 });
+  }
   const address = app.server.address();
   if (address === null || typeof address === "string") throw new Error("Test server has no TCP address");
   return new WebSocket(`ws://127.0.0.1:${address.port}/ws`);
