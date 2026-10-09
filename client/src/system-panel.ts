@@ -295,7 +295,7 @@ export class SystemPanel {
     ];
     if (this.category === "ENDGAME") return [
       ask("ENDGAME CREATURES", "list_endgame_creatures"), ask("MYTHIC CONTENT", "list_mythic_content"),
-      { label: "ENGAGE", run: () => { const creatureId = this.prompt("Endgame creature ID"); if (creatureId) this.request("engage_endgame_creature", { creatureId }); } },
+      { label: "ENGAGE SELECTED", run: () => { if (this.selectedEndgameCreatureId) this.request("engage_endgame_creature", { creatureId: this.selectedEndgameCreatureId }); } },
     ];
     return [];
   }
