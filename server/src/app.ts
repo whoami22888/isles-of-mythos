@@ -887,18 +887,24 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
               send(socket, { type: "error", code: "INVALID_MESSAGE" });
               return;
             }
-            if (ammoType) {
-              try {
-                await players.consumeInventory(userId, ammoType, 1);
-              } catch (error) {
-                if (error instanceof Error && error.message === "INSUFFICIENT_INVENTORY") {
-                  send(socket, { type: "error", code: "NO_AMMO" });
-                  return;
-                }
-                throw error;
+            try {
+              await players.authorizeAttack(userId, weapon.cooldownMs, ammoType);
+            } catch (error) {
+              if (error instanceof Error && error.message === "INSUFFICIENT_INVENTORY") {
+                send(socket, { type: "error", code: "NO_AMMO" });
+                return;
               }
+              if (error instanceof Error && error.message === "COMBAT_COOLDOWN") {
+                const evidence = antiCheat.observeRejectedAction(userId, "ATTACK_COOLDOWN_SPAM", {
+                  cooldownRemainingMs: weapon.cooldownMs,
+                }, now);
+                if (evidence) log("anti_cheat_event", { ...evidence });
+                send(socket, { type: "error", code: "COMBAT_COOLDOWN" });
+                return;
+              }
+              throw error;
             }
-            // Commit combat costs only after authoritative ammunition consumption succeeds.
+            // Cooldown reservation and ammunition consumption commit together.
             attackCooldowns.set(userId, now + weapon.cooldownMs);
             state.stamina -= weapon.staminaCost;
             players.markDirty(userId);
@@ -909,6 +915,15 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
               x: projectile.x, y: projectile.y, vx: projectile.vx, vy: projectile.vy, expiresAt: projectile.expiresAt,
             });
             return;
+          }
+          try {
+            await players.authorizeAttack(userId, weapon.cooldownMs);
+          } catch (error) {
+            if (error instanceof Error && error.message === "COMBAT_COOLDOWN") {
+              send(socket, { type: "error", code: "COMBAT_COOLDOWN" });
+              return;
+            }
+            throw error;
           }
           attackCooldowns.set(userId, now + weapon.cooldownMs);
           state.stamina -= weapon.staminaCost;
