@@ -1,8 +1,22 @@
-import type { Pool } from "pg";
+import type { Pool, PoolClient } from "pg";
 import { performance } from "node:perf_hooks";
 import type { ShopItem } from "./shop.js";
 import { applyInventoryDelta, cloneInventory, parseGoldDoubloons, parseTriumphBadges, runEconomyTransaction, subtractGoldDoubloons, type Inventory } from "./economy.js";
 import { TileKind, tileAtWorld } from "./world.js";
+
+async function reserveAttackCooldown(client: PoolClient, userId: string, cooldownMs: number): Promise<void> {
+  if (!Number.isSafeInteger(cooldownMs) || cooldownMs <= 0) throw new Error("INVALID_COMBAT_COOLDOWN");
+  const result = await client.query<{ user_id: string }>(
+    `INSERT INTO combat_attack_cooldowns (user_id, expires_at)
+     VALUES ($1, clock_timestamp() + ($2::double precision * interval '1 millisecond'))
+     ON CONFLICT (user_id) DO UPDATE
+       SET expires_at = EXCLUDED.expires_at
+       WHERE combat_attack_cooldowns.expires_at <= clock_timestamp()
+     RETURNING user_id`,
+    [userId, cooldownMs],
+  );
+  if (result.rowCount !== 1) throw new Error("COMBAT_COOLDOWN");
+}
 
 export const PLAYER_MAX_HEALTH = 100;
 export const PLAYER_MAX_HUNGER = 100;
@@ -340,6 +354,43 @@ export class PlayerStore {
     state.inventory = cloneInventory(row.inventory);
     this.economyInventorySnapshots.set(userId, cloneInventory(state.inventory));
     return state;
+  }
+
+  async authorizeAttack(userId: string, cooldownMs: number, ammoType?: string): Promise<PlayerState> {
+    return this.runExclusive(userId, async () => {
+      const state = this.active.get(userId);
+      if (!state) throw new Error("PLAYER_NOT_FOUND");
+
+      if (ammoType) {
+        const result = await runEconomyTransaction(this.db, userId, async (draft) => {
+          await reserveAttackCooldown(draft.client, userId, cooldownMs);
+          const inventory = applyInventoryDelta(draft.inventory, ammoType, -1);
+          return { gold: draft.gold, inventory, value: { gold: draft.gold, inventory } };
+        }, "combat_attack");
+        state.gold = result.gold;
+        state.inventory = result.inventory;
+        this.economyInventorySnapshots.set(userId, cloneInventory(result.inventory));
+        return state;
+      }
+
+      const client = await this.db.connect();
+      try {
+        await client.query("BEGIN");
+        const player = await client.query<{ user_id: string }>(
+          "SELECT user_id FROM player_profiles WHERE user_id=$1 FOR UPDATE",
+          [userId],
+        );
+        if (!player.rows[0]) throw new Error("PLAYER_NOT_FOUND");
+        await reserveAttackCooldown(client, userId, cooldownMs);
+        await client.query("COMMIT");
+        return state;
+      } catch (error) {
+        await client.query("ROLLBACK").catch(() => undefined);
+        throw error;
+      } finally {
+        client.release();
+      }
+    });
   }
 
   async consumeInventory(userId: string, itemId: string, quantity = 1): Promise<PlayerState> {
