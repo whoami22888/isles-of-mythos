@@ -83,7 +83,7 @@ The following is supported by the current repository plus current project verifi
 
 ### IMPLEMENTED / NOT YET VERIFIED AS PRODUCTION ACCEPTANCE
 
-The repository contains substantial client and gameplay functionality beyond the early combat foundation, but individual feature presence must not be confused with full production acceptance. The current audit explicitly identifies gaps in mobile UX, anti-cheat, rendering scalability, movement authority and global MMO topology.
+The repository contains substantial client and gameplay functionality beyond the early combat foundation, but individual feature presence must not be confused with full production acceptance. The current audit identifies gaps in player-facing mobile UX/accessibility, broader anti-cheat coverage, rendering scalability, progression/quest UX, exploration/treasure discovery, transport benchmarking and global MMO topology.
 
 ### PARTIAL
 
