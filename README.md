@@ -202,7 +202,7 @@ No future item is described here as implemented merely because it appears in the
 ### Exact current-main evidence
 
 **Verified source:** `3766078adfcdeda08dc768b0b8d4bce05d914827`  
-**Verification date:** 2026-10-08
+**Verification date:** 2026-10-09
 
 - `verify` / run `37878375179` — **PASS**
 - `sustained-load` / run `37878375176` — **PASS**
