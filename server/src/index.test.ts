@@ -460,11 +460,28 @@ describe("server foundation", () => {
       const stateAfterFailureMessage = await stateAfterFailure;
       if (!isJsonObject(stateAfterFailureMessage)) throw new Error("Expected player_state after failed attack");
       const staminaAfter = Number(getObject(stateAfterFailureMessage, "state").stamina);
-      expect.soft(staminaAfter).toBeGreaterThan(staminaBefore - 2);
+      expect(staminaAfter).toBeGreaterThanOrEqual(staminaBefore - 0.01);
+      expect(staminaAfter).toBeLessThanOrEqual(staminaBefore + 2);
 
-      // Capture any error so the cooldown assertion is evaluated independently
-      // of the stamina assertion above.
-      const retryError = waitForMatchingMessage(socket, (message) => isJsonObject(message) && message.type === "error");
+      const cooldownAfterFailedAmmo = await database.query(
+        "SELECT user_id FROM combat_attack_cooldowns WHERE user_id=$1",
+        [userId],
+      );
+      expect(cooldownAfterFailedAmmo.rowCount).toBe(0);
+
+      // Restore ammunition after the failed transaction. The next attack must
+      // succeed, proving the rolled-back reservation did not activate cooldown.
+      await database.query(
+        "UPDATE player_profiles SET inventory=$2::jsonb WHERE user_id=$1",
+        [userId, JSON.stringify({ "ammo.flintlock": 1 })],
+      );
+      const retryOutcome = waitForMatchingMessage(
+        socket,
+        (message) => isJsonObject(message) && (
+          message.type === "projectile_spawn"
+          || message.type === "error"
+        ),
+      );
       socket.send(JSON.stringify({
         type: "attack",
         requestId: "stale-ammo-2",
@@ -472,7 +489,7 @@ describe("server foundation", () => {
         facingX: 1,
         facingY: 0,
       }));
-      await expect(retryError).resolves.toEqual({ type: "error", code: "NO_AMMO" });
+      await expect(retryOutcome).resolves.toMatchObject({ type: "projectile_spawn" });
     } finally {
       socket.close();
       await database.end();
