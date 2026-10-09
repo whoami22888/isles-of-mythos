@@ -33,6 +33,7 @@ const REJECTED_ACTION_RULES = {
 
 const DECAY_PER_SECOND = 1;
 const MAX_EVENTS = 5000;
+const MAX_REJECTED_ACTION_WINDOWS = 10_000;
 
 export class AntiCheatService {
   private readonly events: AntiCheatEvidence[] = [];
@@ -97,8 +98,15 @@ export class AntiCheatService {
       (timestampMs) => nowMs >= timestampMs && nowMs - timestampMs <= rule.windowMs,
     );
     timestampsMs.push(nowMs);
+    if (timestampsMs.length > rule.threshold) timestampsMs.splice(0, timestampsMs.length - rule.threshold);
     const lastEmittedMs = previous?.lastEmittedMs ?? Number.NEGATIVE_INFINITY;
+    this.rejectedActions.delete(key);
     this.rejectedActions.set(key, { timestampsMs, lastEmittedMs });
+    while (this.rejectedActions.size > MAX_REJECTED_ACTION_WINDOWS) {
+      const oldestKey = this.rejectedActions.keys().next().value;
+      if (oldestKey === undefined) break;
+      this.rejectedActions.delete(oldestKey);
+    }
 
     if (timestampsMs.length < rule.threshold || nowMs - lastEmittedMs < rule.windowMs) return null;
 
@@ -107,6 +115,7 @@ export class AntiCheatService {
       rejectedCount: timestampsMs.length,
       windowMs: rule.windowMs,
     }, nowMs);
+    this.rejectedActions.delete(key);
     this.rejectedActions.set(key, { timestampsMs, lastEmittedMs: nowMs });
     return event;
   }
