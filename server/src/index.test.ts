@@ -460,11 +460,27 @@ describe("server foundation", () => {
       const stateAfterFailureMessage = await stateAfterFailure;
       if (!isJsonObject(stateAfterFailureMessage)) throw new Error("Expected player_state after failed attack");
       const staminaAfter = Number(getObject(stateAfterFailureMessage, "state").stamina);
-      expect.soft(staminaAfter).toBeGreaterThan(staminaBefore - 2);
+      // Failed ammo consumption must not charge stamina. Allow only a small,
+      // explicit allowance for authoritative regeneration during the DB round-trip.
+      expect(staminaAfter).toBeGreaterThanOrEqual(staminaBefore - 0.5);
+      expect(staminaAfter).toBeLessThanOrEqual(staminaBefore + 2);
 
-      // Capture any error so the cooldown assertion is evaluated independently
-      // of the stamina assertion above.
-      const retryError = waitForMatchingMessage(socket, (message) => isJsonObject(message) && message.type === "error");
+      // Restore the authoritative round without reloading the in-memory state.
+      // The next request therefore reaches cooldown validation with valid cached
+      // and persisted ammo. If the failed request incorrectly set cooldown before
+      // consumption completed, this immediate retry deterministically returns
+      // COMBAT_COOLDOWN instead of resolving as a successful combat result.
+      await database.query(
+        "UPDATE player_profiles SET inventory=$2::jsonb WHERE user_id=$1",
+        [userId, JSON.stringify({ "ammo.flintlock": 1 })],
+      );
+
+      const retryResult = waitForMatchingMessage(socket, (message) => (
+        isJsonObject(message) && (
+          (message.type === "combat_result" && message.requestId === "stale-ammo-2")
+          || message.type === "error"
+        )
+      ));
       socket.send(JSON.stringify({
         type: "attack",
         requestId: "stale-ammo-2",
@@ -472,7 +488,10 @@ describe("server foundation", () => {
         facingX: 1,
         facingY: 0,
       }));
-      await expect(retryError).resolves.toEqual({ type: "error", code: "NO_AMMO" });
+      await expect(retryResult).resolves.toMatchObject({
+        type: "combat_result",
+        requestId: "stale-ammo-2",
+      });
     } finally {
       socket.close();
       await database.end();
