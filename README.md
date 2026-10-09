@@ -6,17 +6,17 @@
 |---|---|
 | Repository | `whoami22888/isles-of-mythos` |
 | Branch | `main` |
-| Authoritative HEAD | `d4de5d278369b5dc3d57aeee13c86bb4bec70c8e` |
+| Last verified source-state SHA (before documentation change) | `d4de5d278369b5dc3d57aeee13c86bb4bec70c8e` |
 | Verification date | 2026-10-09 |
 | Latest numbered phase represented by current project records | **Phase 16 — Endgame** |
 | Gate state | Gates 1–16 are treated as frozen in the Master Project Index; no new numbered gate is inferred from the PDF |
-| Current exact-HEAD CI | **verify run 37915489570 — PASS** |
-| Current exact-HEAD performance | **sustained-load run 37915489672 — PASS** |
-| Current exact-HEAD security | **static-security run 37915489593 — PASS** |
+| Source-state verify | **run 37915489570 — PASS** |
+| Source-state sustained-load | **run 37915489672 — PASS** |
+| Source-state static security | **run 37915489593 — PASS** |
 | Independent audit status | **NOT AUDIT-PASS** |
 | Production readiness | **NOT PRODUCTION-READY** |
 
-The exact current `main` HEAD was queried from GitHub on 2026-10-09. The listed verify, sustained-load and static-security results are attached to that exact SHA; evidence from other commits is not transferred to it.
+The source-state SHA above was `main` immediately before this documentation-only change. The listed workflows apply only to that exact SHA. This README is not a live `main`-ref indicator; query GitHub for the current `main` HEAD and obtain fresh exact-head checks after any commit.
 
 Recent verified work hardened server-owned movement timing, added movement anti-cheat evidence, introduced touch joystick/HUD controls, and batched world entity markers per chunk. Material remaining risks include broader anti-cheat coverage for resource/attack/inventory/coordinate anomalies; complete player-facing mobile UX and accessibility; atlas/tilemap, LOD/culling and asset streaming; physical-device GPU profiling; progression/tutorial/quest UX; exploration/treasure discovery; transport benchmarking; and regional/global MMO topology and synchronization.
 
@@ -196,16 +196,16 @@ No future item is described here as implemented merely because it appears in the
 
 ## 6. Verification Evidence
 
-### Exact current-main evidence
+### Last verified source-state evidence (before documentation change)
 
-**Verified source:** `d4de5d278369b5dc3d57aeee13c86bb4bec70c8e`  
+**Verified source-state SHA:** `d4de5d278369b5dc3d57aeee13c86bb4bec70c8e`  
 **Verification date:** 2026-10-09
 
 - verify run `37915489570` — **PASS**
 - sustained-load run `37915489672` — **PASS**
 - static-security run `37915489593` — **PASS**
 
-These results apply only to the exact SHA above.
+These results apply only to the exact source-state SHA above; they do not verify later documentation commits or current main.
 
 The independent audit status remains **NOT AUDIT-PASS / NOT PRODUCTION-READY**. Movement authority timing has since been hardened and movement anti-cheat evidence added; broader anomaly detection, full production mobile UX/accessibility, renderer LOD/asset streaming, player progression UX and global/regional MMO topology remain incomplete.
 
