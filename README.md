@@ -6,19 +6,19 @@
 |---|---|
 | Repository | `whoami22888/isles-of-mythos` |
 | Branch | `main` |
-| Authoritative HEAD | `83e4c14b94861c0585c1a50993f7297ad0dda497` |
-| Verification date | 2026-10-08 |
+| Authoritative HEAD | `d4de5d278369b5dc3d57aeee13c86bb4bec70c8e` |
+| Verification date | 2026-10-09 |
 | Latest numbered phase represented by current project records | **Phase 16 — Endgame** |
 | Gate state | Gates 1–16 are treated as frozen in the Master Project Index; no new numbered gate is inferred from the PDF |
-| Current exact-HEAD CI | **CI #1010 — PASS** |
-| Current exact-HEAD performance | **Performance Acceptance #230 — PASS** |
-| Current exact-HEAD security | **Static Security Quality #202 — PASS** |
+| Current exact-HEAD CI | **verify run 37915489570 — PASS** |
+| Current exact-HEAD performance | **sustained-load run 37915489672 — PASS** |
+| Current exact-HEAD security | **static-security run 37915489593 — PASS** |
 | Independent audit status | **NOT AUDIT-PASS** |
 | Production readiness | **NOT PRODUCTION-READY** |
 
-The exact current `main` HEAD was queried from GitHub before this documentation repair. The three listed workflow results are attached to that exact SHA; evidence from other commits is not transferred to it.
+The exact current `main` HEAD was queried from GitHub on 2026-10-09. The listed verify, sustained-load and static-security results are attached to that exact SHA; evidence from other commits is not transferred to it.
 
-The current audit identifies material remaining risks, including server-derived movement authority, anti-cheat detection/telemetry, mobile-first UX, production rendering/performance architecture, and global MMO/network scaling. These are audit findings, not evidence that the corresponding future work is already complete.
+Recent verified work hardened server-owned movement timing, added movement anti-cheat evidence, introduced touch joystick/HUD controls, and batched world entity markers per chunk. Material remaining risks include broader anti-cheat coverage for resource/attack/inventory/coordinate anomalies; complete player-facing mobile UX and accessibility; atlas/tilemap, LOD/culling and asset streaming; physical-device GPU profiling; progression/tutorial/quest UX; exploration/treasure discovery; transport benchmarking; and regional/global MMO topology and synchronization.
 
 ---
 
@@ -42,7 +42,7 @@ The following is supported by the current repository plus current project verifi
   - Resource-node persistence/depletion and resource gathering paths.
 
 - **Player and combat**
-  - Server-side movement validation, combat resolution, cooldowns, stamina/block/dodge state, damage and creature AI.
+  - Server-side movement validation with server-owned monotonic movement timing and sequencing; combat resolution, cooldowns, stamina/block/dodge state, damage and creature AI.
   - Server-side ranged projectile lifecycle.
   - Request/replay protections on covered mutation paths.
 
@@ -83,14 +83,14 @@ The following is supported by the current repository plus current project verifi
 
 ### IMPLEMENTED / NOT YET VERIFIED AS PRODUCTION ACCEPTANCE
 
-The repository contains substantial client and gameplay functionality beyond the early combat foundation, but individual feature presence must not be confused with full production acceptance. The current audit explicitly identifies gaps in mobile UX, anti-cheat, rendering scalability, movement authority and global MMO topology.
+The repository contains substantial client and gameplay functionality beyond the early combat foundation, but individual feature presence must not be confused with full production acceptance. The current audit identifies gaps in player-facing mobile UX/accessibility, broader anti-cheat coverage, rendering scalability, progression/quest UX, exploration/treasure discovery, transport benchmarking and global MMO topology.
 
 ### PARTIAL
 
-- Mobile-first input/HUD and accessibility.
-- Production graphics/rendering optimisation.
-- Anti-cheat detection and security-event telemetry.
-- Server-derived movement-speed authority.
+- Player-facing mobile UX and accessibility are PARTIAL: touch joystick/HUD controls exist, but full production HUD, accessibility and quality/thermal controls remain incomplete.
+- Production graphics/rendering optimisation is PARTIAL: per-chunk entity batching exists, but atlas/tilemap terrain, LOD/culling, asset streaming and physical-device GPU profiling remain.
+- Anti-cheat movement evidence and security-event telemetry (broader resource/attack/inventory/coordinate detection remains incomplete).
+- Broader anti-cheat detection for resource collection, attack frequency, coordinates and inventory mutation.
 - Global/regional MMO topology and cross-server synchronisation.
 - Full exploration/resource presentation and treasure-map gameplay.
 - Player-facing progression/tutorial/quest UX.
@@ -182,16 +182,13 @@ These are **FUTURE / PARTIAL / BLOCKED** requirements unless separately evidence
 
 Current high-priority future work recorded by the audit:
 
-1. Server-authoritative movement clock/budget and speedhack regression coverage.
-2. Anti-cheat detection, evidence and security-event telemetry.
-3. Touch-first mobile controls and production HUD.
-4. Production renderer decision and implementation boundary.
-5. Graphics batching, atlas/tilemap rendering, LOD and asset pipeline.
-6. Player-facing tutorial, quest and progression UX.
-7. Accessibility, quality, thermal and battery controls.
-8. Production transport abstraction and mobile-network benchmarking.
-9. Complete authoritative treasure/resource discovery and excavation flows.
-10. Regional/global MMO topology, cross-server synchronisation and battle instancing.
+1. Expand anti-cheat detection beyond movement to resource collection, attack frequency, coordinates and inventory mutations.
+2. Complete production mobile HUD, player-facing UX, accessibility and quality/thermal controls.
+3. Implement atlas/tilemap terrain, LOD/culling, asset streaming and physical-device GPU profiling.
+4. Complete tutorial, quest and progression UX.
+5. Benchmark transport options and mobile-network behavior.
+6. Complete authoritative treasure/resource discovery and excavation flows.
+7. Implement and load-test regional/global MMO topology, cross-server synchronization and distributed battle instancing.
 
 No future item is described here as implemented merely because it appears in the PDF.
 
@@ -201,16 +198,16 @@ No future item is described here as implemented merely because it appears in the
 
 ### Exact current-main evidence
 
-**Verified source:** `83e4c14b94861c0585c1a50993f7297ad0dda497`  
-**Verification date:** 2026-10-08
+**Verified source:** `d4de5d278369b5dc3d57aeee13c86bb4bec70c8e`  
+**Verification date:** 2026-10-09
 
-- CI #1010 / run `37759539832` — **PASS**
-- Performance Acceptance #230 / run `37759539777` — **PASS**
-- Static Security Quality #202 / run `37759539823` — **PASS**
+- verify run `37915489570` — **PASS**
+- sustained-load run `37915489672` — **PASS**
+- static-security run `37915489593` — **PASS**
 
 These results apply only to the exact SHA above.
 
-The Master Project Index records the independent audit result for this SHA as **NOT AUDIT-PASS / NOT PRODUCTION-READY**. In particular, the audit found a movement-authority cheat vector and incomplete production mobile/graphics/player-UX architecture.
+The independent audit status remains **NOT AUDIT-PASS / NOT PRODUCTION-READY**. Movement authority timing has since been hardened and movement anti-cheat evidence added; broader anomaly detection, full production mobile UX/accessibility, renderer LOD/asset streaming, player progression UX and global/regional MMO topology remain incomplete.
 
 ### Evidence boundary
 
