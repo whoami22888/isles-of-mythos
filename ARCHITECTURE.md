@@ -22,7 +22,7 @@ Isles of Mythos uses a split client/server architecture with server-authoritativ
 Phase 16 provides realm wars, large guild battles, high-level creatures, mythic content and territory seasons. Endgame persistence uses PostgreSQL transactions, row/advisory locks and server-side validation.
 
 ## Verification rule
-The documentation update was based on authoritative main HEAD `3766078adfcdeda08dc768b0b8d4bce05d914827`, verified on 2026-10-08 before this documentation change. Exact-head evidence for that source state was verify run 37878375179 PASS; sustained-load run 37878375176 PASS; static-security run 37878375323 PASS.
+The documentation update was based on authoritative main HEAD `3766078adfcdeda08dc768b0b8d4bce05d914827`, queried directly from GitHub on 2026-10-09 before this documentation change. Exact-head evidence for that source state was verify run 37878375179 PASS; sustained-load run 37878375176 PASS; static-security run 37878375323 PASS.
 
 This is a source-state record, not a claim that a later commit has the same verification. After any HEAD change, obtain fresh exact-head evidence before describing the new HEAD as verified. Follow `.project/VERIFICATION-STANDARD.md` for the mandatory evidence format.
 
