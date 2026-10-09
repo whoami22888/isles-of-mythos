@@ -45,10 +45,32 @@ const TILE_COLORS: Record<number, number> = {
   [TileKind.Reef]: 0x2b8a83,
 };
 
+interface ChunkRenderLayers {
+  terrain: Phaser.GameObjects.Graphics;
+  entities: Phaser.GameObjects.Graphics;
+  resourceIds: Set<string>;
+  creatureIds: Set<string>;
+}
+
+interface IndexedResource {
+  node: ResourceNode;
+  chunkKey: string;
+}
+
+interface IndexedCreature {
+  spawn: CreatureSpawn;
+  chunkKey: string;
+}
+
+/**
+ * Keeps the terrain and entity marker layers batched per chunk.
+ * Entity positions are indexed separately from Phaser objects so proximity
+ * queries do not depend on render-object coordinates.
+ */
 export class ChunkRenderer {
-  private readonly chunks = new Map<string, Phaser.GameObjects.Graphics>();
-  private readonly creatures = new Map<string, Phaser.GameObjects.Graphics>();
-  private readonly resources = new Map<string, Phaser.GameObjects.Graphics>();
+  private readonly chunks = new Map<string, ChunkRenderLayers>();
+  private readonly creatures = new Map<string, IndexedCreature>();
+  private readonly resources = new Map<string, IndexedResource>();
 
   constructor(private readonly scene: Phaser.Scene) {}
 
@@ -56,7 +78,14 @@ export class ChunkRenderer {
     const key = `${chunk.x},${chunk.y}`;
     if (this.chunks.has(key)) return;
 
-    const graphics = this.scene.add.graphics();
+    const terrain = this.scene.add.graphics();
+    const entities = this.scene.add.graphics();
+    const layers: ChunkRenderLayers = {
+      terrain,
+      entities,
+      resourceIds: new Set<string>(),
+      creatureIds: new Set<string>(),
+    };
     const originX = chunk.x * chunk.size * TILE_SIZE;
     const originY = chunk.y * chunk.size * TILE_SIZE;
 
@@ -65,10 +94,10 @@ export class ChunkRenderer {
       for (let x = 0; x < chunk.size; x += 1) {
         const kind = chunk.tiles[y * chunk.size + x] ?? TileKind.Ocean;
         if (kind !== currentKind) {
-          graphics.fillStyle(TILE_COLORS[kind] ?? TILE_COLORS[TileKind.Ocean], 1);
+          terrain.fillStyle(TILE_COLORS[kind] ?? TILE_COLORS[TileKind.Ocean], 1);
           currentKind = kind;
         }
-        graphics.fillRect(
+        terrain.fillRect(
           originX + x * TILE_SIZE,
           originY + y * TILE_SIZE,
           TILE_SIZE + 1,
@@ -77,96 +106,69 @@ export class ChunkRenderer {
       }
     }
 
-    graphics.setDepth(-100);
-    this.chunks.set(key, graphics);
+    terrain.setDepth(-100);
+    entities.setDepth(10);
+    this.chunks.set(key, layers);
 
     for (const resource of chunk.resources ?? []) {
       if (this.resources.has(resource.id)) continue;
-      const marker = this.scene.add.graphics();
-      const color = resource.type === "wood" ? 0x8b6f47 : resource.type === "stone" ? 0x9aa0a6 : 0x76b852;
-      marker.fillStyle(color, 1);
-      marker.fillCircle(resource.x * TILE_SIZE + TILE_SIZE / 2, resource.y * TILE_SIZE + TILE_SIZE / 2, TILE_SIZE * 0.2);
-      marker.lineStyle(1, 0xffffff, 0.75);
-      marker.strokeCircle(resource.x * TILE_SIZE + TILE_SIZE / 2, resource.y * TILE_SIZE + TILE_SIZE / 2, TILE_SIZE * 0.24);
-      marker.setDepth(9);
-      this.resources.set(resource.id, marker);
+      this.resources.set(resource.id, { node: resource, chunkKey: key });
+      layers.resourceIds.add(resource.id);
     }
 
     for (const creature of chunk.creatures ?? []) {
       if (this.creatures.has(creature.id)) continue;
-      const marker = this.scene.add.graphics();
-      const color = creature.species === "raptor" ? 0xd95f59 : creature.species === "boar" ? 0x8b6f47 : 0x6bcf63;
-      marker.fillStyle(color, 1);
-      marker.fillCircle(creature.x * TILE_SIZE + TILE_SIZE / 2, creature.y * TILE_SIZE + TILE_SIZE / 2, TILE_SIZE * 0.25);
-      marker.lineStyle(1, 0xffffff, 0.8);
-      marker.strokeCircle(creature.x * TILE_SIZE + TILE_SIZE / 2, creature.y * TILE_SIZE + TILE_SIZE / 2, TILE_SIZE * 0.28);
-      marker.setDepth(10);
-      this.creatures.set(creature.id, marker);
+      this.creatures.set(creature.id, { spawn: creature, chunkKey: key });
+      layers.creatureIds.add(creature.id);
     }
+
+    this.redrawEntities(layers);
   }
 
   unloadOutside(radius: number, centerChunkX: number, centerChunkY: number): void {
-    for (const [key, graphics] of this.chunks) {
+    for (const [key, layers] of this.chunks) {
       const [x, y] = key.split(",").map(Number);
-      if (Math.abs(x - centerChunkX) > radius || Math.abs(y - centerChunkY) > radius) {
-        graphics.destroy();
-        this.chunks.delete(key);
-        for (const [resourceId, marker] of this.resources) {
-          if (resourceId.startsWith("wood:") || resourceId.startsWith("stone:") || resourceId.startsWith("herb:")) {
-            const parts = resourceId.split(":").map(Number);
-            const cx = Math.floor(parts[1] / CHUNK_SIZE);
-            const cy = Math.floor(parts[2] / CHUNK_SIZE);
-            if (cx === x && cy === y) {
-              marker.destroy();
-              this.resources.delete(resourceId);
-            }
-          }
-        }
-        for (const [creatureId, marker] of this.creatures) {
-          if (creatureId.startsWith("creature:")) {
-            const parts = creatureId.split(":").map(Number);
-            const cx = Math.floor(parts[1] / CHUNK_SIZE);
-            const cy = Math.floor(parts[2] / CHUNK_SIZE);
-            if (cx === x && cy === y) {
-              marker.destroy();
-              this.creatures.delete(creatureId);
-            }
-          }
-        }
-      }
+      if (Math.abs(x - centerChunkX) <= radius && Math.abs(y - centerChunkY) <= radius) continue;
+
+      layers.terrain.destroy();
+      layers.entities.destroy();
+      this.chunks.delete(key);
+      for (const resourceId of layers.resourceIds) this.resources.delete(resourceId);
+      for (const creatureId of layers.creatureIds) this.creatures.delete(creatureId);
     }
   }
 
   removeResource(id: string): void {
-    const marker = this.resources.get(id);
-    if (!marker) return;
-    marker.destroy();
+    const resource = this.resources.get(id);
+    if (!resource) return;
     this.resources.delete(id);
+    const layers = this.chunks.get(resource.chunkKey);
+    if (!layers) return;
+    layers.resourceIds.delete(id);
+    this.redrawEntities(layers);
   }
 
   nearestResource(x: number, y: number, maxDistance = 2.5): ResourceNode | null {
     let nearest: ResourceNode | null = null;
     let nearestDistance = maxDistance;
-    for (const [id, marker] of this.resources) {
-      const worldX = marker.x / TILE_SIZE;
-      const worldY = marker.y / TILE_SIZE;
-      const d = Math.hypot(worldX - x, worldY - y);
-      if (d < nearestDistance) {
-        const parts = id.split(":");
-        const type = parts[0];
-        if (type !== "wood" && type !== "stone" && type !== "herb") continue;
-        nearest = { id, type, x: worldX, y: worldY };
-        nearestDistance = d;
+    for (const { node } of this.resources.values()) {
+      const distance = Math.hypot(node.x - x, node.y - y);
+      if (distance < nearestDistance) {
+        nearest = node;
+        nearestDistance = distance;
       }
     }
-    return nearest;
+    return nearest ? { ...nearest } : null;
   }
 
   removeCreature(id: string): void {
-    const marker = this.creatures.get(id);
-    if (!marker) return;
-    marker.destroy();
+    const creature = this.creatures.get(id);
+    if (!creature) return;
     this.creatures.delete(id);
+    const layers = this.chunks.get(creature.chunkKey);
+    if (!layers) return;
+    layers.creatureIds.delete(id);
+    this.redrawEntities(layers);
   }
 
   get loadedCount(): number {
@@ -176,15 +178,41 @@ export class ChunkRenderer {
   nearestCreature(x: number, y: number, maxDistance = 10): { id: string; x: number; y: number } | null {
     let nearest: { id: string; x: number; y: number } | null = null;
     let nearestDistance = maxDistance;
-    for (const [id, marker] of this.creatures) {
-      const worldX = marker.x / TILE_SIZE;
-      const worldY = marker.y / TILE_SIZE;
-      const d = Math.hypot(worldX - x, worldY - y);
-      if (d < nearestDistance) {
-        nearest = { id, x: worldX, y: worldY };
-        nearestDistance = d;
+    for (const [id, { spawn }] of this.creatures) {
+      const distance = Math.hypot(spawn.x - x, spawn.y - y);
+      if (distance < nearestDistance) {
+        nearest = { id, x: spawn.x, y: spawn.y };
+        nearestDistance = distance;
       }
     }
     return nearest;
+  }
+
+  private redrawEntities(layers: ChunkRenderLayers): void {
+    layers.entities.clear();
+    for (const id of layers.resourceIds) {
+      const indexed = this.resources.get(id);
+      if (!indexed) continue;
+      const resource = indexed.node;
+      const color = resource.type === "wood" ? 0x8b6f47 : resource.type === "stone" ? 0x9aa0a6 : 0x76b852;
+      const x = resource.x * TILE_SIZE + TILE_SIZE / 2;
+      const y = resource.y * TILE_SIZE + TILE_SIZE / 2;
+      layers.entities.fillStyle(color, 1);
+      layers.entities.fillCircle(x, y, TILE_SIZE * 0.2);
+      layers.entities.lineStyle(1, 0xffffff, 0.75);
+      layers.entities.strokeCircle(x, y, TILE_SIZE * 0.24);
+    }
+    for (const id of layers.creatureIds) {
+      const indexed = this.creatures.get(id);
+      if (!indexed) continue;
+      const creature = indexed.spawn;
+      const color = creature.species === "raptor" ? 0xd95f59 : creature.species === "boar" ? 0x8b6f47 : 0x6bcf63;
+      const x = creature.x * TILE_SIZE + TILE_SIZE / 2;
+      const y = creature.y * TILE_SIZE + TILE_SIZE / 2;
+      layers.entities.fillStyle(color, 1);
+      layers.entities.fillCircle(x, y, TILE_SIZE * 0.25);
+      layers.entities.lineStyle(1, 0xffffff, 0.8);
+      layers.entities.strokeCircle(x, y, TILE_SIZE * 0.28);
+    }
   }
 }
