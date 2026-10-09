@@ -50,6 +50,7 @@ export class SystemPanel {
   private selectedFleetId?: string;
   private selectedAuctionListingId?: string;
   private selectedWorldEventId?: string;
+  private selectedArmyId?: string;
   private open = false;
   private readonly pending = new Set<string>();
 
@@ -97,6 +98,12 @@ export class SystemPanel {
       const first = isRecord(message.invitations) ? message.invitations["0"] : undefined;
       this.selectedGuildInvitationId = isRecord(first) && typeof first.id === "string" ? first.id : undefined;
       this.result.setText(this.selectedGuildInvitationId ? "Invitation selected." : "No guild invitations.");
+      return;
+    }
+    if (message.type === "army_list") {
+      const first = isRecord(message.armies) ? message.armies["0"] : undefined;
+      this.selectedArmyId = isRecord(first) && typeof first.id === "string" ? first.id : undefined;
+      this.result.setText(this.selectedArmyId ? "Army selected: " + this.selectedArmyId : "No armies available.");
       return;
     }
     if (message.type === "auction_list") {
@@ -263,14 +270,14 @@ export class SystemPanel {
       { label: "REWARD SELECTED", run: () => { if (this.selectedWorldEventId) this.request("world_event_reward", { eventId: this.selectedWorldEventId }); } },
     ];
     if (this.category === "STRATEGY") return [
-      ask("ARMIES", "list_armies"), ask("INVASIONS", "list_invasions", { territoryId: null }), ask("REALM WARS", "list_realm_wars"), ask("GUILD BATTLES", "list_guild_battles"),
+      ask("LOAD ARMIES", "list_armies"), ask("INVASIONS", "list_invasions", { territoryId: null }), ask("REALM WARS", "list_realm_wars"), ask("GUILD BATTLES", "list_guild_battles"),
       { label: "CREATE ARMY", run: () => { const name = this.prompt("Army name"); if (name) this.request("create_army", { name }); } },
-      { label: "TRAIN", run: () => { const armyId = this.prompt("Army ID"); const unitType = this.prompt("Unit type"); const quantity = Number(this.prompt("Quantity")); if (armyId && unitType && Number.isSafeInteger(quantity)) this.request("train_army", { armyId, unitType, quantity }); } },
+      { label: "TRAIN SELECTED", run: () => { const unitType = this.prompt("Unit type"); const quantity = Number(this.prompt("Quantity")); if (this.selectedArmyId && unitType && Number.isSafeInteger(quantity)) this.request("train_army", { armyId: this.selectedArmyId, unitType, quantity }); } },
       { label: "REALM WAR", run: () => { const attackerRealmId = this.prompt("Attacker realm ID"); const defenderRealmId = this.prompt("Defender realm ID"); const targetTerritoryId = this.prompt("Target territory ID"); if (attackerRealmId && defenderRealmId && targetTerritoryId) this.request("create_realm_war", { attackerRealmId, defenderRealmId, targetTerritoryId }); } },
       { label: "GUILD BATTLE", run: () => { const attackerGuildId = this.prompt("Attacker guild ID"); const defenderGuildId = this.prompt("Defender guild ID"); const targetTerritoryId = this.prompt("Target territory ID"); if (attackerGuildId && defenderGuildId && targetTerritoryId) this.request("create_guild_battle", { attackerGuildId, defenderGuildId, targetTerritoryId }); } },
-      { label: "GARRISON", run: () => { const armyId = this.prompt("Army ID"); const baseId = this.prompt("Base ID"); if (armyId && baseId) this.request("garrison_army", { armyId, baseId }); } },
-      { label: "ASSIGN", run: () => { const armyId = this.prompt("Army ID"); const assignment = this.prompt("Assignment"); if (armyId && assignment) this.request("set_army_assignment", { armyId, assignment }); } },
-      { label: "BATTLE", run: () => { const attackerArmyId = this.prompt("Attacker army ID"); const defenderArmyId = this.prompt("Defender army ID (blank for none)"); const targetX = Number(this.prompt("Target X")); const targetY = Number(this.prompt("Target Y")); if (attackerArmyId && Number.isFinite(targetX) && Number.isFinite(targetY)) this.request("create_army_battle", { attackerArmyId, defenderArmyId: defenderArmyId || null, targetX, targetY }); } },
+      { label: "GARRISON SELECTED", run: () => { const baseId = this.prompt("Base ID"); if (this.selectedArmyId && baseId) this.request("garrison_army", { armyId: this.selectedArmyId, baseId }); } },
+      { label: "ASSIGN SELECTED", run: () => { const assignment = this.prompt("Assignment"); if (this.selectedArmyId && assignment) this.request("set_army_assignment", { armyId: this.selectedArmyId, assignment }); } },
+      { label: "BATTLE SELECTED", run: () => { const defenderArmyId = this.prompt("Defender army ID (blank for none)"); const targetX = Number(this.prompt("Target X")); const targetY = Number(this.prompt("Target Y")); if (this.selectedArmyId && Number.isFinite(targetX) && Number.isFinite(targetY)) this.request("create_army_battle", { attackerArmyId: this.selectedArmyId, defenderArmyId: defenderArmyId || null, targetX, targetY }); } },
     ];
     if (this.category === "ENDGAME") return [
       ask("ENDGAME CREATURES", "list_endgame_creatures"), ask("MYTHIC CONTENT", "list_mythic_content"),
