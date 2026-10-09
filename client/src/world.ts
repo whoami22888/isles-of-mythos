@@ -128,9 +128,7 @@ export class ChunkRenderer {
   unloadOutside(radius: number, centerChunkX: number, centerChunkY: number): void {
     for (const [key, layers] of this.chunks) {
       const [x, y] = key.split(",").map(Number);
-      if (Math.abs(x) <= Number.POSITIVE_INFINITY &&
-          Math.abs(x - centerChunkX) <= radius &&
-          Math.abs(y - centerChunkY) <= radius) continue;
+      if (Math.abs(x - centerChunkX) <= radius && Math.abs(y - centerChunkY) <= radius) continue;
 
       layers.terrain.destroy();
       layers.entities.destroy();
