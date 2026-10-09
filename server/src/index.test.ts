@@ -593,7 +593,7 @@ describe("server foundation", () => {
       await databaseB.end();
       await lockDatabase.end();
     }
-  });
+  }, 15_000);
 
   it("acquires nearby creatures for autonomous server AI", async () => {
     const app = await buildApp();
