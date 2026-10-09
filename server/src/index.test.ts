@@ -201,7 +201,7 @@ describe("server foundation", () => {
       [userId, targetX - 0.5, targetY],
     );
 
-    const socket = await openSocket(app);
+    let socket = await openSocket(app);
     try {
       await new Promise<void>((resolve, reject) => {
         socket.once("open", () => resolve());
@@ -253,6 +253,34 @@ describe("server foundation", () => {
       if (!isJsonObject(stateAfterAttackMessage)) throw new Error("Expected player_state message");
       const stateAfterAttackObject = getObject(stateAfterAttackMessage, "state");
       expect(typeof stateAfterAttackObject.stamina).toBe("number");
+
+      // A reconnect must not reset an active server-authoritative dodge cooldown.
+      const firstDodge = waitForMatchingMessage(socket, (message) => (
+        isJsonObject(message) && message.type === "player_state"
+      ));
+      socket.send(JSON.stringify({ type: "dodge", facingX: 1, facingY: 0 }));
+      await firstDodge;
+      await new Promise<void>((resolve) => {
+        socket.once("close", () => resolve());
+        socket.close();
+      });
+
+      socket = await openSocket(app);
+      await new Promise<void>((resolve, reject) => {
+        socket.once("open", () => resolve());
+        socket.once("error", reject);
+      });
+      const reauthenticated = waitForMatchingMessage(socket, (message) => isJsonObject(message) && message.type === "auth_ok");
+      const reloadedState = waitForMatchingMessage(socket, (message) => isJsonObject(message) && message.type === "player_state");
+      socket.send(JSON.stringify({ type: "auth", token }));
+      await reauthenticated;
+      await reloadedState;
+
+      const dodgeCooldown = waitForMatchingMessage(socket, (message) => (
+        isJsonObject(message) && message.type === "error" && message.code === "COMBAT_COOLDOWN"
+      ));
+      socket.send(JSON.stringify({ type: "dodge", facingX: 1, facingY: 0 }));
+      await expect(dodgeCooldown).resolves.toEqual({ type: "error", code: "COMBAT_COOLDOWN" });
     } finally {
       socket.close();
       await database.end();
