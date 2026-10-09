@@ -430,10 +430,11 @@ describe("server foundation", () => {
       const stateAfterFailureMessage = await stateAfterFailure;
       if (!isJsonObject(stateAfterFailureMessage)) throw new Error("Expected player_state after failed attack");
       const staminaAfter = Number(getObject(stateAfterFailureMessage, "state").stamina);
-      expect(staminaAfter).toBeGreaterThan(staminaBefore - 2);
+      expect.soft(staminaAfter).toBeGreaterThan(staminaBefore - 2);
 
-      // No cooldown should be committed by a rejected projectile request.
-      const retryNoAmmo = waitForMatchingMessage(socket, (message) => isJsonObject(message) && message.type === "error" && message.code === "NO_AMMO");
+      // Capture any error so the cooldown assertion is evaluated independently
+      // of the stamina assertion above.
+      const retryError = waitForMatchingMessage(socket, (message) => isJsonObject(message) && message.type === "error");
       socket.send(JSON.stringify({
         type: "attack",
         requestId: "stale-ammo-2",
@@ -441,7 +442,7 @@ describe("server foundation", () => {
         facingX: 1,
         facingY: 0,
       }));
-      await expect(retryNoAmmo).resolves.toEqual({ type: "error", code: "NO_AMMO" });
+      await expect(retryError).resolves.toEqual({ type: "error", code: "NO_AMMO" });
     } finally {
       socket.close();
       await database.end();
