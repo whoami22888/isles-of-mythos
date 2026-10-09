@@ -349,6 +349,106 @@ describe("server foundation", () => {
     }
   });
 
+  it("does not spend projectile stamina or cooldown when authoritative ammo consumption fails", async () => {
+    const app = await buildApp();
+    const unique = Date.now();
+    const register = await app.inject({
+      method: "POST",
+      url: "/auth/register",
+      payload: {
+        username: `stale_ammo_${unique}`,
+        email: `stale_ammo_${unique}@example.com`,
+        password: "Correct-Horse-Battery-9",
+      },
+    });
+    expect(register.statusCode).toBe(201);
+    const registerBody = parseJsonObject(register.body);
+    const token = getString(registerBody, "accessToken");
+    const userId = getString(getObject(registerBody, "user"), "id");
+
+    let spawnObject: JsonObject | null = null;
+    for (let chunkY = 0; chunkY < 8 && !spawnObject; chunkY += 1) {
+      for (let chunkX = 0; chunkX < 8 && !spawnObject; chunkX += 1) {
+        const chunkResponse = await app.inject({ method: "GET", url: `/world/chunks/${chunkX}/${chunkY}` });
+        expect(chunkResponse.statusCode).toBe(200);
+        const chunk = parseJsonObject(chunkResponse.body);
+        const creatures = chunk.creatures;
+        if (!Array.isArray(creatures)) throw new Error("Test world chunk creatures are malformed");
+        const spawn = creatures.find(isJsonObject);
+        if (spawn) spawnObject = spawn;
+      }
+    }
+    if (!spawnObject) throw new Error("Deterministic test world contains no creature spawn");
+    const targetId = getString(spawnObject, "id");
+    const targetX = Number(spawnObject.x);
+    const targetY = Number(spawnObject.y);
+    const database = (await import("./db.js")).createDbPool();
+    await database.query(
+      "INSERT INTO player_profiles (user_id, x, y, stamina, inventory) VALUES ($1, $2, $3, 100, $4::jsonb) ON CONFLICT (user_id) DO UPDATE SET x=EXCLUDED.x, y=EXCLUDED.y, stamina=100, inventory=EXCLUDED.inventory",
+      [userId, targetX - 0.5, targetY, JSON.stringify({ "ammo.flintlock": 1 })],
+    );
+
+    const socket = await openSocket(app);
+    try {
+      await new Promise<void>((resolve, reject) => {
+        socket.once("open", () => resolve());
+        socket.once("error", reject);
+      });
+      const authenticated = waitForMatchingMessage(socket, (message) => isJsonObject(message) && message.type === "auth_ok");
+      const initialState = waitForMatchingMessage(socket, (message) => isJsonObject(message) && message.type === "player_state");
+      socket.send(JSON.stringify({ type: "auth", token }));
+      await authenticated;
+      await initialState;
+
+      const selected = waitForMatchingMessage(socket, (message) => isJsonObject(message) && message.type === "player_state" && getObject(message, "state").selectedHotbarSlot === 1);
+      socket.send(JSON.stringify({ type: "select_hotbar", slot: 1 }));
+      await selected;
+
+      const selectedStateMessage = await selected;
+      if (!isJsonObject(selectedStateMessage)) throw new Error("Expected selected player state");
+      const staminaBefore = Number(getObject(selectedStateMessage, "state").stamina);
+
+      // Simulate another server instance consuming the last round after this
+      // instance loaded its active PlayerState but before its transactional consume.
+      await database.query(
+        "UPDATE player_profiles SET inventory='{}'::jsonb WHERE user_id=$1",
+        [userId],
+      );
+
+      const noAmmo = waitForMatchingMessage(socket, (message) => isJsonObject(message) && message.type === "error" && message.code === "NO_AMMO");
+      socket.send(JSON.stringify({
+        type: "attack",
+        requestId: "stale-ammo-1",
+        targetId,
+        facingX: 1,
+        facingY: 0,
+      }));
+      await expect(noAmmo).resolves.toEqual({ type: "error", code: "NO_AMMO" });
+
+      const stateAfterFailure = waitForMatchingMessage(socket, (message) => isJsonObject(message) && message.type === "player_state");
+      socket.send(JSON.stringify({ type: "move", dx: 0, dy: 0, sequence: 0 }));
+      const stateAfterFailureMessage = await stateAfterFailure;
+      if (!isJsonObject(stateAfterFailureMessage)) throw new Error("Expected player_state after failed attack");
+      const staminaAfter = Number(getObject(stateAfterFailureMessage, "state").stamina);
+      expect(staminaAfter).toBeGreaterThan(staminaBefore - 2);
+
+      // No cooldown should be committed by a rejected projectile request.
+      const retryNoAmmo = waitForMatchingMessage(socket, (message) => isJsonObject(message) && message.type === "error" && message.code === "NO_AMMO");
+      socket.send(JSON.stringify({
+        type: "attack",
+        requestId: "stale-ammo-2",
+        targetId,
+        facingX: 1,
+        facingY: 0,
+      }));
+      await expect(retryNoAmmo).resolves.toEqual({ type: "error", code: "NO_AMMO" });
+    } finally {
+      socket.close();
+      await database.end();
+      await app.close();
+    }
+  });
+
   it("acquires nearby creatures for autonomous server AI", async () => {
     const app = await buildApp();
     const unique = Date.now();
