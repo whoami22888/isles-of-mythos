@@ -29,7 +29,7 @@ jobs:
       LOADTEST_HTTP_REQUESTS: 100
     services:
       postgres:
-        image: postgres:17-alpine
+        image: public.ecr.aws/docker/library/postgres:17-alpine
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
