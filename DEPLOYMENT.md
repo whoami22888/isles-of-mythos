@@ -24,9 +24,14 @@ PostgreSQL persistence uses a named volume, with CI backup/restore verification.
 The PDF requires regional server topology, cross-server synchronization, battle instancing, adaptive rendering and load testing beyond the current verified single-region/single-server deployment. These remain post-Phase-16 compliance items unless separately evidenced.
 
 ## Verification evidence
-Documentation source state: main HEAD `83e4c14b94861c0585c1a50993f7297ad0dda497`, verified 2026-10-08 before this documentation change.
-- CI #1010 PASS
-- Performance Acceptance #230 PASS
-- Static Security Quality #202 PASS
+Documentation source state: main HEAD `3766078adfcdeda08dc768b0b8d4bce05d914827`, verified 2026-10-08 before this documentation change.
+- verify run 37878375179 PASS
+- sustained-load run 37878375176 PASS
+- static-security run 37878375323 PASS
 
 These results apply only to the exact source-state SHA above. They must not be transferred to later commits. Follow `.project/VERIFICATION-STANDARD.md` for current verification claims.
+
+
+## Global MMO deployment status
+
+Current deployment is effectively single-server/single-region. Containerisation and PostgreSQL persistence do not establish a production global-MMO deployment. Regional topology/control plane, cross-server synchronisation, and regional routing are **FUTURE GATE**. Local battle instances, current-world ownership changes, and database persistence are **PARTIAL**; distributed battle routing and regional authority failover are not implemented. The PDF additionally requires global/regional service separation, regional servers, cross-region gateways, dynamic allocation, load balancing, and regional failure/consistency/load testing.
