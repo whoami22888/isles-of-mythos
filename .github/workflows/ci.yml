@@ -24,7 +24,7 @@ jobs:
       JWT_SECRET: test-only-jwt-secret-not-for-production
     services:
       postgres:
-        image: postgres:17-alpine
+        image: public.ecr.aws/docker/library/postgres:17-alpine
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
@@ -76,10 +76,10 @@ jobs:
       - name: Verify PostgreSQL backup and restore
         run: |
           mkdir -p "$RUNNER_TEMP/isles-backup"
-          docker run --rm --network host -e PGPASSWORD=postgres -v "$RUNNER_TEMP/isles-backup:/backup" postgres:17-alpine pg_dump -Fc -h 127.0.0.1 -U postgres -d isles_test -f /backup/isles_test.dump
-          docker run --rm --network host -e PGPASSWORD=postgres postgres:17-alpine psql -h 127.0.0.1 -U postgres -d postgres -c "CREATE DATABASE isles_restore"
-          docker run --rm --network host -e PGPASSWORD=postgres -v "$RUNNER_TEMP/isles-backup:/backup" postgres:17-alpine pg_restore --no-owner -h 127.0.0.1 -U postgres -d isles_restore /backup/isles_test.dump
-          docker run --rm --network host -e PGPASSWORD=postgres postgres:17-alpine psql -h 127.0.0.1 -U postgres -d isles_restore -v ON_ERROR_STOP=1 -c "SELECT COUNT(*) > 0 FROM information_schema.tables WHERE table_schema = 'public'"
+          docker run --rm --network host -e PGPASSWORD=postgres -v "$RUNNER_TEMP/isles-backup:/backup" public.ecr.aws/docker/library/postgres:17-alpine pg_dump -Fc -h 127.0.0.1 -U postgres -d isles_test -f /backup/isles_test.dump
+          docker run --rm --network host -e PGPASSWORD=postgres public.ecr.aws/docker/library/postgres:17-alpine psql -h 127.0.0.1 -U postgres -d postgres -c "CREATE DATABASE isles_restore"
+          docker run --rm --network host -e PGPASSWORD=postgres -v "$RUNNER_TEMP/isles-backup:/backup" public.ecr.aws/docker/library/postgres:17-alpine pg_restore --no-owner -h 127.0.0.1 -U postgres -d isles_restore /backup/isles_test.dump
+          docker run --rm --network host -e PGPASSWORD=postgres public.ecr.aws/docker/library/postgres:17-alpine psql -h 127.0.0.1 -U postgres -d isles_restore -v ON_ERROR_STOP=1 -c "SELECT COUNT(*) > 0 FROM information_schema.tables WHERE table_schema = 'public'"
 
       - name: Validate Docker Compose configuration
         env:
