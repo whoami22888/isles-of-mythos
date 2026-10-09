@@ -16,6 +16,11 @@ Combat request IDs are replay-protected. Ranged projectiles are resolved server-
 The PDF requires spatial interest management, regional servers, cross-region synchronization, battle instancing and adaptive LOD/network strategies. These remain architectural/scaling requirements beyond the currently verified single-server implementation unless separately evidenced.
 
 ## Verification
-The documentation update was based on authoritative main HEAD `83e4c14b94861c0585c1a50993f7297ad0dda497`, verified on 2026-10-08 before this documentation change. Exact-head evidence for that source state was CI #1010 PASS, Performance Acceptance #230 PASS, and Static Security Quality #202 PASS.
+The documentation update was based on authoritative main HEAD `3766078adfcdeda08dc768b0b8d4bce05d914827`, verified on 2026-10-08 before this documentation change. Exact-head evidence for that source state was verify run 37878375179 PASS; sustained-load run 37878375176 PASS; static-security run 37878375323 PASS.
 
 This is a source-state record, not a claim that a later commit has the same verification. After any HEAD change, obtain fresh exact-head evidence before describing the new HEAD as verified. Follow `.project/VERIFICATION-STANDARD.md`.
+
+
+## Global MMO boundary
+
+Current deployment is effectively single-server/single-region. Regional topology, cross-server synchronisation, regional routing and capacity/latency load balancing are **FUTURE GATE** requirements. Local battle instancing, current-world ownership changes, and PostgreSQL persistence are **PARTIAL** capabilities; they do not establish distributed battle routing, cross-region ownership transfer, or regional failover. The PDF's global gateway, service separation, dynamic allocation, failure recovery, and distributed consistency/load tests remain future requirements.
