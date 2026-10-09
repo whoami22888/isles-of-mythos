@@ -199,15 +199,15 @@ No future item is described here as implemented merely because it appears in the
 ### Exact current-main evidence
 
 **Verified source:** `d4de5d278369b5dc3d57aeee13c86bb4bec70c8e`  
-**Verification date:** 2026-10-08
+**Verification date:** 2026-10-09
 
-- CI #1010 / run `37759539832` — **PASS**
-- Performance Acceptance #230 / run `37759539777` — **PASS**
-- Static Security Quality #202 / run `37759539823` — **PASS**
+- verify run `37915489570` — **PASS**
+- sustained-load run `37915489672` — **PASS**
+- static-security run `37915489593` — **PASS**
 
 These results apply only to the exact SHA above.
 
-The Master Project Index records the independent audit result for this SHA as **NOT AUDIT-PASS / NOT PRODUCTION-READY**. In particular, the audit found a movement-authority cheat vector and incomplete production mobile/graphics/player-UX architecture.
+The independent audit status remains **NOT AUDIT-PASS / NOT PRODUCTION-READY**. Movement authority timing has since been hardened and movement anti-cheat evidence added; broader anomaly detection, full production mobile UX/accessibility, renderer LOD/asset streaming, player progression UX and global/regional MMO topology remain incomplete.
 
 ### Evidence boundary
 
