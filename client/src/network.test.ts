@@ -210,6 +210,9 @@ describe("world chunk coordinate and point-of-interest protocol", () => {
     expect(parseServerMessage({ type: "world_chunk", requestId: "world-3", chunk: {
       ...chunk, resourceMillSpawns: [{ id: "bad", x: 1, y: 4, level: 6 }],
     } })).toBeNull();
+    expect(parseServerMessage({ type: "world_chunk", requestId: "world-4", chunk: {
+      ...chunk, resourceMillSpawns: [{ id: "outside-chunk", x: 32, y: 4, level: 7 }],
+    } })).toBeNull();
   });
 });
 
