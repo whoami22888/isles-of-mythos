@@ -25,6 +25,13 @@ export interface CreatureSpawn {
   level: number;
 }
 
+export interface ResourceMillSpawn {
+  id: string;
+  x: number;
+  y: number;
+  level: 7;
+}
+
 export interface WorldChunk {
   x: number;
   y: number;
@@ -32,6 +39,7 @@ export interface WorldChunk {
   tiles: number[];
   resources: ResourceNode[];
   creatures: CreatureSpawn[];
+  resourceMillSpawns: ResourceMillSpawn[];
 }
 
 function hash(x: number, y: number, seed: number): number {
@@ -55,10 +63,41 @@ function elevation(worldX: number, worldY: number): number {
 export function tileAtWorld(worldX: number, worldY: number): TileKind {
   const e = elevation(worldX, worldY);
   if (e < 0.38) return TileKind.Ocean;
-  if (e < 0.45) return TileKind.Shallow;
+  if (e < 0.45) {
+    const coral = valueNoise(worldX * 0.11, worldY * 0.11, WORLD_SEED + 71);
+    return coral > 0.58 ? TileKind.Reef : TileKind.Shallow;
+  }
   if (e < 0.5) return TileKind.Sand;
   if (e > 0.78) return TileKind.Rock;
   return TileKind.Grass;
+}
+
+export function chunkCoordinateForTile(tileCoordinate: number): number {
+  if (!Number.isSafeInteger(tileCoordinate)) {
+    throw new RangeError("INVALID_WORLD_TILE_COORDINATE");
+  }
+  return Math.floor(tileCoordinate / CHUNK_SIZE);
+}
+
+function isResourceMillAnchor(chunkCoordinate: number): boolean {
+  return ((chunkCoordinate % 8) + 8) % 8 === 0;
+}
+
+function resourceMillSpawnForChunk(chunkX: number, chunkY: number): ResourceMillSpawn | null {
+  if (!isResourceMillAnchor(chunkX) || !isResourceMillAnchor(chunkY)) return null;
+  let best: { x: number; y: number; distance: number } | null = null;
+  const centerX = chunkX * CHUNK_SIZE + (CHUNK_SIZE - 1) / 2;
+  const centerY = chunkY * CHUNK_SIZE + (CHUNK_SIZE - 1) / 2;
+  for (let localY = 0; localY < CHUNK_SIZE; localY += 1) {
+    for (let localX = 0; localX < CHUNK_SIZE; localX += 1) {
+      const x = chunkX * CHUNK_SIZE + localX;
+      const y = chunkY * CHUNK_SIZE + localY;
+      if (tileAtWorld(x, y) !== TileKind.Grass) continue;
+      const distance = (x - centerX) ** 2 + (y - centerY) ** 2;
+      if (!best || distance < best.distance) best = { x, y, distance };
+    }
+  }
+  return best ? { id: `resource-mill-lv7:${chunkX}:${chunkY}`, x: best.x, y: best.y, level: 7 } : null;
 }
 function nodeId(prefix: string, x: number, y: number): string { return `${prefix}:${x}:${y}`; }
 
@@ -66,6 +105,7 @@ export function generateChunk(chunkX: number, chunkY: number): WorldChunk {
   const tiles = new Array<number>(CHUNK_SIZE * CHUNK_SIZE);
   const resources: ResourceNode[] = [];
   const creatures: CreatureSpawn[] = [];
+  const resourceMillSpawns: ResourceMillSpawn[] = [];
   for (let localY = 0; localY < CHUNK_SIZE; localY += 1) {
     for (let localX = 0; localX < CHUNK_SIZE; localX += 1) {
       const worldX = chunkX * CHUNK_SIZE + localX, worldY = chunkY * CHUNK_SIZE + localY;
@@ -83,7 +123,9 @@ export function generateChunk(chunkX: number, chunkY: number): WorldChunk {
       }
     }
   }
-  return { x: chunkX, y: chunkY, size: CHUNK_SIZE, tiles, resources, creatures };
+  const resourceMillSpawn = resourceMillSpawnForChunk(chunkX, chunkY);
+  if (resourceMillSpawn) resourceMillSpawns.push(resourceMillSpawn);
+  return { x: chunkX, y: chunkY, size: CHUNK_SIZE, tiles, resources, creatures, resourceMillSpawns };
 }
 
 export class WorldChunkCache {
@@ -110,7 +152,7 @@ export class WorldChunkCache {
     const x = Number(xRaw);
     const y = Number(yRaw);
     if (!Number.isSafeInteger(x) || !Number.isSafeInteger(y) || Math.abs(x) > 1_000_000 || Math.abs(y) > 1_000_000) return null;
-    const chunk = this.get(Math.floor(x / CHUNK_SIZE), Math.floor(y / CHUNK_SIZE));
+    const chunk = this.get(chunkCoordinateForTile(x), chunkCoordinateForTile(y));
     return chunk.resources.find((resource) => resource.id === resourceId && resource.type === type && resource.x === x && resource.y === y) ?? null;
   }
 
