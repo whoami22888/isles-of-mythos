@@ -1,5 +1,5 @@
 import type { Pool } from "pg";
-import { findBasePath } from "./base-pathfinding.js";
+import { nextWorkerWaypoint } from "./base-pathfinding.js";
 
 export const BASE_GRID_MIN = -128;
 export const BASE_GRID_MAX = 128;
