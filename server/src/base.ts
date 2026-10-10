@@ -139,7 +139,7 @@ export function validateBuildingUpgrade(base:Pick<BaseState,"buildings">,buildin
   return building;
 }
 type ProductionWorker = BaseWorker & { creatureX?:number|null; creatureY?:number|null };
-type ProductionBase = Pick<BaseState,"buildings"|"workers"|"storage"|"workPriorities"> & { x?:number; y?:number; workers:ProductionWorker[] };
+type ProductionBase = Omit<Pick<BaseState,"buildings"|"workers"|"storage"|"workPriorities">,"workers"> & { x?:number; y?:number; workers:ProductionWorker[] };
 export function productionFor(base:ProductionBase,elapsedMs:number):Record<string,number>{
   if(!Number.isFinite(elapsedMs)||elapsedMs<=0)return {};
   const elapsed=Math.min(elapsedMs,MAX_PRODUCTION_ELAPSED_MS)/60000;
