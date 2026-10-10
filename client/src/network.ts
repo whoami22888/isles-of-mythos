@@ -134,6 +134,9 @@ function isWorldChunk(value: unknown): value is WorldChunk {
       typeof spawn.id === "string" && spawn.id.length > 0 &&
       typeof spawn.x === "number" && Number.isSafeInteger(spawn.x) &&
       typeof spawn.y === "number" && Number.isSafeInteger(spawn.y) &&
+      Number.isSafeInteger(value.size) && value.size > 0 &&
+      Math.floor(spawn.x / value.size) === value.x &&
+      Math.floor(spawn.y / value.size) === value.y &&
       spawn.level === 7));
 }
 
