@@ -14,6 +14,9 @@ import {
 } from "./network.js";
 import { SystemPanel } from "./system-panel.js";
 import { TouchControls, getMobileLayout } from "./mobile-controls.js";
+import { EngineStateManager, normalizeFrameDelta } from "./engine-state.js";
+
+const engineState = new EngineStateManager();
 
 const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL;
 const API_BASE_URL = (configuredBaseUrl ?? window.location.origin).replace(/\/$/, "");
@@ -21,6 +24,134 @@ const WS_URL = API_BASE_URL.replace(/^http/, (protocol) => protocol === "https" 
 const VISIBLE_CHUNK_RADIUS = 1;
 const MOVE_SEND_INTERVAL_MS = 50;
 const ATTACK_INPUT_COOLDOWN_MS = 150;
+
+class MenuScene extends Phaser.Scene {
+  private title?: Phaser.GameObjects.Text;
+  private subtitle?: Phaser.GameObjects.Text;
+  private enterButton?: Phaser.GameObjects.Text;
+
+  constructor() { super("menu"); }
+
+  create(): void {
+    this.cameras.main.setBackgroundColor("#07131f");
+    this.add.rectangle(0, 0, this.scale.width, this.scale.height, 0x07131f).setOrigin(0);
+    this.title = this.add.text(0, 0, "ISLES OF MYTHOS", {
+      fontFamily: "sans-serif", fontSize: "clamp(28px, 5vw, 56px)", fontStyle: "bold",
+      color: "#f4e6c8", align: "center",
+    }).setOrigin(0.5);
+    this.subtitle = this.add.text(0, 0, "SUNKEN TIDES", {
+      fontFamily: "sans-serif", fontSize: "22px", color: "#6ed6d1", letterSpacing: 7,
+    }).setOrigin(0.5);
+    this.enterButton = this.add.text(0, 0, "ENTER WORLD", {
+      fontFamily: "sans-serif", fontSize: "20px", fontStyle: "bold", color: "#ffffff",
+      backgroundColor: "#145b63", padding: { left: 24, right: 24, top: 14, bottom: 14 },
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    this.enterButton.on("pointerover", () => this.enterButton?.setStyle({ backgroundColor: "#1b7880" }));
+    this.enterButton.on("pointerout", () => this.enterButton?.setStyle({ backgroundColor: "#145b63" }));
+    this.enterButton.on("pointerdown", () => this.enterWorld());
+    this.input.keyboard?.once("keydown-ENTER", () => this.enterWorld());
+    this.scale.on("resize", this.layout, this);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.off("resize", this.layout, this));
+    this.layout();
+  }
+
+  private layout(): void {
+    const centerX = this.scale.width / 2;
+    const centerY = this.scale.height / 2;
+    this.title?.setPosition(centerX, centerY - 76);
+    this.subtitle?.setPosition(centerX, centerY - 28);
+    this.enterButton?.setPosition(centerX, centerY + 48);
+  }
+
+  private enterWorld(): void {
+    if (engineState.state !== "menu") return;
+    engineState.transition("overworld");
+    this.scene.start("world");
+  }
+}
+
+function closeEngineOverlay(scene: Phaser.Scene, expected: "base-build" | "combat-ui"): void {
+  if (engineState.state !== expected) return;
+  engineState.transition("overworld");
+  scene.scene.stop();
+  const world = scene.scene.get("world");
+  world.input.enabled = true;
+  scene.scene.resume("world");
+}
+
+class BaseBuildScene extends Phaser.Scene {
+  private panel?: Phaser.GameObjects.Rectangle;
+  private title?: Phaser.GameObjects.Text;
+  private instructions?: Phaser.GameObjects.Text;
+  private returnButton?: Phaser.GameObjects.Text;
+
+  constructor() { super("base-build"); }
+
+  create(): void {
+    this.panel = this.add.rectangle(0, 0, 560, 280, 0x0b202c, 0xf4e6c8, 2).setOrigin(0.5).setDepth(2000);
+    this.title = this.add.text(0, 0, "BASE BUILD MODE", {
+      fontFamily: "sans-serif", fontSize: "28px", fontStyle: "bold", color: "#f4e6c8",
+    }).setOrigin(0.5).setDepth(2001);
+    this.instructions = this.add.text(0, 0, "World simulation is paused while this mode is open.\nPress ESC or select Return to Overworld.", {
+      fontFamily: "sans-serif", fontSize: "16px", color: "#d5e4e8", align: "center", lineSpacing: 8,
+    }).setOrigin(0.5).setDepth(2001);
+    this.returnButton = this.add.text(0, 0, "RETURN TO OVERWORLD", {
+      fontFamily: "sans-serif", fontSize: "16px", color: "#ffffff",
+      backgroundColor: "#145b63", padding: { left: 16, right: 16, top: 10, bottom: 10 },
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true }).setDepth(2001);
+    this.returnButton.on("pointerdown", () => closeEngineOverlay(this, "base-build"));
+    this.input.keyboard?.once("keydown-ESC", () => closeEngineOverlay(this, "base-build"));
+    this.scale.on("resize", this.layout, this);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.off("resize", this.layout, this));
+    this.layout();
+  }
+
+  private layout(): void {
+    const x = this.scale.width / 2;
+    const y = this.scale.height / 2;
+    this.panel?.setPosition(x, y);
+    this.title?.setPosition(x, y - 78);
+    this.instructions?.setPosition(x, y - 4);
+    this.returnButton?.setPosition(x, y + 82);
+  }
+}
+
+class CombatUiScene extends Phaser.Scene {
+  private panel?: Phaser.GameObjects.Rectangle;
+  private title?: Phaser.GameObjects.Text;
+  private instructions?: Phaser.GameObjects.Text;
+  private returnButton?: Phaser.GameObjects.Text;
+
+  constructor() { super("combat-ui"); }
+
+  create(): void {
+    this.panel = this.add.rectangle(0, 0, 560, 280, 0x0b202c, 0xf4e6c8, 2).setOrigin(0.5).setDepth(2000);
+    this.title = this.add.text(0, 0, "COMBAT INTERFACE", {
+      fontFamily: "sans-serif", fontSize: "28px", fontStyle: "bold", color: "#f4e6c8",
+    }).setOrigin(0.5).setDepth(2001);
+    this.instructions = this.add.text(0, 0, "SPACE: attack nearest creature   SHIFT: dodge\nB: block   C: capture   T: tame selected creature", {
+      fontFamily: "sans-serif", fontSize: "16px", color: "#d5e4e8", align: "center", lineSpacing: 8,
+    }).setOrigin(0.5).setDepth(2001);
+    this.returnButton = this.add.text(0, 0, "RETURN TO OVERWORLD", {
+      fontFamily: "sans-serif", fontSize: "16px", color: "#ffffff",
+      backgroundColor: "#145b63", padding: { left: 16, right: 16, top: 10, bottom: 10 },
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true }).setDepth(2001);
+    this.returnButton.on("pointerdown", () => closeEngineOverlay(this, "combat-ui"));
+    this.input.keyboard?.once("keydown-ESC", () => closeEngineOverlay(this, "combat-ui"));
+    this.scale.on("resize", this.layout, this);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.off("resize", this.layout, this));
+    this.layout();
+  }
+
+  private layout(): void {
+    const x = this.scale.width / 2;
+    const y = this.scale.height / 2;
+    this.panel?.setPosition(x, y);
+    this.title?.setPosition(x, y - 78);
+    this.instructions?.setPosition(x, y - 4);
+    this.returnButton?.setPosition(x, y + 82);
+  }
+}
 
 class WorldScene extends Phaser.Scene {
   private readonly chunks = new ChunkRenderer(this);
@@ -84,6 +215,8 @@ class WorldScene extends Phaser.Scene {
     this.input.keyboard?.on("keydown-I", () => this.cycleSelectedAi());
     this.input.keyboard?.on("keydown-G", () => this.gatherNearest());
     this.input.keyboard?.on("keyup-B", () => this.setBlocking(false));
+    this.input.keyboard?.on("keydown-F1", () => this.openEngineOverlay("base-build"));
+    this.input.keyboard?.on("keydown-F2", () => this.openEngineOverlay("combat-ui"));
     this.createTouchCombatControls();
     this.createMobileControls();
     this.systems = new SystemPanel(this, (message) => this.sendSystemMessage(message), () => this.player ? { x: this.player.x, y: this.player.y } : null, () => this.player ?? null);
@@ -101,9 +234,10 @@ class WorldScene extends Phaser.Scene {
 
   update(_time: number, delta: number): void {
     if (!this.connected || !this.socket || this.socket.readyState !== WebSocket.OPEN) return;
-    this.moveAccumulator += delta;
-    this.attackAccumulator = Math.max(0, this.attackAccumulator - delta);
-    this.dodgeAccumulator = Math.max(0, this.dodgeAccumulator - delta);
+    const frameDelta = normalizeFrameDelta(delta);
+    this.moveAccumulator += frameDelta;
+    this.attackAccumulator = Math.max(0, this.attackAccumulator - frameDelta);
+    this.dodgeAccumulator = Math.max(0, this.dodgeAccumulator - frameDelta);
     if (this.moveAccumulator < MOVE_SEND_INTERVAL_MS) return;
     this.moveAccumulator = 0;
     let dx = this.touchControls?.movement.x ?? 0;
@@ -121,6 +255,14 @@ class WorldScene extends Phaser.Scene {
       this.connected = false;
       this.statusText?.setText("WORLD CONNECTION FAILED");
     }
+  }
+
+  private openEngineOverlay(next: "base-build" | "combat-ui"): void {
+    if (engineState.state !== "overworld") return;
+    engineState.transition(next);
+    this.input.enabled = false;
+    this.scene.pause("world");
+    this.scene.launch(next);
   }
 
   private connect(): void {
@@ -637,6 +779,23 @@ class WorldScene extends Phaser.Scene {
   }
 }
 
-export const gameConfig: Phaser.Types.Core.GameConfig = { type: Phaser.AUTO, parent: "game", width: 1280, height: 720, backgroundColor: "#07131f", scale: { mode: Phaser.Scale.RESIZE, autoCenter: Phaser.Scale.CENTER_BOTH }, scene: [WorldScene], render: { antialias: true, powerPreference: "high-performance" }, fps: { target: 60, forceSetTimeOut: false } };
+export const gameConfig: Phaser.Types.Core.GameConfig = {
+  type: Phaser.AUTO,
+  parent: "game",
+  width: 1280,
+  height: 720,
+  backgroundColor: "#07131f",
+  scale: { mode: Phaser.Scale.RESIZE, autoCenter: Phaser.Scale.CENTER_BOTH },
+  scene: [MenuScene, WorldScene, BaseBuildScene, CombatUiScene],
+  render: { antialias: true, powerPreference: "high-performance" },
+  fps: { target: 60, forceSetTimeOut: false },
+};
 
-export function startGame(): void { new Phaser.Game(gameConfig); }
+let activeGame: Phaser.Game | undefined;
+
+export function startGame(): void {
+  if (activeGame) return;
+  const parent = document.getElementById("game");
+  if (!parent) throw new Error("GAME_SURFACE_MISSING");
+  activeGame = new Phaser.Game({ ...gameConfig, parent });
+}
