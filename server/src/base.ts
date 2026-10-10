@@ -1,4 +1,5 @@
 import type { Pool } from "pg";
+import { findBasePath } from "./base-pathfinding.js";
 
 export const BASE_GRID_MIN = -128;
 export const BASE_GRID_MAX = 128;
@@ -200,6 +201,32 @@ export class BaseStore {
     return state;
   }
   get(userId:string):BaseState|null{return this.active.get(userId)??null;}
+
+  /** Return the next world-space waypoint for a creature assigned to a base building. */
+  workerWaypoint(userId:string,creatureId:string,worldX:number,worldY:number):{x:number;y:number}|null{
+    const base=this.get(userId);
+    if(!base||!Number.isFinite(worldX)||!Number.isFinite(worldY))return null;
+    const worker=base.workers.find(w=>w.creatureId===creatureId);
+    if(!worker)return null;
+    const target=base.buildings.find(b=>b.id===worker.buildingId&&b.active);
+    if(!target)return null;
+    const targetPoint={x:base.x+target.gridX+0.5,y:base.y+target.gridY+0.5};
+    const localStart={x:Math.floor(worldX-base.x),y:Math.floor(worldY-base.y)};
+    if(localStart.x<BASE_GRID_MIN||localStart.x>BASE_GRID_MAX||localStart.y<BASE_GRID_MIN||localStart.y>BASE_GRID_MAX){
+      return Math.hypot(targetPoint.x-worldX,targetPoint.y-worldY)<0.1?null:targetPoint;
+    }
+    const path=findBasePath(
+      localStart,
+      {x:target.gridX,y:target.gridY},
+      base.buildings.filter(b=>b.id!==target.id).map(b=>({x:b.gridX,y:b.gridY,active:b.active})),
+      BASE_GRID_MIN,
+      BASE_GRID_MAX,
+    );
+    if(!path)return null;
+    const next=path[1]??{x:target.gridX,y:target.gridY};
+    const waypoint={x:base.x+next.x+0.5,y:base.y+next.y+0.5};
+    return Math.hypot(waypoint.x-worldX,waypoint.y-worldY)<0.1?null:waypoint;
+  }
   async create(userId:string,name="Pirate Settlement",x=0,y=0):Promise<BaseState>{
     return this.runExclusive(userId,async()=>{
       if(await this.load(userId))throw new Error("BASE_ALREADY_EXISTS");
