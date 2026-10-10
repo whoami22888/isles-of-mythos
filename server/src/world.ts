@@ -19,7 +19,7 @@ export interface ResourceNode {
 
 export interface CreatureSpawn {
   id: string;
-  species: "slime" | "boar" | "raptor";
+  species: "slime" | "boar" | "raptor" | "fire_wisp";
   x: number;
   y: number;
   level: number;
@@ -117,7 +117,7 @@ export function generateChunk(chunkX: number, chunkY: number): WorldChunk {
       else if (kind === TileKind.Sand && roll > 0.992) resources.push({ id: nodeId("herb", worldX, worldY), type: "herb", x: worldX, y: worldY });
       const creatureRoll = hash(worldX * 7 + 19, worldY * 11 + 3, WORLD_SEED + 211);
       if (kind === TileKind.Grass && creatureRoll > 0.997) {
-        const species = creatureRoll > 0.9994 ? "raptor" : creatureRoll > 0.9982 ? "boar" : "slime";
+        const species = creatureRoll > 0.9997 ? "raptor" : creatureRoll > 0.9994 ? "fire_wisp" : creatureRoll > 0.9982 ? "boar" : "slime";
         creatures.push({ id: nodeId("creature", worldX, worldY), species, x: worldX, y: worldY,
           level: 1 + Math.floor(hash(worldX, worldY, WORLD_SEED + 307) * 5) });
       }
