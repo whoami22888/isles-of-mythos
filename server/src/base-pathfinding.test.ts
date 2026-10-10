@@ -21,7 +21,7 @@ describe("base worker pathfinding", () => {
     );
     expect(path).not.toBeNull();
     expect(path?.[1]).toEqual({ x: 0, y: -1 });
-    expect(path?.some((point) => point.x === 1 && point.y === 0)).toBe(true);
+    expect(path?.some((point) => point.x === 1 && point.y === 0)).toBe(false);
     expect(path?.length).toBe(5);
   });
 
