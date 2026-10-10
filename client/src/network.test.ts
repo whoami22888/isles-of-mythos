@@ -216,3 +216,35 @@ describe("world chunk coordinate and point-of-interest protocol", () => {
   });
 });
 
+
+
+describe("world chunk coordinate validation", () => {
+  const validChunk = {
+    x: -1, y: 0, size: 32, tiles: Array(32 * 32).fill(0),
+    resources: [], creatures: [],
+  };
+
+  it("accepts safe-integer chunk coordinates without mill spawn data", () => {
+    expect(parseServerMessage({
+      type: "world_chunk", requestId: "coords-valid", chunk: validChunk,
+    })).toMatchObject({ type: "world_chunk", chunk: { x: -1, y: 0 } });
+  });
+
+  it.each([
+    ["fractional x", { x: 1.5, y: 0 }],
+    ["fractional y", { x: 0, y: -2.25 }],
+    ["infinite x", { x: Number.POSITIVE_INFINITY, y: 0 }],
+    ["infinite y", { x: 0, y: Number.NEGATIVE_INFINITY }],
+    ["NaN x", { x: Number.NaN, y: 0 }],
+    ["NaN y", { x: 0, y: Number.NaN }],
+    ["unsafe x", { x: Number.MAX_SAFE_INTEGER + 1, y: 0 }],
+    ["unsafe y", { x: 0, y: Number.MIN_SAFE_INTEGER - 1 }],
+    ["string x", { x: "1", y: 0 }],
+    ["string y", { x: 0, y: "1" }],
+  ])("rejects %s even when mill spawn data is absent", (_label, coordinates) => {
+    expect(parseServerMessage({
+      type: "world_chunk", requestId: "coords-invalid",
+      chunk: { ...validChunk, ...coordinates },
+    })).toBeNull();
+  });
+});
