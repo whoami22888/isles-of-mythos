@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { addThreat, advanceProjectile, applyDamage, calculateDamage, createCombatTarget, createProjectile, creatureAbilityDamage, distance, isMeleeHit, mitigateDamage, selectThreatTarget, tickCreatureAi, tickStatusEffects, tickStatuses, weaponFor } from "./combat.js";
+import { CREATURE_STATS, addThreat, advanceProjectile, applyDamage, calculateDamage, createCombatTarget, createProjectile, creatureAbilityDamage, distance, isMeleeHit, mitigateDamage, selectThreatTarget, tickCreatureAi, tickStatusEffects, tickStatuses, weaponFor } from "./combat.js";
 
 describe("combat engine", () => {
+  it("defines a fire-element creature with an authoritative ember ability", () => {
+    const fireCreature = createCombatTarget("creature:fire-test", "fire_wisp", 1, 1, 1);
+    expect(fireCreature.element).toBe("fire");
+    expect(CREATURE_STATS.fire_wisp?.ability?.id).toBe("ember_burst");
+    expect(CREATURE_STATS.fire_wisp?.ability?.damageType).toBe("fire");
+  });
+
   it("uses server-defined weapon damage and defense", () => {
     const weapon = weaponFor("cutlass");
     expect(weapon?.delivery).toBe("melee");
