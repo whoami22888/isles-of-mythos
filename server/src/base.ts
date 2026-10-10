@@ -62,7 +62,7 @@ export interface BaseState {
 interface BaseRow { id:string; owner_user_id:string; name:string; x:number; y:number; maximum_creatures:number; maximum_workers:number; maximum_breeding_slots:number; production_processed_at:Date|string; }
 interface BuildingRow { id:string; base_id:string; type:BuildingType; level:number; grid_x:number; grid_y:number; active:boolean; }
 interface StorageRow { resource_key:string; quantity:string; }
-interface WorkerRow { creature_id:string; base_id:string; building_id:string; task:WorkerMode; }
+interface WorkerRow { creature_id:string; base_id:string; building_id:string; task:WorkerMode; creature_x?:number|null; creature_y?:number|null; }
 
 export const BASE_BUILDING_DEFINITIONS: Record<BuildingType,{maxLevel:number; prerequisites:BuildingType[]}> = {
   command_centre:{maxLevel:7,prerequisites:[]}, storage:{maxLevel:7,prerequisites:["command_centre"]},
@@ -138,7 +138,9 @@ export function validateBuildingUpgrade(base:Pick<BaseState,"buildings">,buildin
   for(const prerequisite of BASE_BUILDING_DEFINITIONS[building.type].prerequisites)if(!base.buildings.some(b=>b.type===prerequisite&&b.active))throw new Error("BUILDING_PREREQUISITE_MISSING");
   return building;
 }
-export function productionFor(base:Pick<BaseState,"buildings"|"workers"|"storage"|"workPriorities">,elapsedMs:number):Record<string,number>{
+type ProductionWorker = BaseWorker & { creatureX?:number|null; creatureY?:number|null };
+type ProductionBase = Pick<BaseState,"buildings"|"workers"|"storage"|"workPriorities"> & { x?:number; y?:number; workers:ProductionWorker[] };
+export function productionFor(base:ProductionBase,elapsedMs:number):Record<string,number>{
   if(!Number.isFinite(elapsedMs)||elapsedMs<=0)return {};
   const elapsed=Math.min(elapsedMs,MAX_PRODUCTION_ELAPSED_MS)/60000;
   const deltas:Record<string,number>={};
@@ -150,7 +152,13 @@ export function productionFor(base:Pick<BaseState,"buildings"|"workers"|"storage
       if(worker.task!=="auto")return validTasksForBuilding(building.type).includes(worker.task);
       return automaticTask!==null;
     };
-    const workerCount=base.workers.filter(w=>w.buildingId===building.id&&validTask(w)).length;
+    const workerCount=base.workers.filter(w=>{
+      if(w.buildingId!==building.id||!validTask(w))return false;
+      if(!Number.isFinite(w.creatureX)||!Number.isFinite(w.creatureY)||!Number.isFinite(base.x)||!Number.isFinite(base.y))return true;
+      const targetX=base.x!+building.gridX+0.5;
+      const targetY=base.y!+building.gridY+0.5;
+      return Math.hypot(w.creatureX!-targetX,w.creatureY!-targetY)<=0.75;
+    }).length;
     if(workerCount===0)continue;
     const multiplier=building.level*workerCount;
     const output=Math.floor(spec.ratePerMinute*multiplier*elapsed);
@@ -388,10 +396,10 @@ export class BaseStore {
       const [storageRows,buildingRows,workerRows]=await Promise.all([
         client.query<StorageRow>("SELECT resource_key,quantity FROM base_storage WHERE base_id=$1 FOR UPDATE",[base.id]),
         client.query<BuildingRow>("SELECT id,base_id,type,level,grid_x,grid_y,active FROM base_buildings WHERE base_id=$1",[base.id]),
-        client.query<WorkerRow>("SELECT creature_id,base_id,building_id,task FROM base_workers WHERE base_id=$1",[base.id]),
+        client.query<WorkerRow>("SELECT bw.creature_id,bw.base_id,bw.building_id,bw.task,pc.x AS creature_x,pc.y AS creature_y FROM base_workers bw LEFT JOIN player_creatures pc ON pc.id=bw.creature_id WHERE bw.base_id=$1",[base.id]),
       ]);
       const storage=Object.fromEntries(storageRows.rows.map(r=>[r.resource_key,toQuantity(r.quantity)]));
-      const runtime={...base,storage,buildings:buildingRows.rows.map(rowToBuilding),workers:workerRows.rows.map(rowToWorker)};
+      const runtime={...base,storage,buildings:buildingRows.rows.map(rowToBuilding),workers:workerRows.rows.map(r=>({...rowToWorker(r),creatureX:r.creature_x,creatureY:r.creature_y}))};
       const deltas=productionFor(runtime,elapsed);
       const next={...storage};
       let valid=true;
