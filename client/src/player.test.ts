@@ -32,6 +32,13 @@ describe("client player contract", () => {
     expect(isPlayerState({ ...validPlayerState, selectedHotbarSlot: 8 })).toBe(false);
   });
 
+  it("rejects invalid inventory quantities and malformed hotbar slots", () => {
+    expect(isPlayerState({ ...validPlayerState, inventory: { wood: 1.5 } })).toBe(false);
+    expect(isPlayerState({ ...validPlayerState, inventory: { wood: 1_000_001 } })).toBe(false);
+    expect(isPlayerState({ ...validPlayerState, hotbar: ["x".repeat(129), null, null, null, null, null, null, null] })).toBe(false);
+    expect(isPlayerState({ ...validPlayerState, selectedHotbarSlot: -1 })).toBe(false);
+  });
+
   it("accepts exact decimal Gold Doubloons and rejects overflow", () => {
     const state = {
       userId: "user-1",
