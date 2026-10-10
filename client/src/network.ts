@@ -129,7 +129,12 @@ function isWorldChunk(value: unknown): value is WorldChunk {
     Array.isArray(value.tiles) && value.tiles.every((tile) => typeof tile === "number") &&
     (value.resources === undefined || Array.isArray(value.resources) && value.resources.every((resource) => isRecord(resource) &&
       typeof resource.id === "string" && (resource.type === "wood" || resource.type === "stone" || resource.type === "herb") &&
-      typeof resource.x === "number" && Number.isFinite(resource.x) && typeof resource.y === "number" && Number.isFinite(resource.y)));
+      typeof resource.x === "number" && Number.isFinite(resource.x) && typeof resource.y === "number" && Number.isFinite(resource.y))) &&
+    (value.resourceMillSpawns === undefined || Array.isArray(value.resourceMillSpawns) && value.resourceMillSpawns.every((spawn) => isRecord(spawn) &&
+      typeof spawn.id === "string" && spawn.id.length > 0 &&
+      typeof spawn.x === "number" && Number.isSafeInteger(spawn.x) &&
+      typeof spawn.y === "number" && Number.isSafeInteger(spawn.y) &&
+      spawn.level === 7));
 }
 
 function isInvasionSummary(value: unknown): value is InvasionSummary {
