@@ -23,7 +23,7 @@ function storeFor(overrides: Record<string, unknown> = {}): CreatureStore {
     y: 0,
     ...overrides,
   };
-  const db = { query: async () => ({ rows: [row] }) } as unknown as Pool;
+  const db = { query: () => Promise.resolve({ rows: [row] }) } as unknown as Pool;
   return new CreatureStore(db);
 }
 
