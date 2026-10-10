@@ -101,9 +101,17 @@ describe("player survival and movement", () => {
     expect(player.health).toBeCloseTo(49.8, 6);
   });
 
-  it("produces player and melee hitboxes", () => {
+  it("produces centered player and directionally offset melee collision bounds", () => {
     const player = createDefaultPlayer("user-1");
-    expect(playerHitbox(player)).toMatchObject({ width: 0.7, height: 0.7 });
-    expect(meleeHitbox(player, 1, 0).width).toBe(1.5);
+    expect(playerHitbox(player)).toEqual({ x: -0.35, y: -0.35, width: 0.7, height: 0.7 });
+    expect(meleeHitbox(player, 1, 0)).toEqual({ x: 0, y: -0.75, width: 1.5, height: 1.5 });
+    expect(meleeHitbox(player, 0, -1)).toEqual({ x: -0.75, y: -1.5, width: 1.5, height: 1.5 });
+  });
+
+  it("keeps melee collision bounds finite when facing input is zero", () => {
+    const player = createDefaultPlayer("zero-facing");
+    const hitbox = meleeHitbox(player, 0, 0);
+    expect(hitbox).toEqual({ x: -0.75, y: 0, width: 1.5, height: 1.5 });
+    expect(Object.values(hitbox).every(Number.isFinite)).toBe(true);
   });
 });
