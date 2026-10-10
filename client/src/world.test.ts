@@ -53,6 +53,7 @@ describe("chunk entity batching", () => {
       creatures: [
         { id: "creature:0:0", species: "slime", x: 0, y: 1, level: 1 },
         { id: "creature:1:0", species: "raptor", x: 1, y: 1, level: 2 },
+        { id: "creature:2:0", species: "fire_wisp", x: 2, y: 1, level: 3 },
       ],
     });
 
@@ -62,6 +63,7 @@ describe("chunk entity batching", () => {
     expect(renderer.nearestResource(1, 0)?.id).toBe("stone:1:0");
     expect(renderer.nearestCreature(0, 1)?.id).toBe("creature:0:0");
     expect(renderer.nearestCreature(1, 1)?.id).toBe("creature:1:0");
+    expect(renderer.nearestCreature(2, 1)?.id).toBe("creature:2:0");
   });
 
   it("renders level-seven resource-mill spawn points on the shared entity layer", () => {
