@@ -80,9 +80,9 @@ describe("player survival and movement", () => {
     player.x = 0;
     player.y = 0;
     expect([TileKind.Ocean, TileKind.Shallow, TileKind.Reef]).toContain(tileAtWorld(0, 0));
-    applyPlayerInput(player, { dx: 0, dy: 0, dt: 1 });
-    expect(player.hunger).toBeCloseTo(PLAYER_MAX_HUNGER - 0.12, 6);
-    expect(player.oxygen).toBeCloseTo(PLAYER_MAX_OXYGEN - 0.35, 6);
+    applyPlayerInput(player, { dx: 0, dy: 0, dt: 0.1 });
+    expect(player.hunger).toBeCloseTo(PLAYER_MAX_HUNGER - 0.012, 6);
+    expect(player.oxygen).toBeCloseTo(PLAYER_MAX_OXYGEN - 0.035, 6);
   });
 
   it("damages a player when hunger and oxygen are depleted", () => {
