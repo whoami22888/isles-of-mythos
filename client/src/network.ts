@@ -125,7 +125,9 @@ export function isCreatureState(value: unknown): value is CreatureState {
 
 function isWorldChunk(value: unknown): value is WorldChunk {
   if (!isRecord(value)) return false;
-  return typeof value.x === "number" && typeof value.y === "number" && typeof value.size === "number" &&
+  const size = value.size;
+  return typeof value.x === "number" && typeof value.y === "number" &&
+    typeof size === "number" && Number.isSafeInteger(size) && size > 0 &&
     Array.isArray(value.tiles) && value.tiles.every((tile) => typeof tile === "number") &&
     (value.resources === undefined || Array.isArray(value.resources) && value.resources.every((resource) => isRecord(resource) &&
       typeof resource.id === "string" && (resource.type === "wood" || resource.type === "stone" || resource.type === "herb") &&
@@ -134,9 +136,8 @@ function isWorldChunk(value: unknown): value is WorldChunk {
       typeof spawn.id === "string" && spawn.id.length > 0 &&
       typeof spawn.x === "number" && Number.isSafeInteger(spawn.x) &&
       typeof spawn.y === "number" && Number.isSafeInteger(spawn.y) &&
-      Number.isSafeInteger(value.size) && value.size > 0 &&
-      Math.floor(spawn.x / value.size) === value.x &&
-      Math.floor(spawn.y / value.size) === value.y &&
+      Math.floor(spawn.x / size) === value.x &&
+      Math.floor(spawn.y / size) === value.y &&
       spawn.level === 7));
 }
 
