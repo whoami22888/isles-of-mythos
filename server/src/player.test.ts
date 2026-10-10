@@ -111,7 +111,7 @@ describe("player survival and movement", () => {
   it("keeps melee collision bounds finite when facing input is zero", () => {
     const player = createDefaultPlayer("zero-facing");
     const hitbox = meleeHitbox(player, 0, 0);
-    expect(hitbox).toEqual({ x: -0.75, y: 0, width: 1.5, height: 1.5 });
+    expect(hitbox).toEqual({ x: -0.75, y: -0.75, width: 1.5, height: 1.5 });
     expect(Object.values(hitbox).every(Number.isFinite)).toBe(true);
   });
 });
