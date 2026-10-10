@@ -66,3 +66,21 @@ export function findBasePath(
   }
   return null;
 }
+
+export function nextWorkerWaypoint(base: { x: number; y: number; buildings: readonly { id: string; gridX: number; gridY: number; active: boolean }[]; workers: readonly { creatureId: string; buildingId: string }[] }, creatureId: string, worldX: number, worldY: number, min = -128, max = 128): GridPoint | null {
+  if (!Number.isFinite(worldX) || !Number.isFinite(worldY)) return null;
+  const worker = base.workers.find((entry) => entry.creatureId === creatureId);
+  if (!worker) return null;
+  const target = base.buildings.find((building) => building.id === worker.buildingId && building.active);
+  if (!target) return null;
+  const targetPoint = { x: base.x + target.gridX + 0.5, y: base.y + target.gridY + 0.5 };
+  const localStart = { x: Math.floor(worldX - base.x), y: Math.floor(worldY - base.y) };
+  if (localStart.x < min || localStart.x > max || localStart.y < min || localStart.y > max) {
+    return Math.hypot(targetPoint.x - worldX, targetPoint.y - worldY) < 0.1 ? null : targetPoint;
+  }
+  const path = findBasePath(localStart, { x: target.gridX, y: target.gridY }, base.buildings.filter((b) => b.id !== target.id).map((b) => ({ x: b.gridX, y: b.gridY, active: b.active })), min, max);
+  if (!path) return null;
+  const next = path[1] ?? { x: target.gridX, y: target.gridY };
+  const waypoint = { x: base.x + next.x + 0.5, y: base.y + next.y + 0.5 };
+  return Math.hypot(waypoint.x - worldX, waypoint.y - worldY) < 0.1 ? null : waypoint;
+}
