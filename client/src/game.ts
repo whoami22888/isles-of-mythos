@@ -15,6 +15,7 @@ import {
 import { SystemPanel } from "./system-panel.js";
 import { TouchControls, getMobileLayout } from "./mobile-controls.js";
 import { EngineStateManager, normalizeFrameDelta } from "./engine-state.js";
+import { formatHotbar } from "./survival-hud.js";
 
 const engineState = new EngineStateManager();
 
@@ -166,6 +167,7 @@ class WorldScene extends Phaser.Scene {
   private loadedCenter = { x: Number.NaN, y: Number.NaN };
   private statusText?: Phaser.GameObjects.Text;
   private survivalText?: Phaser.GameObjects.Text;
+  private hotbarText?: Phaser.GameObjects.Text;
   private playerMarker?: Phaser.GameObjects.Graphics;
   private socket?: WebSocket;
   private player?: PlayerState;
@@ -208,7 +210,9 @@ class WorldScene extends Phaser.Scene {
     this.cameras.main.centerOn(TILE_SIZE / 2, TILE_SIZE / 2);
     this.statusText = this.add.text(16, 16, "CONNECTING...", { fontFamily: "sans-serif", fontSize: "16px", color: "#ffffff", backgroundColor: "#07131fcc", padding: { left: 8, right: 8, top: 6, bottom: 6 } }).setScrollFactor(0).setDepth(1000);
     this.combatText = this.add.text(16, 100, "SPACE: ATTACK NEAREST CREATURE", { fontFamily: "sans-serif", fontSize: "14px", color: "#ffffff", backgroundColor: "#07131fcc", padding: { left: 8, right: 8, top: 6, bottom: 6 } }).setScrollFactor(0).setDepth(1000);
-    this.survivalText = this.add.text(16, 58, "HP -- | STA -- | HUNGER -- | OXYGEN -- | HOTBAR 1", { fontFamily: "sans-serif", fontSize: "15px", color: "#ffffff", backgroundColor: "#07131fcc", padding: { left: 8, right: 8, top: 6, bottom: 6 } }).setScrollFactor(0).setDepth(1000);
+    this.survivalText = this.add.text(16, 58, "HP -- | STA -- | HUNGER -- | OXYGEN --", { fontFamily: "sans-serif", fontSize: "15px", color: "#ffffff", backgroundColor: "#07131fcc", padding: { left: 8, right: 8, top: 6, bottom: 6 } }).setScrollFactor(0).setDepth(1000);
+    this.hotbarText = this.add.text(16, 128, "HOTBAR", { fontFamily: "sans-serif", fontSize: "12px", color: "#ffffff", backgroundColor: "#07131fcc", padding: { left: 8, right: 8, top: 6, bottom: 6 }, lineSpacing: 3, wordWrap: { width: Math.max(240, this.scale.width - 32) } }).setScrollFactor(0).setDepth(1000);
+    this.layoutSurvivalHud();
     this.playerMarker = this.add.graphics().setDepth(50);
     this.cursors = this.input.keyboard?.createCursorKeys();
     this.keys = this.input.keyboard?.addKeys("W,A,S,D") as Record<string, Phaser.Input.Keyboard.Key> | undefined;
@@ -228,7 +232,7 @@ class WorldScene extends Phaser.Scene {
     this.systems = new SystemPanel(this, (message) => this.sendSystemMessage(message), () => this.player ? { x: this.player.x, y: this.player.y } : null, () => this.player ?? null);
     this.createInvasionOverlay();
     this.time.addEvent({ delay: 3000, loop: true, callback: () => this.refreshInvasions() });
-    this.scale.on("resize", () => { this.layoutInvasionOverlay(); this.layoutMobileControls(); });
+    this.scale.on("resize", () => { this.layoutInvasionOverlay(); this.layoutMobileControls(); this.layoutSurvivalHud(); });
     this.layoutInvasionOverlay();
     this.input.on("wheel", (_p: Phaser.Input.Pointer, _g: unknown[], _dx: number, dy: number) => this.cameras.main.setZoom(Phaser.Math.Clamp(this.cameras.main.zoom - dy * 0.001, 0.5, 2.5)));
     const hotbarKeys = ["ONE","TWO","THREE","FOUR","FIVE","SIX","SEVEN","EIGHT"];
@@ -586,8 +590,16 @@ class WorldScene extends Phaser.Scene {
 
   private updateHud(): void {
     if (!this.player) return;
-    this.survivalText?.setText("HP " + Math.ceil(this.player.health) + " | STA " + Math.ceil(this.player.stamina) + "/" + Math.ceil(this.player.maxStamina) + " | HUNGER " + Math.ceil(this.player.hunger) + " | OXYGEN " + Math.ceil(this.player.oxygen) + " | HOTBAR " + (this.player.selectedHotbarSlot + 1));
+    this.survivalText?.setText("HP " + Math.ceil(this.player.health) + " | STA " + Math.ceil(this.player.stamina) + "/" + Math.ceil(this.player.maxStamina) + " | HUNGER " + Math.ceil(this.player.hunger) + " | OXYGEN " + Math.ceil(this.player.oxygen));
+    this.hotbarText?.setText(formatHotbar(this.player));
     this.statusText?.setText("WORLD ONLINE • chunks " + this.chunks.loadedCount + " • position " + this.player.x.toFixed(1) + ", " + this.player.y.toFixed(1));
+  }
+
+  private layoutSurvivalHud(): void {
+    this.hotbarText?.setPosition(16, 128).setStyle({
+      fontSize: this.scale.width < 480 ? "10px" : "12px",
+      wordWrap: { width: Math.max(240, this.scale.width - 32) },
+    });
   }
 
   private selectHotbar(slot: number): void {

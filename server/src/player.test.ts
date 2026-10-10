@@ -82,6 +82,25 @@ describe("player survival and movement", () => {
     }
     expect(player.x).toBeCloseTo(2.5, 6);
   });
+  it("decays hunger and oxygen during the authoritative survival tick", () => {
+    const player = createDefaultPlayer("survival-decay");
+    player.x = 0;
+    player.y = 0;
+    expect([TileKind.Ocean, TileKind.Shallow, TileKind.Reef]).toContain(tileAtWorld(0, 0));
+    applyPlayerInput(player, { dx: 0, dy: 0, dt: 0.1 });
+    expect(player.hunger).toBeCloseTo(PLAYER_MAX_HUNGER - 0.012, 6);
+    expect(player.oxygen).toBeCloseTo(PLAYER_MAX_OXYGEN - 0.035, 6);
+  });
+
+  it("damages a player when hunger and oxygen are depleted", () => {
+    const player = createDefaultPlayer("survival-depleted");
+    player.hunger = 0;
+    player.oxygen = 0;
+    player.health = 50;
+    applyPlayerInput(player, { dx: 0, dy: 0, dt: 0.1 });
+    expect(player.health).toBeCloseTo(49.8, 6);
+  });
+
   it("produces player and melee hitboxes", () => {
     const player = createDefaultPlayer("user-1");
     expect(playerHitbox(player)).toMatchObject({ width: 0.7, height: 0.7 });
