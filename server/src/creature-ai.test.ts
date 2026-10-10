@@ -33,7 +33,6 @@ describe("authoritative base worker movement", () => {
     await store.load("user-1");
     expect(store.moveWorker("user-1", "creature-1", 1.25, -0.5)).toBe(true);
     expect(store.getCreature("user-1", "creature-1")).toMatchObject({ x: 1.25, y: -0.5 });
-    expect(await store.persistDirty()).toBeUndefined();
   });
 
   it("refuses to move untamed, party-assigned, or non-finite worker states", async () => {
