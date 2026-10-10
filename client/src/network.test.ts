@@ -192,3 +192,24 @@ describe("auction transaction protocol", () => {
     expect(parseServerMessage({ type:"auction_operation_ok", requestId:"auction-4" })).toBeNull();
   });
 });
+
+
+describe("world chunk coordinate and point-of-interest protocol", () => {
+  it("accepts valid level-seven mill spawn points and rejects malformed coordinates", () => {
+    const chunk = {
+      x: -1, y: 0, size: 32, tiles: Array(32 * 32).fill(0),
+      resources: [], creatures: [],
+      resourceMillSpawns: [{ id: "resource-mill-lv7:-1:0", x: -1, y: 4, level: 7 }],
+    };
+    expect(parseServerMessage({ type: "world_chunk", requestId: "world-1", chunk })).toMatchObject({
+      type: "world_chunk", chunk: { resourceMillSpawns: [{ level: 7 }] },
+    });
+    expect(parseServerMessage({ type: "world_chunk", requestId: "world-2", chunk: {
+      ...chunk, resourceMillSpawns: [{ id: "bad", x: 1.5, y: 4, level: 7 }],
+    } })).toBeNull();
+    expect(parseServerMessage({ type: "world_chunk", requestId: "world-3", chunk: {
+      ...chunk, resourceMillSpawns: [{ id: "bad", x: 1, y: 4, level: 6 }],
+    } })).toBeNull();
+  });
+});
+
