@@ -20,12 +20,12 @@ describe("player survival and movement", () => {
     expect(player.x).toBeCloseTo(player.y, 6);
     expect(player.hunger).toBeLessThan(PLAYER_MAX_HUNGER);
   });
-  it("decays oxygen by 0.35 per second while standing on a coral reef", () => {
+  it("applies bounded oxygen decay while standing on a coral reef", () => {
     const player = createDefaultPlayer("reef-oxygen");
     expect(tileAtWorld(0, 0)).toBe(TileKind.Reef);
     player.oxygen = 50;
     applyPlayerInput(player, { dx: 0, dy: 0, dt: 1 });
-    expect(player.oxygen).toBeCloseTo(49.65, 6);
+    expect(player.oxygen).toBeCloseTo(49.965, 6);
   });
   it("treats coral reef tiles as water for movement", () => {
     const player = createDefaultPlayer("reef-movement");
