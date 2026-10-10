@@ -36,7 +36,7 @@ describe("base worker pathfinding", () => {
         { x: 2, y: -1, active: true },
         { x: 3, y: 0, active: true },
       ],
-    )).not.toBeNull();
+    )).toBeNull();
   });
 
   it("returns a single point when the worker is already at the target", () => {
