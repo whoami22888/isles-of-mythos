@@ -26,6 +26,7 @@ const MOVE_SEND_INTERVAL_MS = 50;
 const ATTACK_INPUT_COOLDOWN_MS = 150;
 
 class MenuScene extends Phaser.Scene {
+  private readonly handleResize = (): void => this.layout();
   private title?: Phaser.GameObjects.Text;
   private subtitle?: Phaser.GameObjects.Text;
   private enterButton?: Phaser.GameObjects.Text;
@@ -49,8 +50,8 @@ class MenuScene extends Phaser.Scene {
     this.enterButton.on("pointerout", () => this.enterButton?.setStyle({ backgroundColor: "#145b63" }));
     this.enterButton.on("pointerdown", () => this.enterWorld());
     this.input.keyboard?.once("keydown-ENTER", () => this.enterWorld());
-    this.scale.on("resize", this.layout, this);
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.off("resize", this.layout, this));
+    this.scale.on("resize", this.handleResize);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.off("resize", this.handleResize));
     this.layout();
   }
 
@@ -79,6 +80,7 @@ function closeEngineOverlay(scene: Phaser.Scene, expected: "base-build" | "comba
 }
 
 class BaseBuildScene extends Phaser.Scene {
+  private readonly handleResize = (): void => this.layout();
   private panel?: Phaser.GameObjects.Rectangle;
   private title?: Phaser.GameObjects.Text;
   private instructions?: Phaser.GameObjects.Text;
@@ -100,8 +102,8 @@ class BaseBuildScene extends Phaser.Scene {
     }).setOrigin(0.5).setInteractive({ useHandCursor: true }).setDepth(2001);
     this.returnButton.on("pointerdown", () => closeEngineOverlay(this, "base-build"));
     this.input.keyboard?.once("keydown-ESC", () => closeEngineOverlay(this, "base-build"));
-    this.scale.on("resize", this.layout, this);
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.off("resize", this.layout, this));
+    this.scale.on("resize", this.handleResize);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.off("resize", this.handleResize));
     this.layout();
   }
 
@@ -116,6 +118,7 @@ class BaseBuildScene extends Phaser.Scene {
 }
 
 class CombatUiScene extends Phaser.Scene {
+  private readonly handleResize = (): void => this.layout();
   private panel?: Phaser.GameObjects.Rectangle;
   private title?: Phaser.GameObjects.Text;
   private instructions?: Phaser.GameObjects.Text;
@@ -137,8 +140,8 @@ class CombatUiScene extends Phaser.Scene {
     }).setOrigin(0.5).setInteractive({ useHandCursor: true }).setDepth(2001);
     this.returnButton.on("pointerdown", () => closeEngineOverlay(this, "combat-ui"));
     this.input.keyboard?.once("keydown-ESC", () => closeEngineOverlay(this, "combat-ui"));
-    this.scale.on("resize", this.layout, this);
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.off("resize", this.layout, this));
+    this.scale.on("resize", this.handleResize);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.off("resize", this.handleResize));
     this.layout();
   }
 
