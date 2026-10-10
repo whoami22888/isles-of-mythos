@@ -82,13 +82,13 @@ function applyPlayerSimulation(state: PlayerState, dx: number, dy: number, dt: n
     const nx = safeDx / length, ny = safeDy / length;
     const multiplier = clamp(speedMultiplier, 0, 1);
     const tile = tileAtWorld(Math.floor(state.x), Math.floor(state.y));
-    const inWater = tile === TileKind.Ocean || tile === TileKind.Shallow;
+    const inWater = tile === TileKind.Ocean || tile === TileKind.Shallow || tile === TileKind.Reef;
     const speed = inWater ? PLAYER_WATER_SPEED : PLAYER_LAND_SPEED;
     state.x = clamp(state.x + nx * speed * safeDt * multiplier, -1_000_000, 1_000_000);
     state.y = clamp(state.y + ny * speed * safeDt * multiplier, -1_000_000, 1_000_000);
   }
   const tile = tileAtWorld(Math.floor(state.x), Math.floor(state.y));
-  const inWater = tile === TileKind.Ocean || tile === TileKind.Shallow;
+  const inWater = tile === TileKind.Ocean || tile === TileKind.Shallow || tile === TileKind.Reef;
   state.stamina = clamp(state.stamina + safeDt * 12, 0, state.maxStamina);
   state.hunger = clamp(state.hunger - safeDt * 0.12, 0, PLAYER_MAX_HUNGER);
   state.oxygen = inWater ? clamp(state.oxygen - safeDt * 0.35, 0, PLAYER_MAX_OXYGEN)

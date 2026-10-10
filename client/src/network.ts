@@ -125,11 +125,21 @@ export function isCreatureState(value: unknown): value is CreatureState {
 
 function isWorldChunk(value: unknown): value is WorldChunk {
   if (!isRecord(value)) return false;
-  return typeof value.x === "number" && typeof value.y === "number" && typeof value.size === "number" &&
+  const size = value.size;
+  return typeof value.x === "number" && Number.isSafeInteger(value.x) &&
+    typeof value.y === "number" && Number.isSafeInteger(value.y) &&
+    typeof size === "number" && Number.isSafeInteger(size) && size > 0 &&
     Array.isArray(value.tiles) && value.tiles.every((tile) => typeof tile === "number") &&
     (value.resources === undefined || Array.isArray(value.resources) && value.resources.every((resource) => isRecord(resource) &&
       typeof resource.id === "string" && (resource.type === "wood" || resource.type === "stone" || resource.type === "herb") &&
-      typeof resource.x === "number" && Number.isFinite(resource.x) && typeof resource.y === "number" && Number.isFinite(resource.y)));
+      typeof resource.x === "number" && Number.isFinite(resource.x) && typeof resource.y === "number" && Number.isFinite(resource.y))) &&
+    (value.resourceMillSpawns === undefined || Array.isArray(value.resourceMillSpawns) && value.resourceMillSpawns.every((spawn) => isRecord(spawn) &&
+      typeof spawn.id === "string" && spawn.id.length > 0 &&
+      typeof spawn.x === "number" && Number.isSafeInteger(spawn.x) &&
+      typeof spawn.y === "number" && Number.isSafeInteger(spawn.y) &&
+      Math.floor(spawn.x / size) === value.x &&
+      Math.floor(spawn.y / size) === value.y &&
+      spawn.level === 7));
 }
 
 function isInvasionSummary(value: unknown): value is InvasionSummary {

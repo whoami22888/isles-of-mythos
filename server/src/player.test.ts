@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { PLAYER_MAX_HEALTH, PLAYER_MAX_HUNGER, PLAYER_MAX_OXYGEN, PLAYER_BASE_DEFENSE, STARTING_FLINTLOCK_AMMO, MOVEMENT_MAX_PACKETS_PER_SECOND, MovementAuthority, applyAuthoritativePlayerInput, applyPlayerInput, createDefaultPlayer, meleeHitbox, playerHitbox } from "./player.js";
+import { TileKind, tileAtWorld } from "./world.js";
 
 describe("player survival and movement", () => {
   it("creates a valid default player state", () => {
@@ -18,6 +19,19 @@ describe("player survival and movement", () => {
     expect(player.y).toBeGreaterThan(0);
     expect(player.x).toBeCloseTo(player.y, 6);
     expect(player.hunger).toBeLessThan(PLAYER_MAX_HUNGER);
+  });
+  it("applies bounded oxygen decay while standing on a coral reef", () => {
+    const player = createDefaultPlayer("reef-oxygen");
+    expect(tileAtWorld(0, 0)).toBe(TileKind.Reef);
+    player.oxygen = 50;
+    applyPlayerInput(player, { dx: 0, dy: 0, dt: 1 });
+    expect(player.oxygen).toBeCloseTo(49.965, 6);
+  });
+  it("treats coral reef tiles as water for movement", () => {
+    const player = createDefaultPlayer("reef-movement");
+    expect(tileAtWorld(0, 0)).toBe(TileKind.Reef);
+    applyAuthoritativePlayerInput(player, { dx: 1, dy: 0, sequence: 1 }, 0.05);
+    expect(player.x).toBeCloseTo(0.125, 6);
   });
   it("applies an authoritative movement speed multiplier", () => {
     const normal = createDefaultPlayer("normal");

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CHUNK_SIZE, TileKind, WorldChunkCache, generateChunk } from "./world.js";
+import { CHUNK_SIZE, TileKind, WorldChunkCache, chunkCoordinateForTile, generateChunk, tileAtWorld } from "./world.js";
 
 describe("world generation", () => {
   it("generates deterministic chunks", () => {
@@ -11,6 +11,39 @@ describe("world generation", () => {
     expect(chunk.tiles).toHaveLength(CHUNK_SIZE * CHUNK_SIZE);
     expect(chunk.size).toBe(CHUNK_SIZE);
     expect(chunk.tiles.every((tile) => Object.values(TileKind).includes(tile))).toBe(true);
+  });
+
+
+  it("maps positive and negative world tiles to their owning chunks", () => {
+    expect(chunkCoordinateForTile(-33)).toBe(-2);
+    expect(chunkCoordinateForTile(-32)).toBe(-1);
+    expect(chunkCoordinateForTile(-1)).toBe(-1);
+    expect(chunkCoordinateForTile(0)).toBe(0);
+    expect(chunkCoordinateForTile(31)).toBe(0);
+    expect(chunkCoordinateForTile(32)).toBe(1);
+    expect(() => chunkCoordinateForTile(Number.NaN)).toThrow("INVALID_WORLD_TILE_COORDINATE");
+  });
+
+  it("generates reefs and deterministic level-seven resource-mill spawn points on grass", () => {
+    let foundReef = false;
+    let foundMill = false;
+    for (let chunkY = -24; chunkY <= 24; chunkY += 8) {
+      for (let chunkX = -24; chunkX <= 24; chunkX += 8) {
+        const chunk = generateChunk(chunkX, chunkY);
+        if (chunk.tiles.includes(TileKind.Reef)) foundReef = true;
+        for (const spawn of chunk.resourceMillSpawns) {
+          foundMill = true;
+          expect(spawn.id).toBe(`resource-mill-lv7:${chunkX}:${chunkY}`);
+          expect(spawn.level).toBe(7);
+          expect(Math.floor(spawn.x / CHUNK_SIZE)).toBe(chunkX);
+          expect(Math.floor(spawn.y / CHUNK_SIZE)).toBe(chunkY);
+          expect(tileAtWorld(spawn.x, spawn.y)).toBe(TileKind.Grass);
+        }
+        expect(chunk.resourceMillSpawns).toEqual(generateChunk(chunkX, chunkY).resourceMillSpawns);
+      }
+    }
+    expect(foundReef).toBe(true);
+    expect(foundMill).toBe(true);
   });
 
   it("keeps the chunk cache bounded and reuses generated chunks", () => {

@@ -14,11 +14,12 @@ describe("client world constants", () => {
 function createFakeScene() {
   let created = 0;
   let destroyed = 0;
+  let filledRects = 0;
   const makeGraphics = () => {
     created += 1;
     const graphics = {
       fillStyle: () => graphics,
-      fillRect: () => graphics,
+      fillRect: () => { filledRects += 1; return graphics; },
       fillCircle: () => graphics,
       lineStyle: () => graphics,
       strokeCircle: () => graphics,
@@ -32,6 +33,7 @@ function createFakeScene() {
     scene: { add: { graphics: makeGraphics } },
     created: () => created,
     destroyed: () => destroyed,
+    filledRects: () => filledRects,
   };
 }
 
@@ -60,6 +62,24 @@ describe("chunk entity batching", () => {
     expect(renderer.nearestResource(1, 0)?.id).toBe("stone:1:0");
     expect(renderer.nearestCreature(0, 1)?.id).toBe("creature:0:0");
     expect(renderer.nearestCreature(1, 1)?.id).toBe("creature:1:0");
+  });
+
+  it("renders level-seven resource-mill spawn points on the shared entity layer", () => {
+    const fake = createFakeScene();
+    const renderer = new ChunkRenderer(fake.scene as never);
+    renderer.render({
+      x: 0,
+      y: 0,
+      size: 1,
+      tiles: [TileKind.Grass],
+      resourceMillSpawns: [{ id: "resource-mill-lv7:0:0", x: 0, y: 0, level: 7 }],
+    });
+
+    expect(renderer.loadedCount).toBe(1);
+    expect(fake.created()).toBe(2);
+    expect(fake.filledRects()).toBe(2);
+    renderer.unloadOutside(0, 1, 1);
+    expect(renderer.loadedCount).toBe(0);
   });
 
   it("redraws a shared marker layer when entities are removed without allocating more objects", () => {

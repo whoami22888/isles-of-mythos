@@ -192,3 +192,59 @@ describe("auction transaction protocol", () => {
     expect(parseServerMessage({ type:"auction_operation_ok", requestId:"auction-4" })).toBeNull();
   });
 });
+
+
+describe("world chunk coordinate and point-of-interest protocol", () => {
+  it("accepts valid level-seven mill spawn points and rejects malformed coordinates", () => {
+    const chunk = {
+      x: -1, y: 0, size: 32, tiles: Array(32 * 32).fill(0),
+      resources: [], creatures: [],
+      resourceMillSpawns: [{ id: "resource-mill-lv7:-1:0", x: -1, y: 4, level: 7 }],
+    };
+    expect(parseServerMessage({ type: "world_chunk", requestId: "world-1", chunk })).toMatchObject({
+      type: "world_chunk", chunk: { resourceMillSpawns: [{ level: 7 }] },
+    });
+    expect(parseServerMessage({ type: "world_chunk", requestId: "world-2", chunk: {
+      ...chunk, resourceMillSpawns: [{ id: "bad", x: 1.5, y: 4, level: 7 }],
+    } })).toBeNull();
+    expect(parseServerMessage({ type: "world_chunk", requestId: "world-3", chunk: {
+      ...chunk, resourceMillSpawns: [{ id: "bad", x: 1, y: 4, level: 6 }],
+    } })).toBeNull();
+    expect(parseServerMessage({ type: "world_chunk", requestId: "world-4", chunk: {
+      ...chunk, resourceMillSpawns: [{ id: "outside-chunk", x: 32, y: 4, level: 7 }],
+    } })).toBeNull();
+  });
+});
+
+
+
+describe("world chunk coordinate validation", () => {
+  const validChunk = {
+    x: -1, y: 0, size: 32, tiles: Array(32 * 32).fill(0),
+    resources: [], creatures: [],
+  };
+
+  it("accepts safe-integer chunk coordinates without mill spawn data", () => {
+    expect(parseServerMessage({
+      type: "world_chunk", requestId: "coords-valid", chunk: validChunk,
+    })).toMatchObject({ type: "world_chunk", chunk: { x: -1, y: 0 } });
+  });
+
+  it.each([
+    ["fractional x", { x: 1.5, y: 0 }],
+    ["fractional y", { x: 0, y: -2.25 }],
+    ["infinite x", { x: Number.POSITIVE_INFINITY, y: 0 }],
+    ["infinite y", { x: 0, y: Number.NEGATIVE_INFINITY }],
+    ["NaN x", { x: Number.NaN, y: 0 }],
+    ["NaN y", { x: 0, y: Number.NaN }],
+    ["unsafe x", { x: Number.MAX_SAFE_INTEGER + 1, y: 0 }],
+    ["unsafe y", { x: 0, y: Number.MIN_SAFE_INTEGER - 1 }],
+    ["string x", { x: "1", y: 0 }],
+    ["string y", { x: 0, y: "1" }],
+  ])("rejects %s even when mill spawn data is absent", (_label, coordinates) => {
+    expect(parseServerMessage({
+      type: "world_chunk", requestId: "coords-invalid",
+      chunk: { ...validChunk, ...coordinates },
+    })).toBeNull();
+  });
+});
