@@ -460,11 +460,28 @@ describe("server foundation", () => {
       const stateAfterFailureMessage = await stateAfterFailure;
       if (!isJsonObject(stateAfterFailureMessage)) throw new Error("Expected player_state after failed attack");
       const staminaAfter = Number(getObject(stateAfterFailureMessage, "state").stamina);
-      expect.soft(staminaAfter).toBeGreaterThan(staminaBefore - 2);
+      expect(staminaAfter).toBeGreaterThanOrEqual(staminaBefore - 0.01);
+      expect(staminaAfter).toBeLessThanOrEqual(staminaBefore + 3);
 
-      // Capture any error so the cooldown assertion is evaluated independently
-      // of the stamina assertion above.
-      const retryError = waitForMatchingMessage(socket, (message) => isJsonObject(message) && message.type === "error");
+      const cooldownAfterFailedAmmo = await database.query(
+        "SELECT user_id FROM combat_attack_cooldowns WHERE user_id=$1",
+        [userId],
+      );
+      expect(cooldownAfterFailedAmmo.rowCount).toBe(0);
+
+      // Restore ammunition after the failed transaction. The next attack must
+      // succeed, proving the rolled-back reservation did not activate cooldown.
+      await database.query(
+        "UPDATE player_profiles SET inventory=$2::jsonb WHERE user_id=$1",
+        [userId, JSON.stringify({ "ammo.flintlock": 1 })],
+      );
+      const retryOutcome = waitForMatchingMessage(
+        socket,
+        (message) => isJsonObject(message) && (
+          message.type === "projectile_spawn"
+          || message.type === "error"
+        ),
+      );
       socket.send(JSON.stringify({
         type: "attack",
         requestId: "stale-ammo-2",
@@ -472,13 +489,129 @@ describe("server foundation", () => {
         facingX: 1,
         facingY: 0,
       }));
-      await expect(retryError).resolves.toEqual({ type: "error", code: "NO_AMMO" });
+      await expect(retryOutcome).resolves.toMatchObject({ type: "projectile_spawn" });
     } finally {
       socket.close();
       await database.end();
       await app.close();
     }
   });
+
+  it("enforces one authoritative projectile cooldown across server instances", async () => {
+    const databaseA = (await import("./db.js")).createDbPool();
+    const databaseB = (await import("./db.js")).createDbPool();
+    const lockDatabase = (await import("./db.js")).createDbPool();
+    const appA = await buildApp({ db: databaseA });
+    const appB = await buildApp({ db: databaseB });
+    let socketA: WebSocket | null = null;
+    let socketB: WebSocket | null = null;
+    let lockClient: import("pg").PoolClient | null = null;
+
+    try {
+      const unique = Date.now();
+      const register = await appA.inject({
+        method: "POST",
+        url: "/auth/register",
+        payload: {
+          username: `cross_instance_${unique}`,
+          email: `cross_instance_${unique}@example.com`,
+          password: "Correct-Horse-Battery-9",
+        },
+      });
+      expect(register.statusCode).toBe(201);
+      const registerBody = parseJsonObject(register.body);
+      const token = getString(registerBody, "accessToken");
+      const userId = getString(getObject(registerBody, "user"), "id");
+
+      let spawnObject: JsonObject | null = null;
+      for (let chunkY = 0; chunkY < 8 && !spawnObject; chunkY += 1) {
+        for (let chunkX = 0; chunkX < 8 && !spawnObject; chunkX += 1) {
+          const chunkResponse = await appA.inject({ method: "GET", url: `/world/chunks/${chunkX}/${chunkY}` });
+          expect(chunkResponse.statusCode).toBe(200);
+          const chunk = parseJsonObject(chunkResponse.body);
+          const creatures = chunk.creatures;
+          if (!Array.isArray(creatures)) throw new Error("Test world chunk creatures are malformed");
+          const spawn = creatures.find(isJsonObject);
+          if (spawn) spawnObject = spawn;
+        }
+      }
+      if (!spawnObject) throw new Error("Deterministic test world contains no creature spawn");
+      const targetId = getString(spawnObject, "id");
+      const targetX = Number(spawnObject.x);
+      const targetY = Number(spawnObject.y);
+
+      await databaseA.query(
+        "INSERT INTO player_profiles (user_id, x, y, stamina, inventory, hotbar, selected_hotbar_slot) VALUES ($1, $2, $3, 100, $4::jsonb, $5::jsonb, 1) ON CONFLICT (user_id) DO UPDATE SET x=EXCLUDED.x, y=EXCLUDED.y, stamina=100, inventory=EXCLUDED.inventory, hotbar=EXCLUDED.hotbar, selected_hotbar_slot=1",
+        [userId, targetX - 0.5, targetY, JSON.stringify({ "ammo.flintlock": 2 }), JSON.stringify(["cutlass", "flintlock", null, null, null, null, null, null])],
+      );
+
+      socketA = await openSocket(appA);
+      socketB = await openSocket(appB);
+      await Promise.all([socketA, socketB].map((socket) => new Promise<void>((resolve, reject) => {
+        socket.once("open", resolve);
+        socket.once("error", reject);
+      })));
+      const authA = waitForMatchingMessage(socketA, (message) => isJsonObject(message) && message.type === "auth_ok");
+      const stateA = waitForMatchingMessage(socketA, (message) => isJsonObject(message) && message.type === "player_state");
+      const authB = waitForMatchingMessage(socketB, (message) => isJsonObject(message) && message.type === "auth_ok");
+      const stateB = waitForMatchingMessage(socketB, (message) => isJsonObject(message) && message.type === "player_state");
+      socketA.send(JSON.stringify({ type: "auth", token }));
+      socketB.send(JSON.stringify({ type: "auth", token }));
+      await Promise.all([authA, stateA, authB, stateB]);
+
+      // Hold the player row so both independent server instances must finish
+      // cooldown validation before either can commit ammunition consumption.
+      const activeLockClient = await lockDatabase.connect();
+      lockClient = activeLockClient;
+      await activeLockClient.query("BEGIN");
+      await activeLockClient.query("SELECT user_id FROM player_profiles WHERE user_id=$1 FOR UPDATE", [userId]);
+
+      const outcomeA = waitForMatchingMessage(socketA, (message) => (
+        isJsonObject(message) && (
+          message.type === "projectile_spawn"
+          || (message.type === "error" && message.code === "COMBAT_COOLDOWN")
+        )
+      ));
+      const outcomeB = waitForMatchingMessage(socketB, (message) => (
+        isJsonObject(message) && (
+          message.type === "projectile_spawn"
+          || (message.type === "error" && message.code === "COMBAT_COOLDOWN")
+        )
+      ));
+      socketA.send(JSON.stringify({ type: "attack", requestId: "cross-instance-a", targetId, facingX: 1, facingY: 0 }));
+      socketB.send(JSON.stringify({ type: "attack", requestId: "cross-instance-b", targetId, facingX: 1, facingY: 0 }));
+
+      // Synchronize on PostgreSQL lock waits, not a guessed delay. Two waiting
+      // FOR UPDATE statements prove both instances passed the local cooldown gate.
+      const deadline = Date.now() + 5_000;
+      let waitingTransactions = 0;
+      while (waitingTransactions < 2 && Date.now() < deadline) {
+        const waiting = await lockDatabase.query<{ count: string }>(
+          "SELECT COUNT(*)::text AS count FROM pg_stat_activity WHERE wait_event_type='Lock' AND query LIKE 'SELECT gold, triumph_badges, inventory FROM player_profiles WHERE user_id=$1 FOR UPDATE%'",
+        );
+        waitingTransactions = Number(waiting.rows[0]?.count ?? 0);
+        if (waitingTransactions < 2) await new Promise<void>((resolve) => setTimeout(resolve, 10));
+      }
+      expect(waitingTransactions).toBe(2);
+
+      await activeLockClient.query("COMMIT");
+      const outcomes = await Promise.all([outcomeA, outcomeB]);
+      expect(outcomes.filter((message) => isJsonObject(message) && message.type === "projectile_spawn")).toHaveLength(1);
+      expect(outcomes.filter((message) => isJsonObject(message) && message.type === "error" && message.code === "COMBAT_COOLDOWN")).toHaveLength(1);
+    } finally {
+      if (lockClient) {
+        await lockClient.query("ROLLBACK").catch(() => undefined);
+        lockClient.release();
+      }
+      socketA?.close();
+      socketB?.close();
+      await appA.close();
+      await appB.close();
+      await databaseA.end();
+      await databaseB.end();
+      await lockDatabase.end();
+    }
+  }, 15_000);
 
   it("acquires nearby creatures for autonomous server AI", async () => {
     const app = await buildApp();
