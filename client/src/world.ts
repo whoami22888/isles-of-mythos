@@ -21,7 +21,7 @@ export interface ResourceNode {
 
 export interface CreatureSpawn {
   id: string;
-  species: "slime" | "boar" | "raptor";
+  species: "slime" | "boar" | "raptor" | "fire_wisp";
   x: number;
   y: number;
   level: number;
@@ -229,7 +229,7 @@ export class ChunkRenderer {
       const indexed = this.creatures.get(id);
       if (!indexed) continue;
       const creature = indexed.spawn;
-      const color = creature.species === "raptor" ? 0xd95f59 : creature.species === "boar" ? 0x8b6f47 : 0x6bcf63;
+      const color = creature.species === "fire_wisp" ? 0xff8a3d : creature.species === "raptor" ? 0xd95f59 : creature.species === "boar" ? 0x8b6f47 : 0x6bcf63;
       const x = creature.x * TILE_SIZE + TILE_SIZE / 2;
       const y = creature.y * TILE_SIZE + TILE_SIZE / 2;
       layers.entities.fillStyle(color, 1);
