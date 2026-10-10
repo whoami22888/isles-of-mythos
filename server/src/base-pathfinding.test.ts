@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { findBasePath } from "./base-pathfinding.js";
+import { findBasePath, nextWorkerWaypoint } from "./base-pathfinding.js";
 
 describe("base worker pathfinding", () => {
   it("returns the deterministic shortest four-way path to a lumber mill", () => {
@@ -37,6 +37,22 @@ describe("base worker pathfinding", () => {
         { x: 3, y: 0, active: true },
       ],
     )).toBeNull();
+  });
+
+  it("routes an assigned worker toward its lumber mill while avoiding other buildings", () => {
+    const base = {
+      x: 10,
+      y: 20,
+      buildings: [
+        { id: "cc", gridX: 0, gridY: 0, active: true },
+        { id: "blocker", gridX: 1, gridY: 0, active: true },
+        { id: "mill", gridX: 2, gridY: 0, active: true },
+      ],
+      workers: [{ creatureId: "worker-1", buildingId: "mill" }],
+    };
+    expect(nextWorkerWaypoint(base, "worker-1", 10.5, 20.5)).toEqual({ x: 10.5, y: 19.5 });
+    expect(nextWorkerWaypoint(base, "unassigned", 10.5, 20.5)).toBeNull();
+    expect(nextWorkerWaypoint(base, "worker-1", Number.NaN, 20.5)).toBeNull();
   });
 
   it("returns a single point when the worker is already at the target", () => {
