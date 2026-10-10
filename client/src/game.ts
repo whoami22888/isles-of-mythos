@@ -58,9 +58,9 @@ class MenuScene extends Phaser.Scene {
   private layout(): void {
     const centerX = this.scale.width / 2;
     const centerY = this.scale.height / 2;
-    this.title?.setPosition(centerX, centerY - 76);
-    this.subtitle?.setPosition(centerX, centerY - 28);
-    this.enterButton?.setPosition(centerX, centerY + 48);
+    this.title?.setPosition(centerX, centerY - 76).setFontSize(this.scale.width < 480 ? 28 : 48);
+    this.subtitle?.setPosition(centerX, centerY - 28).setStyle({ fontSize: this.scale.width < 480 ? "16px" : "22px", letterSpacing: this.scale.width < 480 ? 3 : 7 });
+    this.enterButton?.setPosition(centerX, centerY + 48).setFontSize(this.scale.width < 480 ? 16 : 20);
   }
 
   private enterWorld(): void {
@@ -93,7 +93,7 @@ class BaseBuildScene extends Phaser.Scene {
     this.title = this.add.text(0, 0, "BASE BUILD MODE", {
       fontFamily: "sans-serif", fontSize: "28px", fontStyle: "bold", color: "#f4e6c8",
     }).setOrigin(0.5).setDepth(2001);
-    this.instructions = this.add.text(0, 0, "World simulation is paused while this mode is open.\nPress ESC or select Return to Overworld.", {
+    this.instructions = this.add.text(0, 0, "World simulation pauses in this mode.\nPress ESC or Return to Overworld.", {
       fontFamily: "sans-serif", fontSize: "16px", color: "#d5e4e8", align: "center", lineSpacing: 8,
     }).setOrigin(0.5).setDepth(2001);
     this.returnButton = this.add.text(0, 0, "RETURN TO OVERWORLD", {
@@ -110,10 +110,12 @@ class BaseBuildScene extends Phaser.Scene {
   private layout(): void {
     const x = this.scale.width / 2;
     const y = this.scale.height / 2;
-    this.panel?.setPosition(x, y);
-    this.title?.setPosition(x, y - 78);
-    this.instructions?.setPosition(x, y - 4);
-    this.returnButton?.setPosition(x, y + 82);
+    const panelWidth = Math.max(220, Math.min(560, this.scale.width - 24));
+    const panelHeight = Math.max(200, Math.min(280, this.scale.height - 24));
+    this.panel?.setPosition(x, y).setSize(panelWidth, panelHeight);
+    this.title?.setPosition(x, y - panelHeight / 2 + 42).setFontSize(this.scale.width < 480 ? 19 : 28);
+    this.instructions?.setPosition(x, y).setFontSize(this.scale.width < 480 ? 13 : 16);
+    this.returnButton?.setPosition(x, y + panelHeight / 2 - 42).setFontSize(this.scale.width < 480 ? 13 : 16);
   }
 }
 
@@ -131,7 +133,7 @@ class CombatUiScene extends Phaser.Scene {
     this.title = this.add.text(0, 0, "COMBAT INTERFACE", {
       fontFamily: "sans-serif", fontSize: "28px", fontStyle: "bold", color: "#f4e6c8",
     }).setOrigin(0.5).setDepth(2001);
-    this.instructions = this.add.text(0, 0, "SPACE: attack nearest creature   SHIFT: dodge\nB: block   C: capture   T: tame selected creature", {
+    this.instructions = this.add.text(0, 0, "SPACE: attack · SHIFT: dodge\nB: block · C: capture · T: tame", {
       fontFamily: "sans-serif", fontSize: "16px", color: "#d5e4e8", align: "center", lineSpacing: 8,
     }).setOrigin(0.5).setDepth(2001);
     this.returnButton = this.add.text(0, 0, "RETURN TO OVERWORLD", {
@@ -148,10 +150,12 @@ class CombatUiScene extends Phaser.Scene {
   private layout(): void {
     const x = this.scale.width / 2;
     const y = this.scale.height / 2;
-    this.panel?.setPosition(x, y);
-    this.title?.setPosition(x, y - 78);
-    this.instructions?.setPosition(x, y - 4);
-    this.returnButton?.setPosition(x, y + 82);
+    const panelWidth = Math.max(220, Math.min(560, this.scale.width - 24));
+    const panelHeight = Math.max(200, Math.min(280, this.scale.height - 24));
+    this.panel?.setPosition(x, y).setSize(panelWidth, panelHeight);
+    this.title?.setPosition(x, y - panelHeight / 2 + 42).setFontSize(this.scale.width < 480 ? 19 : 28);
+    this.instructions?.setPosition(x, y).setFontSize(this.scale.width < 480 ? 13 : 16);
+    this.returnButton?.setPosition(x, y + panelHeight / 2 - 42).setFontSize(this.scale.width < 480 ? 13 : 16);
   }
 }
 
