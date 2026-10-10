@@ -27,6 +27,13 @@ export interface CreatureSpawn {
   level: number;
 }
 
+export interface ResourceMillSpawn {
+  id: string;
+  x: number;
+  y: number;
+  level: 7;
+}
+
 export interface WorldChunk {
   x: number;
   y: number;
@@ -34,6 +41,7 @@ export interface WorldChunk {
   tiles: number[];
   resources?: ResourceNode[];
   creatures?: CreatureSpawn[];
+  resourceMillSpawns?: ResourceMillSpawn[];
 }
 
 const TILE_COLORS: Record<number, number> = {
@@ -50,6 +58,7 @@ interface ChunkRenderLayers {
   entities: Phaser.GameObjects.Graphics;
   resourceIds: Set<string>;
   creatureIds: Set<string>;
+  resourceMillIds: Set<string>;
 }
 
 interface IndexedResource {
@@ -62,6 +71,11 @@ interface IndexedCreature {
   chunkKey: string;
 }
 
+interface IndexedResourceMill {
+  spawn: ResourceMillSpawn;
+  chunkKey: string;
+}
+
 /**
  * Keeps the terrain and entity marker layers batched per chunk.
  * Entity positions are indexed separately from Phaser objects so proximity
@@ -71,6 +85,7 @@ export class ChunkRenderer {
   private readonly chunks = new Map<string, ChunkRenderLayers>();
   private readonly creatures = new Map<string, IndexedCreature>();
   private readonly resources = new Map<string, IndexedResource>();
+  private readonly resourceMills = new Map<string, IndexedResourceMill>();
 
   constructor(private readonly scene: Phaser.Scene) {}
 
@@ -85,6 +100,7 @@ export class ChunkRenderer {
       entities,
       resourceIds: new Set<string>(),
       creatureIds: new Set<string>(),
+      resourceMillIds: new Set<string>(),
     };
     const originX = chunk.x * chunk.size * TILE_SIZE;
     const originY = chunk.y * chunk.size * TILE_SIZE;
@@ -122,6 +138,12 @@ export class ChunkRenderer {
       layers.creatureIds.add(creature.id);
     }
 
+    for (const spawn of chunk.resourceMillSpawns ?? []) {
+      if (this.resourceMills.has(spawn.id)) continue;
+      this.resourceMills.set(spawn.id, { spawn, chunkKey: key });
+      layers.resourceMillIds.add(spawn.id);
+    }
+
     this.redrawEntities(layers);
   }
 
@@ -135,6 +157,7 @@ export class ChunkRenderer {
       this.chunks.delete(key);
       for (const resourceId of layers.resourceIds) this.resources.delete(resourceId);
       for (const creatureId of layers.creatureIds) this.creatures.delete(creatureId);
+      for (const spawnId of layers.resourceMillIds) this.resourceMills.delete(spawnId);
     }
   }
 
@@ -213,6 +236,17 @@ export class ChunkRenderer {
       layers.entities.fillCircle(x, y, TILE_SIZE * 0.25);
       layers.entities.lineStyle(1, 0xffffff, 0.8);
       layers.entities.strokeCircle(x, y, TILE_SIZE * 0.28);
+    }
+    for (const id of layers.resourceMillIds) {
+      const indexed = this.resourceMills.get(id);
+      if (!indexed) continue;
+      const spawn = indexed.spawn;
+      const x = spawn.x * TILE_SIZE + TILE_SIZE / 2;
+      const y = spawn.y * TILE_SIZE + TILE_SIZE / 2;
+      layers.entities.fillStyle(0xf4c95d, 1);
+      layers.entities.fillRect(x - 8, y - 8, 16, 16);
+      layers.entities.lineStyle(2, 0x6b4f16, 1);
+      layers.entities.strokeCircle(x, y, 12);
     }
   }
 }
