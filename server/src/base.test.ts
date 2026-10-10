@@ -44,7 +44,7 @@ describe("base foundation",()=>{
       storage:{wood:0,stone:0},
     };
     expect(productionFor(base,60_000)).toEqual({});
-    expect(productionFor({...base,workers:[{...base.workers[0]!,creatureX:12.5,creatureY:20.5}]},60_000)).toEqual({wood:20});
+    expect(productionFor({...base,workers:[{...base.workers[0],creatureX:12.5,creatureY:20.5}]},60_000)).toEqual({wood:20});
   });
   it("caps storage from authoritative building levels",()=>{
     const base={buildings:[{id:"s",baseId:"b",type:"storage" as const,level:2,gridX:1,gridY:0,active:true}]};
