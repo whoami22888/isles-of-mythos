@@ -87,7 +87,7 @@ class BaseBuildScene extends Phaser.Scene {
   constructor() { super("base-build"); }
 
   create(): void {
-    this.panel = this.add.rectangle(0, 0, 560, 280, 0x0b202c, 0xf4e6c8, 2).setOrigin(0.5).setDepth(2000);
+    this.panel = this.add.rectangle(0, 0, 560, 280, 0x0b202c).setStrokeStyle(2, 0xf4e6c8).setOrigin(0.5).setDepth(2000);
     this.title = this.add.text(0, 0, "BASE BUILD MODE", {
       fontFamily: "sans-serif", fontSize: "28px", fontStyle: "bold", color: "#f4e6c8",
     }).setOrigin(0.5).setDepth(2001);
@@ -124,7 +124,7 @@ class CombatUiScene extends Phaser.Scene {
   constructor() { super("combat-ui"); }
 
   create(): void {
-    this.panel = this.add.rectangle(0, 0, 560, 280, 0x0b202c, 0xf4e6c8, 2).setOrigin(0.5).setDepth(2000);
+    this.panel = this.add.rectangle(0, 0, 560, 280, 0x0b202c).setStrokeStyle(2, 0xf4e6c8).setOrigin(0.5).setDepth(2000);
     this.title = this.add.text(0, 0, "COMBAT INTERFACE", {
       fontFamily: "sans-serif", fontSize: "28px", fontStyle: "bold", color: "#f4e6c8",
     }).setOrigin(0.5).setDepth(2001);
