@@ -34,9 +34,8 @@ class MenuScene extends Phaser.Scene {
 
   create(): void {
     this.cameras.main.setBackgroundColor("#07131f");
-    this.add.rectangle(0, 0, this.scale.width, this.scale.height, 0x07131f).setOrigin(0);
     this.title = this.add.text(0, 0, "ISLES OF MYTHOS", {
-      fontFamily: "sans-serif", fontSize: "clamp(28px, 5vw, 56px)", fontStyle: "bold",
+      fontFamily: "sans-serif", fontSize: "48px", fontStyle: "bold",
       color: "#f4e6c8", align: "center",
     }).setOrigin(0.5);
     this.subtitle = this.add.text(0, 0, "SUNKEN TIDES", {
@@ -73,10 +72,10 @@ class MenuScene extends Phaser.Scene {
 function closeEngineOverlay(scene: Phaser.Scene, expected: "base-build" | "combat-ui"): void {
   if (engineState.state !== expected) return;
   engineState.transition("overworld");
-  scene.scene.stop();
   const world = scene.scene.get("world");
   world.input.enabled = true;
-  scene.scene.resume("world");
+  scene.scene.stop();
+  if (expected === "base-build") scene.scene.resume("world");
 }
 
 class BaseBuildScene extends Phaser.Scene {
@@ -260,8 +259,10 @@ class WorldScene extends Phaser.Scene {
   private openEngineOverlay(next: "base-build" | "combat-ui"): void {
     if (engineState.state !== "overworld") return;
     engineState.transition(next);
-    this.input.enabled = false;
-    this.scene.pause("world");
+    if (next === "base-build") {
+      this.input.enabled = false;
+      this.scene.pause("world");
+    }
     this.scene.launch(next);
   }
 
