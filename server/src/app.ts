@@ -467,6 +467,26 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     for (const connectedUserId of userSockets.keys()) {
       const player = players.get(connectedUserId);
       if (player) creatures.tickAi(connectedUserId, player);
+      const base = bases.get(connectedUserId);
+      if (!base) continue;
+      for (const worker of base.workers) {
+        const creature = creatures.getCreature(connectedUserId, worker.creatureId);
+        if (!creature) continue;
+        const waypoint = bases.workerWaypoint(connectedUserId, creature.id, creature.x, creature.y);
+        if (!waypoint) continue;
+        const dx = waypoint.x - creature.x;
+        const dy = waypoint.y - creature.y;
+        const distance = Math.hypot(dx, dy);
+        const step = Math.min(distance, 0.375);
+        if (step > 0) {
+          creatures.moveWorker(
+            connectedUserId,
+            creature.id,
+            creature.x + dx / distance * step,
+            creature.y + dy / distance * step,
+          );
+        }
+      }
     }
     const candidates = [...userSockets.keys()].flatMap((userId) => {
       const state = players.get(userId);

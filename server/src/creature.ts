@@ -154,6 +154,17 @@ export class CreatureStore {
     }
     if(changed)this.markDirty(userId); return changed;
   }
+  /** Move a tamed, un-partied worker under server-authoritative base AI. */
+  moveWorker(userId:string,id:string,x:number,y:number):boolean{
+    const creature=this.getCreature(userId,id);
+    if(!creature||creature.tameProgress<100||creature.partySlot!==null||!Number.isFinite(x)||!Number.isFinite(y))return false;
+    if(Math.hypot(creature.x-x,creature.y-y)<0.0001)return false;
+    creature.x=x;
+    creature.y=y;
+    this.markDirty(userId);
+    return true;
+  }
+
   private async persistUnsafe(userId:string){
     if(!this.active.has(userId))return; const revision=this.revisions.get(userId)??0; const client=await this.db.connect();
     try{await client.query("BEGIN");

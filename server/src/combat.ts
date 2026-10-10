@@ -106,6 +106,7 @@ const ELEMENT_MULTIPLIERS: Record<DamageType, Partial<Record<DamageType, number>
 export const CREATURE_STATS: Record<string, {
   health: number; defense: number; element: DamageType; speed: number; attack: number; aggroRange: number; attackRange: number; attackCooldownMs: number; ability?: CreatureAbility;
 }> = {
+  fire_wisp: { health: 55, defense: 3, element: "fire", speed: 2.2, attack: 10, aggroRange: 6, attackRange: 1.3, attackCooldownMs: 1100, ability: { id: "ember_burst", cooldownMs: 3600, range: 3.5, damage: 13, damageType: "fire", status: { id: "burn", durationMs: 2200, magnitude: 3 } } },
   slime: { health: 45, defense: 2, element: "water", speed: 1.4, attack: 7, aggroRange: 5, attackRange: 1.2, attackCooldownMs: 1200, ability: { id: "acid_burst", cooldownMs: 3500, range: 3.5, damage: 10, damageType: "water", status: { id: "slow", durationMs: 1500, magnitude: 0.35 } } },
   boar: { health: 70, defense: 5, element: "earth", speed: 2.1, attack: 11, aggroRange: 6, attackRange: 1.4, attackCooldownMs: 1400, ability: { id: "charge", cooldownMs: 4000, range: 4, damage: 18, damageType: "earth" } },
   raptor: { health: 90, defense: 7, element: "air", speed: 2.7, attack: 14, aggroRange: 8, attackRange: 1.6, attackCooldownMs: 1000, ability: { id: "pounce", cooldownMs: 3000, range: 5, damage: 22, damageType: "air", status: { id: "stun", durationMs: 700, magnitude: 1 } } },

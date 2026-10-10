@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { CHUNK_SIZE, TileKind, WorldChunkCache, chunkCoordinateForTile, generateChunk, tileAtWorld } from "./world.js";
+import { CHUNK_SIZE, TileKind, WorldChunkCache, chunkCoordinateForTile, creatureSpeciesForRoll, generateChunk, tileAtWorld } from "./world.js";
 
 describe("world generation", () => {
+  it("selects all four elemental creature archetypes at deterministic thresholds", () => {
+    expect(creatureSpeciesForRoll(0)).toBe("slime");
+    expect(creatureSpeciesForRoll(0.999)).toBe("boar");
+    expect(creatureSpeciesForRoll(0.9995)).toBe("fire_wisp");
+    expect(creatureSpeciesForRoll(0.9998)).toBe("raptor");
+    expect(() => creatureSpeciesForRoll(Number.NaN)).toThrow("INVALID_CREATURE_ROLL");
+    expect(() => creatureSpeciesForRoll(1.1)).toThrow("INVALID_CREATURE_ROLL");
+  });
+
   it("generates deterministic chunks", () => {
     expect(generateChunk(3, -7)).toEqual(generateChunk(3, -7));
   });

@@ -32,6 +32,20 @@ describe("base foundation",()=>{
     expect(productionFor(base,60_000)).toEqual({wood:20});
     expect(productionFor({...base,workers:[]},60_000)).toEqual({});
   });
+  it("starts assigned-worker production only after the creature reaches its building",()=>{
+    const base={
+      x:10,y:20,
+      buildings:[
+        {id:"cc",baseId:"b",type:"command_centre" as const,level:1,gridX:0,gridY:0,active:true},
+        {id:"mill",baseId:"b",type:"lumber_mill" as const,level:2,gridX:2,gridY:0,active:true},
+      ],
+      workers:[{creatureId:"c1",baseId:"b",buildingId:"mill",task:"auto" as const,creatureX:10.5,creatureY:20.5}],
+      workPriorities:["collect"],
+      storage:{wood:0,stone:0},
+    };
+    expect(productionFor(base,60_000)).toEqual({});
+    expect(productionFor({...base,workers:[{...base.workers[0],creatureX:12.5,creatureY:20.5}]},60_000)).toEqual({wood:20});
+  });
   it("caps storage from authoritative building levels",()=>{
     const base={buildings:[{id:"s",baseId:"b",type:"storage" as const,level:2,gridX:1,gridY:0,active:true}]};
     expect(storageCapacity(base)).toBe(3000);
