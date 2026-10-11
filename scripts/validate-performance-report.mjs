@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import assert from "node:assert/strict";
 
 const expectedPlayers = [1, 50, 250, 1000];
+const expectedLoadTestPlayers = [10, 50, 100, 500, 1000];
 function need(condition, message) {
   if (!condition) throw new Error(message);
 }
@@ -10,6 +11,24 @@ function need(condition, message) {
 export function validateReport(report) {
   need(report?.event === "sustained_load_complete", "Missing complete marker");
   need(Array.isArray(report.scenarios) && report.scenarios.length === 4, "Expected 1/50/250/1000 matrix");
+  need(Array.isArray(report.loadTestScenarios) && report.loadTestScenarios.length === expectedLoadTestPlayers.length,
+    "Expected 10/50/100/500/1000 load-test matrix");
+  for (let index = 0; index < expectedLoadTestPlayers.length; index++) {
+    const players = expectedLoadTestPlayers[index];
+    const scenario = report.loadTestScenarios[index];
+    const ws = scenario?.websocket;
+    need(scenario?.players === players, "Missing load-test player scenario " + players);
+    need(scenario.http?.endpoint === "world_chunks" && scenario.http.requests === 100 && scenario.http.errors === 0,
+      "HTTP load-test failure " + players);
+    need(ws?.requestedPlayers === players && ws.connected === players && ws.authenticated === players && ws.errors === 0,
+      "Load-test WebSocket counts " + players);
+    need(ws.pings > 0 && ws.pongs === ws.pings && ws.pingSuccessRate === 1, "Load-test ping/pong " + players);
+    for (const [name, value] of [["HTTP p95", scenario.http.p95Ms], ["HTTP p99", scenario.http.p99Ms],
+      ["WebSocket ping p95", ws.pingP95Ms], ["WebSocket ping p99", ws.pingP99Ms]]) {
+      need(Number.isFinite(value) && value >= 0, "Missing load-test " + name + " for " + players);
+    }
+    need(ws.networkBytesSent > 0 && ws.networkBytesReceived > 0, "Missing load-test bandwidth " + players);
+  }
 
   for (let index = 0; index < expectedPlayers.length; index++) {
     const players = expectedPlayers[index];
@@ -138,7 +157,23 @@ if (process.argv[2] === "--self-test") {
     },
     clientMetrics: { status: "not_measured_in_headless_ci", reason: "device test required" },
   };
+  report.loadTestScenarios = expectedLoadTestPlayers.map(players => {
+    const existing = report.scenarios.find(scenario => scenario.players === players);
+    if (existing) return existing;
+    return {
+      players,
+      http: { endpoint: "world_chunks", requests: 100, errors: 0, p95Ms: 1, p99Ms: 1 },
+      websocket: {
+        requestedPlayers: players, connected: players, authenticated: players, errors: 0,
+        pings: 1, pongs: 1, pingSuccessRate: 1, pingP95Ms: 1, pingP99Ms: 1,
+        networkBytesSent: 1, networkBytesReceived: 1,
+      },
+    };
+  });
   assert.equal(validateReport(report), true);
+  const missingLoadMatrix = structuredClone(report);
+  missingLoadMatrix.loadTestScenarios.pop();
+  assert.throws(() => validateReport(missingLoadMatrix), /load-test matrix/);
   const missingCraft = structuredClone(report);
   delete missingCraft.scenarios[0].websocket.gameplayCraft;
   assert.throws(() => validateReport(missingCraft), /gameplayCraft/);
