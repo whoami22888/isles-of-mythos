@@ -2,14 +2,15 @@
 
 This schedule is the execution map for the master development directive. Work remains milestone-gated: implement, build, test, inspect failures, fix, retest, verify, document, then continue.
 
-## Current position
+## Current position (verified repository state, 2026-10-11)
 
-- Phase 1 — Engine Foundation: established and repeatedly CI-verified.
-- Phase 2 — World: foundational procedural chunk/world streaming implemented.
-- Phase 3 — Player: foundational movement, survival, inventory and hotbar implemented.
-- Current engineering work: hardening the foundation before advancing into the next major gameplay systems.
-- Production graphics direction: retain the current Phaser prototype for the network/gameplay vertical slice while preparing the high-fidelity production client boundary around the documented Unity URP evaluation.
-- Payment/fraud architecture is a cross-cutting security foundation, not a reason to jump ahead to the Phase 7 economy implementation.
+- **Authoritative main HEAD:** `30eef8b10d80363dc15b4256362d45b6b669019a` (Step 4 — Creature AI and base worker routing).
+- **Sequential build status:** Steps 1–4 are merged. Step 2 is independently audited PASS and remains frozen. Step 5 — Combat, Capture, & Saving — has not been authorized to start because the controller's PR reconciliation and repository-control/policy preflight remains open; see the Master Project Index for the live dependency register.
+- **Gate state:** Gates 1–16 remain frozen. Do not infer a new gate from the PDF's later requirements.
+- **Exact current-main evidence:** CI #1128 / run `38055682984` PASS; Performance Acceptance #345 / run `38055682961` PASS; Static Security Quality #317 / run `38055682968` PASS, all on `30eef8b10d80363dc15b4256362d45b6b669019a`.
+- **Current engineering priority:** reconcile the outstanding workflow-integrity PR against current main, restore required branch checks, resolve the approved performance/image policies, and then rerun exact-head verification before any authorized integration.
+- **Graphics direction:** retain the current Phaser prototype while measuring actual device performance. The production renderer/engine choice remains evidence-driven; do not treat a Unity URP migration as approved or implemented without the documented technical evaluation.
+- The game-gold crafting/economy implementation exists in the repository. Real-money payment/fraud functionality remains a separate security-sensitive workstream and must not be inferred from this schedule or treated as implemented without direct evidence.
 
 ## Where the requested payment and security work belongs
 
@@ -30,9 +31,9 @@ Keep these concepts in the architecture from the beginning so later gameplay sys
 
 These are architectural constraints. They do not imply that real-money payment processing is already implemented.
 
-## Phase 7 — Crafting & Economy
+## Phase 7 — Crafting & Economy (implemented game-gold scope; remaining real-money work is planned)
 
-The functional payment/shop work belongs here because Phase 7 is where the game first owns the complete economy/shop domain.
+The repository already contains the game-gold crafting/economy/shop/trading implementation. The real-money payment architecture and UI described below are future/planned scope, not a claim that provider checkout, tokenized payments, webhook fulfillment, or cash-out is currently implemented.
 
 ### 7A — Economy core
 
