@@ -7,7 +7,7 @@ const baseUrl = process.env.LOADTEST_BASE_URL ?? "http://127.0.0.1:3000";
 const wsUrl = `${baseUrl.replace(/^http/, "ws")}/ws`;
 const durationMs = Number(process.env.LOADTEST_DURATION_MS ?? 10000);
 const httpRequests = Number(process.env.LOADTEST_HTTP_REQUESTS ?? 100);
-const levels = [1, 50, 250, 1000];
+const levels = [10, 50, 100, 500, 1000];
 const secret = process.env.JWT_SECRET ?? "loadtest-secret";
 const { Pool } = pg;
 
@@ -379,7 +379,7 @@ const scenarios = [];
 for (let index = 0; index < levels.length; index += 1) {
   const players = levels[index];
   // Use a player outside all earlier cohorts so its active server state cannot be stale.
-const mutationUserIndexes = [0, 1, 50, 250];
+const mutationUserIndexes = [0, 10, 50, 100, 500];
 const mutationUser = users[mutationUserIndexes[index]];
   const mutationNode = mutationNodes[index];
   await prepareMutationUser(mutationUser, mutationNode);
