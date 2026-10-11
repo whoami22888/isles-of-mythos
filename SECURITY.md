@@ -16,4 +16,4 @@
 Do not store payment card PAN, CVV or CVC data in the game database. Future real-money features must use tokenized/provider-hosted payments, signed webhooks, idempotency, replay protection and reconciliation.
 
 ## Verification
-Current main static security acceptance: run #50 / 37567712844 PASS. Security claims beyond the controls directly exercised by code/tests/CI remain unverified.
+Verified on 2026-10-10 at main SHA `30eef8b10d80363dc15b4256362d45b6b669019a`: Static Security Quality #317 / run [38055682968](https://github.com/whoami22888/isles-of-mythos/actions/runs/38055682968) PASS. Security claims beyond the controls directly exercised by code/tests/CI remain unverified.
