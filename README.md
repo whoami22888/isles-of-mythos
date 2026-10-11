@@ -245,3 +245,5 @@ The independent audit status remains **NOT AUDIT-PASS / NOT PRODUCTION-READY**. 
 7. Run `npm run build`.
 
 Use the repository's CI workflows for the authoritative full verification sequence.
+
+![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/whoami22888/isles-of-mythos?utm_source=oss&utm_medium=github&utm_campaign=whoami22888%2Fisles-of-mythos&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)
