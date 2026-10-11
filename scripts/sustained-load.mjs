@@ -8,7 +8,9 @@ const baseUrl = process.env.LOADTEST_BASE_URL ?? "http://127.0.0.1:3000";
 const wsUrl = `${baseUrl.replace(/^http/, "ws")}/ws`;
 const durationMs = Number(process.env.LOADTEST_DURATION_MS ?? 10000);
 const httpRequests = Number(process.env.LOADTEST_HTTP_REQUESTS ?? 100);
-const levels = [1, 50, 250, 1000];
+const section93Players = [1, 50, 250, 1000];
+const loadTestPlayers = [10, 50, 100, 500, 1000];
+const levels = [...new Set([...section93Players, ...loadTestPlayers])].sort((a, b) => a - b);
 const secret = process.env.JWT_SECRET ?? "loadtest-secret";
 const { Pool } = pg;
 
@@ -268,7 +270,7 @@ async function waitForPong(socket) {
   });
 }
 
-async function wsLoad(playerCount, users, sampleUsers, sampleNodes, cohortStart, scenario) {
+async function wsLoad(playerCount, users, sampleUsers, sampleNodes, cohortStart, scenario, includeGameplayMutations = true) {
   const sockets = [];
   const authLatencies = [];
   const pingLatencies = [];
@@ -325,7 +327,7 @@ async function wsLoad(playerCount, users, sampleUsers, sampleNodes, cohortStart,
     throw new Error("Player-load establishment failed: requested=" + playerCount + " connected=" + connected + " authenticated=" + authenticated + " errors=" + errors);
   }
 
-  const sampleCount = Math.min(playerCount, 100);
+  const sampleCount = includeGameplayMutations ? Math.min(playerCount, 100) : 0;
   if (sampleUsers.length !== sampleCount || sampleNodes.length !== sampleCount) {
     for (const socket of sockets) socket.close();
     throw new Error("Gameplay latency sample fixtures do not match scenario size");
@@ -347,8 +349,8 @@ async function wsLoad(playerCount, users, sampleUsers, sampleNodes, cohortStart,
     gameplayResults.push(...batch);
   }
 
-  const gameplayCraft = gameplayResults[0].craft;
-  const gameplayMutation = gameplayResults[0].mutation;
+  const gameplayCraft = gameplayResults[0]?.craft;
+  const gameplayMutation = gameplayResults[0]?.mutation;
   const end = Date.now() + durationMs;
   let pings = 0;
   let pongs = 0;
@@ -388,30 +390,42 @@ async function wsLoad(playerCount, users, sampleUsers, sampleNodes, cohortStart,
 const users = await loadTestUsers();
 const mutationNodes = loadMutationNodes(251);
 const scenarios = [];
+const loadTestScenarios = [];
 
-const cohortStarts = [0, 1, 51, 301];
-const nodeStarts = [0, 1, 51, 151];
+// Run the union of both required matrices once. Section 93 requires persisted
+// gameplay evidence at 1/50/250/1,000; section 65 separately requires player
+// load at 10/50/100/500/1,000. Shared 50/1,000 cohorts satisfy both matrices.
+const cohortStarts = [0, 1, 11, 61, 161, 411, 911];
+const nodeStartsByPlayers = new Map([[1, 0], [50, 1], [250, 51], [1000, 151]]);
 for (let index = 0; index < levels.length; index += 1) {
   const players = levels[index];
-  const sampleCount = Math.min(players, 100);
+  const includeGameplayMutations = section93Players.includes(players);
+  const sampleCount = includeGameplayMutations ? Math.min(players, 100) : 0;
   const cohortStart = cohortStarts[index];
-  const sampleUsers = users.slice(cohortStart, cohortStart + sampleCount);
-  const sampleNodes = mutationNodes.slice(nodeStarts[index], nodeStarts[index] + sampleCount);
-  await prepareMutationUsers(sampleUsers, sampleNodes);
+  const sampleUsers = includeGameplayMutations
+    ? users.slice(cohortStart, cohortStart + sampleCount)
+    : [];
+  const nodeStart = nodeStartsByPlayers.get(players);
+  const sampleNodes = includeGameplayMutations
+    ? mutationNodes.slice(nodeStart, nodeStart + sampleCount)
+    : [];
+  if (includeGameplayMutations) await prepareMutationUsers(sampleUsers, sampleNodes);
 
   const result = {
     players,
     http: await httpLoad(),
-    websocket: await wsLoad(players, users, sampleUsers, sampleNodes, cohortStart, index + 1),
+    websocket: await wsLoad(players, users, sampleUsers, sampleNodes, cohortStart, index + 1, includeGameplayMutations),
   };
   if (result.http.errors !== 0) {
     throw new Error(`HTTP load failed at ${players} players: ${result.http.errors} errors`);
   }
-  scenarios.push(result);
+  if (includeGameplayMutations) scenarios.push(result);
+  if (loadTestPlayers.includes(players)) loadTestScenarios.push(result);
   writeFileSync("performance-results.json", JSON.stringify({
     event: "sustained_load_progress",
     durationMs,
     scenarios,
+    loadTestScenarios,
   }, null, 2));
   console.log(JSON.stringify(result));
 }
@@ -424,5 +438,5 @@ function metricValue(n){const l=mt.split(/\r?\n/).find(x=>x.startsWith(n+" "));r
 function histogramQuantileMs(prefix,q){const count=metricValue(prefix+"_count");if(!Number.isFinite(count)||count<=0)return null;const buckets=mt.split(/\r?\n/).filter(x=>x.startsWith(prefix+"_bucket{")).map(line=>{const label=line.match(/le="([^"]+)"/)?.[1];const value=Number(line.trim().split(/\s+/)[1]);return{bound:label==="+Inf"?Number.POSITIVE_INFINITY:Number(label),value};}).sort((a,b)=>a.bound-b.bound);const target=Math.ceil(count*q),bucket=buckets.find(x=>x.value>=target);return bucket&&Number.isFinite(bucket.bound)?bucket.bound*1000:null;}
 const tc=metricValue("isles_tick_duration_seconds_count"),ts=metricValue("isles_tick_duration_seconds_sum");
 const serverMetrics={postgresServerVersion:Number(process.env.POSTGRES_SERVER_VERSION_NUM??0),tickCount:tc,averageTickMs:tc&&ts!==null?ts*1000/tc:null,tickP95Ms:histogramQuantileMs("isles_tick_duration_seconds",0.95),tickP99Ms:histogramQuantileMs("isles_tick_duration_seconds",0.99),residentMemoryBytes:metricValue("isles_process_resident_memory_bytes"),heapUsedBytes:metricValue("isles_process_heap_used_bytes"),cpuUserSeconds:metricValue("isles_process_cpu_user_seconds_total"),cpuSystemSeconds:metricValue("isles_process_cpu_system_seconds_total"),httpRequestsTotal:metricValue("isles_http_requests_total"),httpErrorsTotal:metricValue("isles_http_errors_total"),networkBytesSent:scenarios.reduce((s,x)=>s+x.websocket.networkBytesSent,0),networkBytesReceived:scenarios.reduce((s,x)=>s+x.websocket.networkBytesReceived,0)};
-const finalResult={event:"sustained_load_complete",durationMs,scenarios,domainScenarios,serverMetrics,clientMetrics:{status:"not_measured_in_headless_ci",reason:"Physical-device FPS/frame-time/GPU evidence requires the Android/iOS matrix in Master Build Prompt section 94."}};
+const finalResult={event:"sustained_load_complete",durationMs,scenarios,loadTestScenarios,domainScenarios,serverMetrics,clientMetrics:{status:"not_measured_in_headless_ci",reason:"Physical-device FPS/frame-time/GPU evidence requires the Android/iOS matrix in Master Build Prompt section 94."}};
 writeFileSync("performance-results.json",JSON.stringify(finalResult,null,2));console.log(JSON.stringify(finalResult));
