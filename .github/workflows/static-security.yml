@@ -15,6 +15,7 @@ concurrency:
 
 jobs:
   static-security:
+    name: Static Security Quality
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
