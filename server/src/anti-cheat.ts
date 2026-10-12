@@ -85,6 +85,37 @@ export class AntiCheatService {
     return null;
   }
 
+  observePosition(
+    userId: string,
+    before: { x: number; y: number },
+    after: { x: number; y: number },
+    serverDt: number,
+    nowMs = Date.now(),
+  ): AntiCheatEvidence | null {
+    const coordinates = [before.x, before.y, after.x, after.y, serverDt];
+    if (coordinates.some((value) => !Number.isFinite(value))) {
+      return this.record(userId, "IMPOSSIBLE_MOVEMENT", "CRITICAL", {
+        reason: "NON_FINITE_POSITION",
+        beforeX: String(before.x),
+        beforeY: String(before.y),
+        afterX: String(after.x),
+        afterY: String(after.y),
+      }, nowMs);
+    }
+    const distance = Math.hypot(after.x - before.x, after.y - before.y);
+    const maxDistance = Math.max(0, serverDt) * 4 + 0.001;
+    if (distance <= maxDistance) return null;
+    return this.record(userId, "IMPOSSIBLE_MOVEMENT", "HIGH", {
+      distance,
+      maxDistance,
+      serverDt,
+      beforeX: before.x,
+      beforeY: before.y,
+      afterX: after.x,
+      afterY: after.y,
+    }, nowMs);
+  }
+
   observeRejectedAction(
     userId: string,
     type: "ATTACK_COOLDOWN_SPAM" | "RESOURCE_RANGE_ABUSE",
