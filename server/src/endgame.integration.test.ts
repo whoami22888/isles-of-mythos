@@ -1,12 +1,14 @@
 import { randomUUID } from "node:crypto";
+import { Pool } from "pg";
+import { config } from "./config.js";
 import { describe, expect, it } from "vitest";
 import { buildApp } from "./app.js";
 import { createDbPool } from "./db.js";
 import { EndgameStore } from "./endgame.js";
 import { PlayerStore } from "./player.js";
 
-async function setup(){
-  const db=createDbPool();const app=await buildApp({db});
+async function setup(db=createDbPool()){
+  const app=await buildApp({db});
   const createUser=async(prefix:string)=>{
     const id=randomUUID().replace(/-/g,"").slice(0,20);
     const r=await app.inject({method:"POST",url:"/auth/register",payload:{username:prefix+"_"+id,email:prefix+"_"+id+"@example.com",password:"Correct-Horse-Battery-9"}});
@@ -77,4 +79,53 @@ describe("Gate 16 endgame integration",()=>{
       await expect(endgame.engageCreature(s.a,creature.id,75)).rejects.toThrow("ENDGAME_CREATURE_DEFEATED");
     }finally{await s.app.close();await s.db.end();}
   });
+
+  it("releases pooled connections before concurrent realm-war summary reads",async()=>{
+    const db=new Pool({connectionString:config.databaseUrl,max:2,connectionTimeoutMillis:500});
+    const s=await setup(db);
+    try{
+      const realms=await s.db.query<{id:string}>("SELECT id FROM realms ORDER BY name LIMIT 2");
+      const territory=await s.db.query<{id:string}>("SELECT id FROM territories WHERE realm_owner_id=$1 ORDER BY id LIMIT 1",[realms.rows[1].id]);
+      expect(territory.rows[0]).toBeDefined();
+      await s.db.query("UPDATE realm_wars SET status='cancelled' WHERE target_territory_id=$1 AND status='active'",[territory.rows[0].id]);
+      const endgame=new EndgameStore(s.db);
+      const war=await endgame.createRealmWar(s.a,realms.rows[0].id,realms.rows[1].id,territory.rows[0].id);
+      await endgame.joinRealmWar(s.b,war.id,s.gb,realms.rows[1].id);
+      const results=await Promise.allSettled([
+        endgame.realmWarAction(s.a,war.id,s.ga,s.armyA),
+        endgame.realmWarAction(s.b,war.id,s.gb,s.armyB),
+      ]);
+      expect(results.every(result=>result.status==="fulfilled")).toBe(true);
+      for(const result of results){
+        if(result.status==="fulfilled"){
+          expect(BigInt(result.value.attackerScore)+BigInt(result.value.defenderScore)).toBeGreaterThan(0n);
+        }
+      }
+    }finally{await s.app.close();await s.db.end();}
+  },10000);
+
+  it("releases pooled connections before concurrent guild-battle summary reads",async()=>{
+    const db=new Pool({connectionString:config.databaseUrl,max:2,connectionTimeoutMillis:500});
+    const s=await setup(db);
+    try{
+      const territory=await s.db.query<{id:string}>("SELECT id FROM territories ORDER BY name LIMIT 1");
+      const endgame=new EndgameStore(s.db);
+      const battle=await endgame.createGuildBattle(s.a,s.ga,s.gb,territory.rows[0].id);
+      await Promise.all([
+        endgame.joinGuildBattle(s.a,battle.id,s.armyA),
+        endgame.joinGuildBattle(s.b,battle.id,s.armyB),
+      ]);
+      const results=await Promise.allSettled([
+        endgame.guildBattleAction(s.a,battle.id,s.armyA),
+        endgame.guildBattleAction(s.b,battle.id,s.armyB),
+      ]);
+      expect(results.every(result=>result.status==="fulfilled")).toBe(true);
+      for(const result of results){
+        if(result.status==="fulfilled"){
+          expect(BigInt(result.value.attackerScore)+BigInt(result.value.defenderScore)).toBeGreaterThan(0n);
+        }
+      }
+    }finally{await s.app.close();await s.db.end();}
+  },10000);
+
 });
