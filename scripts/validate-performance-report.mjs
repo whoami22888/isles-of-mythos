@@ -81,7 +81,8 @@ export function validateReport(report) {
       Number.isSafeInteger(mutation.persistenceEvidence?.inventoryQuantity) &&
       mutation.persistenceEvidence.inventoryQuantity >= mutation.quantity &&
       typeof mutation.persistenceEvidence?.depletedUntil === "string" &&
-      Number.isFinite(Date.parse(mutation.persistenceEvidence.depletedUntil)),
+      Number.isFinite(Date.parse(mutation.persistenceEvidence.depletedUntil)) &&
+      Date.parse(mutation.persistenceEvidence.depletedUntil) > Date.now(),
       "Missing or inconsistent durable gameplayMutation evidence " + players,
     );
     need(ws.networkBytesSent > 0 && ws.networkBytesReceived > 0, "Missing bandwidth " + players);
@@ -104,8 +105,12 @@ export function validateReport(report) {
   need(Number.isInteger(metrics?.postgresServerVersion) &&
     metrics.postgresServerVersion >= 180000 && metrics.postgresServerVersion < 190000,
     "PostgreSQL 18 server version evidence missing or incompatible");
-  need(Number.isFinite(metrics?.tickCount) && metrics.tickCount > 0 &&
+  need(Number.isFinite(metrics?.tickCount) && Number.isInteger(metrics.tickCount) && metrics.tickCount > 0 &&
     Number.isFinite(metrics.averageTickMs) && metrics.averageTickMs >= 0, "Missing server tick evidence");
+  need(Number.isFinite(metrics?.tickMeasurementWindowSeconds) && metrics.tickMeasurementWindowSeconds > 0,
+    "Missing positive server tick measurement window");
+  need(Number.isFinite(metrics?.tickRateHz) && metrics.tickRateHz >= 20,
+    "Server tick rate must be at least the approved 20 Hz");
   need(Number.isFinite(metrics.tickP95Ms) && metrics.tickP95Ms >= 0 && metrics.tickP95Ms <= 40,
     "Server tick p95 must be <= 40ms");
   need(Number.isFinite(metrics.tickP99Ms) && metrics.tickP99Ms >= 0 && metrics.tickP99Ms <= 50,
@@ -151,7 +156,7 @@ if (process.argv[2] === "--self-test") {
       { name: "thousands_of_player_bases", basesPersisted: 5000, lookups: 50, p95Ms: 1, p99Ms: 1, persisted: true },
     ],
     serverMetrics: {
-      postgresServerVersion: 180006, tickCount: 1, averageTickMs: 1, tickP95Ms: 20, tickP99Ms: 40,
+      postgresServerVersion: 180006, tickCount: 200, tickMeasurementWindowSeconds: 10, tickRateHz: 20, averageTickMs: 1, tickP95Ms: 20, tickP99Ms: 40,
       residentMemoryBytes: 1, heapUsedBytes: 1, cpuUserSeconds: 1, cpuSystemSeconds: 1,
       httpRequestsTotal: 1, httpErrorsTotal: 0, networkBytesSent: 1, networkBytesReceived: 1,
     },
@@ -189,6 +194,18 @@ if (process.argv[2] === "--self-test") {
   const badMutationDepletion = structuredClone(report);
   badMutationDepletion.scenarios[0].websocket.gameplayMutation.persistenceEvidence.depletedUntil = "not-a-date";
   assert.throws(() => validateReport(badMutationDepletion), /gameplayMutation/);
+  const expiredMutationDepletion = structuredClone(report);
+  expiredMutationDepletion.scenarios[0].websocket.gameplayMutation.persistenceEvidence.depletedUntil = new Date(Date.now() - 1000).toISOString();
+  assert.throws(() => validateReport(expiredMutationDepletion), /gameplayMutation/);
+  const missingTickRate = structuredClone(report);
+  delete missingTickRate.serverMetrics.tickRateHz;
+  assert.throws(() => validateReport(missingTickRate), /20 Hz/);
+  const slowTickRate = structuredClone(report);
+  slowTickRate.serverMetrics.tickRateHz = 19.99;
+  assert.throws(() => validateReport(slowTickRate), /20 Hz/);
+  const missingTickWindow = structuredClone(report);
+  missingTickWindow.serverMetrics.tickMeasurementWindowSeconds = 0;
+  assert.throws(() => validateReport(missingTickWindow), /measurement window/);
   const badTick = structuredClone(report);
   badTick.serverMetrics.tickP95Ms = 41;
   assert.throws(() => validateReport(badTick), /tick p95/);
