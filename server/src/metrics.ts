@@ -8,6 +8,10 @@ let websocketAuthenticated = 0;
 let activePlayers = 0;
 let tickDurationSecondsSum = 0;
 let tickDurationSecondsCount = 0;
+let tickRateWindowStartedAt: bigint | undefined;
+let tickRateWindowTickCount = 0;
+let tickRateHz = 0;
+let tickRateWindowSeconds = 0;
 let databaseUp = 1;
 
 export function recordHttpRequest(durationMs: number, statusCode: number): void {
@@ -32,6 +36,22 @@ export function setActivePlayers(value: number): void {
 export function recordTick(durationMs: number): void {
   tickDurationSecondsSum += durationMs / 1000;
   tickDurationSecondsCount++;
+
+  const now = process.hrtime.bigint();
+  if (tickRateWindowStartedAt === undefined) {
+    tickRateWindowStartedAt = now;
+    tickRateWindowTickCount = 1;
+    return;
+  }
+
+  tickRateWindowTickCount++;
+  const elapsedSeconds = Number(now - tickRateWindowStartedAt) / 1e9;
+  if (elapsedSeconds >= 1) {
+    tickRateHz = Math.max(0, (tickRateWindowTickCount - 1) / elapsedSeconds);
+    tickRateWindowSeconds = elapsedSeconds;
+    tickRateWindowStartedAt = now;
+    tickRateWindowTickCount = 1;
+  }
 }
 
 export function setDatabaseUp(value: boolean): void {
@@ -86,6 +106,12 @@ export function renderPrometheusMetrics(): string {
     "# HELP isles_tick_duration_seconds_count Game tick count.",
     "# TYPE isles_tick_duration_seconds_count counter",
     `isles_tick_duration_seconds_count ${tickDurationSecondsCount}`,
+    "# HELP isles_tick_rate_hz Observed completed-tick frequency over the last completed measurement window.",
+    "# TYPE isles_tick_rate_hz gauge",
+    `isles_tick_rate_hz ${tickRateHz}`,
+    "# HELP isles_tick_rate_window_seconds Duration of the last completed tick-rate measurement window.",
+    "# TYPE isles_tick_rate_window_seconds gauge",
+    `isles_tick_rate_window_seconds ${tickRateWindowSeconds}`,
     "# HELP isles_database_up Database connectivity status.",
     "# TYPE isles_database_up gauge",
     `isles_database_up ${databaseUp}`,

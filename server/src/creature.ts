@@ -145,12 +145,12 @@ export class CreatureStore {
     const c=this.getCreature(userId,id); if(!c)throw new Error("CREATURE_NOT_FOUND"); if(c.tameProgress<100)throw new Error("CREATURE_NOT_TAMED");
     c.aiMode=mode; this.markDirty(userId); return c;
   }
-  tickAi(userId:string,player:{x:number;y:number}):boolean{
+  tickAi(userId:string,player:{x:number;y:number},dtMs=250):boolean{
     let changed=false;
     for(const c of this.get(userId)){
       if(c.partySlot===null||c.tameProgress<100||c.aiMode==="stay")continue;
       const d=Math.hypot(player.x-c.x,player.y-c.y);
-      if(d>3){const step=Math.min(d-2,0.375);c.x+=(player.x-c.x)/d*step;c.y+=(player.y-c.y)/d*step;changed=true;}
+      if(d>3){const step=Math.min(d-2,0.375*(Math.min(dtMs,250)/250));c.x+=(player.x-c.x)/d*step;c.y+=(player.y-c.y)/d*step;changed=true;}
     }
     if(changed)this.markDirty(userId); return changed;
   }

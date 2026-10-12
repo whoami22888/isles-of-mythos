@@ -28,6 +28,22 @@ function storeFor(overrides: Record<string, unknown> = {}): CreatureStore {
 }
 
 describe("authoritative base worker movement", () => {
+  it("scales follower movement with the elapsed simulation step", async () => {
+    const legacyCadence = storeFor({ party_slot: 0 });
+    const twentyHz = storeFor({ party_slot: 0 });
+    await legacyCadence.load("user-1");
+    await twentyHz.load("user-1");
+
+    expect(legacyCadence.tickAi("user-1", { x: 5, y: 0 })).toBe(true);
+    expect(twentyHz.tickAi("user-1", { x: 5, y: 0 }, 50)).toBe(true);
+
+    const legacyX = legacyCadence.getCreature("user-1", "creature-1")?.x;
+    const twentyHzX = twentyHz.getCreature("user-1", "creature-1")?.x;
+    expect(legacyX).toBeCloseTo(0.375);
+    expect(twentyHzX).toBeCloseTo(0.075);
+    expect(twentyHzX).toBeCloseTo((legacyX ?? 0) / 5);
+  });
+
   it("moves a tamed un-partied worker and marks its state dirty", async () => {
     const store = storeFor();
     await store.load("user-1");

@@ -347,6 +347,8 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   let worldEventTick: ReturnType<typeof setInterval> | undefined;
   let combatTick: ReturnType<typeof setInterval> | undefined;
   let persistenceTick: ReturnType<typeof setInterval> | undefined;
+  const COMBAT_TICK_INTERVAL_MS = 50;
+  const BASE_SIMULATION_TICK_MS = 250;
 
   app.addHook("onListen", () => {
   void ensureCapturedWorldCreaturesLoaded().catch((error) => {
@@ -388,7 +390,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   combatTick = setInterval(() => {
     const tickStartedAt = process.hrtime.bigint();
     const now = Date.now();
-    tickPlayerStatuses(250);
+    tickPlayerStatuses(COMBAT_TICK_INTERVAL_MS);
 
     if (capturedWorldCreaturesLoaded) {
     for (const [connectedUserId, nextActivationAt] of combatActivationNextAt) {
@@ -429,7 +431,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         for (const socket of userSockets.get(projectile.ownerUserId) ?? []) send(socket, missedResult);
         continue;
       }
-      const outcome = advanceProjectile(projectile, target, 0.05, now);
+      const outcome = advanceProjectile(projectile, target, COMBAT_TICK_INTERVAL_MS / 1000, now);
       if (outcome === "flying") continue;
       projectiles.delete(projectileId);
       pendingCombatRequests.delete(replayKey);
@@ -457,7 +459,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       }
     }
     for (const [targetId, target] of combatTargets) {
-      tickStatuses(target, 250);
+      tickStatuses(target, COMBAT_TICK_INTERVAL_MS);
       if (target.health <= 0) {
         target.aiState = "dead";
         combatTargets.delete(targetId);
@@ -466,7 +468,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     }
     for (const connectedUserId of userSockets.keys()) {
       const player = players.get(connectedUserId);
-      if (player) creatures.tickAi(connectedUserId, player);
+      if (player) creatures.tickAi(connectedUserId, player, COMBAT_TICK_INTERVAL_MS);
       const base = bases.get(connectedUserId);
       if (!base) continue;
       for (const worker of base.workers) {
@@ -477,7 +479,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         const dx = waypoint.x - creature.x;
         const dy = waypoint.y - creature.y;
         const distance = Math.hypot(dx, dy);
-        const step = Math.min(distance, 0.375);
+        const step = Math.min(distance, 0.375 * (COMBAT_TICK_INTERVAL_MS / BASE_SIMULATION_TICK_MS));
         if (step > 0) {
           creatures.moveWorker(
             connectedUserId,
@@ -492,15 +494,14 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       const state = players.get(userId);
       return state && state.health > 0 ? [{ userId, x: state.x, y: state.y }] : [];
     });
-    recordTick(Number(process.hrtime.bigint() - tickStartedAt) / 1e6);
     for (const target of combatTargets.values()) {
-      const ai = tickCreatureAi(target, candidates, now, 250);
+      const ai = tickCreatureAi(target, candidates, now, COMBAT_TICK_INTERVAL_MS);
       const userId = ai.targetUserId;
       if (!userId || target.health <= 0) continue;
       const targetPlayer = players.get(userId);
       if (!targetPlayer || targetPlayer.health <= 0) continue;
       if (ai.state === "chase") {
-        const step = target.speed * 0.25;
+        const step = target.speed * (COMBAT_TICK_INTERVAL_MS / 1000);
         target.x += ai.moveX * step;
         target.y += ai.moveY * step;
       }
@@ -540,7 +541,8 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     for (const [cooldownUserId, until] of attackCooldowns) if (until <= now) attackCooldowns.delete(cooldownUserId);
     for (const [cooldownUserId, until] of dodgeCooldowns) if (until <= now) dodgeCooldowns.delete(cooldownUserId);
     for (const [userId, until] of invulnerableUntil) if (until <= now) invulnerableUntil.delete(userId);
-  }, 250);
+    recordTick(Number(process.hrtime.bigint() - tickStartedAt) / 1e6);
+  }, COMBAT_TICK_INTERVAL_MS);
   combatTick.unref();
 
   persistenceTick = setInterval(() => {
