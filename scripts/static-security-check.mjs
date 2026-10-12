@@ -60,6 +60,7 @@ for(const match of qualifiedPostgresRefs){
    add(findings.errors,"mutable-postgres-image",file,lineNumber,lines[lineNumber-1]||ref);
  }
 }
+}
 for(const [i,rawLine] of readFileSync("docker-compose.yml","utf8").split(/\r?\n/).entries()){
  if(/^\s*#/.test(rawLine))continue;
  const line=rawLine.replace(/\s+#.*$/,"");
