@@ -347,7 +347,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   let worldEventTick: ReturnType<typeof setInterval> | undefined;
   let combatTick: ReturnType<typeof setInterval> | undefined;
   let persistenceTick: ReturnType<typeof setInterval> | undefined;
-  const COMBAT_TICK_INTERVAL_MS = 50;
+  const COMBAT_TICK_INTERVAL_MS = 33; // ~30 Hz, within the authoritative 30–60 Hz combat range.
   const BASE_SIMULATION_TICK_MS = 250;
 
   app.addHook("onListen", () => {
