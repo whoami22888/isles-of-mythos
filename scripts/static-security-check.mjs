@@ -54,14 +54,15 @@ for(const name of readdirSync(workflowRoot).sort()){
  for(const [index,rawLine] of lines.entries()){
    if(/^\s*#/.test(rawLine))continue;
    const line=rawLine.replace(/\s+#.*$/,"");
-   const image=line.match(/^\s*image:\s*(["']?)([^"'#\s]+)\1\s*$/i);
-   const postgresRefs=[...(line.matchAll(/(?:^|[\s"'=])((?:[A-Za-z0-9.-]+\/)*postgres(?::[A-Za-z0-9._-]+|@sha256:[0-9a-f]{64}))/gi))].map(match=>match[1]);
-   const refs=image&&/(?:^|\/)postgres(?=[:/@])/i.test(image[2])?[image[2]]:postgresRefs;
-   for(const ref of new Set(refs)){
-     if(/(?:^|\/)postgres(?=[:/@])/i.test(ref)&&!/postgres-exporter/i.test(ref)&&!/@sha256:[0-9a-f]{64}$/i.test(ref)){
-       add(findings.errors,"mutable-postgres-image",file,index+1,rawLine);
-     }
-   }
+
+}
+const uncommentedWorkflow=lines.map(line=>line.replace(/^\s*#.*$/,"").replace(/\s+#.*$/,"")).join("\n");
+const qualifiedPostgresRefs=[...uncommentedWorkflow.matchAll(/(?:^|[\s"'=])((?:[A-Za-z0-9.-]+\/)+postgres(?::[A-Za-z0-9._-]+|@sha256:[0-9a-f]{64})?)(?=$|[\s"'\\])/gim)];
+for(const match of qualifiedPostgresRefs){
+ const ref=match[1];
+ if(!/@sha256:[0-9a-f]{64}$/i.test(ref)){
+   const lineNumber=uncommentedWorkflow.slice(0,match.index).split("\n").length;
+   add(findings.errors,"mutable-postgres-image",file,lineNumber,lines[lineNumber-1]||ref);
  }
 }
 for(const [i,rawLine] of readFileSync("docker-compose.yml","utf8").split(/\r?\n/).entries()){
