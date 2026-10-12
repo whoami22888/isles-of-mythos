@@ -46,6 +46,11 @@ for(const name of readdirSync(workflowRoot).sort()){
  });
  const topLevelPermissions=content.match(/^permissions:\s*\n((?:^  [A-Za-z0-9_-]+:\s*(?:read|write|none)\s*(?:#.*)?\n?)+)/m);
  if(!topLevelPermissions||!/^  contents:\s*read\s*(?:#.*)?$/m.test(topLevelPermissions[1]))add(findings.errors,"workflow-permissions-policy",file,1,"Workflow must declare top-level contents: read");
+ if(content.includes("\\\\${{"))add(findings.errors,"escaped-workflow-expression",file,1,"Workflow expressions must not be escaped with a backslash");
+ if(["ci.yml","performance.yml","static-security.yml"].includes(name)){
+   if(!/ref:\s*\$\{\{\s*github\.event\.pull_request\.head\.sha\s*\|\|\s*github\.sha\s*\}\}/.test(content))add(findings.errors,"workflow-exact-head-checkout",file,1,"Pull-request workflow must check out github.event.pull_request.head.sha");
+   if(!/persist-credentials:\s*false/.test(content))add(findings.errors,"workflow-checkout-credentials",file,1,"Pull-request workflow checkout must disable persisted credentials");
+ }
  for(const [index,rawLine] of lines.entries()){
    if(/^\s*#/.test(rawLine))continue;
    const line=rawLine.replace(/\s+#.*$/,"");
