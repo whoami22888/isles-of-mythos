@@ -51,12 +51,7 @@ for(const name of readdirSync(workflowRoot).sort()){
    if(!/ref:\s*\$\{\{\s*github\.event\.pull_request\.head\.sha\s*\|\|\s*github\.sha\s*\}\}/.test(content))add(findings.errors,"workflow-exact-head-checkout",file,1,"Pull-request workflow must check out github.event.pull_request.head.sha");
    if(!/persist-credentials:\s*false/.test(content))add(findings.errors,"workflow-checkout-credentials",file,1,"Pull-request workflow checkout must disable persisted credentials");
  }
- for(const [index,rawLine] of lines.entries()){
-   if(/^\s*#/.test(rawLine))continue;
-   const line=rawLine.replace(/\s+#.*$/,"");
-
-}
-const uncommentedWorkflow=lines.map(line=>line.replace(/^\s*#.*$/,"").replace(/\s+#.*$/,"")).join("\n");
+ const uncommentedWorkflow=lines.map(line=>line.replace(/^\s*#.*$/,"").replace(/\s+#.*$/,"")).join("\n");
 const qualifiedPostgresRefs=[...uncommentedWorkflow.matchAll(/(?:^|[\s"'=])((?:[A-Za-z0-9.-]+\/)+postgres(?::[A-Za-z0-9._-]+|@sha256:[0-9a-f]{64})?)(?=$|[\s"'\\])/gim)];
 for(const match of qualifiedPostgresRefs){
  const ref=match[1];
