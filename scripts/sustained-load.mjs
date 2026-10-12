@@ -387,6 +387,24 @@ async function wsLoad(playerCount, users, sampleUsers, sampleNodes, cohortStart,
     networkBytesSent, networkBytesReceived,
   };
 }
+async function readTickCounters() {
+  const response = await fetch(baseUrl + "/metrics");
+  if (!response.ok) throw new Error("Metrics endpoint returned " + response.status);
+  const body = await response.text();
+  function value(name) {
+    const line = body.split(/\r?\n/).find(item => item.startsWith(name + " "));
+    return line ? Number(line.trim().split(/\s+/)[1]) : null;
+  }
+  const count = value("isles_tick_duration_seconds_count");
+  const sum = value("isles_tick_duration_seconds_sum");
+  if (!Number.isFinite(count) || !Number.isFinite(sum)) {
+    throw new Error("Missing server tick counters at performance measurement boundary");
+  }
+  return { count, sum };
+}
+const tickMeasurementStartedAt = performance.now();
+const tickMeasurementStart = await readTickCounters();
+
 const users = await loadTestUsers();
 const mutationNodes = loadMutationNodes(251);
 const scenarios = [];
@@ -436,7 +454,11 @@ writeFileSync("performance-results.json",JSON.stringify({event:"sustained_load_p
 const mr=await fetch(`${baseUrl}/metrics`);if(!mr.ok)throw Error("Metrics endpoint returned "+mr.status);const mt=await mr.text();
 function metricValue(n){const l=mt.split(/\r?\n/).find(x=>x.startsWith(n+" "));return l?Number(l.trim().split(/\s+/)[1]):null;}
 function histogramQuantileMs(prefix,q){const count=metricValue(prefix+"_count");if(!Number.isFinite(count)||count<=0)return null;const buckets=mt.split(/\r?\n/).filter(x=>x.startsWith(prefix+"_bucket{")).map(line=>{const label=line.match(/le="([^"]+)"/)?.[1];const value=Number(line.trim().split(/\s+/)[1]);return{bound:label==="+Inf"?Number.POSITIVE_INFINITY:Number(label),value};}).sort((a,b)=>a.bound-b.bound);const target=Math.ceil(count*q),bucket=buckets.find(x=>x.value>=target);return bucket&&Number.isFinite(bucket.bound)?bucket.bound*1000:null;}
-const tc=metricValue("isles_tick_duration_seconds_count"),ts=metricValue("isles_tick_duration_seconds_sum");
-const serverMetrics={postgresServerVersion:Number(process.env.POSTGRES_SERVER_VERSION_NUM??0),tickCount:tc,averageTickMs:tc&&ts!==null?ts*1000/tc:null,tickP95Ms:histogramQuantileMs("isles_tick_duration_seconds",0.95),tickP99Ms:histogramQuantileMs("isles_tick_duration_seconds",0.99),residentMemoryBytes:metricValue("isles_process_resident_memory_bytes"),heapUsedBytes:metricValue("isles_process_heap_used_bytes"),cpuUserSeconds:metricValue("isles_process_cpu_user_seconds_total"),cpuSystemSeconds:metricValue("isles_process_cpu_system_seconds_total"),httpRequestsTotal:metricValue("isles_http_requests_total"),httpErrorsTotal:metricValue("isles_http_errors_total"),networkBytesSent:scenarios.reduce((s,x)=>s+x.websocket.networkBytesSent,0),networkBytesReceived:scenarios.reduce((s,x)=>s+x.websocket.networkBytesReceived,0)};
+const finalTickCounters={count:metricValue("isles_tick_duration_seconds_count"),sum:metricValue("isles_tick_duration_seconds_sum")};
+const tickMeasurementWindowSeconds=(performance.now()-tickMeasurementStartedAt)/1000;
+const tc=finalTickCounters.count-tickMeasurementStart.count,ts=finalTickCounters.sum-tickMeasurementStart.sum;
+if(!Number.isInteger(tc)||tc<=0||!Number.isFinite(ts)||ts<0||!Number.isFinite(tickMeasurementWindowSeconds)||tickMeasurementWindowSeconds<=0)throw Error("Invalid window-bounded server tick measurements");
+const tickRateHz=tc/tickMeasurementWindowSeconds;
+const serverMetrics={postgresServerVersion:Number(process.env.POSTGRES_SERVER_VERSION_NUM??0),tickCount:tc,tickMeasurementWindowSeconds,tickRateHz,averageTickMs:tc>0?ts*1000/tc:null,tickP95Ms:histogramQuantileMs("isles_tick_duration_seconds",0.95),tickP99Ms:histogramQuantileMs("isles_tick_duration_seconds",0.99),residentMemoryBytes:metricValue("isles_process_resident_memory_bytes"),heapUsedBytes:metricValue("isles_process_heap_used_bytes"),cpuUserSeconds:metricValue("isles_process_cpu_user_seconds_total"),cpuSystemSeconds:metricValue("isles_process_cpu_system_seconds_total"),httpRequestsTotal:metricValue("isles_http_requests_total"),httpErrorsTotal:metricValue("isles_http_errors_total"),networkBytesSent:scenarios.reduce((s,x)=>s+x.websocket.networkBytesSent,0),networkBytesReceived:scenarios.reduce((s,x)=>s+x.websocket.networkBytesReceived,0)};
 const finalResult={event:"sustained_load_complete",durationMs,scenarios,loadTestScenarios,domainScenarios,serverMetrics,clientMetrics:{status:"not_measured_in_headless_ci",reason:"Physical-device FPS/frame-time/GPU evidence requires the Android/iOS matrix in Master Build Prompt section 94."}};
 writeFileSync("performance-results.json",JSON.stringify(finalResult,null,2));console.log(JSON.stringify(finalResult));
