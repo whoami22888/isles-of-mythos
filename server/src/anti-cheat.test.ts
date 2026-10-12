@@ -37,6 +37,20 @@ describe("anti-cheat evidence service", () => {
     expect(event?.severity).toBe("LOW");
   });
 
+  it("records impossible displacement and rejects non-finite coordinates as evidence", () => {
+    const service = new AntiCheatService();
+    expect(service.observePosition("u1", { x: 0, y: 0 }, { x: 1, y: 0 }, 0.1, 2_000)).toMatchObject({
+      type: "IMPOSSIBLE_MOVEMENT",
+      severity: "HIGH",
+      evidence: { distance: 1, maxDistance: 0.401 },
+    });
+    expect(service.observePosition("u2", { x: 0, y: 0 }, { x: Number.NaN, y: 0 }, 0.1, 2_000)).toMatchObject({
+      type: "IMPOSSIBLE_MOVEMENT",
+      severity: "CRITICAL",
+      evidence: { reason: "NON_FINITE_POSITION" },
+    });
+  });
+
   it("bounds recent evidence output", () => {
     const service = new AntiCheatService();
     for (let index = 0; index < 120; index += 1) {
