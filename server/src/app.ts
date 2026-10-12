@@ -778,6 +778,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             return;
           }
           const slow = (playerStatuses.get(userId) ?? []).find((status) => status.id === "slow");
+          const beforePosition = { x: state.x, y: state.y };
           const movement = players.applyAuthoritativeMovement(userId, {
             dx: message.dx,
             dy: message.dy,
@@ -790,6 +791,8 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             send(socket, { type: "error", code: movement.reason === "RATE_LIMITED" ? "RATE_LIMITED" : "INVALID_MESSAGE" });
             return;
           }
+          const positionEvidence = antiCheat.observePosition(userId, beforePosition, state, movement.serverDt);
+          if (positionEvidence) log("anti_cheat_event", { ...positionEvidence });
           send(socket, { type: "player_state", state: serializePlayerState(state) });
           return;
         }
