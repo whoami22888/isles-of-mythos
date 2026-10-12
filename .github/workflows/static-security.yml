@@ -15,10 +15,13 @@ concurrency:
 
 jobs:
   static-security:
+    name: Static Security Quality
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-node@v7
         with:
           node-version: 24
