@@ -58,7 +58,11 @@ export class EndgameStore {
   }
 
   async createRealmWar(userId:string,attackerRealmId:string,defenderRealmId:string,targetTerritoryId:string):Promise<RealmWarSummary>{
-    const c=await this.db.connect();try{await c.query("BEGIN");await c.query("SELECT pg_advisory_xact_lock(hashtext($1))",[targetTerritoryId]);
+    const c=await this.db.connect();
+    let warId="";
+    try{
+      await c.query("BEGIN");
+      await c.query("SELECT pg_advisory_xact_lock(hashtext($1))",[targetTerritoryId]);
       if(attackerRealmId===defenderRealmId)throw new Error("ENDGAME_INVALID_REALM_SIDES");
       const guild=await c.query<{guild_id:string}>("SELECT guild_id FROM guild_members WHERE user_id=$1 AND rank IN ('master','officer') ORDER BY guild_id LIMIT 1 FOR UPDATE",[userId]);
       if(!guild.rows[0])throw new Error("GUILD_PERMISSION_DENIED");
@@ -66,11 +70,21 @@ export class EndgameStore {
       const territory=await c.query<{id:string;realm_owner_id:string|null}>("SELECT id,realm_owner_id FROM territories WHERE id=$1 FOR UPDATE",[targetTerritoryId]);
       if(!territory.rows[0])throw new Error("TERRITORY_NOT_FOUND");
       if(territory.rows[0].realm_owner_id!==defenderRealmId)throw new Error("ENDGAME_TARGET_NOT_DEFENDER_TERRITORY");
-      const active=await c.query("SELECT id FROM realm_wars WHERE target_territory_id=$1 AND status='active' FOR UPDATE",[targetTerritoryId]);if(active.rows[0])throw new Error("ENDGAME_WAR_ALREADY_ACTIVE");
+      const active=await c.query("SELECT id FROM realm_wars WHERE target_territory_id=$1 AND status='active' FOR UPDATE",[targetTerritoryId]);
+      if(active.rows[0])throw new Error("ENDGAME_WAR_ALREADY_ACTIVE");
       const r=await c.query<{id:string;ends_at:Date}>("INSERT INTO realm_wars(attacker_realm_id,defender_realm_id,target_territory_id,ends_at,state) VALUES($1,$2,$3,CURRENT_TIMESTAMP+INTERVAL '30 minutes',$4::jsonb) RETURNING id,ends_at",[attackerRealmId,defenderRealmId,targetTerritoryId,JSON.stringify({phase:"mobilization"})]);
       await c.query("INSERT INTO realm_war_participants(war_id,guild_id,realm_id) VALUES($1,$2,$3)",[r.rows[0].id,guild.rows[0].guild_id,attackerRealmId]);
-      await c.query("COMMIT");return (await this.realmWars()).find(x=>x.id===r.rows[0].id)!;
-    }catch(e){await c.query("ROLLBACK");throw e}finally{c.release();}
+      await c.query("COMMIT");
+      warId=r.rows[0].id;
+    }catch(e){
+      await c.query("ROLLBACK");
+      throw e;
+    }finally{
+      c.release();
+    }
+    const war=(await this.realmWars()).find(x=>x.id===warId);
+    if(!war)throw new Error("ENDGAME_WAR_NOT_FOUND");
+    return war;
   }
 
   async joinRealmWar(userId:string,warId:string,guildId:string,realmId:string):Promise<void>{
@@ -83,17 +97,34 @@ export class EndgameStore {
   }
 
   async realmWarAction(userId:string,warId:string,guildId:string,armyId:string):Promise<RealmWarSummary>{
-    const c=await this.db.connect();try{await c.query("BEGIN");
-      const war=await c.query<{id:string;attacker_realm_id:string;defender_realm_id:string;status:string;phase:EndgamePhase}>("SELECT id,attacker_realm_id,defender_realm_id,status,phase FROM realm_wars WHERE id=$1 FOR UPDATE",[warId]);if(!war.rows[0])throw new Error("ENDGAME_WAR_NOT_FOUND");if(war.rows[0].status!=="active")throw new Error("ENDGAME_WAR_NOT_ACTIVE");
-      const p=await c.query<{realm_id:string}>("SELECT realm_id FROM realm_war_participants WHERE war_id=$1 AND guild_id=$2 FOR UPDATE",[warId,guildId]);if(!p.rows[0])throw new Error("ENDGAME_GUILD_NOT_PARTICIPANT");
-      await guildMembership(c,userId,guildId,false);const power=await armyPower(c,armyId,userId);const gl=await guildLevel(c,guildId);const score=calculateRealmWarScore(power,gl);
+    const c=await this.db.connect();
+    try{
+      await c.query("BEGIN");
+      const war=await c.query<{id:string;attacker_realm_id:string;defender_realm_id:string;status:string;phase:EndgamePhase}>("SELECT id,attacker_realm_id,defender_realm_id,status,phase FROM realm_wars WHERE id=$1 FOR UPDATE",[warId]);
+      if(!war.rows[0])throw new Error("ENDGAME_WAR_NOT_FOUND");
+      if(war.rows[0].status!=="active")throw new Error("ENDGAME_WAR_NOT_ACTIVE");
+      const p=await c.query<{realm_id:string}>("SELECT realm_id FROM realm_war_participants WHERE war_id=$1 AND guild_id=$2 FOR UPDATE",[warId,guildId]);
+      if(!p.rows[0])throw new Error("ENDGAME_GUILD_NOT_PARTICIPANT");
+      await guildMembership(c,userId,guildId,false);
+      const power=await armyPower(c,armyId,userId);
+      const gl=await guildLevel(c,guildId);
+      const score=calculateRealmWarScore(power,gl);
       if(power===0n)throw new Error("ENDGAME_NO_ARMY_POWER");
-      const side=sideOf(war.rows[0],p.rows[0].realm_id);if(!side)throw new Error("ENDGAME_INVALID_REALM_SIDE");
+      const side=sideOf(war.rows[0],p.rows[0].realm_id);
+      if(!side)throw new Error("ENDGAME_INVALID_REALM_SIDE");
       if(side==="attacker")await c.query("UPDATE realm_wars SET attacker_score=attacker_score+$2,phase='assault',updated_at=CURRENT_TIMESTAMP WHERE id=$1",[warId,score.toString()]);
       else await c.query("UPDATE realm_wars SET defender_score=defender_score+$2,phase='assault',updated_at=CURRENT_TIMESTAMP WHERE id=$1",[warId,score.toString()]);
       await c.query("UPDATE realm_war_participants SET contribution=contribution+$3,actions=actions+1,updated_at=CURRENT_TIMESTAMP WHERE war_id=$1 AND guild_id=$2",[warId,guildId,score.toString()]);
-      await c.query("COMMIT");return (await this.realmWars()).find(x=>x.id===warId)!;
-    }catch(e){await c.query("ROLLBACK");throw e}finally{c.release();}
+      await c.query("COMMIT");
+    }catch(e){
+      await c.query("ROLLBACK");
+      throw e;
+    }finally{
+      c.release();
+    }
+    const war=(await this.realmWars()).find(x=>x.id===warId);
+    if(!war)throw new Error("ENDGAME_WAR_NOT_FOUND");
+    return war;
   }
 
   async guildBattles():Promise<GuildBattleSummary[]>{
@@ -102,14 +133,28 @@ export class EndgameStore {
   }
 
   async createGuildBattle(userId:string,attackerGuildId:string,defenderGuildId:string,targetTerritoryId:string):Promise<GuildBattleSummary>{
-    const c=await this.db.connect();try{await c.query("BEGIN");await c.query("SELECT pg_advisory_xact_lock(hashtext($1))",[targetTerritoryId]);
+    const c=await this.db.connect();
+    let battleId="";
+    try{
+      await c.query("BEGIN");
+      await c.query("SELECT pg_advisory_xact_lock(hashtext($1))",[targetTerritoryId]);
       if(attackerGuildId===defenderGuildId)throw new Error("ENDGAME_INVALID_GUILD_SIDES");
       await guildMembership(c,userId,attackerGuildId,true);
       if(!(await c.query("SELECT id FROM territories WHERE id=$1 FOR UPDATE",[targetTerritoryId])).rows[0])throw new Error("TERRITORY_NOT_FOUND");
-      const active=await c.query("SELECT id FROM guild_battles WHERE target_territory_id=$1 AND status='active' FOR UPDATE",[targetTerritoryId]);if(active.rows[0])throw new Error("ENDGAME_GUILD_BATTLE_ALREADY_ACTIVE");
+      const active=await c.query("SELECT id FROM guild_battles WHERE target_territory_id=$1 AND status='active' FOR UPDATE",[targetTerritoryId]);
+      if(active.rows[0])throw new Error("ENDGAME_GUILD_BATTLE_ALREADY_ACTIVE");
       const r=await c.query<{id:string;ends_at:Date}>("INSERT INTO guild_battles(attacker_guild_id,defender_guild_id,target_territory_id,ends_at,state) VALUES($1,$2,$3,CURRENT_TIMESTAMP+INTERVAL '20 minutes',$4::jsonb) RETURNING id,ends_at",[attackerGuildId,defenderGuildId,targetTerritoryId,JSON.stringify({phase:"deployment"})]);
-      await c.query("COMMIT");return (await this.guildBattles()).find(x=>x.id===r.rows[0].id)!;
-    }catch(e){await c.query("ROLLBACK");throw e}finally{c.release();}
+      await c.query("COMMIT");
+      battleId=r.rows[0].id;
+    }catch(e){
+      await c.query("ROLLBACK");
+      throw e;
+    }finally{
+      c.release();
+    }
+    const battle=(await this.guildBattles()).find(x=>x.id===battleId);
+    if(!battle)throw new Error("ENDGAME_GUILD_BATTLE_NOT_FOUND");
+    return battle;
   }
 
   async joinGuildBattle(userId:string,battleId:string,armyId:string):Promise<void>{
@@ -124,16 +169,31 @@ export class EndgameStore {
   }
 
   async guildBattleAction(userId:string,battleId:string,armyId:string):Promise<GuildBattleSummary>{
-    const c=await this.db.connect();try{await c.query("BEGIN");
-      const b=await c.query<{attacker_guild_id:string;defender_guild_id:string;status:string}>("SELECT attacker_guild_id,defender_guild_id,status FROM guild_battles WHERE id=$1 FOR UPDATE",[battleId]);if(!b.rows[0])throw new Error("ENDGAME_GUILD_BATTLE_NOT_FOUND");if(b.rows[0].status!=="active")throw new Error("ENDGAME_GUILD_BATTLE_NOT_ACTIVE");
-      const a=await c.query<{guild_id:string;contribution:string}>("SELECT guild_id,contribution FROM guild_battle_armies WHERE battle_id=$1 AND army_id=$2 FOR UPDATE",[battleId,armyId]);if(!a.rows[0])throw new Error("ENDGAME_ARMY_NOT_DEPLOYED");
+    const c=await this.db.connect();
+    try{
+      await c.query("BEGIN");
+      const b=await c.query<{attacker_guild_id:string;defender_guild_id:string;status:string}>("SELECT attacker_guild_id,defender_guild_id,status FROM guild_battles WHERE id=$1 FOR UPDATE",[battleId]);
+      if(!b.rows[0])throw new Error("ENDGAME_GUILD_BATTLE_NOT_FOUND");
+      if(b.rows[0].status!=="active")throw new Error("ENDGAME_GUILD_BATTLE_NOT_ACTIVE");
+      const a=await c.query<{guild_id:string;contribution:string}>("SELECT guild_id,contribution FROM guild_battle_armies WHERE battle_id=$1 AND army_id=$2 FOR UPDATE",[battleId,armyId]);
+      if(!a.rows[0])throw new Error("ENDGAME_ARMY_NOT_DEPLOYED");
       if(!(await c.query("SELECT 1 FROM guild_members WHERE guild_id=$1 AND user_id=$2",[a.rows[0].guild_id,userId])).rows[0])throw new Error("GUILD_MEMBERSHIP_REQUIRED");
-      const power=await armyPower(c,armyId,userId);const gl=await guildLevel(c,a.rows[0].guild_id);const score=calculateGuildBattleScore(power,gl);
+      const power=await armyPower(c,armyId,userId);
+      const gl=await guildLevel(c,a.rows[0].guild_id);
+      const score=calculateGuildBattleScore(power,gl);
       const side=a.rows[0].guild_id===b.rows[0].attacker_guild_id?"attacker":"defender";
       await c.query(side==="attacker"?"UPDATE guild_battles SET attacker_score=attacker_score+$2,phase='engagement',updated_at=CURRENT_TIMESTAMP WHERE id=$1":"UPDATE guild_battles SET defender_score=defender_score+$2,phase='engagement',updated_at=CURRENT_TIMESTAMP WHERE id=$1",[battleId,score.toString()]);
       await c.query("UPDATE guild_battle_armies SET contribution=contribution+$3,actions=actions+1,updated_at=CURRENT_TIMESTAMP WHERE battle_id=$1 AND army_id=$2",[battleId,armyId,score.toString()]);
-      await c.query("COMMIT");return (await this.guildBattles()).find(x=>x.id===battleId)!;
-    }catch(e){await c.query("ROLLBACK");throw e}finally{c.release();}
+      await c.query("COMMIT");
+    }catch(e){
+      await c.query("ROLLBACK");
+      throw e;
+    }finally{
+      c.release();
+    }
+    const battle=(await this.guildBattles()).find(x=>x.id===battleId);
+    if(!battle)throw new Error("ENDGAME_GUILD_BATTLE_NOT_FOUND");
+    return battle;
   }
 
   async creatures():Promise<EndgameCreatureSummary[]>{
