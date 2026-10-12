@@ -15,6 +15,7 @@ concurrency:
 
 jobs:
   sustained-load:
+    name: Performance Acceptance
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
@@ -172,7 +173,7 @@ jobs:
             postgres-vulnerability-report.txt
           )
           missing=0
-          for file in "\${files[@]}"; do
+          for file in "${files[@]}"; do
             if [[ ! -s "$file" ]]; then
               echo "::error::Missing or empty acceptance evidence: $file"
               missing=1
