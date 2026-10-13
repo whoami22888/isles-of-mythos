@@ -138,7 +138,9 @@ describe("player survival and movement", () => {
     store.tick(1);
     completedWrites = 0;
 
-    await store.persistDirty();
+    const firstPersistence = store.persistDirty();
+    const overlappingPersistence = store.persistDirty();
+    await Promise.all([firstPersistence, overlappingPersistence]);
 
     expect(completedWrites).toBe(12);
     expect(maxActiveWrites).toBeGreaterThan(1);
