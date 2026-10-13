@@ -437,23 +437,21 @@ export class PlayerStore {
   }
 
   private async persistDirtyLoop(): Promise<void> {
-    while (this.dirty.size > 0) {
-      const userIds = [...this.dirty];
-      let nextIndex = 0;
-      const workers = Array.from(
-        { length: Math.min(PERSIST_DIRTY_CONCURRENCY, userIds.length) },
-        async () => {
-          while (true) {
-            const index = nextIndex++;
-            if (index >= userIds.length) return;
-            await this.persist(userIds[index]);
-          }
-        },
-      );
-      const results = await Promise.allSettled(workers);
-      const failed = results.find((result): result is PromiseRejectedResult => result.status === "rejected");
-      if (failed) throw failed.reason;
-    }
+    const userIds = [...this.dirty];
+    let nextIndex = 0;
+    const workers = Array.from(
+      { length: Math.min(PERSIST_DIRTY_CONCURRENCY, userIds.length) },
+      async () => {
+        while (true) {
+          const index = nextIndex++;
+          if (index >= userIds.length) return;
+          await this.persist(userIds[index]);
+        }
+      },
+    );
+    const results = await Promise.allSettled(workers);
+    const failed = results.find((result): result is PromiseRejectedResult => result.status === "rejected");
+    if (failed) throw failed.reason;
   }
   async persistAll(): Promise<void> {
     const userIds = [...this.active.keys()];
