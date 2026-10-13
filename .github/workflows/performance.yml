@@ -30,7 +30,7 @@ jobs:
       LOADTEST_HTTP_REQUESTS: 100
     services:
       postgres:
-        image: public.ecr.aws/docker/library/postgres:17-alpine
+        image: cgr.dev/chainguard/postgres@sha256:1a417cf464d938b1b1182411416401215af7fbc88395d9b90f7c805e96d639a7
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
@@ -43,21 +43,81 @@ jobs:
           --health-timeout 5s
           --health-retries 20
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
-      - uses: actions/setup-node@v7
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 24
           package-manager-cache: false
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@ba7bc0a3fef59531c69a25acd34668d6d3fe6f22 # v4.1.0
+        with:
+          cosign-release: v2.4.1
+      - name: Verify pinned PostgreSQL image and signed attestations
+        env:
+          POSTGRES_IMAGE: cgr.dev/chainguard/postgres@sha256:1a417cf464d938b1b1182411416401215af7fbc88395d9b90f7c805e96d639a7
+        run: |
+          set -euo pipefail
+          docker buildx imagetools inspect "$POSTGRES_IMAGE" | tee postgres-image-inspect.txt
+          grep -F "sha256:1a417cf464d938b1b1182411416401215af7fbc88395d9b90f7c805e96d639a7" postgres-image-inspect.txt
+          docker buildx imagetools inspect --raw "$POSTGRES_IMAGE" > postgres-manifest-index.json
+          node --input-type=module <<'NODE'
+          import { readFileSync } from "node:fs";
+          const index = JSON.parse(readFileSync("postgres-manifest-index.json", "utf8"));
+          const expected = { amd64: "sha256:17e9772ea0445f2dba3faee359b571c899b89b0fb09098fc38d390dc73f141c0", arm64: "sha256:a18c38fdfbb5f99f636ad01e34ef0a4468832ddc4ea7e3e329720244462d0930" };
+          for (const arch of Object.keys(expected)) {
+            const manifest = index.manifests?.find(item => item.platform?.os === "linux" && item.platform?.architecture === arch);
+            if (!manifest || manifest.digest !== expected[arch]) throw new Error("Pinned PostgreSQL index does not contain the expected linux/" + arch + " manifest digest");
+          }
+          console.log("Pinned PostgreSQL index contains both expected platform manifests.");
+          NODE
+          docker pull "$POSTGRES_IMAGE"
+          COSIGN_IDENTITY="https://github.com/chainguard-images/images/.github/workflows/release.yaml@refs/heads/main"
+          COSIGN_ISSUER="https://token.actions.githubusercontent.com"
+          POSTGRES_AMD64_IMAGE="cgr.dev/chainguard/postgres@sha256:17e9772ea0445f2dba3faee359b571c899b89b0fb09098fc38d390dc73f141c0"
+          POSTGRES_ARM64_IMAGE="cgr.dev/chainguard/postgres@sha256:a18c38fdfbb5f99f636ad01e34ef0a4468832ddc4ea7e3e329720244462d0930"
+          cosign verify --certificate-identity="$COSIGN_IDENTITY" --certificate-oidc-issuer="$COSIGN_ISSUER" "$POSTGRES_AMD64_IMAGE" | tee postgres-signature-amd64.json
+          cosign verify-attestation --type https://slsa.dev/provenance/v1 --certificate-identity="$COSIGN_IDENTITY" --certificate-oidc-issuer="$COSIGN_ISSUER" "$POSTGRES_AMD64_IMAGE" | tee postgres-provenance-amd64.json
+          cosign verify-attestation --type https://spdx.dev/Document --certificate-identity="$COSIGN_IDENTITY" --certificate-oidc-issuer="$COSIGN_ISSUER" "$POSTGRES_AMD64_IMAGE" | tee postgres-sbom-amd64.json
+          cosign verify --certificate-identity="$COSIGN_IDENTITY" --certificate-oidc-issuer="$COSIGN_ISSUER" "$POSTGRES_ARM64_IMAGE" | tee postgres-signature-arm64.json
+          cosign verify-attestation --type https://slsa.dev/provenance/v1 --certificate-identity="$COSIGN_IDENTITY" --certificate-oidc-issuer="$COSIGN_ISSUER" "$POSTGRES_ARM64_IMAGE" | tee postgres-provenance-arm64.json
+          cosign verify-attestation --type https://spdx.dev/Document --certificate-identity="$COSIGN_IDENTITY" --certificate-oidc-issuer="$COSIGN_ISSUER" "$POSTGRES_ARM64_IMAGE" | tee postgres-sbom-arm64.json
+      - name: Generate CycloneDX SBOM for pinned PostgreSQL image
+        env:
+          POSTGRES_IMAGE: cgr.dev/chainguard/postgres@sha256:1a417cf464d938b1b1182411416401215af7fbc88395d9b90f7c805e96d639a7
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/trivy-cache"
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD:/work" -v "$RUNNER_TEMP/trivy-cache:/root/.cache/trivy" -w /work docker.io/aquasec/trivy@sha256:a22415a38938a56c379387a8163fcb0ce38b10ace73e593475d3658d578b2436 image --scanners vuln --format cyclonedx --output postgres.sbom.cdx.json "$POSTGRES_IMAGE"
+      - name: Fail on high or critical PostgreSQL vulnerabilities
+        env:
+          POSTGRES_IMAGE: cgr.dev/chainguard/postgres@sha256:1a417cf464d938b1b1182411416401215af7fbc88395d9b90f7c805e96d639a7
+        run: |
+          set -euo pipefail
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD:/work" -v "$RUNNER_TEMP/trivy-cache:/root/.cache/trivy" -w /work docker.io/aquasec/trivy@sha256:a22415a38938a56c379387a8163fcb0ce38b10ace73e593475d3658d578b2436 image --scanners vuln --ignore-unfixed --severity HIGH,CRITICAL --format table --output postgres-vulnerability-report.txt --exit-code 1 "$POSTGRES_IMAGE"
+      - name: Print PostgreSQL vulnerability report
+        if: always()
+        run: cat postgres-vulnerability-report.txt || true
       - name: Install dependencies
         run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Rebuild reviewed native dependencies
         run: npm rebuild argon2 esbuild
       - name: Migrate database
         run: npm run migrate:up
-      - name: Seed 1,000 player identities
-        run: PGPASSWORD=postgres psql "$DATABASE_URL" -c "INSERT INTO users (username, email, password_hash) SELECT 'loadtest_' || g, 'loadtest_' || g || '@example.invalid', 'loadtest-password-hash' FROM generate_series(0, 999) AS g ON CONFLICT DO NOTHING;"
+      - name: Assert PostgreSQL 18 server version
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          version_num="$(PGPASSWORD=postgres psql "$DATABASE_URL" -Atc 'SHOW server_version_num')"
+          version_text="$(PGPASSWORD=postgres psql "$DATABASE_URL" -Atc 'SHOW server_version')"
+          printf 'server_version=%s\nserver_version_num=%s\n' "$version_text" "$version_num" | tee postgres-server-version.txt
+          if (( version_num < 180000 || version_num >= 190000 )); then echo "Expected PostgreSQL 18.x, got $version_text ($version_num)" >&2; exit 1; fi
+          echo "POSTGRES_SERVER_VERSION_NUM=$version_num" >> "$GITHUB_ENV"
+      - name: Seed 5,000 player identities
+        run: PGPASSWORD=postgres psql "$DATABASE_URL" -c "INSERT INTO users (username, email, password_hash) SELECT 'loadtest_' || g, 'loadtest_' || g || '@example.invalid', 'loadtest-password-hash' FROM generate_series(0, 4999) AS g ON CONFLICT DO NOTHING;"
       - name: Build
         run: npm run build
       - name: Start server
@@ -80,20 +140,64 @@ jobs:
               sleep 1
             done
           ) > performance-system.log 2>&1 &
-      - name: Run sustained player-load scenarios
+      - name: Self-test persisted-evidence validator
+        run: node scripts/validate-performance-report.mjs --self-test
+      - name: Run sustained player-load and domain stress scenarios
         run: node scripts/sustained-load.mjs
+      - name: Validate persisted gameplay and stress evidence
+        run: node scripts/validate-performance-report.mjs performance-results.json
       - name: Stop server
         if: always()
         run: |
           kill "$(cat server.pid)" 2>/dev/null || true
           wait "$(cat server.pid)" 2>/dev/null || true
+      - name: Verify acceptance evidence completeness
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          files=(
+            performance-results.json
+            performance-system.log
+            performance-server.log
+            postgres-image-inspect.txt
+            postgres-manifest-index.json
+            postgres-server-version.txt
+            postgres-signature-amd64.json
+            postgres-provenance-amd64.json
+            postgres-sbom-amd64.json
+            postgres-signature-arm64.json
+            postgres-provenance-arm64.json
+            postgres-sbom-arm64.json
+            postgres.sbom.cdx.json
+            postgres-vulnerability-report.txt
+          )
+          missing=0
+          for file in "${files[@]}"; do
+            if [[ ! -s "$file" ]]; then
+              echo "::error::Missing or empty acceptance evidence: $file"
+              missing=1
+            fi
+          done
+          exit "$missing"
       - name: Upload acceptance evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
           name: performance-acceptance-evidence
           path: |
             performance-results.json
             performance-system.log
             performance-server.log
-          if-no-files-found: warn
+            postgres-image-inspect.txt
+            postgres-manifest-index.json
+            postgres-server-version.txt
+            postgres-signature-amd64.json
+            postgres-provenance-amd64.json
+            postgres-sbom-amd64.json
+            postgres-signature-arm64.json
+            postgres-provenance-arm64.json
+            postgres-sbom-arm64.json
+            postgres.sbom.cdx.json
+            postgres-vulnerability-report.txt
+          if-no-files-found: error

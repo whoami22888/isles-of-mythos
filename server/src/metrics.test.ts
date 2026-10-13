@@ -46,6 +46,8 @@ describe("metrics", () => {
     expect(metrics).toMatch(/isles_http_errors_total \d+/);
     expect(metrics).toMatch(/isles_http_request_duration_seconds_count \d+/);
     expect(metrics).toMatch(/isles_tick_duration_seconds_count \d+/);
+    expect(metrics).toMatch(/isles_tick_duration_seconds_bucket\{le="0.01"\} \d+/);
+    expect(metrics).toMatch(/isles_tick_duration_seconds_bucket\{le="\+Inf"\} \d+/);
   });
 
   it("reports database connectivity state", () => {

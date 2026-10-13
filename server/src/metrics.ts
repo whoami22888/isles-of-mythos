@@ -12,6 +12,8 @@ let tickRateWindowStartedAt: bigint | undefined;
 let tickRateWindowTickCount = 0;
 let tickRateHz = 0;
 let tickRateWindowSeconds = 0;
+const tickDurationBucketBoundsSeconds = [0.005, 0.01, 0.02, 0.04, 0.05, 0.1, 0.25, 0.5, 1, Number.POSITIVE_INFINITY];
+const tickDurationBucketCounts = tickDurationBucketBoundsSeconds.map(() => 0);
 let databaseUp = 1;
 
 export function recordHttpRequest(durationMs: number, statusCode: number): void {
@@ -36,6 +38,10 @@ export function setActivePlayers(value: number): void {
 export function recordTick(durationMs: number): void {
   tickDurationSecondsSum += durationMs / 1000;
   tickDurationSecondsCount++;
+  const seconds = Math.max(0, durationMs / 1000);
+  tickDurationBucketBoundsSeconds.forEach((bound, index) => {
+    if (seconds <= bound) tickDurationBucketCounts[index]++;
+  });
 
   const now = process.hrtime.bigint();
   if (tickRateWindowStartedAt === undefined) {
@@ -100,6 +106,9 @@ export function renderPrometheusMetrics(): string {
     "# HELP isles_active_players Authenticated active players.",
     "# TYPE isles_active_players gauge",
     `isles_active_players ${activePlayers}`,
+    "# HELP isles_tick_duration_seconds Game tick duration distribution in seconds.",
+    "# TYPE isles_tick_duration_seconds histogram",
+    ...tickDurationBucketBoundsSeconds.map((bound, index) => 'isles_tick_duration_seconds_bucket{le="' + (Number.isFinite(bound) ? bound : "+Inf") + '"} ' + tickDurationBucketCounts[index]),
     "# HELP isles_tick_duration_seconds_sum Game tick duration sum.",
     "# TYPE isles_tick_duration_seconds_sum counter",
     `isles_tick_duration_seconds_sum ${tickDurationSecondsSum}`,
