@@ -1,4 +1,26 @@
+## Live PR status — 2026-10-12
+
+Repository main remains \`c500cf7b6cbb967fd92d99bdc33b02536a5d0097\`. The following open PR heads are based on that SHA and are not behind main:
+- PR #99 workflow/performance/security: current head \`e29e6911a2eeb1490f20403c8f7e986e95d2fb7a\`; exact-head checks were restarted after fixes to the scanner, persisted gameplay evidence, artifact completeness and checkout ref. Do not treat queued/in-progress runs as PASS.
+- PR #107 documentation: current head \`1385d6f97506e5f333211ebfab782e1c2224e43e\`; listed checks passed on this head, but no qualifying independent approval is recorded.
+- PR #109 persisted-evidence validator: draft head \`c7056499eb1a94e776ce5c426bce8d9795e38be1\`; listed checks passed, but its validator scope overlaps the stricter evidence validation being incorporated into PR #99. Do not merge both implementations independently without reconciliation.
+- PR #111 endgame pool deadlock: head \`397d35945d341c8bc35374c27bdf163fad8b071a\`; listed checks passed. This fix is required for the full guild-battle load scenario; independent approval is still missing.
+- Temporary integration PR #112 is closed and unmerged. Its integrated HEAD \`b2b17938aee3b0a1a58ad8a7a1d56ccbc0cc3513\` passed the full acceptance chain, including the 1/50/250/1,000 matrix and domain persistence scenarios. That result does not verify later changes on PR #99.
+
+No PR may merge until exact-head required checks, supply-chain evidence, migration deployment records and independent formal approval are complete. Gates 1–16 remain frozen; Step 5 remains blocked.
+
 # Isles of Mythos: Sunken Tides — Development Schedule
+
+
+## Controller reconciliation update — 2026-10-12
+
+The current engineering priority is PR #99 workflow/performance/supply-chain reconciliation followed by PR #107 documentation reconciliation. The pre-change main baseline is `c500cf7b6cbb967fd92d99bdc33b02536a5d0097`; earlier workflow runs must not be represented as verification of later heads.
+
+The required section 93 matrix remains 1, 50, 250 and 1,000 players. Add independent large guild-battle, large naval-battle, world-boss and 5,000-player-base scenarios. Every baseline scenario must prove persisted crafting and resource mutation evidence. Server load results do not prove physical-device FPS/GPU performance; section 94's Android/iOS device matrix remains a separate acceptance requirement.
+
+The prior PostgreSQL digest `sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24` was recorded but not security-cleared by immutability alone. The candidate replacement is `cgr.dev/chainguard/postgres@sha256:1a417cf464d938b1b1182411416401215af7fbc88395d9b90f7c805e96d639a7`; accept it only after CI verifies the registry digest, signed SLSA provenance, SPDX SBOM attestation, CycloneDX scan SBOM and vulnerability scan, retaining the evidence artifacts. Review monthly and expedite updates through reviewed PRs.
+
+Gates 1–16 remain frozen. No new gameplay gate or production-readiness claim is authorized by this workflow/documentation work.
 
 This schedule is the execution map for the master development directive. Work remains milestone-gated: implement, build, test, inspect failures, fix, retest, verify, document, then continue.
 
@@ -151,3 +173,6 @@ The implementation sequence remains:
 BUILD → TEST → INSPECT → FIX → RETEST → VERIFY → DOCUMENT → CONTINUE.
 
 A failing gate always takes priority over new feature work.
+
+
+**Compatibility warning:** this pin selects PostgreSQL 18.6, a major-version change from PostgreSQL 17. Do not accept it unless the exact-image migration, integration, regression and full CI chain passes.
