@@ -108,10 +108,10 @@ describe("player survival and movement", () => {
     let maxActiveWrites = 0;
     let completedWrites = 0;
     const db = {
-      query: async (sql: string) => {
+      query: async (sql: string, params?: unknown[]) => {
         if (sql.startsWith("INSERT INTO player_profiles")) return { rows: [], rowCount: 0 };
         if (sql.startsWith("SELECT user_id, x, y, health")) {
-          const userId = "persist-" + String(completedWrites);
+          const userId = String(params?.[0]);
           return {
             rows: [{
               user_id: userId, x: 0, y: 0, health: 100, defense: 0, stamina: 100, max_stamina: 100,
