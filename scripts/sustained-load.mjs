@@ -451,7 +451,7 @@ for (let index = 0; index < levels.length; index += 1) {
 
 const {runDomainScenarios}=await import("./domain-load-scenarios.mjs");
 const domainScenarios=await runDomainScenarios(users);
-const finalMutationNodes = loadMutationNodes(400).slice(251).filter(node => node.type !== "herb").slice(0, 4);
+const finalMutationNodes = loadMutationNodes(323).slice(251).filter(node => node.type !== "herb").slice(0, 4);
 if (finalMutationNodes.length !== 4) throw new Error("Expected four long-lived final mutation evidence nodes");
 const finalMutationCohortStarts = [0, 11, 161, 911];
 const refreshedMutations = await Promise.all(finalMutationCohortStarts.map(async (cohortStart, index) => {
