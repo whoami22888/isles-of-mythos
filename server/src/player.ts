@@ -190,6 +190,7 @@ export class PlayerStore {
   private readonly revisions = new Map<string, number>();
   private readonly operations = new Map<string, Promise<void>>();
   private readonly economyInventorySnapshots = new Map<string, Inventory>();
+  private persistDirtyPromise: Promise<void> | undefined;
   private readonly movementAuthority = new MovementAuthority();
   constructor(private readonly db: Pool) {}
   async runExclusive<T>(userId: string, operation: () => Promise<T>): Promise<T> {
@@ -425,21 +426,34 @@ export class PlayerStore {
     });
   }
   async persistDirty(): Promise<void> {
-    const userIds = [...this.dirty];
-    let nextIndex = 0;
-    const workers = Array.from(
-      { length: Math.min(PERSIST_DIRTY_CONCURRENCY, userIds.length) },
-      async () => {
-        while (true) {
-          const index = nextIndex++;
-          if (index >= userIds.length) return;
-          await this.persist(userIds[index]);
-        }
-      },
-    );
-    const results = await Promise.allSettled(workers);
-    const failed = results.find((result): result is PromiseRejectedResult => result.status === "rejected");
-    if (failed) throw failed.reason;
+    if (this.persistDirtyPromise) return this.persistDirtyPromise;
+    const run = this.persistDirtyLoop();
+    this.persistDirtyPromise = run;
+    try {
+      await run;
+    } finally {
+      if (this.persistDirtyPromise === run) this.persistDirtyPromise = undefined;
+    }
+  }
+
+  private async persistDirtyLoop(): Promise<void> {
+    while (this.dirty.size > 0) {
+      const userIds = [...this.dirty];
+      let nextIndex = 0;
+      const workers = Array.from(
+        { length: Math.min(PERSIST_DIRTY_CONCURRENCY, userIds.length) },
+        async () => {
+          while (true) {
+            const index = nextIndex++;
+            if (index >= userIds.length) return;
+            await this.persist(userIds[index]);
+          }
+        },
+      );
+      const results = await Promise.allSettled(workers);
+      const failed = results.find((result): result is PromiseRejectedResult => result.status === "rejected");
+      if (failed) throw failed.reason;
+    }
   }
   async persistAll(): Promise<void> {
     const userIds = [...this.active.keys()];
