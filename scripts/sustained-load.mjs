@@ -270,7 +270,7 @@ async function waitForPong(socket) {
   });
 }
 
-async function wsLoad(playerCount, users, sampleUsers, sampleNodes, cohortStart, scenario, includeGameplayMutations = true) {
+async function wsLoad(playerCount, users, sampleUsers, sampleNodes, cohortStart, scenario, includeGameplayMutations = true, scenarioDurationMs = durationMs) {
   const sockets = [];
   const authLatencies = [];
   const pingLatencies = [];
@@ -332,7 +332,7 @@ async function wsLoad(playerCount, users, sampleUsers, sampleNodes, cohortStart,
     for (const socket of sockets) socket.close();
     throw new Error("Gameplay latency sample fixtures do not match scenario size");
   }
-  const end = Date.now() + durationMs;
+  const end = Date.now() + scenarioDurationMs;
   let pings = 0;
   let pongs = 0;
   while (Date.now() < end) {
@@ -451,6 +451,15 @@ for (let index = 0; index < levels.length; index += 1) {
 
 const {runDomainScenarios}=await import("./domain-load-scenarios.mjs");
 const domainScenarios=await runDomainScenarios(users);
+const finalMutationNodes = loadMutationNodes(255).slice(251);
+const finalMutationCohortStarts = [0, 11, 161, 911];
+for (let index = 0; index < scenarios.length; index += 1) {
+  const user = users[finalMutationCohortStarts[index]];
+  const node = finalMutationNodes[index];
+  await prepareMutationUsers([user], [node]);
+  const refreshed = await wsLoad(1, users, [user], [node], finalMutationCohortStarts[index], 10000 + index, true, 250);
+  scenarios[index].websocket.gameplayMutation = refreshed.gameplayMutation;
+}
 writeFileSync("performance-results.json",JSON.stringify({event:"sustained_load_progress",durationMs,scenarios,domainScenarios},null,2));
 const mr=await fetch(`${baseUrl}/metrics`);if(!mr.ok)throw Error("Metrics endpoint returned "+mr.status);const mt=await mr.text();
 function metricValue(n){const l=mt.split(/\r?\n/).find(x=>x.startsWith(n+" "));return l?Number(l.trim().split(/\s+/)[1]):null;}
