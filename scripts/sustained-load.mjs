@@ -332,6 +332,25 @@ async function wsLoad(playerCount, users, sampleUsers, sampleNodes, cohortStart,
     for (const socket of sockets) socket.close();
     throw new Error("Gameplay latency sample fixtures do not match scenario size");
   }
+  const end = Date.now() + durationMs;
+  let pings = 0;
+  let pongs = 0;
+  while (Date.now() < end) {
+    const active = sockets.filter(socket => socket.readyState === WebSocket.OPEN);
+    await Promise.all(active.map(async socket => {
+      const started = performance.now();
+      pings++;
+      if (await waitForPong(socket)) {
+        pongs++;
+        pingLatencies.push(performance.now() - started);
+      }
+    }));
+    await sleep(250);
+  }
+
+  const pingSuccessRate = pings ? pongs / pings : 0;
+  if (pings === 0 || pongs !== pings) throw new Error("Player-load ping failure: requested=" + playerCount + " pings=" + pings + " pongs=" + pongs);
+
   const gameplayResults = [];
   for (let offset = 0; offset < sampleCount; offset += 10) {
     const batchSize = Math.min(10, sampleCount - offset);
@@ -351,26 +370,8 @@ async function wsLoad(playerCount, users, sampleUsers, sampleNodes, cohortStart,
 
   const gameplayCraft = gameplayResults[0]?.craft;
   const gameplayMutation = gameplayResults[0]?.mutation;
-  const end = Date.now() + durationMs;
-  let pings = 0;
-  let pongs = 0;
-  while (Date.now() < end) {
-    const active = sockets.filter(socket => socket.readyState === WebSocket.OPEN);
-    await Promise.all(active.map(async socket => {
-      const started = performance.now();
-      pings++;
-      if (await waitForPong(socket)) {
-        pongs++;
-        pingLatencies.push(performance.now() - started);
-      }
-    }));
-    await sleep(250);
-  }
-
   for (const socket of sockets) socket.close();
   await sleep(100);
-  const pingSuccessRate = pings ? pongs / pings : 0;
-  if (pings === 0 || pongs !== pings) throw new Error("Player-load ping failure: requested=" + playerCount + " pings=" + pings + " pongs=" + pongs);
 
   return {
     requestedPlayers: playerCount, connected, authenticated, errors, gameplayCraft, gameplayMutation,
