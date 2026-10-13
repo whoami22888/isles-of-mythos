@@ -8,6 +8,10 @@ let websocketAuthenticated = 0;
 let activePlayers = 0;
 let tickDurationSecondsSum = 0;
 let tickDurationSecondsCount = 0;
+let tickRateWindowStartedAt: bigint | undefined;
+let tickRateWindowTickCount = 0;
+let tickRateHz = 0;
+let tickRateWindowSeconds = 0;
 const tickDurationBucketBoundsSeconds = [0.005, 0.01, 0.02, 0.04, 0.05, 0.1, 0.25, 0.5, 1, Number.POSITIVE_INFINITY];
 const tickDurationBucketCounts = tickDurationBucketBoundsSeconds.map(() => 0);
 let databaseUp = 1;
@@ -32,12 +36,24 @@ export function setActivePlayers(value: number): void {
 }
 
 export function recordTick(durationMs: number): void {
-  const seconds = Math.max(0, durationMs / 1000);
-  tickDurationSecondsSum += seconds;
+  tickDurationSecondsSum += durationMs / 1000;
   tickDurationSecondsCount++;
-  tickDurationBucketBoundsSeconds.forEach((bound, index) => {
-    if (seconds <= bound) tickDurationBucketCounts[index]++;
-  });
+
+  const now = process.hrtime.bigint();
+  if (tickRateWindowStartedAt === undefined) {
+    tickRateWindowStartedAt = now;
+    tickRateWindowTickCount = 1;
+    return;
+  }
+
+  tickRateWindowTickCount++;
+  const elapsedSeconds = Number(now - tickRateWindowStartedAt) / 1e9;
+  if (elapsedSeconds >= 1) {
+    tickRateHz = Math.max(0, (tickRateWindowTickCount - 1) / elapsedSeconds);
+    tickRateWindowSeconds = elapsedSeconds;
+    tickRateWindowStartedAt = now;
+    tickRateWindowTickCount = 1;
+  }
 }
 
 export function setDatabaseUp(value: boolean): void {
@@ -89,8 +105,18 @@ export function renderPrometheusMetrics(): string {
     "# HELP isles_tick_duration_seconds Game tick duration distribution in seconds.",
     "# TYPE isles_tick_duration_seconds histogram",
     ...tickDurationBucketBoundsSeconds.map((bound, index) => 'isles_tick_duration_seconds_bucket{le="' + (Number.isFinite(bound) ? bound : "+Inf") + '"} ' + tickDurationBucketCounts[index]),
+    "# HELP isles_tick_duration_seconds_sum Game tick duration sum.",
+    "# TYPE isles_tick_duration_seconds_sum counter",
     `isles_tick_duration_seconds_sum ${tickDurationSecondsSum}`,
+    "# HELP isles_tick_duration_seconds_count Game tick count.",
+    "# TYPE isles_tick_duration_seconds_count counter",
     `isles_tick_duration_seconds_count ${tickDurationSecondsCount}`,
+    "# HELP isles_tick_rate_hz Observed completed-tick frequency over the last completed measurement window.",
+    "# TYPE isles_tick_rate_hz gauge",
+    `isles_tick_rate_hz ${tickRateHz}`,
+    "# HELP isles_tick_rate_window_seconds Duration of the last completed tick-rate measurement window.",
+    "# TYPE isles_tick_rate_window_seconds gauge",
+    `isles_tick_rate_window_seconds ${tickRateWindowSeconds}`,
     "# HELP isles_database_up Database connectivity status.",
     "# TYPE isles_database_up gauge",
     `isles_database_up ${databaseUp}`,
