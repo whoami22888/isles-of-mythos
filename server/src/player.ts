@@ -433,7 +433,7 @@ export class PlayerStore {
         while (true) {
           const index = nextIndex++;
           if (index >= userIds.length) return;
-          await this.persist(userIds[index]!);
+          await this.persist(userIds[index]);
         }
       },
     );
