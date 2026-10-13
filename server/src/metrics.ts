@@ -38,6 +38,10 @@ export function setActivePlayers(value: number): void {
 export function recordTick(durationMs: number): void {
   tickDurationSecondsSum += durationMs / 1000;
   tickDurationSecondsCount++;
+  const seconds = Math.max(0, durationMs / 1000);
+  tickDurationBucketBoundsSeconds.forEach((bound, index) => {
+    if (seconds <= bound) tickDurationBucketCounts[index]++;
+  });
 
   const now = process.hrtime.bigint();
   if (tickRateWindowStartedAt === undefined) {
