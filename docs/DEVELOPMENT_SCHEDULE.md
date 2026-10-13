@@ -3,11 +3,11 @@
 Live `main` HEAD: `46359b7e4251294c889eed836189372ec9410f82`. The previously listed PRs #99, #107, #109 and #111 are no longer open; the current GitHub API reports zero open pull requests and zero open issues. PR #107's documentation changes are merged into the HEAD above.
 
 The following required workflows report SUCCESS on this exact main SHA:
-- CI: https://github.com/whoami22888/isles-of-mythos/actions/runs/38331751882
-- Performance Acceptance: https://github.com/whoami22888/isles-of-mythos/actions/runs/38331751852
-- Static Security Quality: https://github.com/whoami22888/isles-of-mythos/actions/runs/38331751861
-- CodeQL Advanced: https://github.com/whoami22888/isles-of-mythos/actions/runs/38331751872
-- Codacy: https://github.com/whoami22888/isles-of-mythos/actions/runs/38331751854
+- CI: <https://github.com/whoami22888/isles-of-mythos/actions/runs/38331751882>
+- Performance Acceptance: <https://github.com/whoami22888/isles-of-mythos/actions/runs/38331751852>
+- Static Security Quality: <https://github.com/whoami22888/isles-of-mythos/actions/runs/38331751861>
+- CodeQL Advanced: <https://github.com/whoami22888/isles-of-mythos/actions/runs/38331751872>
+- Codacy: <https://github.com/whoami22888/isles-of-mythos/actions/runs/38331751854>
 
 These workflow results establish automated checks for the stated SHA only. They do not establish full product acceptance or physical-device FPS/frame-time/GPU acceptance under PDF §94. Step 5 remains blocked until the required independent Step 2 audit and all other prerequisites/authorizations are verified. Gates 1–16 remain frozen.
 
