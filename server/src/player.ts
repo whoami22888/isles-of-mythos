@@ -182,6 +182,8 @@ function rowToState(row: PlayerRow): PlayerState {
     inventory: cloneInventory({ "ammo.flintlock": STARTING_FLINTLOCK_AMMO, ...(row.inventory ?? {}) }),
     hotbar: row.hotbar ?? [null, null, null, null, null, null, null, null], selectedHotbarSlot: row.selected_hotbar_slot };
 }
+const PERSIST_DIRTY_CONCURRENCY = 4;
+
 export class PlayerStore {
   private readonly active = new Map<string, PlayerState>();
   private readonly dirty = new Set<string>();
@@ -424,7 +426,20 @@ export class PlayerStore {
   }
   async persistDirty(): Promise<void> {
     const userIds = [...this.dirty];
-    for (const userId of userIds) await this.persist(userId);
+    let nextIndex = 0;
+    const workers = Array.from(
+      { length: Math.min(PERSIST_DIRTY_CONCURRENCY, userIds.length) },
+      async () => {
+        while (true) {
+          const index = nextIndex++;
+          if (index >= userIds.length) return;
+          await this.persist(userIds[index]!);
+        }
+      },
+    );
+    const results = await Promise.allSettled(workers);
+    const failed = results.find((result): result is PromiseRejectedResult => result.status === "rejected");
+    if (failed) throw failed.reason;
   }
   async persistAll(): Promise<void> {
     const userIds = [...this.active.keys()];
