@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { PLAYER_MAX_HEALTH, PLAYER_MAX_HUNGER, PLAYER_MAX_OXYGEN, PLAYER_BASE_DEFENSE, STARTING_FLINTLOCK_AMMO, MOVEMENT_MAX_PACKETS_PER_SECOND, MovementAuthority, applyAuthoritativePlayerInput, applyPlayerInput, createDefaultPlayer, meleeHitbox, playerHitbox } from "./player.js";
+import type { Pool } from "pg";
+import { PLAYER_MAX_HEALTH, PLAYER_MAX_HUNGER, PLAYER_MAX_OXYGEN, PLAYER_BASE_DEFENSE, STARTING_FLINTLOCK_AMMO, MOVEMENT_MAX_PACKETS_PER_SECOND, MovementAuthority, PlayerStore, applyAuthoritativePlayerInput, applyPlayerInput, createDefaultPlayer, meleeHitbox, playerHitbox } from "./player.js";
 import { TileKind, tileAtWorld } from "./world.js";
 
 describe("player survival and movement", () => {
@@ -99,6 +100,51 @@ describe("player survival and movement", () => {
     player.health = 50;
     applyPlayerInput(player, { dx: 0, dy: 0, dt: 0.1 });
     expect(player.health).toBeCloseTo(49.8, 6);
+  });
+
+  it("persists dirty players with bounded concurrency so background saves do not serialize the whole cohort", async () => {
+    let activeWrites = 0;
+    let maxActiveWrites = 0;
+    let completedWrites = 0;
+    const db = {
+      query: async (sql: string, params?: unknown[]) => {
+        if (sql.startsWith("INSERT INTO player_profiles")) return { rows: [], rowCount: 0 };
+        if (sql.startsWith("SELECT user_id, x, y, health")) {
+          const userId = String(params?.[0]);
+          return {
+            rows: [{
+              user_id: userId, x: 0, y: 0, health: 100, defense: 0, stamina: 100, max_stamina: 100,
+              hunger: 100, oxygen: 100, xp: "0", level: 1, gold: "0", triumph_badges: "0",
+              inventory: {}, hotbar: [null, null, null, null, null, null, null, null], selected_hotbar_slot: 0,
+            }],
+            rowCount: 1,
+          };
+        }
+        if (sql.startsWith("UPDATE player_profiles SET x=")) {
+          activeWrites += 1;
+          maxActiveWrites = Math.max(maxActiveWrites, activeWrites);
+          await new Promise((resolve) => setTimeout(resolve, 5));
+          activeWrites -= 1;
+          completedWrites += 1;
+          return { rows: [], rowCount: 1 };
+        }
+        throw new Error("Unexpected test query: " + sql);
+      },
+    } as unknown as Pool;
+    const store = new PlayerStore(db);
+    for (let index = 0; index < 12; index += 1) {
+      await store.loadOrCreate("persist-" + index);
+    }
+    store.tick(1);
+    completedWrites = 0;
+
+    const firstPersistence = store.persistDirty();
+    const overlappingPersistence = store.persistDirty();
+    await Promise.all([firstPersistence, overlappingPersistence]);
+
+    expect(completedWrites).toBe(12);
+    expect(maxActiveWrites).toBeGreaterThan(1);
+    expect(maxActiveWrites).toBeLessThanOrEqual(4);
   });
 
   it("produces player and melee hitboxes", () => {
