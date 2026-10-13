@@ -453,12 +453,15 @@ const {runDomainScenarios}=await import("./domain-load-scenarios.mjs");
 const domainScenarios=await runDomainScenarios(users);
 const finalMutationNodes = loadMutationNodes(255).slice(251);
 const finalMutationCohortStarts = [0, 11, 161, 911];
-for (let index = 0; index < scenarios.length; index += 1) {
-  const user = users[finalMutationCohortStarts[index]];
+const refreshedMutations = await Promise.all(finalMutationCohortStarts.map(async (cohortStart, index) => {
+  const user = users[cohortStart];
   const node = finalMutationNodes[index];
   await prepareMutationUsers([user], [node]);
-  const refreshed = await wsLoad(1, users, [user], [node], finalMutationCohortStarts[index], 10000 + index, true, 250);
-  scenarios[index].websocket.gameplayMutation = refreshed.gameplayMutation;
+  const refreshed = await wsLoad(1, users, [user], [node], cohortStart, 10000 + index, true, 250);
+  return refreshed.gameplayMutation;
+}));
+for (let index = 0; index < scenarios.length; index += 1) {
+  scenarios[index].websocket.gameplayMutation = refreshedMutations[index];
 }
 writeFileSync("performance-results.json",JSON.stringify({event:"sustained_load_progress",durationMs,scenarios,domainScenarios},null,2));
 const mr=await fetch(`${baseUrl}/metrics`);if(!mr.ok)throw Error("Metrics endpoint returned "+mr.status);const mt=await mr.text();
