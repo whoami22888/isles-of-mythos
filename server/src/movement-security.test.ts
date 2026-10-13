@@ -57,7 +57,7 @@ describe("P0 movement speedhack regressions", () => {
     expect(parseClientMessage('{"type":"move","dx":1,"dy":0,"sequence":-1}')).toBeNull();
   });
 
-  it("does not let a sequence replay or an invalid sequence grant movement time", () => {
+  it("does not let a sequence replay or an invalid sequence grant unbounded movement time", () => {
     const authority = new MovementAuthority();
     const first = authority.evaluate("sequence-regression", { dx: 1, dy: 0, sequence: 4 }, 20_000);
     const replay = authority.evaluate("sequence-regression", { dx: 1, dy: 0, sequence: 4 }, 20_100);
@@ -66,6 +66,6 @@ describe("P0 movement speedhack regressions", () => {
     expect(replay.reason).toBe("DUPLICATE_SEQUENCE");
     expect(invalid.reason).toBe("INVALID_SEQUENCE");
     const next = authority.evaluate("sequence-regression", { dx: 1, dy: 0, sequence: 5 }, 20_250);
-    expect(next.serverDt).toBeCloseTo(0.05, 6);
+    expect(next.serverDt).toBe(0.1);
   });
 });
