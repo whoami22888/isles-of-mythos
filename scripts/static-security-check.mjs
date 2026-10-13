@@ -36,6 +36,37 @@ function scan(file) {
 }
 
 for (const root of roots) walk(root);
+const workflowRoot=".github/workflows";
+for(const name of readdirSync(workflowRoot).sort()){
+ if(!/\.ya?ml$/i.test(name))continue;
+ const file=join(workflowRoot,name),content=readFileSync(file,"utf8"),lines=content.split(/\r?\n/);
+ lines.forEach((line,index)=>{
+   const a=line.match(/^\s*(?:-\s*)?uses:\s*([A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_.-]+)*)@([^\s#]+)(?:\s+#.*)?$/);
+   if(a&&!/^[0-9a-f]{40}$/i.test(a[2]))add(findings.errors,"unpinned-workflow-action",file,index+1,line);
+ });
+ const topLevelPermissions=content.match(/^permissions:\s*\n((?:^  [A-Za-z0-9_-]+:\s*(?:read|write|none)\s*(?:#.*)?\n?)+)/m);
+ if(!topLevelPermissions||!/^  contents:\s*read\s*(?:#.*)?$/m.test(topLevelPermissions[1]))add(findings.errors,"workflow-permissions-policy",file,1,"Workflow must declare top-level contents: read");
+ if(content.includes(String.fromCharCode(92)+"${{"))add(findings.errors,"escaped-workflow-expression",file,1,"Workflow expressions must not be escaped with a backslash");
+ if(["ci.yml","performance.yml","static-security.yml"].includes(name)){
+   if(!/ref:\s*\$\{\{\s*github\.event\.pull_request\.head\.sha\s*\|\|\s*github\.sha\s*\}\}/.test(content))add(findings.errors,"workflow-exact-head-checkout",file,1,"Pull-request workflow must check out github.event.pull_request.head.sha");
+   if(!/persist-credentials:\s*false/.test(content))add(findings.errors,"workflow-checkout-credentials",file,1,"Pull-request workflow checkout must disable persisted credentials");
+ }
+ const uncommentedWorkflow=lines.map(line=>line.replace(/^\s*#.*$/,"").replace(/\s+#.*$/,"")).join("\n");
+const qualifiedPostgresRefs=[...uncommentedWorkflow.matchAll(/(?:^|[\s"'=])((?:[A-Za-z0-9.-]+\/)+postgres(?::[A-Za-z0-9._-]+|@sha256:[0-9a-f]{64})?)(?=$|[\s"'\\])/gim)];
+for(const match of qualifiedPostgresRefs){
+ const ref=match[1];
+ if(!/@sha256:[0-9a-f]{64}$/i.test(ref)){
+   const lineNumber=uncommentedWorkflow.slice(0,match.index).split("\n").length;
+   add(findings.errors,"mutable-postgres-image",file,lineNumber,lines[lineNumber-1]||ref);
+ }
+}
+}
+for(const [i,rawLine] of readFileSync("docker-compose.yml","utf8").split(/\r?\n/).entries()){
+ if(/^\s*#/.test(rawLine))continue;
+ const line=rawLine.replace(/\s+#.*$/,"");
+ const image=line.match(/^\s*image:\s*(["']?)([^"'#\s]+)\1\s*$/i);
+ if(image&&/(?:^|\/)postgres(?=[:/@])/i.test(image[2])&&!/postgres-exporter/i.test(image[2])&&!/@sha256:[0-9a-f]{64}$/i.test(image[2]))add(findings.errors,"mutable-postgres-image","docker-compose.yml",i+1,rawLine);
+}
 console.log("Static security scan: " + (findings.errors.length === 0 ? "PASS" : "FAIL"));
 for (const item of findings.errors) console.log("ERROR " + item);
 for (const item of findings.reviews.slice(0, 200)) console.log("REVIEW " + item);
