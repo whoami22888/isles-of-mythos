@@ -1,13 +1,17 @@
-## Live PR status — 2026-10-12
+## Live repository status — 2026-10-13
 
-Repository main remains \`c500cf7b6cbb967fd92d99bdc33b02536a5d0097\`. The following open PR heads are based on that SHA and are not behind main:
-- PR #99 workflow/performance/security: current head \`e29e6911a2eeb1490f20403c8f7e986e95d2fb7a\`; exact-head checks were restarted after fixes to the scanner, persisted gameplay evidence, artifact completeness and checkout ref. Do not treat queued/in-progress runs as PASS.
-- PR #107 documentation: current head \`1385d6f97506e5f333211ebfab782e1c2224e43e\`; listed checks passed on this head, but no qualifying independent approval is recorded.
-- PR #109 persisted-evidence validator: draft head \`c7056499eb1a94e776ce5c426bce8d9795e38be1\`; listed checks passed, but its validator scope overlaps the stricter evidence validation being incorporated into PR #99. Do not merge both implementations independently without reconciliation.
-- PR #111 endgame pool deadlock: head \`397d35945d341c8bc35374c27bdf163fad8b071a\`; listed checks passed. This fix is required for the full guild-battle load scenario; independent approval is still missing.
-- Temporary integration PR #112 is closed and unmerged. Its integrated HEAD \`b2b17938aee3b0a1a58ad8a7a1d56ccbc0cc3513\` passed the full acceptance chain, including the 1/50/250/1,000 matrix and domain persistence scenarios. That result does not verify later changes on PR #99.
+Live `main` HEAD: `46359b7e4251294c889eed836189372ec9410f82`. The previously listed PRs #99, #107, #109 and #111 are no longer open; the current GitHub API reports zero open pull requests and zero open issues. PR #107's documentation changes are merged into the HEAD above.
 
-No PR may merge until exact-head required checks, supply-chain evidence, migration deployment records and independent formal approval are complete. Gates 1–16 remain frozen; Step 5 remains blocked.
+The following required workflows report SUCCESS on this exact main SHA:
+- CI: https://github.com/whoami22888/isles-of-mythos/actions/runs/38331751882
+- Performance Acceptance: https://github.com/whoami22888/isles-of-mythos/actions/runs/38331751852
+- Static Security Quality: https://github.com/whoami22888/isles-of-mythos/actions/runs/38331751861
+- CodeQL Advanced: https://github.com/whoami22888/isles-of-mythos/actions/runs/38331751872
+- Codacy: https://github.com/whoami22888/isles-of-mythos/actions/runs/38331751854
+
+These workflow results establish automated checks for the stated SHA only. They do not establish full product acceptance or physical-device FPS/frame-time/GPU acceptance under PDF §94. Step 5 remains blocked until the required independent Step 2 audit and all other prerequisites/authorizations are verified. Gates 1–16 remain frozen.
+
+Historical status and baseline details are retained below as historical context; do not treat old SHAs, PR states, or workflow results as current evidence.
 
 # Isles of Mythos: Sunken Tides — Development Schedule
 
