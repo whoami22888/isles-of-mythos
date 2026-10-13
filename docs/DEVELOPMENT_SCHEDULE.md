@@ -1,17 +1,15 @@
-## Live repository status — 2026-10-13
+## Live repository status — 2026-10-13 (verified after PR #116 merge)
 
-Live `main` HEAD: `46359b7e4251294c889eed836189372ec9410f82`. The previously listed PRs #99, #107, #109 and #111 are no longer open; the current GitHub API reports zero open pull requests and zero open issues. PR #107's documentation changes are merged into the HEAD above.
+Live `main` HEAD: `ae70c467a41c13e3bbc2d200db3c02a18ee3df9f` (PR #116 merge commit). The status in this section is refreshed from GitHub; historical baselines and prior workflow results remain below for context only.
 
-The following required workflows report SUCCESS on this exact main SHA:
-- CI: <https://github.com/whoami22888/isles-of-mythos/actions/runs/38331751882>
-- Performance Acceptance: <https://github.com/whoami22888/isles-of-mythos/actions/runs/38331751852>
-- Static Security Quality: <https://github.com/whoami22888/isles-of-mythos/actions/runs/38331751861>
-- CodeQL Advanced: <https://github.com/whoami22888/isles-of-mythos/actions/runs/38331751872>
-- Codacy: <https://github.com/whoami22888/isles-of-mythos/actions/runs/38331751854>
+The following five workflows report SUCCESS on this exact `main` SHA:
+- CI: <https://github.com/whoami22888/isles-of-mythos/actions/runs/38346898358>
+- Performance Acceptance: <https://github.com/whoami22888/isles-of-mythos/actions/runs/38346898382>
+- Static Security Quality: <https://github.com/whoami22888/isles-of-mythos/actions/runs/38346898366>
+- CodeQL Advanced: <https://github.com/whoami22888/isles-of-mythos/actions/runs/38346898356>
+- Codacy Security Scan: <https://github.com/whoami22888/isles-of-mythos/actions/runs/38346898379>
 
-These workflow results establish automated checks for the stated SHA only. They do not establish full product acceptance or physical-device FPS/frame-time/GPU acceptance under PDF §94. Step 5 remains blocked until the required independent Step 2 audit and all other prerequisites/authorizations are verified. Gates 1–16 remain frozen.
-
-Historical status and baseline details are retained below as historical context; do not treat old SHAs, PR states, or workflow results as current evidence.
+These runs verify automated checks for this exact SHA; they do not establish complete product acceptance. Physical-device FPS/frame-time/GPU and PDF §94 Android/iOS acceptance remain NOT VERIFIED. Gates 1–16 remain frozen, and Step 5 remains blocked pending the required Step 2 audit and all prerequisites/authorizations.
 
 # Isles of Mythos: Sunken Tides — Development Schedule
 
