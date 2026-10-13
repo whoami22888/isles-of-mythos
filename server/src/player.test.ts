@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Pool } from "pg";
-import { PlayerStore } from "./player.js";
-import { PLAYER_MAX_HEALTH, PLAYER_MAX_HUNGER, PLAYER_MAX_OXYGEN, PLAYER_BASE_DEFENSE, STARTING_FLINTLOCK_AMMO, MOVEMENT_MAX_PACKETS_PER_SECOND, MovementAuthority, applyAuthoritativePlayerInput, applyPlayerInput, createDefaultPlayer, meleeHitbox, playerHitbox } from "./player.js";
+import { PLAYER_MAX_HEALTH, PLAYER_MAX_HUNGER, PLAYER_MAX_OXYGEN, PLAYER_BASE_DEFENSE, STARTING_FLINTLOCK_AMMO, MOVEMENT_MAX_PACKETS_PER_SECOND, MovementAuthority, PlayerStore, applyAuthoritativePlayerInput, applyPlayerInput, createDefaultPlayer, meleeHitbox, playerHitbox } from "./player.js";
 import { TileKind, tileAtWorld } from "./world.js";
 
 describe("player survival and movement", () => {
