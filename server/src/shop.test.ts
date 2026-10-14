@@ -1,8 +1,9 @@
 import { randomUUID } from "node:crypto";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { buildApp } from "./app.js";
 import { createDbPool } from "./db.js";
 import { MAX_ITEM_STACK } from "./economy.js";
+import { AntiCheatService } from "./anti-cheat.js";
 import { PlayerStore } from "./player.js";
 import { SHOP_ITEMS, calculatePurchase, getShopItem } from "./shop.js";
 
@@ -28,9 +29,9 @@ describe("shop catalogue", () => {
   });
 });
 
-async function createShopPlayer() {
+async function createShopPlayer(antiCheat = new AntiCheatService()) {
   const db = createDbPool();
-  const app = await buildApp({ db });
+  const app = await buildApp({ db, antiCheat });
   const unique = randomUUID().replace(/-/g, "").slice(0, 24);
   const response = await app.inject({
     method: "POST",
@@ -155,6 +156,35 @@ describe("shop catalogue", () => {
       );
       expect(row.rows[0]).toEqual({ gold: "5", inventory: {} });
     } finally {
+      await app.close();
+      await db.end();
+    }
+  });
+
+  it("records HTTP inventory-capacity rejections without changing the response", async () => {
+    const antiCheat = new AntiCheatService();
+    const observeRejectedAction = vi.spyOn(antiCheat, "observeRejectedAction").mockReturnValue(null);
+    const { db, app, userId, token } = await createShopPlayer(antiCheat);
+    try {
+      await db.query("UPDATE player_profiles SET gold=$2, inventory=$3::jsonb WHERE user_id=$1", [
+        userId,
+        "100",
+        JSON.stringify({ "resource.wood": MAX_ITEM_STACK }),
+      ]);
+      const response = await app.inject({
+        method: "POST",
+        url: "/shop/purchase",
+        headers: { authorization: `Bearer ${token}` },
+        payload: { requestId: "purchase-capacity-diagnostic", itemId: "resource.wood", quantity: 1 },
+      });
+      expect(response.statusCode).toBe(409);
+      expect(JSON.parse(response.body)).toEqual({ error: "INVENTORY_LIMIT" });
+      expect(observeRejectedAction).toHaveBeenCalledWith(userId, "INVENTORY_MUTATION_REJECTED", {
+        action: "shop_purchase",
+        reason: "INVENTORY_LIMIT",
+      });
+    } finally {
+      observeRejectedAction.mockRestore();
       await app.close();
       await db.end();
     }

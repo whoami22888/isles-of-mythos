@@ -1,14 +1,59 @@
 import { randomUUID } from "node:crypto";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { WebSocket } from "ws";
 import { buildApp } from "./app.js";
 import { createDbPool } from "./db.js";
 import { MAX_ITEM_STACK } from "./economy.js";
+import { AntiCheatService } from "./anti-cheat.js";
 import { PlayerStore } from "./player.js";
 import { tradePlayers } from "./trading.js";
 
-async function createTradePlayers() {
+function waitForMatchingMessage(socket: WebSocket, predicate: (message: unknown) => boolean): Promise<unknown> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      socket.off("message", onMessage);
+      reject(new Error("Timed out waiting for trade WebSocket message"));
+    }, 2_000);
+    const onMessage = (raw: Buffer) => {
+      let message: unknown;
+      try {
+        message = JSON.parse(raw.toString()) as unknown;
+      } catch (error) {
+        clearTimeout(timer);
+        socket.off("message", onMessage);
+        reject(error instanceof Error ? error : new Error("Invalid JSON message"));
+        return;
+      }
+      if (!predicate(message)) return;
+      clearTimeout(timer);
+      socket.off("message", onMessage);
+      resolve(message);
+    };
+    const onError = (error: Error) => {
+      clearTimeout(timer);
+      socket.off("message", onMessage);
+      reject(error);
+    };
+    socket.on("message", onMessage);
+    socket.once("error", onError);
+  });
+}
+
+async function openTradeSocket(app: Awaited<ReturnType<typeof buildApp>>): Promise<WebSocket> {
+  if (!app.server.listening) await app.listen({ host: "127.0.0.1", port: 0 });
+  const address = app.server.address();
+  if (address === null || typeof address === "string") throw new Error("Test server has no TCP address");
+  const socket = new WebSocket(`ws://127.0.0.1:${address.port}/ws`);
+  await new Promise<void>((resolve, reject) => {
+    socket.once("open", () => resolve());
+    socket.once("error", reject);
+  });
+  return socket;
+}
+
+async function createTradePlayers(antiCheat = new AntiCheatService()) {
   const db = createDbPool();
-  const app = await buildApp({ db });
+  const app = await buildApp({ db, antiCheat });
   const create = async (prefix: string) => {
     const unique = randomUUID().replace(/-/g, "").slice(0, 24);
     const response = await app.inject({
@@ -21,11 +66,13 @@ async function createTradePlayers() {
       },
     });
     expect(response.statusCode).toBe(201);
-    const body = JSON.parse(response.body) as { user: { id: string } };
+    const body = JSON.parse(response.body) as { user: { id: string }; accessToken: string };
     await new PlayerStore(db).loadOrCreate(body.user.id);
-    return body.user.id;
+    return { id: body.user.id, token: body.accessToken };
   };
-  return { db, app, fromUserId: await create("tradea"), toUserId: await create("tradeb") };
+  const from = await create("tradea");
+  const to = await create("tradeb");
+  return { db, app, fromUserId: from.id, fromToken: from.token, toUserId: to.id };
 }
 
 async function setEconomy(db: ReturnType<typeof createDbPool>, userId: string, gold: string, inventory: Record<string, number>) {
@@ -177,6 +224,39 @@ describe("player trading transactions", () => {
         { user_id: toUserId, gold: "350", inventory: { "resource.wood": 4 } },
       ].sort((a, b) => a.user_id.localeCompare(b.user_id)));
     } finally {
+      await app.close();
+      await db.end();
+    }
+  });
+
+  it("records WebSocket inventory-capacity rejections without changing the error", async () => {
+    const antiCheat = new AntiCheatService();
+    const observeRejectedAction = vi.spyOn(antiCheat, "observeRejectedAction").mockReturnValue(null);
+    const { db, app, fromUserId, fromToken, toUserId } = await createTradePlayers(antiCheat);
+    let socket: WebSocket | null = null;
+    try {
+      await setEconomy(db, fromUserId, "1000", { "resource.wood": 1 });
+      await setEconomy(db, toUserId, "100", { "resource.wood": MAX_ITEM_STACK });
+      socket = await openTradeSocket(app);
+      const authOk = waitForMatchingMessage(socket, (message) => typeof message === "object" && message !== null && (message as { type?: unknown }).type === "auth_ok");
+      socket.send(JSON.stringify({ type: "auth", token: fromToken }));
+      await authOk;
+      const rejected = waitForMatchingMessage(socket, (message) => typeof message === "object" && message !== null && (message as { type?: unknown; code?: unknown }).type === "error" && (message as { code?: unknown }).code === "INVENTORY_LIMIT");
+      socket.send(JSON.stringify({
+        type: "trade",
+        requestId: "trade-capacity-diagnostic",
+        toUserId,
+        gold: "0",
+        items: [{ itemId: "resource.wood", quantity: 1 }],
+      }));
+      await expect(rejected).resolves.toEqual({ type: "error", code: "INVENTORY_LIMIT" });
+      expect(observeRejectedAction).toHaveBeenCalledWith(fromUserId, "INVENTORY_MUTATION_REJECTED", {
+        action: "trade",
+        reason: "INVENTORY_LIMIT",
+      });
+    } finally {
+      observeRejectedAction.mockRestore();
+      socket?.close();
       await app.close();
       await db.end();
     }
