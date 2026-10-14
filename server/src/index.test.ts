@@ -962,6 +962,11 @@ describe("server foundation", () => {
       expect(Number(confirmed.x)).toBeCloseTo(acceptedPosition.x, 8);
       expect(Number(confirmed.y)).toBeCloseTo(acceptedPosition.y, 8);
 
+      socket.close();
+      socket = null;
+      await runningApp.close();
+      app = undefined;
+
       if (!userId || !acceptedPosition) throw new Error("Movement integration test did not record an accepted position");
       const persisted = await database.query<{ x: number; y: number }>(
         "SELECT x, y FROM player_profiles WHERE user_id = $1",
