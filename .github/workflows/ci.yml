@@ -98,6 +98,9 @@ jobs:
       - name: Run cross-instance combat cooldown regression
         run: npm run test -w server -- src/index.test.ts -t "enforces one authoritative projectile cooldown across server instances"
 
+      - name: Verify bounded orchestration controls
+        run: npm run test:orchestration
+
       - run: npm run test
       - run: npm run build
 
