@@ -101,13 +101,6 @@ export function retryDecision(task, failureKind, state, now = Date.now()) {
   if ((task.history ?? []).some(item => item.fingerprint === stateHash)) return result(false, "repeated_state_fingerprint");
   return result(true, "bounded_transient_retry");
 }
-function relativeEvidencePath(path) {
-  need(typeof path === "string" && path && !isAbsolute(path), "Evidence path must be relative");
-  const absolute = resolve(process.cwd(), path);
-  const rel = relative(process.cwd(), absolute);
-  need(rel && rel !== ".." && !rel.startsWith(".." + sep), "Evidence path escapes repository");
-  return rel.split(sep).join("/");
-}
 function appendTail(current, chunk) {
   const value = current + chunk.toString("utf8");
   return value.length <= tailLimit ? value : value.slice(-tailLimit);
