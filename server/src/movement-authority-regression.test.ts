@@ -54,8 +54,12 @@ describe("P0 movement authority integrated regressions", () => {
       authority.evaluate(userId, { dx: 1, dy: 0, sequence }, 30_000 + sequence);
     }
     expect(authority.evaluate(userId, { dx: 1, dy: 0, sequence: MOVEMENT_MAX_PACKETS_PER_SECOND }, 30_050).reason).toBe("RATE_LIMITED");
-    const afterRollover = authority.evaluate(userId, { dx: 1, dy: 0, sequence: 50 }, 31_000);
-    expect(afterRollover.reason).not.toBe("RATE_LIMITED");
+    const afterRollover = authority.evaluate(
+      userId,
+      { dx: 1, dy: 0, sequence: MOVEMENT_MAX_PACKETS_PER_SECOND + 1 },
+      31_000,
+    );
+    expect(afterRollover.accepted).toBe(true);
     authority.reset(userId);
     const newSession = authority.evaluate(userId, { dx: 1, dy: 0, sequence: 0 }, 32_000);
     expect(newSession.accepted).toBe(false);
