@@ -20,7 +20,7 @@ const task = override => ({
 test("validates a bounded ledger and rejects over-budget or duplicate tasks", () => {
   assert.equal(validateLedger({ schemaVersion: 1, revision: 1, tasks: [task()] }).valid, true);
   assert.throws(() => validateLedger({ schemaVersion: 1, revision: 1, tasks: [task({ maxAttempts: 4 })] }), /maxAttempts/);
-  assert.throws(() => validateLedger({ schemaVersion: 1, revision: 1, tasks: [task(), task()] }), /Duplicate/);
+  assert.throws(() => validateLedger({ schemaVersion: 1, revision: 1, tasks: [task(), task()] }), /duplicate task id/i);
 });
 
 test("detects dependency cycles", () => {
