@@ -16,7 +16,8 @@ Gates 1–16 and any explicit Step 5 blocker remain frozen unless the owner auth
 - Query live `main`, relevant PR HEADs, checks, reviews, and mergeability. Do not infer current state from README or Notion history.
 - Inspect `git status` and keep imported or user-dirty checkouts untouched; use an isolated worktree for implementation.
 - Codex is the sole code implementation owner for this workstream. Claim one non-overlapping workstream and file set; independent review verifies the result. Do not add a second-owner or duplicate approval gate.
-- Protected operations (merge, release, deployment, destructive changes, or permission changes) still require the repository’s human approvals and authorization.
+- Routine technical review uses a fresh independent Codex/GPT/AI review on the final exact SHA; do not hold it for voluntary human review. AI review does not replace mandatory human, legal, owner, or repository approval.
+- Protected operations (merge, release, deployment, destructive changes, migrations, risk acceptance, frozen-gate changes, branch-protection changes, or permission changes) still require the repository’s human approvals and owner authorization.
 - Reuse test evidence only when the exact commit SHA is unchanged. Any new commit requires fresh exact-SHA evidence.
 
 ## Verification
