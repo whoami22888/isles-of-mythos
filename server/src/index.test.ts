@@ -881,8 +881,8 @@ describe("server foundation", () => {
 
       socket = await openSocket(app);
       await new Promise<void>((resolve, reject) => {
-        socket.once("open", resolve);
-        socket.once("error", reject);
+        socket!.once("open", resolve);
+        socket!.once("error", reject);
       });
       const authenticated = waitForMatchingMessage(socket, (message) => isJsonObject(message) && message.type === "auth_ok");
       const initialStatePromise = waitForMatchingMessage(socket, (message) => isJsonObject(message) && message.type === "player_state");
@@ -971,8 +971,8 @@ describe("server foundation", () => {
         [userId],
       );
       expect(persisted.rowCount).toBe(1);
-      expect(Number(persisted.rows[0]!.x)).toBeCloseTo(acceptedPosition.x, 8);
-      expect(Number(persisted.rows[0]!.y)).toBeCloseTo(acceptedPosition.y, 8);
+      expect(Number(persisted.rows[0].x)).toBeCloseTo(acceptedPosition.x, 8);
+      expect(Number(persisted.rows[0].y)).toBeCloseTo(acceptedPosition.y, 8);
     } finally {
       await database.end();
     }
