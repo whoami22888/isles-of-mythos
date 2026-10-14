@@ -137,4 +137,33 @@ describe("anti-cheat evidence service", () => {
     expect(service.observeRejectedAction("u1", "RESOURCE_RANGE_ABUSE", {}, 1_500)).toBeNull();
   });
 
+  it("records repeated replay and coalescing outcomes without request identifiers", () => {
+    const service = new AntiCheatService();
+    for (let index = 0; index < 4; index += 1) {
+      expect(service.observeRequestDuplicate("u1", "REPLAYED", 6_000 + index * 100)).toBeNull();
+    }
+    const event = service.observeRequestDuplicate("u1", "REPLAYED", 6_400);
+    expect(event).toMatchObject({
+      type: "REQUEST_DUPLICATION",
+      severity: "MEDIUM",
+      evidence: { action: "request_duplicate", reason: "REPLAYED", rejectedCount: 5 },
+    });
+    expect(JSON.stringify(event)).not.toContain("requestId");
+    expect(service.observeRequestDuplicate("u1", "COALESCED", 6_500)).toBeNull();
+  });
+
+  it("records excessive same-user sockets with a cooldown and no socket identifiers", () => {
+    const service = new AntiCheatService();
+    expect(service.observeMultiSocket("u1", 3, 8_000)).toBeNull();
+    const event = service.observeMultiSocket("u1", 4, 8_100);
+    expect(event).toMatchObject({
+      type: "MULTI_SOCKET_ABUSE",
+      severity: "MEDIUM",
+      evidence: { connectionCount: 4, threshold: 4, windowMs: 10_000 },
+    });
+    expect(service.observeMultiSocket("u1", 5, 8_200)).toBeNull();
+    expect(service.observeMultiSocket("u1", 5, 18_200)).toMatchObject({ type: "MULTI_SOCKET_ABUSE" });
+    expect(JSON.stringify(event)).not.toContain("socketId");
+  });
+
 });

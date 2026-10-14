@@ -40,7 +40,7 @@ import { registerFrontendRoutes } from "./frontend.js";
 import { resolve } from "node:path";
 import { AntiCheatService } from "./anti-cheat.js";
 import { createMutationTiming, measureMutationStage, runTimedMutation, type MutationTimingSnapshot } from "./mutation-timing.js";
-import { runReplayableRequest } from "./request-coordinator.js";
+import { runReplayableRequest, type RequestDuplicateOutcome } from "./request-coordinator.js";
 
 function errorCode(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
@@ -124,6 +124,9 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   };
   const recordInventoryMutationRejection = (userId: string, action: string, reason: string): void => {
     logAntiCheatEvidence(antiCheat.observeRejectedAction(userId, "INVENTORY_MUTATION_REJECTED", { action, reason }));
+  };
+  const recordRequestDuplicate = (userId: string, outcome: RequestDuplicateOutcome): void => {
+    logAntiCheatEvidence(antiCheat.observeRequestDuplicate(userId, outcome));
   };
   const sockets = new Set<WebSocket>();
   const playerConnections = new Map<string, number>();
@@ -245,11 +248,20 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     operation: () => Promise<ServerMessage> | ServerMessage,
   ): Promise<ServerMessage> {
     const replay = creatureReplay.lookup(userId, requestId, fingerprint);
-    if (replay.kind === "hit") return replay.response;
-    if (replay.kind === "conflict") return { type: "error", code: "INVALID_MESSAGE" };
+    if (replay.kind === "hit") {
+      recordRequestDuplicate(userId, "REPLAYED");
+      return replay.response;
+    }
+    if (replay.kind === "conflict") {
+      recordRequestDuplicate(userId, "CONFLICT");
+      return { type: "error", code: "INVALID_MESSAGE" };
+    }
     const key = userId + ":" + requestId;
     const existing = pendingCreatureRequests.get(key);
-    if (existing) return existing;
+    if (existing) {
+      recordRequestDuplicate(userId, "COALESCED");
+      return existing;
+    }
     const previous = pendingCreatureOperations.get(userId) ?? Promise.resolve();
     const task = previous.catch(() => undefined).then(async () => {
       const response = await operation();
@@ -281,6 +293,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       fingerprint,
       operation,
       { type: "error", code: "INVALID_MESSAGE" },
+      (outcome) => recordRequestDuplicate(userId, outcome),
     );
   }
 
@@ -291,11 +304,20 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     operation: () => Promise<ServerMessage> | ServerMessage,
   ): Promise<ServerMessage> {
     const replay = baseReplay.lookup(userId, requestId, fingerprint);
-    if (replay.kind === "hit") return replay.response;
-    if (replay.kind === "conflict") return { type: "error", code: "INVALID_MESSAGE" };
+    if (replay.kind === "hit") {
+      recordRequestDuplicate(userId, "REPLAYED");
+      return replay.response;
+    }
+    if (replay.kind === "conflict") {
+      recordRequestDuplicate(userId, "CONFLICT");
+      return { type: "error", code: "INVALID_MESSAGE" };
+    }
     const key = userId + ":" + requestId;
     const existing = pendingBaseRequests.get(key);
-    if (existing) return existing;
+    if (existing) {
+      recordRequestDuplicate(userId, "COALESCED");
+      return existing;
+    }
     const task = Promise.resolve().then(operation).then((response) => {
       baseReplay.remember(userId, requestId, fingerprint, response);
       return response;
@@ -766,7 +788,9 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
               authDeadline = null;
             }
             const connections = playerConnections.get(authenticatedUserId) ?? 0;
-            playerConnections.set(authenticatedUserId, connections + 1);
+            const nextConnectionCount = connections + 1;
+            playerConnections.set(authenticatedUserId, nextConnectionCount);
+            logAntiCheatEvidence(antiCheat.observeMultiSocket(authenticatedUserId, nextConnectionCount));
             combatActivationNextAt.set(authenticatedUserId, Date.now());
             const socketsForUser = userSockets.get(authenticatedUserId) ?? new Set<WebSocket>();
             socketsForUser.add(socket);
@@ -1038,10 +1062,10 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           const authenticatedUserId=userId;
           const captureFingerprint=message.type+"|"+message.targetId;
           const captureReplay=creatureReplay.lookup(authenticatedUserId,message.requestId,captureFingerprint);
-          if(captureReplay.kind==="hit"){send(socket,captureReplay.response);return;}
-          if(captureReplay.kind==="conflict"){send(socket,{type:"error",code:"INVALID_MESSAGE"});return;}
+          if(captureReplay.kind==="hit"){recordRequestDuplicate(authenticatedUserId,"REPLAYED");send(socket,captureReplay.response);return;}
+          if(captureReplay.kind==="conflict"){recordRequestDuplicate(authenticatedUserId,"CONFLICT");send(socket,{type:"error",code:"INVALID_MESSAGE"});return;}
           const pendingCapture=pendingCreatureRequests.get(authenticatedUserId+":"+message.requestId);
-          if(pendingCapture){send(socket,await pendingCapture);return;}
+          if(pendingCapture){recordRequestDuplicate(authenticatedUserId,"COALESCED");send(socket,await pendingCapture);return;}
           const state=players.get(authenticatedUserId); if(!state){send(socket,{type:"error",code:"AUTH_REQUIRED"});return;}
           if(state.health<=0){send(socket,{type:"error",code:"PLAYER_DEAD"});return;}
           const coords=parseCreatureTargetId(message.targetId);

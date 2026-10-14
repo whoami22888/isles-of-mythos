@@ -47,4 +47,35 @@ describe("replayable mutation coordinator", () => {
     )).resolves.toBe("conflict");
     expect(executions).toBe(0);
   });
+
+  it("reports replay, conflict, and coalesced outcomes without changing responses", async () => {
+    const replay = new CombatReplayCache<string>();
+    const pending = new Map<string, Promise<string>>();
+    const outcomes: string[] = [];
+    replay.remember("user", "replay", "same", "cached");
+    await expect(runReplayableRequest(
+      replay, pending, "user", "replay", "same", () => "unexpected", "conflict",
+      (outcome) => outcomes.push(outcome),
+    )).resolves.toBe("cached");
+    await expect(runReplayableRequest(
+      replay, pending, "user", "replay", "different", () => "unexpected", "conflict",
+      (outcome) => outcomes.push(outcome),
+    )).resolves.toBe("conflict");
+    let release: (() => void) | undefined;
+    const first = runReplayableRequest(
+      replay, pending, "user", "coalesce", "same", async () => {
+        await new Promise<void>((resolve) => { release = resolve; });
+        return "done";
+      }, "conflict", (outcome) => outcomes.push(outcome),
+    );
+    const second = runReplayableRequest(
+      replay, pending, "user", "coalesce", "same", () => "unexpected", "conflict",
+      (outcome) => outcomes.push(outcome),
+    );
+    await Promise.resolve();
+    release?.();
+    await expect(first).resolves.toBe("done");
+    await expect(second).resolves.toBe("done");
+    expect(outcomes).toEqual(["REPLAYED", "CONFLICT", "COALESCED"]);
+  });
 });
