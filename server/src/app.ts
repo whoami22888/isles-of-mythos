@@ -39,6 +39,8 @@ import { TerritorySeasonStore } from "./territory-seasons.js";
 import { registerFrontendRoutes } from "./frontend.js";
 import { resolve } from "node:path";
 import { AntiCheatService } from "./anti-cheat.js";
+import { createMutationTiming, measureMutationStage, runTimedMutation, type MutationTimingSnapshot } from "./mutation-timing.js";
+import { runReplayableRequest } from "./request-coordinator.js";
 
 function errorCode(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
@@ -46,6 +48,22 @@ function errorCode(error: unknown, fallback: string): string {
 
 function send(socket: WebSocket, message: ServerMessage): void {
   if (socket.readyState === socket.OPEN) socket.send(JSON.stringify(message, (_key, value: unknown) => typeof value === "bigint" ? value.toString() : value));
+}
+
+const SLOW_MUTATION_THRESHOLD_MS = 50;
+
+function emitSlowMutation(action: string, snapshot: MutationTimingSnapshot, db: Pool): void {
+  if (snapshot.totalMs < SLOW_MUTATION_THRESHOLD_MS) return;
+  log("slow_gameplay_mutation", {
+    action,
+    totalMs: Number(snapshot.totalMs.toFixed(2)),
+    loadPlayerMs: snapshot.stages.loadPlayerMs ?? null,
+    transactionMs: snapshot.stages.transactionMs ?? null,
+    reloadEconomyMs: snapshot.stages.reloadEconomyMs ?? null,
+    dbPoolWaiting: db.waitingCount,
+    dbPoolTotal: db.totalCount,
+    dbPoolIdle: db.idleCount,
+  });
 }
 
 function rawMessageToString(raw: WebSocket.RawData): string {
@@ -241,21 +259,15 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     fingerprint: string,
     operation: () => Promise<ServerMessage> | ServerMessage,
   ): Promise<ServerMessage> {
-    const replay = economyReplay.lookup(userId, requestId, fingerprint);
-    if (replay.kind === "hit") return replay.response;
-    if (replay.kind === "conflict") return { type: "error", code: "INVALID_MESSAGE" };
-    const key = userId + ":" + requestId;
-    const existing = pendingEconomyRequests.get(key);
-    if (existing) return existing;
-    const task = Promise.resolve().then(operation).then((response) => {
-      economyReplay.remember(userId, requestId, fingerprint, response);
-      return response;
-    });
-    pendingEconomyRequests.set(key, task);
-    try { return await task; }
-    finally {
-      if (pendingEconomyRequests.get(key) === task) pendingEconomyRequests.delete(key);
-    }
+    return runReplayableRequest(
+      economyReplay,
+      pendingEconomyRequests,
+      userId,
+      requestId,
+      fingerprint,
+      operation,
+      { type: "error", code: "INVALID_MESSAGE" },
+    );
   }
 
   async function runBaseRequest(
@@ -1174,8 +1186,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
 
         if (message.type === "gather_resource") {
           if (!userId) { send(socket, { type: "error", code: "AUTH_REQUIRED" }); return; }
-          const actionStartedAt = performance.now();
-          const actionStages: Record<string, number> = {};
+          const timing = createMutationTiming();
           const authenticatedUserId = userId;
           const state = players.get(authenticatedUserId);
           if (!state) { send(socket, { type: "error", code: "AUTH_REQUIRED" }); return; }
@@ -1184,102 +1195,76 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           const node = world.getResourceNode(message.resourceId);
           if (!node) { send(socket, { type: "error", code: "RESOURCE_NOT_FOUND" }); return; }
           const fingerprint = resourceGatherFingerprint(node.id);
-          const response = await runEconomyRequest(authenticatedUserId, message.requestId, fingerprint, async () => {
-            const resourceDistance = distance(state, node);
-            if (resourceDistance > 2.5) {
-              const evidence = antiCheat.observeRejectedAction(authenticatedUserId, "RESOURCE_RANGE_ABUSE", {
-                distance: Number(resourceDistance.toFixed(3)),
-                maxDistance: 2.5,
-                resourceId: node.id,
-              });
-              if (evidence) log("anti_cheat_event", { ...evidence });
-              return { type: "error", code: "RESOURCE_OUT_OF_RANGE" };
-            }
-            try {
-              let stageStartedAt = performance.now();
-              const result = await gatherResource(db, authenticatedUserId, message.requestId, fingerprint, node);
-              actionStages.transactionMs = performance.now() - stageStartedAt;
-              stageStartedAt = performance.now();
-              const refreshed = await players.reloadEconomy(authenticatedUserId);
-              actionStages.reloadEconomyMs = performance.now() - stageStartedAt;
-              return {
-                type: "resource_gathered",
-                requestId: message.requestId,
-                transactionId: result.transactionId,
-                resourceId: result.nodeId,
-                itemId: result.itemId,
-                quantity: result.quantity,
-                respawnsAt: result.respawnsAt,
-                state: serializePlayerState(refreshed),
-              };
-            } catch (error) {
-              const code = errorCode(error, "RESOURCE_GATHER_FAILED");
-              const allowed = [
-                "RESOURCE_NOT_FOUND",
-                "RESOURCE_DEPLETED",
-                "RESOURCE_REQUEST_CONFLICT",
-                "RESOURCE_NODE_MISMATCH",
-                "RESOURCE_NODE_UPDATE_FAILED",
-                "INVENTORY_LIMIT",
-                "INSUFFICIENT_INVENTORY",
-                "PLAYER_NOT_FOUND",
-              ];
-              if (allowed.includes(code)) return { type: "error", code } as ServerMessage;
-              throw error;
-            }
-          });
-          if (performance.now() - actionStartedAt >= 50) {
-            log("slow_gameplay_mutation", {
-              action: "gather_resource",
-              totalMs: Number((performance.now() - actionStartedAt).toFixed(2)),
-              transactionMs: actionStages.transactionMs ?? null,
-              reloadEconomyMs: actionStages.reloadEconomyMs ?? null,
-              dbPoolWaiting: db.waitingCount,
-              dbPoolTotal: db.totalCount,
-              dbPoolIdle: db.idleCount,
-            });
-          }
+          const response = await runEconomyRequest(authenticatedUserId, message.requestId, fingerprint, () => runTimedMutation(
+            timing,
+            async () => {
+              const resourceDistance = distance(state, node);
+              if (resourceDistance > 2.5) {
+                const evidence = antiCheat.observeRejectedAction(authenticatedUserId, "RESOURCE_RANGE_ABUSE", {
+                  distance: Number(resourceDistance.toFixed(3)),
+                  maxDistance: 2.5,
+                  resourceId: node.id,
+                });
+                if (evidence) log("anti_cheat_event", { ...evidence });
+                return { type: "error", code: "RESOURCE_OUT_OF_RANGE" };
+              }
+              try {
+                const result = await measureMutationStage(timing, "transactionMs", () => gatherResource(db, authenticatedUserId, message.requestId, fingerprint, node));
+                const refreshed = await measureMutationStage(timing, "reloadEconomyMs", () => players.reloadEconomy(authenticatedUserId));
+                return {
+                  type: "resource_gathered",
+                  requestId: message.requestId,
+                  transactionId: result.transactionId,
+                  resourceId: result.nodeId,
+                  itemId: result.itemId,
+                  quantity: result.quantity,
+                  respawnsAt: result.respawnsAt,
+                  state: serializePlayerState(refreshed),
+                };
+              } catch (error) {
+                const code = errorCode(error, "RESOURCE_GATHER_FAILED");
+                const allowed = [
+                  "RESOURCE_NOT_FOUND",
+                  "RESOURCE_DEPLETED",
+                  "RESOURCE_REQUEST_CONFLICT",
+                  "RESOURCE_NODE_MISMATCH",
+                  "RESOURCE_NODE_UPDATE_FAILED",
+                  "INVENTORY_LIMIT",
+                  "INSUFFICIENT_INVENTORY",
+                  "PLAYER_NOT_FOUND",
+                ];
+                if (allowed.includes(code)) return { type: "error", code } as ServerMessage;
+                throw error;
+              }
+            },
+            (snapshot) => emitSlowMutation("gather_resource", snapshot, db),
+          ));
           send(socket, response);
           return;
         }
 
         if (message.type === "craft") {
           if (!userId) { send(socket, { type: "error", code: "AUTH_REQUIRED" }); return; }
-          const actionStartedAt = performance.now();
-          const actionStages: Record<string, number> = {};
+          const timing = createMutationTiming();
           const authenticatedUserId = userId;
-          const response = await runEconomyRequest(authenticatedUserId, message.requestId, "craft|" + message.recipeId, async () => {
-            try {
-              let stageStartedAt = performance.now();
-              await players.loadOrCreate(authenticatedUserId);
-              actionStages.loadPlayerMs = performance.now() - stageStartedAt;
-              stageStartedAt = performance.now();
-              const result = await craftRecipe(db, authenticatedUserId, message.requestId, message.recipeId);
-              actionStages.transactionMs = performance.now() - stageStartedAt;
-              stageStartedAt = performance.now();
-              const state = await players.reloadEconomy(authenticatedUserId);
-              actionStages.reloadEconomyMs = performance.now() - stageStartedAt;
-              return { type: "craft_result", requestId: message.requestId, transactionId: result.transactionId, recipeId: result.recipeId, state: serializePlayerState(state) };
-            } catch (error) {
-              const code = errorCode(error, "CRAFT_FAILED");
-              if (code === "RECIPE_NOT_FOUND" || code === "INSUFFICIENT_INVENTORY" || code === "INVENTORY_LIMIT") {
-                return { type: "error", code };
+          const response = await runEconomyRequest(authenticatedUserId, message.requestId, "craft|" + message.recipeId, () => runTimedMutation(
+            timing,
+            async () => {
+              try {
+                await measureMutationStage(timing, "loadPlayerMs", () => players.loadOrCreate(authenticatedUserId));
+                const result = await measureMutationStage(timing, "transactionMs", () => craftRecipe(db, authenticatedUserId, message.requestId, message.recipeId));
+                const state = await measureMutationStage(timing, "reloadEconomyMs", () => players.reloadEconomy(authenticatedUserId));
+                return { type: "craft_result", requestId: message.requestId, transactionId: result.transactionId, recipeId: result.recipeId, state: serializePlayerState(state) };
+              } catch (error) {
+                const code = errorCode(error, "CRAFT_FAILED");
+                if (code === "RECIPE_NOT_FOUND" || code === "INSUFFICIENT_INVENTORY" || code === "INVENTORY_LIMIT") {
+                  return { type: "error", code };
+                }
+                throw error;
               }
-              throw error;
-            }
-          });
-          if (performance.now() - actionStartedAt >= 50) {
-            log("slow_gameplay_mutation", {
-              action: "craft",
-              totalMs: Number((performance.now() - actionStartedAt).toFixed(2)),
-              loadPlayerMs: actionStages.loadPlayerMs ?? null,
-              transactionMs: actionStages.transactionMs ?? null,
-              reloadEconomyMs: actionStages.reloadEconomyMs ?? null,
-              dbPoolWaiting: db.waitingCount,
-              dbPoolTotal: db.totalCount,
-              dbPoolIdle: db.idleCount,
-            });
-          }
+            },
+            (snapshot) => emitSlowMutation("craft", snapshot, db),
+          ));
           send(socket, response);
           return;
         }
