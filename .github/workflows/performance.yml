@@ -166,7 +166,6 @@ jobs:
             exit 1
           fi
           files=(
-            acceptance-evidence-manifest.json
             performance-results.json
             performance-system.log
             performance-server.log
