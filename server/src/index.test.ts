@@ -857,15 +857,17 @@ describe("server foundation", () => {
   });
 
   it("enforces server-timed WebSocket movement and persists the authoritative position", async () => {
-    const app = await buildApp();
     const database = (await import("./db.js")).createDbPool();
+    let app: Awaited<ReturnType<typeof buildApp>> | undefined;
     const unique = Date.now();
     let socket: WebSocket | null = null;
     let userId: string | undefined;
     let acceptedPosition: { x: number; y: number } | undefined;
 
     try {
-      const register = await app.inject({
+      const runningApp = await buildApp();
+      app = runningApp;
+      const register = await runningApp.inject({
         method: "POST",
         url: "/auth/register",
         payload: {
@@ -879,7 +881,7 @@ describe("server foundation", () => {
       const token = getString(registerBody, "accessToken");
       userId = getString(getObject(registerBody, "user"), "id");
 
-      socket = await openSocket(app);
+      socket = await openSocket(runningApp);
       await new Promise<void>((resolve, reject) => {
         socket!.once("open", resolve);
         socket!.once("error", reject);
@@ -959,12 +961,7 @@ describe("server foundation", () => {
       const confirmed = getObject(confirmedMessage as JsonObject, "state");
       expect(Number(confirmed.x)).toBeCloseTo(acceptedPosition.x, 8);
       expect(Number(confirmed.y)).toBeCloseTo(acceptedPosition.y, 8);
-    } finally {
-      socket?.close();
-      await app.close();
-    }
 
-    try {
       if (!userId || !acceptedPosition) throw new Error("Movement integration test did not record an accepted position");
       const persisted = await database.query<{ x: number; y: number }>(
         "SELECT x, y FROM player_profiles WHERE user_id = $1",
@@ -974,7 +971,12 @@ describe("server foundation", () => {
       expect(Number(persisted.rows[0].x)).toBeCloseTo(acceptedPosition.x, 8);
       expect(Number(persisted.rows[0].y)).toBeCloseTo(acceptedPosition.y, 8);
     } finally {
-      await database.end();
+      socket?.close();
+      try {
+        if (app) await app.close();
+      } finally {
+        await database.end();
+      }
     }
   });
 
