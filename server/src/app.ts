@@ -793,7 +793,13 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           }
           const positionEvidence = antiCheat.observePosition(userId, beforePosition, state, movement.serverDt);
           if (positionEvidence) log("anti_cheat_event", { ...positionEvidence });
-          send(socket, { type: "player_state", state: serializePlayerState(state) });
+          const playerStateMessage = {
+            type: "player_state",
+            state: serializePlayerState(state),
+          } as const;
+          for (const movementSocket of userSockets.get(userId) ?? []) {
+            send(movementSocket, playerStateMessage);
+          }
           return;
         }
 
