@@ -87,6 +87,7 @@ function parseCreatureTargetId(targetId: string): { x: number; y: number } | nul
 export interface BuildAppOptions {
   db?: Pool;
   clientDistDir?: string;
+  antiCheat?: AntiCheatService;
 }
 
 export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyInstance> {
@@ -110,7 +111,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const worldEvents = new WorldEventCoordinator(db, (userId) => players.get(userId)?.level);
   const endgame = new EndgameStore(db);
   const territorySeasons = new TerritorySeasonStore(db);
-  const antiCheat = new AntiCheatService();
+  const antiCheat = options.antiCheat ?? new AntiCheatService();
   const logAntiCheatEvidence = (event: ReturnType<AntiCheatService["record"]> | null): void => {
     if (!event) return;
     log("anti_cheat_event", {
@@ -120,6 +121,9 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       evidence: event.evidence,
       suspicion: event.suspicion,
     });
+  };
+  const recordInventoryMutationRejection = (userId: string, action: string, reason: string): void => {
+    logAntiCheatEvidence(antiCheat.observeRejectedAction(userId, "INVENTORY_MUTATION_REJECTED", { action, reason }));
   };
   const sockets = new Set<WebSocket>();
   const playerConnections = new Map<string, number>();
@@ -673,8 +677,8 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         return reply.code(401).send({ error: "UNAUTHORIZED", message: "Invalid credentials" });
       }
 
+      const userId = request.user.sub;
       try {
-        const userId = request.user.sub;
         const item = getShopItem(request.body.itemId);
         if (!item) return reply.code(404).send({ error: "SHOP_ITEM_NOT_FOUND" });
         const totalGold = calculatePurchase(item, request.body.quantity);
@@ -690,6 +694,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           return reply.code(404).send({ error: "PLAYER_NOT_FOUND" });
         }
         if (error instanceof Error && error.message === "INVENTORY_LIMIT") {
+          recordInventoryMutationRejection(userId, "shop_purchase", error.message);
           return reply.code(409).send({ error: "INVENTORY_LIMIT" });
         }
         if (error instanceof Error && error.message === "SHOP_REQUEST_CONFLICT") {
@@ -1314,10 +1319,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
               const code = errorCode(error, "PURCHASE_FAILED");
               if (code === "INSUFFICIENT_GOLD" || code === "INVENTORY_LIMIT" || code === "PLAYER_NOT_FOUND" || code === "SHOP_REQUEST_CONFLICT" || code === "INVALID_REQUEST_ID") {
                 if (code === "INVENTORY_LIMIT") {
-                  logAntiCheatEvidence(antiCheat.observeRejectedAction(authenticatedUserId, "INVENTORY_MUTATION_REJECTED", {
-                    action: "shop_purchase",
-                    reason: code,
-                  }));
+                  recordInventoryMutationRejection(authenticatedUserId, "shop_purchase", code);
                 }
                 return { type: "error", code };
               }
@@ -1348,6 +1350,9 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             } catch (error) {
               const code = errorCode(error, "TRADE_FAILED");
               const allowed = ["TRADE_REQUEST_CONFLICT", "INVALID_TRADE_REQUEST", "INVALID_TRADE_PARTICIPANTS", "INVALID_TRADE_ITEMS", "INVALID_TRADE_ITEM", "INVALID_TRADE_QUANTITY", "PLAYER_NOT_FOUND", "INSUFFICIENT_INVENTORY", "INSUFFICIENT_GOLD", "INVENTORY_LIMIT"];
+              if (code === "INVENTORY_LIMIT" || code === "INSUFFICIENT_INVENTORY") {
+                recordInventoryMutationRejection(authenticatedUserId, "trade", code);
+              }
               if (allowed.includes(code)) return { type: "error", code } as ServerMessage;
               throw error;
             }
