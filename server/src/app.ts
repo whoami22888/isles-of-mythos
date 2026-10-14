@@ -1174,6 +1174,8 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
 
         if (message.type === "gather_resource") {
           if (!userId) { send(socket, { type: "error", code: "AUTH_REQUIRED" }); return; }
+          const actionStartedAt = performance.now();
+          const actionStages: Record<string, number> = {};
           const authenticatedUserId = userId;
           const state = players.get(authenticatedUserId);
           if (!state) { send(socket, { type: "error", code: "AUTH_REQUIRED" }); return; }
@@ -1194,8 +1196,12 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
               return { type: "error", code: "RESOURCE_OUT_OF_RANGE" };
             }
             try {
+              let stageStartedAt = performance.now();
               const result = await gatherResource(db, authenticatedUserId, message.requestId, fingerprint, node);
+              actionStages.transactionMs = performance.now() - stageStartedAt;
+              stageStartedAt = performance.now();
               const refreshed = await players.reloadEconomy(authenticatedUserId);
+              actionStages.reloadEconomyMs = performance.now() - stageStartedAt;
               return {
                 type: "resource_gathered",
                 requestId: message.requestId,
@@ -1222,18 +1228,37 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
               throw error;
             }
           });
+          if (performance.now() - actionStartedAt >= 50) {
+            log("slow_gameplay_mutation", {
+              action: "gather_resource",
+              totalMs: Number((performance.now() - actionStartedAt).toFixed(2)),
+              transactionMs: actionStages.transactionMs ?? null,
+              reloadEconomyMs: actionStages.reloadEconomyMs ?? null,
+              dbPoolWaiting: db.waitingCount,
+              dbPoolTotal: db.totalCount,
+              dbPoolIdle: db.idleCount,
+            });
+          }
           send(socket, response);
           return;
         }
 
         if (message.type === "craft") {
           if (!userId) { send(socket, { type: "error", code: "AUTH_REQUIRED" }); return; }
+          const actionStartedAt = performance.now();
+          const actionStages: Record<string, number> = {};
           const authenticatedUserId = userId;
           const response = await runEconomyRequest(authenticatedUserId, message.requestId, "craft|" + message.recipeId, async () => {
             try {
+              let stageStartedAt = performance.now();
               await players.loadOrCreate(authenticatedUserId);
+              actionStages.loadPlayerMs = performance.now() - stageStartedAt;
+              stageStartedAt = performance.now();
               const result = await craftRecipe(db, authenticatedUserId, message.requestId, message.recipeId);
+              actionStages.transactionMs = performance.now() - stageStartedAt;
+              stageStartedAt = performance.now();
               const state = await players.reloadEconomy(authenticatedUserId);
+              actionStages.reloadEconomyMs = performance.now() - stageStartedAt;
               return { type: "craft_result", requestId: message.requestId, transactionId: result.transactionId, recipeId: result.recipeId, state: serializePlayerState(state) };
             } catch (error) {
               const code = errorCode(error, "CRAFT_FAILED");
@@ -1243,6 +1268,18 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
               throw error;
             }
           });
+          if (performance.now() - actionStartedAt >= 50) {
+            log("slow_gameplay_mutation", {
+              action: "craft",
+              totalMs: Number((performance.now() - actionStartedAt).toFixed(2)),
+              loadPlayerMs: actionStages.loadPlayerMs ?? null,
+              transactionMs: actionStages.transactionMs ?? null,
+              reloadEconomyMs: actionStages.reloadEconomyMs ?? null,
+              dbPoolWaiting: db.waitingCount,
+              dbPoolTotal: db.totalCount,
+              dbPoolIdle: db.idleCount,
+            });
+          }
           send(socket, response);
           return;
         }
