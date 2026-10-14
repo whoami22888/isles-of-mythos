@@ -18,20 +18,27 @@ export async function runReplayableRequest<T>(
   conflict: T,
   onDuplicate?: (outcome: RequestDuplicateOutcome) => void,
 ): Promise<T> {
+  const notifyDuplicate = (outcome: RequestDuplicateOutcome): void => {
+    try {
+      onDuplicate?.(outcome);
+    } catch {
+      // Diagnostics must not change replay, conflict, or coalescing semantics.
+    }
+  };
   const replayResult = replay.lookup(userId, requestId, fingerprint);
   if (replayResult.kind === "hit") {
-    onDuplicate?.("REPLAYED");
+    notifyDuplicate("REPLAYED");
     return replayResult.response;
   }
   if (replayResult.kind === "conflict") {
-    onDuplicate?.("CONFLICT");
+    notifyDuplicate("CONFLICT");
     return conflict;
   }
 
   const key = userId + ":" + requestId;
   const existing = pending.get(key);
   if (existing) {
-    onDuplicate?.("COALESCED");
+    notifyDuplicate("COALESCED");
     return existing;
   }
 

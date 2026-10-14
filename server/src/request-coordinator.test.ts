@@ -78,4 +78,18 @@ describe("replayable mutation coordinator", () => {
     await expect(second).resolves.toBe("done");
     expect(outcomes).toEqual(["REPLAYED", "CONFLICT", "COALESCED"]);
   });
+
+  it("keeps duplicate responses unchanged when diagnostics fail", async () => {
+    const replay = new CombatReplayCache<string>();
+    const pending = new Map<string, Promise<string>>();
+    replay.remember("user", "request", "same", "cached");
+    await expect(runReplayableRequest(
+      replay, pending, "user", "request", "same", () => "unexpected", "conflict",
+      () => { throw new Error("diagnostic failure"); },
+    )).resolves.toBe("cached");
+    await expect(runReplayableRequest(
+      replay, pending, "user", "request", "different", () => "unexpected", "conflict",
+      () => { throw new Error("diagnostic failure"); },
+    )).resolves.toBe("conflict");
+  });
 });
