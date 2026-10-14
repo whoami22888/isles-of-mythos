@@ -6,6 +6,8 @@ export interface RequestReplayCache<T> {
   remember(userId: string, requestId: string, fingerprint: string, response: T): void;
 }
 
+export type RequestDuplicateOutcome = "REPLAYED" | "CONFLICT" | "COALESCED";
+
 export async function runReplayableRequest<T>(
   replay: RequestReplayCache<T>,
   pending: Map<string, Promise<T>>,
@@ -14,14 +16,31 @@ export async function runReplayableRequest<T>(
   fingerprint: string,
   operation: () => Promise<T> | T,
   conflict: T,
+  onDuplicate?: (outcome: RequestDuplicateOutcome) => void,
 ): Promise<T> {
+  const notifyDuplicate = (outcome: RequestDuplicateOutcome): void => {
+    try {
+      onDuplicate?.(outcome);
+    } catch {
+      // Diagnostics must not change replay, conflict, or coalescing semantics.
+    }
+  };
   const replayResult = replay.lookup(userId, requestId, fingerprint);
-  if (replayResult.kind === "hit") return replayResult.response;
-  if (replayResult.kind === "conflict") return conflict;
+  if (replayResult.kind === "hit") {
+    notifyDuplicate("REPLAYED");
+    return replayResult.response;
+  }
+  if (replayResult.kind === "conflict") {
+    notifyDuplicate("CONFLICT");
+    return conflict;
+  }
 
   const key = userId + ":" + requestId;
   const existing = pending.get(key);
-  if (existing) return existing;
+  if (existing) {
+    notifyDuplicate("COALESCED");
+    return existing;
+  }
 
   const task = Promise.resolve().then(operation).then((response) => {
     replay.remember(userId, requestId, fingerprint, response);
