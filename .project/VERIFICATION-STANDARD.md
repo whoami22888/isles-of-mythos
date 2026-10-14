@@ -22,27 +22,25 @@ Example:
 - Never transfer CI, security, performance, audit, or acceptance evidence between SHAs.
 - If exact-head evidence is unavailable, status is NOT VERIFIED, not PASS.
 
-## Two-GPT synchronization lock
+## Single implementation owner: Codex
 
-Before repository modification, both GPTs must reconcile:
+Codex is the sole code implementation owner for this repository. GPT-1/GPT-2 ownership, co-ownership, synchronization-lock, and veto rules are retired and must not block, duplicate, or supersede Codex implementation work.
+
+Before a material repository change, Codex records:
 - ACTIVE HEAD
 - ACTIVE BRANCH
-- ACTIVE GATE
-- ACTIVE WORKSTREAM
-- WORK OWNER
-- LAST VERIFIED CI
-- LAST VERIFIED SECURITY
-- LAST VERIFIED PERFORMANCE
-- OPEN BLOCKERS
+- ACTIVE GATE / WORKSTREAM
 - FILES BEING MODIFIED
+- LAST VERIFIED CI / SECURITY / PERFORMANCE
+- OPEN BLOCKERS
 
-One GPT owns a workstream/file set at a time. The other audits or verifies and does not duplicate the implementation. Ownership ambiguity requires a stop and reconciliation through Notion.
+This ownership rule does not waive project controls: exact-SHA CI/security/performance acceptance, audit evidence, frozen Gates 1–16, release controls, and human authorization for protected settings remain in force. Missing, stale, cancelled, skipped, or inconclusive required checks are not PASS.
 
 ## Required change record
 
 After a change, Notion must record:
 - DATE/TIME
-- GPT OWNER
+- CODE IMPLEMENTATION OWNER (Codex)
 - COMMIT
 - BRANCH
 - FILES CHANGED
