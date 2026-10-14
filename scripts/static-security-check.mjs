@@ -67,6 +67,36 @@ for(const [i,rawLine] of readFileSync("docker-compose.yml","utf8").split(/\r?\n/
  const image=line.match(/^\s*image:\s*(["']?)([^"'#\s]+)\1\s*$/i);
  if(image&&/(?:^|\/)postgres(?=[:/@])/i.test(image[2])&&!/postgres-exporter/i.test(image[2])&&!/@sha256:[0-9a-f]{64}$/i.test(image[2]))add(findings.errors,"mutable-postgres-image","docker-compose.yml",i+1,rawLine);
 }
+
+ // Mandatory verification orchestration policy: cancelled or unbounded required checks
+ // cannot provide trustworthy acceptance evidence.
+ const requiredWorkflowControls = {
+   "ci.yml": { cancel: false, timeout: 15 },
+   "performance.yml": { cancel: false, timeout: 15 },
+   "static-security.yml": { cancel: false, timeout: 5 },
+   "codeql.yml": { timeout: 20 },
+   "codacy.yml": { timeout: 15 },
+ };
+ for (const [workflow, policy] of Object.entries(requiredWorkflowControls)) {
+   const path = join(workflowRoot, workflow);
+   let content;
+   try {
+     content = readFileSync(path, "utf8");
+   } catch {
+     add(findings.errors, "required-workflow-missing", path, 1, "Required verification workflow is missing");
+     continue;
+   }
+   if (policy.cancel === false && /^\s*cancel-in-progress:\s*true\s*$/m.test(content)) {
+     add(findings.errors, "verification-cancellation-enabled", path, 1, "Mandatory verification runs must not be automatically cancelled");
+   }
+   if (policy.cancel === false && !/^\s*cancel-in-progress:\s*false\s*$/m.test(content)) {
+     add(findings.errors, "verification-cancellation-policy-missing", path, 1, "Explicit cancel-in-progress: false is required for mandatory verification");
+   }
+   if (!new RegExp("^\\s*timeout-minutes:\\s*" + policy.timeout + "\\s*$", "m").test(content)) {
+     add(findings.errors, "verification-timeout-policy", path, 1, "Expected job timeout-minutes: " + policy.timeout);
+   }
+ }
+
 console.log("Static security scan: " + (findings.errors.length === 0 ? "PASS" : "FAIL"));
 for (const item of findings.errors) console.log("ERROR " + item);
 for (const item of findings.reviews.slice(0, 200)) console.log("REVIEW " + item);
