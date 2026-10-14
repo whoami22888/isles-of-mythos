@@ -881,8 +881,8 @@ describe("server foundation", () => {
 
       socket = await openSocket(app);
       await new Promise<void>((resolve, reject) => {
-        socket!.once("open", resolve);
-        socket!.once("error", reject);
+        socket.once("open", resolve);
+        socket.once("error", reject);
       });
       const authenticated = waitForMatchingMessage(socket, (message) => isJsonObject(message) && message.type === "auth_ok");
       const initialStatePromise = waitForMatchingMessage(socket, (message) => isJsonObject(message) && message.type === "player_state");
