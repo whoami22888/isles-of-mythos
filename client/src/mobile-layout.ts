@@ -13,7 +13,9 @@ export function clampUnit(value: number): number {
 }
 
 export function normalizeStick(dx: number, dy: number, radius: number): { x: number; y: number } {
-  if (!Number.isFinite(radius) || radius <= 0) return { x: 0, y: 0 };
+  if (!Number.isFinite(dx) || !Number.isFinite(dy) || !Number.isFinite(radius) || radius <= 0) {
+    return { x: 0, y: 0 };
+  }
   const length = Math.hypot(dx, dy);
   if (length === 0) return { x: 0, y: 0 };
   const scale = Math.min(1, radius / length);
