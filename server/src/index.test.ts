@@ -957,7 +957,7 @@ describe("server foundation", () => {
       acceptedPosition = { x: Number(acceptedState.x), y: Number(acceptedState.y) };
 
       const broadcastMessage = await waitForMatchingMessage(
-        observerSocket!,
+        observerSocket,
         (message) => isJsonObject(message)
           && message.type === "player_state"
           && isJsonObject(message.state)
