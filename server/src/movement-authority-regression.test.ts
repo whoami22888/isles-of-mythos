@@ -76,4 +76,30 @@ describe("P0 movement authority integrated regressions", () => {
     expect(antiCheat.suspicionScore("evidence-user", 40_000)).toBeGreaterThan(0);
     expect(antiCheat.listRecent("evidence-user")).toHaveLength(1);
   });
+  it("rejects non-finite, missing, out-of-range and malformed movement directions", () => {
+    expect(parseClientMessage(JSON.stringify({ type: "move", dx: NaN, dy: 0, sequence: 10 }))).toBeNull();
+    expect(parseClientMessage(JSON.stringify({ type: "move", dx: Infinity, dy: 0, sequence: 11 }))).toBeNull();
+    expect(parseClientMessage(JSON.stringify({ type: "move", dx: -Infinity, dy: 0, sequence: 12 }))).toBeNull();
+    expect(parseClientMessage(JSON.stringify({ type: "move", dx: null, dy: 0, sequence: 13 }))).toBeNull();
+    expect(parseClientMessage(JSON.stringify({ type: "move", dx: "1", dy: 0, sequence: 14 }))).toBeNull();
+    expect(parseClientMessage(JSON.stringify({ type: "move", dx: 1.01, dy: 0, sequence: 15 }))).toBeNull();
+    expect(parseClientMessage(JSON.stringify({ type: "move", dx: 0, dy: -1.01, sequence: 16 }))).toBeNull();
+    expect(parseClientMessage('{"type":"move","dx":NaN,"dy":0,"sequence":17}')).toBeNull();
+    expect(parseClientMessage('{"type":"move","dx":Infinity,"dy":0,"sequence":18}')).toBeNull();
+  });
+
+  it("does not accept client-supplied slow or status modifiers", () => {
+    expect(parseClientMessage(JSON.stringify({
+      type: "move",
+      dx: 1,
+      dy: 0,
+      sequence: 19,
+      dt: 60,
+      speedMultiplier: 100,
+      slowMultiplier: 0,
+      status: { slow: false },
+      statuses: [],
+    }))).toEqual({ type: "move", dx: 1, dy: 0, sequence: 19 });
+  });
+
 });
