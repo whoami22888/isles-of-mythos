@@ -861,6 +861,7 @@ describe("server foundation", () => {
     let app: Awaited<ReturnType<typeof buildApp>> | undefined;
     const unique = Date.now();
     let socket: WebSocket | null = null;
+    let observerSocket: WebSocket | null = null;
     let userId: string | undefined;
     let acceptedPosition: { x: number; y: number } | undefined;
 
@@ -896,6 +897,25 @@ describe("server foundation", () => {
       const initialY = Number(initialState.y);
       expect(Number.isFinite(initialX)).toBe(true);
       expect(Number.isFinite(initialY)).toBe(true);
+
+      // Observe this account through a second authenticated session so the
+      // accepted movement's authoritative state broadcast can be asserted.
+      observerSocket = await openSocket(runningApp);
+      await new Promise<void>((resolve, reject) => {
+        observerSocket!.once("open", resolve);
+        observerSocket!.once("error", reject);
+      });
+      const observerAuthenticated = waitForMatchingMessage(
+        observerSocket,
+        (message) => isJsonObject(message) && message.type === "auth_ok",
+      );
+      const observerInitialState = waitForMatchingMessage(
+        observerSocket,
+        (message) => isJsonObject(message) && message.type === "player_state",
+      );
+      observerSocket.send(JSON.stringify({ type: "auth", token }));
+      await observerAuthenticated;
+      await observerInitialState;
 
       // The first packet primes/advances the sequence clock. If it has elapsed
       // time it may move, but even forged client timing cannot exceed 100 ms.
@@ -935,6 +955,18 @@ describe("server foundation", () => {
       const acceptedMoveMessage = await acceptedMove;
       const acceptedState = getObject(acceptedMoveMessage as JsonObject, "state");
       acceptedPosition = { x: Number(acceptedState.x), y: Number(acceptedState.y) };
+
+      const broadcastMessage = await waitForMatchingMessage(
+        observerSocket!,
+        (message) => isJsonObject(message)
+          && message.type === "player_state"
+          && isJsonObject(message.state)
+          && message.state.userId === userId,
+      );
+      const broadcastState = getObject(broadcastMessage as JsonObject, "state");
+      expect(Number(broadcastState.x)).toBeCloseTo(acceptedPosition.x, 8);
+      expect(Number(broadcastState.y)).toBeCloseTo(acceptedPosition.y, 8);
+
       const acceptedDistance = Math.hypot(acceptedPosition.x - currentX, acceptedPosition.y - currentY);
       expect(acceptedDistance).toBeGreaterThan(0);
       expect(acceptedDistance).toBeLessThanOrEqual(0.4 + 1e-9);
@@ -977,6 +1009,7 @@ describe("server foundation", () => {
       expect(Number(persisted.rows[0].y)).toBeCloseTo(acceptedPosition.y, 8);
     } finally {
       socket?.close();
+      observerSocket?.close();
       try {
         if (app) await app.close();
       } finally {
