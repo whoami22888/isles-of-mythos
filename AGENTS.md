@@ -9,7 +9,7 @@ This file is a navigation layer. The linked project documents remain authoritati
 3. `CONTRIBUTING.md` and `TESTING.md` (scope, test order, and anti-loop rules).
 4. The current Notion Master Project Index and live GitHub state (current decisions, branch/PR HEADs, checks, reviews).
 
-Gates 1–16 and any explicit Step 5 blocker remain frozen unless the owner authorizes a change.
+Gates 1–16 remain frozen. Step 5 remains blocked until the current independent Step 2 audit, migration deployment-history evidence for migrations 029 and 036, capture-probability/local-save reconciliation, and required owner authorization are all recorded; no generic or historical review substitutes for these prerequisites.
 
 ## Before a change
 
@@ -28,7 +28,7 @@ Keep gameplay authority, transaction/idempotency guarantees, replay protections,
 
 ## Reporting
 
-Every material change record includes exact SHA, branch, files, purpose, root cause, fix, tests, exact workflow IDs/statuses, review status, risks, blockers, and next action. Update and read back the Notion checkpoint after implementation or verification changes.
+Every material change record includes DATE/TIME, GPT OWNER, exact SHA, branch, files, purpose, root cause, fix, tests, exact workflow IDs/statuses, review status, risks, blockers, and next action. Update and read back the Notion checkpoint after implementation or verification changes.
 
 ## Lightweight model and task routing
 
