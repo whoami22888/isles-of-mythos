@@ -5,7 +5,8 @@ export type AntiCheatEventType =
   | "MOVEMENT_INVALID_SEQUENCE"
   | "IMPOSSIBLE_MOVEMENT"
   | "ATTACK_COOLDOWN_SPAM"
-  | "RESOURCE_RANGE_ABUSE";
+  | "RESOURCE_RANGE_ABUSE"
+  | "INVENTORY_MUTATION_REJECTED";
 
 export interface AntiCheatEvidence {
   userId: string;
@@ -29,6 +30,7 @@ interface RejectedActionWindow {
 const REJECTED_ACTION_RULES = {
   ATTACK_COOLDOWN_SPAM: { threshold: 8, windowMs: 5_000, severity: "HIGH" as const },
   RESOURCE_RANGE_ABUSE: { threshold: 5, windowMs: 10_000, severity: "MEDIUM" as const },
+  INVENTORY_MUTATION_REJECTED: { threshold: 5, windowMs: 10_000, severity: "MEDIUM" as const },
 } as const;
 
 const DECAY_PER_SECOND = 1;
@@ -118,12 +120,14 @@ export class AntiCheatService {
 
   observeRejectedAction(
     userId: string,
-    type: "ATTACK_COOLDOWN_SPAM" | "RESOURCE_RANGE_ABUSE",
+    type: "ATTACK_COOLDOWN_SPAM" | "RESOURCE_RANGE_ABUSE" | "INVENTORY_MUTATION_REJECTED",
     evidence: Record<string, number | string | boolean>,
     nowMs = Date.now(),
   ): AntiCheatEvidence | null {
     const rule = REJECTED_ACTION_RULES[type];
-    const key = userId + ":" + type;
+    const action = typeof evidence.action === "string" ? evidence.action : "";
+    const reason = typeof evidence.reason === "string" ? evidence.reason : "";
+    const key = [userId, type, action, reason].join(":");
     const previous = this.rejectedActions.get(key);
     const timestampsMs = (previous?.timestampsMs ?? []).filter(
       (timestampMs) => nowMs >= timestampMs && nowMs - timestampMs <= rule.windowMs,

@@ -111,6 +111,16 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const endgame = new EndgameStore(db);
   const territorySeasons = new TerritorySeasonStore(db);
   const antiCheat = new AntiCheatService();
+  const logAntiCheatEvidence = (event: ReturnType<AntiCheatService["record"]> | null): void => {
+    if (!event) return;
+    log("anti_cheat_event", {
+      type: event.type,
+      severity: event.severity,
+      timestampMs: event.timestampMs,
+      evidence: event.evidence,
+      suspicion: event.suspicion,
+    });
+  };
   const sockets = new Set<WebSocket>();
   const playerConnections = new Map<string, number>();
   const userSockets = new Map<string, Set<WebSocket>>();
@@ -798,13 +808,13 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             speedMultiplier: slow ? Math.max(0, Math.min(1, 1 - slow.magnitude)) : 1,
           });
           const evidence = antiCheat.observeMovement(userId, movement);
-          if (evidence) log("anti_cheat_event", { ...evidence });
+          logAntiCheatEvidence(evidence)
           if (!movement.accepted) {
             send(socket, { type: "error", code: movement.reason === "RATE_LIMITED" ? "RATE_LIMITED" : "INVALID_MESSAGE" });
             return;
           }
           const positionEvidence = antiCheat.observePosition(userId, beforePosition, state, movement.serverDt);
-          if (positionEvidence) log("anti_cheat_event", { ...positionEvidence });
+          logAntiCheatEvidence(positionEvidence)
           const playerStateMessage = {
             type: "player_state",
             state: serializePlayerState(state),
@@ -884,7 +894,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             const evidence = antiCheat.observeRejectedAction(userId, "ATTACK_COOLDOWN_SPAM", {
               cooldownRemainingMs: nextAttack - now,
             }, now);
-            if (evidence) log("anti_cheat_event", { ...evidence });
+            logAntiCheatEvidence(evidence)
             send(socket, { type: "error", code: "COMBAT_COOLDOWN" });
             return;
           }
@@ -941,7 +951,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
                 const evidence = antiCheat.observeRejectedAction(userId, "ATTACK_COOLDOWN_SPAM", {
                   cooldownRemainingMs: weapon.cooldownMs,
                 }, now);
-                if (evidence) log("anti_cheat_event", { ...evidence });
+                logAntiCheatEvidence(evidence)
                 send(socket, { type: "error", code: "COMBAT_COOLDOWN" });
                 return;
               }
@@ -1203,9 +1213,8 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
                 const evidence = antiCheat.observeRejectedAction(authenticatedUserId, "RESOURCE_RANGE_ABUSE", {
                   distance: Number(resourceDistance.toFixed(3)),
                   maxDistance: 2.5,
-                  resourceId: node.id,
                 });
-                if (evidence) log("anti_cheat_event", { ...evidence });
+                logAntiCheatEvidence(evidence);
                 return { type: "error", code: "RESOURCE_OUT_OF_RANGE" };
               }
               try {
@@ -1233,6 +1242,12 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
                   "INSUFFICIENT_INVENTORY",
                   "PLAYER_NOT_FOUND",
                 ];
+                if (code === "INVENTORY_LIMIT" || code === "INSUFFICIENT_INVENTORY") {
+                  logAntiCheatEvidence(antiCheat.observeRejectedAction(authenticatedUserId, "INVENTORY_MUTATION_REJECTED", {
+                    action: "gather_resource",
+                    reason: code,
+                  }));
+                }
                 if (allowed.includes(code)) return { type: "error", code } as ServerMessage;
                 throw error;
               }
@@ -1258,6 +1273,12 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
               } catch (error) {
                 const code = errorCode(error, "CRAFT_FAILED");
                 if (code === "RECIPE_NOT_FOUND" || code === "INSUFFICIENT_INVENTORY" || code === "INVENTORY_LIMIT") {
+                  if (code === "INSUFFICIENT_INVENTORY" || code === "INVENTORY_LIMIT") {
+                    logAntiCheatEvidence(antiCheat.observeRejectedAction(authenticatedUserId, "INVENTORY_MUTATION_REJECTED", {
+                      action: "craft",
+                      reason: code,
+                    }));
+                  }
                   return { type: "error", code };
                 }
                 throw error;
@@ -1292,6 +1313,12 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             } catch (error) {
               const code = errorCode(error, "PURCHASE_FAILED");
               if (code === "INSUFFICIENT_GOLD" || code === "INVENTORY_LIMIT" || code === "PLAYER_NOT_FOUND" || code === "SHOP_REQUEST_CONFLICT" || code === "INVALID_REQUEST_ID") {
+                if (code === "INVENTORY_LIMIT") {
+                  logAntiCheatEvidence(antiCheat.observeRejectedAction(authenticatedUserId, "INVENTORY_MUTATION_REJECTED", {
+                    action: "shop_purchase",
+                    reason: code,
+                  }));
+                }
                 return { type: "error", code };
               }
               throw error;
