@@ -18,11 +18,21 @@ jobs:
         env:
           EVENT_PATH: ${{ github.event_path }}
         run: |
+          set -euo pipefail
+          EVENT_FILE="${EVENT_PATH:-${GITHUB_EVENT_PATH:-}}"
+          if [ -z "$EVENT_FILE" ] || [ ! -r "$EVENT_FILE" ]; then
+            echo "Issue summary workflow has no readable event payload (EVENT_PATH and GITHUB_EVENT_PATH are empty or unreadable)." >&2
+            exit 1
+          fi
+          export EVENT_FILE
           node --input-type=module <<'NODE'
           import { appendFileSync, readFileSync } from "node:fs";
-          const event = JSON.parse(readFileSync(process.env.EVENT_PATH, "utf8"));
-          const title = String(event.issue?.title ?? "Untitled issue").replace(/[\r\n\t]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 200);
-          const body = String(event.issue?.body ?? "").replace(/[\r\n\t]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 700);
+          const eventPath = process.env.EVENT_FILE;
+          if (!eventPath) throw new Error("Missing event payload path.");
+          const event = JSON.parse(readFileSync(eventPath, "utf8"));
+          if (!event.issue || typeof event.issue !== "object") throw new Error("Event payload does not contain an issue.");
+          const title = String(event.issue.title ?? "Untitled issue").replace(/[\r\n\t]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 200);
+          const body = String(event.issue.body ?? "").replace(/[\r\n\t]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 700);
           const summary = "Issue summary: " + title + (body ? " — " + body : "");
           appendFileSync(process.env.GITHUB_OUTPUT, "summary<<END_SUMMARY\n" + summary + "\nEND_SUMMARY\n");
           NODE
