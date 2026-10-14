@@ -15,7 +15,8 @@ Gates 1–16 and any explicit Step 5 blocker remain frozen unless the owner auth
 
 - Query live `main`, relevant PR HEADs, checks, reviews, and mergeability. Do not infer current state from README or Notion history.
 - Inspect `git status` and keep imported or user-dirty checkouts untouched; use an isolated worktree for implementation.
-- Claim one non-overlapping workstream and file set. One implementation owner is sufficient; independent review verifies the result. Do not add a second-owner or duplicate approval gate.
+- Codex is the sole code implementation owner for this workstream. Claim one non-overlapping workstream and file set; independent review verifies the result. Do not add a second-owner or duplicate approval gate.
+- Protected operations (merge, release, deployment, destructive changes, or permission changes) still require the repository’s human approvals and authorization.
 - Reuse test evidence only when the exact commit SHA is unchanged. Any new commit requires fresh exact-SHA evidence.
 
 ## Verification
@@ -28,6 +29,9 @@ Keep gameplay authority, transaction/idempotency guarantees, replay protections,
 
 Every material change record includes exact SHA, branch, files, purpose, root cause, fix, tests, exact workflow IDs/statuses, review status, risks, blockers, and next action. Update and read back the Notion checkpoint after implementation or verification changes.
 
-## Model and task settings
+## Lightweight model and task routing
 
-Use the model/task options exposed by the current Codex environment only when needed. Do not assume aliases, pricing, quota limits, or unsupported `/model` settings. Keep delegated contexts bounded and avoid duplicate work; routine read-only checks can use a lower-cost option only when the environment explicitly exposes and authorizes one.
+- Routine bounded work (read-only inspection, documentation, focused tests, and simple verification) may use the lowest-cost model option explicitly exposed by the current Codex environment.
+- Concurrency, security, data-integrity, and architecture work should use a stronger exposed model when available.
+- After a failed diagnosis, escalate reasoning/model strength only when new evidence shows the problem is more complex; otherwise make one bounded correction and rerun the smallest affected check.
+- Never assume model aliases, pricing, quotas, or `/model` commands. Never override the model of a task that is already running. Keep handoffs concise and do not duplicate active work.
