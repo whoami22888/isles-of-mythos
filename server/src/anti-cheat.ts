@@ -5,7 +5,8 @@ export type AntiCheatEventType =
   | "MOVEMENT_INVALID_SEQUENCE"
   | "IMPOSSIBLE_MOVEMENT"
   | "ATTACK_COOLDOWN_SPAM"
-  | "RESOURCE_RANGE_ABUSE";
+  | "RESOURCE_RANGE_ABUSE"
+  | "INVENTORY_MUTATION_REJECTED";
 
 export interface AntiCheatEvidence {
   userId: string;
@@ -29,6 +30,7 @@ interface RejectedActionWindow {
 const REJECTED_ACTION_RULES = {
   ATTACK_COOLDOWN_SPAM: { threshold: 8, windowMs: 5_000, severity: "HIGH" as const },
   RESOURCE_RANGE_ABUSE: { threshold: 5, windowMs: 10_000, severity: "MEDIUM" as const },
+  INVENTORY_MUTATION_REJECTED: { threshold: 5, windowMs: 10_000, severity: "MEDIUM" as const },
 } as const;
 
 const DECAY_PER_SECOND = 1;
@@ -118,7 +120,7 @@ export class AntiCheatService {
 
   observeRejectedAction(
     userId: string,
-    type: "ATTACK_COOLDOWN_SPAM" | "RESOURCE_RANGE_ABUSE",
+    type: "ATTACK_COOLDOWN_SPAM" | "RESOURCE_RANGE_ABUSE" | "INVENTORY_MUTATION_REJECTED",
     evidence: Record<string, number | string | boolean>,
     nowMs = Date.now(),
   ): AntiCheatEvidence | null {
