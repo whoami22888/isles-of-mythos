@@ -856,6 +856,128 @@ describe("server foundation", () => {
     }
   });
 
+  it("enforces server-timed WebSocket movement and persists the authoritative position", async () => {
+    const app = await buildApp();
+    const database = (await import("./db.js")).createDbPool();
+    const unique = Date.now();
+    let socket: WebSocket | null = null;
+    let userId: string | undefined;
+    let acceptedPosition: { x: number; y: number } | undefined;
+
+    try {
+      const register = await app.inject({
+        method: "POST",
+        url: "/auth/register",
+        payload: {
+          username: `movement_authority_${unique}`,
+          email: `movement_authority_${unique}@example.com`,
+          password: "Correct-Horse-Battery-9",
+        },
+      });
+      expect(register.statusCode).toBe(201);
+      const registerBody = parseJsonObject(register.body);
+      const token = getString(registerBody, "accessToken");
+      userId = getString(getObject(registerBody, "user"), "id");
+
+      socket = await openSocket(app);
+      await new Promise<void>((resolve, reject) => {
+        socket!.once("open", resolve);
+        socket!.once("error", reject);
+      });
+      const authenticated = waitForMatchingMessage(socket, (message) => isJsonObject(message) && message.type === "auth_ok");
+      const initialStatePromise = waitForMatchingMessage(socket, (message) => isJsonObject(message) && message.type === "player_state");
+      socket.send(JSON.stringify({ type: "auth", token }));
+      await authenticated;
+      const initialStateMessage = await initialStatePromise;
+      const initialState = getObject(initialStateMessage as JsonObject, "state");
+      const initialX = Number(initialState.x);
+      const initialY = Number(initialState.y);
+      expect(Number.isFinite(initialX)).toBe(true);
+      expect(Number.isFinite(initialY)).toBe(true);
+
+      // The first packet primes/advances the sequence clock. If it has elapsed
+      // time it may move, but even forged client timing cannot exceed 100 ms.
+      const firstMovement = waitForMatchingMessage(socket, (message) => (
+        isJsonObject(message) && (message.type === "player_state" || message.type === "error")
+      ));
+      socket.send(JSON.stringify({
+        type: "move",
+        dx: 1,
+        dy: 0,
+        sequence: 0,
+        dt: 60,
+        speedMultiplier: 100,
+      }));
+      const firstMovementMessage = await firstMovement;
+      let currentX = initialX;
+      let currentY = initialY;
+      if (isJsonObject(firstMovementMessage) && firstMovementMessage.type === "player_state") {
+        const state = getObject(firstMovementMessage, "state");
+        currentX = Number(state.x);
+        currentY = Number(state.y);
+        expect(Math.hypot(currentX - initialX, currentY - initialY)).toBeLessThanOrEqual(0.4 + 1e-9);
+      } else {
+        expect(firstMovementMessage).toEqual({ type: "error", code: "INVALID_MESSAGE" });
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      const acceptedMove = waitForMatchingMessage(socket, (message) => isJsonObject(message) && message.type === "player_state");
+      socket.send(JSON.stringify({
+        type: "move",
+        dx: 1,
+        dy: 0,
+        sequence: 1,
+        dt: 60,
+        speedMultiplier: 100,
+      }));
+      const acceptedMoveMessage = await acceptedMove;
+      const acceptedState = getObject(acceptedMoveMessage as JsonObject, "state");
+      acceptedPosition = { x: Number(acceptedState.x), y: Number(acceptedState.y) };
+      const acceptedDistance = Math.hypot(acceptedPosition.x - currentX, acceptedPosition.y - currentY);
+      expect(acceptedDistance).toBeGreaterThan(0);
+      expect(acceptedDistance).toBeLessThanOrEqual(0.4 + 1e-9);
+      expect(acceptedPosition.y).toBeCloseTo(currentY, 8);
+
+      // Replay the same sequence in the opposite direction; it must be rejected.
+      const replayResponse = waitForMatchingMessage(socket, (message) => isJsonObject(message) && message.type === "error");
+      socket.send(JSON.stringify({
+        type: "move",
+        dx: -1,
+        dy: 0,
+        sequence: 1,
+        dt: 60,
+        speedMultiplier: 100,
+      }));
+      await expect(replayResponse).resolves.toEqual({ type: "error", code: "INVALID_MESSAGE" });
+
+      // A later accepted zero-direction packet reads back the current state,
+      // proving the rejected replay did not change the authoritative position.
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      const confirmedState = waitForMatchingMessage(socket, (message) => isJsonObject(message) && message.type === "player_state");
+      socket.send(JSON.stringify({ type: "move", dx: 0, dy: 0, sequence: 2 }));
+      const confirmedMessage = await confirmedState;
+      const confirmed = getObject(confirmedMessage as JsonObject, "state");
+      expect(Number(confirmed.x)).toBeCloseTo(acceptedPosition.x, 8);
+      expect(Number(confirmed.y)).toBeCloseTo(acceptedPosition.y, 8);
+    } finally {
+      socket?.close();
+      await app.close();
+    }
+
+    try {
+      if (!userId || !acceptedPosition) throw new Error("Movement integration test did not record an accepted position");
+      const persisted = await database.query<{ x: number; y: number }>(
+        "SELECT x, y FROM player_profiles WHERE user_id = $1",
+        [userId],
+      );
+      expect(persisted.rowCount).toBe(1);
+      expect(Number(persisted.rows[0]!.x)).toBeCloseTo(acceptedPosition.x, 8);
+      expect(Number(persisted.rows[0]!.y)).toBeCloseTo(acceptedPosition.y, 8);
+    } finally {
+      await database.end();
+    }
+  });
+
   it("handles bounded concurrent HTTP health traffic", async () => {
     const app = await buildApp();
     try {
