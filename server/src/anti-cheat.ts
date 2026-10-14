@@ -125,7 +125,9 @@ export class AntiCheatService {
     nowMs = Date.now(),
   ): AntiCheatEvidence | null {
     const rule = REJECTED_ACTION_RULES[type];
-    const key = userId + ":" + type;
+    const action = typeof evidence.action === "string" ? evidence.action : "";
+    const reason = typeof evidence.reason === "string" ? evidence.reason : "";
+    const key = [userId, type, action, reason].join(":");
     const previous = this.rejectedActions.get(key);
     const timestampsMs = (previous?.timestampsMs ?? []).filter(
       (timestampMs) => nowMs >= timestampMs && nowMs - timestampMs <= rule.windowMs,

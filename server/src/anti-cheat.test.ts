@@ -103,6 +103,23 @@ describe("anti-cheat evidence service", () => {
     expect(JSON.stringify(event)).not.toContain("itemId");
   });
 
+  it("keeps rejected inventory windows separate by action and reason", () => {
+    const service = new AntiCheatService();
+    for (let index = 0; index < 4; index += 1) {
+      expect(service.observeRejectedAction("u1", "INVENTORY_MUTATION_REJECTED", { action: "craft", reason: "INSUFFICIENT_INVENTORY" }, 4_000 + index * 100)).toBeNull();
+    }
+    expect(service.observeRejectedAction("u1", "INVENTORY_MUTATION_REJECTED", { action: "shop_purchase", reason: "INVENTORY_LIMIT" }, 4_400)).toBeNull();
+    expect(service.observeRejectedAction("u1", "INVENTORY_MUTATION_REJECTED", { action: "craft", reason: "INSUFFICIENT_INVENTORY" }, 4_500)).toMatchObject({
+      evidence: { action: "craft", reason: "INSUFFICIENT_INVENTORY", rejectedCount: 5 },
+    });
+    for (let index = 1; index < 4; index += 1) {
+      expect(service.observeRejectedAction("u1", "INVENTORY_MUTATION_REJECTED", { action: "shop_purchase", reason: "INVENTORY_LIMIT" }, 4_400 + index * 100)).toBeNull();
+    }
+    expect(service.observeRejectedAction("u1", "INVENTORY_MUTATION_REJECTED", { action: "shop_purchase", reason: "INVENTORY_LIMIT" }, 4_900)).toMatchObject({
+      evidence: { action: "shop_purchase", reason: "INVENTORY_LIMIT", rejectedCount: 5 },
+    });
+  });
+
   it("expires rejected-action counts outside the observation window", () => {
     const service = new AntiCheatService();
     for (let index = 0; index < 4; index += 1) {
