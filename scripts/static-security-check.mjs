@@ -107,6 +107,11 @@ if (!ciWorkflow.includes("npm run test:orchestration")) {
   add(findings.errors, "orchestration-ci-hook", join(workflowRoot, "ci.yml"), 1, "CI must run orchestration-controller tests");
 }
 const performanceWorkflow = readFileSync(join(workflowRoot, "performance.yml"), "utf8");
+for (const [name, content] of [["ci.yml", ciWorkflow], ["performance.yml", performanceWorkflow]]) {
+  if (!/^\s*cache:\s*npm\s*$/m.test(content) || !/^\s*cache-dependency-path:\s*package-lock\.json\s*$/m.test(content)) {
+    add(findings.errors, "npm-cache-policy", join(workflowRoot, name), 1, "Required build workflow must use lockfile-keyed npm cache");
+  }
+}
 for (const [marker, description] of [
   ["EXPECTED_HEAD_SHA:", "Performance evidence must bind to exact expected HEAD"],
   ["git rev-parse HEAD", "Performance workflow must verify checked-out HEAD"],
