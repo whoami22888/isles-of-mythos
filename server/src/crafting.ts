@@ -1,0 +1,80 @@
+import { measureMutationStage, type MutationTiming } from "./mutation-timing.js";
+import type { Pool } from "pg";
+import { applyInventoryDelta, cloneInventory, runEconomyMutation, type Inventory } from "./economy.js";
+import { getRecipe } from "./recipe.js";
+
+export interface CraftResult {
+  recipeId: string;
+  transactionId: string;
+  inventory: Inventory;
+}
+
+export async function craftRecipe(
+  db: Pool,
+  userId: string,
+  requestId: string,
+  recipeId: string,
+  timing?: MutationTiming,
+): Promise<CraftResult> {
+  if (!requestId || requestId.length > 64) throw new Error("INVALID_REQUEST_ID");
+  const recipe = getRecipe(recipeId);
+  if (!recipe) throw new Error("RECIPE_NOT_FOUND");
+
+  const requestKey = userId + ":" + requestId;
+  const fingerprint = recipe.id;
+  const client = await measureMutationStage(timing, "poolAcquireMs", () => db.connect());
+  try {
+    await measureMutationStage(timing, "beginMs", () => client.query("BEGIN"));
+
+    const playerExists = await client.query("SELECT 1 FROM player_profiles WHERE user_id=$1 FOR UPDATE", [userId]);
+    if (!playerExists.rows[0]) throw new Error("PLAYER_NOT_FOUND");
+
+    const inserted = await client.query<{ transaction_id: string }>(
+      "INSERT INTO craft_requests(request_key,user_id,fingerprint,response) VALUES($1,$2,$3,'{}'::jsonb) ON CONFLICT(request_key) DO NOTHING RETURNING transaction_id",
+      [requestKey, userId, fingerprint],
+    );
+
+    if (inserted.rowCount === 0) {
+      const existing = await client.query<{ transaction_id: string; fingerprint: string; response: { recipeId: string; inventory: Inventory } }>(
+        "SELECT transaction_id,fingerprint,response FROM craft_requests WHERE request_key=$1 FOR UPDATE",
+        [requestKey],
+      );
+      const row = existing.rows[0];
+      if (!row) throw new Error("CRAFT_REQUEST_NOT_FOUND");
+      if (row.fingerprint !== fingerprint) throw new Error("CRAFT_REQUEST_CONFLICT");
+      await measureMutationStage(timing, "commitMs", () => client.query("COMMIT"));
+      return { recipeId: row.response.recipeId, transactionId: row.transaction_id, inventory: cloneInventory(row.response.inventory) };
+    }
+
+    const transactionId = inserted.rows[0]?.transaction_id;
+    if (!transactionId) throw new Error("CRAFT_TRANSACTION_ID_MISSING");
+
+    const result = await runEconomyMutation(client, userId, ({ gold, inventory }) => {
+      let nextInventory = cloneInventory(inventory);
+      for (const ingredient of recipe.ingredients) {
+        nextInventory = applyInventoryDelta(nextInventory, ingredient.itemId, -ingredient.quantity);
+      }
+      for (const output of recipe.outputs) {
+        nextInventory = applyInventoryDelta(nextInventory, output.itemId, output.quantity);
+      }
+      return { gold, inventory: nextInventory, value: { recipeId: recipe.id, inventory: nextInventory } };
+    });
+
+    await client.query(
+      "UPDATE craft_requests SET response=$2::jsonb WHERE request_key=$1",
+      [requestKey, JSON.stringify(result)],
+    );
+    await measureMutationStage(timing, "commitMs", () => client.query("COMMIT"));
+    return { ...result, transactionId };
+  } catch (error) {
+    try {
+      await measureMutationStage(timing, "rollbackMs", () => client.query("ROLLBACK"));
+    } catch (rollbackError) {
+      client.release(rollbackError instanceof Error ? rollbackError : new Error(String(rollbackError)));
+      throw error;
+    }
+    throw error;
+  } finally {
+    client.release();
+  }
+}
