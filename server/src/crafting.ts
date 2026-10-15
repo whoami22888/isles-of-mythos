@@ -23,6 +23,7 @@ export async function craftRecipe(
   const requestKey = userId + ":" + requestId;
   const fingerprint = recipe.id;
   const client = await measureMutationStage(timing, "poolAcquireMs", () => db.connect());
+  let rollbackFailure: Error | undefined;
   try {
     await measureMutationStage(timing, "beginMs", () => client.query("BEGIN"));
 
@@ -70,11 +71,11 @@ export async function craftRecipe(
     try {
       await measureMutationStage(timing, "rollbackMs", () => client.query("ROLLBACK"));
     } catch (rollbackError) {
-      client.release(rollbackError instanceof Error ? rollbackError : new Error(String(rollbackError)));
+      rollbackFailure = rollbackError instanceof Error ? rollbackError : new Error(String(rollbackError));
       throw error;
     }
     throw error;
   } finally {
-    client.release();
+    client.release(rollbackFailure);
   }
 }
