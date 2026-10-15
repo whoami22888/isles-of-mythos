@@ -1,0 +1,44 @@
+; IOM-00 minimal Android client shell. The server remains authoritative.
+config_version=5
+
+[application]
+config/name="Isles of Mythos"
+run/main_scene="res://scenes/boot.tscn"
+
+[display]
+window/size/viewport_width=1280
+window/size/viewport_height=720
+window/size/window_width_override=1280
+window/size/window_height_override=720
+window/stretch/mode="canvas_items"
+
+[rendering]
+renderer/rendering_method="mobile"
+renderer/rendering_method.mobile="mobile"
+environment/defaults/default_clear_color=Color(0.035, 0.055, 0.09, 1)
+
+[input]
+ui_accept={"deadzone": 0.5, "events": [Object(InputEventKey,"physical_keycode":4194309)]}
+
+[preset.0]
+name="Android Debug"
+platform="Android"
+runnable=true
+custom_features="4.7.2"
+export_filter="all_resources"
+include_filter=""
+exclude_filter=""
+export_path=""
+
+[preset.0.options]
+package/unique_name="com.whoami22888.islesofmythos"
+package/name="Isles of Mythos"
+package/version="0.1.0"
+architectures/arm64-v8a=true
+architectures/armeabi-v7a=false
+architectures/x86=false
+architectures/x86_64=false
+keystore/debug/user=""
+keystore/debug_password=""
+keystore/debug_alias=""
+keystore/debug_alias_password=""

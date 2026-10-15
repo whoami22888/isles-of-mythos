@@ -1,6 +1,1 @@
-node_modules/
-dist/
-.env
-coverage/
-.vite/
-.DS_Store
+client-godot/.godot/
