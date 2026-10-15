@@ -39,7 +39,7 @@ jobs:
           unzip -q "$RUNNER_TEMP/godot/godot.zip" -d "$RUNNER_TEMP/godot/bin"
           install "$RUNNER_TEMP/godot/bin/Godot_v4.7.2-stable_linux.x86_64" "$RUNNER_TEMP/godot/godot"
           "$RUNNER_TEMP/godot/godot" --version | grep -F "4.7.2.stable"
-          curl --fail --location --retry 3 -o "$RUNNER_TEMP/godot/templates.tpz" "https://github.com/godotengine/godot/releases/download/4.7.2-stable/godot-4.7.2-stable_export_templates.tpz"
+          curl --fail --location --retry 3 -o "$RUNNER_TEMP/godot/templates.tpz" "https://github.com/godotengine/godot/releases/download/4.7.2-stable/Godot_v4.7.2-stable_export_templates.tpz"
           echo "$TEMPLATES_SHA256  $RUNNER_TEMP/godot/templates.tpz" | sha256sum --check
           unzip -q "$RUNNER_TEMP/godot/templates.tpz" -d "$RUNNER_TEMP/godot/templates"
           cp -R "$RUNNER_TEMP/godot/templates/templates/"* "$HOME/.local/share/godot/export_templates/4.7.2.stable/"
