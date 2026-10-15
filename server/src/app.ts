@@ -59,6 +59,11 @@ function emitSlowMutation(action: string, snapshot: MutationTimingSnapshot, db: 
     totalMs: Number(snapshot.totalMs.toFixed(2)),
     loadPlayerMs: snapshot.stages.loadPlayerMs ?? null,
     transactionMs: snapshot.stages.transactionMs ?? null,
+    // Nested transaction stages; do not add these to transactionMs.
+    poolAcquireMs: snapshot.stages.poolAcquireMs ?? null,
+    beginMs: snapshot.stages.beginMs ?? null,
+    commitMs: snapshot.stages.commitMs ?? null,
+    rollbackMs: snapshot.stages.rollbackMs ?? null,
     reloadEconomyMs: snapshot.stages.reloadEconomyMs ?? null,
     dbPoolWaiting: db.waitingCount,
     dbPoolTotal: db.totalCount,
@@ -1247,7 +1252,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
                 return { type: "error", code: "RESOURCE_OUT_OF_RANGE" };
               }
               try {
-                const result = await measureMutationStage(timing, "transactionMs", () => gatherResource(db, authenticatedUserId, message.requestId, fingerprint, node));
+                const result = await measureMutationStage(timing, "transactionMs", () => gatherResource(db, authenticatedUserId, message.requestId, fingerprint, node, timing));
                 const refreshed = await measureMutationStage(timing, "reloadEconomyMs", () => players.reloadEconomy(authenticatedUserId));
                 return {
                   type: "resource_gathered",
@@ -1296,7 +1301,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             async () => {
               try {
                 await measureMutationStage(timing, "loadPlayerMs", () => players.loadOrCreate(authenticatedUserId));
-                const result = await measureMutationStage(timing, "transactionMs", () => craftRecipe(db, authenticatedUserId, message.requestId, message.recipeId));
+                const result = await measureMutationStage(timing, "transactionMs", () => craftRecipe(db, authenticatedUserId, message.requestId, message.recipeId, timing));
                 const state = await measureMutationStage(timing, "reloadEconomyMs", () => players.reloadEconomy(authenticatedUserId));
                 return { type: "craft_result", requestId: message.requestId, transactionId: result.transactionId, recipeId: result.recipeId, state: serializePlayerState(state) };
               } catch (error) {
