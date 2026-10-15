@@ -32,9 +32,9 @@
 - Performance matrices: 1/50/250/1000 and 10/50/100/500/1000 players. Scenarios: 500 guild-battle, 250 naval, 250 world-boss, 5000 persisted player bases. Require durable evidence, server tick p50/p95/p99 and 20 Hz cadence.
 
 ## Notion checkpoints
-- Build Instructions: https://app.notion.com/p/3fa3fab3c26681d5a87fe776982e9895
-- Harvest Parts: https://app.notion.com/p/3fa3fab3c266811dbd7bd1d7b636723f
-- Progress & Revision Notes: https://app.notion.com/p/3fa3fab3c2668153b493e21f913ecfdf
-- Audit: https://app.notion.com/p/3fa3fab3c26681f88f13f27db2ade308
+- Build Instructions: <https://app.notion.com/p/3fa3fab3c26681d5a87fe776982e9895>
+- Harvest Parts: <https://app.notion.com/p/3fa3fab3c266811dbd7bd1d7b636723f>
+- Progress & Revision Notes: <https://app.notion.com/p/3fa3fab3c2668153b493e21f913ecfdf>
+- Audit: <https://app.notion.com/p/3fa3fab3c26681f88f13f27db2ade308>
 
 Update this snapshot only from fresh evidence and preserve historical decisions in Git history and Notion.
