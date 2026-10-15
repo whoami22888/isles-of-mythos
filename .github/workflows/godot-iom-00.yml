@@ -1,0 +1,72 @@
+name: IOM-00 Godot client
+
+on:
+  pull_request:
+    paths:
+      - "client-godot/**"
+      - ".github/workflows/godot-iom-00.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: iom-00-godot-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  GODOT_VERSION: 4.7.2
+  GODOT_SHA256: cadd3204e728a35d3f13adb7fd0d7902636b79f6b95c40c265eb73b6c35329e4
+  TEMPLATES_SHA256: f298490b8d44d934be425a5a65a51bf15f422428b229a06a6e11d9ffea248011
+
+jobs:
+  import-and-android-debug:
+    name: Godot 4.7.2 import and Android ARM64 debug export
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Install pinned Godot 4.7.2 and export templates
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/godot" "$HOME/.local/share/godot/export_templates/4.7.2.stable"
+          curl --fail --location --retry 3 -o "$RUNNER_TEMP/godot/godot.zip" "https://github.com/godotengine/godot/releases/download/4.7.2-stable/Godot_v4.7.2-stable_linux.x86_64.zip"
+          echo "$GODOT_SHA256  $RUNNER_TEMP/godot/godot.zip" | sha256sum --check
+          unzip -q "$RUNNER_TEMP/godot/godot.zip" -d "$RUNNER_TEMP/godot/bin"
+          install "$RUNNER_TEMP/godot/bin/Godot_v4.7.2-stable_linux.x86_64" "$RUNNER_TEMP/godot/godot"
+          "$RUNNER_TEMP/godot/godot" --version | grep -F "4.7.2.stable"
+          curl --fail --location --retry 3 -o "$RUNNER_TEMP/godot/templates.tpz" "https://github.com/godotengine/godot/releases/download/4.7.2-stable/Godot_v4.7.2-stable_export_templates.tpz"
+          echo "$TEMPLATES_SHA256  $RUNNER_TEMP/godot/templates.tpz" | sha256sum --check
+          unzip -q "$RUNNER_TEMP/godot/templates.tpz" -d "$RUNNER_TEMP/godot/templates"
+          cp -R "$RUNNER_TEMP/godot/templates/templates/"* "$HOME/.local/share/godot/export_templates/4.7.2.stable/"
+      - name: Headless import and smoke test
+        run: |
+          set -euo pipefail
+          "$RUNNER_TEMP/godot/godot" --headless --editor --path client-godot --quit --import
+          "$RUNNER_TEMP/godot/godot" --headless --path client-godot --script res://tests/headless_smoke.gd
+      - name: Verify Android export prerequisites
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${ANDROID_HOME:=${ANDROID_SDK_ROOT:-}}"
+          if [ -z "$ANDROID_HOME" ] || [ ! -x "$ANDROID_HOME/platform-tools/adb" ]; then
+            echo "::error::Android SDK/platform-tools are unavailable; ARM64 APK export is blocked and no APK will be claimed."
+            exit 1
+          fi
+          command -v java >/dev/null
+          command -v gradle >/dev/null || [ -x "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" ]
+      - name: Export signed Android ARM64 debug APK
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/iom-artifacts"
+          "$RUNNER_TEMP/godot/godot" --headless --path client-godot --export-debug "Android Debug" "$RUNNER_TEMP/iom-artifacts/isles-of-mythos-debug.apk"
+          sha256sum "$RUNNER_TEMP/iom-artifacts/isles-of-mythos-debug.apk" | tee "$RUNNER_TEMP/iom-artifacts/SHA256SUMS"
+      - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
+        with:
+          name: iom-00-android-debug
+          path: ${{ runner.temp }}/iom-artifacts
+          if-no-files-found: error
