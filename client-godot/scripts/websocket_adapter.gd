@@ -7,47 +7,59 @@ signal message_received(message: Dictionary)
 var _socket := WebSocketPeer.new()
 var _url := ""
 var _token := ""
-var _authenticated := false
+var _attempt_active := false
+var _auth_sent := false
 
 func configure(url: String, token: String) -> void:
 	_url = url.strip_edges()
 	_token = token
 
 func connect_to_server() -> void:
+	# Each explicit Connect replaces the previous attempt and its credentials.
+	_socket.close()
+	_socket = WebSocketPeer.new()
+	_attempt_active = false
+	_auth_sent = false
 	if _url.is_empty():
 		status_changed.emit("No server endpoint configured")
 		return
-	if not _token.is_empty() and not _is_safe_authenticated_url(_url):
-		status_changed.emit("Authenticated connections require wss:// (loopback is allowed for local testing)")
+	if not _is_safe_authenticated_url(_url):
+		status_changed.emit("Use wss://, or ws:// loopback for local testing")
+		return
+	if _token.is_empty():
+		status_changed.emit("Login token required")
 		return
 	status_changed.emit("Connecting…")
 	var error := _socket.connect_to_url(_url)
 	if error != OK:
 		status_changed.emit("Connection failed (%s)" % error)
+		return
+	_attempt_active = true
 
 func _process(_delta: float) -> void:
+	if not _attempt_active:
+		return
 	_socket.poll()
 	var state := _socket.get_ready_state()
 	if state == WebSocketPeer.STATE_OPEN:
-		if not _authenticated:
-			_authenticated = true
-			status_changed.emit("Connected; authenticating…")
-			if _token.is_empty():
-				status_changed.emit("Connected; login token required")
-			else:
-				_send_auth()
+		if not _auth_sent:
+			_auth_sent = true
+			if _socket.send_text(JSON.stringify({"type": "auth", "token": _token})) != OK:
+				_socket.close()
+				_attempt_active = false
+				status_changed.emit("Authentication request could not be sent")
+				return
+			status_changed.emit("Connected; awaiting authentication…")
 		while _socket.get_available_packet_count() > 0:
-			var text := _socket.get_packet().get_string_from_utf8()
-			var parsed = JSON.parse_string(text)
+			var parsed = JSON.parse_string(_socket.get_packet().get_string_from_utf8())
 			if parsed is Dictionary:
 				message_received.emit(parsed)
-	elif state == WebSocketPeer.STATE_CLOSED and _authenticated:
-		_authenticated = false
-		status_changed.emit("Disconnected")
-
-func _send_auth() -> void:
-	_socket.send_text(JSON.stringify({"type": "auth", "token": _token}))
-	status_changed.emit("Authenticated request sent")
+	elif state == WebSocketPeer.STATE_CLOSED:
+		_attempt_active = false
+		status_changed.emit("Disconnected" if _auth_sent else "Connection failed; check endpoint and server availability")
 
 func _is_safe_authenticated_url(url: String) -> bool:
-	return url.begins_with("wss://") or url.begins_with("ws://127.0.0.1/") or url.begins_with("ws://localhost/")
+	var pattern := RegEx.new()
+	# Match the entire authority: lookalike hosts and userinfo are never loopback.
+	pattern.compile("^wss://[^/@?#\\s]+(?:/[^\\s]*)?$|^ws://(?:127\\.0\\.0\\.1|localhost|\\[::1\\])(?::[0-9]{1,5})?(?:/[^\\s]*)?$")
+	return pattern.search(url) != null

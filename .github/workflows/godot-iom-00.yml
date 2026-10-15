@@ -59,7 +59,7 @@ jobs:
           fi
           command -v java >/dev/null
           command -v gradle >/dev/null || [ -x "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" ]
-      - name: Export unsigned Android ARM64 debug APK
+      - name: Export signed Android ARM64 debug APK
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/iom-artifacts"
