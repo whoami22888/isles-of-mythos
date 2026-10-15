@@ -53,6 +53,20 @@ horizontal_alignment = 1
 autowrap_mode = 2
 theme_override_font_sizes/font_size = 20
 
+[node name="Endpoint" type="LineEdit" parent="Panel/Margin/Content"]
+layout_mode = 2
+placeholder_text = "Server URL (wss://…/ws)"
+text = ""
+
+[node name="Token" type="LineEdit" parent="Panel/Margin/Content"]
+layout_mode = 2
+placeholder_text = "Login token"
+secret = true
+
+[node name="Connect" type="Button" parent="Panel/Margin/Content"]
+layout_mode = 2
+text = "Connect"
+
 [node name="Hint" type="Label" parent="Panel/Margin/Content"]
 layout_mode = 2
 text = "The authoritative game server supplies player state."
