@@ -33,6 +33,7 @@ export async function gatherResource(
   if (!reward) throw new Error("RESOURCE_NOT_FOUND");
 
   const client = await measureMutationStage(timing, "poolAcquireMs", () => db.connect());
+  let rollbackFailure: Error | undefined;
   try {
     await measureMutationStage(timing, "beginMs", () => client.query("BEGIN"));
 
@@ -139,9 +140,13 @@ export async function gatherResource(
       respawnsAt: new Date(respawnsAt).toISOString(),
     };
   } catch (error) {
-    await measureMutationStage(timing, "rollbackMs", () => client.query("ROLLBACK"));
+    try {
+      await measureMutationStage(timing, "rollbackMs", () => client.query("ROLLBACK"));
+    } catch (rollbackError) {
+      rollbackFailure = rollbackError instanceof Error ? rollbackError : new Error(String(rollbackError));
+    }
     throw error;
   } finally {
-    client.release();
+    client.release(rollbackFailure);
   }
 }
