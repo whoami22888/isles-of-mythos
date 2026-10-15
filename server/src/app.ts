@@ -901,10 +901,12 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           const replay = combatReplay.lookup(userId, message.requestId, replayFingerprint);
           const pendingKey = userId + ":" + message.requestId;
           if (replay.kind === "hit") {
+            recordRequestDuplicate(userId, "REPLAYED");
             send(socket, replay.response);
             return;
           }
           if (replay.kind === "conflict") {
+            recordRequestDuplicate(userId, "CONFLICT");
             send(socket, { type: "error", code: "INVALID_MESSAGE" });
             return;
           }
