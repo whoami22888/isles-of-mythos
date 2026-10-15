@@ -15,11 +15,12 @@ export function createMutationTiming(): MutationTiming {
 }
 
 export async function measureMutationStage<T>(
-  timing: MutationTiming,
+  timing: MutationTiming | undefined,
   name: string,
   operation: () => Promise<T>,
   now: TimingClock = () => performance.now(),
 ): Promise<T> {
+  if (!timing) return operation();
   const startedAt = now();
   try {
     return await operation();
