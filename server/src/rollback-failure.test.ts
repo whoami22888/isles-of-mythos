@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
 import { craftRecipe } from "./crafting.js";
-import { gatherResource } from "./resource-gathering.js";
 
 describe("rollback failure preserves the originating transaction error", () => {
   it("crafting preserves BEGIN failure and evicts the broken connection", async () => {
