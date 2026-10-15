@@ -9,7 +9,8 @@ describe("rollback failure preserves the originating transaction error", () => {
     const query = vi.fn().mockRejectedValueOnce(original).mockRejectedValueOnce(rollback);
     const db = { connect: vi.fn().mockResolvedValue({ query, release }) };
     await expect(craftRecipe(db as never, "player", "request", "tool.wooden-club")).rejects.toBe(original);
-    expect(query.mock.calls.map((call) => call[0])).toEqual(["BEGIN", "ROLLBACK"]);
+    expect(query).toHaveBeenNthCalledWith(1, "BEGIN");
+    expect(query).toHaveBeenNthCalledWith(2, "ROLLBACK");
     expect(release).toHaveBeenCalledExactlyOnceWith(rollback);
   });
 
