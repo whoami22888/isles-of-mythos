@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { AntiCheatService } from "./anti-cheat.js";
 import { WebSocket } from "ws";
 import { buildApp } from "./app.js";
 import { config } from "./config.js";
@@ -18,6 +19,8 @@ function waitForMatchingMessage(
   return new Promise((resolve, reject) => {
     const received: unknown[] = [];
     const timer = setTimeout(() => {
+      socket.off("message", onMessage);
+      socket.off("error", onError);
       reject(new Error(`Timed out waiting for WebSocket message; received: ${JSON.stringify(received)}`));
     }, 2_000);
 
@@ -28,6 +31,7 @@ function waitForMatchingMessage(
       } catch (error: unknown) {
         clearTimeout(timer);
         socket.off("message", onMessage);
+        socket.off("error", onError);
         reject(error instanceof Error ? error : new Error("Invalid JSON message"));
         return;
       }
@@ -35,12 +39,14 @@ function waitForMatchingMessage(
       if (!predicate(message)) return;
       clearTimeout(timer);
       socket.off("message", onMessage);
+      socket.off("error", onError);
       resolve(message);
     };
 
     const onError = (error: Error) => {
       clearTimeout(timer);
       socket.off("message", onMessage);
+      socket.off("error", onError);
       reject(error);
     };
 
@@ -161,7 +167,9 @@ describe("server foundation", () => {
   });
 
   it("enforces authoritative melee stamina cost and cooldown", async () => {
-    const app = await buildApp();
+    const antiCheat = new AntiCheatService();
+    const duplicates = vi.spyOn(antiCheat, "observeRequestDuplicate");
+    const app = await buildApp({ antiCheat });
     const unique = Date.now();
     const register = await app.inject({
       method: "POST",
@@ -248,6 +256,22 @@ describe("server foundation", () => {
         facingY: 0,
       }));
       await expect(cooldown).resolves.toEqual({ type: "error", code: "COMBAT_COOLDOWN" });
+
+      const originalAttack = await attackResult;
+      for (const outcome of ["REPLAYED", "CONFLICT"] as const) {
+        for (let index = 0; index < 5; index += 1) {
+          const response = waitForMatchingMessage(socket, message =>
+            isJsonObject(message) && (message.type === "combat_result" || message.type === "error"));
+          socket.send(JSON.stringify({ type: "attack", requestId: "melee-1", targetId,
+            facingX: outcome === "REPLAYED" ? 1 : 0, facingY: outcome === "REPLAYED" ? 0 : 1 }));
+          await expect(response).resolves.toEqual(outcome === "REPLAYED" ? originalAttack : { type: "error", code: "INVALID_MESSAGE" });
+        }
+        expect(duplicates.mock.calls.filter(call => call[1] === outcome)).toHaveLength(5);
+        expect(duplicates.mock.results.at(-1)?.value).toMatchObject({
+          type: "REQUEST_DUPLICATION", evidence: { reason: outcome, rejectedCount: 5 },
+        });
+      }
+
 
       const stateAfterAttack = waitForMatchingMessage(socket, (message) => typeof message === "object" && message !== null && (message as JsonObject).type === "player_state");
       socket.send(JSON.stringify({ type: "move", dx: 0, dy: 0, sequence: 0 }));
