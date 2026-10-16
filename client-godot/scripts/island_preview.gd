@@ -35,6 +35,7 @@ func _build_environment() -> void:
 	sand.bottom_radius = ISLAND_RADIUS + 0.45
 	sand.height = 1.4
 	var beach := _add_mesh(self, sand, Vector3(0.0, -0.6, 0.0), Vector3.ONE, Color(0.84, 0.72, 0.44))
+	beach.name = "CoastalShoreline"
 	_apply_beach_material(beach)
 	var grass := CylinderMesh.new()
 	grass.top_radius = ISLAND_RADIUS - 1.2
@@ -138,3 +139,4 @@ func _physics_process(delta: float) -> void:
 	var next_position := _player.position + movement * MOVE_SPEED * delta
 	next_position.y = 0.0
 	_player.position = next_position.limit_length(ISLAND_RADIUS - 1.1)
+

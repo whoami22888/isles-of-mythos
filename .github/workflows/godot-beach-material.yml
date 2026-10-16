@@ -17,6 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - name: Fetch pinned CC0 beach colour and roughness maps
         shell: bash
@@ -51,3 +52,4 @@ jobs:
           name: godot-verified-beach-material-render
           path: ${{ runner.temp }}/island-evidence/
           if-no-files-found: error
+

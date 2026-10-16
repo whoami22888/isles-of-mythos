@@ -16,12 +16,7 @@ func _capture() -> void:
 	await process_frame
 	await process_frame
 	await process_frame
-	var beach: MeshInstance3D = null
-	for child in scene.get_children():
-		if child is MeshInstance3D and child.mesh is CylinderMesh:
-			if child.mesh.top_radius > 8.5:
-				beach = child
-				break
+	var beach := scene.get_node_or_null("CoastalShoreline") as MeshInstance3D
 	if beach == null or beach.material_override == null:
 		push_error("Beach material was not applied")
 		quit(1)
@@ -31,6 +26,11 @@ func _capture() -> void:
 		push_error("Verified beach texture was not imported into material")
 		quit(1)
 		return
+	if material.roughness_texture == null:
+		push_error("Verified beach roughness texture was not imported")
+		quit(1)
+		return
+	await RenderingServer.frame_post_draw
 	var image: Image = root.get_viewport().get_texture().get_image()
 	if image == null or image.is_empty() or image.get_width() < 640:
 		push_error("No renderable image")
@@ -47,3 +47,4 @@ func _capture() -> void:
 	print("Rendered verified beach texture: %s" % output)
 	scene.queue_free()
 	quit(0)
+
