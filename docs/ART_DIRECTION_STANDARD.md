@@ -21,7 +21,7 @@ Use the external asset manifest and provenance validation. No unverified license
 - Animation and detail: **10%**
 - Mobile visual stability: **10%**
 
-Score each criterion 0–10 against real in-engine captures, apply weighted total out of 10, and attach the individual marks, reviewer, image evidence and reasons. This is a proposed review weighting, **not a verified or previously measured score**. A numeric score never overrides a mandatory licensing, import, security, performance or independent-review pass/fail gate; final artistic acceptance still requires Graphics Director and independent visual QA sign-off. Do not invent a pass threshold; record the agreed threshold before using scoring as an automated acceptance gate.
+Score each criterion 0–10 against real in-engine captures, apply weighted total out of 10, and attach the individual marks, reviewer, image evidence and reasons. This is a proposed review weighting, **not a verified or previously measured score**. A numeric score never overrides a mandatory licensing, import, security, performance or AI-review pass/fail gate; final artistic acceptance still requires Graphics Director and AI visual QA assessment. Do not invent a pass threshold; record the agreed threshold before using scoring as an automated acceptance gate.
 
 ## Mobile optimisation without visual downgrade
 Target Samsung Galaxy S23 Ultra before lower-end presets. Use asset-specific mesh LOD, texture compression/mipmaps, instancing, culling, material reuse, controlled draw calls, distance-based shadow/effect changes and scalable graphics settings. Preserve high-fidelity near-field characters, ships and scenery. Measure FPS, frame-time distribution, memory and thermal behaviour on the physical device before claiming device-level acceptance. Desktop or CI results are not substitutes.
@@ -31,9 +31,9 @@ Target Samsung Galaxy S23 Ultra before lower-end presets. Use asset-specific mes
 - Fixed camera angle and lighting for comparisons; evidence for material import, texture mapping and scale.
 - Verified exact SHA of headless import, scene-load/smoke tests, Android build, relevant gameplay and security tests.
 - Available rendering/performance measurements with environment and device stated. Physical-device measurements mandatory for device claims.
-- Independent visual review and asset-license/provenance review, including records of rejection and remediation.
+- AI visual review and asset-license/provenance review, including records of rejection and remediation.
 
-Do **not** approve or merge when visual quality is below standard; provenance/licensing is unresolved; Godot import, rendering or gameplay tests fail; required real performance metrics or exact-SHA CI/review are absent. Continue independent safe work when premium assets cannot be sourced; never quietly replace them with poorer art.
+Do **not** approve or merge when visual quality is below standard; provenance/licensing is unresolved; Godot import, rendering or gameplay tests fail; required real performance metrics or exact-SHA CI/AI review are absent. Continue independent safe work when premium assets cannot be sourced; never quietly replace them with poorer art.
 
 ## Build agent ownership and order
 - **Graphics Director:** owns visual criteria and asset rejection.
