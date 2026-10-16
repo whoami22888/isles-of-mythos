@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 import sys
 from urllib.parse import urlparse
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 APPROVED = {
     "aerial_beach_01", "coast_sand_rocks_02", "seaside_rock"
@@ -19,15 +19,29 @@ MAX_BYTES = 16 * 1024 * 1024
 def approved_url(url, hosts):
     """Enforce HTTPS and an exact expected domain."""
     p = urlparse(url)
-    if p.scheme != "https" or p.hostname not in hosts or p.username or p.password:
+    if (p.scheme != "https" or p.hostname not in hosts or p.username
+            or p.password or p.port not in (None, 443)):
         raise ValueError("Unapproved URL origin")
+
+
+class ApprovedRedirects(HTTPRedirectHandler):
+    """Reject redirects before opening an untrusted network location."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        """Permit only approved Poly Haven download and API origins."""
+        approved_url(newurl, {"api.polyhaven.com", "dl.polyhaven.org"})
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+OPENER = build_opener(ApprovedRedirects())
 
 
 def get_json(url):
     """Read official API metadata with service-identifying user-agent."""
     approved_url(url, {"api.polyhaven.com"})
     req = Request(url, headers={"User-Agent": "IslesOfMythosAssetHarvester/1.0"})
-    with urlopen(req, timeout=30) as response:
+    with OPENER.open(req, timeout=30) as response:
+        approved_url(response.url, {"api.polyhaven.com"})
         return json.load(response)
 
 
@@ -63,7 +77,7 @@ def main(asset_id):
         url = item["url"]
         approved_url(url, {"dl.polyhaven.org"})
         request = Request(url, headers={"User-Agent": "IslesOfMythosAssetHarvester/1.0"})
-        with urlopen(request, timeout=45) as response:
+        with OPENER.open(request, timeout=45) as response:
             approved_url(response.url, {"dl.polyhaven.org"})
             data = response.read(MAX_BYTES + 1)
         if len(data) > MAX_BYTES:
