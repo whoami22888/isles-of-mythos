@@ -1,3 +1,4 @@
+import { measureMutationStage, type MutationTiming } from "./mutation-timing.js";
 import type { Pool } from "pg";
 import { applyInventoryDelta, cloneInventory, runEconomyMutation, type Inventory } from "./economy.js";
 import { getRecipe } from "./recipe.js";
@@ -13,6 +14,7 @@ export async function craftRecipe(
   userId: string,
   requestId: string,
   recipeId: string,
+  timing?: MutationTiming,
 ): Promise<CraftResult> {
   if (!requestId || requestId.length > 64) throw new Error("INVALID_REQUEST_ID");
   const recipe = getRecipe(recipeId);
@@ -20,9 +22,10 @@ export async function craftRecipe(
 
   const requestKey = userId + ":" + requestId;
   const fingerprint = recipe.id;
-  const client = await db.connect();
+  const client = await measureMutationStage(timing, "poolAcquireMs", () => db.connect());
+  let rollbackFailure: Error | undefined;
   try {
-    await client.query("BEGIN");
+    await measureMutationStage(timing, "beginMs", () => client.query("BEGIN"));
 
     const playerExists = await client.query("SELECT 1 FROM player_profiles WHERE user_id=$1 FOR UPDATE", [userId]);
     if (!playerExists.rows[0]) throw new Error("PLAYER_NOT_FOUND");
@@ -40,7 +43,7 @@ export async function craftRecipe(
       const row = existing.rows[0];
       if (!row) throw new Error("CRAFT_REQUEST_NOT_FOUND");
       if (row.fingerprint !== fingerprint) throw new Error("CRAFT_REQUEST_CONFLICT");
-      await client.query("COMMIT");
+      await measureMutationStage(timing, "commitMs", () => client.query("COMMIT"));
       return { recipeId: row.response.recipeId, transactionId: row.transaction_id, inventory: cloneInventory(row.response.inventory) };
     }
 
@@ -62,12 +65,17 @@ export async function craftRecipe(
       "UPDATE craft_requests SET response=$2::jsonb WHERE request_key=$1",
       [requestKey, JSON.stringify(result)],
     );
-    await client.query("COMMIT");
+    await measureMutationStage(timing, "commitMs", () => client.query("COMMIT"));
     return { ...result, transactionId };
   } catch (error) {
-    await client.query("ROLLBACK");
+    try {
+      await measureMutationStage(timing, "rollbackMs", () => client.query("ROLLBACK"));
+    } catch (rollbackError) {
+      rollbackFailure = rollbackError instanceof Error ? rollbackError : new Error(String(rollbackError));
+      throw error;
+    }
     throw error;
   } finally {
-    client.release();
+    client.release(rollbackFailure);
   }
 }

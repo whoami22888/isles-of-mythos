@@ -17,6 +17,22 @@ describe("mobile touch controls", () => {
     expect(normalizeStick(10, 10, Number.NaN)).toEqual({ x: 0, y: 0 });
   });
 
+  it("handles non-finite pointer deltas without propagating invalid movement", () => {
+    const invalidInputs: Array<[number, number]> = [
+      [Number.NaN, 10],
+      [10, Number.NaN],
+      [Number.POSITIVE_INFINITY, 0],
+      [0, Number.NEGATIVE_INFINITY],
+    ];
+
+    for (const [dx, dy] of invalidInputs) {
+      const normalized = normalizeStick(dx, dy, 64);
+      expect(normalized).toEqual({ x: 0, y: 0 });
+      expect(Number.isFinite(normalized.x)).toBe(true);
+      expect(Number.isFinite(normalized.y)).toBe(true);
+    }
+  });
+
   it("keeps controls inside a responsive viewport", () => {
     for (const [width, height] of [[320, 480], [480, 320], [800, 480], [1280, 720]]) {
       const layout = getMobileLayout(width, height);

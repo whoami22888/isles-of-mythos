@@ -230,7 +230,7 @@ describe("creature foundation",()=>{
     const db=(await import("./db.js")).createDbPool();
     try{
       await db.query("INSERT INTO player_profiles (user_id,inventory,hotbar,selected_hotbar_slot) VALUES ($1,$3::jsonb,'[\"cutlass\",null,null,null,null,null,null,null]'::jsonb,0),($2,$3::jsonb,'[\"cutlass\",null,null,null,null,null,null,null]'::jsonb,0)",[userIds[0],userIds[1],JSON.stringify({"capture.orb":1,"creature.feed":0})]);
-      const target=createCombatTarget("creature:concurrent-test","slime",1,1,1);
+      const target=createCombatTarget(`creature:concurrent-test-${unique}`,"slime",1,1,1);
       const first=new CreatureStore(db); const second=new CreatureStore(db);
       const results=await Promise.allSettled([first.capture(userIds[0],target),second.capture(userIds[1],target)]);
       expect(results.filter((result)=>result.status==="fulfilled")).toHaveLength(1);

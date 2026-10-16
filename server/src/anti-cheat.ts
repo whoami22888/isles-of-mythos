@@ -5,7 +5,10 @@ export type AntiCheatEventType =
   | "MOVEMENT_INVALID_SEQUENCE"
   | "IMPOSSIBLE_MOVEMENT"
   | "ATTACK_COOLDOWN_SPAM"
-  | "RESOURCE_RANGE_ABUSE";
+  | "RESOURCE_RANGE_ABUSE"
+  | "INVENTORY_MUTATION_REJECTED"
+  | "REQUEST_DUPLICATION"
+  | "MULTI_SOCKET_ABUSE";
 
 export interface AntiCheatEvidence {
   userId: string;
@@ -26,19 +29,28 @@ interface RejectedActionWindow {
   lastEmittedMs: number;
 }
 
+interface MultiSocketWindow {
+  lastEmittedMs: number;
+}
+
 const REJECTED_ACTION_RULES = {
   ATTACK_COOLDOWN_SPAM: { threshold: 8, windowMs: 5_000, severity: "HIGH" as const },
   RESOURCE_RANGE_ABUSE: { threshold: 5, windowMs: 10_000, severity: "MEDIUM" as const },
+  INVENTORY_MUTATION_REJECTED: { threshold: 5, windowMs: 10_000, severity: "MEDIUM" as const },
+  REQUEST_DUPLICATION: { threshold: 5, windowMs: 10_000, severity: "MEDIUM" as const },
 } as const;
 
 const DECAY_PER_SECOND = 1;
 const MAX_EVENTS = 5000;
 const MAX_REJECTED_ACTION_WINDOWS = 10_000;
+const MULTI_SOCKET_THRESHOLD = 4;
+const MULTI_SOCKET_WINDOW_MS = 10_000;
 
 export class AntiCheatService {
   private readonly events: AntiCheatEvidence[] = [];
   private readonly suspicion = new Map<string, SuspicionState>();
   private readonly rejectedActions = new Map<string, RejectedActionWindow>();
+  private readonly multiSocketWindows = new Map<string, MultiSocketWindow>();
 
   record(
     userId: string,
@@ -118,12 +130,14 @@ export class AntiCheatService {
 
   observeRejectedAction(
     userId: string,
-    type: "ATTACK_COOLDOWN_SPAM" | "RESOURCE_RANGE_ABUSE",
+    type: "ATTACK_COOLDOWN_SPAM" | "RESOURCE_RANGE_ABUSE" | "INVENTORY_MUTATION_REJECTED" | "REQUEST_DUPLICATION",
     evidence: Record<string, number | string | boolean>,
     nowMs = Date.now(),
   ): AntiCheatEvidence | null {
     const rule = REJECTED_ACTION_RULES[type];
-    const key = userId + ":" + type;
+    const action = typeof evidence.action === "string" ? evidence.action : "";
+    const reason = typeof evidence.reason === "string" ? evidence.reason : "";
+    const key = [userId, type, action, reason].join(":");
     const previous = this.rejectedActions.get(key);
     const timestampsMs = (previous?.timestampsMs ?? []).filter(
       (timestampMs) => nowMs >= timestampMs && nowMs - timestampMs <= rule.windowMs,
@@ -151,6 +165,31 @@ export class AntiCheatService {
     return event;
   }
 
+  observeRequestDuplicate(
+    userId: string,
+    outcome: "REPLAYED" | "CONFLICT" | "COALESCED",
+    nowMs = Date.now(),
+  ): AntiCheatEvidence | null {
+    return this.observeRejectedAction(userId, "REQUEST_DUPLICATION", {
+      action: "request_duplicate",
+      reason: outcome,
+    }, nowMs);
+  }
+
+  observeMultiSocket(userId: string, connectionCount: number, nowMs = Date.now()): AntiCheatEvidence | null {
+    if (!Number.isSafeInteger(connectionCount) || connectionCount < MULTI_SOCKET_THRESHOLD) return null;
+    const previous = this.multiSocketWindows.get(userId);
+    const lastEmittedMs = previous?.lastEmittedMs ?? Number.NEGATIVE_INFINITY;
+    if (nowMs - lastEmittedMs < MULTI_SOCKET_WINDOW_MS) return null;
+    const event = this.record(userId, "MULTI_SOCKET_ABUSE", "MEDIUM", {
+      connectionCount,
+      threshold: MULTI_SOCKET_THRESHOLD,
+      windowMs: MULTI_SOCKET_WINDOW_MS,
+    }, nowMs);
+    this.multiSocketWindows.set(userId, { lastEmittedMs: nowMs });
+    return event;
+  }
+
   listRecent(userId?: string, limit = 100): AntiCheatEvidence[] {
     const boundedLimit = Math.max(1, Math.min(1000, Math.floor(limit)));
     const filtered = userId ? this.events.filter((event) => event.userId === userId) : this.events;
@@ -168,6 +207,7 @@ export class AntiCheatService {
     for (const key of this.rejectedActions.keys()) {
       if (key.startsWith(userId + ":")) this.rejectedActions.delete(key);
     }
+    this.multiSocketWindows.delete(userId);
     for (let index = this.events.length - 1; index >= 0; index -= 1) {
       if (this.events[index]?.userId === userId) this.events.splice(index, 1);
     }

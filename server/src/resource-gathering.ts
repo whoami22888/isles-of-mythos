@@ -1,3 +1,4 @@
+import { measureMutationStage, type MutationTiming } from "./mutation-timing.js";
 import type { Pool } from "pg";
 import { applyInventoryDelta, runEconomyMutation } from "./economy.js";
 import type { ResourceNode } from "./world.js";
@@ -26,13 +27,15 @@ export async function gatherResource(
   requestId: string,
   fingerprint: string,
   node: ResourceNode,
+  timing?: MutationTiming,
 ): Promise<ResourceGatherResult> {
   const reward = RESOURCE_YIELDS[node.type];
   if (!reward) throw new Error("RESOURCE_NOT_FOUND");
 
-  const client = await db.connect();
+  const client = await measureMutationStage(timing, "poolAcquireMs", () => db.connect());
+  let rollbackFailure: Error | undefined;
   try {
-    await client.query("BEGIN");
+    await measureMutationStage(timing, "beginMs", () => client.query("BEGIN"));
 
     const existing = await client.query<{
       fingerprint: string;
@@ -48,7 +51,7 @@ export async function gatherResource(
     if (existing.rows[0]) {
       const row = existing.rows[0];
       if (row.fingerprint !== fingerprint) throw new Error("RESOURCE_REQUEST_CONFLICT");
-      await client.query("COMMIT");
+      await measureMutationStage(timing, "commitMs", () => client.query("COMMIT"));
       return {
         transactionId: row.transaction_id,
         nodeId: row.node_id,
@@ -100,7 +103,7 @@ export async function gatherResource(
       const row = retry.rows[0];
       if (!row) throw new Error("RESOURCE_REQUEST_CONFLICT");
       if (row.fingerprint !== fingerprint) throw new Error("RESOURCE_REQUEST_CONFLICT");
-      await client.query("COMMIT");
+      await measureMutationStage(timing, "commitMs", () => client.query("COMMIT"));
       return {
         transactionId: row.transaction_id,
         nodeId: row.node_id,
@@ -128,7 +131,7 @@ export async function gatherResource(
       [userId, requestId, respawnsAt],
     );
 
-    await client.query("COMMIT");
+    await measureMutationStage(timing, "commitMs", () => client.query("COMMIT"));
     return {
       transactionId: requestInsert.rows[0]?.transaction_id ?? (()=>{throw new Error("RESOURCE_TRANSACTION_ID_MISSING");})(),
       nodeId: node.id,
@@ -137,9 +140,13 @@ export async function gatherResource(
       respawnsAt: new Date(respawnsAt).toISOString(),
     };
   } catch (error) {
-    await client.query("ROLLBACK");
+    try {
+      await measureMutationStage(timing, "rollbackMs", () => client.query("ROLLBACK"));
+    } catch (rollbackError) {
+      rollbackFailure = rollbackError instanceof Error ? rollbackError : new Error(String(rollbackError));
+    }
     throw error;
   } finally {
-    client.release();
+    client.release(rollbackFailure);
   }
 }

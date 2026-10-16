@@ -228,7 +228,7 @@ The independent audit status remains **NOT AUDIT-PASS / NOT PRODUCTION-READY**. 
 - **Exact SHA discipline:** every current verification statement identifies the exact commit; evidence is never transferred across HEAD changes.
 - **Independent audit:** implementation and verification claims must be independently checked before completion.
 - **Failure learning:** every failure is recorded as **failure → root cause → corrective action → prevention rule** and the prevention rule is applied to subsequent work.
-- **Two-GPT coordination:** read Notion before work, verify GitHub state, resolve ownership, avoid duplicate work, update Notion after meaningful changes, and stop when ownership/state/evidence conflicts.
+- **Single code implementation owner:** Codex is the sole implementation owner. GPT-1/GPT-2 ownership, co-ownership, synchronization-lock, and veto rules are retired. Codex records the active branch/SHA, relevant gate/workstream, files, verification evidence and blockers before material changes. Required exact-SHA CI, security, performance acceptance, audit and release controls remain mandatory; missing or failed checks are never treated as PASS.
 - **Frozen gates:** do not reopen a frozen gate without reproducible regression/dependency evidence.
 - **Sequential progression:** do not invent a future gate definition from assumptions or historical chat.
 

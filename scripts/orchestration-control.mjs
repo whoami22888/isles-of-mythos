@@ -115,7 +115,7 @@ async function runOne({ command, args, cwd, deadlineAt, forwardOutput, onSpawn }
   const deadline = Date.parse(deadlineAt);
   if (!Number.isFinite(deadline) || deadline <= Date.now()) return { status: "timed_out", exitCode: null, signal: null, errorCode: null, stdoutTail: "", stderrTail: "", durationMs: 0 };
   const started = Date.now();
-  let child, timedOut = false, stdoutTail = "", stderrTail = "", spawnError = null, deadlineTimer, escalationTimer;
+  let child, timedOut = false, stdoutTail = "", stderrTail = "", spawnError = null, callbackError = null, deadlineTimer, escalationTimer;
   return await new Promise((resolvePromise, rejectPromise) => {
     try {
       child = spawn(command, args, { cwd, env: process.env, shell: false, detached: process.platform !== "win32", stdio: ["ignore", "pipe", "pipe"] });
@@ -133,12 +133,23 @@ async function runOne({ command, args, cwd, deadlineAt, forwardOutput, onSpawn }
       escalationTimer.unref?.();
     }, Math.max(1, deadline - started));
     deadlineTimer.unref?.();
-    try { if (onSpawn) onSpawn(child.pid); } catch (error) { try { signalTree(child, "SIGTERM"); } catch {} rejectPromise(error); return; }
     child.on("close", (exitCode, signal) => {
+      // A terminated leader may leave descendants with detached stdio alive.
+      // Finish forced process-group cleanup before cancelling escalation.
+      if (timedOut || callbackError) { try { signalTree(child, "SIGKILL"); } catch {} }
       clearTimeout(deadlineTimer);
       if (escalationTimer) clearTimeout(escalationTimer);
+      if (callbackError) { rejectPromise(callbackError); return; }
       resolvePromise({ status: timedOut ? "timed_out" : (spawnError ? "spawn_error" : "completed"), exitCode, signal, errorCode: spawnError?.code ?? null, stdoutTail, stderrTail, durationMs: Date.now() - started });
     });
+    try { if (onSpawn) onSpawn(child.pid); } catch (error) {
+      callbackError = error;
+      clearTimeout(deadlineTimer);
+      try { signalTree(child, "SIGTERM"); } catch {}
+      escalationTimer = setTimeout(() => { try { signalTree(child, "SIGKILL"); } catch {} }, 1000);
+      escalationTimer.unref?.();
+      // Reject only after close, so persistence failure cannot orphan a child.
+    }
   });
 }
 export async function runBoundedCommand({ command, args = [], cwd = process.cwd(), deadlineAt, maxAttempts = 1, initialAttempts = 0, idempotent = false, taskKind = "generic", history = [], retryKind = null, retryExitCodes = [], forwardOutput = true, onAttemptStart, onSpawn, onAttempt }) {
@@ -229,11 +240,19 @@ function mutateTask(path, id, expectedRevision, fn) {
     need(index >= 0, "Task not found: " + id);
     const current = ledger.tasks[index];
     need(current.revision === expectedRevision, "Task revision changed; reload before update: " + id);
-    const next = fn({ ...current, history: [...(current.history ?? [])] });
+    const next = fn({ ...current, history: [...(current.history ?? [])] }, ledger);
     next.revision = current.revision + 1;
     next.updatedAt = new Date().toISOString();
     ledger.tasks[index] = next;
     return { ...next, history: [...(next.history ?? [])] };
+  });
+}
+export function claimTask(path, id, expectedRevision) {
+  return mutateTask(path, id, expectedRevision, (current, ledger) => {
+    need(current.status === "queued", "Only queued tasks may be claimed");
+    const ownership = ownershipCheck(ledger.tasks, current);
+    need(!ownership.exclusiveConflicts.length, "Exclusive action conflict: " + JSON.stringify(ownership.exclusiveConflicts));
+    return { ...current, status: "running", childPid: null, blockedReason: undefined };
   });
 }
 export function buildEvidenceManifest({ headSha, runId, files }) {
@@ -287,7 +306,8 @@ export function validateAcceptance({ expectedSha, actualSha, checks, requiredChe
   for (const name of requiredChecks) {
     const check = byName.get(name);
     need(check?.status === "completed" && check.conclusion === "success", "Required check is not completed success: " + name);
-    if (check.head_sha !== undefined) need(check.head_sha.toLowerCase() === expectedSha.toLowerCase(), "Required check SHA is stale: " + name);
+    need(typeof check.head_sha === "string" && shaRE.test(check.head_sha), "Required check SHA is missing/invalid: " + name);
+    need(check.head_sha.toLowerCase() === expectedSha.toLowerCase(), "Required check SHA is stale: " + name);
   }
   need(artifacts?.status === "validated" && artifacts.headSha?.toLowerCase() === expectedSha.toLowerCase(), "Evidence artifact manifest is missing or stale");
   return { valid: true, headSha: expectedSha.toLowerCase(), checkCount: requiredChecks.length };
@@ -306,7 +326,7 @@ function parseOptions(args, allowed) {
 function help() {
   console.log("Commands: validate-ledger, add-task, transition-task, run-task, manifest, validate-manifest, validate-acceptance");
 }
-async function runTask(path, id, retryKind, retryCodes, executable, commandArgs) {
+export async function runTask(path, id, retryKind, retryCodes, executable, commandArgs) {
   const ledger = loadLedger(path);
   let task = ledger.tasks.find(item => item.id === id);
   need(task, "Task not found: " + id);
@@ -332,9 +352,11 @@ async function runTask(path, id, retryKind, retryCodes, executable, commandArgs)
     mutateTask(path, id, task.revision, current => ({ ...current, status: "blocked", blockedReason: "unsafe_retry_requires_new_task" }));
     throw new Error("Unsafe retry refused; task marked blocked");
   }
-  task = mutateTask(path, id, task.revision, current => ({ ...current, status: "running", childPid: null, blockedReason: undefined }));
+  task = claimTask(path, id, task.revision);
   let currentTask = task;
-  const result = await runBoundedCommand({
+  let result;
+  try {
+    result = await runBoundedCommand({
     command: executable, args: commandArgs, cwd: process.cwd(), deadlineAt: task.deadlineAt,
     maxAttempts: task.maxAttempts, initialAttempts: task.attempts, idempotent: task.idempotent,
     taskKind: task.kind, history: task.history ?? [], retryKind, retryExitCodes: retryCodes,
@@ -348,7 +370,17 @@ async function runTask(path, id, retryKind, retryCodes, executable, commandArgs)
     onAttempt: async entry => {
       currentTask = mutateTask(path, id, currentTask.revision, current => ({ ...current, childPid: null, history: [...(current.history ?? []), entry] }));
     },
-  });
+    });
+  } catch (error) {
+    try {
+      currentTask = mutateTask(path, id, currentTask.revision, current => ({
+        ...current, status: "blocked", childPid: null, blockedReason: "controller_error",
+      }));
+    } catch (persistenceError) {
+      throw new AggregateError([error, persistenceError], "Controller failed and task state could not be reconciled; inspect ledger before resuming");
+    }
+    throw error;
+  }
   const finalState = result.status === "succeeded" ? "succeeded" : result.status === "timed_out" ? "timed_out" : result.status === "blocked" ? "blocked" : "failed";
   currentTask = mutateTask(path, id, currentTask.revision, current => ({
     ...current, status: finalState, childPid: null,
@@ -384,7 +416,7 @@ try {
     };
     need(Number.isInteger(task.maxAttempts) && task.maxAttempts >= 1 && task.maxAttempts <= 3, "max-attempts must be 1..3");
     need(Number.isFinite(Date.parse(task.deadlineAt)) && Date.parse(task.deadlineAt) > Date.parse(createdAt), "deadline-at must be a future ISO time");
-    task.exclusiveActions.forEach(action => need(actionSlug.test(action), "Invalid exclusive action: " + action));
+    task.exclusiveActions.forEach(action => need(slugRE.test(action), "Invalid exclusive action: " + action));
     const created = mutateLedger(path, ledger => {
       need(!ledger.tasks.some(other => other.id === task.id), "Task already exists: " + task.id);
       task.dependencies.forEach(dep => need(ledger.tasks.some(other => other.id === dep), "Unknown dependency: " + dep));

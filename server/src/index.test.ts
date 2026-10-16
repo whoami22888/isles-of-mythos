@@ -1,4 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { once } from "node:events";
+import { AntiCheatService } from "./anti-cheat.js";
 import { WebSocket } from "ws";
 import { buildApp } from "./app.js";
 import { config } from "./config.js";
@@ -18,6 +20,8 @@ function waitForMatchingMessage(
   return new Promise((resolve, reject) => {
     const received: unknown[] = [];
     const timer = setTimeout(() => {
+      socket.off("message", onMessage);
+      socket.off("error", onError);
       reject(new Error(`Timed out waiting for WebSocket message; received: ${JSON.stringify(received)}`));
     }, 2_000);
 
@@ -28,6 +32,7 @@ function waitForMatchingMessage(
       } catch (error: unknown) {
         clearTimeout(timer);
         socket.off("message", onMessage);
+        socket.off("error", onError);
         reject(error instanceof Error ? error : new Error("Invalid JSON message"));
         return;
       }
@@ -35,12 +40,14 @@ function waitForMatchingMessage(
       if (!predicate(message)) return;
       clearTimeout(timer);
       socket.off("message", onMessage);
+      socket.off("error", onError);
       resolve(message);
     };
 
     const onError = (error: Error) => {
       clearTimeout(timer);
       socket.off("message", onMessage);
+      socket.off("error", onError);
       reject(error);
     };
 
@@ -161,7 +168,9 @@ describe("server foundation", () => {
   });
 
   it("enforces authoritative melee stamina cost and cooldown", async () => {
-    const app = await buildApp();
+    const antiCheat = new AntiCheatService();
+    const duplicates = vi.spyOn(antiCheat, "observeRequestDuplicate");
+    const app = await buildApp({ antiCheat });
     const unique = Date.now();
     const register = await app.inject({
       method: "POST",
@@ -249,6 +258,22 @@ describe("server foundation", () => {
       }));
       await expect(cooldown).resolves.toEqual({ type: "error", code: "COMBAT_COOLDOWN" });
 
+      const originalAttack = await attackResult;
+      for (const outcome of ["REPLAYED", "CONFLICT"] as const) {
+        for (let index = 0; index < 5; index += 1) {
+          const response = waitForMatchingMessage(socket, message =>
+            isJsonObject(message) && (message.type === "combat_result" || message.type === "error"));
+          socket.send(JSON.stringify({ type: "attack", requestId: "melee-1", targetId,
+            facingX: outcome === "REPLAYED" ? 1 : 0, facingY: outcome === "REPLAYED" ? 0 : 1 }));
+          await expect(response).resolves.toEqual(outcome === "REPLAYED" ? originalAttack : { type: "error", code: "INVALID_MESSAGE" });
+        }
+        expect(duplicates.mock.calls.filter(call => call[1] === outcome)).toHaveLength(5);
+        expect(duplicates.mock.results.at(-1)?.value).toMatchObject({
+          type: "REQUEST_DUPLICATION", evidence: { reason: outcome, rejectedCount: 5 },
+        });
+      }
+
+
       const stateAfterAttack = waitForMatchingMessage(socket, (message) => typeof message === "object" && message !== null && (message as JsonObject).type === "player_state");
       socket.send(JSON.stringify({ type: "move", dx: 0, dy: 0, sequence: 0 }));
       const stateAfterAttackMessage = await stateAfterAttack;
@@ -291,7 +316,9 @@ describe("server foundation", () => {
   });
 
   it("enforces authoritative ranged ammunition consumption", async () => {
-    const app = await buildApp();
+    const antiCheat = new AntiCheatService();
+    const duplicates = vi.spyOn(antiCheat, "observeRequestDuplicate");
+    const app = await buildApp({ antiCheat });
     const unique = Date.now();
     const register = await app.inject({
       method: "POST",
@@ -346,14 +373,34 @@ describe("server foundation", () => {
       await selected;
 
       const hit = waitForMatchingMessage(socket, (message) => isJsonObject(message) && message.type === "combat_result");
-      socket.send(JSON.stringify({
-        type: "attack",
-        requestId: "ammo-1",
-        targetId,
-        facingX: 1,
-        facingY: 0,
-      }));
+      let pendingErrors = 0;
+      const pendingRejections = waitForMatchingMessage(socket, (message) => {
+        if (isJsonObject(message) && message.type === "error" && message.code === "COMBAT_IN_PROGRESS") pendingErrors++;
+        return pendingErrors === 5;
+      });
+      const attack = JSON.stringify({ type: "attack", requestId: "ammo-1", targetId, facingX: 1, facingY: 0 });
+      const blocker = await database.connect();
+      try {
+        await blocker.query("BEGIN");
+        await blocker.query("SELECT user_id FROM player_profiles WHERE user_id=$1 FOR UPDATE", [userId]);
+        socket.send(attack);
+        for (let index = 0; index < 5; index++) socket.send(attack);
+        // Protocol pong proves all preceding frames reached the server while
+        // the first authorization is held at the row lock. After release the
+        // queued duplicate handlers settle before the next projectile tick.
+        const framesReceived = once(socket, "pong");
+        socket.ping();
+        await framesReceived;
+        await blocker.query("COMMIT");
+      } finally {
+        blocker.release();
+      }
+      await pendingRejections;
       await expect(hit).resolves.toMatchObject({ type: "combat_result", requestId: "ammo-1", targetId });
+      expect(duplicates.mock.calls.filter(call => call[1] === "COALESCED")).toHaveLength(5);
+      expect(duplicates.mock.results.at(-1)?.value).toMatchObject({
+        type: "REQUEST_DUPLICATION", evidence: { reason: "COALESCED", rejectedCount: 5 },
+      });
 
       const stateAfterAttack = waitForMatchingMessage(socket, (message) => isJsonObject(message) && message.type === "player_state");
       socket.send(JSON.stringify({ type: "move", dx: 0, dy: 0, sequence: 0 }));
@@ -853,6 +900,168 @@ describe("server foundation", () => {
     } finally {
       socket.close();
       await app.close();
+    }
+  });
+
+  it("enforces server-timed WebSocket movement and persists the authoritative position", async () => {
+    const database = (await import("./db.js")).createDbPool();
+    let app: Awaited<ReturnType<typeof buildApp>> | undefined;
+    const unique = Date.now();
+    let socket: WebSocket | null = null;
+    let observerSocket: WebSocket | null = null;
+    let userId: string | undefined;
+    let acceptedPosition: { x: number; y: number } | undefined;
+
+    try {
+      const runningApp = await buildApp();
+      app = runningApp;
+      const register = await runningApp.inject({
+        method: "POST",
+        url: "/auth/register",
+        payload: {
+          username: `movement_authority_${unique}`,
+          email: `movement_authority_${unique}@example.com`,
+          password: "Correct-Horse-Battery-9",
+        },
+      });
+      expect(register.statusCode).toBe(201);
+      const registerBody = parseJsonObject(register.body);
+      const token = getString(registerBody, "accessToken");
+      userId = getString(getObject(registerBody, "user"), "id");
+
+      socket = await openSocket(runningApp);
+      await new Promise<void>((resolve, reject) => {
+        socket!.once("open", resolve);
+        socket!.once("error", reject);
+      });
+      const authenticated = waitForMatchingMessage(socket, (message) => isJsonObject(message) && message.type === "auth_ok");
+      const initialStatePromise = waitForMatchingMessage(socket, (message) => isJsonObject(message) && message.type === "player_state");
+      socket.send(JSON.stringify({ type: "auth", token }));
+      await authenticated;
+      const initialStateMessage = await initialStatePromise;
+      const initialState = getObject(initialStateMessage as JsonObject, "state");
+      const initialX = Number(initialState.x);
+      const initialY = Number(initialState.y);
+      expect(Number.isFinite(initialX)).toBe(true);
+      expect(Number.isFinite(initialY)).toBe(true);
+
+      // Observe this account through a second authenticated session so the
+      // accepted movement's authoritative state broadcast can be asserted.
+      observerSocket = await openSocket(runningApp);
+      await new Promise<void>((resolve, reject) => {
+        observerSocket!.once("open", resolve);
+        observerSocket!.once("error", reject);
+      });
+      const observerAuthenticated = waitForMatchingMessage(
+        observerSocket,
+        (message) => isJsonObject(message) && message.type === "auth_ok",
+      );
+      const observerInitialState = waitForMatchingMessage(
+        observerSocket,
+        (message) => isJsonObject(message) && message.type === "player_state",
+      );
+      observerSocket.send(JSON.stringify({ type: "auth", token }));
+      await observerAuthenticated;
+      await observerInitialState;
+
+      // The first packet primes/advances the sequence clock. If it has elapsed
+      // time it may move, but even forged client timing cannot exceed 100 ms.
+      const firstMovement = waitForMatchingMessage(socket, (message) => (
+        isJsonObject(message) && (message.type === "player_state" || message.type === "error")
+      ));
+      socket.send(JSON.stringify({
+        type: "move",
+        dx: 1,
+        dy: 0,
+        sequence: 0,
+        dt: 60,
+        speedMultiplier: 100,
+      }));
+      const firstMovementMessage = await firstMovement;
+      let currentX = initialX;
+      let currentY = initialY;
+      if (isJsonObject(firstMovementMessage) && firstMovementMessage.type === "player_state") {
+        const state = getObject(firstMovementMessage, "state");
+        currentX = Number(state.x);
+        currentY = Number(state.y);
+        expect(Math.hypot(currentX - initialX, currentY - initialY)).toBeLessThanOrEqual(0.4 + 1e-9);
+      } else {
+        expect(firstMovementMessage).toEqual({ type: "error", code: "INVALID_MESSAGE" });
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      const acceptedMove = waitForMatchingMessage(socket, (message) => isJsonObject(message) && message.type === "player_state");
+      socket.send(JSON.stringify({
+        type: "move",
+        dx: 1,
+        dy: 0,
+        sequence: 1,
+        dt: 60,
+        speedMultiplier: 100,
+      }));
+      const acceptedMoveMessage = await acceptedMove;
+      const acceptedState = getObject(acceptedMoveMessage as JsonObject, "state");
+      acceptedPosition = { x: Number(acceptedState.x), y: Number(acceptedState.y) };
+
+      const broadcastMessage = await waitForMatchingMessage(
+        observerSocket,
+        (message) => isJsonObject(message)
+          && message.type === "player_state"
+          && isJsonObject(message.state)
+          && message.state.userId === userId,
+      );
+      const broadcastState = getObject(broadcastMessage as JsonObject, "state");
+      expect(Number(broadcastState.x)).toBeCloseTo(acceptedPosition.x, 8);
+      expect(Number(broadcastState.y)).toBeCloseTo(acceptedPosition.y, 8);
+
+      const acceptedDistance = Math.hypot(acceptedPosition.x - currentX, acceptedPosition.y - currentY);
+      expect(acceptedDistance).toBeGreaterThan(0);
+      expect(acceptedDistance).toBeLessThanOrEqual(0.4 + 1e-9);
+      expect(acceptedPosition.y).toBeCloseTo(currentY, 8);
+
+      // Replay the same sequence in the opposite direction; it must be rejected.
+      const replayResponse = waitForMatchingMessage(socket, (message) => isJsonObject(message) && message.type === "error");
+      socket.send(JSON.stringify({
+        type: "move",
+        dx: -1,
+        dy: 0,
+        sequence: 1,
+        dt: 60,
+        speedMultiplier: 100,
+      }));
+      await expect(replayResponse).resolves.toEqual({ type: "error", code: "INVALID_MESSAGE" });
+
+      // A later accepted zero-direction packet reads back the current state,
+      // proving the rejected replay did not change the authoritative position.
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      const confirmedState = waitForMatchingMessage(socket, (message) => isJsonObject(message) && message.type === "player_state");
+      socket.send(JSON.stringify({ type: "move", dx: 0, dy: 0, sequence: 2 }));
+      const confirmedMessage = await confirmedState;
+      const confirmed = getObject(confirmedMessage as JsonObject, "state");
+      expect(Number(confirmed.x)).toBeCloseTo(acceptedPosition.x, 8);
+      expect(Number(confirmed.y)).toBeCloseTo(acceptedPosition.y, 8);
+
+      socket.close();
+      socket = null;
+      await runningApp.close();
+      app = undefined;
+
+      if (!userId || !acceptedPosition) throw new Error("Movement integration test did not record an accepted position");
+      const persisted = await database.query<{ x: number; y: number }>(
+        "SELECT x, y FROM player_profiles WHERE user_id = $1",
+        [userId],
+      );
+      expect(persisted.rowCount).toBe(1);
+      expect(Number(persisted.rows[0].x)).toBeCloseTo(acceptedPosition.x, 8);
+      expect(Number(persisted.rows[0].y)).toBeCloseTo(acceptedPosition.y, 8);
+    } finally {
+      socket?.close();
+      observerSocket?.close();
+      try {
+        if (app) await app.close();
+      } finally {
+        await database.end();
+      }
     }
   });
 

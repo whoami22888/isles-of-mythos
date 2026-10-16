@@ -199,6 +199,7 @@ jobs:
         with:
           name: performance-acceptance-evidence
           path: |
+            acceptance-evidence-manifest.json
             performance-results.json
             performance-system.log
             performance-server.log

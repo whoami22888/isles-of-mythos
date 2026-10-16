@@ -121,6 +121,11 @@ for (const [marker, description] of [
 ]) {
   if (!performanceWorkflow.includes(marker)) add(findings.errors, "performance-evidence-integrity", join(workflowRoot, "performance.yml"), 1, description);
 }
+const evidenceUpload = performanceWorkflow.split("      - name: Upload acceptance evidence")[1]?.split(/\n      - /)[0] ?? "";
+const evidenceUploadPaths = evidenceUpload.match(/^          path: \|\n((?:^            .*\n?)+)/m)?.[1] ?? "";
+if (!/^            acceptance-evidence-manifest\.json\s*$/m.test(evidenceUploadPaths)) {
+  add(findings.errors, "performance-evidence-upload", join(workflowRoot, "performance.yml"), 1, "Acceptance manifest must be listed in the evidence upload paths");
+}
 for (const name of Object.keys(requiredWorkflowControls)) {
   const path = join(workflowRoot, name);
   const content = readFileSync(path, "utf8");

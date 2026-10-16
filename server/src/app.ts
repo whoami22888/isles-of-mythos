@@ -39,6 +39,8 @@ import { TerritorySeasonStore } from "./territory-seasons.js";
 import { registerFrontendRoutes } from "./frontend.js";
 import { resolve } from "node:path";
 import { AntiCheatService } from "./anti-cheat.js";
+import { createMutationTiming, measureMutationStage, runTimedMutation, type MutationTimingSnapshot } from "./mutation-timing.js";
+import { runReplayableRequest, type RequestDuplicateOutcome } from "./request-coordinator.js";
 
 function errorCode(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
@@ -46,6 +48,27 @@ function errorCode(error: unknown, fallback: string): string {
 
 function send(socket: WebSocket, message: ServerMessage): void {
   if (socket.readyState === socket.OPEN) socket.send(JSON.stringify(message, (_key, value: unknown) => typeof value === "bigint" ? value.toString() : value));
+}
+
+const SLOW_MUTATION_THRESHOLD_MS = 50;
+
+function emitSlowMutation(action: string, snapshot: MutationTimingSnapshot, db: Pool): void {
+  if (snapshot.totalMs < SLOW_MUTATION_THRESHOLD_MS) return;
+  log("slow_gameplay_mutation", {
+    action,
+    totalMs: Number(snapshot.totalMs.toFixed(2)),
+    loadPlayerMs: snapshot.stages.loadPlayerMs ?? null,
+    transactionMs: snapshot.stages.transactionMs ?? null,
+    // Nested transaction stages; do not add these to transactionMs.
+    poolAcquireMs: snapshot.stages.poolAcquireMs ?? null,
+    beginMs: snapshot.stages.beginMs ?? null,
+    commitMs: snapshot.stages.commitMs ?? null,
+    rollbackMs: snapshot.stages.rollbackMs ?? null,
+    reloadEconomyMs: snapshot.stages.reloadEconomyMs ?? null,
+    dbPoolWaiting: db.waitingCount,
+    dbPoolTotal: db.totalCount,
+    dbPoolIdle: db.idleCount,
+  });
 }
 
 function rawMessageToString(raw: WebSocket.RawData): string {
@@ -69,6 +92,7 @@ function parseCreatureTargetId(targetId: string): { x: number; y: number } | nul
 export interface BuildAppOptions {
   db?: Pool;
   clientDistDir?: string;
+  antiCheat?: AntiCheatService;
 }
 
 export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyInstance> {
@@ -92,7 +116,23 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const worldEvents = new WorldEventCoordinator(db, (userId) => players.get(userId)?.level);
   const endgame = new EndgameStore(db);
   const territorySeasons = new TerritorySeasonStore(db);
-  const antiCheat = new AntiCheatService();
+  const antiCheat = options.antiCheat ?? new AntiCheatService();
+  const logAntiCheatEvidence = (event: ReturnType<AntiCheatService["record"]> | null): void => {
+    if (!event) return;
+    log("anti_cheat_event", {
+      type: event.type,
+      severity: event.severity,
+      timestampMs: event.timestampMs,
+      evidence: event.evidence,
+      suspicion: event.suspicion,
+    });
+  };
+  const recordInventoryMutationRejection = (userId: string, action: string, reason: string): void => {
+    logAntiCheatEvidence(antiCheat.observeRejectedAction(userId, "INVENTORY_MUTATION_REJECTED", { action, reason }));
+  };
+  const recordRequestDuplicate = (userId: string, outcome: RequestDuplicateOutcome): void => {
+    logAntiCheatEvidence(antiCheat.observeRequestDuplicate(userId, outcome));
+  };
   const sockets = new Set<WebSocket>();
   const playerConnections = new Map<string, number>();
   const userSockets = new Map<string, Set<WebSocket>>();
@@ -213,11 +253,20 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     operation: () => Promise<ServerMessage> | ServerMessage,
   ): Promise<ServerMessage> {
     const replay = creatureReplay.lookup(userId, requestId, fingerprint);
-    if (replay.kind === "hit") return replay.response;
-    if (replay.kind === "conflict") return { type: "error", code: "INVALID_MESSAGE" };
+    if (replay.kind === "hit") {
+      recordRequestDuplicate(userId, "REPLAYED");
+      return replay.response;
+    }
+    if (replay.kind === "conflict") {
+      recordRequestDuplicate(userId, "CONFLICT");
+      return { type: "error", code: "INVALID_MESSAGE" };
+    }
     const key = userId + ":" + requestId;
     const existing = pendingCreatureRequests.get(key);
-    if (existing) return existing;
+    if (existing) {
+      recordRequestDuplicate(userId, "COALESCED");
+      return existing;
+    }
     const previous = pendingCreatureOperations.get(userId) ?? Promise.resolve();
     const task = previous.catch(() => undefined).then(async () => {
       const response = await operation();
@@ -241,21 +290,16 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     fingerprint: string,
     operation: () => Promise<ServerMessage> | ServerMessage,
   ): Promise<ServerMessage> {
-    const replay = economyReplay.lookup(userId, requestId, fingerprint);
-    if (replay.kind === "hit") return replay.response;
-    if (replay.kind === "conflict") return { type: "error", code: "INVALID_MESSAGE" };
-    const key = userId + ":" + requestId;
-    const existing = pendingEconomyRequests.get(key);
-    if (existing) return existing;
-    const task = Promise.resolve().then(operation).then((response) => {
-      economyReplay.remember(userId, requestId, fingerprint, response);
-      return response;
-    });
-    pendingEconomyRequests.set(key, task);
-    try { return await task; }
-    finally {
-      if (pendingEconomyRequests.get(key) === task) pendingEconomyRequests.delete(key);
-    }
+    return runReplayableRequest(
+      economyReplay,
+      pendingEconomyRequests,
+      userId,
+      requestId,
+      fingerprint,
+      operation,
+      { type: "error", code: "INVALID_MESSAGE" },
+      (outcome) => recordRequestDuplicate(userId, outcome),
+    );
   }
 
   async function runBaseRequest(
@@ -265,11 +309,20 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     operation: () => Promise<ServerMessage> | ServerMessage,
   ): Promise<ServerMessage> {
     const replay = baseReplay.lookup(userId, requestId, fingerprint);
-    if (replay.kind === "hit") return replay.response;
-    if (replay.kind === "conflict") return { type: "error", code: "INVALID_MESSAGE" };
+    if (replay.kind === "hit") {
+      recordRequestDuplicate(userId, "REPLAYED");
+      return replay.response;
+    }
+    if (replay.kind === "conflict") {
+      recordRequestDuplicate(userId, "CONFLICT");
+      return { type: "error", code: "INVALID_MESSAGE" };
+    }
     const key = userId + ":" + requestId;
     const existing = pendingBaseRequests.get(key);
-    if (existing) return existing;
+    if (existing) {
+      recordRequestDuplicate(userId, "COALESCED");
+      return existing;
+    }
     const task = Promise.resolve().then(operation).then((response) => {
       baseReplay.remember(userId, requestId, fingerprint, response);
       return response;
@@ -651,8 +704,8 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         return reply.code(401).send({ error: "UNAUTHORIZED", message: "Invalid credentials" });
       }
 
+      const userId = request.user.sub;
       try {
-        const userId = request.user.sub;
         const item = getShopItem(request.body.itemId);
         if (!item) return reply.code(404).send({ error: "SHOP_ITEM_NOT_FOUND" });
         const totalGold = calculatePurchase(item, request.body.quantity);
@@ -668,6 +721,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           return reply.code(404).send({ error: "PLAYER_NOT_FOUND" });
         }
         if (error instanceof Error && error.message === "INVENTORY_LIMIT") {
+          recordInventoryMutationRejection(userId, "shop_purchase", error.message);
           return reply.code(409).send({ error: "INVENTORY_LIMIT" });
         }
         if (error instanceof Error && error.message === "SHOP_REQUEST_CONFLICT") {
@@ -739,7 +793,9 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
               authDeadline = null;
             }
             const connections = playerConnections.get(authenticatedUserId) ?? 0;
-            playerConnections.set(authenticatedUserId, connections + 1);
+            const nextConnectionCount = connections + 1;
+            playerConnections.set(authenticatedUserId, nextConnectionCount);
+            logAntiCheatEvidence(antiCheat.observeMultiSocket(authenticatedUserId, nextConnectionCount));
             combatActivationNextAt.set(authenticatedUserId, Date.now());
             const socketsForUser = userSockets.get(authenticatedUserId) ?? new Set<WebSocket>();
             socketsForUser.add(socket);
@@ -786,14 +842,20 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             speedMultiplier: slow ? Math.max(0, Math.min(1, 1 - slow.magnitude)) : 1,
           });
           const evidence = antiCheat.observeMovement(userId, movement);
-          if (evidence) log("anti_cheat_event", { ...evidence });
+          logAntiCheatEvidence(evidence)
           if (!movement.accepted) {
             send(socket, { type: "error", code: movement.reason === "RATE_LIMITED" ? "RATE_LIMITED" : "INVALID_MESSAGE" });
             return;
           }
           const positionEvidence = antiCheat.observePosition(userId, beforePosition, state, movement.serverDt);
-          if (positionEvidence) log("anti_cheat_event", { ...positionEvidence });
-          send(socket, { type: "player_state", state: serializePlayerState(state) });
+          logAntiCheatEvidence(positionEvidence)
+          const playerStateMessage = {
+            type: "player_state",
+            state: serializePlayerState(state),
+          } as const;
+          for (const movementSocket of userSockets.get(userId) ?? []) {
+            send(movementSocket, playerStateMessage);
+          }
           return;
         }
 
@@ -839,14 +901,17 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           const replay = combatReplay.lookup(userId, message.requestId, replayFingerprint);
           const pendingKey = userId + ":" + message.requestId;
           if (replay.kind === "hit") {
+            recordRequestDuplicate(userId, "REPLAYED");
             send(socket, replay.response);
             return;
           }
           if (replay.kind === "conflict") {
+            recordRequestDuplicate(userId, "CONFLICT");
             send(socket, { type: "error", code: "INVALID_MESSAGE" });
             return;
           }
           if (pendingCombatRequests.has(pendingKey)) {
+            recordRequestDuplicate(userId, "COALESCED");
             send(socket, { type: "error", code: "COMBAT_IN_PROGRESS" });
             return;
           }
@@ -866,7 +931,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             const evidence = antiCheat.observeRejectedAction(userId, "ATTACK_COOLDOWN_SPAM", {
               cooldownRemainingMs: nextAttack - now,
             }, now);
-            if (evidence) log("anti_cheat_event", { ...evidence });
+            logAntiCheatEvidence(evidence)
             send(socket, { type: "error", code: "COMBAT_COOLDOWN" });
             return;
           }
@@ -923,7 +988,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
                 const evidence = antiCheat.observeRejectedAction(userId, "ATTACK_COOLDOWN_SPAM", {
                   cooldownRemainingMs: weapon.cooldownMs,
                 }, now);
-                if (evidence) log("anti_cheat_event", { ...evidence });
+                logAntiCheatEvidence(evidence)
                 send(socket, { type: "error", code: "COMBAT_COOLDOWN" });
                 return;
               }
@@ -1005,10 +1070,10 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           const authenticatedUserId=userId;
           const captureFingerprint=message.type+"|"+message.targetId;
           const captureReplay=creatureReplay.lookup(authenticatedUserId,message.requestId,captureFingerprint);
-          if(captureReplay.kind==="hit"){send(socket,captureReplay.response);return;}
-          if(captureReplay.kind==="conflict"){send(socket,{type:"error",code:"INVALID_MESSAGE"});return;}
+          if(captureReplay.kind==="hit"){recordRequestDuplicate(authenticatedUserId,"REPLAYED");send(socket,captureReplay.response);return;}
+          if(captureReplay.kind==="conflict"){recordRequestDuplicate(authenticatedUserId,"CONFLICT");send(socket,{type:"error",code:"INVALID_MESSAGE"});return;}
           const pendingCapture=pendingCreatureRequests.get(authenticatedUserId+":"+message.requestId);
-          if(pendingCapture){send(socket,await pendingCapture);return;}
+          if(pendingCapture){recordRequestDuplicate(authenticatedUserId,"COALESCED");send(socket,await pendingCapture);return;}
           const state=players.get(authenticatedUserId); if(!state){send(socket,{type:"error",code:"AUTH_REQUIRED"});return;}
           if(state.health<=0){send(socket,{type:"error",code:"PLAYER_DEAD"});return;}
           const coords=parseCreatureTargetId(message.targetId);
@@ -1168,6 +1233,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
 
         if (message.type === "gather_resource") {
           if (!userId) { send(socket, { type: "error", code: "AUTH_REQUIRED" }); return; }
+          const timing = createMutationTiming();
           const authenticatedUserId = userId;
           const state = players.get(authenticatedUserId);
           if (!state) { send(socket, { type: "error", code: "AUTH_REQUIRED" }); return; }
@@ -1176,67 +1242,87 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           const node = world.getResourceNode(message.resourceId);
           if (!node) { send(socket, { type: "error", code: "RESOURCE_NOT_FOUND" }); return; }
           const fingerprint = resourceGatherFingerprint(node.id);
-          const response = await runEconomyRequest(authenticatedUserId, message.requestId, fingerprint, async () => {
-            const resourceDistance = distance(state, node);
-            if (resourceDistance > 2.5) {
-              const evidence = antiCheat.observeRejectedAction(authenticatedUserId, "RESOURCE_RANGE_ABUSE", {
-                distance: Number(resourceDistance.toFixed(3)),
-                maxDistance: 2.5,
-                resourceId: node.id,
-              });
-              if (evidence) log("anti_cheat_event", { ...evidence });
-              return { type: "error", code: "RESOURCE_OUT_OF_RANGE" };
-            }
-            try {
-              const result = await gatherResource(db, authenticatedUserId, message.requestId, fingerprint, node);
-              const refreshed = await players.reloadEconomy(authenticatedUserId);
-              return {
-                type: "resource_gathered",
-                requestId: message.requestId,
-                transactionId: result.transactionId,
-                resourceId: result.nodeId,
-                itemId: result.itemId,
-                quantity: result.quantity,
-                respawnsAt: result.respawnsAt,
-                state: serializePlayerState(refreshed),
-              };
-            } catch (error) {
-              const code = errorCode(error, "RESOURCE_GATHER_FAILED");
-              const allowed = [
-                "RESOURCE_NOT_FOUND",
-                "RESOURCE_DEPLETED",
-                "RESOURCE_REQUEST_CONFLICT",
-                "RESOURCE_NODE_MISMATCH",
-                "RESOURCE_NODE_UPDATE_FAILED",
-                "INVENTORY_LIMIT",
-                "INSUFFICIENT_INVENTORY",
-                "PLAYER_NOT_FOUND",
-              ];
-              if (allowed.includes(code)) return { type: "error", code } as ServerMessage;
-              throw error;
-            }
-          });
+          const response = await runEconomyRequest(authenticatedUserId, message.requestId, fingerprint, () => runTimedMutation(
+            timing,
+            async () => {
+              const resourceDistance = distance(state, node);
+              if (resourceDistance > 2.5) {
+                const evidence = antiCheat.observeRejectedAction(authenticatedUserId, "RESOURCE_RANGE_ABUSE", {
+                  distance: Number(resourceDistance.toFixed(3)),
+                  maxDistance: 2.5,
+                });
+                logAntiCheatEvidence(evidence);
+                return { type: "error", code: "RESOURCE_OUT_OF_RANGE" };
+              }
+              try {
+                const result = await measureMutationStage(timing, "transactionMs", () => gatherResource(db, authenticatedUserId, message.requestId, fingerprint, node, timing));
+                const refreshed = await measureMutationStage(timing, "reloadEconomyMs", () => players.reloadEconomy(authenticatedUserId));
+                return {
+                  type: "resource_gathered",
+                  requestId: message.requestId,
+                  transactionId: result.transactionId,
+                  resourceId: result.nodeId,
+                  itemId: result.itemId,
+                  quantity: result.quantity,
+                  respawnsAt: result.respawnsAt,
+                  state: serializePlayerState(refreshed),
+                };
+              } catch (error) {
+                const code = errorCode(error, "RESOURCE_GATHER_FAILED");
+                const allowed = [
+                  "RESOURCE_NOT_FOUND",
+                  "RESOURCE_DEPLETED",
+                  "RESOURCE_REQUEST_CONFLICT",
+                  "RESOURCE_NODE_MISMATCH",
+                  "RESOURCE_NODE_UPDATE_FAILED",
+                  "INVENTORY_LIMIT",
+                  "INSUFFICIENT_INVENTORY",
+                  "PLAYER_NOT_FOUND",
+                ];
+                if (code === "INVENTORY_LIMIT" || code === "INSUFFICIENT_INVENTORY") {
+                  logAntiCheatEvidence(antiCheat.observeRejectedAction(authenticatedUserId, "INVENTORY_MUTATION_REJECTED", {
+                    action: "gather_resource",
+                    reason: code,
+                  }));
+                }
+                if (allowed.includes(code)) return { type: "error", code } as ServerMessage;
+                throw error;
+              }
+            },
+            (snapshot) => emitSlowMutation("gather_resource", snapshot, db),
+          ));
           send(socket, response);
           return;
         }
 
         if (message.type === "craft") {
           if (!userId) { send(socket, { type: "error", code: "AUTH_REQUIRED" }); return; }
+          const timing = createMutationTiming();
           const authenticatedUserId = userId;
-          const response = await runEconomyRequest(authenticatedUserId, message.requestId, "craft|" + message.recipeId, async () => {
-            try {
-              await players.loadOrCreate(authenticatedUserId);
-              const result = await craftRecipe(db, authenticatedUserId, message.requestId, message.recipeId);
-              const state = await players.reloadEconomy(authenticatedUserId);
-              return { type: "craft_result", requestId: message.requestId, transactionId: result.transactionId, recipeId: result.recipeId, state: serializePlayerState(state) };
-            } catch (error) {
-              const code = errorCode(error, "CRAFT_FAILED");
-              if (code === "RECIPE_NOT_FOUND" || code === "INSUFFICIENT_INVENTORY" || code === "INVENTORY_LIMIT") {
-                return { type: "error", code };
+          const response = await runEconomyRequest(authenticatedUserId, message.requestId, "craft|" + message.recipeId, () => runTimedMutation(
+            timing,
+            async () => {
+              try {
+                await measureMutationStage(timing, "loadPlayerMs", () => players.loadOrCreate(authenticatedUserId));
+                const result = await measureMutationStage(timing, "transactionMs", () => craftRecipe(db, authenticatedUserId, message.requestId, message.recipeId, timing));
+                const state = await measureMutationStage(timing, "reloadEconomyMs", () => players.reloadEconomy(authenticatedUserId));
+                return { type: "craft_result", requestId: message.requestId, transactionId: result.transactionId, recipeId: result.recipeId, state: serializePlayerState(state) };
+              } catch (error) {
+                const code = errorCode(error, "CRAFT_FAILED");
+                if (code === "RECIPE_NOT_FOUND" || code === "INSUFFICIENT_INVENTORY" || code === "INVENTORY_LIMIT") {
+                  if (code === "INSUFFICIENT_INVENTORY" || code === "INVENTORY_LIMIT") {
+                    logAntiCheatEvidence(antiCheat.observeRejectedAction(authenticatedUserId, "INVENTORY_MUTATION_REJECTED", {
+                      action: "craft",
+                      reason: code,
+                    }));
+                  }
+                  return { type: "error", code };
+                }
+                throw error;
               }
-              throw error;
-            }
-          });
+            },
+            (snapshot) => emitSlowMutation("craft", snapshot, db),
+          ));
           send(socket, response);
           return;
         }
@@ -1264,6 +1350,9 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             } catch (error) {
               const code = errorCode(error, "PURCHASE_FAILED");
               if (code === "INSUFFICIENT_GOLD" || code === "INVENTORY_LIMIT" || code === "PLAYER_NOT_FOUND" || code === "SHOP_REQUEST_CONFLICT" || code === "INVALID_REQUEST_ID") {
+                if (code === "INVENTORY_LIMIT") {
+                  recordInventoryMutationRejection(authenticatedUserId, "shop_purchase", code);
+                }
                 return { type: "error", code };
               }
               throw error;
@@ -1293,6 +1382,9 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             } catch (error) {
               const code = errorCode(error, "TRADE_FAILED");
               const allowed = ["TRADE_REQUEST_CONFLICT", "INVALID_TRADE_REQUEST", "INVALID_TRADE_PARTICIPANTS", "INVALID_TRADE_ITEMS", "INVALID_TRADE_ITEM", "INVALID_TRADE_QUANTITY", "PLAYER_NOT_FOUND", "INSUFFICIENT_INVENTORY", "INSUFFICIENT_GOLD", "INVENTORY_LIMIT"];
+              if (code === "INVENTORY_LIMIT" || code === "INSUFFICIENT_INVENTORY") {
+                recordInventoryMutationRejection(authenticatedUserId, "trade", code);
+              }
               if (allowed.includes(code)) return { type: "error", code } as ServerMessage;
               throw error;
             }
