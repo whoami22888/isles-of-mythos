@@ -104,12 +104,31 @@ class AssetValidatorTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "symlinked"):
             validator.validate()
 
+    def test_unregistered_symlink_alias_to_registered_file_rejected(self):
+        """A symlink alias must not disappear when paths are resolved."""
+        (self.assets / "terrain.glb").write_bytes(self.sample)
+        (self.assets / "alias.glb").symlink_to("terrain.glb")
+        self.write([self.entry])
+        with self.assertRaisesRegex(ValueError, "Symlinked"):
+            validator.validate()
+
+    def test_symlinked_asset_root_rejected(self):
+        """The entire asset root cannot be redirected to another directory."""
+        real_root = Path(self.temp.name) / "actual-assets"
+        real_root.mkdir()
+        self.assets.rmdir()
+        self.assets.symlink_to(real_root, target_is_directory=True)
+        self.write([])
+        with self.assertRaisesRegex(ValueError, "Symlinked external assets root"):
+            validator.validate()
+
     def test_duplicate_asset_path_rejected(self):
         """Regression: duplicate asset path rejected."""
         (self.assets / "terrain.glb").write_bytes(self.sample)
         self.write([self.entry, dict(self.entry, id="duplicate")])
         with self.assertRaisesRegex(ValueError, "duplicate"):
             validator.validate()
+
 
 if __name__ == "__main__":
     unittest.main()
