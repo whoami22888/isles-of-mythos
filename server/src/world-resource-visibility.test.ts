@@ -11,7 +11,7 @@ function chunk(x: number, ids: string[]): WorldChunk {
 
 describe("world-resource visibility batching", () => {
   it("queries once for concurrent chunks and keeps visible resource order", async () => {
-    const query = vi.fn(async (_ids: string[]) => new Set(["wood:2:0"]));
+    const query = vi.fn((ids: string[]) => Promise.resolve(new Set(ids.filter((id) => id === "wood:2:0"))));
     const filter = createWorldResourceVisibilityBatcher(query);
     const first = chunk(1, ["wood:1:0", "wood:2:0"]);
     const second = chunk(2, ["wood:2:0", "wood:3:0"]);
@@ -25,7 +25,7 @@ describe("world-resource visibility batching", () => {
   });
 
   it("skips database access for empty resources and preserves unchanged chunks", async () => {
-    const query = vi.fn(async (_ids: string[]) => new Set<string>());
+    const query = vi.fn((ids: string[]) => Promise.resolve(new Set(ids.filter(() => false))));
     const filter = createWorldResourceVisibilityBatcher(query);
     const empty = chunk(0, []);
     const full = chunk(1, ["wood:1:0"]);
@@ -36,7 +36,7 @@ describe("world-resource visibility batching", () => {
 
   it("does not cache mutable depletion state across batches", async () => {
     let depleted = new Set<string>(["wood:1:0"]);
-    const query = vi.fn(async (_ids: string[]) => new Set(depleted));
+    const query = vi.fn((ids: string[]) => Promise.resolve(new Set(ids.filter((id) => depleted.has(id)))));
     const filter = createWorldResourceVisibilityBatcher(query);
     const current = chunk(1, ["wood:1:0"]);
     expect((await filter(current)).resources).toHaveLength(0);
@@ -58,7 +58,7 @@ describe("world-resource visibility batching", () => {
   });
 
   it("bounds each query to at most 32 concurrent chunk requests", async () => {
-    const query = vi.fn(async (_ids: string[]) => new Set<string>());
+    const query = vi.fn((ids: string[]) => Promise.resolve(new Set(ids.filter(() => false))));
     const filter = createWorldResourceVisibilityBatcher(query);
     const chunks = Array.from({ length: 65 }, (_, index) => chunk(index, [`wood:${index}:0`]));
     const results = await Promise.all(chunks.map(filter));
