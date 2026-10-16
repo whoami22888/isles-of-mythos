@@ -35,20 +35,32 @@ func build_mesh() -> ArrayMesh:
 	var vertices := PackedVector3Array()
 	var uvs := PackedVector2Array()
 	var indices := PackedInt32Array()
-	for ring in range(ring_segments + 1):
+	# A single center vertex avoids zero-area triangles in the first ring.
+	vertices.append(Vector3(0.0, terrain_height(0.0, 0.0), 0.0))
+	uvs.append(Vector2.ZERO)
+	for ring in range(1, ring_segments + 1):
 		var fraction := float(ring) / float(ring_segments)
-		for segment in range(radial_segments + 1):
+		for segment in range(radial_segments):
 			var angle := TAU * float(segment) / float(radial_segments)
 			var radius := shoreline_radius(angle) * fraction
 			var position := Vector3(cos(angle) * radius,
 				terrain_height(fraction, angle), sin(angle) * radius)
 			vertices.append(position)
 			uvs.append(Vector2(position.x, position.z) * 0.08)
-	for ring in range(ring_segments):
+	# Winding is counterclockwise as viewed from above (+Y).
+	for segment in range(radial_segments):
+		var next_segment := (segment + 1) % radial_segments
+		indices.append_array(PackedInt32Array([0, 1 + next_segment, 1 + segment]))
+	for ring in range(ring_segments - 1):
+		var inner_start := 1 + ring * radial_segments
+		var outer_start := inner_start + radial_segments
 		for segment in range(radial_segments):
-			var a := ring * (radial_segments + 1) + segment
-			var b := a + radial_segments + 1
-			indices.append_array(PackedInt32Array([a, a + 1, b, a + 1, b + 1, b]))
+			var next_segment := (segment + 1) % radial_segments
+			var a := inner_start + segment
+			var b := inner_start + next_segment
+			var c := outer_start + segment
+			var d := outer_start + next_segment
+			indices.append_array(PackedInt32Array([a, b, c, b, d, c]))
 	var normals := PackedVector3Array()
 	normals.resize(vertices.size())
 	for i in range(0, indices.size(), 3):
