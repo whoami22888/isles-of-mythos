@@ -79,6 +79,28 @@ class FetcherTests(unittest.TestCase):
         )
         self.assertEqual(self.target.read_bytes(), self.payload)
 
+    def test_reject_symlinked_destination(self):
+        """A symlink in the asset destination cannot receive downloaded bytes."""
+        original_dest = fetcher.DEST
+        with tempfile.TemporaryDirectory() as root:
+            root_path = Path(root)
+            (root_path / "external").mkdir()
+            (root_path / "outside").mkdir()
+            (root_path / "external" / "linked").symlink_to(
+                root_path / "outside", target_is_directory=True
+            )
+            try:
+                fetcher.DEST = root_path / "external"
+                with self.assertRaisesRegex(ValueError, "Symlinked"):
+                    fetcher.download(
+                        fetcher.DEST / "linked" / "terrain.glb", self.digest,
+                        "https://dl.polyhaven.org/approved",
+                        opener=Opener(Response(self.payload)),
+                    )
+                self.assertFalse((root_path / "outside" / "terrain.glb").exists())
+            finally:
+                fetcher.DEST = original_dest
+
     def test_wrong_digest_cleanup(self):
         with self.assertRaisesRegex(ValueError, "hash mismatch"):
             fetcher.download(
