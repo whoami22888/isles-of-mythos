@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Offline regression checks for hash-pinned external asset downloads."""
+# pylint: disable=invalid-name  # CLI entrypoint filenames are referenced by CI.
 
 import hashlib
 import importlib.util
@@ -57,15 +58,18 @@ class FetcherTests(unittest.TestCase):
         self.digest = hashlib.sha256(self.payload).hexdigest()
 
     def test_allowed_origin(self):
+        """Regression: allowed origin."""
         fetcher.validate_origin("https://dl.polyhaven.org/approved")
 
     def test_reject_bad_origins(self):
+        """Regression: reject bad origins."""
         for url in ("file:///tmp/x", "http://polyhaven.com/x",
                     "https://evil.test/x", "https://evil.test@polyhaven.com/x"):
             with self.subTest(url=url), self.assertRaises(ValueError):
                 fetcher.validate_origin(url)
 
     def test_reject_redirect(self):
+        """Regression: reject redirect."""
         with self.assertRaises(ValueError):
             fetcher.ApprovedRedirects().redirect_request(
                 Request("https://dl.polyhaven.org/x"), None,
@@ -73,6 +77,7 @@ class FetcherTests(unittest.TestCase):
             )
 
     def test_good_hash(self):
+        """Regression: good hash."""
         fetcher.download(
             self.target, self.digest, "https://dl.polyhaven.org/approved",
             opener=Opener(Response(self.payload))
@@ -102,6 +107,7 @@ class FetcherTests(unittest.TestCase):
                 fetcher.DEST = original_dest
 
     def test_wrong_digest_cleanup(self):
+        """Regression: wrong digest cleanup."""
         with self.assertRaisesRegex(ValueError, "hash mismatch"):
             fetcher.download(
                 self.target, self.digest, "https://dl.polyhaven.org/approved",
@@ -111,6 +117,7 @@ class FetcherTests(unittest.TestCase):
         self.assertEqual(list(self.target.parent.glob(".asset-*")), [])
 
     def test_oversize_cleanup(self):
+        """Regression: oversize cleanup."""
         with self.assertRaisesRegex(ValueError, "byte limit"):
             fetcher.download(
                 self.target, self.digest, "https://dl.polyhaven.org/approved",
@@ -119,6 +126,7 @@ class FetcherTests(unittest.TestCase):
         self.assertFalse(self.target.exists())
 
     def test_response_redirect_to_unapproved_host(self):
+        """Regression: response redirect to unapproved host."""
         with self.assertRaisesRegex(ValueError, "Unapproved"):
             fetcher.download(
                 self.target, self.digest, "https://dl.polyhaven.org/approved",
