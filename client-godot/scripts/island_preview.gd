@@ -34,7 +34,8 @@ func _build_environment() -> void:
 	sand.top_radius = ISLAND_RADIUS
 	sand.bottom_radius = ISLAND_RADIUS + 0.45
 	sand.height = 1.4
-	_add_mesh(self, sand, Vector3(0.0, -0.6, 0.0), Vector3.ONE, Color(0.84, 0.72, 0.44))
+	var beach := _add_mesh(self, sand, Vector3(0.0, -0.6, 0.0), Vector3.ONE, Color(0.84, 0.72, 0.44))
+	_apply_beach_material(beach)
 	var grass := CylinderMesh.new()
 	grass.top_radius = ISLAND_RADIUS - 1.2
 	grass.bottom_radius = ISLAND_RADIUS - 0.95
@@ -53,7 +54,7 @@ func _build_environment() -> void:
 	add_child(light)
 
 
-func _add_mesh(parent: Node3D, geometry: Mesh, location: Vector3, scale_value: Vector3, tint: Color) -> void:
+func _add_mesh(parent: Node3D, geometry: Mesh, location: Vector3, scale_value: Vector3, tint: Color) -> MeshInstance3D:
 	var instance := MeshInstance3D.new()
 	instance.mesh = geometry
 	instance.position = location
@@ -63,6 +64,31 @@ func _add_mesh(parent: Node3D, geometry: Mesh, location: Vector3, scale_value: V
 	material.roughness = 0.9
 	instance.material_override = material
 	parent.add_child(instance)
+	return instance
+
+
+func _apply_beach_material(beach: MeshInstance3D) -> void:
+	## Texture imports are optional until provenance-approved files are present.
+	const BEACH_DIR := "res://assets/external/beach/"
+	var diffuse_path := BEACH_DIR + "aerial_beach_01_diffuse_1k.png"
+	if not ResourceLoader.exists(diffuse_path):
+		return
+	var diffuse := load(diffuse_path) as Texture2D
+	if diffuse == null:
+		push_error("Approved beach colour map could not be loaded")
+		return
+	var material := StandardMaterial3D.new()
+	material.albedo_texture = diffuse
+	material.uv1_scale = Vector3(3.0, 3.0, 1.0)
+	material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	var roughness_path := BEACH_DIR + "aerial_beach_01_rough_1k.png"
+	if ResourceLoader.exists(roughness_path):
+		var roughness_map := load(roughness_path) as Texture2D
+		if roughness_map != null:
+			material.roughness_texture = roughness_map
+			material.roughness = 1.0
+			material.roughness_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED
+	beach.material_override = material
 
 
 func _unhandled_input(event: InputEvent) -> void:
