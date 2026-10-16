@@ -60,10 +60,8 @@ def validate_entry(item):
     return target, digest, url
 
 
-def download(target, digest, url, opener=None):
-    """Atomically stream up to MAX_BYTES, verify SHA-256, and clean up on failure."""
-    # Check the destination before accessing even an already-present file.
-    # Recheck every path component at the point of use, not only at manifest validation.
+def validate_destination(target):
+    """Reject redirected roots and path components at the point of use."""
     current = DEST
     if current.is_symlink():
         raise ValueError("Symlinked asset root")
@@ -73,6 +71,11 @@ def download(target, digest, url, opener=None):
         current = current / component
         if current.is_symlink():
             raise ValueError("Symlinked asset destination")
+
+
+def download(target, digest, url, opener=None):
+    """Atomically stream up to MAX_BYTES, verify SHA-256, and clean up on failure."""
+    validate_destination(target)
     if target.is_file():
         if hashlib.sha256(target.read_bytes()).hexdigest() != digest:
             raise ValueError("Existing asset hash mismatch")
