@@ -22,11 +22,11 @@ Example:
 - Never transfer CI, security, performance, audit, or acceptance evidence between SHAs.
 - If exact-head evidence is unavailable, status is NOT VERIFIED, not PASS.
 
-## Single implementation owner: Codex
+## Single implementation owner per task
 
-Codex is the sole code implementation owner for this repository. GPT-1/GPT-2 ownership, co-ownership, synchronization-lock, and veto rules are retired and must not block, duplicate, or supersede Codex implementation work.
+The Build Controller coordinates one GPT/Codex engineering team. Each task has exactly one implementation owner and non-overlapping write surfaces. The Integration/Auto-Fix Reviewer owns corrections discovered in review or explicitly delegates a specialist; a distinct agent independently reviews the corrected final SHA. GPT-1/GPT-2 ownership, co-ownership, synchronization-lock and veto gates remain retired. Model names do not create separate approval authorities.
 
-Before a material repository change, Codex records:
+Before a material repository change, the task owner records:
 - ACTIVE HEAD
 - ACTIVE BRANCH
 - ACTIVE GATE / WORKSTREAM
@@ -38,9 +38,9 @@ This ownership rule does not waive project controls: exact-SHA CI/security/perfo
 
 ## Required change record
 
-After a change, Notion must record:
+After a change, the milestone record in Notion (or a repository checkpoint while Notion is unavailable) must include:
 - DATE/TIME
-- CODE IMPLEMENTATION OWNER (Codex)
+- CODE IMPLEMENTATION OWNER (assigned task owner)
 - COMMIT
 - BRANCH
 - FILES CHANGED
