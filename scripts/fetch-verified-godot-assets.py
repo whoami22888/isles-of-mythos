@@ -62,6 +62,13 @@ def download(target, digest, url, opener=None):
         if hashlib.sha256(target.read_bytes()).hexdigest() != digest:
             raise ValueError("Existing asset hash mismatch")
         return
+    # Recheck every path component at the point of use, not only at manifest validation.
+    current = DEST
+    if target.is_relative_to(DEST):
+        for component in target.relative_to(DEST).parts:
+            current = current / component
+            if current.is_symlink():
+                raise ValueError("Symlinked asset destination")
     target.parent.mkdir(parents=True, exist_ok=True)
     descriptor, temp_path = tempfile.mkstemp(prefix=".asset-", dir=target.parent)
     opener = opener or build_opener(ApprovedRedirects())
