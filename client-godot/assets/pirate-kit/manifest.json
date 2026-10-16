@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "id": "quaternius-pirate-kit-2023-11",
+  "source": "Quaternius Pirate Kit (November 2023)",
+  "publisherUrl": "https://quaternius.com/packs/piratekit.html",
+  "originalReleaseEvidence": "https://www.patreon.com/quaternius/posts/pirate-kit-70-92300290",
+  "originalDriveFolder": "https://drive.google.com/drive/folders/1KjMzhVsDcyvYMWeVjZcRfuu8auBLpNi2",
+  "licenseClaim": "CC0 on original 2023 pack publication; 2026 Quaternius Asset License separately reviewed",
+  "files": [
+    {"name":"Ship_Small.obj","bytes":393636,"sha256":"04866a7a554ee45deebd3fda71ac34a1f39fdd998f8ca9b41e602eb6ff32afe6"},
+    {"name":"Characters_Skeleton.gltf","bytes":1731410,"sha256":"c4f060ac42cd3e761a0726dbd339b6e9ae10e153ff10540dffefc44c6270092b"},
+    {"name":"Characters_Shark.gltf","bytes":701731,"sha256":"1f62e757f280be1337f0ea2d0ac65d54cc448ecc20d5ed052e8012d62de4b9eb"},
+    {"name":"Atlas_Pirate.png","bytes":9014,"sha256":"a538d23f834ab4233d871cb9688f98ff574fc31b00e4dd99b9b42750f577ede4"}
+  ]
+}
