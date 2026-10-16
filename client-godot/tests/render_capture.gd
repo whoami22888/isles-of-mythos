@@ -21,15 +21,18 @@ func _capture() -> void:
 		push_error("Beach material was not applied")
 		quit(1)
 		return
-	var material: StandardMaterial3D = beach.material_override as StandardMaterial3D
-	if material == null or material.albedo_texture == null:
-		push_error("Verified beach texture was not imported into material")
-		quit(1)
-		return
-	if material.roughness_texture == null:
-		push_error("Verified beach roughness texture was not imported")
-		quit(1)
-		return
+	# The baseline visual job intentionally renders without downloaded third-party art.
+	# The verified beach job must explicitly require both pinned texture maps.
+	if OS.get_environment("IOM_REQUIRE_BEACH_TEXTURE") == "1":
+		var material := beach.material_override as StandardMaterial3D
+		if material == null or material.albedo_texture == null:
+			push_error("Verified beach texture was not imported into material")
+			quit(1)
+			return
+		if material.roughness_texture == null:
+			push_error("Verified beach roughness texture was not imported")
+			quit(1)
+			return
 	await RenderingServer.frame_post_draw
 	var image: Image = root.get_viewport().get_texture().get_image()
 	if image == null or image.is_empty() or image.get_width() < 640:
