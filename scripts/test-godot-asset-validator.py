@@ -71,6 +71,7 @@ class AssetValidatorTests(unittest.TestCase):
             validator.validate()
 
     def test_duplicate_asset_path_rejected(self):
+        (self.assets / "terrain.glb").write_bytes(self.sample)
         self.write([self.entry, dict(self.entry, id="duplicate")])
         with self.assertRaisesRegex(ValueError, "duplicate"):
             validator.validate()
