@@ -53,7 +53,11 @@ class FetcherTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
-        self.target = Path(self.temp.name) / "terrain.glb"
+        self.old_dest = fetcher.DEST
+        fetcher.DEST = Path(self.temp.name) / "external"
+        fetcher.DEST.mkdir()
+        self.addCleanup(lambda: setattr(fetcher, "DEST", self.old_dest))
+        self.target = fetcher.DEST / "terrain.glb"
         self.payload = b"premium-fixture"
         self.digest = hashlib.sha256(self.payload).hexdigest()
 
