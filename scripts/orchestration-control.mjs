@@ -134,9 +134,9 @@ async function runOne({ command, args, cwd, deadlineAt, forwardOutput, onSpawn }
     }, Math.max(1, deadline - started));
     deadlineTimer.unref?.();
     child.on("close", (exitCode, signal) => {
-      // A terminated leader may leave descendants with detached stdio alive.
-      // Finish forced process-group cleanup before cancelling escalation.
-      if (timedOut || callbackError) { try { signalTree(child, "SIGKILL"); } catch {} }
+      // Commands are finite: descendants may not outlive even a successful
+      // leader and retain work after its exclusive ledger claim is released.
+      if (process.platform !== "win32") { try { signalTree(child, "SIGKILL"); } catch {} }
       clearTimeout(deadlineTimer);
       if (escalationTimer) clearTimeout(escalationTimer);
       if (callbackError) { rejectPromise(callbackError); return; }
@@ -188,6 +188,15 @@ export async function runBoundedCommand({ command, args = [], cwd = process.cwd(
     seen.push(entry);
   }
   return { status: "failed", reason: "attempt_budget_exhausted", attempts, last };
+}
+export function processIdentity(pid) {
+  if (process.platform !== "linux" || !Number.isInteger(pid) || pid < 1) return null;
+  try {
+    const stat = readFileSync("/proc/" + pid + "/stat", "utf8");
+    const fields = stat.slice(stat.lastIndexOf(") ") + 2).split(" ");
+    if (fields[0] === "Z") return null;
+    return { pid, groupId: Number(fields[2]), startTime: fields[19] };
+  } catch (error) { if (error.code === "ENOENT" || error.code === "ESRCH") return null; throw error; }
 }
 function pidAlive(pid) {
   if (!Number.isInteger(pid) || pid < 1) return false;
@@ -252,7 +261,7 @@ export function claimTask(path, id, expectedRevision) {
     need(current.status === "queued", "Only queued tasks may be claimed");
     const ownership = ownershipCheck(ledger.tasks, current);
     need(!ownership.exclusiveConflicts.length, "Exclusive action conflict: " + JSON.stringify(ownership.exclusiveConflicts));
-    return { ...current, status: "running", childPid: null, blockedReason: undefined };
+    return { ...current, status: "running", childPid: null, childIdentity: null, controllerIdentity: processIdentity(process.pid), blockedReason: undefined };
   });
 }
 export function buildEvidenceManifest({ headSha, runId, files }) {
@@ -331,7 +340,22 @@ export async function runTask(path, id, retryKind, retryCodes, executable, comma
   let task = ledger.tasks.find(item => item.id === id);
   need(task, "Task not found: " + id);
   if (task.status === "running") {
-    if (pidAlive(task.childPid)) throw new Error("Task child is alive; duplicate execution refused");
+    const owner = task.controllerIdentity;
+    if (owner && JSON.stringify(processIdentity(owner.pid)) === JSON.stringify(owner)) {
+      throw new Error("Task controller is alive; duplicate execution refused");
+    }
+    if (pidAlive(task.childPid)) {
+      const identity = processIdentity(task.childPid);
+      need(identity && task.childIdentity && JSON.stringify(identity) === JSON.stringify(task.childIdentity)
+        && identity.groupId === identity.pid, "Live task identity is unverified; manual reconciliation required");
+      need(!["migration", "deployment", "release", "production_write"].includes(task.kind), "Protected orphan requires owner authorization");
+      // The old controller's watchdog died. Stop this verified process group
+      // rather than re-execute or assume the orphan completed successfully.
+      process.kill(-identity.pid, "SIGKILL");
+      const cleanupDeadline = Date.now() + 1_000;
+      while (processIdentity(identity.pid) && Date.now() < cleanupDeadline) await new Promise(resolve => setImmediate(resolve));
+      need(!processIdentity(identity.pid), "Orphan cleanup incomplete; retain the exclusive claim");
+    }
     mutateTask(path, id, task.revision, current => ({ ...current, status: "blocked", childPid: null, blockedReason: "interrupted_controller_or_child" }));
     throw new Error("Interrupted task marked blocked; inspect before explicitly requeueing");
   }
@@ -365,7 +389,7 @@ export async function runTask(path, id, retryKind, retryCodes, executable, comma
       currentTask = mutateTask(path, id, currentTask.revision, current => ({ ...current, status: "running", attempts: count, childPid: null }));
     },
     onSpawn: pid => {
-      currentTask = mutateTask(path, id, currentTask.revision, current => ({ ...current, childPid: pid ?? null }));
+      currentTask = mutateTask(path, id, currentTask.revision, current => ({ ...current, childPid: pid ?? null, childIdentity: processIdentity(pid) }));
     },
     onAttempt: async entry => {
       currentTask = mutateTask(path, id, currentTask.revision, current => ({ ...current, childPid: null, history: [...(current.history ?? []), entry] }));

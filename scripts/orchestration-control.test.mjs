@@ -1,11 +1,11 @@
 import test, { after } from "node:test";
 import assert from "node:assert/strict";
 import { cpSync, mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from "node:fs";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { join, relative, resolve } from "node:path";
 import {
   ownershipCheck, buildEvidenceManifest, retryDecision, runBoundedCommand, fingerprint,
-  validateAcceptance, validateEvidenceManifest, validateLedger, runTask, claimTask,
+  validateAcceptance, validateEvidenceManifest, validateLedger, runTask, claimTask, processIdentity,
 } from "./orchestration-control.mjs";
 
 mkdirSync(join(process.cwd(), "dist"), { recursive: true });
@@ -191,19 +191,20 @@ test("exclusive claims recheck the live ledger inside the atomic transition", ()
 });
 
 
-test("deadline cleanup kills descendants even when the leader closes first", { skip: process.platform !== "linux" }, async () => {
-  const pidFile = join(tempRoot, "descendant.pid");
+for (const exitNormally of [false, true]) {
+test("descendant cleanup after " + (exitNormally ? "successful leader exit" : "deadline"), { skip: process.platform !== "linux" }, async () => {
+  const pidFile = join(tempRoot, "descendant-" + exitNormally + ".pid");
   const descendant = "process.on('SIGTERM',()=>{});process.send('ready');process.disconnect();setInterval(()=>{},1000)";
   const leader = "const{spawn}=require('node:child_process');const c=spawn(process.execPath,['-e'," + JSON.stringify(descendant) +
-    "],{stdio:['ignore','ignore','ignore','ipc']});c.once('message',()=>require('node:fs').writeFileSync(" + JSON.stringify(pidFile) + ",String(c.pid)));setInterval(()=>{},1000)";
+    "],{stdio:['ignore','ignore','ignore','ipc']});c.once('message',()=>{require('node:fs').writeFileSync(" + JSON.stringify(pidFile) + ",String(c.pid));if(" + exitNormally + ")process.exit(0)});setInterval(()=>{},1000)";
   let childPid;
   const isRunning = pid => {
     try { return !/^[^)]*\) Z /.test(readFileSync("/proc/" + pid + "/stat", "utf8")); }
     catch (error) { if (error.code === "ENOENT") return false; throw error; }
   };
   try {
-    const result = await runBoundedCommand({ command: process.execPath, args: ["-e", leader], cwd: tempRoot, deadlineAt: future(1), forwardOutput: false });
-    assert.equal(result.status, "timed_out");
+    const result = await runBoundedCommand({ command: process.execPath, args: ["-e", leader], cwd: tempRoot, deadlineAt: future(exitNormally ? 5 : 1), forwardOutput: false });
+    assert.equal(result.status, exitNormally ? "succeeded" : "timed_out");
     childPid = Number(readFileSync(pidFile, "utf8"));
     const terminationDeadline = Date.now() + 1_000;
     while (isRunning(childPid) && Date.now() < terminationDeadline) await new Promise(resolve => setImmediate(resolve));
@@ -211,4 +212,61 @@ test("deadline cleanup kills descendants even when the leader closes first", { s
   } finally {
     if (childPid) { try { process.kill(childPid, "SIGKILL"); } catch {} }
   }
+});
+}
+
+
+
+test("recovery terminates a verified orphan and blocks re-execution", { skip: process.platform !== "linux" }, async () => {
+  const child = spawn(process.execPath, ["-e", "setInterval(()=>{},1000)"], { detached: true, stdio: "ignore" });
+  const closed = new Promise(resolve => child.once("close", resolve));
+  const path = join(tempRoot, "orphan-task.json");
+  try {
+    writeFileSync(path, JSON.stringify({ schemaVersion: 1, revision: 1, tasks: [task({
+      status: "running", childPid: child.pid, childIdentity: processIdentity(child.pid), controllerIdentity: null,
+    })] }));
+    await assert.rejects(runTask(path, "task-1", null, [], process.execPath, []), /Interrupted task/);
+    const persisted = JSON.parse(readFileSync(path, "utf8")).tasks[0];
+    assert.equal(persisted.status, "blocked");
+    assert.equal(persisted.childPid, null);
+    await closed;
+    assert.throws(() => process.kill(child.pid, 0), { code: "ESRCH" });
+  } finally {
+    try { process.kill(-child.pid, "SIGKILL"); } catch {}
+    await closed;
+  }
+});
+
+
+for (const protection of ["active-controller", "wrong-identity", "protected-operation"]) {
+  test("orphan recovery refuses " + protection, { skip: process.platform !== "linux" }, async () => {
+    const child = spawn(process.execPath, ["-e", "setInterval(()=>{},1000)"], { detached: true, stdio: "ignore" });
+    const closed = new Promise(resolve => child.once("close", resolve));
+    const path = join(tempRoot, protection + ".json");
+    try {
+      const identity = processIdentity(child.pid);
+      writeFileSync(path, JSON.stringify({ schemaVersion: 1, revision: 1, tasks: [task({
+        status: "running", childPid: child.pid,
+        childIdentity: protection === "wrong-identity" ? { ...identity, startTime: "wrong" } : identity,
+        controllerIdentity: protection === "active-controller" ? processIdentity(process.pid) : null,
+        kind: protection === "protected-operation" ? "migration" : "generic",
+      })] }));
+      await assert.rejects(runTask(path, "task-1", null, [], process.execPath, []), /controller is alive|identity is unverified|Protected orphan/);
+      assert.doesNotThrow(() => process.kill(child.pid, 0));
+      assert.equal(JSON.parse(readFileSync(path, "utf8")).tasks[0].status, "running");
+    } finally {
+      try { process.kill(-child.pid, "SIGKILL"); } catch {}
+      await closed;
+    }
+  });
+}
+
+
+test("a live controller retains its claim between child processes", { skip: process.platform !== "linux" }, async () => {
+  const path = join(tempRoot, "between-attempts.json");
+  writeFileSync(path, JSON.stringify({ schemaVersion: 1, revision: 1, tasks: [task({
+    status: "running", childPid: null, controllerIdentity: processIdentity(process.pid),
+  })] }));
+  await assert.rejects(runTask(path, "task-1", null, [], process.execPath, []), /controller is alive/);
+  assert.equal(JSON.parse(readFileSync(path, "utf8")).tasks[0].status, "running");
 });
