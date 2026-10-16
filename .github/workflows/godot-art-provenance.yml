@@ -6,6 +6,7 @@ on:
       - "client-godot/assets/**"
       - "scripts/validate-godot-assets.py"
       - "scripts/test-godot-asset-validator.py"
+      - "scripts/test-godot-asset-fetcher.py"
       - "scripts/fetch-verified-godot-assets.py"
       - ".github/workflows/godot-art-provenance.yml"
   workflow_dispatch:
@@ -25,5 +26,7 @@ jobs:
         run: python3 -m py_compile scripts/fetch-verified-godot-assets.py
       - name: Run provenance rejection regression tests
         run: python3 scripts/test-godot-asset-validator.py
+      - name: Run offline importer regression tests
+        run: python3 scripts/test-godot-asset-fetcher.py
       - name: Validate provenance manifest, hashes and permitted licenses
         run: python3 scripts/validate-godot-assets.py
