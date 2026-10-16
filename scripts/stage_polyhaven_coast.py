@@ -11,7 +11,13 @@ from urllib.request import HTTPRedirectHandler, Request, build_opener
 APPROVED = {
     "aerial_beach_01", "coast_sand_rocks_02", "seaside_rock"
 }
-MAPS = {"Diffuse", "Normal", "Rough", "AO", "Displacement"}
+MAP_SOURCES = {
+    "Diffuse": ("Diffuse", "diffuse"),
+    "Normal": ("nor_gl", "Normal"),
+    "Rough": ("Rough", "rough"),
+    "AO": ("AO", "ao"),
+    "Displacement": ("Displacement", "displacement"),
+}
 OUTPUT = Path(os.environ.get("IOM_STAGE_DIR", "asset-staging")).resolve()
 MAX_BYTES = 16 * 1024 * 1024
 
@@ -60,14 +66,14 @@ def select_maps(tree):
         # Poly Haven texture file tree uses {map: {resolution: {format: metadata}}}.
         raise ValueError("No diffuse map available")
     result = {}
-    for map_name in MAPS:
-        maps = tree.get(map_name, {})
+    for output_name, source_names in MAP_SOURCES.items():
+        maps = next((tree.get(name) for name in source_names if name in tree), {})
         entries = maps.get("1k", {}) if isinstance(maps, dict) else {}
         variant = entries.get("png") if isinstance(entries, dict) else None
         if isinstance(variant, dict) and variant.get("url"):
-            result[map_name] = variant
-    if "Diffuse" not in result:
-        raise ValueError("Missing 1k PNG diffuse map; inspect API listing manually")
+            result[output_name] = variant
+    if not {"Diffuse", "Normal"}.issubset(result):
+        raise ValueError("Missing 1k PNG diffuse or nor_gl normal map")
     return result
 
 

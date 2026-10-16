@@ -55,6 +55,19 @@ class StageOriginTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "allowlist"):
             STAGE.main("../unapproved")
 
+    def test_select_maps_normalizes_nor_gl_and_requires_normal(self):
+        """PBR staging accepts Poly Haven's OpenGL normal-map key only."""
+        tree = {
+            "Diffuse": {"1k": {"png": {"url": "https://example/diffuse"}}},
+            "nor_gl": {"1k": {"png": {"url": "https://example/normal"}}},
+        }
+        maps = STAGE.select_maps(tree)
+        self.assertEqual(maps["Normal"]["url"], "https://example/normal")
+
+        incomplete = {"Diffuse": tree["Diffuse"]}
+        with self.assertRaisesRegex(ValueError, "normal"):
+            STAGE.select_maps(incomplete)
+
 
 if __name__ == "__main__":
     unittest.main()
