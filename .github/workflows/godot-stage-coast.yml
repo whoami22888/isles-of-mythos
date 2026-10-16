@@ -1,0 +1,43 @@
+name: Stage Poly Haven coastal PBR candidate
+
+on:
+  pull_request:
+    paths:
+      - "scripts/stage_polyhaven_coast.py"
+      - "scripts/test_stage_polyhaven_coast.py"
+      - ".github/workflows/godot-stage-coast.yml"
+  workflow_dispatch:
+    inputs:
+      asset:
+        description: "Pre-screened CC0 coastal texture"
+        required: true
+        type: choice
+        options:
+          - aerial_beach_01
+          - coast_sand_rocks_02
+          - seaside_rock
+
+permissions:
+  contents: read
+
+jobs:
+  stage:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Verify origin security regressions
+        run: python3 scripts/test_stage_polyhaven_coast.py
+      - name: Stage candidate PBR maps with SHA-256 evidence
+        env:
+          IOM_STAGE_DIR: ${{ runner.temp }}/coastal-stage
+          ASSET_ID: ${{ inputs.asset || 'aerial_beach_01' }}
+        run: python3 scripts/stage_polyhaven_coast.py "$ASSET_ID"
+      - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
+        with:
+          name: coastal-pbr-candidate
+          path: ${{ runner.temp }}/coastal-stage/
+          if-no-files-found: error

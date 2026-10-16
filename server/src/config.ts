@@ -1,5 +1,6 @@
 const DEFAULT_PORT = 3000;
 const DEFAULT_CORS_ORIGIN = "http://localhost:5173";
+const DEFAULT_DATABASE_POOL_MAX = 50;
 
 function parsePort(value: string | undefined): number {
   if (value === undefined || value.trim() === "") return DEFAULT_PORT;
@@ -8,6 +9,15 @@ function parsePort(value: string | undefined): number {
     throw new Error("SERVER_PORT must be an integer between 1 and 65535");
   }
   return port;
+}
+
+function parseDatabasePoolMax(value: string | undefined): number {
+  if (value === undefined || value.trim() === "") return DEFAULT_DATABASE_POOL_MAX;
+  const max = Number(value);
+  if (!Number.isInteger(max) || max < 1 || max > 100) {
+    throw new Error("DB_POOL_MAX must be an integer between 1 and 100");
+  }
+  return max;
 }
 
 function parseEnvironment(value: string | undefined): "development" | "test" | "production" {
@@ -46,5 +56,6 @@ export const config = {
   redisUrl: process.env.REDIS_URL ?? "redis://localhost:6379",
   jwtSecret: jwtSecret || "development-only-secret-change-me",
   corsOrigin: parseCorsOrigin(process.env.CORS_ORIGIN, environment),
+  databasePoolMax: parseDatabasePoolMax(process.env.DB_POOL_MAX),
   websocketMaxPayloadBytes: 64 * 1024,
 } as const;

@@ -33,6 +33,7 @@ func _build_environment() -> void:
 	var coast := _build_coast_mesh()
 	var beach := _add_mesh(self, coast, Vector3.ZERO, Vector3.ONE, Color(0.84, 0.72, 0.44))
 	beach.name = "CoastalShoreline"
+	_apply_beach_material(beach)
 	var grass := CylinderMesh.new()
 	grass.top_radius = ISLAND_RADIUS - 2.7
 	grass.bottom_radius = ISLAND_RADIUS - 2.45
@@ -74,7 +75,9 @@ func _build_coast_mesh() -> ArrayMesh:
 				Vector3(cos(a0) * _coast_radius(a0) * radii[ring + 1], heights[ring + 1], sin(a0) * _coast_radius(a0) * radii[ring + 1]),
 				Vector3(cos(a1) * _coast_radius(a1) * radii[ring + 1], heights[ring + 1], sin(a1) * _coast_radius(a1) * radii[ring + 1])
 			]
-			for corner in [0, 1, 2, 1, 3, 2]:
+			# Centre fan has one triangle; all front faces use Godot clockwise winding.
+			var corners := [1, 2, 3] if ring == 0 else [0, 2, 1, 1, 2, 3]
+			for corner in corners:
 				var vertex: Vector3 = vertices[corner]
 				tool.set_uv(Vector2(vertex.x, vertex.z) / (ISLAND_RADIUS * 2.0) + Vector2(0.5, 0.5))
 				tool.add_vertex(vertex)
@@ -93,6 +96,30 @@ func _add_mesh(parent: Node3D, geometry: Mesh, location: Vector3, scale_value: V
 	instance.material_override = material
 	parent.add_child(instance)
 	return instance
+
+
+func _apply_beach_material(beach: MeshInstance3D) -> void:
+	## Texture imports are optional until provenance-approved files are present.
+	const BEACH_DIR := "res://assets/external/beach/"
+	var diffuse_path := BEACH_DIR + "aerial_beach_01_diffuse_1k.png"
+	if not ResourceLoader.exists(diffuse_path):
+		return
+	var diffuse := load(diffuse_path) as Texture2D
+	if diffuse == null:
+		push_error("Approved beach colour map could not be loaded")
+		return
+	var material := StandardMaterial3D.new()
+	material.albedo_texture = diffuse
+	material.uv1_scale = Vector3(3.0, 3.0, 1.0)
+	material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	var roughness_path := BEACH_DIR + "aerial_beach_01_rough_1k.png"
+	if ResourceLoader.exists(roughness_path):
+		var roughness_map := load(roughness_path) as Texture2D
+		if roughness_map != null:
+			material.roughness_texture = roughness_map
+			material.roughness = 1.0
+			material.roughness_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED
+	beach.material_override = material
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -142,3 +169,4 @@ func _physics_process(delta: float) -> void:
 	var next_position := _player.position + movement * MOVE_SPEED * delta
 	next_position.y = 0.0
 	_player.position = next_position.limit_length(ISLAND_RADIUS - 1.1)
+

@@ -17,6 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - name: Install verified Godot 4.7.2 and display runner
         shell: bash
@@ -34,6 +35,7 @@ jobs:
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/coastline-evidence"
           xvfb-run -a -s "-screen 0 1280x720x24" "$RUNNER_TEMP/godot" --editor --path client-godot --quit --import
+          "$RUNNER_TEMP/godot" --headless --path client-godot --script res://tests/coast_geometry_check.gd
           IOM_SCREENSHOT_PATH="$RUNNER_TEMP/coastline-evidence/coastline.png" xvfb-run -a -s "-screen 0 1280x720x24" "$RUNNER_TEMP/godot" --path client-godot --rendering-method gl_compatibility --script res://tests/coastline_capture.gd
           test -s "$RUNNER_TEMP/coastline-evidence/coastline.png"
       - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
@@ -41,3 +43,4 @@ jobs:
           name: real-godot-coastline
           path: ${{ runner.temp }}/coastline-evidence/
           if-no-files-found: error
+
