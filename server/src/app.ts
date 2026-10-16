@@ -14,6 +14,7 @@ import { log } from "./logger.js";
 import { parseClientMessage, type ServerMessage } from "./protocol.js";
 import { PlayerStore, serializePlayerState } from "./player.js";
 import { WorldChunkCache } from "./world.js";
+import { createWorldResourceVisibilityBatcher } from "./world-resource-visibility.js";
 import { SHOP_ITEMS, calculatePurchase, getShopItem, serializeShopItem } from "./shop.js";
 import { craftRecipe } from "./crafting.js";
 import { gatherResource, resourceGatherFingerprint } from "./resource-gathering.js";
@@ -171,18 +172,23 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     const creatures = chunk.creatures.filter((spawn) => !capturedWorldCreatures.has(spawn.id));
     return creatures.length === chunk.creatures.length ? chunk : { ...chunk, creatures };
   };
-  const visibleClientWorldChunk = async (x: number, y: number) => {
-    const chunk = visibleWorldChunk(x, y);
-    if (chunk.resources.length === 0) return chunk;
-    const resourceIds = chunk.resources.map((resource) => resource.id);
+  const filterDepletedResources = createWorldResourceVisibilityBatcher(async (resourceIds) => {
     const result = await db.query<{ node_id: string }>(
       "SELECT node_id FROM world_resource_nodes WHERE node_id = ANY($1::varchar[]) AND depleted_until > CURRENT_TIMESTAMP",
       [resourceIds],
     );
-    if (result.rows.length === 0) return chunk;
-    const depleted = new Set(result.rows.map((row) => row.node_id));
-    const resources = chunk.resources.filter((resource) => !depleted.has(resource.id));
-    return resources.length === chunk.resources.length ? chunk : { ...chunk, resources };
+    return new Set(result.rows.map((row) => row.node_id));
+  });
+  const visibleClientWorldChunk = async (
+    x: number, y: number, timing?: { generationMs: number; resourceVisibilityMs: number },
+  ) => {
+    const generationStartedAt = performance.now();
+    const chunk = visibleWorldChunk(x, y);
+    if (timing) timing.generationMs = performance.now() - generationStartedAt;
+    const visibilityStartedAt = performance.now();
+    const visible = await filterDepletedResources(chunk);
+    if (timing) timing.resourceVisibilityMs = performance.now() - visibilityStartedAt;
+    return visible;
   };
 
   const projectiles = new Map<string, CombatProjectile>();
@@ -672,12 +678,15 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         return reply.code(400).send({ error: "INVALID_CHUNK_COORDINATE" });
       }
       const worldStartedAt = performance.now();
-      const result = await visibleClientWorldChunk(x, y);
+      const stageTiming = { generationMs: 0, resourceVisibilityMs: 0 };
+      const result = await visibleClientWorldChunk(x, y, stageTiming);
       const worldAndDatabaseMs = performance.now() - worldStartedAt;
       const totalMs = performance.now() - startedAt;
       if (totalMs >= 25) {
         log("world_chunk_slow_request", {
           captureLoadMs: Math.round(captureLoadMs * 100) / 100,
+          generationMs: Math.round(stageTiming.generationMs * 100) / 100,
+          resourceVisibilityMs: Math.round(stageTiming.resourceVisibilityMs * 100) / 100,
           worldAndDatabaseMs: Math.round(worldAndDatabaseMs * 100) / 100,
           totalMs: Math.round(totalMs * 100) / 100,
         });
