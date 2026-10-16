@@ -21,6 +21,7 @@ surface_material_override/0 = SubResource("OceanMaterial")
 
 [node name="IslandCamera" type="Camera3D" parent="."]
 position = Vector3(33, 35, 33)
+rotation_degrees = Vector3(-36.86, 45, 0)
 projection = 1
 size = 66.0
 current = true
