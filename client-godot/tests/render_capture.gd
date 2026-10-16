@@ -23,7 +23,7 @@ func _capture() -> void:
 		return
 	# The baseline visual job intentionally renders without downloaded third-party art.
 	# The verified beach job must explicitly require both pinned texture maps.
-	if OS.get_environment("IOM_REQUIRE_BEACH_TEXTURE") == "1":
+	if OS.get_environment("IOM_REQUIRE_BEACH_TEXTURE") == "1" or OS.get_environment("IOM_SCREENSHOT_PATH").get_file() == "beach-material.png":
 		var material := beach.material_override as StandardMaterial3D
 		if material == null or material.albedo_texture == null:
 			push_error("Verified beach texture was not imported into material")
