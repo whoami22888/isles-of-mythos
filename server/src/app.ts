@@ -71,6 +71,17 @@ export interface BuildAppOptions {
   clientDistDir?: string;
 }
 
+/**
+ * Build the HTTP and WebSocket game server without starting a listener.
+ * Background game loops start when the app listens; closing the app persists
+ * player, creature, and base state before ending an internally created DB pool.
+ *
+ * @param options.db - Optional DB pool that remains owned by the caller.
+ * @param options.clientDistDir - Built frontend directory; defaults to
+ * `client/dist` relative to the current working directory.
+ * @returns The configured app, which the caller must close to release resources.
+ * @throws Propagates plugin and route registration errors.
+ */
 export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyInstance> {
   const clientDistDir = options.clientDistDir ?? resolve(process.cwd(), "client/dist");
   const db = options.db ?? createDbPool();
