@@ -41,25 +41,41 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
+          fetch-depth: 0
 
       # Execute Codacy Analysis CLI and generate a SARIF output with the security issues identified during the analysis
       - name: Run Codacy Analysis CLI
-        uses: codacy/codacy-analysis-cli-action@d840f886c4bd4edc059706d09c6a1586111c540b
+        uses: codacy/codacy-analysis-cli-action@d43360362776a6789b47b99ae8973510854e2d3d # CLI 7.10.0
         with:
           # Check https://github.com/codacy/codacy-analysis-cli#project-token to get your project token from your Codacy repository
           # You can also omit the token and run the tools that support default configurations
           project-token: ${{ secrets.CODACY_PROJECT_TOKEN }}
           verbose: true
+          # Scanner crashes are failures even when a partial SARIF can be generated.
+          fail-if-incomplete: true
           output: results.sarif
           format: sarif
           # Adjust severity of non-security issues
           gh-code-scanning-compat: true
-          # Force 0 exit code to allow SARIF file generation
-          # This will handover control about PR rejection to the GitHub side
+          # Findings remain visible to GitHub code scanning. This limit does not
+          # suppress scanner execution failures (fail-if-incomplete above).
           max-allowed-issues: 2147483647
+
+      # Preserve complete or partial diagnostic evidence even if a tool crashes.
+      - name: Retain SARIF evidence
+        if: ${{ always() && hashFiles('results.sarif') != '' }}
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        with:
+          name: codacy-sarif-${{ github.event.pull_request.head.sha || github.sha }}
+          path: results.sarif
+          if-no-files-found: error
+          retention-days: 30
 
       # Upload the SARIF file generated in the previous step
       - name: Upload SARIF results file
+        if: ${{ always() && hashFiles('results.sarif') != '' }}
         uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4
         with:
           sarif_file: results.sarif
+          ref: ${{ github.event_name == 'pull_request' && format('refs/pull/{0}/head', github.event.pull_request.number) || github.ref }}
+          sha: ${{ github.event.pull_request.head.sha || github.sha }}
