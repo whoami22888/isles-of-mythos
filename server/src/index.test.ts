@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { once } from "node:events";
 import { AntiCheatService } from "./anti-cheat.js";
 import { WebSocket } from "ws";
 import { buildApp } from "./app.js";
@@ -315,7 +316,9 @@ describe("server foundation", () => {
   });
 
   it("enforces authoritative ranged ammunition consumption", async () => {
-    const app = await buildApp();
+    const antiCheat = new AntiCheatService();
+    const duplicates = vi.spyOn(antiCheat, "observeRequestDuplicate");
+    const app = await buildApp({ antiCheat });
     const unique = Date.now();
     const register = await app.inject({
       method: "POST",
@@ -370,14 +373,34 @@ describe("server foundation", () => {
       await selected;
 
       const hit = waitForMatchingMessage(socket, (message) => isJsonObject(message) && message.type === "combat_result");
-      socket.send(JSON.stringify({
-        type: "attack",
-        requestId: "ammo-1",
-        targetId,
-        facingX: 1,
-        facingY: 0,
-      }));
+      let pendingErrors = 0;
+      const pendingRejections = waitForMatchingMessage(socket, (message) => {
+        if (isJsonObject(message) && message.type === "error" && message.code === "COMBAT_IN_PROGRESS") pendingErrors++;
+        return pendingErrors === 5;
+      });
+      const attack = JSON.stringify({ type: "attack", requestId: "ammo-1", targetId, facingX: 1, facingY: 0 });
+      const blocker = await database.connect();
+      try {
+        await blocker.query("BEGIN");
+        await blocker.query("SELECT user_id FROM player_profiles WHERE user_id=$1 FOR UPDATE", [userId]);
+        socket.send(attack);
+        for (let index = 0; index < 5; index++) socket.send(attack);
+        // Protocol pong proves all preceding frames reached the server while
+        // the first authorization is held at the row lock. After release the
+        // queued duplicate handlers settle before the next projectile tick.
+        const framesReceived = once(socket, "pong");
+        socket.ping();
+        await framesReceived;
+        await blocker.query("COMMIT");
+      } finally {
+        blocker.release();
+      }
+      await pendingRejections;
       await expect(hit).resolves.toMatchObject({ type: "combat_result", requestId: "ammo-1", targetId });
+      expect(duplicates.mock.calls.filter(call => call[1] === "COALESCED")).toHaveLength(5);
+      expect(duplicates.mock.results.at(-1)?.value).toMatchObject({
+        type: "REQUEST_DUPLICATION", evidence: { reason: "COALESCED", rejectedCount: 5 },
+      });
 
       const stateAfterAttack = waitForMatchingMessage(socket, (message) => isJsonObject(message) && message.type === "player_state");
       socket.send(JSON.stringify({ type: "move", dx: 0, dy: 0, sequence: 0 }));

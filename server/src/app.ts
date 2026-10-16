@@ -911,6 +911,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             return;
           }
           if (pendingCombatRequests.has(pendingKey)) {
+            recordRequestDuplicate(userId, "COALESCED");
             send(socket, { type: "error", code: "COMBAT_IN_PROGRESS" });
             return;
           }
