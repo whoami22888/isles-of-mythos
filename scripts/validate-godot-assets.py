@@ -14,11 +14,14 @@ REQUIRED = {"id", "path", "sha256", "source_url", "license", "license_url", "att
 LICENSES = {"CC0-1.0", "CC-BY-4.0", "CC-BY-SA-4.0", "MIT", "Apache-2.0", "OFL-1.1"}
 
 def fail(message: str) -> None:
+    """Reject an asset candidate without weakening the admission gate."""
     raise ValueError(message)
 
 def validate() -> int:
+    """Validate approved manifest entries against filesystem and digest evidence."""
     data = json.loads(MANIFEST.read_text(encoding="utf-8"))
-    if not isinstance(data, dict) or data.get("schema_version") != 1 or not isinstance(data.get("assets"), list):
+    if (not isinstance(data, dict) or data.get("schema_version") != 1
+            or not isinstance(data.get("assets"), list)):
         fail("Manifest must contain schema_version=1 and assets array")
     seen_ids, seen_paths = set(), set()
     root = ASSETS.resolve()
@@ -61,6 +64,7 @@ def validate() -> int:
             fail("Unregistered file(s) under client-godot/assets/external")
     print(f"Asset provenance validation PASS: {len(registered)} registered asset files")
     return 0
+
 
 if __name__ == "__main__":
     try:
