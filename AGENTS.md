@@ -50,3 +50,7 @@ Every material change record includes DATE/TIME, implementation owner, exact SHA
 - Maintain pinned Godot 4.7.2 Android ARM64 GDScript, authoritative Fastify/PostgreSQL economy/gameplay, Redis ephemeral status and 20 Hz simulation. Preserve frozen Gates 1–16 and protected Step 5 capture/migration boundaries.
 - GitHub Actions: prefer reusable workflow_call jobs only when they remove proven duplication; retain working checks, pinned actions, least-privilege job permissions, exact-SHA checkout, artifact evidence, bounded repair retries and no recursive auto-fix loops. No elevated token in untrusted PR jobs.
 - Record every material correction, owner, commit SHA, check IDs, review, artifact and next task in Notion Build Instructions, Harvest Parts, Progress & Revision Notes, and Audit, and read back the writes. If unavailable, retain a repository checkpoint and report the precise blocker.
+
+## Mandatory premium graphics directive
+
+Before editing Godot art, importing assets, reviewing graphics, or approving a visual integration PR, read and enforce [`docs/ART_DIRECTION_STANDARD.md`](docs/ART_DIRECTION_STANDARD.md). Its 35/25/20/10/10 visual-review weights are proposed evaluation criteria, not measured results or substitutes for licensing, import, Android performance and independent-review gates. Follow its single-owner graphics agent roles, actual Godot screenshot evidence and explicit asset rejections. Preserve the server-authoritative architecture and use temporary low-poly meshes only as labeled scaffolding.
