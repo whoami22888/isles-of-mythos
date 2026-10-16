@@ -5,10 +5,10 @@ func _init() -> void:
 
 
 func run() -> void:
-	var scene := load("res://scenes/island_preview.tscn").instantiate()
+	var scene = load("res://scenes/island_preview.tscn").instantiate()
 	root.add_child(scene)
 	await process_frame
-	var player := scene.get_node_or_null("PreviewPlayer")
+	var player = scene.get_node_or_null("PreviewPlayer")
 	var camera := scene.get_node_or_null("IslandCamera") as Camera3D
 	var ok := player != null and camera != null and camera.current
 	if ok:
