@@ -74,7 +74,7 @@ func _build_coast_mesh() -> ArrayMesh:
 				Vector3(cos(a0) * _coast_radius(a0) * radii[ring + 1], heights[ring + 1], sin(a0) * _coast_radius(a0) * radii[ring + 1]),
 				Vector3(cos(a1) * _coast_radius(a1) * radii[ring + 1], heights[ring + 1], sin(a1) * _coast_radius(a1) * radii[ring + 1])
 			]
-			for corner in [0, 2, 1, 1, 2, 3]:
+			for corner in [0, 1, 2, 1, 3, 2]:
 				var vertex: Vector3 = vertices[corner]
 				tool.set_uv(Vector2(vertex.x, vertex.z) / (ISLAND_RADIUS * 2.0) + Vector2(0.5, 0.5))
 				tool.add_vertex(vertex)
