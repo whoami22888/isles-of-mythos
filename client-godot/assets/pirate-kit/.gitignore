@@ -1,0 +1,5 @@
+# Do not commit raw downloaded assets before the final licence admission decision.
+*
+!.gitignore
+!manifest.json
+!README.md
