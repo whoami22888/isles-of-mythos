@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Fail-closed provenance and integrity checks for imported third-party Godot art."""
+# pylint: disable=invalid-name  # Hyphenated CLI script name is required by CI.
 import hashlib
 import json
 import pathlib
@@ -17,7 +18,7 @@ def fail(message: str) -> None:
     """Reject an asset candidate without weakening the admission gate."""
     raise ValueError(message)
 
-def validate() -> int:
+def validate() -> int:  # pylint: disable=too-many-branches
     """Validate approved manifest entries against filesystem and digest evidence."""
     data = json.loads(MANIFEST.read_text(encoding="utf-8"))
     if (not isinstance(data, dict) or data.get("schema_version") != 1
