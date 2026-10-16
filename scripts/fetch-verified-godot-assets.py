@@ -28,12 +28,10 @@ def validate_origin(url):
 class ApprovedRedirects(HTTPRedirectHandler):
     """Ensure urllib never follows an off-allowlist HTTP redirect."""
 
-    def redirect_request(self, request, file_pointer, code, message, headers, new_url):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
         """Validate every redirect before opening the next URL."""
-        validate_origin(new_url)
-        return super().redirect_request(
-            request, file_pointer, code, message, headers, new_url
-        )
+        validate_origin(newurl)
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
 
 
 def validate_entry(item):
