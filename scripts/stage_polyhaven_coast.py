@@ -18,16 +18,24 @@ MAX_BYTES = 16 * 1024 * 1024
 
 def approved_url(url, hosts):
     """Enforce HTTPS and an exact expected domain."""
-    p = urlparse(url)
-    if (p.scheme != "https" or p.hostname not in hosts or p.username
-            or p.password or p.port not in (None, 443)):
+    parsed_url = urlparse(url)
+    if (
+        parsed_url.scheme != "https"
+        or parsed_url.hostname not in hosts
+        or parsed_url.username
+        or parsed_url.password
+        or parsed_url.port not in (None, 443)
+    ):
         raise ValueError("Unapproved URL origin")
 
 
 class ApprovedRedirects(HTTPRedirectHandler):
     """Reject redirects before opening an untrusted network location."""
 
-    def redirect_request(self, req, fp, code, msg, headers, newurl):
+    # The urllib redirect hook requires this seven-argument signature.
+    def redirect_request(  # pylint: disable=too-many-arguments
+        self, req, fp, code, msg, headers, newurl
+    ):
         """Permit only approved Poly Haven download and API origins."""
         approved_url(newurl, {"api.polyhaven.com", "dl.polyhaven.org"})
         return super().redirect_request(req, fp, code, msg, headers, newurl)
@@ -69,7 +77,7 @@ def main(asset_id):
         raise ValueError("Asset not on candidate allowlist")
     files = get_json(f"https://api.polyhaven.com/files/{asset_id}")
     maps = select_maps(files)
-    OUTPUT.mkdir(parents=True, exist_ok=True)
+    OUTPUT.mkdir(parents=True, exist_ok=True)  # pylint: disable=no-member
     record = {"id": asset_id, "source_url": f"https://polyhaven.com/a/{asset_id}",
               "license": "CC0-1.0", "license_url": "https://polyhaven.com/license",
               "status": "candidate-not-approved", "files": []}
@@ -83,11 +91,13 @@ def main(asset_id):
         if len(data) > MAX_BYTES:
             raise ValueError("File exceeds staging limit")
         name = f"{asset_id}_{kind.lower()}_1k.png"
-        (OUTPUT / name).write_bytes(data)
+        (OUTPUT / name).write_bytes(data)  # pylint: disable=no-member
         record["files"].append({"path": name, "url": url,
                                 "sha256": hashlib.sha256(data).hexdigest(),
                                 "bytes": len(data)})
-    (OUTPUT / "candidate.json").write_text(json.dumps(record, indent=2) + "\n")
+    (OUTPUT / "candidate.json").write_text(  # pylint: disable=no-member
+        json.dumps(record, indent=2) + "\n"
+    )
     print(f"Staged {len(record['files'])} map(s) for {asset_id}; visual review required")
 
 

@@ -19,7 +19,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Verify coastal download origin regression tests
-        run: python3 scripts/test-stage-polyhaven-coast.py
+        run: python3 scripts/test_stage_polyhaven_coast.py
       - name: Install pinned Godot 4.7.2
         shell: bash
         run: |
