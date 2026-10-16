@@ -671,12 +671,14 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       if (!Number.isSafeInteger(x) || !Number.isSafeInteger(y)) {
         return reply.code(400).send({ error: "INVALID_CHUNK_COORDINATE" });
       }
+      const worldStartedAt = performance.now();
       const result = await visibleClientWorldChunk(x, y);
+      const worldAndDatabaseMs = performance.now() - worldStartedAt;
       const totalMs = performance.now() - startedAt;
       if (totalMs >= 25) {
         log("world_chunk_slow_request", {
           captureLoadMs: Math.round(captureLoadMs * 100) / 100,
-          worldAndDatabaseMs: Math.round((totalMs - captureLoadMs) * 100) / 100,
+          worldAndDatabaseMs: Math.round(worldAndDatabaseMs * 100) / 100,
           totalMs: Math.round(totalMs * 100) / 100,
         });
       }
