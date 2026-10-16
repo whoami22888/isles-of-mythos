@@ -14,9 +14,11 @@ HASH = re.compile(r"^[0-9a-f]{64}$")
 REQUIRED = {"id", "path", "sha256", "source_url", "license", "license_url", "attribution"}
 LICENSES = {"CC0-1.0", "CC-BY-4.0", "CC-BY-SA-4.0", "MIT", "Apache-2.0", "OFL-1.1"}
 
+
 def fail(message: str) -> None:
     """Reject an asset candidate without weakening the admission gate."""
     raise ValueError(message)
+
 
 def validate() -> int:  # pylint: disable=too-many-branches
     """Validate approved manifest entries against filesystem and digest evidence."""
@@ -25,6 +27,8 @@ def validate() -> int:  # pylint: disable=too-many-branches
             or not isinstance(data.get("assets"), list)):
         fail("Manifest must contain schema_version=1 and assets array")
     seen_ids, seen_paths = set(), set()
+    if ASSETS.is_symlink():
+        fail("Symlinked external assets root")
     root = ASSETS.resolve()
     registered = set()
     for index, item in enumerate(data["assets"]):
@@ -60,7 +64,14 @@ def validate() -> int:  # pylint: disable=too-many-branches
             fail(f"Asset {index}: content hash mismatch")
         registered.add(path)
     if ASSETS.exists():
-        actual = {p.resolve() for p in ASSETS.rglob("*") if p.is_file() or p.is_symlink()}
+        actual = set()
+        for candidate in ASSETS.rglob("*"):
+            # Do not resolve before checking: an unregistered symlink alias
+            # to an approved file would otherwise collapse into its digest.
+            if candidate.is_symlink():
+                fail("Symlinked file(s) under client-godot/assets/external")
+            if candidate.is_file():
+                actual.add(candidate.resolve())
         if actual != registered:
             fail("Unregistered file(s) under client-godot/assets/external")
     print(f"Asset provenance validation PASS: {len(registered)} registered asset files")
