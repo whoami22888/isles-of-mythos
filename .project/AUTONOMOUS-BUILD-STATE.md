@@ -1,40 +1,55 @@
 # Autonomous build state — 2026-10-16
 
-> Reconcile live state on each session. This snapshot is not a substitute for GitHub's current SHA or Notion evidence.
+Reconcile live GitHub state at session start. This is a dated observation, not a claim that subsequent commits or checks passed.
 
-## Authority and controller
-- One GPT + Codex non-production controller; one existing Codex Lead task: `01a13b62-4eb5-7138-bc70-aea4d2ccc08e`.
-- Latest Codex turn failed with a usage-limit error; do not create duplicate Codex tasks or assume capacity is available.
-- Active hourly Isles Autonomous Build Controller remains the single scheduled continuation.
-- User-authorised routine branch, source, CI, test, review and verified PR merge operations, limited by connected tool scopes; no production deployment, paid environments, protected migrations 029/036, or frozen-gate changes.
+## Authority and recovery
 
-## Reconciled repository
-- Baseline main: `d341b14f31782c2b3da9bcbf90c560e97f4455bb` (read at checkpoint creation).
-- PR #137 `fix/audit-rollback-error-preservation-20261015`, HEAD `00a68cd8c5586659a53e6de2f6ff0173a424dbc2`, draft. Five CI/security/performance workflows green at this HEAD; AI review and gathering rollback regression remain unresolved. GPT owns fixes.
-- PR #136 `fix/attack-replay-evidence`, HEAD `d7b990e70066c371579922cc6f37dced47d5a615`. Reconfirm mergeability, exact-SHA checks and review immediately before any merge.
-- PR #125 bounded verification orchestration; PR #121 P0 movement speedhack regressions; PR #119 performance tracing. No blind merge.
-- Codex owns ongoing 250-player latency correction; main has since passed performance acceptance, but root-cause disposition must be reconciled with Codex evidence.
-- Existing workflows: `.github/workflows/ci.yml`, `performance.yml`, `static-security.yml`, `codeql.yml`, `codacy.yml`, `godot-iom-00.yml`, `summary.yml`. Inspect before refactoring; do not duplicate suites.
+- Load AGENTS.md, this file, .project/VERIFICATION-STANDARD.md, CONTRIBUTING.md and TESTING.md before changes.
+- Requirements: original full-game-prompt.PDF; commercial Notion Build Instructions/Harvest Parts/Progress/Audit; legacy Master Index for frozen Gates 1–16 and Step 5 prerequisites.
+- Godot 4.7.2 GDScript Mobile Android ARM64 client; existing Fastify/WebSocket/PostgreSQL server owns gameplay/economy/persistence. No speculative ENet or duplicated authority.
+- Routine non-production source, PR and verified merge operations are owner-authorized. No production deployment, paid provider, protected migration 029/036 execution, destructive operation or frozen-gate bypass.
+- Active session supports subagents and git worktrees. Two read-only audit workers were confirmed; the controller is the only current writer. Record each future claim below before editing shared paths.
+- No recurring controller/scheduler is exposed by current tools. A historical claim of an hourly controller is unverified; do not create a duplicate or promise work beyond a live session. Durable task ID: `01a13b62-4eb5-7138-bc70-aea4d2ccc08e` was read and is inProgress in this session; do not send self-follow-ups. Codex Tasks list_environments returned an empty data list on 2026-10-16, so new remote task/environment provisioning is unavailable through that connector. Local subagents/worktrees remain available.
+- Networked git/gh commands require a narrowly approved sandbox escalation in this session. Repository read/write and normal guarded merge were demonstrated; branch-protection administration and Actions settings access are not assumed. Never change protections or expose credentials.
 
-## Dependency-aware execution queue
-1. GPT — PR #137: add resource-gathering rollback failure regression; perform distinct AI review, check exact final SHA, merge only when green, verify resulting main.
-2. GPT — reconcile PR #136 review/mergeability and exact-SHA evidence; merge only if all requirements pass and verify main.
-3. Codex — continue its owned performance correction when quota available; do not concurrently edit Codex-owned files.
-4. Controller/CI — inventory existing workflows, quantify redundant checks and split reusable workflow_call only when it demonstrably reduces duplication without weakening security.
-5. Client/QA — Godot 4.7.2 Android ARM64 device build and actual phone smoke testing; do not claim physical-device validation without evidence.
-6. Harvest/World — pinned source licence and asset provenance review; block unauthorized third-party asset import.
-7. Controller — advance dependency-ready IOM gates with explicit owner, branch, tests, artifacts and updated Notion record.
+## Live repository observation
 
-## Verification rules
-- Build & Integrity: lint, typecheck, compilation, dependencies, workflow integrity, security scanning.
-- Functionality & Integration: client/server protocol, gameplay, reconnect, UX, smoke, replay and load behavior.
-- Data & Transaction Safety: authoritative mutations, rollback, concurrency, persistence, idempotency, backup/restore.
-- Performance matrices: 1/50/250/1000 and 10/50/100/500/1000 players. Scenarios: 500 guild-battle, 250 naval, 250 world-boss, 5000 persisted player bases. Require durable evidence, server tick p50/p95/p99 and 20 Hz cadence.
+Observed 2026-10-16: main `73ff4c72d837639fdf16eb4dc4a999457e3edb49`, merge of PR #137. Post-merge evidence observed 2026-10-16: CI38858329359 and Performance38858329401 pending; CodeQL38858329376, Codacy38858329377 and StaticSecurity38858329385 PASS. Do not label this SHA fully verified until all required checks complete.
 
-## Notion checkpoints
+Historical/source evidence observed 2026-10-16:
+
+| Target | Exact SHA | CI | Performance | CodeQL | Codacy | Static Security |
+| --- | --- | --- | --- | --- | --- | --- |
+| Prior main / PR136 merge | `33cc18d407751fbac6d055c1a805d5ed0b8ad19c` | 38756298945 PASS | 38756299375 PASS | 38756299030 PASS | 38756299359 PASS | 38756299159 PASS |
+| PR137 final head | `8e9fdbc022196440b5e0295522d1a525ba9ec0ee` | 38755099641 PASS | 38755099673 PASS | 38755099450 PASS | 38755099327 PASS | 38755099516 PASS |
+
+PR137 independently reviewed and merged with expected-HEAD protection. These results do not verify its merge SHA or this documentation candidate.
+
+## Claims and dependency-ready queue
+
+| Task | Owner / paths | Branch / dependency | Acceptance / next action |
+| --- | --- | --- | --- |
+| PR137 rollback preservation | Integration Reviewer; crafting/resource gathering/tests; complete | Merged 73ff4c7; head 8e9fdbc | Preserve primary error; evict broken client after failed rollback. Four focused regressions and exact-head gates passed; verify post-merge checks. |
+| PR138 controller reconciliation | Build Controller; AGENTS.md, this file, VERIFICATION-STANDARD.md | Existing PR138 branch control/autonomous-build-state-20261016; local control/reconcile-build-controller | Fix ownership conflict and missing evidence IDs. Pre-push docs consistency/diff checks, final exact-SHA CI/security/performance and distinct review. Do not duplicate this PR. |
+| CI architecture | CI/CD reviewer, read-only | Seven existing workflows | Two duplicated Node/Postgres bootstraps; validation jobs otherwise distinct. Extraction optional, not a reason to rerun/duplicate suites. Current contents:read default and scoped scan/summary writes are appropriate. |
+| Contextual repair/controller | Controller | Actual task/permission/scheduler capabilities required | No runnable recurring repair controller proven. Inspect task status, then use supported bounded task lifecycle; never pretend Actions performs AI repair by itself. |
+| IOM01 provenance | Harvest specialist, read-only | Frozen H01–H11 pins, licensing and exact approved acquisition invocation | H01 camera is small; exclude authoritative player/inventory/autoload closure. H09 pack needs archive digest/roster. H10 embedded licence names another pack; H02 lacks per-model provenance. No unreviewed admission. |
+| Game continuation | Client/Gameplay owner assigned before edits | IOM00 shell merged; IOM01 closure before dependent IOM02–07 work | Actual Android launch/physical-device evidence, complete world/camera/gameplay UI/onboarding remain unverified. A debug APK or green server CI is not game completeness. No phone testing currently authorized by active work order. |
+
+PR136 attack replay fix is merged; do not reimplement. Open PR125 orchestration, PR121 movement and draft PR119 tracing need overlap/staleness reconciliation before any merge. Movement authority already exists.
+
+## Unresolved evidence and protected boundaries
+
+- Historical Performance38727971023 at main `3a559b13d129cf42842b4e3c1cd4afab36010e36` FAILED: 250-player gameplay p95 157.114805ms >150ms. Preserve the failure. Later exact-SHA runs passed, but transaction stall cause remains unproven; PR135 adds numeric pool/begin/commit/rollback timings, not a latency fix. No blind reroll, weaker threshold or durability workaround.
+- Preserve both player matrices (1/50/250/1000; 10/50/100/500/1000), domain workloads (500 guild, 250 naval, 250 boss, 5000 bases), durable evidence and current SLOs. Reconcile the 20Hz requirement against actual configured cadence and measured evidence without silently rewriting acceptance.
+- Step 5 remains BLOCKED pending exact Step 2 independent audit acceptance, migration029/036 deployment provenance, capture health formula/save-load reconciliation and protected owner authorization. No generic AI review substitutes.
+- Verification groups only: Build & Integrity; Functionality & Integration; Data & Transaction Safety. Record limitations and nonblocking warnings; reuse evidence only for an unchanged exact SHA.
+
+## Commercial checkpoints
+
 - Build Instructions: <https://app.notion.com/p/3fa3fab3c26681d5a87fe776982e9895>
 - Harvest Parts: <https://app.notion.com/p/3fa3fab3c266811dbd7bd1d7b636723f>
 - Progress & Revision Notes: <https://app.notion.com/p/3fa3fab3c2668153b493e21f913ecfdf>
 - Audit: <https://app.notion.com/p/3fa3fab3c26681f88f13f27db2ade308>
 
-Update this snapshot only from fresh evidence and preserve historical decisions in Git history and Notion.
+Update at meaningful milestones from fresh evidence; read back Notion writes. A pending Notion update must not block safe independent development. Do not persist tokens, identifiers, signed download URLs or private payloads here.
