@@ -82,7 +82,7 @@ func _build_coast_mesh() -> ArrayMesh:
 	return tool.commit()
 
 
-func _add_mesh(parent: Node3D, geometry: Mesh, location: Vector3, scale_value: Vector3, tint: Color) -> void:
+func _add_mesh(parent: Node3D, geometry: Mesh, location: Vector3, scale_value: Vector3, tint: Color) -> MeshInstance3D:
 	var instance := MeshInstance3D.new()
 	instance.mesh = geometry
 	instance.position = location
@@ -92,6 +92,7 @@ func _add_mesh(parent: Node3D, geometry: Mesh, location: Vector3, scale_value: V
 	material.roughness = 0.9
 	instance.material_override = material
 	parent.add_child(instance)
+	return instance
 
 
 func _unhandled_input(event: InputEvent) -> void:
