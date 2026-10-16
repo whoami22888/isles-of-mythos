@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Download pinned, provenance-checked third-party art from approved HTTPS origins."""
+# pylint: disable=invalid-name  # Hyphenated CLI script name is required by CI.
 
 import hashlib
 import json
@@ -58,17 +59,19 @@ def validate_entry(item):
 
 def download(target, digest, url, opener=None):
     """Atomically stream up to MAX_BYTES, verify SHA-256, and clean up on failure."""
+    # Check the destination before accessing even an already-present file.
+    # Recheck every path component at the point of use, not only at manifest validation.
+    current = DEST
+    if not target.is_relative_to(DEST):
+        raise ValueError("Asset destination outside approved directory")
+    for component in target.relative_to(DEST).parts:
+        current = current / component
+        if current.is_symlink():
+            raise ValueError("Symlinked asset destination")
     if target.is_file():
         if hashlib.sha256(target.read_bytes()).hexdigest() != digest:
             raise ValueError("Existing asset hash mismatch")
         return
-    # Recheck every path component at the point of use, not only at manifest validation.
-    current = DEST
-    if target.is_relative_to(DEST):
-        for component in target.relative_to(DEST).parts:
-            current = current / component
-            if current.is_symlink():
-                raise ValueError("Symlinked asset destination")
     target.parent.mkdir(parents=True, exist_ok=True)
     descriptor, temp_path = tempfile.mkstemp(prefix=".asset-", dir=target.parent)
     opener = opener or build_opener(ApprovedRedirects())
