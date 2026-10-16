@@ -1,6 +1,11 @@
 name: Stage Poly Haven coastal PBR candidate
 
 on:
+  pull_request:
+    paths:
+      - "scripts/stage-polyhaven-coast.py"
+      - "scripts/test-stage-polyhaven-coast.py"
+      - ".github/workflows/godot-stage-coast.yml"
   workflow_dispatch:
     inputs:
       asset:
@@ -23,10 +28,12 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           persist-credentials: false
+      - name: Verify origin security regressions
+        run: python3 scripts/test-stage-polyhaven-coast.py
       - name: Stage candidate PBR maps with SHA-256 evidence
         env:
           IOM_STAGE_DIR: ${{ runner.temp }}/coastal-stage
-          ASSET_ID: ${{ inputs.asset }}
+          ASSET_ID: ${{ inputs.asset || 'aerial_beach_01' }}
         run: python3 scripts/stage-polyhaven-coast.py "$ASSET_ID"
       - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
         with:
