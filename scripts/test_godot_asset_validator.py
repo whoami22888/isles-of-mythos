@@ -34,6 +34,7 @@ class AssetValidatorTests(unittest.TestCase):
             "path": "terrain.glb",
             "sha256": hashlib.sha256(self.sample).hexdigest(),
             "source_url": "https://polyhaven.com/a/test",
+            "download_url": "https://dl.polyhaven.org/terrain.glb",
             "license": "CC0-1.0",
             "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
             "attribution": "Test fixture only",
@@ -53,6 +54,22 @@ class AssetValidatorTests(unittest.TestCase):
         """Regression: empty manifest."""
         self.write([])
         self.assertEqual(validator.validate(), 0)
+
+    def test_missing_download_url_rejected(self):
+        """An approved manifest must be consumable by the pinned fetcher."""
+        (self.assets / "terrain.glb").write_bytes(self.sample)
+        del self.entry["download_url"]
+        self.write([self.entry])
+        with self.assertRaisesRegex(ValueError, "missing mandatory"):
+            validator.validate()
+
+    def test_unapproved_download_origin_rejected(self):
+        """Use the same origin allowlist for validation and acquisition."""
+        (self.assets / "terrain.glb").write_bytes(self.sample)
+        self.entry["download_url"] = "https://evil.test/terrain.glb"
+        self.write([self.entry])
+        with self.assertRaisesRegex(ValueError, "Unapproved"):
+            validator.validate()
 
     def test_matching_hash(self):
         """Regression: matching hash."""

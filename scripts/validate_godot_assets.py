@@ -6,11 +6,16 @@ import pathlib
 import re
 import sys
 
+from fetch_verified_godot_assets import validate_origin
+
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "client-godot" / "assets" / "external-assets.json"
 ASSETS = ROOT / "client-godot" / "assets" / "external"
 HASH = re.compile(r"^[0-9a-f]{64}$")
-REQUIRED = {"id", "path", "sha256", "source_url", "license", "license_url", "attribution"}
+REQUIRED = {
+    "id", "path", "sha256", "source_url", "download_url",
+    "license", "license_url", "attribution",
+}
 LICENSES = {"CC0-1.0", "CC-BY-4.0", "CC-BY-SA-4.0", "MIT", "Apache-2.0", "OFL-1.1"}
 
 
@@ -35,6 +40,7 @@ def validate_metadata(index, item, seen_ids, seen_paths):
         fail(f"Asset {index}: source and license URLs must use HTTPS")
     if not HASH.fullmatch(item["sha256"]):
         fail(f"Asset {index}: invalid SHA-256 digest")
+    validate_origin(item["download_url"])
 
 
 def validate_path(index, item, root):
