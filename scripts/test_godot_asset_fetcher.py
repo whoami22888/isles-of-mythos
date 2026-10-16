@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 """Offline regression checks for hash-pinned external asset downloads."""
-# pylint: disable=invalid-name  # CLI entrypoint filenames are referenced by CI.
 
 import hashlib
 import importlib.util
@@ -10,7 +9,7 @@ import tempfile
 import unittest
 
 spec = importlib.util.spec_from_file_location(
-    "asset_fetcher", Path(__file__).parent / "fetch-verified-godot-assets.py"
+    "asset_fetcher", Path(__file__).parent / "fetch_verified_godot_assets.py"
 )
 fetcher = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(fetcher)
@@ -25,23 +24,27 @@ class Response:
         self.reads = 0
 
     def __enter__(self):
+        """Enter the controlled response context."""
         return self
 
     def __exit__(self, *_args):
+        """Propagate download exceptions."""
         return False
 
     def read(self, _count):
+        """Return the fixture body once, then EOF."""
         self.reads += 1
         return self.payload if self.reads == 1 else b""
 
 
-class Opener:
+class Opener:  # pylint: disable=too-few-public-methods
     """Inject a controlled response into urllib's opener interface."""
 
     def __init__(self, response):
         self.response = response
 
     def open(self, _request, timeout):
+        """Return the fixture response using the production timeout."""
         if timeout != 45:
             raise ValueError("Unexpected request timeout")
         return self.response
@@ -51,17 +54,20 @@ class FetcherTests(unittest.TestCase):
     """Protect origin checks, digest matching, cleanup and atomic imports."""
 
     def setUp(self):
-        self.temp = tempfile.TemporaryDirectory()
-        self.addCleanup(self.temp.cleanup)
+        """Keep every test destination inside an isolated approved root."""
+        # enterContext keeps the fixture alive and registers cleanup with unittest.
+        # pylint: disable-next=consider-using-with
+        self.temp = self.enterContext(tempfile.TemporaryDirectory())
         self.old_dest = fetcher.DEST
-        fetcher.DEST = Path(self.temp.name) / "external"
+        fetcher.DEST = Path(self.temp) / "external"
         fetcher.DEST.mkdir()
         self.addCleanup(lambda: setattr(fetcher, "DEST", self.old_dest))
         self.target = fetcher.DEST / "terrain.glb"
         self.payload = b"premium-fixture"
         self.digest = hashlib.sha256(self.payload).hexdigest()
 
-    def test_allowed_origin(self):
+    @staticmethod
+    def test_allowed_origin():
         """Regression: allowed origin."""
         fetcher.validate_origin("https://dl.polyhaven.org/approved")
 
@@ -109,6 +115,19 @@ class FetcherTests(unittest.TestCase):
                 self.assertFalse((root_path / "outside" / "terrain.glb").exists())
             finally:
                 fetcher.DEST = original_dest
+
+    def test_reject_symlinked_asset_root(self):
+        """Reject a redirected root before reading existing or writing new bytes."""
+        outside = Path(self.temp) / "outside"
+        outside.mkdir()
+        fetcher.DEST.rmdir()
+        fetcher.DEST.symlink_to(outside, target_is_directory=True)
+        with self.assertRaisesRegex(ValueError, "Symlinked"):
+            fetcher.download(
+                self.target, self.digest, "https://dl.polyhaven.org/approved",
+                opener=Opener(Response(self.payload)),
+            )
+        self.assertEqual(list(outside.iterdir()), [])
 
     def test_wrong_digest_cleanup(self):
         """Regression: wrong digest cleanup."""

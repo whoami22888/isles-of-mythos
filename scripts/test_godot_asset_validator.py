@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 """Regression tests for the external art manifest validator; no external network."""
-# pylint: disable=invalid-name  # CLI entrypoint filenames are referenced by CI.
 import hashlib
 import importlib.util
 import json
@@ -8,7 +7,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
-SCRIPT = Path(__file__).resolve().parent / "validate-godot-assets.py"
+SCRIPT = Path(__file__).resolve().parent / "validate_godot_assets.py"
 spec = importlib.util.spec_from_file_location("godot_asset_validator", SCRIPT)
 validator = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(validator)
@@ -19,9 +18,10 @@ class AssetValidatorTests(unittest.TestCase):
 
     def setUp(self):
         """Create isolated asset fixtures."""
-        self.temp = tempfile.TemporaryDirectory()
-        self.addCleanup(self.temp.cleanup)
-        root = Path(self.temp.name)
+        # enterContext keeps the fixture alive and registers cleanup with unittest.
+        # pylint: disable-next=consider-using-with
+        self.temp = self.enterContext(tempfile.TemporaryDirectory())
+        root = Path(self.temp)
         self.assets = root / "external"
         self.assets.mkdir()
         self.manifest = root / "external-assets.json"
@@ -29,11 +29,15 @@ class AssetValidatorTests(unittest.TestCase):
         validator.MANIFEST, validator.ASSETS = self.manifest, self.assets
         self.addCleanup(self.restore)
         self.sample = b"verified test bytes"
-        self.entry = dict(id="terrain-test", path="terrain.glb",
-            sha256=hashlib.sha256(self.sample).hexdigest(),
-            source_url="https://polyhaven.com/a/test", license="CC0-1.0",
-            license_url="https://creativecommons.org/publicdomain/zero/1.0/",
-            attribution="Test fixture only")
+        self.entry = {
+            "id": "terrain-test",
+            "path": "terrain.glb",
+            "sha256": hashlib.sha256(self.sample).hexdigest(),
+            "source_url": "https://polyhaven.com/a/test",
+            "license": "CC0-1.0",
+            "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+            "attribution": "Test fixture only",
+        }
 
     def restore(self):
         """Restore module globals."""
@@ -114,7 +118,7 @@ class AssetValidatorTests(unittest.TestCase):
 
     def test_symlinked_asset_root_rejected(self):
         """The entire asset root cannot be redirected to another directory."""
-        real_root = Path(self.temp.name) / "actual-assets"
+        real_root = Path(self.temp) / "actual-assets"
         real_root.mkdir()
         self.assets.rmdir()
         self.assets.symlink_to(real_root, target_is_directory=True)

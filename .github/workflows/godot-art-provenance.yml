@@ -4,10 +4,10 @@ on:
   pull_request:
     paths:
       - "client-godot/assets/**"
-      - "scripts/validate-godot-assets.py"
-      - "scripts/test-godot-asset-validator.py"
-      - "scripts/test-godot-asset-fetcher.py"
-      - "scripts/fetch-verified-godot-assets.py"
+      - "scripts/validate_godot_assets.py"
+      - "scripts/test_godot_asset_validator.py"
+      - "scripts/test_godot_asset_fetcher.py"
+      - "scripts/fetch_verified_godot_assets.py"
       - ".github/workflows/godot-art-provenance.yml"
   workflow_dispatch:
 
@@ -21,12 +21,13 @@ jobs:
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - name: Compile pinned asset importer
-        run: python3 -m py_compile scripts/fetch-verified-godot-assets.py
+        run: python3 -m py_compile scripts/fetch_verified_godot_assets.py
       - name: Run provenance rejection regression tests
-        run: python3 scripts/test-godot-asset-validator.py
+        run: python3 scripts/test_godot_asset_validator.py
       - name: Run offline importer regression tests
-        run: python3 scripts/test-godot-asset-fetcher.py
+        run: python3 scripts/test_godot_asset_fetcher.py
       - name: Validate provenance manifest, hashes and permitted licenses
-        run: python3 scripts/validate-godot-assets.py
+        run: python3 scripts/validate_godot_assets.py

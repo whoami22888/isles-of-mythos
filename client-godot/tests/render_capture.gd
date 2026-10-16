@@ -1,0 +1,39 @@
+extends SceneTree
+## Capture an ACTUAL Godot-rendered frame for graphics review in a display-backed CI runner.
+
+func _init() -> void:
+	call_deferred("_capture")
+
+
+func _capture() -> void:
+	var packed: PackedScene = load("res://scenes/island_preview.tscn")
+	if packed == null:
+		push_error("Island preview scene could not be loaded")
+		quit(1)
+		return
+	var scene: Node3D = packed.instantiate()
+	root.add_child(scene)
+	await process_frame
+	await process_frame
+	await process_frame
+	var camera: Camera3D = scene.get_node_or_null("IslandCamera")
+	if camera == null or not camera.current:
+		push_error("No active island preview camera")
+		quit(1)
+		return
+	var screenshot: Image = root.get_viewport().get_texture().get_image()
+	if screenshot == null or screenshot.is_empty() or screenshot.get_width() < 640:
+		push_error("Renderer did not produce an acceptable screenshot")
+		quit(1)
+		return
+	var output: String = OS.get_environment("IOM_SCREENSHOT_PATH")
+	if output.is_empty():
+		output = "user://island-preview.png"
+	var error: Error = screenshot.save_png(output)
+	if error != OK:
+		push_error("Could not write rendered PNG: %d" % error)
+		quit(1)
+		return
+	print("Godot rendered reference capture: %s (%dx%d)" % [output, screenshot.get_width(), screenshot.get_height()])
+	scene.queue_free()
+	quit(0)

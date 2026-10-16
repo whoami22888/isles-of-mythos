@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 """Download pinned, provenance-checked third-party art from approved HTTPS origins."""
-# pylint: disable=invalid-name  # Hyphenated CLI script name is required by CI.
 
 import hashlib
 import json
@@ -29,6 +28,8 @@ def validate_origin(url):
 class ApprovedRedirects(HTTPRedirectHandler):
     """Ensure urllib never follows an off-allowlist HTTP redirect."""
 
+    # urllib requires this exact override signature.
+    # pylint: disable-next=too-many-arguments,too-many-positional-arguments
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         """Validate every redirect before opening the next URL."""
         validate_origin(newurl)
@@ -48,6 +49,8 @@ def validate_entry(item):
     validate_origin(url)
     target = DEST / relative
     current = DEST
+    if current.is_symlink():
+        raise ValueError("Symlinked asset root")
     for part in parts.parts:
         current = current / part
         if current.is_symlink():
@@ -62,6 +65,8 @@ def download(target, digest, url, opener=None):
     # Check the destination before accessing even an already-present file.
     # Recheck every path component at the point of use, not only at manifest validation.
     current = DEST
+    if current.is_symlink():
+        raise ValueError("Symlinked asset root")
     if not target.is_relative_to(DEST):
         raise ValueError("Asset destination outside approved directory")
     for component in target.relative_to(DEST).parts:

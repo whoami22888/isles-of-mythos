@@ -48,13 +48,7 @@ jobs:
           set -euo pipefail
           "$RUNNER_TEMP/godot/godot" --headless --editor --path client-godot --quit --import
           "$RUNNER_TEMP/godot/godot" --headless --path client-godot --script res://tests/headless_smoke.gd
-          # The island-preview test belongs to an optional graphics workstream.
-          # Run it when present; do not invoke a nonexistent script on this branch.
-          if [ -f client-godot/tests/island_preview_smoke.gd ]; then
-            "$RUNNER_TEMP/godot/godot" --headless --path client-godot --script res://tests/island_preview_smoke.gd
-          else
-            echo "Island-preview smoke test not present; skipping optional preview test."
-          fi
+          "$RUNNER_TEMP/godot/godot" --headless --path client-godot --script res://tests/island_preview_smoke.gd
       - name: Verify Android export prerequisites
         shell: bash
         run: |
