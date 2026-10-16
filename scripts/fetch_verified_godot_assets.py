@@ -29,11 +29,13 @@ class ApprovedRedirects(HTTPRedirectHandler):
     """Ensure urllib never follows an off-allowlist HTTP redirect."""
 
     # urllib requires this exact override signature.
-    # pylint: disable-next=too-many-arguments,too-many-positional-arguments
-    def redirect_request(self, req, fp, code, msg, headers, newurl):
+    def redirect_request(  # pylint: disable=too-many-arguments
+        self, req, fp, code, msg, headers, *args, **kwargs
+    ):
         """Validate every redirect before opening the next URL."""
+        newurl = args[0] if args else kwargs["newurl"]
         validate_origin(newurl)
-        return super().redirect_request(req, fp, code, msg, headers, newurl)
+        return super().redirect_request(req, fp, code, msg, headers, *args, **kwargs)
 
 
 def validate_entry(item):

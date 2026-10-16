@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Regression tests for the external art manifest validator; no external network."""
+from contextlib import ExitStack
 import hashlib
 import importlib.util
 import json
@@ -18,9 +19,9 @@ class AssetValidatorTests(unittest.TestCase):
 
     def setUp(self):
         """Create isolated asset fixtures."""
-        # enterContext keeps the fixture alive and registers cleanup with unittest.
-        # pylint: disable-next=consider-using-with
-        self.temp = self.enterContext(tempfile.TemporaryDirectory())
+        contexts = ExitStack()
+        self.addCleanup(contexts.close)
+        self.temp = contexts.enter_context(tempfile.TemporaryDirectory())
         root = Path(self.temp)
         self.assets = root / "external"
         self.assets.mkdir()

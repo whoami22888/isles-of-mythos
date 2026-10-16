@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Offline regression checks for hash-pinned external asset downloads."""
 
+from contextlib import ExitStack
 import hashlib
 import importlib.util
 from pathlib import Path
@@ -55,9 +56,9 @@ class FetcherTests(unittest.TestCase):
 
     def setUp(self):
         """Keep every test destination inside an isolated approved root."""
-        # enterContext keeps the fixture alive and registers cleanup with unittest.
-        # pylint: disable-next=consider-using-with
-        self.temp = self.enterContext(tempfile.TemporaryDirectory())
+        contexts = ExitStack()
+        self.addCleanup(contexts.close)
+        self.temp = contexts.enter_context(tempfile.TemporaryDirectory())
         self.old_dest = fetcher.DEST
         fetcher.DEST = Path(self.temp) / "external"
         fetcher.DEST.mkdir()
@@ -85,6 +86,20 @@ class FetcherTests(unittest.TestCase):
                 Request("https://dl.polyhaven.org/x"), None,
                 302, "redirect", {}, "https://evil.test/asset"
             )
+
+    def test_redirect_keyword_contract(self):
+        """The urllib override validates keyword and positional redirect calls."""
+        redirect = fetcher.ApprovedRedirects()
+        request = Request("https://dl.polyhaven.org/x")
+        with self.assertRaises(ValueError):
+            redirect.redirect_request(
+                request, None, 302, "redirect", {}, newurl="https://evil.test/asset"
+            )
+        allowed = "https://dl.polyhaven.org/asset"
+        result = redirect.redirect_request(
+            request, None, 302, "redirect", {}, newurl=allowed
+        )
+        self.assertEqual(result.full_url, allowed)
 
     def test_good_hash(self):
         """Regression: good hash."""
