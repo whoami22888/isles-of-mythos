@@ -70,6 +70,23 @@ class AssetValidatorTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "unsafe path"):
             validator.validate()
 
+    def test_symlinked_file_inside_root_rejected(self):
+        (self.assets / "real.glb").write_bytes(self.sample)
+        (self.assets / "terrain.glb").symlink_to("real.glb")
+        self.write([self.entry])
+        with self.assertRaisesRegex(ValueError, "symlinked"):
+            validator.validate()
+
+    def test_symlinked_parent_directory_rejected(self):
+        real = self.assets / "real"
+        real.mkdir()
+        (real / "terrain.glb").write_bytes(self.sample)
+        (self.assets / "alias").symlink_to(real, target_is_directory=True)
+        self.entry["path"] = "alias/terrain.glb"
+        self.write([self.entry])
+        with self.assertRaisesRegex(ValueError, "symlinked"):
+            validator.validate()
+
     def test_duplicate_asset_path_rejected(self):
         (self.assets / "terrain.glb").write_bytes(self.sample)
         self.write([self.entry, dict(self.entry, id="duplicate")])
