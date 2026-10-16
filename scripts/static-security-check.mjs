@@ -67,6 +67,76 @@ for(const [i,rawLine] of readFileSync("docker-compose.yml","utf8").split(/\r?\n/
  const image=line.match(/^\s*image:\s*(["']?)([^"'#\s]+)\1\s*$/i);
  if(image&&/(?:^|\/)postgres(?=[:/@])/i.test(image[2])&&!/postgres-exporter/i.test(image[2])&&!/@sha256:[0-9a-f]{64}$/i.test(image[2]))add(findings.errors,"mutable-postgres-image","docker-compose.yml",i+1,rawLine);
 }
+
+ // Mandatory verification orchestration policy: cancelled or unbounded required checks
+ // cannot provide trustworthy acceptance evidence.
+ const requiredWorkflowControls = {
+   "ci.yml": { cancel: false, timeout: 15 },
+   "performance.yml": { cancel: false, timeout: 15 },
+   "static-security.yml": { cancel: false, timeout: 5 },
+   "codeql.yml": { timeout: 20 },
+   "codacy.yml": { timeout: 15 },
+ };
+ for (const [workflow, policy] of Object.entries(requiredWorkflowControls)) {
+   const path = join(workflowRoot, workflow);
+   let content;
+   try {
+     content = readFileSync(path, "utf8");
+   } catch {
+     add(findings.errors, "required-workflow-missing", path, 1, "Required verification workflow is missing");
+     continue;
+   }
+   if (policy.cancel === false && /^\s*cancel-in-progress:\s*true\s*$/m.test(content)) {
+     add(findings.errors, "verification-cancellation-enabled", path, 1, "Mandatory verification runs must not be automatically cancelled");
+   }
+   if (policy.cancel === false && !/^\s*cancel-in-progress:\s*false\s*$/m.test(content)) {
+     add(findings.errors, "verification-cancellation-policy-missing", path, 1, "Explicit cancel-in-progress: false is required for mandatory verification");
+   }
+   if (!new RegExp("^\\s*timeout-minutes:\\s*" + policy.timeout + "\\s*$", "m").test(content)) {
+     add(findings.errors, "verification-timeout-policy", path, 1, "Expected job timeout-minutes: " + policy.timeout);
+   }
+ }
+
+
+const rootPackage = JSON.parse(readFileSync("package.json", "utf8"));
+if (rootPackage.scripts?.["test:orchestration"] !== "node --test scripts/orchestration-control.test.mjs") {
+  add(findings.errors, "orchestration-test-script", "package.json", 1, "Root package must expose orchestration tests");
+}
+const ciWorkflow = readFileSync(join(workflowRoot, "ci.yml"), "utf8");
+if (!ciWorkflow.includes("npm run test:orchestration")) {
+  add(findings.errors, "orchestration-ci-hook", join(workflowRoot, "ci.yml"), 1, "CI must run orchestration-controller tests");
+}
+const performanceWorkflow = readFileSync(join(workflowRoot, "performance.yml"), "utf8");
+for (const [name, content] of [["ci.yml", ciWorkflow], ["performance.yml", performanceWorkflow]]) {
+  if (!/^\s*cache:\s*npm\s*$/m.test(content) || !/^\s*cache-dependency-path:\s*package-lock\.json\s*$/m.test(content)) {
+    add(findings.errors, "npm-cache-policy", join(workflowRoot, name), 1, "Required build workflow must use lockfile-keyed npm cache");
+  }
+}
+for (const [marker, description] of [
+  ["EXPECTED_HEAD_SHA:", "Performance evidence must bind to exact expected HEAD"],
+  ["git rev-parse HEAD", "Performance workflow must verify checked-out HEAD"],
+  ["orchestration-control.mjs manifest", "Performance workflow must create a cryptographic manifest"],
+  ["orchestration-control.mjs validate-manifest", "Performance workflow must validate its manifest"],
+  ["acceptance-evidence-manifest.json", "Manifest must be included in uploaded artifact"],
+]) {
+  if (!performanceWorkflow.includes(marker)) add(findings.errors, "performance-evidence-integrity", join(workflowRoot, "performance.yml"), 1, description);
+}
+const evidenceUpload = performanceWorkflow.split("      - name: Upload acceptance evidence")[1]?.split(/\n      - /)[0] ?? "";
+const evidenceUploadPaths = evidenceUpload.match(/^          path: \|\n((?:^            .*\n?)+)/m)?.[1] ?? "";
+if (!/^            acceptance-evidence-manifest\.json\s*$/m.test(evidenceUploadPaths)) {
+  add(findings.errors, "performance-evidence-upload", join(workflowRoot, "performance.yml"), 1, "Acceptance manifest must be listed in the evidence upload paths");
+}
+for (const name of Object.keys(requiredWorkflowControls)) {
+  const path = join(workflowRoot, name);
+  const content = readFileSync(path, "utf8");
+  if (!/ref:\s*\$\{\{\s*github\.event\.pull_request\.head\.sha\s*\|\|\s*github\.sha\s*\}\}/.test(content)) {
+    add(findings.errors, "workflow-exact-head-checkout", path, 1, "Required workflow must check out the exact PR/source SHA");
+  }
+  if (!/persist-credentials:\s*false/.test(content)) {
+    add(findings.errors, "workflow-checkout-credentials", path, 1, "Required workflow checkout must disable persisted credentials");
+  }
+}
+
 console.log("Static security scan: " + (findings.errors.length === 0 ? "PASS" : "FAIL"));
 for (const item of findings.errors) console.log("ERROR " + item);
 for (const item of findings.reviews.slice(0, 200)) console.log("REVIEW " + item);

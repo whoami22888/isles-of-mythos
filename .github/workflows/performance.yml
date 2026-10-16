@@ -11,7 +11,8 @@ permissions:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
+  queue: max
 
 jobs:
   sustained-load:
@@ -50,7 +51,8 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 24
-          package-manager-cache: false
+          cache: npm
+          cache-dependency-path: package-lock.json
       - name: Install Cosign
         uses: sigstore/cosign-installer@ba7bc0a3fef59531c69a25acd34668d6d3fe6f22 # v4.1.0
         with:
@@ -154,8 +156,15 @@ jobs:
       - name: Verify acceptance evidence completeness
         if: always()
         shell: bash
+        env:
+          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           set -euo pipefail
+          actual_head="$(git rev-parse HEAD)"
+          if [[ "$actual_head" != "$EXPECTED_HEAD_SHA" ]]; then
+            echo "::error::Checked-out HEAD $actual_head differs from expected SHA $EXPECTED_HEAD_SHA"
+            exit 1
+          fi
           files=(
             performance-results.json
             performance-system.log
@@ -179,13 +188,18 @@ jobs:
               missing=1
             fi
           done
-          exit "$missing"
+          if [[ "$missing" -ne 0 ]]; then exit "$missing"; fi
+          node scripts/orchestration-control.mjs manifest --sha "$EXPECTED_HEAD_SHA" --run-id "$GITHUB_RUN_ID" --out acceptance-evidence-manifest.json "${files[@]}"
+          required="$(printf '%s,' "${files[@]}")"
+          required="${required%,}"
+          node scripts/orchestration-control.mjs validate-manifest acceptance-evidence-manifest.json --sha "$EXPECTED_HEAD_SHA" --run-id "$GITHUB_RUN_ID" --required "$required"
       - name: Upload acceptance evidence
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
           name: performance-acceptance-evidence
           path: |
+            acceptance-evidence-manifest.json
             performance-results.json
             performance-system.log
             performance-server.log
