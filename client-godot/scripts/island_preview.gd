@@ -34,8 +34,8 @@ func _build_environment() -> void:
 	var beach := _add_mesh(self, coast, Vector3.ZERO, Vector3.ONE, Color(0.84, 0.72, 0.44))
 	beach.name = "CoastalShoreline"
 	var grass := CylinderMesh.new()
-	grass.top_radius = ISLAND_RADIUS - 1.2
-	grass.bottom_radius = ISLAND_RADIUS - 0.95
+	grass.top_radius = ISLAND_RADIUS - 2.7
+	grass.bottom_radius = ISLAND_RADIUS - 2.45
 	grass.height = 0.12
 	_add_mesh(self, grass, Vector3(0.0, 0.14, 0.0), Vector3.ONE, Color(0.25, 0.51, 0.27))
 	for location in [Vector3(-5.5, 0.0, -3.0), Vector3(5.1, 0.0, -2.8), Vector3(-3.0, 0.0, 5.0), Vector3(4.7, 0.0, 4.2)]:
