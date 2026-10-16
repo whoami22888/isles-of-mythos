@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Download explicitly approved SHA-256-pinned Poly Haven files, never arbitrary URLs."""
+"""Download pinned, provenance-checked third-party art from approved HTTPS origins."""
+
 import hashlib
 import json
 import os
@@ -7,7 +8,7 @@ from pathlib import Path, PurePosixPath
 import sys
 import tempfile
 from urllib.parse import urlparse
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "client-godot/assets/external-assets.json"
@@ -15,56 +16,91 @@ DEST = ROOT / "client-godot/assets/external"
 ALLOWED_HOSTS = {"dl.polyhaven.org", "polyhaven.com", "cdn.polyhaven.com"}
 MAX_BYTES = 80 * 1024 * 1024
 
-def fetch() -> None:
-    data = json.loads(MANIFEST.read_text(encoding="utf-8"))
-    if data.get("schema_version") != 1 or not isinstance(data.get("assets"), list):
-        raise ValueError("Invalid asset manifest")
-    for item in data["assets"]:
-        relative = item["path"]
-        p = PurePosixPath(relative)
-        if p.is_absolute() or ".." in p.parts or "\\" in relative:
-            raise ValueError("Unsafe asset path")
-        digest = item["sha256"]
-        if len(digest) != 64 or any(c not in "0123456789abcdef" for c in digest):
-            raise ValueError("Invalid SHA-256")
-        url = item.get("download_url")
-        if not isinstance(url, str):
-            raise ValueError("download_url required")
-        parsed = urlparse(url)
-        if parsed.scheme != "https" or parsed.hostname not in ALLOWED_HOSTS or parsed.username or parsed.password:
-            raise ValueError("Unapproved asset download host")
-        out = (DEST / relative).resolve()
-        if not out.is_relative_to(DEST.resolve()) or out.is_symlink():
-            raise ValueError("Unsafe output path")
-        if out.is_file():
-            if hashlib.sha256(out.read_bytes()).hexdigest() != digest:
-                raise ValueError(f"Existing asset hash mismatch: {relative}")
-            continue
-        out.parent.mkdir(parents=True, exist_ok=True)
-        fd, tmp = tempfile.mkstemp(prefix=".asset-", dir=out.parent)
-        try:
-            sha = hashlib.sha256()
-            size = 0
-            with os.fdopen(fd, "wb") as target, urlopen(Request(url, headers={"User-Agent": "IslesOfMythosAssetImporter/1.0"}), timeout=45) as response:
-                final = urlparse(response.url)
-                if final.scheme != "https" or final.hostname not in ALLOWED_HOSTS:
-                    raise ValueError("Unapproved redirect host")
+
+def validate_origin(url):
+    """Reject unsafe schemes, credentials and hosts, including redirect targets."""
+    parsed = urlparse(url)
+    if (parsed.scheme != "https" or parsed.hostname not in ALLOWED_HOSTS
+            or parsed.username or parsed.password or parsed.port not in (None, 443)):
+        raise ValueError("Unapproved asset download origin")
+
+
+class ApprovedRedirects(HTTPRedirectHandler):
+    """Ensure urllib never follows an off-allowlist HTTP redirect."""
+
+    def redirect_request(self, request, file_pointer, code, message, headers, new_url):
+        """Validate every redirect before opening the next URL."""
+        validate_origin(new_url)
+        return super().redirect_request(
+            request, file_pointer, code, message, headers, new_url
+        )
+
+
+def validate_entry(item):
+    """Validate the pinned digest, destination and approved origin."""
+    relative = item["path"]
+    parts = PurePosixPath(relative)
+    if parts.is_absolute() or ".." in parts.parts or "\\" in relative:
+        raise ValueError("Unsafe asset path")
+    digest = item["sha256"]
+    if len(digest) != 64 or any(ch not in "0123456789abcdef" for ch in digest):
+        raise ValueError("Invalid SHA-256")
+    url = item["download_url"]
+    validate_origin(url)
+    target = DEST / relative
+    current = DEST
+    for part in parts.parts:
+        current = current / part
+        if current.is_symlink():
+            raise ValueError("Symlinked asset path")
+    if not target.resolve().is_relative_to(DEST.resolve()):
+        raise ValueError("Unsafe output path")
+    return target, digest, url
+
+
+def download(target, digest, url, opener=None):
+    """Atomically stream up to MAX_BYTES, verify SHA-256, and clean up on failure."""
+    if target.is_file():
+        if hashlib.sha256(target.read_bytes()).hexdigest() != digest:
+            raise ValueError("Existing asset hash mismatch")
+        return
+    target.parent.mkdir(parents=True, exist_ok=True)
+    descriptor, temp_path = tempfile.mkstemp(prefix=".asset-", dir=target.parent)
+    opener = opener or build_opener(ApprovedRedirects())
+    try:
+        computed = hashlib.sha256()
+        count = 0
+        request = Request(url, headers={"User-Agent": "IslesOfMythosAssetImporter/1.0"})
+        with os.fdopen(descriptor, "wb") as output:
+            with opener.open(request, timeout=45) as response:
+                validate_origin(response.url)
                 while True:
                     chunk = response.read(65536)
                     if not chunk:
                         break
-                    size += len(chunk)
-                    if size > MAX_BYTES:
-                        raise ValueError("Asset exceeds 80 MiB limit")
-                    sha.update(chunk)
-                    target.write(chunk)
-            if sha.hexdigest() != digest:
-                raise ValueError(f"Downloaded hash mismatch: {relative}")
-            os.replace(tmp, out)
-            print(f"OK {relative}: {size} bytes")
-        finally:
-            if os.path.exists(tmp):
-                os.unlink(tmp)
+                    count += len(chunk)
+                    if count > MAX_BYTES:
+                        raise ValueError("Asset exceeds byte limit")
+                    computed.update(chunk)
+                    output.write(chunk)
+        if computed.hexdigest() != digest:
+            raise ValueError("Downloaded hash mismatch")
+        os.replace(temp_path, target)
+        print(f"OK {target}: {count} bytes")
+    finally:
+        if os.path.exists(temp_path):
+            os.unlink(temp_path)
+
+
+def fetch():
+    """Fetch only manifest-pinned assets; an empty manifest downloads nothing."""
+    payload = json.loads(MANIFEST.read_text(encoding="utf-8"))
+    if payload.get("schema_version") != 1 or not isinstance(payload.get("assets"), list):
+        raise ValueError("Invalid asset manifest")
+    for entry in payload["assets"]:
+        target, digest, url = validate_entry(entry)
+        download(target, digest, url)
+
 
 if __name__ == "__main__":
     try:
