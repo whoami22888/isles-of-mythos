@@ -994,8 +994,11 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
               }
               throw error;
             }
-            // Cooldown reservation and ammunition consumption commit together.
-            attackCooldowns.set(userId, now + weapon.cooldownMs);
+            // Authorization can wait on database locks. Start the flight and
+            // local cooldown only once its reservation and ammunition commit.
+            const launchedAt = Date.now();
+            projectile.expiresAt += launchedAt - now;
+            attackCooldowns.set(userId, launchedAt + weapon.cooldownMs);
             state.stamina -= weapon.staminaCost;
             players.markDirty(userId);
             projectiles.set(projectileId, projectile);

@@ -4,6 +4,7 @@ import { AntiCheatService } from "./anti-cheat.js";
 import { WebSocket } from "ws";
 import { buildApp } from "./app.js";
 import { config } from "./config.js";
+import { PlayerStore } from "./player.js";
 import { parseClientMessage } from "./protocol.js";
 import { CREATURE_STATS } from "./combat.js";
 
@@ -372,6 +373,17 @@ describe("server foundation", () => {
       socket.send(JSON.stringify({ type: "select_hotbar", slot: 1 }));
       await selected;
 
+      const realNow = Date.now.bind(Date);
+      let authorizationElapsedMs = 0;
+      const clock = vi.spyOn(Date, "now").mockImplementation(() => realNow() + authorizationElapsedMs);
+      const authorizeAttack = Reflect.get<PlayerStore, "authorizeAttack">(PlayerStore.prototype, "authorizeAttack");
+      const authorization = vi.spyOn(PlayerStore.prototype, "authorizeAttack").mockImplementation(async function (this: PlayerStore, ...args) {
+        const result = await authorizeAttack.apply(this, args);
+        // Simulate authorization completing after the entire 445ms flight
+        // lifetime, without a real-time sleep or replacing database writes.
+        authorizationElapsedMs = 1_000;
+        return result;
+      });
       const hit = waitForMatchingMessage(socket, (message) => isJsonObject(message) && message.type === "combat_result");
       let pendingErrors = 0;
       const pendingRejections = waitForMatchingMessage(socket, (message) => {
@@ -396,7 +408,16 @@ describe("server foundation", () => {
         blocker.release();
       }
       await pendingRejections;
-      await expect(hit).resolves.toMatchObject({ type: "combat_result", requestId: "ammo-1", targetId });
+      try {
+        const result = await hit;
+        expect(result).toMatchObject({ type: "combat_result", requestId: "ammo-1", targetId });
+        if (!isJsonObject(result)) throw new Error("Malformed combat result");
+        expect(result.damage).toBeGreaterThan(0);
+        expect(result.missed).not.toBe(true);
+      } finally {
+        authorization.mockRestore();
+        clock.mockRestore();
+      }
       expect(duplicates.mock.calls.filter(call => call[1] === "COALESCED")).toHaveLength(5);
       expect(duplicates.mock.results.at(-1)?.value).toMatchObject({
         type: "REQUEST_DUPLICATION", evidence: { reason: "COALESCED", rejectedCount: 5 },
@@ -420,6 +441,7 @@ describe("server foundation", () => {
       }));
       await expect(noAmmo).resolves.toEqual({ type: "error", code: "NO_AMMO" });
     } finally {
+      vi.restoreAllMocks();
       socket.close();
       await database.end();
       await app.close();
