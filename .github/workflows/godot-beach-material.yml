@@ -1,0 +1,53 @@
+name: Godot verified beach material capture
+
+on:
+  pull_request:
+    paths:
+      - "client-godot/**"
+      - ".github/workflows/godot-beach-material.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: Fetch pinned CC0 beach colour and roughness maps
+        shell: bash
+        run: |
+          set -euo pipefail
+          destination="client-godot/assets/external/beach"
+          mkdir -p "$destination"
+          curl --fail --location --retry 2 --proto '=https' --proto-redir '=https' -o "$destination/aerial_beach_01_diffuse_1k.png" "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/aerial_beach_01/aerial_beach_01_diff_1k.png"
+          echo "3a6c129842434812255fa097c7e855212f36fbe2d899af1b38bbd723b9a608f1  $destination/aerial_beach_01_diffuse_1k.png" | sha256sum --check
+          curl --fail --location --retry 2 --proto '=https' --proto-redir '=https' -o "$destination/aerial_beach_01_rough_1k.png" "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/aerial_beach_01/aerial_beach_01_rough_1k.png"
+          echo "c7345d101b8ea914372bd8d286d29a714eb38df8e6185bf0a227568b509d1a72  $destination/aerial_beach_01_rough_1k.png" | sha256sum --check
+      - name: Install Godot 4.7.2 and virtual display
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq xvfb
+          curl --fail --location --retry 3 -o "$RUNNER_TEMP/godot.zip" "https://github.com/godotengine/godot/releases/download/4.7.2-stable/Godot_v4.7.2-stable_linux.x86_64.zip"
+          echo "cadd3204e728a35d3f13adb7fd0d7902636b79f6b95c40c265eb73b6c35329e4  $RUNNER_TEMP/godot.zip" | sha256sum --check
+          unzip -q "$RUNNER_TEMP/godot.zip" -d "$RUNNER_TEMP"
+          install "$RUNNER_TEMP/Godot_v4.7.2-stable_linux.x86_64" "$RUNNER_TEMP/godot"
+      - name: Render textured island from real Godot engine
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/island-evidence"
+          xvfb-run -a -s "-screen 0 1280x720x24" "$RUNNER_TEMP/godot" --editor --path client-godot --quit --import
+          IOM_SCREENSHOT_PATH="$RUNNER_TEMP/island-evidence/beach-material.png" xvfb-run -a -s "-screen 0 1280x720x24" "$RUNNER_TEMP/godot" --path client-godot --rendering-method gl_compatibility --script res://tests/render_capture.gd
+          test -s "$RUNNER_TEMP/island-evidence/beach-material.png"
+      - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
+        with:
+          name: godot-verified-beach-material-render
+          path: ${{ runner.temp }}/island-evidence/
+          if-no-files-found: error
