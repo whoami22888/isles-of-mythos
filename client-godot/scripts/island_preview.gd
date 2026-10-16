@@ -30,11 +30,9 @@ func _build_environment() -> void:
 	var ocean := BoxMesh.new()
 	ocean.size = Vector3(90.0, 0.12, 90.0)
 	_add_mesh(self, ocean, Vector3(0.0, -0.85, 0.0), Vector3.ONE, Color(0.05, 0.39, 0.57))
-	var sand := CylinderMesh.new()
-	sand.top_radius = ISLAND_RADIUS
-	sand.bottom_radius = ISLAND_RADIUS + 0.45
-	sand.height = 1.4
-	_add_mesh(self, sand, Vector3(0.0, -0.6, 0.0), Vector3.ONE, Color(0.84, 0.72, 0.44))
+	var coast := _build_coast_mesh()
+	var beach := _add_mesh(self, coast, Vector3.ZERO, Vector3.ONE, Color(0.84, 0.72, 0.44))
+	beach.name = "CoastalShoreline"
 	var grass := CylinderMesh.new()
 	grass.top_radius = ISLAND_RADIUS - 1.2
 	grass.bottom_radius = ISLAND_RADIUS - 0.95
@@ -51,6 +49,37 @@ func _build_environment() -> void:
 	light.rotation_degrees = Vector3(-55.0, 28.0, 0.0)
 	light.light_energy = 1.3
 	add_child(light)
+
+
+
+func _coast_radius(angle: float) -> float:
+	## Fixed harmonic coastline avoids random scene changes between screenshots.
+	return ISLAND_RADIUS + 0.55 * sin(3.0 * angle + 0.4) + 0.35 * sin(7.0 * angle)
+
+
+func _build_coast_mesh() -> ArrayMesh:
+	## Three continuous rings: inner dry sand, shoreline and submerged slope.
+	const SEGMENTS := 64
+	var radii := PackedFloat32Array([0.0, 0.78, 1.0, 1.18])
+	var heights := PackedFloat32Array([-0.04, -0.02, -0.16, -0.88])
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for ring in range(radii.size() - 1):
+		for sector in range(SEGMENTS):
+			var a0 := TAU * float(sector) / SEGMENTS
+			var a1 := TAU * float(sector + 1) / SEGMENTS
+			var vertices := [
+				Vector3(cos(a0) * _coast_radius(a0) * radii[ring], heights[ring], sin(a0) * _coast_radius(a0) * radii[ring]),
+				Vector3(cos(a1) * _coast_radius(a1) * radii[ring], heights[ring], sin(a1) * _coast_radius(a1) * radii[ring]),
+				Vector3(cos(a0) * _coast_radius(a0) * radii[ring + 1], heights[ring + 1], sin(a0) * _coast_radius(a0) * radii[ring + 1]),
+				Vector3(cos(a1) * _coast_radius(a1) * radii[ring + 1], heights[ring + 1], sin(a1) * _coast_radius(a1) * radii[ring + 1])
+			]
+			for corner in [0, 2, 1, 1, 2, 3]:
+				var vertex: Vector3 = vertices[corner]
+				tool.set_uv(Vector2(vertex.x, vertex.z) / (ISLAND_RADIUS * 2.0) + Vector2(0.5, 0.5))
+				tool.add_vertex(vertex)
+	tool.generate_normals()
+	return tool.commit()
 
 
 func _add_mesh(parent: Node3D, geometry: Mesh, location: Vector3, scale_value: Vector3, tint: Color) -> void:
