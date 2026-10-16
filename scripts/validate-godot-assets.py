@@ -41,9 +41,17 @@ def validate() -> int:
         relative = pathlib.PurePosixPath(item["path"])
         if relative.is_absolute() or ".." in relative.parts or "\\" in item["path"]:
             fail(f"Asset {index}: unsafe path")
-        path = (ASSETS / item["path"]).resolve()
-        if not path.is_relative_to(root) or not path.is_file() or path.is_symlink():
-            fail(f"Asset {index}: missing, symlinked, or outside import directory")
+        raw_path = ASSETS / item["path"]
+        # Inspect the original path, including intermediate directories, BEFORE
+        # resolving it: resolve() otherwise hides symlinks to in-root files.
+        current = ASSETS
+        for part in relative.parts:
+            current = current / part
+            if current.is_symlink():
+                fail(f"Asset {index}: symlinked asset or parent directory")
+        path = raw_path.resolve()
+        if not path.is_relative_to(root) or not path.is_file():
+            fail(f"Asset {index}: missing or outside import directory")
         if hashlib.sha256(path.read_bytes()).hexdigest() != item["sha256"]:
             fail(f"Asset {index}: content hash mismatch")
         registered.add(path)
