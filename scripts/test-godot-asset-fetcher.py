@@ -4,6 +4,7 @@
 import hashlib
 import importlib.util
 from pathlib import Path
+from urllib.request import Request
 import tempfile
 import unittest
 
@@ -40,7 +41,8 @@ class Opener:
         self.response = response
 
     def open(self, _request, timeout):
-        assert timeout == 45
+        if timeout != 45:
+            raise ValueError("Unexpected request timeout")
         return self.response
 
 
@@ -64,7 +66,6 @@ class FetcherTests(unittest.TestCase):
                 fetcher.validate_origin(url)
 
     def test_reject_redirect(self):
-        from urllib.request import Request
         with self.assertRaises(ValueError):
             fetcher.ApprovedRedirects().redirect_request(
                 Request("https://dl.polyhaven.org/x"), None,
