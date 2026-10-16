@@ -12,6 +12,10 @@ permissions:
 
 jobs:
   capture:
+    strategy:
+      fail-fast: false
+      matrix:
+        scene: [island_preview, coastal_preview]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -31,17 +35,34 @@ jobs:
           echo "cadd3204e728a35d3f13adb7fd0d7902636b79f6b95c40c265eb73b6c35329e4  $RUNNER_TEMP/godot.zip" | sha256sum --check
           unzip -q "$RUNNER_TEMP/godot.zip" -d "$RUNNER_TEMP"
           install "$RUNNER_TEMP/Godot_v4.7.2-stable_linux.x86_64" "$RUNNER_TEMP/godot"
-      - name: Render original prototype reference image
+      - name: Render actual preview scene evidence
         shell: bash
+        env:
+          CAPTURE_SCENE: ${{ matrix.scene }}
+          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
           mkdir -p "$RUNNER_TEMP/visual-evidence"
           xvfb-run -a -s "-screen 0 1280x720x24" "$RUNNER_TEMP/godot" --editor --path client-godot --quit --import
-          IOM_SCREENSHOT_PATH="$RUNNER_TEMP/visual-evidence/island-preview.png" xvfb-run -a -s "-screen 0 1280x720x24" "$RUNNER_TEMP/godot" --path client-godot --rendering-method gl_compatibility --script res://tests/render_capture.gd
-          file "$RUNNER_TEMP/visual-evidence/island-preview.png"
-          test -s "$RUNNER_TEMP/visual-evidence/island-preview.png"
+          "$RUNNER_TEMP/godot" --headless --path client-godot --script "res://tests/${CAPTURE_SCENE}_smoke.gd"
+          IOM_CAPTURE_SCENE="res://scenes/${CAPTURE_SCENE}.tscn" IOM_SCREENSHOT_PATH="$RUNNER_TEMP/visual-evidence/${CAPTURE_SCENE}.png" xvfb-run -a -s "-screen 0 1280x720x24" "$RUNNER_TEMP/godot" --path client-godot --rendering-method gl_compatibility --script res://tests/render_capture.gd
+          file "$RUNNER_TEMP/visual-evidence/${CAPTURE_SCENE}.png"
+          test -s "$RUNNER_TEMP/visual-evidence/${CAPTURE_SCENE}.png"
+          python3 - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          scene = os.environ["CAPTURE_SCENE"]
+          directory = Path(os.environ["RUNNER_TEMP"]) / "visual-evidence"
+          image = directory / f"{scene}.png"
+          manifest = {"headSha": os.environ["EXPECTED_HEAD_SHA"], "runId": os.environ["GITHUB_RUN_ID"],
+                      "scene": f"res://scenes/{scene}.tscn", "godotVersion": "4.7.2", "renderer": "gl_compatibility",
+                      "environment": "ubuntu-24.04 Xvfb; not physical Android", "artStatus": "temporary scaffolding; premium acceptance pending",
+                      "image": image.name, "sha256": hashlib.sha256(image.read_bytes()).hexdigest()}
+          (directory / "capture-manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
+          PY
       - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
         with:
-          name: godot-rendered-island-reference
-          path: ${{ runner.temp }}/visual-evidence/island-preview.png
+          name: godot-rendered-${{ matrix.scene }}-reference
+          path: ${{ runner.temp }}/visual-evidence
           if-no-files-found: error
