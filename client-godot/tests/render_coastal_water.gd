@@ -13,7 +13,7 @@ func _capture() -> void:
 	var scene: Node3D = packed.instantiate()
 	root.add_child(scene)
 	await process_frame
-	await process_frame
+	await RenderingServer.frame_post_draw
 	var water := scene.get_node_or_null("CoastalWater") as MeshInstance3D
 	var foam := scene.get_node_or_null("ShorelineFoam") as MeshInstance3D
 	if water == null or foam == null or water.mesh == null or foam.mesh == null:
