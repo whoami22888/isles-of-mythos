@@ -58,6 +58,19 @@ jobs:
             exit 1
           fi
           (cd "$RUNNER_TEMP/visual-evidence" && sha256sum *.png > SHA256SUMS)
+      - name: Verify coastal water scene
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$RUNNER_TEMP/godot" --headless --path client-godot --script res://tests/coastal_water_test.gd
+      - name: Capture coastal water scene
+        shell: bash
+        run: |
+          set -euo pipefail
+          IOM_COASTAL_WATER_SCREENSHOT_PATH="$RUNNER_TEMP/visual-evidence/coastal-water-preview.png" xvfb-run -a -s "-screen 0 1280x720x24" "$RUNNER_TEMP/godot" --path client-godot --rendering-method gl_compatibility --script res://tests/render_coastal_water.gd
+          test -s "$RUNNER_TEMP/visual-evidence/coastal-water-preview.png"
+          file "$RUNNER_TEMP/visual-evidence/coastal-water-preview.png"
+          sha256sum "$RUNNER_TEMP/visual-evidence/coastal-water-preview.png" >> "$RUNNER_TEMP/visual-evidence/SHA256SUMS"
       - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
         with:
           name: godot-rendered-sculpted-terrain
@@ -65,6 +78,7 @@ jobs:
             ${{ runner.temp }}/visual-evidence/sculpted-terrain-preview.png
             ${{ runner.temp }}/visual-evidence/island-preview.png
             ${{ runner.temp }}/visual-evidence/SHA256SUMS
+            ${{ runner.temp }}/visual-evidence/coastal-water-preview.png
           if-no-files-found: error
       - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
         with:
