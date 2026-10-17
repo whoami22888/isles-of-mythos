@@ -15,6 +15,7 @@ PROTOTYPES = {
     "coastal_atmosphere_preview.tscn",
 }
 TRIANGLE_REVIEW_LIMIT = 300_000  # Review trigger, not an Android performance certification.
+ASSET_FETCH_LIMIT = 80 * 1024 * 1024  # Checked against the current pinned asset fetcher.
 
 
 @dataclass(frozen=True)
@@ -59,18 +60,18 @@ def _inspect_gltf(root: Path, rel: str) -> list[Finding]:
         name = material.get("name", "unnamed").lower()
         alpha_mode = material.get("alphaMode", "OPAQUE")
         color = material.get("pbrMetallicRoughness", {}).get("baseColorTexture", {})
-        if alpha_mode not in ("MASK", "BLEND") or "lea" not in name:
+        if alpha_mode not in ("MASK", "BLEND"):
             continue
         try:
             texture = textures[color["index"]]
             image = images[texture["source"]]
             uri = image.get("uri", "")
         except (IndexError, KeyError, TypeError):
-            issues.append(Finding("FOLIAGE_ALPHA", rel, f"{name}: unresolved base-color texture"))
+            issues.append(Finding("TRANSPARENT_BASE_MISSING", rel, f"{name}: unresolved base-color texture"))
             continue
         if uri.lower().endswith((".jpg", ".jpeg")) or image.get("mimeType") == "image/jpeg":
-            issues.append(Finding("FOLIAGE_ALPHA", rel,
-                f"{name}: {alpha_mode} base texture is JPEG without alpha; provide a pinned opacity map"))
+            issues.append(Finding("FOLIAGE_ALPHA" if "lea" in name else "MASKED_ALPHA_JPEG", rel,
+                f"{name}: {alpha_mode} base texture is JPEG without alpha; supply pinned alpha-capable color or an independently validated opacity path"))
     for mesh in meshes:
         for primitive in mesh.get("primitives", []):
             try:
@@ -84,9 +85,57 @@ def _inspect_gltf(root: Path, rel: str) -> list[Finding]:
     return issues
 
 
+def _inspect_asset_manifest(root: Path) -> list[Finding]:
+    """Flag un-restorable publisher references and assets above importer limit.
+
+    This is deliberately narrow: neither a plausible URL nor a content digest proves
+    legal provenance, actual source bytes, art quality or Godot import.
+    """
+    path = root / "assets/external-assets.json"
+    if not path.exists():
+        return []
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        assets = data["assets"]
+        if not isinstance(assets, list):
+            raise ValueError("assets must be an array")
+    except (OSError, ValueError, KeyError) as exc:
+        return [Finding("INVALID_ASSET_MANIFEST", str(path), str(exc))]
+    findings: list[Finding] = []
+    reported: set[tuple[str, str]] = set()
+    for item in assets:
+        if not isinstance(item, dict) or not isinstance(item.get("path"), str):
+            findings.append(Finding("INVALID_ASSET_ENTRY", str(path), "Entry lacks a valid path"))
+            continue
+        rel = item["path"]
+        parts = rel.split("/")
+        if len(parts) < 3 or parts[0] != "polyhaven":
+            continue
+        package = parts[1]
+        source = str(item.get("source_url", ""))
+        url = str(item.get("download_url", ""))
+        if f"/a/{package}" not in source:
+            key = (package, "ASSET_SOURCE_MISMATCH")
+            if key not in reported:
+                reported.add(key)
+                findings.append(Finding(key[1], str(path),
+                    f"{package}: source must link to the exact creator asset, not {source!r}"))
+        if "/gltf/1k/polyhaven/" in url:
+            key = (package, "BAD_ASSET_DOWNLOAD_PATH")
+            if key not in reported:
+                reported.add(key)
+                findings.append(Finding(key[1], str(path),
+                    f"{package}: download URL contains wrong /1k/polyhaven/ prefix"))
+        candidate = root / "assets/external" / rel
+        if candidate.is_file() and candidate.stat().st_size > ASSET_FETCH_LIMIT:
+            findings.append(Finding("ASSET_EXCEEDS_FETCH_LIMIT", rel,
+                f"{candidate.stat().st_size:,} bytes > fetcher's {ASSET_FETCH_LIMIT:,}-byte cap; use approved smaller payload instead of bypassing verifier"))
+    return findings
+
+
 def audit(root: Path) -> tuple[list[Finding], int]:
     """Return source-observable blockers and candidate count; never claim parity."""
-    issues: list[Finding] = []
+    issues: list[Finding] = _inspect_asset_manifest(root)
     project = root / "project.godot"
     if not project.is_file():
         return [Finding("MISSING_PROJECT", str(project), "Godot client project absent")], 0
@@ -103,6 +152,9 @@ def audit(root: Path) -> tuple[list[Finding], int]:
         count += 1
         scene = path.read_text(encoding="utf-8")
         script, used = _script_text(root, scene)
+        for referenced in used:
+            if not (root / referenced).is_file():
+                issues.append(Finding("MISSING_SCENE_SCRIPT", path.name, f"Scene references absent {referenced}"))
         combined = scene + "\n" + script
         if not used and not re.search(r'res://assets/[\w./-]+\.(?:gltf|glb)|albedo_texture|texture_albedo', scene):
             issues.append(Finding("NO_ART_SOURCE", path.name,
@@ -154,6 +206,8 @@ def audit(root: Path) -> tuple[list[Finding], int]:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--client", type=Path, default=Path("client-godot"))
+    parser.add_argument("--require-candidate", action="store_true",
+                        help="Fail closed when accepting a premium game build with no candidate scene")
     args = parser.parse_args()
     issues, candidates = audit(args.client)
     print(f"Candidate scenes scanned: {candidates}")
@@ -164,7 +218,7 @@ def main() -> int:
     else:
         print("Static source audit does NOT certify artistic reference parity or mobile FPS")
     print(f"Structural findings: {len(issues)}")
-    return 1 if issues else 0
+    return 1 if issues or (args.require_candidate and not candidates) else 0
 
 
 if __name__ == "__main__":
