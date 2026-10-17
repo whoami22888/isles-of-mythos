@@ -90,7 +90,14 @@ func _record() -> void:
         if pixels == null or pixels.is_empty() or pixels.get_width() != 1280 or pixels.get_height() != 720:
             _fail("Missing 1280x720 actual engine frame at %d" % frame_number)
             return
+        # Lossless RGBA8 capture avoids synchronous PNG compression during
+        # the 240-second CPU software-renderer watchdog. Encode after exit.
+        if pixels.get_format() != Image.FORMAT_RGBA8:
+            pixels.convert(Image.FORMAT_RGBA8)
         var current_bytes: PackedByteArray = pixels.get_data()
+        if current_bytes.size() != 1280 * 720 * 4:
+            _fail("Invalid RGBA8 capture byte count at frame %d" % frame_number)
+            return
         if frame_number > 0 and current_bytes != _previous_bytes:
             _changed_frames += 1
         _previous_bytes = current_bytes
@@ -104,10 +111,13 @@ func _record() -> void:
             if variation < 2:
                 _fail("First captured engine frame is uniform or blank")
                 return
-        var frame_path := "%s/frame_%04d.png" % [directory, frame_number]
-        if pixels.save_png(frame_path) != OK:
-            _fail("Unable to write actual Godot frame %d" % frame_number)
+        var frame_path := "%s/frame_%04d.rgba" % [directory, frame_number]
+        var frame_file := FileAccess.open(frame_path, FileAccess.WRITE)
+        if frame_file == null:
+            _fail("Unable to open lossless Godot frame %d" % frame_number)
             return
+        frame_file.store_buffer(current_bytes)
+        frame_file.close()
         if frame_number % 6 == 0:
             print("IOM_INTERNAL_CAPTURE_FRAME %d/%d elapsed_ms=%d" % [
                 frame_number + 1, FRAME_COUNT, Time.get_ticks_msec() - render_start_msec

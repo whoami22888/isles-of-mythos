@@ -70,11 +70,14 @@ jobs:
           sudo apt-get install -y -qq xvfb ffmpeg mesa-vulkan-drivers
           mkdir -p "$RUNNER_TEMP/coastal-fx-frames" "$RUNNER_TEMP/coastal-fx-evidence"
           IOM_FX_FRAMES_DIR="$RUNNER_TEMP/coastal-fx-frames" timeout --signal=TERM --kill-after=10s 240s xvfb-run -a -s "-screen 0 1280x720x24" "$RUNNER_TEMP/godot" --path client-godot --rendering-method mobile --script res://tests/render_coastal_fx_sequence.gd
-          test "$(find "$RUNNER_TEMP/coastal-fx-frames" -name 'frame_*.png' | wc -l)" -eq 72
-          ffmpeg -hide_banner -loglevel error -nostdin -y -framerate 24 -i "$RUNNER_TEMP/coastal-fx-frames/frame_%04d.png" -c:v libx264 -preset veryfast -crf 23 -pix_fmt yuv420p -movflags +faststart "$RUNNER_TEMP/coastal-fx-evidence/ship-wake-cinematic.mp4"
-          cp "$RUNNER_TEMP/coastal-fx-frames/frame_0000.png" "$RUNNER_TEMP/coastal-fx-evidence/cinematic-start.png"
-          cp "$RUNNER_TEMP/coastal-fx-frames/frame_0035.png" "$RUNNER_TEMP/coastal-fx-evidence/cinematic-middle.png"
-          cp "$RUNNER_TEMP/coastal-fx-frames/frame_0071.png" "$RUNNER_TEMP/coastal-fx-evidence/cinematic-end.png"
+          test "$(find "$RUNNER_TEMP/coastal-fx-frames" -name 'frame_*.rgba' | wc -l)" -eq 72
+          ffmpeg -hide_banner -loglevel error -nostdin -y -f image2 -start_number 0 -framerate 24 -c:v rawvideo -pixel_format rgba -video_size 1280x720 -i "$RUNNER_TEMP/coastal-fx-frames/frame_%04d.rgba" -frames:v 72 -c:v libx264 -preset veryfast -crf 23 -pix_fmt yuv420p -movflags +faststart "$RUNNER_TEMP/coastal-fx-evidence/ship-wake-cinematic.mp4"
+          test "$(ffprobe -v error -select_streams v:0 -show_entries stream=nb_frames -of default=noprint_wrappers=1:nokey=1 "$RUNNER_TEMP/coastal-fx-evidence/ship-wake-cinematic.mp4")" -eq 72
+          for pair in 0000:start 0035:middle 0071:end; do
+            index="${pair%%:*}"
+            label="${pair#*:}"
+            ffmpeg -hide_banner -loglevel error -nostdin -y -f rawvideo -pixel_format rgba -video_size 1280x720 -i "$RUNNER_TEMP/coastal-fx-frames/frame_${index}.rgba" -frames:v 1 "$RUNNER_TEMP/coastal-fx-evidence/cinematic-${label}.png"
+          done
           printf 'commit=%s\\nengine=Godot 4.7.2\\nrender=Godot Mobile Vulkan under xvfb lavapipe/Mesa software (NOT physical Android device)\\nsource=72 consecutive real engine frames at 1280x720\\npose_sampling=authored cinematic camera and ship manually advanced at fixed 1/24s simulation intervals for slow llvmpipe runner\\nshader_TIME=Godot runtime TIME during software capture, NOT physical phone time\\nvideo_fps=24\\nvisual_parity=NOT VERIFIED\\n' "${{ github.event.pull_request.head.sha || github.sha }}" > "$RUNNER_TEMP/coastal-fx-evidence/EVIDENCE.txt"
           (cd "$RUNNER_TEMP/coastal-fx-evidence" && sha256sum *.png *.mp4 > SHA256SUMS)
           test -s "$RUNNER_TEMP/coastal-fx-evidence/ship-wake-cinematic.mp4"
@@ -82,8 +85,12 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
         with:
-          name: internal-failed-coastal-capture-frames
-          path: ${{ runner.temp }}/coastal-fx-frames/frame_*.png
+          name: internal-failed-coastal-capture-raw-samples
+          path: |
+            ${{ runner.temp }}/coastal-fx-frames/frame_0000.rgba
+            ${{ runner.temp }}/coastal-fx-frames/frame_0035.rgba
+            ${{ runner.temp }}/coastal-fx-frames/frame_0070.rgba
+            ${{ runner.temp }}/coastal-fx-frames/frame_0071.rgba
           retention-days: 3
           if-no-files-found: warn
       - name: Save review-only engine evidence, not publishable visual acceptance
