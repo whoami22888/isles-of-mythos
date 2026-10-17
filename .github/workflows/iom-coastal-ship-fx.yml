@@ -17,6 +17,7 @@ on:
       - "client-godot/scripts/coastal_shore_heightfield.gd"
       - "client-godot/shaders/coastal_shore_sampler.gdshaderinc"
       - "client-godot/shaders/ocean_surface.gdshader"
+      - "client-godot/shaders/far_ocean_mobile.gdshader"
       - ".github/workflows/iom-coastal-ship-fx.yml"
   workflow_dispatch:
 
@@ -78,6 +79,14 @@ jobs:
           printf 'commit=%s\\nengine=Godot 4.7.2\\nrender=gl_compatibility under xvfb (NOT physical Android Mobile)\\nsource=72 consecutive real engine frames at 1280x720\\npose_sampling=authored cinematic camera and ship manually advanced at fixed 1/24s simulation intervals for slow llvmpipe runner\\nshader_TIME=Godot runtime TIME during software capture, NOT physical phone time\\nvideo_fps=24\\nvisual_parity=NOT VERIFIED\\n' "${{ github.event.pull_request.head.sha || github.sha }}" > "$RUNNER_TEMP/coastal-fx-evidence/EVIDENCE.txt"
           (cd "$RUNNER_TEMP/coastal-fx-evidence" && sha256sum *.png *.mp4 > SHA256SUMS)
           test -s "$RUNNER_TEMP/coastal-fx-evidence/ship-wake-cinematic.mp4"
+      - name: Preserve internal partial real frames on renderer failure
+        if: failure()
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
+        with:
+          name: internal-failed-coastal-capture-frames
+          path: ${{ runner.temp }}/coastal-fx-frames/frame_*.png
+          retention-days: 3
+          if-no-files-found: warn
       - name: Save review-only engine evidence, not publishable visual acceptance
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
         with:
