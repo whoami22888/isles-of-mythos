@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import struct
 import sys
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
@@ -41,7 +42,24 @@ def _script_text(root: Path, scene_text: str) -> Tuple[str, List[str]]:
 
 
 def _resource_paths(text: str) -> Set[str]:
-    return set(re.findall(r'res://(assets/[\w./-]+\.gltf)', text))
+    return set(re.findall(r'res://(assets/[\w./-]+\.(?:gltf|glb))', text))
+
+
+def _read_model_document(path: Path) -> dict:
+    """Read glTF JSON or the mandatory JSON chunk of a GLB 2.0 container."""
+    if path.suffix.lower() != ".glb":
+        return json.loads(path.read_text(encoding="utf-8"))
+    size = path.stat().st_size
+    if size < 20:
+        raise ValueError("Truncated GLB header/JSON chunk")
+    with path.open("rb") as stream:
+        magic, version, declared_size = struct.unpack("<4sII", stream.read(12))
+        if magic != b"glTF" or version != 2 or declared_size != size:
+            raise ValueError("Invalid GLB 2.0 magic/version/length")
+        json_length, chunk_type = struct.unpack("<I4s", stream.read(8))
+        if chunk_type != b"JSON" or json_length == 0 or json_length > size - 20:
+            raise ValueError("Missing or invalid GLB JSON chunk")
+        return json.loads(stream.read(json_length).decode("utf-8").rstrip(" \x00"))
 
 
 def _inspect_gltf(root: Path, rel: str) -> List[Finding]:
@@ -50,8 +68,8 @@ def _inspect_gltf(root: Path, rel: str) -> List[Finding]:
     if not path.is_file():
         return [Finding("MISSING_MODEL", rel, "Referenced imported GLTF does not exist")]
     try:
-        doc = json.loads(path.read_text(encoding="utf-8"))
-    except (ValueError, UnicodeError) as exc:
+        doc = _read_model_document(path)
+    except (ValueError, UnicodeError, OSError, struct.error) as exc:
         return [Finding("INVALID_MODEL", rel, str(exc))]
     materials = doc.get("materials", [])
     textures = doc.get("textures", [])
