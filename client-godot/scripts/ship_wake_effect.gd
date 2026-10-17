@@ -146,8 +146,8 @@ func _rebuild_foam_mesh() -> void:
         var fade_b := pow(1.0 - age_b, 1.45) * float(second["strength"])
         # The two widening arms form a physically suggestive Kelvin-style V.
         for side in [-1.0, 1.0]:
-            var center_a := a + right_a * side * (hull_width * 0.30 + age_a * hull_width * 1.7)
-            var center_b := b + right_b * side * (hull_width * 0.30 + age_b * hull_width * 1.7)
+            var center_a: Vector3 = a + right_a * float(side) * (hull_width * 0.30 + age_a * hull_width * 1.7)
+            var center_b: Vector3 = b + right_b * float(side) * (hull_width * 0.30 + age_b * hull_width * 1.7)
             var width_a := hull_width * (0.19 + age_a * 0.32)
             var width_b := hull_width * (0.19 + age_b * 0.32)
             var left_a := to_local(center_a - right_a * width_a * 0.5)
