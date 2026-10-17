@@ -55,8 +55,9 @@ def stage(candidate: dict, destination: Path, opener=None) -> dict:
                 dig_md5.update(chunk)
                 dig_sha256.update(chunk)
                 out.write(chunk)
-        if count != candidate['bytes'] or dig_md5.hexdigest() != candidate['md5']:
-            raise ContentError('Downloaded HDRI does not match publisher file metadata')
+        if (count != candidate['bytes'] or dig_md5.hexdigest() != candidate['md5']
+                or dig_sha256.hexdigest() != candidate['sha256']):
+            raise ContentError('Downloaded HDRI differs from pinned publisher bytes or SHA256')
         os.replace(tmp_name, target)
         result = {'id': candidate['id'], 'status': 'downloaded_unadmitted',
                   'path': candidate['path'], 'bytes': count,

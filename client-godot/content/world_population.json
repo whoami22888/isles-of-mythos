@@ -43,7 +43,8 @@
       "bytes": 1440400,
       "md5": "a5ec4d30fc3421c214a17b208fb66d5f",
       "license": "CC0-1.0",
-      "format": "hdr"
+      "format": "hdr",
+      "sha256": "92fe2b29b1957828fb8925a57633540bbba5bf380d9285ed553443e834249352"
     },
     {
       "id": "volcanic_golden",
@@ -54,7 +55,8 @@
       "bytes": 1487232,
       "md5": "992d5f4103d7054fa7a9ea41e0bd8ad3",
       "license": "CC0-1.0",
-      "format": "hdr"
+      "format": "hdr",
+      "sha256": "60282c7b0a78882cbdae07052132fdbeee15e4f996c413f5598b05ee8b0e2d43"
     },
     {
       "id": "moonlit_reef",
@@ -65,7 +67,8 @@
       "bytes": 1723744,
       "md5": "19bcd78f82342c992ac2e01c3f65e1e3",
       "license": "CC0-1.0",
-      "format": "hdr"
+      "format": "hdr",
+      "sha256": "7ef7e14f6c0b6f1065ddd31b0abc0aaa719df9f5b858912108a4c0c6ec219dc8"
     },
     {
       "id": "night_overcast",
@@ -76,7 +79,8 @@
       "bytes": 1666505,
       "md5": "168da9f0bf4310eb845a40c26fa26196",
       "license": "CC0-1.0",
-      "format": "hdr"
+      "format": "hdr",
+      "sha256": "2e0aff0a24ff254925ea99cbc3a94477056ab6081f9607258c4daa38161a3d75"
     },
     {
       "id": "tropical_daylight",
@@ -87,7 +91,8 @@
       "bytes": 1601735,
       "md5": "87dbb5362b223340adf47215903185f9",
       "license": "CC0-1.0",
-      "format": "hdr"
+      "format": "hdr",
+      "sha256": "3424af311a0230251146f2869e7369529d41d5d186c819aa4867339d5e227190"
     }
   ],
   "asset_records": [],

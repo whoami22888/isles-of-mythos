@@ -132,6 +132,7 @@ class ContentTest(unittest.TestCase):
                      "source_url": "https://polyhaven.com/a/venice_sunset",
                      "download_url": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/venice_sunset_1k.hdr",
                      "bytes": 4, "md5": hashlib.md5(b"ABCD").hexdigest(),
+                     "sha256": hashlib.sha256(b"ABCD").hexdigest(),
                      "license": "CC0-1.0", "format": "hdr"}
         self.base["lighting_candidates"] = [candidate]
         validate_catalog(self.base)
@@ -142,11 +143,22 @@ class ContentTest(unittest.TestCase):
         with self.assertRaises(ContentError):
             validate_catalog(self.base)
 
+    def test_publisher_md5_passes_but_sha256_mismatch_is_rejected(self):
+        candidate = {"id": "sunset", "status": "candidate", "path": "lighting/sunset.hdr",
+                     "source_url": "https://polyhaven.com/a/venice_sunset",
+                     "download_url": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/venice_sunset_1k.hdr",
+                     "bytes": 4, "md5": hashlib.md5(b"ABCD").hexdigest(),
+                     "sha256": hashlib.sha256(b"ABCE").hexdigest(),
+                     "license": "CC0-1.0", "format": "hdr"}
+        with self.assertRaises(ContentError):
+            verify_downloaded_bytes(candidate, b"ABCD")
+
     def test_receipt_requires_matching_api_asset_slug(self):
         candidate = {"id": "night", "status": "candidate", "path": "lighting/night.hdr",
                      "source_url": "https://polyhaven.com/a/rogland_moonlit_night",
                      "download_url": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/other_1k.hdr",
                      "bytes": 4, "md5": hashlib.md5(b"ABCD").hexdigest(),
+                     "sha256": hashlib.sha256(b"ABCD").hexdigest(),
                      "license": "CC0-1.0", "format": "hdr"}
         self.base["lighting_candidates"] = [candidate]
         with self.assertRaises(ContentError):

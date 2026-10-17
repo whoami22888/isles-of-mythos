@@ -39,6 +39,7 @@ class HarvestTests(unittest.TestCase):
                           'source_url': 'https://polyhaven.com/a/venice_sunset',
                           'download_url': url, 'bytes': len(blob),
                           'md5': hashlib.md5(blob).hexdigest(),
+                          'sha256': hashlib.sha256(blob).hexdigest(),
                           'format': 'hdr', 'license': 'CC0-1.0'}
 
     def test_verified_bytes_are_staged_with_sha_receipt(self):
@@ -46,6 +47,12 @@ class HarvestTests(unittest.TestCase):
         self.assertEqual('downloaded_unadmitted', receipt['status'])
         self.assertEqual(hashlib.sha256(self.blob).hexdigest(), receipt['sha256'])
         self.assertEqual(self.blob, (self.root / self.candidate['path']).read_bytes())
+
+    def test_wrong_sha256_never_enters_destination_even_with_correct_md5(self):
+        self.candidate['sha256'] = hashlib.sha256(b'wrong').hexdigest()
+        with self.assertRaises(ContentError):
+            stage(self.candidate, self.root, ControlledOpener(self.blob, self.candidate['download_url']))
+        self.assertFalse((self.root / self.candidate['path']).exists())
 
     def test_wrong_bytes_never_enter_destination(self):
         with self.assertRaises(ContentError):

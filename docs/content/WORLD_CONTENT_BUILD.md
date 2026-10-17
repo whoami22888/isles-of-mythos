@@ -21,7 +21,15 @@
 | `night_overcast` | [Kloppenheim 07](https://polyhaven.com/a/kloppenheim_07) | `kloppenheim_07_1k.hdr` | 1,666,505 bytes; MD5 `168da9f0bf4310eb845a40c26fa26196` | Subdued storm/nocturnal encounters |
 | `tropical_daylight` | [Ticknock 03](https://polyhaven.com/a/ticknock_03) | `ticknock_03_1k.hdr` | 1,601,735 bytes; MD5 `87dbb5362b223340adf47215903185f9` | Sunlit island, ship and foliage showcase |
 
-The publisher grants CC0, enabling commercial use and redistribution. Official URLs and size/MD5 are verified from the public Poly Haven Files API. **Actual downloaded source SHA-256 and import/render validity can only be confirmed by the GitHub Actions source-harvest artifact once the job completes.** Never misreport the metadata listing as a downloaded file. Post-harvest a reviewer must inspect the full HDRI, its sky/reflection behaviour, artistic suitability and Android resource cost. A photo HDRI is lighting input, not a final game landscape, ship, person or creature.
+Pinned content SHA256 (independently computed from downloaded bytes):
+
+- Harbour sunset: `92fe2b29b1957828fb8925a57633540bbba5bf380d9285ed553443e834249352`
+- Volcanic sunset: `60282c7b0a78882cbdae07052132fdbeee15e4f996c413f5598b05ee8b0e2d43`
+- Moonlit reef: `7ef7e14f6c0b6f1065ddd31b0abc0aaa719df9f5b858912108a4c0c6ec219dc8`
+- Overcast night: `2e0aff0a24ff254925ea99cbc3a94477056ab6081f9607258c4daa38161a3d75`
+- Tropical daylight: `3424af311a0230251146f2869e7369529d41d5d186c819aa4867339d5e227190`
+
+The publisher grants CC0, enabling commercial use and redistribution. Official URLs and size/MD5 are verified from the public Poly Haven Files API. All five files were **actually downloaded** on exact PR HEAD `c0bec4781c473aeab3c9146c5d4858fac475ce7e` in workflow `39037691008`, artifact `12102458779`. The ZIP itself was independently downloaded and SHA-256 verified as `f3c0902cd35ace6ffdeac331a6865e869e5a44dbac4c85b1a3fa5da8edf988c9`; the five internal Radiance byte streams matched the publisher sizes/MD5 and their newly recorded SHA256 pins. This commit now enforces those SHA256 pins on all future source retrievals. HDRI rendering quality and real Android runtime remain **NOT VERIFIED**. Never misreport the metadata listing as a downloaded file. Post-harvest a reviewer must inspect the full HDRI, its sky/reflection behaviour, artistic suitability and Android resource cost. A photo HDRI is lighting input, not a final game landscape, ship, person or creature.
 
 ## Prospective characters/creatures/vessels — no art acceptance yet
 

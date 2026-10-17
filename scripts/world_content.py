@@ -80,6 +80,9 @@ def _candidate(candidate: dict[str, Any]) -> None:
         raise ContentError(f"{name}: publisher MD5 must be provided")
     if candidate.get("format") != "hdr":
         raise ContentError(f"{name}: only real HDR radiance candidates allowed")
+    if (not isinstance(candidate.get("sha256"), str)
+            or not _SHA256.fullmatch(candidate["sha256"])):
+        raise ContentError(f"{name}: candidate requires a post-harvest pinned SHA256")
 
 
 def validate_catalog(catalog: dict[str, Any]) -> dict[str, Any]:
@@ -175,8 +178,9 @@ def verify_admitted_assets(catalog: dict[str, Any], asset_root: Path) -> list[st
 def verify_downloaded_bytes(candidate: dict[str, Any], data: bytes) -> dict[str, Any]:
     """Verify publisher metadata and return SHA256 receipt, not automatic admission."""
     _candidate(candidate)
-    if len(data) != candidate["bytes"] or hashlib.md5(data).hexdigest() != candidate["md5"]:
-        raise ContentError("Candidate asset differs from publisher size or MD5")
+    if (len(data) != candidate["bytes"] or hashlib.md5(data).hexdigest() != candidate["md5"]
+            or hashlib.sha256(data).hexdigest() != candidate["sha256"]):
+        raise ContentError("Candidate asset differs from publisher size, MD5 or pinned SHA256")
     return {"id": candidate["id"], "bytes": len(data),
             "source_url": candidate["source_url"], "sha256": hashlib.sha256(data).hexdigest(),
             "status": "downloaded_unadmitted"}
