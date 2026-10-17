@@ -48,6 +48,9 @@ func run() -> void:
     check(effect.emitter.amount_ratio > 0.15, "Higher speed should increase emission")
     check(effect.get_last_speed() >= 7.9, "Visual speed must derive from travel distance")
     check(before == vessel.transform, "VFX must never move vessel")
+    effect.attach_vessel(vessel)
+    check(not effect.emitter.emitting, "Reattaching a moving vessel must stop particle restart emissions")
+    check(effect.emitter.amount_ratio == 0.0, "Reattach must clear old spray density")
 
     effect.advance_contact(0.1)
     check(not effect.emitter.emitting, "No motion must stop new particles")
