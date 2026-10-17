@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import type { Pool } from "pg";
+import type { PlayerStore } from "./player.js";
 import { CREATURE_SKILLS, canResearchSkill, rankForExperience, type BuildingProgress, type SkillId } from "./creature-mastery.js";
 import { CreatureResearchStore, RESEARCH_MATERIALS } from "./creature-research-store.js";
 
@@ -16,7 +17,7 @@ const unlockBadRequests = new Set(["UNKNOWN_SKILL", "INVALID_PROGRESSION_REQUEST
  * Player-facing read/unlock boundary. Never exposes practice-XP award endpoints:
  * experience originates only from authoritative server-side verified events.
  */
-export function registerCreatureResearchRoutes(app: FastifyInstance, db: Pool): void {
+export function registerCreatureResearchRoutes(app: FastifyInstance, db: Pool, players: PlayerStore): void {
   const store = new CreatureResearchStore(db);
   const skillIds = Object.keys(CREATURE_SKILLS) as SkillId[];
 
@@ -27,6 +28,7 @@ export function registerCreatureResearchRoutes(app: FastifyInstance, db: Pool): 
     try { await request.jwtVerify(); }
     catch { return reply.code(401).send({ error: "UNAUTHORIZED" }); }
     const userId = request.user.sub;
+    await players.loadOrCreate(userId);
     const [rows, buildings] = await Promise.all([
       db.query<SkillRow>("SELECT skill_id,experience FROM player_creature_skills WHERE user_id=$1", [userId]),
       db.query<BuildingProgress>(
@@ -71,11 +73,26 @@ export function registerCreatureResearchRoutes(app: FastifyInstance, db: Pool): 
       },
     },
     config: { rateLimit: { max: 10, timeWindow: "1 minute" } },
+    // Fastify may strip additionalProperties during schema validation. Reject
+    // unexpected keys before the validator can silently discard them.
+    preValidation: async (request, reply) => {
+      if (Object.keys(request.body ?? {}).some(key => key !== "requestId" && key !== "skillId")) {
+        return reply.code(400).send({ error: "INVALID_RESEARCH_BODY" });
+      }
+    },
   }, async (request, reply) => {
     try { await request.jwtVerify(); }
     catch { return reply.code(401).send({ error: "UNAUTHORIZED" }); }
     try {
-      return await store.unlock(request.user.sub, request.body.requestId, request.body.skillId);
+      const userId = request.user.sub;
+      await players.loadOrCreate(userId);
+      return await players.runExclusive(userId, async () => {
+        const result = await store.unlock(userId, request.body.requestId, request.body.skillId);
+        // Keep the connected player snapshot and future persistence aligned
+        // with the committed economy transaction.
+        await players.reloadEconomy(userId);
+        return result;
+      });
     } catch (error) {
       const code = error instanceof Error ? error.message : "";
       if (unlockConflicts.has(code)) return reply.code(409).send({ error: code });
