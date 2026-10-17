@@ -9,8 +9,8 @@ const BOW_SCRIPT = preload("res://scripts/ship_bow_spray_effect.gd")
 @export_range(0.2, 6.0, 0.1) var cinematic_speed: float = 2.6
 @export var demo_course_direction := Vector3(0.0, 0.0, -1.0)
 
-var wake: Node3D
-var bow_spray: Node3D
+var wake: ShipWakeEffect
+var bow_spray: ShipBowSprayEffect
 var vessel: Node3D
 var _coast: Node3D
 var _anchor := Vector3.ZERO
@@ -35,12 +35,12 @@ func _bind_components() -> void:
     _anchor = vessel.position
     wake = WAKE_SCRIPT.new()
     wake.name = "ShipWake"
-    wake.sea_level = _coast.WATER_Y
+    wake.sea_level = -0.35
     add_child(wake)
     wake.attach_vessel(vessel)
     bow_spray = BOW_SCRIPT.new()
     bow_spray.name = "BowContactSpray"
-    bow_spray.sea_level = _coast.WATER_Y
+    bow_spray.sea_level = -0.35
     # GLTF vessel axis is provisional; model-local forward and scale require
     # actual ship inspection before premium visual acceptance.
     bow_spray.bow_axis_local = demo_course_direction
