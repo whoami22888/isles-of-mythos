@@ -34,8 +34,8 @@ func run() -> void:
         quit(1)
         return
     check(controller.components_ready(), "Wake and bow GPU effects must both attach")
-    var wake := controller.wake
-    var bow := controller.bow_spray
+    var wake: ShipWakeEffect = controller.wake
+    var bow: ShipBowSprayEffect = controller.bow_spray
     check(wake != null and bow != null, "Both real effects required")
     if wake == null or bow == null:
         scene.queue_free()
