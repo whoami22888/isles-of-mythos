@@ -9,7 +9,7 @@ const COAST_NORMAL := preload("res://assets/external/polyhaven/coast_sand_rocks_
 const COAST_ROUGHNESS := preload("res://assets/external/polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_rough_1k.jpg")
 const COAST_AO := preload("res://assets/external/polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_ao_1k.jpg")
 const WATER_Y := -0.35
-const GAMEPLAY_CAMERA := Vector3(12.0, 6.5, 11.0)
+const GAMEPLAY_CAMERA := Vector3(9.5, 5.2, 8.5)
 
 var gameplay_camera: Camera3D
 var cinematic_camera: Camera3D
@@ -123,8 +123,8 @@ func _build_water() -> void:
 	shader.code = """
 shader_type spatial;
 render_mode cull_back, depth_draw_opaque;
-uniform vec4 shallow : source_color = vec4(0.08, 0.34, 0.46, 1.0);
-uniform vec4 deep : source_color = vec4(0.01, 0.07, 0.18, 1.0);
+uniform vec4 shallow : source_color = vec4(0.025, 0.19, 0.29, 1.0);
+uniform vec4 deep : source_color = vec4(0.005, 0.035, 0.11, 1.0);
 void fragment() {
     float depth_band = clamp(UV.x * 0.34 + UV.y * 0.22, 0.0, 1.0);
     ALBEDO = mix(shallow.rgb, deep.rgb, depth_band);
@@ -187,7 +187,7 @@ func _build_cameras() -> void:
 	gameplay_camera.look_at(Vector3(1.0, 0.8, -3.0))
 	cinematic_camera = Camera3D.new()
 	cinematic_camera.name = "CinematicRevealCamera"
-	cinematic_camera.position = Vector3(-18.0, 7.0, 16.0)
+	cinematic_camera.position = Vector3(-8.0, 4.5, 9.0)
 	cinematic_camera.current = false
 	add_child(cinematic_camera)
 	cinematic_camera.look_at(Vector3(0.0, 0.5, -2.0))
@@ -213,8 +213,8 @@ func play_cinematic(reduced_motion := false) -> void:
 		set_gameplay_view()
 		return
 	_cinematic_tween = create_tween()
-	_cinematic_tween.tween_property(cinematic_camera, "position", Vector3(-7.0, 5.5, 10.0), 1.8).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	_cinematic_tween.tween_property(cinematic_camera, "position", Vector3(17.0, 10.5, 18.0), 1.8).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_cinematic_tween.tween_property(cinematic_camera, "position", Vector3(-3.0, 3.5, 6.0), 1.8).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_cinematic_tween.tween_property(cinematic_camera, "position", GAMEPLAY_CAMERA, 1.8).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	_cinematic_tween.finished.connect(set_gameplay_view)
 
 func skip_cinematic() -> void:
