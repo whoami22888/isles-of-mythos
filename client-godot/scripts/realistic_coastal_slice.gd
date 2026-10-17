@@ -309,7 +309,9 @@ func skip_cinematic() -> void:
 
 func _process(_delta: float) -> void:
 	if ship_focal:
-		ship_focal.position = _ship_base_position + Vector3(0.0, sin(Time.get_ticks_msec() * 0.0012) * 0.035, 0.0)
+		# Preserve navigation XZ; only render-bob the Y channel. Overwriting
+		# XZ here previously defeated any genuine vessel movement/VFX sampling.
+		ship_focal.position.y = _ship_base_position.y + sin(Time.get_ticks_msec() * 0.0012) * 0.035
 	if _cinematic_active and cinematic_camera and cinematic_camera.current:
 		cinematic_camera.look_at(CINEMATIC_LOOK_TARGET)
 	if _cinematic_active and (Input.is_action_just_pressed("ui_accept") or Input.is_action_just_pressed("ui_cancel")):
