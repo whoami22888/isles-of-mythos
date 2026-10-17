@@ -16,13 +16,13 @@ Gates 1–16 remain frozen. Step 5 remains blocked until the current independent
 - Query live `main`, relevant PR HEADs, checks, reviews, and mergeability. Do not infer current state from README or Notion history.
 - Inspect `git status` and keep imported or user-dirty checkouts untouched; use an isolated worktree for implementation.
 - The Build Controller coordinates one GPT/Codex engineering team. Assign each task exactly one implementation owner and isolated write surfaces. The Integration/Auto-Fix Reviewer owns correction of findings or explicitly assigns a specialist; a distinct agent reviews the corrected final SHA. Roles do not create competing ownership or duplicate approval gates.
-- Routine technical review uses a fresh independent Codex/GPT/AI review on the final exact SHA; do not hold it for voluntary human review. AI review does not replace mandatory human, legal, owner, or repository approval.
+- Routine technical review uses an AI/GPT code review of the final exact SHA; a separate independent reviewer is not required by the owner. AI review must document actionable findings and their dispositions, and cannot substitute for mandated legal, security, owner, visual-quality, or repository controls.
 - The owner authorises routine non-production development, PRs, and exact-SHA verified merges without repeated human approvals, subject to repository controls. Production releases/deployments, destructive or protected migrations (including 029/036), frozen-gate changes, paid environments, branch-protection/security weakening, and operations beyond available tool permissions remain protected and require separate authorization.
 - Reuse test evidence only when the exact commit SHA is unchanged. Any new commit requires fresh exact-SHA evidence.
 
 ## Verification
 
-Use the smallest useful loop: targeted tests → affected server/client tests → typecheck → lint → build. For a final PR HEAD, require the configured exact-SHA CI, security, performance, and independent-review gates. Record failures as evidence with root cause, bounded correction, and prevention lesson; do not weaken thresholds, tests, timeouts, or acceptance criteria.
+Use the smallest useful loop: targeted tests → affected server/client tests → typecheck → lint → build. For a final PR HEAD, require the configured exact-SHA CI, security, performance, and AI-review gates. Record failures as evidence with root cause, bounded correction, and prevention lesson; do not weaken thresholds, tests, timeouts, or acceptance criteria.
 
 Keep gameplay authority, transaction/idempotency guarantees, replay protections, and privacy boundaries intact. Diagnostic logs must not contain player, request, inventory, credential, or other sensitive identifiers.
 
@@ -50,3 +50,7 @@ Every material change record includes DATE/TIME, implementation owner, exact SHA
 - Maintain pinned Godot 4.7.2 Android ARM64 GDScript, authoritative Fastify/PostgreSQL economy/gameplay, Redis ephemeral status and 20 Hz simulation. Preserve frozen Gates 1–16 and protected Step 5 capture/migration boundaries.
 - GitHub Actions: prefer reusable workflow_call jobs only when they remove proven duplication; retain working checks, pinned actions, least-privilege job permissions, exact-SHA checkout, artifact evidence, bounded repair retries and no recursive auto-fix loops. No elevated token in untrusted PR jobs.
 - Record every material correction, owner, commit SHA, check IDs, review, artifact and next task in Notion Build Instructions, Harvest Parts, Progress & Revision Notes, and Audit, and read back the writes. If unavailable, retain a repository checkpoint and report the precise blocker.
+
+## Mandatory premium graphics directive
+
+Before editing Godot art, importing assets, reviewing graphics, or approving a visual integration PR, read and enforce [`docs/ART_DIRECTION_STANDARD.md`](docs/ART_DIRECTION_STANDARD.md). Its 35/25/20/10/10 visual-review weights are proposed evaluation criteria, not measured results or substitutes for licensing, import, Android performance and independent-review gates. Follow its single-owner graphics agent roles, actual Godot screenshot evidence and explicit asset rejections. Preserve the server-authoritative architecture and use temporary low-poly meshes only as labeled scaffolding.

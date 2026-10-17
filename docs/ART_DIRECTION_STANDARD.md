@@ -1,0 +1,46 @@
+# Isles of Mythos — Premium Graphics Quality Standard
+
+Mandatory acceptance criteria for Godot 4.7.2 Android ARM64 graphics production. The intended aesthetic is premium stylized-realistic fantasy pirate survival, grounded in the user's selected first and third reference images. Reviewers must see those actual references; this text does not substitute for them.
+
+## Art direction and hybrid production
+- Rich tropical terrain, coherent beaches, rocks, cliffs, ruins, dense foliage and convincing water.
+- Detailed pirate ships with believable hulls, sails, fittings, wood and rigging.
+- Proportionate, detailed characters, creatures, buildings, equipment and polished animation.
+- Cohesive PBR roughness, normal maps, lighting, shadows, atmospheric depth, reflection and grading.
+- Low-poly/basic primitive meshes are *temporary scaffolding only*, never final production art.
+- Retain the existing Godot client, Android build workflow, gameplay and server-authoritative networking. Use appropriately licensed high-quality third-party art alongside original custom production, not a duplicate project.
+
+## Asset admission — mandatory pass/fail gates
+For every candidate, document geometry/fidelity, PBR maps and texture quality, pirate fantasy style fit, rigging and animation where relevant, license and commercial redistribution rights, source and author provenance, dependencies and content SHA-256, Godot 4.7.2 import compatibility, Android rendering/memory/performance, and scene scale/lighting/material compatibility.
+Use the external asset manifest and provenance validation. No unverified license, unknown redistribution grant, missing dependency or unverified hash may pass. Reject unsuitable candidates in `docs/GRAPHICS_ASSET_DECISIONS.md` with concrete reasons, rather than retrying inferior packs.
+
+## Proposed visual-quality scoring rubric (NOT measured results)
+- Art direction and visual fidelity: **35%**
+- Materials, textures and lighting: **25%**
+- Environmental cohesion: **20%**
+- Animation and detail: **10%**
+- Mobile visual stability: **10%**
+
+Score each criterion 0–10 against real in-engine captures, apply weighted total out of 10, and attach the individual marks, reviewer, image evidence and reasons. This is a proposed review weighting, **not a verified or previously measured score**. A numeric score never overrides a mandatory licensing, import, security, performance or AI-review pass/fail gate; final artistic acceptance still requires Graphics Director and AI visual QA assessment. Do not invent a pass threshold; record the agreed threshold before using scoring as an automated acceptance gate.
+
+## Mobile optimisation without visual downgrade
+Target Samsung Galaxy S23 Ultra before lower-end presets. Use asset-specific mesh LOD, texture compression/mipmaps, instancing, culling, material reuse, controlled draw calls, distance-based shadow/effect changes and scalable graphics settings. Preserve high-fidelity near-field characters, ships and scenery. Measure FPS, frame-time distribution, memory and thermal behaviour on the physical device before claiming device-level acceptance. Desktop or CI results are not substitutes.
+
+## Evidence required for each graphics PR
+- **Actual Godot-rendered screenshots** of relevant island, water, vegetation, terrain, ship or creature views (not promotional pictures or AI concept artwork).
+- Fixed camera angle and lighting for comparisons; evidence for material import, texture mapping and scale.
+- Verified exact SHA of headless import, scene-load/smoke tests, Android build, relevant gameplay and security tests.
+- Available rendering/performance measurements with environment and device stated. Physical-device measurements mandatory for device claims.
+- AI visual review and asset-license/provenance review, including records of rejection and remediation.
+
+Do **not** approve or merge when visual quality is below standard; provenance/licensing is unresolved; Godot import, rendering or gameplay tests fail; required real performance metrics or exact-SHA CI/AI review are absent. Continue independent safe work when premium assets cannot be sourced; never quietly replace them with poorer art.
+
+## Build agent ownership and order
+- **Graphics Director:** owns visual criteria and asset rejection.
+- **Harvest Agent:** searches reputable creator distribution and verifies licensing, dependencies and hashes.
+- **Godot Integration Agent:** imports and adjusts approved art in existing scenes.
+- **Performance Agent:** optimises with measured near-field fidelity preserved.
+- **Visual QA Agent:** independently inspects real Godot output.
+- **Build Controller:** assigns one owner per write surface, coordinates exact-SHA tests, reviews, commits and PRs.
+
+Next task: admit verified premium **terrain, vegetation, rocks, coast and water**; subsequently ships, buildings, creatures and characters. Use smallest meaningful test cycles and fix root causes without repeating previously verified work.
