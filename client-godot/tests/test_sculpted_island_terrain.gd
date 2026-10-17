@@ -23,7 +23,7 @@ func _initialize() -> void:
 		var vc: Vector3 = vertices[indices[i + 2]]
 		var face: Vector3 = (vb - va).cross(vc - va)
 		assert(face.length_squared() > 0.00000001, "degenerate triangle")
-		assert(face.y > 0.0, "terrain triangle faces down")
+		assert(face.y < -0.00000001, "terrain triangle winding is not clockwise from above")
 	for normal in normals:
 		assert(normal.length_squared() > 0.9, "invalid vertex normal")
 		assert(normal.y > 0.0, "vertex normal faces down")

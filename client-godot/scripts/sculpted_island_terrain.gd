@@ -47,10 +47,10 @@ func build_mesh() -> ArrayMesh:
 				terrain_height(fraction, angle), sin(angle) * radius)
 			vertices.append(position)
 			uvs.append(Vector2(position.x, position.z) * 0.08)
-	# Winding is counterclockwise as viewed from above (+Y).
+	# Godot front faces require clockwise winding when viewed from above (+Y).
 	for segment in range(radial_segments):
 		var next_segment := (segment + 1) % radial_segments
-		indices.append_array(PackedInt32Array([0, 1 + next_segment, 1 + segment]))
+		indices.append_array(PackedInt32Array([0, 1 + segment, 1 + next_segment]))
 	for ring in range(ring_segments - 1):
 		var inner_start := 1 + ring * radial_segments
 		var outer_start := inner_start + radial_segments
@@ -60,14 +60,14 @@ func build_mesh() -> ArrayMesh:
 			var b := inner_start + next_segment
 			var c := outer_start + segment
 			var d := outer_start + next_segment
-			indices.append_array(PackedInt32Array([a, b, c, b, d, c]))
+			indices.append_array(PackedInt32Array([a, c, b, b, c, d]))
 	var normals := PackedVector3Array()
 	normals.resize(vertices.size())
 	for i in range(0, indices.size(), 3):
 		var a := indices[i]
 		var b := indices[i + 1]
 		var c := indices[i + 2]
-		var face := (vertices[b] - vertices[a]).cross(vertices[c] - vertices[a])
+		var face := (vertices[c] - vertices[a]).cross(vertices[b] - vertices[a])
 		normals[a] += face
 		normals[b] += face
 		normals[c] += face

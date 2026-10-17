@@ -23,8 +23,13 @@ func _initialize() -> void:
         var a := vertices[indices[i]]
         var b := vertices[indices[i + 1]]
         var c := vertices[indices[i + 2]]
-        if (b - a).cross(c - a).length_squared() < 0.00000001:
+        var face: Vector3 = (b - a).cross(c - a)
+        if face.length_squared() < 0.00000001:
             push_error("Degenerate triangle at %d" % i)
+            quit(1)
+            return
+        if face.y >= -0.00000001:
+            push_error("Triangle has incorrect Godot front-face winding at %d" % i)
             quit(1)
             return
     for normal in normals:
