@@ -109,6 +109,9 @@ static func bind_to_material(terrain: MeshInstance3D, ocean: ShaderMaterial, col
 	ocean.set_shader_parameter("shore_origin_xz", baked["origin"])
 	ocean.set_shader_parameter("shore_extent_xz", baked["extent"])
 	ocean.set_shader_parameter("shore_texture_size", Vector2(columns, rows))
+	# Explicit shader visibility is only enabled after successful mesh baking.
+	if code.contains("shoremap_bound"):
+		ocean.set_shader_parameter("shoremap_bound", true)
 	# Return the binding so callers can retain it and CI can inspect contents.
 	return {
 		"texture": texture,
