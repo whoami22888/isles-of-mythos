@@ -56,25 +56,46 @@ func _build_environment() -> void:
 	sun.shadow_enabled = true
 	add_child(sun)
 
+func _terrain_height(px: float, pz: float) -> float:
+	# Irregular cove waterline and broad uplift, with layered beach, bluff
+	# and inland ridges. The same height function grounds decorative meshes.
+	var waterline := -7.1 + sin(px * 0.19) * 1.3 + sin(px * 0.53) * 0.6
+	waterline += cos(px * 0.095) * 1.2
+	var beach := smoothstep(waterline - 2.4, waterline + 3.8, pz)
+	var bluff := smoothstep(1.4, 12.5, pz)
+	var ridge := sin(px * 0.21 + pz * 0.08) * 1.25
+	ridge += cos(px * 0.46 - pz * 0.19) * 0.48
+	ridge += sin(px * 0.91 + pz * 0.63) * 0.15
+	var side_mask := 1.0 - smoothstep(25.0, 34.0, absf(px))
+	var back_mask := 1.0 - smoothstep(19.0, 28.0, pz)
+	var island := side_mask * back_mask
+	var height := beach * (1.65 + ridge * 0.22)
+	height += bluff * (4.2 + ridge * 1.10)
+	height += smoothstep(8.0, 18.0, pz) * 1.15
+	return WATER_Y - 0.75 + island * (height + 0.75)
+
+
 func _build_coastal_terrain() -> void:
+	# Dense-enough terrain for curving coast and layered relief, bounded for
+	# mobile: 96 x 72 vertices / fewer than 14k surface triangles.
+	const columns := 96
+	const rows := 72
 	var vertices := PackedVector3Array()
 	var normals := PackedVector3Array()
 	var uvs := PackedVector2Array()
 	var indices := PackedInt32Array()
-	const columns := 24
-	const rows := 18
+	var tint := PackedColorArray()
 	for z in range(rows):
 		for x in range(columns):
 			var fx := float(x) / float(columns - 1)
 			var fz := float(z) / float(rows - 1)
-			var px := (fx - 0.5) * 34.0
-			var pz := (fz - 0.5) * 26.0
-			var shore := smoothstep(-10.0, -2.0, pz)
-			var ridge := sin(px * 0.37) * 0.8 + cos(pz * 0.31) * 0.55
-			var cliff := maxf(0.0, (pz + 1.0) * 0.16) * shore
-			var py := WATER_Y + shore * (1.25 + cliff) + ridge * 0.12
+			var px := (fx - 0.5) * 72.0
+			var pz := (fz - 0.5) * 58.0
+			var py := _terrain_height(px, pz)
 			vertices.append(Vector3(px, py, pz))
-			uvs.append(Vector2(fx * 3.0, fz * 3.0))
+			uvs.append(Vector2(px * 0.14, pz * 0.14))
+			var elevation := smoothstep(1.4, 6.8, py)
+			tint.append(Color("#f1e3cb").lerp(Color("#c5c3bc"), elevation))
 	for z in range(rows):
 		for x in range(columns):
 			var left := vertices[z * columns + maxi(x - 1, 0)]
@@ -91,14 +112,18 @@ func _build_coastal_terrain() -> void:
 	arrays[Mesh.ARRAY_VERTEX] = vertices
 	arrays[Mesh.ARRAY_NORMAL] = normals
 	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	arrays[Mesh.ARRAY_COLOR] = tint
 	arrays[Mesh.ARRAY_INDEX] = indices
 	var mesh := ArrayMesh.new()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 	var terrain := MeshInstance3D.new()
 	terrain.name = "IrregularCoastalTerrain"
 	terrain.mesh = mesh
-	terrain.material_override = _terrain_material()
+	var material := _terrain_material()
+	material.vertex_color_use_as_albedo = true
+	terrain.material_override = material
 	add_child(terrain)
+
 
 func _terrain_material() -> StandardMaterial3D:
 	var material := StandardMaterial3D.new()
@@ -176,28 +201,56 @@ func _build_premium_landmarks() -> void:
 	add_child(ship_focal)
 	_ship_base_position = ship_focal.position
 	_configure_mobile_visibility(ship_focal, 42.0)
+	# Asset footprints are grounded to terrain rather than assigned arbitrary
+	# fixed y-values. Keep the ship/cinematic sightline clear of near foliage.
 	for entry in [
-		[Vector3(-8.0, 0.35, -2.1), 1.45], [Vector3(-2.0, 0.25, -1.4), 1.1],
-		[Vector3(6.8, 0.48, -2.7), 1.25], [Vector3(11.0, 0.65, 3.5), 1.55]
+		[Vector3(-13.8, 0.0, -0.8), 1.2], [Vector3(-17.5, 0.0, 5.4), 1.8],
+		[Vector3(14.2, 0.0, -0.6), 1.5], [Vector3(18.0, 0.0, 8.5), 1.6]
 	]:
 		var rock := ROCK_SCENE.instantiate()
 		rock.position = entry[0]
 		rock.scale = Vector3.ONE * entry[1]
 		add_child(rock)
+		_ground_asset_on_terrain(rock, 0.3)
 		_configure_mobile_visibility(rock, 30.0)
 	for entry in [
-		[Vector3(-9.0, 0.35, 2.5), 1.2], [Vector3(-5.5, 0.4, 5.0), 1.0],
-		[Vector3(6.0, 0.4, 4.5), 1.05], [Vector3(9.0, 0.45, 6.0), 0.85]
+		[Vector3(-16.0, 0.0, 4.0), 1.1], [Vector3(-20.5, 0.0, 13.0), 1.15],
+		[Vector3(15.2, 0.0, 6.5), 1.05], [Vector3(20.0, 0.0, 13.0), 0.9]
 	]:
 		var tree := TREE_SCENE.instantiate()
 		tree.position = entry[0]
 		tree.scale = Vector3.ONE * entry[1]
 		add_child(tree)
+		_ground_asset_on_terrain(tree)
 		_configure_mobile_visibility(tree, 26.0)
 	player_marker = Node3D.new()
 	player_marker.name = "PlayerSpawnMarker"
-	player_marker.position = Vector3(0.0, 0.7, 5.5)
+	player_marker.position = Vector3(0.0, _terrain_height(0.0, 5.5) + 0.75, 5.5)
 	add_child(player_marker)
+
+func _ground_asset_on_terrain(asset: Node3D, burial := 0.0) -> void:
+	# Bounds include nested glTF transforms and mesh offsets. Grounding via
+	# a fixed arbitrary Y caused visibly floating and buried coastline trees.
+	var lowest := INF
+	var pending: Array[Node] = [asset]
+	while not pending.is_empty():
+		var node: Node = pending.pop_back()
+		if node is MeshInstance3D:
+			var mesh_instance := node as MeshInstance3D
+			if mesh_instance.mesh:
+				var bounds := mesh_instance.mesh.get_aabb()
+				for corner in range(8):
+					var local := bounds.position + Vector3(
+						bounds.size.x if corner & 1 else 0.0,
+						bounds.size.y if corner & 2 else 0.0,
+						bounds.size.z if corner & 4 else 0.0
+					)
+					lowest = minf(lowest, mesh_instance.to_global(local).y)
+		for child in node.get_children():
+			pending.append(child)
+	if lowest != INF:
+		asset.position.y += _terrain_height(asset.position.x, asset.position.z) - lowest - burial
+
 
 func _configure_mobile_visibility(root: Node, max_distance: float) -> void:
 	for child in root.get_children():
