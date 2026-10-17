@@ -300,8 +300,10 @@ func play_cinematic(reduced_motion := false) -> void:
 		set_gameplay_view()
 		return
 	_cinematic_tween = create_tween()
-	_cinematic_tween.tween_property(cinematic_camera, "position", Vector3(-7.0, 4.8, -13.0), 2.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	_cinematic_tween.tween_property(cinematic_camera, "position", Vector3(-2.5, 3.9, -9.5), 2.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	# Stay seaward of the moving visual ship so the vessel and island remain
+	# in a coherent foreground/midground/background composition.
+	_cinematic_tween.tween_property(cinematic_camera, "position", Vector3(-7.0, 4.8, -17.0), 2.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_cinematic_tween.tween_property(cinematic_camera, "position", Vector3(-2.5, 5.2, -21.0), 2.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	_cinematic_tween.finished.connect(set_gameplay_view)
 
 func skip_cinematic() -> void:
@@ -313,6 +315,8 @@ func _process(_delta: float) -> void:
 		# XZ here previously defeated any genuine vessel movement/VFX sampling.
 		ship_focal.position.y = _ship_base_position.y + sin(Time.get_ticks_msec() * 0.0012) * 0.035
 	if _cinematic_active and cinematic_camera and cinematic_camera.current:
-		cinematic_camera.look_at(CINEMATIC_LOOK_TARGET)
+		# Follow the moving ship; fixed island look-at pushed the ship fully offscreen.
+		var focal_point := ship_focal.global_position + Vector3(0.0, 2.0, 0.0) if ship_focal else CINEMATIC_LOOK_TARGET
+		cinematic_camera.look_at(focal_point)
 	if _cinematic_active and (Input.is_action_just_pressed("ui_accept") or Input.is_action_just_pressed("ui_cancel")):
 		skip_cinematic()
