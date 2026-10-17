@@ -6,7 +6,7 @@
   "gltf_has_skeletal_animation": false,
   "purpose": "Actual in-engine hull/rigging/sail-material and camera-motion audition, NOT accepted game art",
   "files": [
-    {"path":"dutch_ship_medium_1k.gltf","size":7494,"md5":"ade58c8bbbc75ebcafd5f7f9bbd5cfea","url":"https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/dutch_ship_medium/dutch_ship_medium_1k.gltf"},
+    {"path":"dutch_ship_medium_1k.gltf","size":7494,"md5":"ade58c8bbbc75ebcafd5f7f9bbd5cfea","sha256":"208112252d4f83a9c404563371053820a90963a53b465fd6c745b16868f4bade","url":"https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/dutch_ship_medium/dutch_ship_medium_1k.gltf"},
     {"path":"dutch_ship_medium.bin","size":2480380,"md5":"f73e0108855bc3aef1a65a737a37f575","sha256":"7ff5d886d3baea1f60afdc17c50b99029d7abca159db10212c89c95e39c5437e","url":"https://dl.polyhaven.org/file/ph-assets/Models/gltf/4k/dutch_ship_medium/dutch_ship_medium.bin"},
     {"path":"textures/dutch_ship_medium_hull_arm_1k.jpg","size":992318,"md5":"0f24fc5c2234c69a532f4d6c7ed743d8","sha256":"10274d6f3815b73f559a920d01a7e9df8feba2ee2e3f574fdc106cedd769106b","url":"https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/dutch_ship_medium/dutch_ship_medium_hull_arm_1k.jpg"},
     {"path":"textures/dutch_ship_medium_sails_diff_1k.jpg","size":579788,"md5":"bc208c775eb005386d089ad5dc1eec00","sha256":"0a877ee5b446ee5fe624618b3bc7224bd4555a077804c4f1afe61d8ae4600147","url":"https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/dutch_ship_medium/dutch_ship_medium_sails_diff_1k.jpg"},

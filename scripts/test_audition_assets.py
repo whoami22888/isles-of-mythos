@@ -16,9 +16,9 @@ class AuditionAssetsTests(unittest.TestCase):
             'asset_id':'dutch_ship_medium','license':'CC0-1.0',
             'publisher':'https://polyhaven.com/a/dutch_ship_medium',
             'files':[
-                {'path':'dutch_ship_medium_1k.gltf','url':'https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/dutch_ship_medium/dutch_ship_medium_1k.gltf','size':70,'md5':'a'*32},
-                {'path':'textures/dutch_ship_medium_sails_diff_1k.jpg','url':'https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/dutch_ship_medium/dutch_ship_medium_sails_diff_1k.jpg','size':80,'md5':'a'*32},
-                {'path':'textures/dutch_ship_medium_sails_alpha_1k.png','url':'https://dl.polyhaven.org/file/ph-assets/Models/png/1k/dutch_ship_medium/dutch_ship_medium_sails_alpha_1k.png','size':80,'md5':'a'*32},
+                {'path':'dutch_ship_medium_1k.gltf','url':'https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/dutch_ship_medium/dutch_ship_medium_1k.gltf','size':70,'md5':'a'*32,'sha256':'b'*64},
+                {'path':'textures/dutch_ship_medium_sails_diff_1k.jpg','url':'https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/dutch_ship_medium/dutch_ship_medium_sails_diff_1k.jpg','size':80,'md5':'a'*32,'sha256':'b'*64},
+                {'path':'textures/dutch_ship_medium_sails_alpha_1k.png','url':'https://dl.polyhaven.org/file/ph-assets/Models/png/1k/dutch_ship_medium/dutch_ship_medium_sails_alpha_1k.png','size':80,'md5':'a'*32,'sha256':'b'*64},
             ]
         }
 
@@ -33,6 +33,14 @@ class AuditionAssetsTests(unittest.TestCase):
             with self.subTest(u=u), self.assertRaises(AssetFailure): validate_manifest(m)
         self.manifest['files'][0]['path']='../models/intruder.gltf'
         with self.assertRaises(AssetFailure): validate_manifest(self.manifest)
+
+    def test_manifest_rejects_unpinned_original_glb_and_texture_source(self):
+        m=json.loads(json.dumps(self.manifest))
+        m['files'][0].pop('sha256')
+        with self.assertRaises(AssetFailure): validate_manifest(m)
+        m=json.loads(json.dumps(self.manifest))
+        m['files'][1]['sha256']=''
+        with self.assertRaises(AssetFailure): validate_manifest(m)
 
     def test_manifest_rejects_missing_or_invalid_hash_size(self):
         for change in [{'md5':'bad'},{'size':0},{'size':100_000_000}]:
@@ -79,6 +87,14 @@ class AuditionAssetsTests(unittest.TestCase):
         # Regression from CI 39041111587: GDScript 4.7.2 exposes sin/cos, not sinf/cosf.
         source = (Path(__file__).resolve().parents[1] / 'client-godot/tests/render_vessel_audition.gd').read_text()
         self.assertNotRegex(source, r'\b(?:sinf|cosf)\s*\(')
+
+    def test_engine_audition_enforces_full_model_camera_framing(self):
+        # Root cause from actual PR #171 engine-rendered still:
+        # mast/sail geometry clipped above the 1280x720 capture.
+        source = (Path(__file__).resolve().parents[1] / 'client-godot/tests/render_vessel_audition.gd').read_text()
+        self.assertIn('unproject_position(', source)
+        self.assertIn('if not framed:', source)
+        self.assertIn('Cannot frame complete ship geometry', source)
 
     def test_static_image_without_motion_is_rejected_as_animation(self):
         d=self.root/'frames';d.mkdir()

@@ -29,6 +29,34 @@ func _mesh_bounds(node: Node, minmax: Dictionary) -> void:
 	for child in node.get_children():
 		_mesh_bounds(child, minmax)
 
+func _all_rendered_meshes_visible() -> bool:
+	# Clip check covers the imported full 3D geometry and every rigging AABB;
+	# a successful PNG must not silently crop mast tips or sail extremities.
+	var canvas_size: Vector2 = root.get_viewport().get_visible_rect().size
+	var margin := Vector2(canvas_size.x * 0.025, canvas_size.y * 0.05)
+	var pending: Array[Node] = [_ship]
+	while not pending.is_empty():
+		var node: Node = pending.pop_back()
+		if node is MeshInstance3D:
+			var piece := node as MeshInstance3D
+			if piece.mesh != null:
+				var box: AABB = piece.mesh.get_aabb()
+				for corner in range(8):
+					var point: Vector3 = piece.to_global(box.get_endpoint(corner))
+					if _camera.is_position_behind(point):
+						return false
+					var projected: Vector2 = _camera.unproject_position(point)
+					if not projected.is_finite():
+						return false
+					if (projected.x < margin.x or projected.y < margin.y
+							or projected.x > canvas_size.x - margin.x
+							or projected.y > canvas_size.y - margin.y):
+						return false
+		for child in node.get_children():
+			pending.append(child)
+	return true
+
+
 func _run() -> void:
 	_out_dir = OS.get_environment("IOM_AUDITION_FRAMES")
 	if _out_dir.is_empty() or not _out_dir.is_absolute_path():
@@ -99,18 +127,27 @@ func _run() -> void:
 		await process_frame
 	await RenderingServer.frame_post_draw
 
-	var distance := maxf(24.0, target_size * 1.65)
+	var min_distance := maxf(35.0, target_size * 1.85)
 	for frame in range(CAPTURE_FRAMES):
 		var t: float = float(frame) / float(CAPTURE_FRAMES - 1)
 		var orbit := -0.37 + t * 0.88
 		_ship.rotation_degrees = Vector3(sin(t * TAU * 0.90) * 0.85,
 			sin(t * TAU * 0.48) * 1.3, sin(t * TAU * 0.8) * 1.1)
 		_ship.position.y = sin(t * TAU * 1.25) * 0.06
-		_camera.position = Vector3(sin(orbit) * distance,
-			maxf(5.5, target_size * 0.21) + t * 2.2,
-			cos(orbit) * distance)
-		_camera.look_at(Vector3.ZERO, Vector3.UP)
-		await process_frame
+		var framed := false
+		for attempt in range(8):
+			var distance: float = min_distance * (1.0 + float(attempt) * 0.24)
+			_camera.position = Vector3(sin(orbit) * distance,
+				maxf(6.0, target_size * 0.28) + t * 2.0,
+				cos(orbit) * distance)
+			_camera.look_at(Vector3(0.0, 1.4, 0.0), Vector3.UP)
+			await process_frame
+			if _all_rendered_meshes_visible():
+				framed = true
+				break
+		if not framed:
+			_fail("Cannot frame complete ship geometry (mast/rigging clipped)")
+			return
 		await RenderingServer.frame_post_draw
 		var capture: Image = root.get_viewport().get_texture().get_image()
 		if capture == null or capture.is_empty() or capture.get_width() < 640:

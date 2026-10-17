@@ -65,8 +65,8 @@ def validate_manifest(data: dict) -> None:
             raise AssetFailure('Invalid file size or importer limit')
         if not _HASH_MD5.fullmatch(str(entry.get('md5', ''))):
             raise AssetFailure('No official publisher MD5 evidence')
-        if entry.get('sha256') and not _HASH_SHA.fullmatch(str(entry['sha256'])):
-            raise AssetFailure('Invalid pinned SHA256')
+        if not _HASH_SHA.fullmatch(str(entry.get('sha256', ''))):
+            raise AssetFailure('Missing or invalid pinned SHA256')
     for required in ('dutch_ship_medium_1k.gltf',
                      'textures/dutch_ship_medium_sails_diff_1k.jpg',
                      'textures/dutch_ship_medium_sails_alpha_1k.png'):
@@ -115,7 +115,7 @@ def _download(entry: dict, stage: Path) -> dict:
                     upstream.update(data)
         if total != entry['size'] or upstream.hexdigest() != entry['md5']:
             raise AssetFailure('Upstream byte length / metadata checksum mismatch')
-        if entry.get('sha256') and sha.hexdigest() != entry['sha256']:
+        if sha.hexdigest() != entry['sha256']:
             raise AssetFailure('Pinned source SHA256 mismatch')
         return {'path':entry['path'], 'size':total, 'source_sha256':sha.hexdigest(),
                 'source_url':entry['url'], 'publisher':'Poly Haven',
