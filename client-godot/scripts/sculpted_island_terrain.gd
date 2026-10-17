@@ -12,10 +12,10 @@ func _ready() -> void:
 	surface.name = "SculptedCoast"
 	surface.mesh = build_mesh()
 	add_child(surface)
-	var sand := StandardMaterial3D.new()
-	sand.albedo_color = Color(0.69, 0.61, 0.43)
-	sand.roughness = 0.92
-	surface.material_override = sand
+	var terrain_material := StandardMaterial3D.new()
+	terrain_material.vertex_color_use_as_albedo = true
+	terrain_material.roughness = 0.92
+	surface.material_override = terrain_material
 
 
 func shoreline_radius(angle: float) -> float:
@@ -24,20 +24,39 @@ func shoreline_radius(angle: float) -> float:
 
 
 func terrain_height(radius_fraction: float, angle: float) -> float:
-	var interior := clampf((0.88 - radius_fraction) / 0.88, 0.0, 1.0)
-	var ridges := 0.62 + 0.22 * sin(3.0 * angle + 2.5 * radius_fraction)
-	ridges += 0.16 * cos(7.0 * angle - 4.0 * radius_fraction)
-	var cliffs := smoothstep(0.14, 0.36, interior)
-	return elevation * pow(interior, 1.3) * maxf(ridges, 0.2) * cliffs
+	var inland: float = 1.0 - clampf(radius_fraction, 0.0, 1.0)
+	# Taper angular ridges to zero at the centre to prevent a radial pinwheel.
+	var angular_weight: float = smoothstep(0.02, 0.34, radius_fraction)
+	var ridges: float = 1.0 + angular_weight * (
+		0.20 * sin(3.0 * angle + 2.5 * radius_fraction)
+		+ 0.11 * cos(7.0 * angle - 4.0 * radius_fraction))
+	# A low sandy shelf leads into a steep rock escarpment and rounded highland.
+	var beach_shelf: float = 0.12 * smoothstep(0.0, 0.18, inland)
+	var cliff_rise: float = elevation * 0.55 * smoothstep(0.25, 0.43, inland)
+	var highland: float = elevation * 0.45 * pow(inland, 1.5)
+	return (beach_shelf + cliff_rise + highland) * ridges
+
+
+func terrain_color(radius_fraction: float) -> Color:
+	var inland: float = 1.0 - clampf(radius_fraction, 0.0, 1.0)
+	var sand := Color(0.72, 0.62, 0.44)
+	var rock := Color(0.40, 0.43, 0.43)
+	var upland := Color(0.30, 0.40, 0.28)
+	var cliff_band: float = smoothstep(0.22, 0.37, inland) * (
+		1.0 - smoothstep(0.52, 0.68, inland))
+	var upland_blend: float = smoothstep(0.58, 0.78, inland)
+	return sand.lerp(rock, cliff_band).lerp(upland, upland_blend)
 
 
 func build_mesh() -> ArrayMesh:
 	var vertices := PackedVector3Array()
 	var uvs := PackedVector2Array()
+	var colors := PackedColorArray()
 	var indices := PackedInt32Array()
 	# A single center vertex avoids zero-area triangles in the first ring.
 	vertices.append(Vector3(0.0, terrain_height(0.0, 0.0), 0.0))
 	uvs.append(Vector2.ZERO)
+	colors.append(terrain_color(0.0))
 	for ring in range(1, ring_segments + 1):
 		var fraction := float(ring) / float(ring_segments)
 		for segment in range(radial_segments):
@@ -47,6 +66,7 @@ func build_mesh() -> ArrayMesh:
 				terrain_height(fraction, angle), sin(angle) * radius)
 			vertices.append(position)
 			uvs.append(Vector2(position.x, position.z) * 0.08)
+			colors.append(terrain_color(fraction))
 	# Godot front faces require clockwise winding when viewed from above (+Y).
 	for segment in range(radial_segments):
 		var next_segment := (segment + 1) % radial_segments
@@ -78,6 +98,7 @@ func build_mesh() -> ArrayMesh:
 	arrays[Mesh.ARRAY_VERTEX] = vertices
 	arrays[Mesh.ARRAY_NORMAL] = normals
 	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	arrays[Mesh.ARRAY_COLOR] = colors
 	arrays[Mesh.ARRAY_INDEX] = indices
 	var mesh := ArrayMesh.new()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)

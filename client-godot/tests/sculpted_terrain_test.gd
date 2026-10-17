@@ -12,10 +12,11 @@ func _initialize() -> void:
     var arrays := mesh.surface_get_arrays(0)
     var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
     var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+    var colors: PackedColorArray = arrays[Mesh.ARRAY_COLOR]
     var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
     var expected_vertices: int = 1 + terrain.radial_segments * terrain.ring_segments
     var expected_indices: int = 3 * terrain.radial_segments * (2 * terrain.ring_segments - 1)
-    if vertices.size() != expected_vertices or indices.size() != expected_indices:
+    if vertices.size() != expected_vertices or indices.size() != expected_indices or colors.size() != expected_vertices:
         push_error("Unexpected terrain topology")
         quit(1)
         return
@@ -32,6 +33,14 @@ func _initialize() -> void:
             push_error("Triangle has incorrect Godot front-face winding at %d" % i)
             quit(1)
             return
+    if absf(terrain.terrain_height(0.0, 0.0) - terrain.terrain_height(0.0, PI)) > 0.0001:
+        push_error("Central terrain height depends on angle")
+        quit(1)
+        return
+    if terrain.terrain_height(0.55, 0.0) <= terrain.terrain_height(0.8, 0.0) + 1.0:
+        push_error("Cliff rise is missing")
+        quit(1)
+        return
     for normal in normals:
         if not normal.is_finite() or normal.y <= 0.0:
             push_error("Invalid or downward-facing terrain normal")

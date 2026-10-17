@@ -13,8 +13,11 @@ func _initialize() -> void:
 	var vertices: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
 	var indices: PackedInt32Array = a[Mesh.ARRAY_INDEX]
 	var normals: PackedVector3Array = a[Mesh.ARRAY_NORMAL]
+	var colors: PackedColorArray = a[Mesh.ARRAY_COLOR]
 	assert(vertices.size() == 1 + 32 * 12, "unexpected vertex count")
 	assert(indices.size() == 32 * (1 + 2 * 11) * 3, "unexpected triangle count")
+	assert(colors.size() == vertices.size(), "terrain vertex colours missing")
+	assert(absf(terrain.terrain_height(0.0, 0.0) - terrain.terrain_height(0.0, PI)) < 0.0001, "central pinwheel discontinuity")
 	assert(vertices == b[Mesh.ARRAY_VERTEX], "terrain generation is nondeterministic")
 	assert(indices == b[Mesh.ARRAY_INDEX], "index generation is nondeterministic")
 	for i in range(0, indices.size(), 3):
