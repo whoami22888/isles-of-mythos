@@ -55,6 +55,7 @@ func _record() -> void:
     if not scene.cinematic_camera.current:
         _fail("Cinematic camera not selected")
         return
+    var render_start_msec: int = Time.get_ticks_msec()
     for frame_number in range(FRAME_COUNT):
         var progress := float(frame_number) / float(FRAME_COUNT - 1)
         if progress < 0.5:
@@ -107,6 +108,10 @@ func _record() -> void:
         if pixels.save_png(frame_path) != OK:
             _fail("Unable to write actual Godot frame %d" % frame_number)
             return
+        if frame_number % 6 == 0:
+            print("IOM_INTERNAL_CAPTURE_FRAME %d/%d elapsed_ms=%d" % [
+                frame_number + 1, FRAME_COUNT, Time.get_ticks_msec() - render_start_msec
+            ])
     if _changed_frames < 12:
         _fail("Frame sequence is effectively static; no valid moving-engine evidence")
         return
