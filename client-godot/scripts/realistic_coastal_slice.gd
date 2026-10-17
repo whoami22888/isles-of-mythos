@@ -157,6 +157,7 @@ func _build_premium_landmarks() -> void:
 	ship.rotation_degrees = Vector3(0.0, 18.0, 0.0)
 	ship.scale = Vector3.ONE * 0.72
 	add_child(ship)
+	_configure_mobile_visibility(ship, 42.0)
 	for entry in [
 		[Vector3(-8.0, 0.35, -2.1), 1.9], [Vector3(-2.0, 0.25, -1.4), 1.35],
 		[Vector3(6.8, 0.48, -2.7), 1.65], [Vector3(11.0, 1.05, 3.5), 2.4]
@@ -165,6 +166,7 @@ func _build_premium_landmarks() -> void:
 		rock.position = entry[0]
 		rock.scale = Vector3.ONE * entry[1]
 		add_child(rock)
+		_configure_mobile_visibility(rock, 30.0)
 	for entry in [
 		[Vector3(-9.0, 1.0, 2.5), 1.2], [Vector3(-5.5, 1.05, 5.0), 1.0],
 		[Vector3(3.5, 1.0, 4.5), 1.15], [Vector3(9.0, 1.0, 6.0), 0.9]
@@ -173,10 +175,20 @@ func _build_premium_landmarks() -> void:
 		tree.position = entry[0]
 		tree.scale = Vector3.ONE * entry[1]
 		add_child(tree)
+		_configure_mobile_visibility(tree, 26.0)
 	player_marker = Node3D.new()
 	player_marker.name = "PlayerSpawnMarker"
 	player_marker.position = Vector3(0.0, 0.7, 5.5)
 	add_child(player_marker)
+
+func _configure_mobile_visibility(root: Node, max_distance: float) -> void:
+	for child in root.get_children():
+		if child is GeometryInstance3D:
+			child.visibility_range_end = max_distance
+			child.visibility_range_end_margin = 4.0
+			child.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		if child.get_child_count() > 0:
+			_configure_mobile_visibility(child, max_distance)
 
 func _build_cameras() -> void:
 	gameplay_camera = Camera3D.new()

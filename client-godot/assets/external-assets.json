@@ -114,7 +114,7 @@
     {
       "id": "polyhaven-polyhaven-7da64b450180",
       "path": "polyhaven/dutch_ship_medium/dutch_ship_medium_1k.gltf",
-      "sha256": "208112252d4f83a9c404563371053820a90963a53b465fd6c745b16868f4bade",
+      "sha256": "cc0b86d8a32d4fed2d0c346a352beb9e11ca459bc00b1809705214ac51ea8c9d",
       "source_url": "https://polyhaven.com/a/polyhaven",
       "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/polyhaven/dutch_ship_medium_1k.gltf",
       "license": "CC0-1.0",
@@ -182,6 +182,16 @@
       "attribution": "Poly Haven"
     },
     {
+      "id": "polyhaven-polyhaven-ff4e9dbb7b83",
+      "path": "polyhaven/dutch_ship_medium/textures/dutch_ship_medium_sails_alpha_1k.png",
+      "sha256": "b319c5b5815bb1538061d377fdd0d4b753023188edd1fd6a43ce67ccf51a84ab",
+      "source_url": "https://polyhaven.com/a/polyhaven",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/png/1k/polyhaven/dutch_ship_medium_sails_alpha_1k.png",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven"
+    },
+    {
       "id": "polyhaven-polyhaven-14d229151bde",
       "path": "polyhaven/dutch_ship_medium/textures/dutch_ship_medium_sails_arm_1k.jpg",
       "sha256": "ecc0c3b7903ae642cd74214d6a20e6804386cab98759c2f0738a6b0268f825c5",
@@ -207,6 +217,16 @@
       "sha256": "3ba665979b047c91386e89a855d1b9038f1c2e5cda116ecea1a54f976cf12fa4",
       "source_url": "https://polyhaven.com/a/polyhaven",
       "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/polyhaven/dutch_ship_medium_sails_nor_gl_1k.jpg",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven"
+    },
+    {
+      "id": "polyhaven-polyhaven-b0caea935ff2",
+      "path": "polyhaven/dutch_ship_medium/textures/dutch_ship_medium_sails_rgba_1k.png",
+      "sha256": "d2a32a716ec2b74cb3613714636f30c08ed85648d9db7581d829ff02f5812d0b",
+      "source_url": "https://polyhaven.com/a/polyhaven",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/polyhaven/dutch_ship_medium_sails_rgba_1k.png",
       "license": "CC0-1.0",
       "license_url": "https://polyhaven.com/license",
       "attribution": "Poly Haven"
@@ -262,6 +282,16 @@
       "attribution": "Poly Haven"
     },
     {
+      "id": "polyhaven-polyhaven-4f3e85669041",
+      "path": "polyhaven/tree_small_02/textures/tree_small_02_leaves_alpha_1k.png",
+      "sha256": "4f143e2dda8a6a572f427ac378b92255d21761e4611de0d26e21816c01aa533b",
+      "source_url": "https://polyhaven.com/a/polyhaven",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/png/1k/polyhaven/tree_small_02_leaves_alpha_1k.png",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven"
+    },
+    {
       "id": "polyhaven-polyhaven-676ec6667fd4",
       "path": "polyhaven/tree_small_02/textures/tree_small_02_leaves_arm_1k.jpg",
       "sha256": "71f81374daf5a8f3e6eb2c694264a1769fdb0bea508178e4105618eecea83c3e",
@@ -292,6 +322,16 @@
       "attribution": "Poly Haven"
     },
     {
+      "id": "polyhaven-polyhaven-05e05646b2dd",
+      "path": "polyhaven/tree_small_02/textures/tree_small_02_leaves_rgba_1k.png",
+      "sha256": "ffa4df1cf3c8ca8e0e9ac70d9ccc59abe413ffb7417e13445174ce4af7258c2c",
+      "source_url": "https://polyhaven.com/a/polyhaven",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/polyhaven/tree_small_02_leaves_rgba_1k.png",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven"
+    },
+    {
       "id": "polyhaven-polyhaven-24524d5c108d",
       "path": "polyhaven/tree_small_02/textures/tree_small_02_nor_gl_1k.jpg",
       "sha256": "9c83be074c950ea1b94c732c0c0291b53b9ba357f932d378bafe3ca3b4418871",
@@ -314,7 +354,7 @@
     {
       "id": "polyhaven-polyhaven-9e4d82d2c7c9",
       "path": "polyhaven/tree_small_02/tree_small_02_1k.gltf",
-      "sha256": "3062a709614c05b80fdc1e56583998bc3cb1027b0d52f956c8ecfb882ff8ca6d",
+      "sha256": "67a1c641110567e8cc67160a5ebc3b1957dc78de04f9109c731f846b4b291af5",
       "source_url": "https://polyhaven.com/a/polyhaven",
       "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/polyhaven/tree_small_02_1k.gltf",
       "license": "CC0-1.0",

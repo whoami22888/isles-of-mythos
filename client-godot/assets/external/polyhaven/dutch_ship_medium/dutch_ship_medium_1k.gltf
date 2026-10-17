@@ -197,9 +197,9 @@
       "uri": "textures/dutch_ship_medium_sails_nor_gl_1k.jpg"
     },
     {
-      "mimeType": "image/jpeg",
+      "mimeType": "image/png",
       "name": "dutch_ship_medium_sails_diff-dutch_ship_medium_sails_alpha",
-      "uri": "textures/dutch_ship_medium_sails_diff_1k.jpg"
+      "uri": "textures/dutch_ship_medium_sails_rgba_1k.png"
     },
     {
       "mimeType": "image/jpeg",

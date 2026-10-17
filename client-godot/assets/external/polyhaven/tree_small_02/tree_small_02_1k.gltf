@@ -211,9 +211,9 @@
       "uri": "textures/tree_small_02_leaves_nor_gl_1k.jpg"
     },
     {
-      "mimeType": "image/jpeg",
+      "mimeType": "image/png",
       "name": "tree_small_02_leaves_diff-tree_small_02_leaves_alpha",
-      "uri": "textures/tree_small_02_leaves_diff_1k.jpg"
+      "uri": "textures/tree_small_02_leaves_rgba_1k.png"
     },
     {
       "mimeType": "image/jpeg",
