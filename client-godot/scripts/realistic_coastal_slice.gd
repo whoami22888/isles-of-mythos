@@ -8,6 +8,7 @@ const COAST_DIFFUSE := preload("res://assets/external/polyhaven/coast_sand_rocks
 const COAST_NORMAL := preload("res://assets/external/polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_nor_gl_1k.jpg")
 const COAST_ROUGHNESS := preload("res://assets/external/polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_rough_1k.jpg")
 const COAST_AO := preload("res://assets/external/polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_ao_1k.jpg")
+const OCEAN_SHADER := preload("res://shaders/ocean_surface.gdshader")
 const WATER_Y := -0.35
 const GAMEPLAY_CAMERA := Vector3(10.5, 6.0, 10.0)
 const CINEMATIC_START_CAMERA := Vector3(-8.0, 4.5, 9.0)
@@ -119,53 +120,20 @@ func _build_water() -> void:
 	water.name = "ShallowToDeepWater"
 	var plane := PlaneMesh.new()
 	plane.size = Vector2(160.0, 120.0)
+	# Only the long swells need vertex geometry. Fine ripples run in the
+	# fragment shader; avoid tessellating every tiny normal detail on Android.
+	plane.subdivide_width = 160
+	plane.subdivide_depth = 120
 	water.mesh = plane
 	water.position.y = WATER_Y
+	water.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var material := ShaderMaterial.new()
-	var shader := Shader.new()
-	shader.code = """
-shader_type spatial;
-render_mode cull_back, depth_draw_opaque;
-uniform vec4 shallow : source_color = vec4(0.025, 0.19, 0.29, 1.0);
-uniform vec4 deep : source_color = vec4(0.005, 0.035, 0.11, 1.0);
-varying vec3 world_position;
-void vertex() {
-    VERTEX.y += sin(TIME * 0.7 + VERTEX.x * 0.25) * 0.018;
-    world_position = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
-}
-void fragment() {
-    float depth_band = clamp((world_position.z + 18.0) / 36.0, 0.0, 1.0);
-    float ripple = sin(world_position.x * 0.75 + TIME * 0.35) * 0.025;
-    ALBEDO = mix(shallow.rgb, deep.rgb, depth_band) + ripple;
-    ROUGHNESS = 0.22;
-    SPECULAR = 0.8;
-}
-"""
-	material.shader = shader
+	material.shader = OCEAN_SHADER
 	water.material_override = material
 	add_child(water)
-	# Authored shoreline foam bands: bounded geometry, no per-frame generation.
-	for location in [Vector3(-7.5, WATER_Y + 0.015, -3.4), Vector3(1.0, WATER_Y + 0.015, -4.0), Vector3(8.0, WATER_Y + 0.015, -2.7)]:
-		var foam := MeshInstance3D.new()
-		var foam_mesh := QuadMesh.new()
-		foam_mesh.size = Vector2(5.0, 0.22)
-		foam.mesh = foam_mesh
-		foam.position = location
-		foam.rotation_degrees.x = -90.0
-		var foam_mat := ShaderMaterial.new()
-		var foam_shader := Shader.new()
-		foam_shader.code = """
-shader_type spatial;
-render_mode unshaded, cull_disabled, blend_mix;
-void fragment() {
-    float crest = smoothstep(0.25, 0.72, sin(UV.x * 18.0 + TIME * 1.6) * 0.5 + 0.5);
-    ALBEDO = vec3(0.92, 0.98, 0.94);
-    ALPHA = crest * 0.62;
-}
-"""
-		foam_mat.shader = foam_shader
-		foam.material_override = foam_mat
-		add_child(foam)
+	# Contact foam is now evaluated against the actual terrain-height equation
+	# inside the ocean shader, rather than being three disconnected quad strips.
+
 
 func _build_premium_landmarks() -> void:
 	ship_focal = SHIP_SCENE.instantiate()
