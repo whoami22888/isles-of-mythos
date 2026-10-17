@@ -5,6 +5,8 @@ on:
     paths:
       - "client-godot/assets/**"
       - "scripts/validate_godot_assets.py"
+      - "scripts/validate_visual_assets.py"
+      - "scripts/test_validate_visual_assets.py"
       - "scripts/test_godot_asset_validator.py"
       - "scripts/test_godot_asset_fetcher.py"
       - "scripts/fetch_verified_godot_assets.py"
@@ -25,6 +27,8 @@ jobs:
           persist-credentials: false
       - name: Compile pinned asset importer
         run: python3 -m py_compile scripts/fetch_verified_godot_assets.py
+      - name: Run visual material rejection regressions
+        run: python3 scripts/test_validate_visual_assets.py
       - name: Run provenance rejection regression tests
         run: python3 scripts/test_godot_asset_validator.py
       - name: Run offline importer regression tests

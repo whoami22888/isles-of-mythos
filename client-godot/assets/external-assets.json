@@ -1,4 +1,55 @@
 {
   "schema_version": 1,
-  "assets": []
+  "assets": [
+    {
+      "id": "polyhaven-coast-sand-rocks-02-ao-1k",
+      "path": "coast-sand-rocks-02/coast_sand_rocks_02_ao_1k.png",
+      "sha256": "17d69337ce04567e8be1a37ea18eb227a1d616b6fe7aeefa468d26928ab4934a",
+      "source_url": "https://polyhaven.com/a/coast_sand_rocks_02",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/coast_sand_rocks_02/coast_sand_rocks_02_ao_1k.png",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven coast_sand_rocks_02"
+    },
+    {
+      "id": "polyhaven-coast-sand-rocks-02-diffuse-1k",
+      "path": "coast-sand-rocks-02/coast_sand_rocks_02_diffuse_1k.png",
+      "sha256": "0e3f365244065de9f1a1b230f7b1024d86dd5a0a52dd2ee31a47ff88a776ba38",
+      "source_url": "https://polyhaven.com/a/coast_sand_rocks_02",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/coast_sand_rocks_02/coast_sand_rocks_02_diff_1k.png",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven coast_sand_rocks_02"
+    },
+    {
+      "id": "polyhaven-coast-sand-rocks-02-displacement-1k",
+      "path": "coast-sand-rocks-02/coast_sand_rocks_02_displacement_1k.png",
+      "sha256": "addc075e39cabdf73638db13a7ac1c2a8e30f744ef68880ab24b4deda1df9c65",
+      "source_url": "https://polyhaven.com/a/coast_sand_rocks_02",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/coast_sand_rocks_02/coast_sand_rocks_02_disp_1k.png",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven coast_sand_rocks_02"
+    },
+    {
+      "id": "polyhaven-coast-sand-rocks-02-normal-1k",
+      "path": "coast-sand-rocks-02/coast_sand_rocks_02_normal_1k.png",
+      "sha256": "5c4ce25cd6cf0954adf35c02c057746e95c9e968972a1d98f4dc3879f31d4a59",
+      "source_url": "https://polyhaven.com/a/coast_sand_rocks_02",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/coast_sand_rocks_02/coast_sand_rocks_02_nor_gl_1k.png",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven coast_sand_rocks_02"
+    },
+    {
+      "id": "polyhaven-coast-sand-rocks-02-rough-1k",
+      "path": "coast-sand-rocks-02/coast_sand_rocks_02_rough_1k.png",
+      "sha256": "b839778961f98a2967522f5da17d536203b538ec51b2ec98f31a873ba921e01a",
+      "source_url": "https://polyhaven.com/a/coast_sand_rocks_02",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/coast_sand_rocks_02/coast_sand_rocks_02_rough_1k.png",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven coast_sand_rocks_02"
+    }
+  ]
 }

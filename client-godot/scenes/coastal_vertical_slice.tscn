@@ -1,0 +1,56 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://scripts/coastal_vertical_slice.gd" id="1_coast"]
+[ext_resource type="Script" path="res://scripts/sculpted_island_terrain.gd" id="2_terrain"]
+
+[sub_resource type="PlaneMesh" id="WaterMesh"]
+size = Vector2(120, 120)
+subdivide_width = 32
+subdivide_depth = 32
+
+[sub_resource type="Shader" id="WaterShader"]
+code = "shader_type spatial;\nrender_mode cull_disabled;\n\nuniform vec4 deep_color : source_color = vec4(0.015, 0.12, 0.20, 1.0);\nuniform vec4 shallow_color : source_color = vec4(0.05, 0.42, 0.50, 1.0);\nuniform float wave_scale = 0.035;\n\nvoid vertex() {\n    VERTEX.y += sin(VERTEX.x * 0.22 + TIME * 0.55) * wave_scale;\n    VERTEX.y += cos(VERTEX.z * 0.18 + TIME * 0.42) * wave_scale * 0.7;\n}\n\nvoid fragment() {\n    float bands = 0.5 + 0.5 * sin((UV.x + UV.y) * 32.0 + TIME * 0.35);\n    float foam = smoothstep(0.82, 0.98, bands) * 0.12;\n    ALBEDO = mix(deep_color.rgb, shallow_color.rgb, UV.y * 0.35 + foam);\n    ROUGHNESS = 0.2 + foam * 0.4;\n    METALLIC = 0.04;\n    SPECULAR = 0.7;\n    ALPHA = 0.88;\n}"
+
+[sub_resource type="ShaderMaterial" id="WaterMaterial"]
+shader = SubResource("WaterShader")
+
+[sub_resource type="Environment" id="Environment"]
+background_mode = 1
+background_color = Color(0.015, 0.035, 0.07, 1)
+ambient_light_source = 3
+ambient_light_color = Color(0.23, 0.34, 0.46, 1)
+ambient_light_energy = 0.55
+fog_enabled = true
+fog_light_color = Color(0.18, 0.28, 0.35, 1)
+fog_density = 0.004
+
+[node name="CoastalVerticalSlice" type="Node3D"]
+script = ExtResource("1_coast")
+
+[node name="Terrain" type="Node3D" parent="."]
+script = ExtResource("2_terrain")
+radial_segments = 96
+ring_segments = 24
+island_radius = 18.0
+elevation = 5.0
+
+[node name="Water" type="MeshInstance3D" parent="."]
+position = Vector3(0, -0.34, 0)
+mesh = SubResource("WaterMesh")
+material_override = SubResource("WaterMaterial")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment")
+
+[node name="IslandCamera" type="Camera3D" parent="."]
+position = Vector3(33, 35, 33)
+rotation_degrees = Vector3(-36.86, 45, 0)
+projection = 1
+size = 66.0
+current = true
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+rotation_degrees = Vector3(-55, 28, 0)
+light_energy = 1.15
+light_color = Color(1, 0.86, 0.70, 1)
+shadow_enabled = true

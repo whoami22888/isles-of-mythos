@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "client-godot/**"
+      - "scripts/validate_visual_assets.py"
       - ".github/workflows/godot-visual-evidence.yml"
   workflow_dispatch:
 
@@ -46,12 +47,15 @@ jobs:
           set -euo pipefail
           "$RUNNER_TEMP/godot" --headless --path client-godot --script res://tests/sculpted_terrain_test.gd
           "$RUNNER_TEMP/godot" --headless --path client-godot --script res://tests/test_sculpted_island_terrain.gd
+          "$RUNNER_TEMP/godot" --headless --path client-godot --script res://tests/coastal_vertical_slice_test.gd
       - name: Capture sculpted terrain and reject original-prototype duplicate
         shell: bash
         run: |
           set -euo pipefail
           IOM_SCULPTED_SCREENSHOT_PATH="$RUNNER_TEMP/visual-evidence/sculpted-terrain-preview.png" xvfb-run -a -s "-screen 0 1280x720x24" "$RUNNER_TEMP/godot" --path client-godot --rendering-method gl_compatibility --script res://tests/render_sculpted_terrain.gd
           test -s "$RUNNER_TEMP/visual-evidence/sculpted-terrain-preview.png"
+          IOM_COASTAL_SCREENSHOT_PATH="$RUNNER_TEMP/visual-evidence/coastal-vertical-slice.png" xvfb-run -a -s "-screen 0 1280x720x24" "$RUNNER_TEMP/godot" --path client-godot --rendering-method gl_compatibility --script res://tests/render_coastal_vertical_slice.gd
+          test -s "$RUNNER_TEMP/visual-evidence/coastal-vertical-slice.png"
           file "$RUNNER_TEMP/visual-evidence/sculpted-terrain-preview.png"
           if cmp -s "$RUNNER_TEMP/visual-evidence/island-preview.png" "$RUNNER_TEMP/visual-evidence/sculpted-terrain-preview.png"; then
             echo "::error::Sculpted screenshot is byte-identical to original prototype"
@@ -63,6 +67,7 @@ jobs:
           name: godot-rendered-sculpted-terrain
           path: |
             ${{ runner.temp }}/visual-evidence/sculpted-terrain-preview.png
+            ${{ runner.temp }}/visual-evidence/coastal-vertical-slice.png
             ${{ runner.temp }}/visual-evidence/island-preview.png
             ${{ runner.temp }}/visual-evidence/SHA256SUMS
           if-no-files-found: error
