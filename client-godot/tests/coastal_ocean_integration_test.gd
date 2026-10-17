@@ -50,8 +50,14 @@ func run() -> void:
             check(far_mesh.subdivide_width == 0 and far_mesh.subdivide_depth == 0,
                 "Far ocean must avoid expensive vertex tessellation")
         var far_mat := far.material_override as ShaderMaterial
-        check(far_mat != null and far_mat.get_shader_parameter("far_ocean_patch") == true,
-            "Far-ocean shader must disable expensive displaced waves")
+        check(far_mat != null and far_mat.shader != null,
+            "Far ocean needs its own lightweight genuine lit water shader")
+        if far_mat != null and far_mat.shader != null:
+            var far_source: String = far_mat.shader.code
+            check(far_source.contains("NORMAL_MAP") and far_source.contains("far_deep_color"),
+                "Far horizon must retain animated texture and physically lit detail")
+            check(not far_source.contains("shore_terrain_height") and not far_source.contains("shore_heightmap"),
+                "Far ocean must not repeat expensive shoreline texture sampling")
         check(far.position.y == water.position.y, "Ocean surfaces must share their base plane")
     var material := water.material_override as ShaderMaterial
     check(material != null and material.shader != null, "Require real shader material")
