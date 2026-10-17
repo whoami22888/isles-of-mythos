@@ -76,9 +76,21 @@ def _inspect_gltf(root: Path, rel: str) -> List[Finding]:
                 f"{name}: {alpha_mode} base texture is JPEG without alpha; supply pinned alpha-capable color or an independently validated opacity path"))
     for mesh in meshes:
         for primitive in mesh.get("primitives", []):
+            # glTF permits unindexed primitives. In that case the POSITION
+            # accessor's vertex count determines triangle/strip/fan size.
+            # Invalid accessors must fail closed instead of silently passing.
             try:
-                count = int(accessors[primitive["indices"]]["count"])
-            except (KeyError, IndexError, TypeError, ValueError):
+                accessor_index = (primitive["indices"] if "indices" in primitive
+                                  else primitive["attributes"]["POSITION"])
+                if (type(accessor_index) is not int or accessor_index < 0
+                        or accessor_index >= len(accessors)):
+                    raise ValueError("Invalid primitive accessor index")
+                count = accessors[accessor_index]["count"]
+                if type(count) is not int or count < 0:
+                    raise ValueError("Invalid primitive accessor count")
+            except (KeyError, IndexError, TypeError, ValueError) as exc:
+                issues.append(Finding("INVALID_GEOMETRY", rel,
+                    f"{mesh.get('name', 'unnamed')}: missing or invalid index/POSITION accessor ({exc})"))
                 continue
             mode = primitive.get("mode", 4)
             if mode == 4:  # TRIANGLES
