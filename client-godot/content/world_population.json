@@ -1,0 +1,703 @@
+{
+  "schema_version": 1,
+  "description": "Presentation-only slots; none has an admitted commercial game asset until independently verified. No substitute primitive is permitted.",
+  "light_profiles": [
+    {
+      "id": "harbour_sunset",
+      "candidate_asset": "harbour_sunset",
+      "time": "sunset",
+      "exposure": 0.82
+    },
+    {
+      "id": "volcanic_golden",
+      "candidate_asset": "volcanic_golden",
+      "time": "sunset",
+      "exposure": 0.77
+    },
+    {
+      "id": "moonlit_reef",
+      "candidate_asset": "moonlit_reef",
+      "time": "night",
+      "exposure": 0.52
+    },
+    {
+      "id": "night_overcast",
+      "candidate_asset": "night_overcast",
+      "time": "night",
+      "exposure": 0.48
+    },
+    {
+      "id": "tropical_daylight",
+      "candidate_asset": "tropical_daylight",
+      "time": "day",
+      "exposure": 1.08
+    }
+  ],
+  "lighting_candidates": [
+    {
+      "id": "harbour_sunset",
+      "status": "candidate",
+      "path": "lighting/venice_sunset_1k.hdr",
+      "source_url": "https://polyhaven.com/a/venice_sunset",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/venice_sunset_1k.hdr",
+      "bytes": 1440400,
+      "md5": "a5ec4d30fc3421c214a17b208fb66d5f",
+      "license": "CC0-1.0",
+      "format": "hdr"
+    },
+    {
+      "id": "volcanic_golden",
+      "status": "candidate",
+      "path": "lighting/rogland_sunset_1k.hdr",
+      "source_url": "https://polyhaven.com/a/rogland_sunset",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/rogland_sunset_1k.hdr",
+      "bytes": 1487232,
+      "md5": "992d5f4103d7054fa7a9ea41e0bd8ad3",
+      "license": "CC0-1.0",
+      "format": "hdr"
+    },
+    {
+      "id": "moonlit_reef",
+      "status": "candidate",
+      "path": "lighting/rogland_moonlit_night_1k.hdr",
+      "source_url": "https://polyhaven.com/a/rogland_moonlit_night",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/rogland_moonlit_night_1k.hdr",
+      "bytes": 1723744,
+      "md5": "19bcd78f82342c992ac2e01c3f65e1e3",
+      "license": "CC0-1.0",
+      "format": "hdr"
+    },
+    {
+      "id": "night_overcast",
+      "status": "candidate",
+      "path": "lighting/kloppenheim_07_1k.hdr",
+      "source_url": "https://polyhaven.com/a/kloppenheim_07",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/kloppenheim_07_1k.hdr",
+      "bytes": 1666505,
+      "md5": "168da9f0bf4310eb845a40c26fa26196",
+      "license": "CC0-1.0",
+      "format": "hdr"
+    },
+    {
+      "id": "tropical_daylight",
+      "status": "candidate",
+      "path": "lighting/ticknock_03_1k.hdr",
+      "source_url": "https://polyhaven.com/a/ticknock_03",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/ticknock_03_1k.hdr",
+      "bytes": 1601735,
+      "md5": "87dbb5362b223340adf47215903185f9",
+      "license": "CC0-1.0",
+      "format": "hdr"
+    }
+  ],
+  "asset_records": [],
+  "archetypes": [
+    {
+      "id": "reef_serpent",
+      "kind": "creature",
+      "biomes": [
+        "reef"
+      ],
+      "asset_id": null
+    },
+    {
+      "id": "luminous_manta",
+      "kind": "creature",
+      "biomes": [
+        "reef"
+      ],
+      "asset_id": null
+    },
+    {
+      "id": "reef_guardian",
+      "kind": "creature",
+      "biomes": [
+        "reef"
+      ],
+      "asset_id": null
+    },
+    {
+      "id": "coral_crab",
+      "kind": "creature",
+      "biomes": [
+        "reef"
+      ],
+      "asset_id": null
+    },
+    {
+      "id": "sea_dragon",
+      "kind": "creature",
+      "biomes": [
+        "reef"
+      ],
+      "asset_id": null
+    },
+    {
+      "id": "seahorse",
+      "kind": "creature",
+      "biomes": [
+        "reef"
+      ],
+      "asset_id": null
+    },
+    {
+      "id": "siren",
+      "kind": "creature",
+      "biomes": [
+        "reef"
+      ],
+      "asset_id": null
+    },
+    {
+      "id": "merfolk_scout",
+      "kind": "creature",
+      "biomes": [
+        "reef"
+      ],
+      "asset_id": null
+    },
+    {
+      "id": "fire_wyvern",
+      "kind": "creature",
+      "biomes": [
+        "volcanic"
+      ],
+      "asset_id": null
+    },
+    {
+      "id": "lava_lizard",
+      "kind": "creature",
+      "biomes": [
+        "volcanic"
+      ],
+      "asset_id": null
+    },
+    {
+      "id": "ash_elemental",
+      "kind": "creature",
+      "biomes": [
+        "volcanic"
+      ],
+      "asset_id": null
+    },
+    {
+      "id": "jungle_boar",
+      "kind": "creature",
+      "biomes": [
+        "jungle"
+      ],
+      "asset_id": null
+    },
+    {
+      "id": "island_raptor",
+      "kind": "creature",
+      "biomes": [
+        "jungle"
+      ],
+      "asset_id": null
+    },
+    {
+      "id": "tropical_bird",
+      "kind": "creature",
+      "biomes": [
+        "jungle"
+      ],
+      "asset_id": null
+    },
+    {
+      "id": "forest_spirit",
+      "kind": "creature",
+      "biomes": [
+        "jungle"
+      ],
+      "asset_id": null
+    },
+    {
+      "id": "kraken",
+      "kind": "creature",
+      "biomes": [
+        "abyss"
+      ],
+      "asset_id": null
+    },
+    {
+      "id": "leviathan",
+      "kind": "creature",
+      "biomes": [
+        "abyss"
+      ],
+      "asset_id": null
+    },
+    {
+      "id": "deepwater_jelly",
+      "kind": "creature",
+      "biomes": [
+        "abyss"
+      ],
+      "asset_id": null
+    },
+    {
+      "id": "pirate_captain",
+      "kind": "character",
+      "biomes": [
+        "harbour"
+      ],
+      "asset_id": null
+    },
+    {
+      "id": "navigator",
+      "kind": "character",
+      "biomes": [
+        "harbour"
+      ],
+      "asset_id": null
+    },
+    {
+      "id": "shipwright",
+      "kind": "character",
+      "biomes": [
+        "harbour"
+      ],
+      "asset_id": null
+    },
+    {
+      "id": "fisher",
+      "kind": "character",
+      "biomes": [
+        "harbour"
+      ],
+      "asset_id": null
+    },
+    {
+      "id": "merchant",
+      "kind": "character",
+      "biomes": [
+        "harbour"
+      ],
+      "asset_id": null
+    },
+    {
+      "id": "dock_guard",
+      "kind": "character",
+      "biomes": [
+        "harbour"
+      ],
+      "asset_id": null
+    },
+    {
+      "id": "villager",
+      "kind": "character",
+      "biomes": [
+        "harbour"
+      ],
+      "asset_id": null
+    },
+    {
+      "id": "sailor",
+      "kind": "character",
+      "biomes": [
+        "harbour"
+      ],
+      "asset_id": null
+    },
+    {
+      "id": "quartermaster",
+      "kind": "character",
+      "biomes": [
+        "harbour"
+      ],
+      "asset_id": null
+    },
+    {
+      "id": "jungle_explorer",
+      "kind": "character",
+      "biomes": [
+        "jungle"
+      ],
+      "asset_id": null
+    },
+    {
+      "id": "ruin_scholar",
+      "kind": "character",
+      "biomes": [
+        "jungle"
+      ],
+      "asset_id": null
+    },
+    {
+      "id": "skeletal_raider",
+      "kind": "character",
+      "biomes": [
+        "ruins"
+      ],
+      "asset_id": null
+    },
+    {
+      "id": "relic_keeper",
+      "kind": "character",
+      "biomes": [
+        "ruins"
+      ],
+      "asset_id": null
+    },
+    {
+      "id": "ember_mage",
+      "kind": "character",
+      "biomes": [
+        "volcanic"
+      ],
+      "asset_id": null
+    },
+    {
+      "id": "volcanic_raider",
+      "kind": "character",
+      "biomes": [
+        "volcanic"
+      ],
+      "asset_id": null
+    },
+    {
+      "id": "merfolk_guard",
+      "kind": "character",
+      "biomes": [
+        "reef"
+      ],
+      "asset_id": null
+    },
+    {
+      "id": "galleon",
+      "kind": "vessel",
+      "biomes": [
+        "harbour"
+      ],
+      "asset_id": null
+    },
+    {
+      "id": "brigantine",
+      "kind": "vessel",
+      "biomes": [
+        "harbour"
+      ],
+      "asset_id": null
+    },
+    {
+      "id": "sloop",
+      "kind": "vessel",
+      "biomes": [
+        "harbour"
+      ],
+      "asset_id": null
+    },
+    {
+      "id": "war_frigate",
+      "kind": "vessel",
+      "biomes": [
+        "harbour"
+      ],
+      "asset_id": null
+    },
+    {
+      "id": "merchantman",
+      "kind": "vessel",
+      "biomes": [
+        "harbour"
+      ],
+      "asset_id": null
+    },
+    {
+      "id": "fishing_cutter",
+      "kind": "vessel",
+      "biomes": [
+        "harbour"
+      ],
+      "asset_id": null
+    },
+    {
+      "id": "reef_schooner",
+      "kind": "vessel",
+      "biomes": [
+        "reef"
+      ],
+      "asset_id": null
+    },
+    {
+      "id": "diving_skiff",
+      "kind": "vessel",
+      "biomes": [
+        "reef"
+      ],
+      "asset_id": null
+    },
+    {
+      "id": "ghost_ship",
+      "kind": "vessel",
+      "biomes": [
+        "abyss"
+      ],
+      "asset_id": null
+    },
+    {
+      "id": "corsair",
+      "kind": "vessel",
+      "biomes": [
+        "volcanic"
+      ],
+      "asset_id": null
+    },
+    {
+      "id": "ironclad",
+      "kind": "vessel",
+      "biomes": [
+        "volcanic"
+      ],
+      "asset_id": null
+    },
+    {
+      "id": "river_longboat",
+      "kind": "vessel",
+      "biomes": [
+        "jungle"
+      ],
+      "asset_id": null
+    },
+    {
+      "id": "harbour_docks",
+      "kind": "environment",
+      "biomes": [
+        "harbour"
+      ],
+      "asset_id": null
+    },
+    {
+      "id": "settlement_huts",
+      "kind": "environment",
+      "biomes": [
+        "harbour"
+      ],
+      "asset_id": null
+    },
+    {
+      "id": "sea_fort",
+      "kind": "environment",
+      "biomes": [
+        "harbour"
+      ],
+      "asset_id": null
+    },
+    {
+      "id": "coral_gardens",
+      "kind": "environment",
+      "biomes": [
+        "reef"
+      ],
+      "asset_id": null
+    },
+    {
+      "id": "tide_pools",
+      "kind": "environment",
+      "biomes": [
+        "reef"
+      ],
+      "asset_id": null
+    },
+    {
+      "id": "lagoon",
+      "kind": "environment",
+      "biomes": [
+        "reef"
+      ],
+      "asset_id": null
+    },
+    {
+      "id": "jungle_cliffs",
+      "kind": "environment",
+      "biomes": [
+        "jungle"
+      ],
+      "asset_id": null
+    },
+    {
+      "id": "waterfall",
+      "kind": "environment",
+      "biomes": [
+        "jungle"
+      ],
+      "asset_id": null
+    },
+    {
+      "id": "mangroves",
+      "kind": "environment",
+      "biomes": [
+        "jungle"
+      ],
+      "asset_id": null
+    },
+    {
+      "id": "smoking_volcano",
+      "kind": "environment",
+      "biomes": [
+        "volcanic"
+      ],
+      "asset_id": null
+    },
+    {
+      "id": "obsidian_shore",
+      "kind": "environment",
+      "biomes": [
+        "volcanic"
+      ],
+      "asset_id": null
+    },
+    {
+      "id": "ancient_ruins",
+      "kind": "environment",
+      "biomes": [
+        "ruins"
+      ],
+      "asset_id": null
+    },
+    {
+      "id": "temple_gate",
+      "kind": "environment",
+      "biomes": [
+        "ruins"
+      ],
+      "asset_id": null
+    },
+    {
+      "id": "sunken_shipwreck",
+      "kind": "environment",
+      "biomes": [
+        "abyss"
+      ],
+      "asset_id": null
+    },
+    {
+      "id": "deep_sea_trench",
+      "kind": "environment",
+      "biomes": [
+        "abyss"
+      ],
+      "asset_id": null
+    }
+  ],
+  "encounter_shots": [
+    {
+      "id": "harbour_skirmish",
+      "biome": "harbour",
+      "cast": [
+        "pirate_captain",
+        "sailor",
+        "brigantine",
+        "galleon",
+        "harbour_docks"
+      ],
+      "lighting": "harbour_sunset"
+    },
+    {
+      "id": "merchant_intercept",
+      "biome": "harbour",
+      "cast": [
+        "merchant",
+        "sloop",
+        "merchantman",
+        "sea_fort"
+      ],
+      "lighting": "harbour_sunset"
+    },
+    {
+      "id": "reef_ambush",
+      "biome": "reef",
+      "cast": [
+        "reef_serpent",
+        "merfolk_guard",
+        "diving_skiff",
+        "coral_gardens"
+      ],
+      "lighting": "moonlit_reef"
+    },
+    {
+      "id": "dragon_overflight",
+      "biome": "reef",
+      "cast": [
+        "sea_dragon",
+        "reef_schooner",
+        "lagoon"
+      ],
+      "lighting": "moonlit_reef"
+    },
+    {
+      "id": "volcano_assault",
+      "biome": "volcanic",
+      "cast": [
+        "fire_wyvern",
+        "volcanic_raider",
+        "smoking_volcano",
+        "corsair"
+      ],
+      "lighting": "volcanic_golden"
+    },
+    {
+      "id": "jungle_temple",
+      "biome": "jungle",
+      "cast": [
+        "jungle_explorer",
+        "forest_spirit",
+        "jungle_cliffs"
+      ],
+      "lighting": "volcanic_golden"
+    },
+    {
+      "id": "sunken_leviathan",
+      "biome": "abyss",
+      "cast": [
+        "leviathan",
+        "ghost_ship",
+        "sunken_shipwreck"
+      ],
+      "lighting": "night_overcast"
+    },
+    {
+      "id": "ruins_boss",
+      "biome": "ruins",
+      "cast": [
+        "skeletal_raider",
+        "relic_keeper",
+        "ancient_ruins"
+      ],
+      "lighting": "night_overcast"
+    },
+    {
+      "id": "harbour_crew",
+      "biome": "harbour",
+      "cast": [
+        "shipwright",
+        "fisher",
+        "navigator",
+        "settlement_huts"
+      ],
+      "lighting": "harbour_sunset"
+    },
+    {
+      "id": "moonlit_reef",
+      "biome": "reef",
+      "cast": [
+        "merfolk_scout",
+        "coral_crab",
+        "tide_pools"
+      ],
+      "lighting": "moonlit_reef"
+    },
+    {
+      "id": "sunlit_tropical_harbour",
+      "biome": "harbour",
+      "cast": [
+        "galleon",
+        "harbour_docks",
+        "pirate_captain",
+        "shipwright"
+      ],
+      "lighting": "tropical_daylight"
+    }
+  ]
+}
