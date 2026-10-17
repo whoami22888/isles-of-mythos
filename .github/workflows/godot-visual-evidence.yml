@@ -31,7 +31,12 @@ jobs:
           echo "cadd3204e728a35d3f13adb7fd0d7902636b79f6b95c40c265eb73b6c35329e4  $RUNNER_TEMP/godot.zip" | sha256sum --check
           unzip -q "$RUNNER_TEMP/godot.zip" -d "$RUNNER_TEMP"
           install "$RUNNER_TEMP/Godot_v4.7.2-stable_linux.x86_64" "$RUNNER_TEMP/godot"
-      - name: Render original prototype reference image
+      - name: Verify realistic coastal water and camera contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$RUNNER_TEMP/godot" --headless --path client-godot --script res://tests/realistic_coastal_slice_test.gd
+      - name: Capture actual coastal gameplay and cinematic scene
         shell: bash
         run: |
           set -euo pipefail
