@@ -10,13 +10,14 @@ import struct
 import sys
 import zlib
 from pathlib import Path
+from typing import List, Optional, Set, Tuple
 
 
 class VisualAssetError(ValueError):
     """Raised when an asset cannot pass the visual admission gate."""
 
 
-def _png_pixels(data: bytes) -> tuple[int, int, list[tuple[int, int, int]]]:
+def _png_pixels(data: bytes) -> Tuple[int, int, List[Tuple[int, int, int]]]:  # pylint: disable=too-many-locals,too-many-branches
     if data[:8] != b"\x89PNG\r\n\x1a\n":
         raise VisualAssetError("texture is not a PNG")
     pos = 8
@@ -70,7 +71,7 @@ def _png_pixels(data: bytes) -> tuple[int, int, list[tuple[int, int, int]]]:
             elif filter_type != 0:
                 raise VisualAssetError(f"unsupported PNG filter {filter_type}")
         rows.append(bytes(current))
-    pixels = []
+    pixels: List[Tuple[int, int, int]] = []
     for row in rows:
         for i in range(0, len(row), channels):
             pixels.append(tuple(row[i : i + 3]))
@@ -101,7 +102,7 @@ def _image_bytes(document: dict, image: dict, asset_path: Path) -> bytes:
     return raw[start : start + view["byteLength"]]
 
 
-def _texture_index(material: dict, channel: str) -> int | None:
+def _texture_index(material: dict, channel: str) -> Optional[int]:
     if channel == "baseColorTexture":
         return (material.get("pbrMetallicRoughness", {}).get(channel) or {}).get("index")
     return (material.get(channel) or {}).get("index")
@@ -128,7 +129,7 @@ def validate_gltf(path: Path) -> None:
     images = document.get("images", [])
     if not textures or not images:
         raise VisualAssetError(f"{path.name}: no bound material textures")
-    checked_images: set[int] = set()
+    checked_images: Set[int] = set()
     for mesh in document["meshes"]:
         for primitive in mesh.get("primitives", []):
             if "TEXCOORD_0" not in primitive.get("attributes", {}):

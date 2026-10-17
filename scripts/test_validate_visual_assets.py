@@ -6,12 +6,13 @@ import sys
 import unittest
 import zlib
 from pathlib import Path
+from typing import List, Tuple
 
 sys.path.insert(0, str(Path(__file__).parent))
-from validate_visual_assets import VisualAssetError, validate_gltf  # noqa: E402
+from validate_visual_assets import VisualAssetError, validate_gltf  # noqa: E402  # pylint: disable=wrong-import-position
 
 
-def png(width: int, height: int, colours: list[tuple[int, int, int]]) -> bytes:
+def png(width: int, height: int, colours: List[Tuple[int, int, int]]) -> bytes:
     rows = []
     for y in range(height):
         row = bytearray([0])
@@ -24,7 +25,12 @@ def png(width: int, height: int, colours: list[tuple[int, int, int]]) -> bytes:
         return struct.pack(">I", len(payload)) + kind + payload + struct.pack(">I", checksum)
 
     header = struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0)
-    return b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", header) + chunk(b"IDAT", zlib.compress(b"".join(rows))) + chunk(b"IEND", b"")
+    return (
+        b"\x89PNG\r\n\x1a\n"
+        + chunk(b"IHDR", header)
+        + chunk(b"IDAT", zlib.compress(b"".join(rows)))
+        + chunk(b"IEND", b"")
+    )
 
 
 def gltf(texture: bytes, with_pbr: bool = True) -> dict:
@@ -32,7 +38,12 @@ def gltf(texture: bytes, with_pbr: bool = True) -> dict:
     material = {"pbrMetallicRoughness": {"baseColorTexture": {"index": 0}}}
     if with_pbr:
         material.update({"normalTexture": {"index": 0}, "metallicRoughnessTexture": {"index": 0}})
-    return {"images": [{"uri": uri}], "textures": [{"source": 0}], "materials": [material], "meshes": [{"primitives": [{"attributes": {"TEXCOORD_0": 0}, "material": 0}]}]}
+    return {
+        "images": [{"uri": uri}],
+        "textures": [{"source": 0}],
+        "materials": [material],
+        "meshes": [{"primitives": [{"attributes": {"TEXCOORD_0": 0}, "material": 0}]}],
+    }
 
 
 class VisualAssetValidationTests(unittest.TestCase):
@@ -61,7 +72,9 @@ class VisualAssetValidationTests(unittest.TestCase):
 
     def test_missing_normal_map_is_rejected(self) -> None:
         colours = [(x * 17 % 256, y * 19 % 256, (x * 11 + y * 7) % 256) for y in range(16) for x in range(16)]
-        path = self.write("no-normal.gltf", gltf(png(128, 128, colours), False))
+        path = self.write(
+            "no-normal.gltf", gltf(png(128, 128, colours), False)
+        )
         with self.assertRaisesRegex(VisualAssetError, "normalTexture"):
             validate_gltf(path)
 

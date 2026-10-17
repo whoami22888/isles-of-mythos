@@ -27,6 +27,11 @@ func _run() -> void:
 	if terrain_material.albedo_texture == null or terrain_material.normal_texture == null or terrain_material.roughness_texture == null:
 		_fail("coastal terrain texture maps missing")
 		return
+	var terrain_arrays := terrain.mesh.surface_get_arrays(0)
+	var tangents := terrain_arrays[Mesh.ARRAY_TANGENT] as PackedFloat32Array
+	if tangents.is_empty():
+		_fail("coastal terrain tangent basis missing for normal mapping")
+		return
 	if water == null or water.mesh == null or not water.material_override is ShaderMaterial:
 		_fail("coastal water shader surface missing")
 		return

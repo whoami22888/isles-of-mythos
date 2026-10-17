@@ -93,10 +93,39 @@ func build_mesh() -> ArrayMesh:
 		normals[c] += face
 	for i in range(normals.size()):
 		normals[i] = normals[i].normalized()
+	var tangent_sum := PackedVector3Array()
+	tangent_sum.resize(vertices.size())
+	for i in range(0, indices.size(), 3):
+		var ia := indices[i]
+		var ib := indices[i + 1]
+		var ic := indices[i + 2]
+		var edge_a := vertices[ib] - vertices[ia]
+		var edge_b := vertices[ic] - vertices[ia]
+		var uv_a := uvs[ib] - uvs[ia]
+		var uv_b := uvs[ic] - uvs[ia]
+		var determinant := uv_a.x * uv_b.y - uv_b.x * uv_a.y
+		if absf(determinant) < 0.00001:
+			continue
+		var tangent := (edge_a * uv_b.y - edge_b * uv_a.y) / determinant
+		tangent_sum[ia] += tangent
+		tangent_sum[ib] += tangent
+		tangent_sum[ic] += tangent
+	var tangents := PackedFloat32Array()
+	tangents.resize(vertices.size() * 4)
+	for i in range(vertices.size()):
+		var tangent := tangent_sum[i]
+		if tangent.length_squared() < 0.00001:
+			tangent = Vector3(1.0, 0.0, 0.0)
+		tangent = (tangent - normals[i] * normals[i].dot(tangent)).normalized()
+		tangents[i * 4] = tangent.x
+		tangents[i * 4 + 1] = tangent.y
+		tangents[i * 4 + 2] = tangent.z
+		tangents[i * 4 + 3] = 1.0
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = vertices
 	arrays[Mesh.ARRAY_NORMAL] = normals
+	arrays[Mesh.ARRAY_TANGENT] = tangents
 	arrays[Mesh.ARRAY_TEX_UV] = uvs
 	arrays[Mesh.ARRAY_COLOR] = colors
 	arrays[Mesh.ARRAY_INDEX] = indices

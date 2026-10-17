@@ -27,6 +27,9 @@ func _capture() -> void:
 	if image == null or image.is_empty() or image.get_width() < 640 or image.get_height() < 360:
 		_fail("display-backed renderer did not produce a usable coastal capture")
 		return
+	if not _has_scene_content(image):
+		_fail("coastal capture is visually blank or background-only")
+		return
 	var output := OS.get_environment("IOM_COASTAL_SCREENSHOT_PATH")
 	if output.is_empty():
 		output = "user://coastal-vertical-slice.png"
@@ -39,3 +42,19 @@ func _capture() -> void:
 func _fail(message: String) -> void:
 	push_error(message)
 	quit(1)
+
+func _has_scene_content(image: Image) -> bool:
+	var reference := image.get_pixel(0, 0)
+	var varied := 0
+	var minimum_luminance := 1.0
+	var maximum_luminance := 0.0
+	for y in range(0, image.get_height(), max(1, image.get_height() / 9)):
+		for x in range(0, image.get_width(), max(1, image.get_width() / 16)):
+			var color := image.get_pixel(x, y)
+			var difference := absf(color.r - reference.r) + absf(color.g - reference.g) + absf(color.b - reference.b)
+			if difference > 0.03:
+				varied += 1
+			var luminance := color.r * 0.2126 + color.g * 0.7152 + color.b * 0.0722
+			minimum_luminance = minf(minimum_luminance, luminance)
+			maximum_luminance = maxf(maximum_luminance, luminance)
+	return varied >= 8 and maximum_luminance - minimum_luminance >= 0.05

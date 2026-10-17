@@ -29,6 +29,16 @@ jobs:
         run: python3 -m py_compile scripts/fetch_verified_godot_assets.py
       - name: Run visual material rejection regressions
         run: python3 scripts/test_validate_visual_assets.py
+      - name: Validate every submitted GLTF material directly
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t assets < <(find client-godot/assets -type f -name '*.gltf' -print)
+          if [ "${#assets[@]}" -gt 0 ]; then
+            python3 scripts/validate_visual_assets.py "${assets[@]}"
+          else
+            echo "No GLTF assets submitted; synthetic rejection tests still ran."
+          fi
       - name: Run provenance rejection regression tests
         run: python3 scripts/test_godot_asset_validator.py
       - name: Run offline importer regression tests
