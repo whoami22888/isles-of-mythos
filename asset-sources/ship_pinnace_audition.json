@@ -1,0 +1,159 @@
+{
+  "asset_id": "ship_pinnace",
+  "publisher": "https://polyhaven.com/a/ship_pinnace",
+  "license": "CC0-1.0",
+  "status": "quarantined-for-evaluation",
+  "original_sha256_pins": "PENDING first verified download; not admitted",
+  "source_meta_date": "2026-10-18",
+  "gltf_has_skeletal_skins": false,
+  "gltf_has_animation_clips": false,
+  "gameplay_available": false,
+  "visual_quality": "NOT VERIFIED",
+  "owner_master_sha256": "713cd6e90c6f7d589a06eb3bd4b9b2d5ebeb9c0ff711b5de527a68460dfbcb05",
+  "files": [
+    {
+      "path": "ship_pinnace_1k.gltf",
+      "size": 17175,
+      "md5": "dca97c677eadc565d7efa4e4c29863ef",
+      "url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/ship_pinnace/ship_pinnace_1k.gltf"
+    },
+    {
+      "path": "textures/ship_pinnace_rigging_diff_1k.jpg",
+      "size": 669629,
+      "md5": "0797c0f985407feb2038f57ad876c333",
+      "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/ship_pinnace/ship_pinnace_rigging_diff_1k.jpg"
+    },
+    {
+      "path": "textures/ship_pinnace_sails_diff_1k.jpg",
+      "size": 593277,
+      "md5": "5cc1a091d4296bb93990f9856f7492c0",
+      "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/ship_pinnace/ship_pinnace_sails_diff_1k.jpg"
+    },
+    {
+      "path": "textures/ship_pinnace_deck_diff_1k.jpg",
+      "size": 739906,
+      "md5": "5b64def85f9d91987ba566844cb938c0",
+      "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/ship_pinnace/ship_pinnace_deck_diff_1k.jpg"
+    },
+    {
+      "path": "textures/ship_pinnace_aft_arm_1k.jpg",
+      "size": 553685,
+      "md5": "f479e1318044e212e235d5c2625ddb7d",
+      "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/ship_pinnace/ship_pinnace_aft_arm_1k.jpg"
+    },
+    {
+      "path": "textures/ship_pinnace_rigging_arm_1k.jpg",
+      "size": 700773,
+      "md5": "f6451ed77f4be15c6e179ea61245bb80",
+      "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/ship_pinnace/ship_pinnace_rigging_arm_1k.jpg"
+    },
+    {
+      "path": "textures/ship_pinnace_details_nor_gl_1k.jpg",
+      "size": 712283,
+      "md5": "18801519aeb1aa41cfe36210598bfba0",
+      "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/ship_pinnace/ship_pinnace_details_nor_gl_1k.jpg"
+    },
+    {
+      "path": "textures/ship_pinnace_deck_nor_gl_1k.jpg",
+      "size": 530854,
+      "md5": "ce3817091f2d897004dcca0f8bda0aa0",
+      "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/ship_pinnace/ship_pinnace_deck_nor_gl_1k.jpg"
+    },
+    {
+      "path": "textures/ship_pinnace_rigging_nor_gl_1k.jpg",
+      "size": 713868,
+      "md5": "e904eee86b8ecd0c8d4839e526184de6",
+      "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/ship_pinnace/ship_pinnace_rigging_nor_gl_1k.jpg"
+    },
+    {
+      "path": "textures/ship_pinnace_interior_nor_gl_1k.jpg",
+      "size": 365806,
+      "md5": "dfc90577fbd4a4d547eaa03482c30721",
+      "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/ship_pinnace/ship_pinnace_interior_nor_gl_1k.jpg"
+    },
+    {
+      "path": "ship_pinnace.bin",
+      "size": 7127428,
+      "md5": "154e557f7ecc84a31a213bf176581801",
+      "url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/4k/ship_pinnace/ship_pinnace.bin"
+    },
+    {
+      "path": "textures/ship_pinnace_hull_diff_1k.jpg",
+      "size": 602406,
+      "md5": "b4ace551dddf3c75e06477100cba81b9",
+      "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/ship_pinnace/ship_pinnace_hull_diff_1k.jpg"
+    },
+    {
+      "path": "textures/ship_pinnace_hull_nor_gl_1k.jpg",
+      "size": 642694,
+      "md5": "f60d615eabb763ee530df82699e84c52",
+      "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/ship_pinnace/ship_pinnace_hull_nor_gl_1k.jpg"
+    },
+    {
+      "path": "textures/ship_pinnace_sails_arm_1k.jpg",
+      "size": 531487,
+      "md5": "2d95993394aae8895084fbaab158fbec",
+      "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/ship_pinnace/ship_pinnace_sails_arm_1k.jpg"
+    },
+    {
+      "path": "textures/ship_pinnace_hull_arm_1k.jpg",
+      "size": 686048,
+      "md5": "e66f12a1d8700b97e971ac41710a3a20",
+      "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/ship_pinnace/ship_pinnace_hull_arm_1k.jpg"
+    },
+    {
+      "path": "textures/ship_pinnace_interior_diff_1k.jpg",
+      "size": 720138,
+      "md5": "6ff83361fc0837e45bb38e9bc9bfac9d",
+      "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/ship_pinnace/ship_pinnace_interior_diff_1k.jpg"
+    },
+    {
+      "path": "textures/ship_pinnace_interior_arm_1k.jpg",
+      "size": 720399,
+      "md5": "b01d9f8cd8a1cd5ad23b4c65219cb700",
+      "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/ship_pinnace/ship_pinnace_interior_arm_1k.jpg"
+    },
+    {
+      "path": "textures/ship_pinnace_aft_diff_1k.jpg",
+      "size": 659920,
+      "md5": "841f0a07cb7fea4fb727f6a3452f8f0d",
+      "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/ship_pinnace/ship_pinnace_aft_diff_1k.jpg"
+    },
+    {
+      "path": "textures/ship_pinnace_deck_arm_1k.jpg",
+      "size": 778067,
+      "md5": "6d78da350d090ae4a62319c487f04bf8",
+      "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/ship_pinnace/ship_pinnace_deck_arm_1k.jpg"
+    },
+    {
+      "path": "textures/ship_pinnace_sails_nor_gl_1k.jpg",
+      "size": 767155,
+      "md5": "0475784a0c33f5a8d1855b5e0fbaf972",
+      "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/ship_pinnace/ship_pinnace_sails_nor_gl_1k.jpg"
+    },
+    {
+      "path": "textures/ship_pinnace_details_arm_1k.jpg",
+      "size": 884789,
+      "md5": "3e6f0571f7d895b1038c471e201dbd10",
+      "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/ship_pinnace/ship_pinnace_details_arm_1k.jpg"
+    },
+    {
+      "path": "textures/ship_pinnace_aft_nor_gl_1k.jpg",
+      "size": 728770,
+      "md5": "ee37386069785283142a080d9ecf477e",
+      "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/ship_pinnace/ship_pinnace_aft_nor_gl_1k.jpg"
+    },
+    {
+      "path": "textures/ship_pinnace_details_diff_1k.jpg",
+      "size": 628000,
+      "md5": "a25e4b635ae110293e93e479517dfea2",
+      "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/ship_pinnace/ship_pinnace_details_diff_1k.jpg"
+    },
+    {
+      "path": "textures/ship_pinnace_sails_alpha_1k.png",
+      "size": 19052,
+      "md5": "cdee9b27438c94d09ed68d35a4792a98",
+      "url": "https://dl.polyhaven.org/file/ph-assets/Models/png/1k/ship_pinnace/ship_pinnace_sails_alpha_1k.png"
+    }
+  ]
+}
