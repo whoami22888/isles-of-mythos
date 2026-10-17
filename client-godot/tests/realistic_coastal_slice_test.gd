@@ -25,6 +25,13 @@ func run() -> void:
 	var ok := terrain != null and terrain.mesh != null and terrain.mesh.get_surface_count() == 1
 	ok = ok and water != null and gameplay != null and cinematic != null
 	ok = ok and rock_count == 4 and tree_count == 4 and ship_count == 1 and gameplay.current
+	# Guard against reintroducing the sparse 24x18 rectangular mound and
+	# disconnected beach/cliff relief that failed owner visual inspection.
+	var terrain_points: PackedVector3Array = terrain.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+	ok = ok and terrain_points.size() >= 6000
+	ok = ok and scene._terrain_height(0.0, 15.0) > scene._terrain_height(0.0, -12.0) + 3.0
+	ok = ok and absf(scene._terrain_height(-15.0, -6.0) - scene._terrain_height(15.0, -6.0)) > 0.3
+	ok = ok and scene.player_marker.position.y > scene._terrain_height(0.0, 5.5)
 	scene.play_cinematic(true)
 	ok = ok and gameplay.current and not scene._cinematic_active
 	scene.play_cinematic()
