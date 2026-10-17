@@ -9,6 +9,7 @@ const COAST_NORMAL := preload("res://assets/external/polyhaven/coast_sand_rocks_
 const COAST_ROUGHNESS := preload("res://assets/external/polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_rough_1k.jpg")
 const COAST_AO := preload("res://assets/external/polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_ao_1k.jpg")
 const OCEAN_SHADER := preload("res://shaders/ocean_surface.gdshader")
+const SHORE_BRIDGE := preload("res://scripts/coastal_shore_heightfield.gd")
 const WATER_Y := -0.35
 const GAMEPLAY_CAMERA := Vector3(10.5, 6.0, 10.0)
 const CINEMATIC_START_CAMERA := Vector3(-8.0, 4.5, 9.0)
@@ -17,6 +18,8 @@ var gameplay_camera: Camera3D
 var cinematic_camera: Camera3D
 var player_marker: Node3D
 var ship_focal: Node3D
+var _coastal_terrain: MeshInstance3D
+var _shore_binding: Dictionary
 var _ship_base_position := Vector3.ZERO
 var _cinematic_tween: Tween
 var _cinematic_active := false
@@ -100,6 +103,7 @@ func _build_coastal_terrain() -> void:
 	terrain.mesh = mesh
 	terrain.material_override = _terrain_material()
 	add_child(terrain)
+	_coastal_terrain = terrain
 
 func _terrain_material() -> StandardMaterial3D:
 	var material := StandardMaterial3D.new()
@@ -131,8 +135,10 @@ func _build_water() -> void:
 	material.shader = OCEAN_SHADER
 	water.material_override = material
 	add_child(water)
-	# Contact foam is now evaluated against the actual terrain-height equation
-	# inside the ocean shader, rather than being three disconnected quad strips.
+	_shore_binding = SHORE_BRIDGE.bind_to_material(_coastal_terrain, material, 24, 18)
+	if _shore_binding.has("error"):
+		push_error("Terrain-derived shoreline binding failed: " + str(_shore_binding["error"]))
+	# Contact foam is sampled from the authored indexed terrain mesh, not a duplicate equation.
 
 
 func _build_premium_landmarks() -> void:
