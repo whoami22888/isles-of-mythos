@@ -38,5 +38,16 @@ func _capture() -> void:
 		quit(1)
 		return
 	print("Godot rendered reference capture: %s (%dx%d)" % [output, screenshot.get_width(), screenshot.get_height()])
+	var cinematic_output := OS.get_environment("IOM_CINEMATIC_SCREENSHOT_PATH")
+	if not cinematic_output.is_empty():
+		scene.set_cinematic_view()
+		await process_frame
+		await process_frame
+		var cinematic_image: Image = root.get_viewport().get_texture().get_image()
+		if cinematic_image == null or cinematic_image.is_empty() or cinematic_image.save_png(cinematic_output) != OK:
+			push_error("Could not write cinematic capture")
+			quit(1)
+			return
+		print("Godot rendered cinematic capture: %s (%dx%d)" % [cinematic_output, cinematic_image.get_width(), cinematic_image.get_height()])
 	scene.queue_free()
 	quit(0)

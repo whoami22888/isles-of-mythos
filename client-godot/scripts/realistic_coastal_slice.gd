@@ -41,7 +41,7 @@ func _build_environment() -> void:
 	environment.sky = sky
 	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	environment.ambient_light_color = Color("#b6d6df")
-	environment.ambient_light_energy = 0.55
+	environment.ambient_light_energy = 0.38
 	environment.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	world.environment = environment
 	add_child(world)
@@ -49,7 +49,7 @@ func _build_environment() -> void:
 	sun.name = "WarmSun"
 	sun.rotation_degrees = Vector3(-52.0, -28.0, 0.0)
 	sun.light_color = Color("#fff0cf")
-	sun.light_energy = 1.35
+	sun.light_energy = 0.95
 	sun.shadow_enabled = true
 	add_child(sun)
 
@@ -123,10 +123,10 @@ func _build_water() -> void:
 	shader.code = """
 shader_type spatial;
 render_mode cull_back, depth_draw_opaque;
-uniform vec4 shallow : source_color = vec4(0.05, 0.62, 0.66, 1.0);
-uniform vec4 deep : source_color = vec4(0.015, 0.10, 0.22, 1.0);
+uniform vec4 shallow : source_color = vec4(0.08, 0.34, 0.46, 1.0);
+uniform vec4 deep : source_color = vec4(0.01, 0.07, 0.18, 1.0);
 void fragment() {
-    float depth_band = clamp(UV.x * 0.58 + UV.y * 0.18, 0.0, 1.0);
+    float depth_band = clamp(UV.x * 0.34 + UV.y * 0.22, 0.0, 1.0);
     ALBEDO = mix(shallow.rgb, deep.rgb, depth_band);
     ROUGHNESS = 0.22;
     SPECULAR = 0.8;
