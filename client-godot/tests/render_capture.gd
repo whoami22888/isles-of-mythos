@@ -33,7 +33,8 @@ func _capture() -> void:
 	var first_pixel := screenshot.get_pixel(0, 0)
 	var varied_pixels := 0
 	for sample in [Vector2i(320, 180), Vector2i(640, 360), Vector2i(960, 540)]:
-		if screenshot.get_pixel(sample.x, sample.y).distance_to(first_pixel) > 0.03:
+		var pixel := screenshot.get_pixel(sample.x, sample.y)
+		if abs(pixel.r - first_pixel.r) + abs(pixel.g - first_pixel.g) + abs(pixel.b - first_pixel.b) > 0.09:
 			varied_pixels += 1
 	if varied_pixels < 2:
 		push_error("Renderer produced a uniform or blank capture")
