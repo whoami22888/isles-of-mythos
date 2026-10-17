@@ -36,10 +36,23 @@ func run() -> void:
     if plane != null:
         check(plane.subdivide_width >= 96 and plane.subdivide_depth >= 72,
             "Ocean needs actual geometry for moving swell")
-        check(plane.size.x >= 512.0 and plane.size.y >= 384.0,
-            "Ocean must extend beyond the cinematic camera to avoid a visible rectangular edge")
-        check(plane.subdivide_width <= 320 and plane.subdivide_depth <= 240,
-            "Ocean mesh needs an explicit mobile vertex budget")
+        check(plane.size == Vector2(160.0, 120.0),
+            "Detailed water must remain a bounded near-field patch")
+        check(plane.subdivide_width <= 160 and plane.subdivide_depth <= 120,
+            "Near ocean geometric wave budget may not regress")
+    var far := scene.get_node_or_null("FarDeepOcean") as MeshInstance3D
+    check(far != null, "Require seamless far ocean to the horizon")
+    if far != null:
+        var far_mesh := far.mesh as PlaneMesh
+        check(far_mesh != null and far_mesh.size.x >= 2000.0 and far_mesh.size.y >= 2000.0,
+            "Far ocean must cover entire cinematic camera path")
+        if far_mesh != null:
+            check(far_mesh.subdivide_width == 0 and far_mesh.subdivide_depth == 0,
+                "Far ocean must avoid expensive vertex tessellation")
+        var far_mat := far.material_override as ShaderMaterial
+        check(far_mat != null and far_mat.get_shader_parameter("far_ocean_patch") == true,
+            "Far-ocean shader must disable expensive displaced waves")
+        check(far.position.y == water.position.y, "Ocean surfaces must share their base plane")
     var material := water.material_override as ShaderMaterial
     check(material != null and material.shader != null, "Require real shader material")
     if material == null or material.shader == null:
@@ -76,7 +89,7 @@ func run() -> void:
     var grove := scene.get_node_or_null("CoastalPBRDepthLayer")
     check(grove != null, "Only genuine sourced PBR coastal depth assets allowed")
     if grove != null:
-        check(grove.get_child_count() == 10, "Six trees and four rocks must ground to the real terrain")
+        check(grove.get_child_count() == 6, "Four sourced trees and two rocks must ground to the real terrain")
         for child in grove.get_children():
             check(child is Node3D, "Coastal vegetation must use instantiated true 3D assets")
 
