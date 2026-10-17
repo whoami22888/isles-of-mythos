@@ -10,6 +10,9 @@ const GAMEPLAY_CAMERA := Vector3(17.0, 10.5, 18.0)
 var gameplay_camera: Camera3D
 var cinematic_camera: Camera3D
 var player_marker: Node3D
+var _cinematic_tween: Tween
+var _cinematic_active := false
+var _reduced_motion := false
 
 func _ready() -> void:
 	_build_environment()
@@ -171,9 +174,35 @@ func _build_cameras() -> void:
 	cinematic_camera.look_at(Vector3(0.0, 0.5, -2.0))
 
 func set_gameplay_view() -> void:
+	_cinematic_active = false
+	if _cinematic_tween:
+		_cinematic_tween.kill()
 	if gameplay_camera:
 		gameplay_camera.current = true
 
 func set_cinematic_view() -> void:
 	if cinematic_camera:
 		cinematic_camera.current = true
+
+func play_cinematic(reduced_motion := false) -> void:
+	_reduced_motion = reduced_motion
+	_cinematic_active = true
+	if _cinematic_tween:
+		_cinematic_tween.kill()
+	set_cinematic_view()
+	if _reduced_motion:
+		set_gameplay_view()
+		return
+	_cinematic_tween = create_tween()
+	_cinematic_tween.tween_property(cinematic_camera, "position", Vector3(-7.0, 5.5, 10.0), 1.8).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_cinematic_tween.tween_property(cinematic_camera, "position", Vector3(17.0, 10.5, 18.0), 1.8).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_cinematic_tween.finished.connect(set_gameplay_view)
+
+func skip_cinematic() -> void:
+	set_gameplay_view()
+
+func _process(_delta: float) -> void:
+	if _cinematic_active and cinematic_camera and cinematic_camera.current:
+		cinematic_camera.look_at(Vector3(1.0, 0.8, -3.0))
+	if _cinematic_active and (Input.is_action_just_pressed("ui_accept") or Input.is_action_just_pressed("ui_cancel")):
+		skip_cinematic()

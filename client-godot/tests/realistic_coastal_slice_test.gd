@@ -25,6 +25,12 @@ func run() -> void:
 	var ok := terrain != null and terrain.mesh != null and terrain.mesh.get_surface_count() == 1
 	ok = ok and water != null and gameplay != null and cinematic != null
 	ok = ok and rock_count == 4 and tree_count == 4 and ship_count == 1 and gameplay.current
+	scene.play_cinematic(true)
+	ok = ok and gameplay.current and not scene._cinematic_active
+	scene.play_cinematic()
+	ok = ok and cinematic.current and scene._cinematic_active
+	scene.skip_cinematic()
+	ok = ok and gameplay.current and not scene._cinematic_active
 	if not ok:
 		push_error("Realistic coastal slice contract failed")
 	print("Realistic coastal slice test: %s" % ("PASS" if ok else "FAIL"))
