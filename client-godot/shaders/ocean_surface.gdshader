@@ -11,20 +11,11 @@ uniform float swell_scale : hint_range(0.0, 1.5) = 1.0;
 uniform float ripple_detail : hint_range(0.0, 1.0) = 0.9;
 uniform float foam_amount : hint_range(0.0, 1.0) = 0.7;
 
+#include "res://shaders/coastal_shore_sampler.gdshaderinc"
+
 const float SEA_LEVEL = -0.35;
 varying vec3 surface_world;
 varying float swell_crest;
-
-// Uses the same coastal elevation function as realistic_coastal_slice.gd.
-// This is a shallow-water *estimate*, not a replacement for a real depth map.
-// The offshore shelf falls away to deep water outside the terrain mesh.
-float coastal_floor_height(vec2 xz) {
-    float shore = smoothstep(-10.0, -2.0, xz.y);
-    float ridge = sin(xz.x * 0.37) * 0.8 + cos(xz.y * 0.31) * 0.55;
-    float cliff = max(0.0, (xz.y + 1.0) * 0.16) * shore;
-    float shelf_drop = max(0.0, -10.0 - xz.y) * 0.30;
-    return SEA_LEVEL + shore * (1.25 + cliff) + ridge * 0.12 - shelf_drop;
-}
 
 void vertex() {
     vec2 xz = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xz;
@@ -46,13 +37,13 @@ void vertex() {
 
 void fragment() {
     vec2 p = surface_world.xz;
-    float depth_m = max(0.0, SEA_LEVEL - coastal_floor_height(p));
+    float coverage = shore_terrain_coverage(p);
+    float floor_y = shore_terrain_height(p);
+    // Open water outside the mesh is deep; never extend edge texels as shore.
+    float depth_m = mix(8.5, max(0.0, SEA_LEVEL - floor_y), coverage);
     float shallow_factor = 1.0 - smoothstep(0.15, 8.5, depth_m);
-    // Only the surveyed terrain is allowed to define a shoreline contact.
-    float land_region = (1.0 - smoothstep(15.0, 17.0, abs(p.x)))
-                      * (1.0 - smoothstep(10.0, 13.0, abs(p.y)));
-    float contact = land_region *
-        (1.0 - smoothstep(0.025, 0.24, abs(SEA_LEVEL - coastal_floor_height(p))));
+    float contact = coverage *
+        (1.0 - smoothstep(0.025, 0.24, abs(SEA_LEVEL - floor_y)));
 
     // Two counter-moving normal frequencies animate highlights on the water.
     // No screen-space reflection pass or full-screen postprocess is required.
