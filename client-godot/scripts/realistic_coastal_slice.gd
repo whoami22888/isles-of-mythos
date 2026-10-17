@@ -10,7 +10,6 @@ const COAST_ROUGHNESS := preload("res://assets/external/polyhaven/coast_sand_roc
 const COAST_AO := preload("res://assets/external/polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_ao_1k.jpg")
 const SHORE_BAKER := preload("res://scripts/coastal_shore_heightfield.gd")
 const OCEAN_SHADER := preload("res://shaders/ocean_surface.gdshader")
-const FAR_OCEAN_SHADER := preload("res://shaders/far_ocean_mobile.gdshader")
 const WATER_Y := -0.35
 const GAMEPLAY_CAMERA := Vector3(13.0, 12.0, -14.0)
 const CINEMATIC_START_CAMERA := Vector3(-11.0, 5.5, -18.0)
@@ -157,10 +156,11 @@ func _build_water() -> void:
 	var water := MeshInstance3D.new()
 	water.name = "ShallowToDeepWater"
 	var plane := PlaneMesh.new()
-	# Full-resolution near swell; remote water is a separate FOUR-vertex
-	# far plane using the same shader. Avoid running wave vertex sine functions
-	# on ~50k vertices on every frame of the mobile client.
-	plane.size = Vector2(160.0, 120.0)
+	# ONE contiguous seascape avoids cross-material seams and expensive
+	# overlapping fragment passes. Only the central ~180x140m displaces;
+	# distant water retains animated per-pixel micro-normals without tessellation.
+	# 160x120 subdivisions cap vertex shader work even across the full horizon.
+	plane.size = Vector2(640.0, 480.0)
 	plane.subdivide_width = 160
 	plane.subdivide_depth = 120
 	water.mesh = plane
@@ -175,25 +175,8 @@ func _build_water() -> void:
 	_shore_binding = baked
 	water.material_override = material
 	add_child(water)
-	# A single low-vertex far ocean covers every cinematic camera position.
-	# Identical UV-space shader colours/normals and a wave-faded near patch
-	# avoid the old bright rectangular ocean edge without huge tessellation.
-	var far_mesh := PlaneMesh.new()
-	far_mesh.size = Vector2(2400.0, 2400.0)
-	var far := MeshInstance3D.new()
-	far.name = "FarDeepOcean"
-	far.mesh = far_mesh
-	far.position.y = WATER_Y - 0.18
-	far.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	# Distant water must not run the near shader's 3 vertex waves and
-	# 32-bit terrain texture sampling over every background screen pixel.
-	var far_material := ShaderMaterial.new()
-	far_material.shader = FAR_OCEAN_SHADER
-	far.material_override = far_material
-	add_child(far)
-	# Contact foam and depth transitions sample ACTUAL indexed terrain.
-	# No detached white quads and no invented shoreline equations.
-
+	# A single material covers near and far, so no visible shader seam.
+	# No detached white foam quads and no duplicated terrain height equation.
 
 func _build_premium_landmarks() -> void:
 	ship_focal = SHIP_SCENE.instantiate()
@@ -216,7 +199,7 @@ func _build_premium_landmarks() -> void:
 		rock.scale = Vector3.ONE * entry[1]
 		add_child(rock)
 		_ground_asset_on_terrain(rock, 0.3)
-		_configure_mobile_visibility(rock, 110.0)
+		_configure_mobile_visibility(rock, 85.0)
 	for entry in [
 		[Vector3(-16.0, 0.0, 4.0), 1.1], [Vector3(-20.5, 0.0, 13.0), 1.15],
 		[Vector3(15.2, 0.0, 6.5), 1.05], [Vector3(20.0, 0.0, 13.0), 0.9]
@@ -226,7 +209,7 @@ func _build_premium_landmarks() -> void:
 		tree.scale = Vector3.ONE * entry[1]
 		add_child(tree)
 		_ground_asset_on_terrain(tree)
-		_configure_mobile_visibility(tree, 110.0)
+		_configure_mobile_visibility(tree, 60.0)
 	# Verified imported PBR art only, arranged in a landscape-depth layer.
 	# Old 26m foliage culling hid essentially all background vegetation after
 	# the camera pulled back to protect the masts and sails. Keep the gallery
