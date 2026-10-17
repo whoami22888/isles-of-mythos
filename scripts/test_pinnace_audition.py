@@ -127,6 +127,14 @@ class PinnaceSourceTests(unittest.TestCase):
         with self.assertRaises(SourceError):verified_download(wrong,self.root/'wrong',fetch=lambda _:body)
         with self.assertRaises(SourceError):verified_download(record,self.root/'short',fetch=lambda _:body[:-1])
 
+    def test_original_publisher_aft_arm_byte_identity_lock(self):
+        # This publisher MD5 is confirmed directly against the live Poly Haven API.
+        # Regression: typo in first run caused expected source to be incorrectly rejected.
+        manifest_path = Path(__file__).parents[1]/'asset-sources/ship_pinnace_audition.json'
+        doc = json.loads(manifest_path.read_text(encoding='utf-8'))
+        material = next(f for f in doc['files'] if f['path'] == 'textures/ship_pinnace_aft_arm_1k.jpg')
+        self.assertEqual(material['md5'], 'f479e1318044e212e235d5b2625ddb7d')
+
     def test_admission_remains_false_even_after_source_verification(self):
         self.assertEqual(self.manifest['status'],'quarantined-for-evaluation')
 
