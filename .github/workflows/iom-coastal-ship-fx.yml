@@ -64,7 +64,7 @@ jobs:
           cp "$RUNNER_TEMP/coastal-fx-frames/frame_0000.png" "$RUNNER_TEMP/coastal-fx-evidence/cinematic-start.png"
           cp "$RUNNER_TEMP/coastal-fx-frames/frame_0035.png" "$RUNNER_TEMP/coastal-fx-evidence/cinematic-middle.png"
           cp "$RUNNER_TEMP/coastal-fx-frames/frame_0071.png" "$RUNNER_TEMP/coastal-fx-evidence/cinematic-end.png"
-          printf 'commit=%s\\nengine=Godot 4.7.2\\nrender=gl_compatibility under xvfb (NOT physical Android Mobile)\\nsource=72 consecutive real engine frames at 1280x720\\npose_sampling=authored cinematic camera and ship manually advanced at fixed 1/24s simulation intervals for slow llvmpipe runner\\nshader_TIME=Godot runtime TIME during software capture, NOT physical phone time\\nvideo_fps=24\\nvisual_parity=NOT VERIFIED\\n' "${GITHUB_SHA}" > "$RUNNER_TEMP/coastal-fx-evidence/EVIDENCE.txt"
+          printf 'commit=%s\\nengine=Godot 4.7.2\\nrender=gl_compatibility under xvfb (NOT physical Android Mobile)\\nsource=72 consecutive real engine frames at 1280x720\\npose_sampling=authored cinematic camera and ship manually advanced at fixed 1/24s simulation intervals for slow llvmpipe runner\\nshader_TIME=Godot runtime TIME during software capture, NOT physical phone time\\nvideo_fps=24\\nvisual_parity=NOT VERIFIED\\n' "${{ github.event.pull_request.head.sha || github.sha }}" > "$RUNNER_TEMP/coastal-fx-evidence/EVIDENCE.txt"
           (cd "$RUNNER_TEMP/coastal-fx-evidence" && sha256sum *.png *.mp4 > SHA256SUMS)
           test -s "$RUNNER_TEMP/coastal-fx-evidence/ship-wake-cinematic.mp4"
       - name: Save review-only engine evidence, not publishable visual acceptance
