@@ -50,8 +50,8 @@ func _record() -> void:
     integration.bow_spray.set_process(false)
     integration.start_visual_demo()
     var camera_start: Vector3 = scene.cinematic_camera.position
-    var waypoint_a := Vector3(-7.0, 4.8, -13.0)
-    var waypoint_b := Vector3(-2.5, 3.9, -9.5)
+    var waypoint_a := Vector3(-7.0, 4.8, -17.0)
+    var waypoint_b := Vector3(-2.5, 5.2, -21.0)
     if not scene.cinematic_camera.current:
         _fail("Cinematic camera not selected")
         return
@@ -63,8 +63,18 @@ func _record() -> void:
         else:
             var stage := smoothstep(0.0, 1.0, (progress - 0.5) * 2.0)
             scene.cinematic_camera.position = waypoint_a.lerp(waypoint_b, stage)
-        scene.cinematic_camera.look_at(Vector3(1.0, 2.2, 1.0))
         integration.advance_visual_demo(1.0 / 24.0)
+        var focal_point: Vector3 = integration.vessel.global_position + Vector3(0.0, 2.0, 0.0)
+        scene.cinematic_camera.look_at(focal_point)
+        # A genuine cinematic frame must not put its primary vessel target
+        # behind or completely off-screen, even if a valid PNG is generated.
+        if scene.cinematic_camera.is_position_behind(focal_point):
+            _fail("Moving ship exited the front camera frustum at frame %d" % frame_number)
+            return
+        var projected: Vector2 = scene.cinematic_camera.unproject_position(focal_point)
+        if projected.x < 64.0 or projected.x > 1216.0 or projected.y < 64.0 or projected.y > 656.0:
+            _fail("Moving ship composition lost at frame %d: %s" % [frame_number, projected])
+            return
         await process_frame
         await RenderingServer.frame_post_draw
         var pixels: Image = root.get_viewport().get_texture().get_image()
