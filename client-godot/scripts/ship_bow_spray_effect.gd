@@ -57,8 +57,13 @@ func _ready() -> void:
 
 func attach_vessel(target: Node3D) -> void:
     if emitter != null:
+        # Godot GPUParticles3D.restart() switches emitting back on.
+        # Clear history with amount_ratio=0, then explicitly stop again.
+        # Avoid a false spray burst when changing or reattaching vessels.
         emitter.emitting = false
+        emitter.amount_ratio = 0.0
         emitter.restart()
+        emitter.emitting = false
     vessel = target
     _has_position = is_instance_valid(target)
     _last_speed = 0.0
