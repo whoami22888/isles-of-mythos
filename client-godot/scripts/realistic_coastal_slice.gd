@@ -3,6 +3,7 @@ extends Node3D
 
 const ROCK_SCENE := preload("res://assets/external/polyhaven/coast_rocks_05/coast_rocks_05_1k.gltf")
 const TREE_SCENE := preload("res://assets/external/polyhaven/tree_small_02/tree_small_02_1k.gltf")
+const SHIP_SCENE := preload("res://assets/external/polyhaven/dutch_ship_medium/dutch_ship_medium_1k.gltf")
 const WATER_Y := -0.35
 const GAMEPLAY_CAMERA := Vector3(17.0, 10.5, 18.0)
 
@@ -128,6 +129,12 @@ void fragment() {
 		add_child(foam)
 
 func _build_premium_landmarks() -> void:
+	var ship := SHIP_SCENE.instantiate()
+	ship.name = "HarbourShipFocalPoint"
+	ship.position = Vector3(2.0, -0.05, -7.5)
+	ship.rotation_degrees = Vector3(0.0, 18.0, 0.0)
+	ship.scale = Vector3.ONE * 0.72
+	add_child(ship)
 	for entry in [
 		[Vector3(-8.0, 0.35, -2.1), 1.9], [Vector3(-2.0, 0.25, -1.4), 1.35],
 		[Vector3(6.8, 0.48, -2.7), 1.65], [Vector3(11.0, 1.05, 3.5), 2.4]

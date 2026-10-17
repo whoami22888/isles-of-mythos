@@ -14,14 +14,17 @@ func run() -> void:
 	var cinematic := scene.get_node_or_null("CinematicRevealCamera") as Camera3D
 	var rock_count := 0
 	var tree_count := 0
+	var ship_count := 0
 	for child in scene.get_children():
 		if child.scene_file_path.ends_with("coast_rocks_05_1k.gltf"):
 			rock_count += 1
 		if child.scene_file_path.ends_with("tree_small_02_1k.gltf"):
 			tree_count += 1
+		if child.name == "HarbourShipFocalPoint":
+			ship_count += 1
 	var ok := terrain != null and terrain.mesh != null and terrain.mesh.get_surface_count() == 1
 	ok = ok and water != null and gameplay != null and cinematic != null
-	ok = ok and rock_count == 4 and tree_count == 4 and gameplay.current
+	ok = ok and rock_count == 4 and tree_count == 4 and ship_count == 1 and gameplay.current
 	if not ok:
 		push_error("Realistic coastal slice contract failed")
 	print("Realistic coastal slice test: %s" % ("PASS" if ok else "FAIL"))
