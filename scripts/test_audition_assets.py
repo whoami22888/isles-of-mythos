@@ -75,6 +75,11 @@ class AuditionAssetsTests(unittest.TestCase):
         for i in range(3): Image.new('RGB',(64,64),'navy').save(d/f'frame_{i:03d}.png')
         with self.assertRaises(AssetFailure): validate_engine_frames(d,min_frames=3,min_width=64)
 
+    def test_godot_capture_rejects_nonexistent_float_trig_functions(self):
+        # Regression from CI 39041111587: GDScript 4.7.2 exposes sin/cos, not sinf/cosf.
+        source = (Path(__file__).resolve().parents[1] / 'client-godot/tests/render_vessel_audition.gd').read_text()
+        self.assertNotRegex(source, r'\b(?:sinf|cosf)\s*\(')
+
     def test_static_image_without_motion_is_rejected_as_animation(self):
         d=self.root/'frames';d.mkdir()
         Image.new('RGB',(128,128),'white').save(d/'frame_000.png')
