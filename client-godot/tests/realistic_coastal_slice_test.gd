@@ -35,7 +35,22 @@ func run() -> void:
 	scene.play_cinematic(true)
 	ok = ok and gameplay.current and not scene._cinematic_active
 	scene.play_cinematic()
-	ok = ok and cinematic.current and scene._cinematic_active and cinematic.position.distance_to(Vector3(-11.0, 5.5, -18.0)) < 0.01
+	ok = ok and cinematic.current and scene._cinematic_active
+	# The previous *exact camera coordinate* contract clipped the imported
+	# ship's mast. Instead require a seaward camera with ALL geometry in view.
+	ok = ok and scene._ship_bounds_ready
+	var bounds: AABB = scene.ship_visual_bounds_world()
+	ok = ok and bounds.size.y > 0.01
+	for corner in range(8):
+		var world_pt: Vector3 = bounds.position + Vector3(
+			bounds.size.x if corner & 1 else 0.0,
+			bounds.size.y if corner & 2 else 0.0,
+			bounds.size.z if corner & 4 else 0.0
+		)
+		var projected: Vector2 = cinematic.unproject_position(world_pt)
+		ok = ok and not cinematic.is_position_behind(world_pt)
+		ok = ok and projected.x > 32.0 and projected.x < 1248.0
+		ok = ok and projected.y > 32.0 and projected.y < 688.0
 	# Both cameras must see the coast as a background BEHIND the ship.
 	ok = ok and cinematic.position.z < scene.ship_focal.position.z - 5.0
 	ok = ok and gameplay.position.z < scene.ship_focal.position.z - 5.0

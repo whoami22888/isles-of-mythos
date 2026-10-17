@@ -8,6 +8,8 @@ const COAST_DIFFUSE := preload("res://assets/external/polyhaven/coast_sand_rocks
 const COAST_NORMAL := preload("res://assets/external/polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_nor_gl_1k.jpg")
 const COAST_ROUGHNESS := preload("res://assets/external/polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_rough_1k.jpg")
 const COAST_AO := preload("res://assets/external/polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_ao_1k.jpg")
+const SHORE_BAKER := preload("res://scripts/coastal_shore_heightfield.gd")
+const OCEAN_SHADER := preload("res://shaders/ocean_surface.gdshader")
 const WATER_Y := -0.35
 const GAMEPLAY_CAMERA := Vector3(13.0, 12.0, -14.0)
 const CINEMATIC_START_CAMERA := Vector3(-11.0, 5.5, -18.0)
@@ -21,6 +23,9 @@ var _ship_base_position := Vector3.ZERO
 var _cinematic_tween: Tween
 var _cinematic_active := false
 var _reduced_motion := false
+var _shore_binding: Dictionary = {}
+var _ship_visual_bounds_local := AABB()
+var _ship_bounds_ready := false
 
 func _ready() -> void:
 	_build_environment()
@@ -141,57 +146,37 @@ func _terrain_material() -> StandardMaterial3D:
 	return material
 
 func _build_water() -> void:
+	# Preserve exact PBR terrain as shoreline source of truth. The binder
+	# rejects missing, transformed or non-grid geometry instead of inventing
+	# a flat shoreline mask. One Image.FORMAT_RF upload at scene load only.
+	var terrain := get_node_or_null("IrregularCoastalTerrain") as MeshInstance3D
+	if terrain == null:
+		push_error("No source coastal mesh for terrain-aware ocean")
+		return
 	var water := MeshInstance3D.new()
 	water.name = "ShallowToDeepWater"
 	var plane := PlaneMesh.new()
-	plane.size = Vector2(160.0, 120.0)
+	# ONE contiguous seascape avoids cross-material seams and expensive
+	# overlapping fragment passes. Only the central ~180x140m displaces;
+	# distant water retains animated per-pixel micro-normals without tessellation.
+	# 160x120 subdivisions cap vertex shader work even across the full horizon.
+	plane.size = Vector2(640.0, 480.0)
+	plane.subdivide_width = 160
+	plane.subdivide_depth = 120
 	water.mesh = plane
-	water.position.y = WATER_Y
+	water.position.y = WATER_Y - 0.18
+	water.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var material := ShaderMaterial.new()
-	var shader := Shader.new()
-	shader.code = """
-shader_type spatial;
-render_mode cull_back, depth_draw_opaque;
-uniform vec4 shallow : source_color = vec4(0.025, 0.19, 0.29, 1.0);
-uniform vec4 deep : source_color = vec4(0.005, 0.035, 0.11, 1.0);
-varying vec3 world_position;
-void vertex() {
-    VERTEX.y += sin(TIME * 0.7 + VERTEX.x * 0.25) * 0.018;
-    world_position = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
-}
-void fragment() {
-    float depth_band = clamp((world_position.z + 18.0) / 36.0, 0.0, 1.0);
-    float ripple = sin(world_position.x * 0.75 + TIME * 0.35) * 0.025;
-    ALBEDO = mix(shallow.rgb, deep.rgb, depth_band) + ripple;
-    ROUGHNESS = 0.22;
-    SPECULAR = 0.8;
-}
-"""
-	material.shader = shader
+	material.shader = OCEAN_SHADER
+	var baked: Dictionary = SHORE_BAKER.bind_to_material(terrain, material, 96, 72)
+	if baked.has("error"):
+		push_error("Coast heightmap binding failed: " + str(baked["error"]))
+		return
+	_shore_binding = baked
 	water.material_override = material
 	add_child(water)
-	# Authored shoreline foam bands: bounded geometry, no per-frame generation.
-	for location in [Vector3(-7.5, WATER_Y + 0.015, -3.4), Vector3(1.0, WATER_Y + 0.015, -4.0), Vector3(8.0, WATER_Y + 0.015, -2.7)]:
-		var foam := MeshInstance3D.new()
-		var foam_mesh := QuadMesh.new()
-		foam_mesh.size = Vector2(5.0, 0.22)
-		foam.mesh = foam_mesh
-		foam.position = location
-		foam.rotation_degrees.x = -90.0
-		var foam_mat := ShaderMaterial.new()
-		var foam_shader := Shader.new()
-		foam_shader.code = """
-shader_type spatial;
-render_mode unshaded, cull_disabled, blend_mix;
-void fragment() {
-    float crest = smoothstep(0.25, 0.72, sin(UV.x * 18.0 + TIME * 1.6) * 0.5 + 0.5);
-    ALBEDO = vec3(0.92, 0.98, 0.94);
-    ALPHA = crest * 0.62;
-}
-"""
-		foam_mat.shader = foam_shader
-		foam.material_override = foam_mat
-		add_child(foam)
+	# A single material covers near and far, so no visible shader seam.
+	# No detached white foam quads and no duplicated terrain height equation.
 
 func _build_premium_landmarks() -> void:
 	ship_focal = SHIP_SCENE.instantiate()
@@ -201,7 +186,8 @@ func _build_premium_landmarks() -> void:
 	ship_focal.scale = Vector3.ONE * 0.72
 	add_child(ship_focal)
 	_ship_base_position = ship_focal.position
-	_configure_mobile_visibility(ship_focal, 42.0)
+	_cache_ship_visual_bounds()
+	_configure_mobile_visibility(ship_focal, 120.0)
 	# Asset footprints are grounded to terrain rather than assigned arbitrary
 	# fixed y-values. Keep the ship/cinematic sightline clear of near foliage.
 	for entry in [
@@ -213,7 +199,7 @@ func _build_premium_landmarks() -> void:
 		rock.scale = Vector3.ONE * entry[1]
 		add_child(rock)
 		_ground_asset_on_terrain(rock, 0.3)
-		_configure_mobile_visibility(rock, 30.0)
+		_configure_mobile_visibility(rock, 85.0)
 	for entry in [
 		[Vector3(-16.0, 0.0, 4.0), 1.1], [Vector3(-20.5, 0.0, 13.0), 1.15],
 		[Vector3(15.2, 0.0, 6.5), 1.05], [Vector3(20.0, 0.0, 13.0), 0.9]
@@ -223,7 +209,36 @@ func _build_premium_landmarks() -> void:
 		tree.scale = Vector3.ONE * entry[1]
 		add_child(tree)
 		_ground_asset_on_terrain(tree)
-		_configure_mobile_visibility(tree, 26.0)
+		_configure_mobile_visibility(tree, 60.0)
+	# Verified imported PBR art only, arranged in a landscape-depth layer.
+	# Old 26m foliage culling hid essentially all background vegetation after
+	# the camera pulled back to protect the masts and sails. Keep the gallery
+	# behind the ship rather than adding geometric placeholder trees.
+	var grove := Node3D.new()
+	grove.name = "CoastalPBRDepthLayer"
+	add_child(grove)
+	for entry in [
+		[Vector3(-8.1, 0.0, 17.0), 2.2],
+		[Vector3(-4.3, 0.0, 11.3), 1.75],
+		[Vector3(3.5, 0.0, 18.2), 2.1],
+		[Vector3(8.7, 0.0, 12.6), 1.85],
+	]:
+		var shoreline_tree := TREE_SCENE.instantiate()
+		shoreline_tree.position = entry[0]
+		shoreline_tree.scale = Vector3.ONE * entry[1]
+		grove.add_child(shoreline_tree)
+		_ground_asset_on_terrain(shoreline_tree)
+		_configure_mobile_visibility(shoreline_tree, 90.0, false)
+	for entry in [
+		[Vector3(-8.5, 0.0, 6.8), 1.25],
+		[Vector3(10.5, 0.0, 7.1), 1.5]
+	]:
+		var shore_rock := ROCK_SCENE.instantiate()
+		shore_rock.position = entry[0]
+		shore_rock.scale = Vector3.ONE * entry[1]
+		grove.add_child(shore_rock)
+		_ground_asset_on_terrain(shore_rock, 0.18)
+		_configure_mobile_visibility(shore_rock, 90.0, false)
 	player_marker = Node3D.new()
 	player_marker.name = "PlayerSpawnMarker"
 	player_marker.position = Vector3(0.0, _terrain_height(0.0, 5.5) + 0.75, 5.5)
@@ -253,14 +268,93 @@ func _ground_asset_on_terrain(asset: Node3D, burial := 0.0) -> void:
 		asset.position.y += _terrain_height(asset.position.x, asset.position.z) - lowest - burial
 
 
-func _configure_mobile_visibility(root: Node, max_distance: float) -> void:
+func _configure_mobile_visibility(root: Node, max_distance: float, shadow_caster: bool = true) -> void:
 	for child in root.get_children():
 		if child is GeometryInstance3D:
 			child.visibility_range_end = max_distance
 			child.visibility_range_end_margin = 4.0
-			child.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			child.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if shadow_caster else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		if child.get_child_count() > 0:
-			_configure_mobile_visibility(child, max_distance)
+			_configure_mobile_visibility(child, max_distance, shadow_caster)
+
+func _cache_ship_visual_bounds() -> void:
+	# Compute ONCE from genuine nested imported glTF geometry; the hull
+	# origin is not the centre of sails/masts and clips their upper rigging.
+	_ship_bounds_ready = false
+	if ship_focal == null:
+		return
+	var inverse_ship := ship_focal.global_transform.affine_inverse()
+	var queue: Array[Node] = [ship_focal]
+	var has_any := false
+	var lower := Vector3.ZERO
+	var upper := Vector3.ZERO
+	while not queue.is_empty():
+		var node: Node = queue.pop_back()
+		if node is MeshInstance3D:
+			var mesh_instance := node as MeshInstance3D
+			if mesh_instance.mesh:
+				var aabb := mesh_instance.mesh.get_aabb()
+				for i in range(8):
+					var corner := aabb.position + Vector3(
+						aabb.size.x if i & 1 else 0.0,
+						aabb.size.y if i & 2 else 0.0,
+						aabb.size.z if i & 4 else 0.0
+					)
+					var local_pt: Vector3 = inverse_ship * (mesh_instance.global_transform * corner)
+					if not has_any:
+						lower = local_pt
+						upper = local_pt
+						has_any = true
+					else:
+						lower = lower.min(local_pt)
+						upper = upper.max(local_pt)
+		for child in node.get_children():
+			queue.append(child)
+	if has_any:
+		_ship_visual_bounds_local = AABB(lower, upper - lower)
+		_ship_bounds_ready = true
+	else:
+		push_error("Imported vessel contains no renderable mesh; cinematic framing unavailable")
+
+
+func ship_visual_bounds_world() -> AABB:
+	if not _ship_bounds_ready or ship_focal == null:
+		return AABB()
+	var bounds := _ship_visual_bounds_local
+	var lower := Vector3(INF, INF, INF)
+	var upper := Vector3(-INF, -INF, -INF)
+	for i in range(8):
+		var pt := bounds.position + Vector3(
+			bounds.size.x if i & 1 else 0.0,
+			bounds.size.y if i & 2 else 0.0,
+			bounds.size.z if i & 4 else 0.0
+		)
+		var world_pt: Vector3 = ship_focal.to_global(pt)
+		lower = lower.min(world_pt)
+		upper = upper.max(world_pt)
+	return AABB(lower, upper - lower)
+
+
+func frame_ship_cinematic(camera: Camera3D, desired_position: Vector3) -> bool:
+	if camera == null or not _ship_bounds_ready:
+		return false
+	var bounds := ship_visual_bounds_world()
+	if bounds.size.length_squared() < 0.00001:
+		return false
+	var centre := bounds.get_center()
+	var away := (desired_position - centre).normalized()
+	if away.length_squared() < 0.00001:
+		away = Vector3(-0.6, 0.3, -0.7).normalized()
+	var distance := maxf(0.5, desired_position.distance_to(centre))
+	var safe_radius := bounds.size.length() * 0.5
+	var safe_angle := deg_to_rad(camera.fov * 0.45)
+	# Conservatively enclose the ship's *entire* AABB in a vertical frustum;
+	# no hull-only target can silently clip the sails or mast tips.
+	var needed := safe_radius / maxf(0.05, sin(safe_angle))
+	camera.global_position = centre + away * maxf(distance, needed)
+	camera.look_at(centre)
+	return true
+
 
 func _build_cameras() -> void:
 	gameplay_camera = Camera3D.new()
@@ -296,6 +390,7 @@ func play_cinematic(reduced_motion := false) -> void:
 	set_cinematic_view()
 	# Every reveal starts from its authored establishing pose, including replay.
 	cinematic_camera.position = CINEMATIC_START_CAMERA
+	frame_ship_cinematic(cinematic_camera, cinematic_camera.global_position)
 	if _reduced_motion:
 		set_gameplay_view()
 		return
@@ -316,7 +411,6 @@ func _process(_delta: float) -> void:
 		ship_focal.position.y = _ship_base_position.y + sin(Time.get_ticks_msec() * 0.0012) * 0.035
 	if _cinematic_active and cinematic_camera and cinematic_camera.current:
 		# Follow the moving ship; fixed island look-at pushed the ship fully offscreen.
-		var focal_point := ship_focal.global_position + Vector3(0.0, 2.0, 0.0) if ship_focal else CINEMATIC_LOOK_TARGET
-		cinematic_camera.look_at(focal_point)
+		frame_ship_cinematic(cinematic_camera, cinematic_camera.global_position)
 	if _cinematic_active and (Input.is_action_just_pressed("ui_accept") or Input.is_action_just_pressed("ui_cancel")):
 		skip_cinematic()
