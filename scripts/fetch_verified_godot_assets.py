@@ -110,14 +110,38 @@ def download(target, digest, url, opener=None):
             os.unlink(temp_path)
 
 
+def verify_generated(target, digest, item):
+    """Verify committed derived outputs; never download upstream RGB into an RGBA path."""
+    parents = item.get("generated_from")
+    if not isinstance(parents, list) or not parents or not all(
+        isinstance(parent, str) and parent and parent != item["path"]
+        for parent in parents
+    ):
+        raise ValueError("Invalid generated asset dependencies")
+    if not isinstance(item.get("generation_note"), str) or not item["generation_note"]:
+        raise ValueError("Generated asset missing reproduction instructions")
+    validate_destination(target)
+    if not target.is_file():
+        raise ValueError(
+            "Generated asset missing: rebuild from pinned sources and re-verify SHA-256"
+        )
+    if target.stat().st_size > MAX_BYTES:
+        raise ValueError("Generated asset exceeds byte limit")
+    if hashlib.sha256(target.read_bytes()).hexdigest() != digest:
+        raise ValueError("Generated asset hash mismatch")
+
+
 def fetch():
-    """Fetch only manifest-pinned assets; an empty manifest downloads nothing."""
+    """Fetch original source bytes; verify locally derived, SHA-pinned outputs."""
     payload = json.loads(MANIFEST.read_text(encoding="utf-8"))
     if payload.get("schema_version") != 1 or not isinstance(payload.get("assets"), list):
         raise ValueError("Invalid asset manifest")
     for entry in payload["assets"]:
         target, digest, url = validate_entry(entry)
-        download(target, digest, url)
+        if "generated_from" in entry:
+            verify_generated(target, digest, entry)
+        else:
+            download(target, digest, url)
 
 
 if __name__ == "__main__":
