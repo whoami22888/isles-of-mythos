@@ -48,3 +48,7 @@ Do **not** approve or merge when visual quality is below standard; provenance/li
 - **Build Controller:** assigns one owner per write surface, coordinates exact-SHA tests, reviews, commits and PRs.
 
 Next task: admit verified premium **terrain, vegetation, rocks, coast and water**; subsequently ships, buildings, creatures and characters. Use smallest meaningful test cycles and fix root causes without repeating previously verified work.
+
+## Absolute still-picture / MP4 acceptance requirement (owner directive 18 October 2026)
+
+Every new visible asset or scene must be demonstrated as **genuine Godot 4.7.2-rendered PNG images or actual engine-frame MP4 video** before a premium implementation/graphics milestone is marked done. For an animated character, creature, ship, water surface, combat/VFX or camera, **MP4 motion is mandatory**; one still image cannot prove animation. Require a verifiable render artifact SHA-256, the original model/source hash, exact code SHA, renderer/version and applicable side-by-side owner-video visual-quality assessment. Details and fail-closed statuses: [`graphics/REAL_RENDER_DELIVERABLE_GATE.md`](graphics/REAL_RENDER_DELIVERABLE_GATE.md). This is an **additional acceptance requirement**, not a substitute for the existing source, license, engine import, security, performance or actual Android measurements.
