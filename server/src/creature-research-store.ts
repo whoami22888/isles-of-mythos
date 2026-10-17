@@ -2,7 +2,7 @@ import type { Pool, PoolClient } from "pg";
 import { applyInventoryDelta, runEconomyMutation } from "./economy.js";
 import {
   CREATURE_SKILLS, MAX_PRACTICE_AWARD, awardCreatureTraining, awardPlayerPractice,
-  canResearchSkill, type BuildingProgress, type PlayerSkills, type SkillId,
+  canResearchSkill, type BuildingProgress, type SkillId,
 } from "./creature-mastery.js";
 
 /** Server-side progression only; never expose award amounts/events to clients. */
@@ -89,7 +89,7 @@ export class CreatureResearchStore {
       const buildings = await client.query<BuildingProgress>(
         "SELECT b.type,b.level,b.active FROM base_buildings b JOIN player_bases p ON p.id=b.base_id WHERE p.owner_user_id=$1 FOR SHARE OF b",[userId],
       );
-      const denial = canResearchSkill(skillId,skills as PlayerSkills,buildings.rows);
+      const denial = canResearchSkill(skillId,skills,buildings.rows);
       if (denial) throw new Error(denial);
       await runEconomyMutation(client,userId,({gold,inventory})=>{
         let next = inventory;
