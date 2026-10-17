@@ -162,6 +162,39 @@ func _build_water():
         filename.write_text(json.dumps(base))
         self.assertNotIn("HEAVY_LOD0", self.codes())
 
+    def test_unindexed_triangle_primitives_obey_gltf_semantics(self):
+        self.add_scene("premium_geometry.tscn", 'const MESH = preload("res://assets/shape.gltf")\\n')
+        (self.root / "assets").mkdir()
+        filename = self.root / "assets/shape.gltf"
+        doc = {"accessors": [{"count": 900003}], "meshes": [{"name": "unindexed_LOD0",
+               "primitives": [{"attributes": {"POSITION": 0}, "mode": 4}]}]}
+        filename.write_text(json.dumps(doc))
+        self.assertIn("HEAVY_LOD0", self.codes())
+        doc["meshes"][0]["primitives"][0]["mode"] = 5  # TRIANGLE_STRIP
+        filename.write_text(json.dumps(doc))
+        self.assertIn("HEAVY_LOD0", self.codes())
+        doc["meshes"][0]["primitives"][0]["mode"] = 6  # TRIANGLE_FAN
+        filename.write_text(json.dumps(doc))
+        self.assertIn("HEAVY_LOD0", self.codes())
+        doc["meshes"][0]["primitives"][0]["mode"] = 1  # LINES
+        filename.write_text(json.dumps(doc))
+        self.assertNotIn("HEAVY_LOD0", self.codes())
+
+    def test_unindexed_missing_or_invalid_position_fails_closed(self):
+        self.add_scene("premium_geometry.tscn", 'const MESH = preload("res://assets/shape.gltf")\\n')
+        (self.root / "assets").mkdir()
+        filename = self.root / "assets/shape.gltf"
+        doc = {"accessors": [{"count": 900003}], "meshes": [{"name": "unindexed_LOD0",
+               "primitives": [{"attributes": {}, "mode": 4}]}]}
+        filename.write_text(json.dumps(doc))
+        self.assertIn("INVALID_GEOMETRY", self.codes())
+        doc["meshes"][0]["primitives"][0]["attributes"]["POSITION"] = -1
+        filename.write_text(json.dumps(doc))
+        self.assertIn("INVALID_GEOMETRY", self.codes())
+        doc["meshes"][0]["primitives"][0]["attributes"]["POSITION"] = 99
+        filename.write_text(json.dumps(doc))
+        self.assertIn("INVALID_GEOMETRY", self.codes())
+
     def test_missing_or_unrelated_capture_does_not_pass(self):
         self.add_scene("realistic_coastal_slice.tscn", "# candidate")
         self.assertIn("MISSING_CAPTURE", self.codes())
