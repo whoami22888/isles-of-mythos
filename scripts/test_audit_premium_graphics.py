@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Regression tests for structural fail-closed premium scene audit."""
 import json
+import struct
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -161,6 +162,25 @@ func _build_water():
         base["meshes"][0]["primitives"][0]["mode"] = 1  # LINES
         filename.write_text(json.dumps(base))
         self.assertNotIn("HEAVY_LOD0", self.codes())
+
+    def test_binary_glb_model_geometry_is_audited(self):
+        self.add_scene("premium_vessel.tscn", 'const SHIP = preload("res://assets/vessel.glb")\\n')
+        (self.root / "assets").mkdir()
+        model = {"asset": {"version": "2.0"}, "accessors": [{"count": 900003}],
+                 "meshes": [{"name": "vessel_LOD0", "primitives": [
+                     {"attributes": {"POSITION": 0}, "mode": 4}]}]}
+        payload = json.dumps(model).encode("utf-8")
+        payload += b" " * ((-len(payload)) % 4)
+        glb = struct.pack("<4sII", b"glTF", 2, 20 + len(payload))
+        glb += struct.pack("<I4s", len(payload), b"JSON") + payload
+        (self.root / "assets/vessel.glb").write_bytes(glb)
+        self.assertIn("HEAVY_LOD0", self.codes())
+
+    def test_invalid_binary_glb_fails_closed(self):
+        self.add_scene("premium_vessel.tscn", 'const SHIP = preload("res://assets/vessel.glb")\\n')
+        (self.root / "assets").mkdir()
+        (self.root / "assets/vessel.glb").write_bytes(b"glTF" + b"\\x00" * 12)
+        self.assertIn("INVALID_MODEL", self.codes())
 
     def test_material_split_lod0_triangles_aggregate_across_primitives(self):
         # Both material partitions are individually below the 300k threshold.
