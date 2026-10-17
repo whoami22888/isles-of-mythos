@@ -36,31 +36,12 @@ func run() -> void:
     if plane != null:
         check(plane.subdivide_width >= 96 and plane.subdivide_depth >= 72,
             "Ocean needs actual geometry for moving swell")
-        check(plane.size == Vector2(160.0, 120.0),
-            "Detailed water must remain a bounded near-field patch")
+        check(plane.size.x >= 640.0 and plane.size.y >= 480.0,
+            "Single ocean must cover cinematic horizon without visible quad edges")
         check(plane.subdivide_width <= 160 and plane.subdivide_depth <= 120,
-            "Near ocean geometric wave budget may not regress")
-    var far := scene.get_node_or_null("FarDeepOcean") as MeshInstance3D
-    check(far != null, "Require seamless far ocean to the horizon")
-    if far != null:
-        var far_mesh := far.mesh as PlaneMesh
-        check(far_mesh != null and far_mesh.size.x >= 2000.0 and far_mesh.size.y >= 2000.0,
-            "Far ocean must cover entire cinematic camera path")
-        if far_mesh != null:
-            check(far_mesh.subdivide_width == 0 and far_mesh.subdivide_depth == 0,
-                "Far ocean must avoid expensive vertex tessellation")
-        var far_mat := far.material_override as ShaderMaterial
-        check(far_mat != null and far_mat.shader != null,
-            "Far ocean needs its own lightweight genuine lit water shader")
-        if far_mat != null and far_mat.shader != null:
-            var far_source: String = far_mat.shader.code
-            check(far_source.contains("NORMAL_MAP") and far_source.contains("far_deep_color"),
-                "Far horizon must retain animated texture and physically lit detail")
-            check(far_source.contains("fresnel") and far_source.contains("vec2(3.1, 1.55)"),
-                "Far/near ocean must share grazing-angle colour and wave normal frequencies")
-            check(not far_source.contains("shore_terrain_height") and not far_source.contains("shore_heightmap"),
-                "Far ocean must not repeat expensive shoreline texture sampling")
-        check(far.position.y == water.position.y, "Ocean surfaces must share their base plane")
+            "Full-screen ocean must keep a bounded near-field vertex budget")
+    check(scene.get_node_or_null("FarDeepOcean") == null,
+        "Ocean must not render overlapping near/far surfaces or a shader seam")
     var material := water.material_override as ShaderMaterial
     check(material != null and material.shader != null, "Require real shader material")
     if material == null or material.shader == null:
