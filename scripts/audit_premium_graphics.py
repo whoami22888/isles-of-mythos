@@ -156,7 +156,9 @@ def audit(root: Path) -> Tuple[List[Finding], int]:
         return [Finding("MISSING_PROJECT", str(project), "Godot client project absent")], 0
     project_text = project.read_text(encoding="utf-8")
     match = re.search(r'^run/main_scene="res://scenes/([^"]+)"', project_text, re.M)
-    if match and match.group(1) in PROTOTYPES:
+    # Match the launch scene basename, not only top-level scene paths.
+    # Nested preview directories must not bypass the production launch gate.
+    if match and PurePosixPath(match.group(1)).name in PROTOTYPES:
         issues.append(Finding("PROTOTYPE_LAUNCH", "project.godot",
                               f"Prototype is player-facing main_scene: {match.group(1)}"))
     scenes = root / "scenes"

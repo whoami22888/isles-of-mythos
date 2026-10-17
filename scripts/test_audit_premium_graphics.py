@@ -36,6 +36,14 @@ class PremiumVisualAuditTests(unittest.TestCase):
         (self.root / "project.godot").write_text('run/main_scene="res://scenes/island_preview.tscn"\n')
         self.assertIn("PROTOTYPE_LAUNCH", self.codes())
 
+    def test_rejects_nested_prototype_as_main_scene(self):
+        (self.root / "scenes/previews").mkdir()
+        (self.root / "scenes/previews/island_preview.tscn").write_text(
+            '[node name="Preview" type="Node3D"]\\n')
+        (self.root / "project.godot").write_text(
+            'run/main_scene="res://scenes/previews/island_preview.tscn"\\n')
+        self.assertIn("PROTOTYPE_LAUNCH", self.codes())
+
     def test_detects_flat_terrain_water_foam_and_static_ship(self):
         script = '''
 func _terrain_material() -> StandardMaterial3D:
