@@ -102,4 +102,28 @@ class AuditionAssetsTests(unittest.TestCase):
         with self.assertRaises(AssetFailure):validate_engine_frames(d,min_frames=3,min_width=64)
 
 
-if __name__=='__main__':unittest.main()
+class CinematicSourceRegressions(unittest.TestCase):
+    def setUp(self):
+        self.script = (Path(__file__).parents[1] / 'client-godot/tests/render_vessel_audition.gd').read_text()
+        self.workflow = (Path(__file__).parents[1] / '.github/workflows/iom-premium-asset-audition.yml').read_text()
+
+    def test_reference_duration_and_frame_rate(self):
+        self.assertIn('const CAPTURE_FRAMES := 240', self.script)
+        self.assertIn(' -framerate 24 ', self.workflow)
+        self.assertIn('--min-frames 240', self.workflow)
+        self.assertIn('test "$COUNT" = 240', self.workflow)
+
+    def test_true_water_geometry_and_time_variation(self):
+        self.assertIn('PlaneMesh.new()', self.script)
+        self.assertIn('ShaderMaterial.new()', self.script)
+        self.assertIn('water_phase', self.script)
+        self.assertIn('_setup_ocean()', self.script)
+        self.assertIn('RenderingServer.frame_post_draw', self.script)
+
+    def test_real_ship_sails_with_cloth_motion_not_a_still(self):
+        self.assertIn('_setup_canvas_sails(', self.script)
+        self.assertIn('fabric_phase', self.script)
+        self.assertIn('SurfaceTool.new()', self.script)
+
+if __name__=='__main__':
+    unittest.main()

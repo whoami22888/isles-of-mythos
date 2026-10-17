@@ -80,34 +80,34 @@ jobs:
               "$RUNNER_TEMP/godot" --path client-godot --rendering-method gl_compatibility \
               --script res://tests/render_vessel_audition.gd
           test -s "$RUNNER_TEMP/visual-audition/candidate_still.png"
-          python3 scripts/audition_assets.py --verify-frames "$RUNNER_TEMP/visual-audition" --min-frames 30
+          python3 scripts/audition_assets.py --verify-frames "$RUNNER_TEMP/visual-audition" --min-frames 240
       - name: Encode real engine frame sequence to MP4 and close hashes
         shell: bash
         run: |
           set -euo pipefail
           cd "$RUNNER_TEMP/visual-audition"
-          ffmpeg -hide_banner -loglevel error -nostdin -y -framerate 12 \
+          ffmpeg -hide_banner -loglevel error -nostdin -y -framerate 24 \
             -i frame_%03d.png -c:v libx264 -preset medium -crf 19 \
             -pix_fmt yuv420p -movflags +faststart candidate_engine_motion.mp4
           test -s candidate_engine_motion.mp4
           COUNT="$(ffprobe -v error -count_frames -select_streams v:0 \
             -show_entries stream=nb_read_frames -of default=noprint_wrappers=1:nokey=1 candidate_engine_motion.mp4)"
-          test "$COUNT" = 30
+          test "$COUNT" = 240
           cp "$RUNNER_TEMP/ship-provenance-receipt.json" source-receipt.json
           cat > evidence.json <<EOF
           {
             "commit": "${{ github.event.pull_request.head.sha || github.sha }}",
             "renderer": "Godot 4.7.2 compatibility (Xvfb CI, NOT Android Mobile)",
             "asset": "Poly Haven Dutch Ship Medium 1K source + verified original sail alpha",
-            "frames": 30,
-            "fps": 12,
+            "frames": 240,
+            "fps": 24,
             "owner_video_sha256": "713cd6e90c6f7d589a06eb3bd4b9b2d5ebeb9c0ff711b5de527a68460dfbcb05",
             "art_acceptance": "NOT VERIFIED; DO NOT SHOW AS FINAL OR MERGE AS PREMIUM",
             "mobile_performance": "NOT MEASURED",
-            "skeletal_ship_animation": "NOT AVAILABLE; ROOT NODE CAMERA MOTION ONLY"
+            "skeletal_ship_animation": "NOT AVAILABLE; commissioned surface cloth animation, wave shader, camera tracking; original glTF lacks skeletal animation"
           }
           EOF
-          sha256sum candidate_still.png candidate_engine_motion.mp4 source-receipt.json evidence.json > SHA256SUMS
+          sha256sum candidate_still.png candidate_072.png candidate_192.png candidate_engine_motion.mp4 source-receipt.json evidence.json > SHA256SUMS
           sha256sum --check SHA256SUMS
           find . -maxdepth 1 -name 'frame_*.png' -delete
       - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
@@ -115,6 +115,8 @@ jobs:
           name: iom-internal-premium-vessel-audition-${{ github.event.pull_request.head.sha || github.sha }}
           path: |
             ${{ runner.temp }}/visual-audition/candidate_still.png
+            ${{ runner.temp }}/visual-audition/candidate_072.png
+            ${{ runner.temp }}/visual-audition/candidate_192.png
             ${{ runner.temp }}/visual-audition/candidate_engine_motion.mp4
             ${{ runner.temp }}/visual-audition/source-receipt.json
             ${{ runner.temp }}/visual-audition/evidence.json
