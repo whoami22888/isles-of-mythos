@@ -9,7 +9,7 @@ const COAST_NORMAL := preload("res://assets/external/polyhaven/coast_sand_rocks_
 const COAST_ROUGHNESS := preload("res://assets/external/polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_rough_1k.jpg")
 const COAST_AO := preload("res://assets/external/polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_ao_1k.jpg")
 const WATER_Y := -0.35
-const GAMEPLAY_CAMERA := Vector3(17.0, 10.5, 18.0)
+const GAMEPLAY_CAMERA := Vector3(12.0, 6.5, 11.0)
 
 var gameplay_camera: Camera3D
 var cinematic_camera: Camera3D
@@ -29,8 +29,16 @@ func _build_environment() -> void:
 	var world := WorldEnvironment.new()
 	world.name = "CoastalAtmosphere"
 	var environment := Environment.new()
-	environment.background_mode = Environment.BG_COLOR
-	environment.background_color = Color("#8fc9dd")
+	environment.background_mode = Environment.BG_SKY
+	var sky := Sky.new()
+	var sky_material := ProceduralSkyMaterial.new()
+	sky_material.sky_top_color = Color("#2d78b7")
+	sky_material.sky_horizon_color = Color("#b7e6ee")
+	sky_material.ground_bottom_color = Color("#1b3d53")
+	sky_material.ground_horizon_color = Color("#83b6bd")
+	sky_material.sun_angle_max = 12.0
+	sky.sky_material = sky_material
+	environment.sky = sky
 	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	environment.ambient_light_color = Color("#b6d6df")
 	environment.ambient_light_energy = 0.55
@@ -118,7 +126,7 @@ render_mode cull_back, depth_draw_opaque;
 uniform vec4 shallow : source_color = vec4(0.05, 0.62, 0.66, 1.0);
 uniform vec4 deep : source_color = vec4(0.015, 0.10, 0.22, 1.0);
 void fragment() {
-    float depth_band = smoothstep(0.0, 1.0, UV.y);
+    float depth_band = clamp(UV.x * 0.58 + UV.y * 0.18, 0.0, 1.0);
     ALBEDO = mix(shallow.rgb, deep.rgb, depth_band);
     ROUGHNESS = 0.22;
     SPECULAR = 0.8;
@@ -176,7 +184,7 @@ func _build_cameras() -> void:
 	gameplay_camera.position = GAMEPLAY_CAMERA
 	gameplay_camera.current = true
 	add_child(gameplay_camera)
-	gameplay_camera.look_at(Vector3(0.0, 0.8, -2.0))
+	gameplay_camera.look_at(Vector3(1.0, 0.8, -3.0))
 	cinematic_camera = Camera3D.new()
 	cinematic_camera.name = "CinematicRevealCamera"
 	cinematic_camera.position = Vector3(-18.0, 7.0, 16.0)
