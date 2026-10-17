@@ -19,6 +19,8 @@ varying float swell_crest;
 // Binds once at scene load. Unbound height data must never invent foam.
 #include "res://shaders/coastal_shore_sampler.gdshaderinc"
 uniform bool shoremap_bound = false;
+uniform bool far_ocean_patch = false;
+uniform vec2 near_patch_half_extent = vec2(80.0, 60.0);
 
 void vertex() {
     vec2 xz = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xz;
@@ -32,10 +34,18 @@ void vertex() {
     float dz = (cos(a) * 0.090 * 0.55 * 0.54
               + cos(b) * 0.044 * 1.16 * 0.90
               + cos(c) * 0.015 * 2.25 * -0.31) * swell_scale;
-    VERTEX.y += displacement;
-    NORMAL = normalize(vec3(-dx, 1.0, -dz));
+    // Match a low-poly far ocean to the near patch without visible edges.
+    // At the inner patch rim the displaced mesh gently meets the common
+    // far ocean plane. The 0.18m offset keeps wave troughs above far water.
+    float fade_x = 1.0 - smoothstep(near_patch_half_extent.x - 18.0,
+        near_patch_half_extent.x - 1.0, abs(xz.x));
+    float fade_z = 1.0 - smoothstep(near_patch_half_extent.y - 18.0,
+        near_patch_half_extent.y - 1.0, abs(xz.y));
+    float envelope = far_ocean_patch ? 0.0 : fade_x * fade_z;
+    VERTEX.y += (0.18 + displacement) * envelope;
+    NORMAL = normalize(vec3(-dx * envelope, 1.0, -dz * envelope));
     surface_world = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
-    swell_crest = displacement;
+    swell_crest = displacement * envelope;
 }
 
 void fragment() {
