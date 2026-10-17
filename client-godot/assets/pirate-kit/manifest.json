@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 2,
+  "id": "quaternius-pirate-kit-2023-11",
+  "license": "CC0-1.0",
+  "licenseEvidence": "https://www.patreon.com/quaternius/posts/pirate-kit-70-92300290",
+  "publisherPage": "https://quaternius.com/packs/piratekit.html",
+  "sourceFolder": "https://drive.google.com/drive/folders/1KjMzhVsDcyvYMWeVjZcRfuu8auBLpNi2",
+  "files": [
+    {
+      "name": "Ship_Small.gltf",
+      "driveFileId": "1ScqR_EdqqJkOwU7Z51kNrI41y0klDzkg",
+      "bytes": 317113,
+      "sha256": "c2596ed1eec90c9b0338109f5e66a88755db92f37c5473937fe5f463365a726f",
+      "dependencies": "embedded buffers and image data"
+    },
+    {
+      "name": "Characters_Skeleton.gltf",
+      "driveFileId": "1P7xfiYZd_jCxnilRfxKMdLS4cVgIvJZu",
+      "bytes": 1731410,
+      "sha256": "c4f060ac42cd3e761a0726dbd339b6e9ae10e153ff10540dffefc44c6270092b",
+      "dependencies": "embedded buffers and image data"
+    },
+    {
+      "name": "Characters_Shark.gltf",
+      "driveFileId": "1vvH5IE8jvg3TIJnlcXr-ZSpuhtyxUP1h",
+      "bytes": 701731,
+      "sha256": "1f62e757f280be1337f0ea2d0ac65d54cc448ecc20d5ed052e8012d62de4b9eb",
+      "dependencies": "embedded buffers and image data"
+    },
+    {
+      "name": "Atlas_Pirate.png",
+      "driveFileId": "1bLKM6Nm_jTtXJN0CVK0GNqHto3eMGn6r",
+      "bytes": 9014,
+      "sha256": "a538d23f834ab4233d871cb9688f98ff574fc31b00e4dd99b9b42750f577ede4",
+      "dependencies": "standalone texture atlas"
+    }
+  ]
+}
