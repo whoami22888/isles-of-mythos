@@ -156,9 +156,11 @@ func _build_water() -> void:
 	var water := MeshInstance3D.new()
 	water.name = "ShallowToDeepWater"
 	var plane := PlaneMesh.new()
-	plane.size = Vector2(160.0, 120.0)
-	plane.subdivide_width = 160
-	plane.subdivide_depth = 120
+	# Cover camera travel and horizon without a visible rectangular mesh edge.
+	# 256x192 grid keeps mobile vertex work bounded (49,793 vertices).
+	plane.size = Vector2(640.0, 480.0)
+	plane.subdivide_width = 256
+	plane.subdivide_depth = 192
 	water.mesh = plane
 	water.position.y = WATER_Y
 	water.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -184,7 +186,7 @@ func _build_premium_landmarks() -> void:
 	add_child(ship_focal)
 	_ship_base_position = ship_focal.position
 	_cache_ship_visual_bounds()
-	_configure_mobile_visibility(ship_focal, 42.0)
+	_configure_mobile_visibility(ship_focal, 120.0)
 	# Asset footprints are grounded to terrain rather than assigned arbitrary
 	# fixed y-values. Keep the ship/cinematic sightline clear of near foliage.
 	for entry in [
@@ -196,7 +198,7 @@ func _build_premium_landmarks() -> void:
 		rock.scale = Vector3.ONE * entry[1]
 		add_child(rock)
 		_ground_asset_on_terrain(rock, 0.3)
-		_configure_mobile_visibility(rock, 30.0)
+		_configure_mobile_visibility(rock, 110.0)
 	for entry in [
 		[Vector3(-16.0, 0.0, 4.0), 1.1], [Vector3(-20.5, 0.0, 13.0), 1.15],
 		[Vector3(15.2, 0.0, 6.5), 1.05], [Vector3(20.0, 0.0, 13.0), 0.9]
@@ -206,7 +208,40 @@ func _build_premium_landmarks() -> void:
 		tree.scale = Vector3.ONE * entry[1]
 		add_child(tree)
 		_ground_asset_on_terrain(tree)
-		_configure_mobile_visibility(tree, 26.0)
+		_configure_mobile_visibility(tree, 110.0)
+	# Verified imported PBR art only, arranged in a landscape-depth layer.
+	# Old 26m foliage culling hid essentially all background vegetation after
+	# the camera pulled back to protect the masts and sails. Keep the gallery
+	# behind the ship rather than adding geometric placeholder trees.
+	var grove := Node3D.new()
+	grove.name = "CoastalPBRDepthLayer"
+	add_child(grove)
+	for entry in [
+		[Vector3(-12.2, 0.0, 12.2), 1.8],
+		[Vector3(-8.1, 0.0, 17.0), 2.2],
+		[Vector3(-4.3, 0.0, 11.3), 1.75],
+		[Vector3(3.5, 0.0, 18.2), 2.1],
+		[Vector3(8.7, 0.0, 12.6), 1.85],
+		[Vector3(13.1, 0.0, 18.0), 1.9]
+	]:
+		var shoreline_tree := TREE_SCENE.instantiate()
+		shoreline_tree.position = entry[0]
+		shoreline_tree.scale = Vector3.ONE * entry[1]
+		grove.add_child(shoreline_tree)
+		_ground_asset_on_terrain(shoreline_tree)
+		_configure_mobile_visibility(shoreline_tree, 110.0)
+	for entry in [
+		[Vector3(-14.0, 0.0, 5.3), 1.5],
+		[Vector3(-8.5, 0.0, 6.8), 1.25],
+		[Vector3(10.5, 0.0, 7.1), 1.5],
+		[Vector3(14.4, 0.0, 5.9), 1.35]
+	]:
+		var shore_rock := ROCK_SCENE.instantiate()
+		shore_rock.position = entry[0]
+		shore_rock.scale = Vector3.ONE * entry[1]
+		grove.add_child(shore_rock)
+		_ground_asset_on_terrain(shore_rock, 0.18)
+		_configure_mobile_visibility(shore_rock, 110.0)
 	player_marker = Node3D.new()
 	player_marker.name = "PlayerSpawnMarker"
 	player_marker.position = Vector3(0.0, _terrain_height(0.0, 5.5) + 0.75, 5.5)
