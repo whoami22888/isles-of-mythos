@@ -68,15 +68,15 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update -qq
-          sudo apt-get install -y -qq xvfb ffmpeg
+          sudo apt-get install -y -qq xvfb ffmpeg mesa-vulkan-drivers
           mkdir -p "$RUNNER_TEMP/coastal-fx-frames" "$RUNNER_TEMP/coastal-fx-evidence"
-          IOM_FX_FRAMES_DIR="$RUNNER_TEMP/coastal-fx-frames" timeout --signal=TERM --kill-after=10s 240s xvfb-run -a -s "-screen 0 1280x720x24" "$RUNNER_TEMP/godot" --path client-godot --rendering-method gl_compatibility --script res://tests/render_coastal_fx_sequence.gd
+          IOM_FX_FRAMES_DIR="$RUNNER_TEMP/coastal-fx-frames" timeout --signal=TERM --kill-after=10s 240s xvfb-run -a -s "-screen 0 1280x720x24" "$RUNNER_TEMP/godot" --path client-godot --rendering-method mobile --script res://tests/render_coastal_fx_sequence.gd
           test "$(find "$RUNNER_TEMP/coastal-fx-frames" -name 'frame_*.png' | wc -l)" -eq 72
           ffmpeg -hide_banner -loglevel error -nostdin -y -framerate 24 -i "$RUNNER_TEMP/coastal-fx-frames/frame_%04d.png" -c:v libx264 -preset veryfast -crf 23 -pix_fmt yuv420p -movflags +faststart "$RUNNER_TEMP/coastal-fx-evidence/ship-wake-cinematic.mp4"
           cp "$RUNNER_TEMP/coastal-fx-frames/frame_0000.png" "$RUNNER_TEMP/coastal-fx-evidence/cinematic-start.png"
           cp "$RUNNER_TEMP/coastal-fx-frames/frame_0035.png" "$RUNNER_TEMP/coastal-fx-evidence/cinematic-middle.png"
           cp "$RUNNER_TEMP/coastal-fx-frames/frame_0071.png" "$RUNNER_TEMP/coastal-fx-evidence/cinematic-end.png"
-          printf 'commit=%s\\nengine=Godot 4.7.2\\nrender=gl_compatibility under xvfb (NOT physical Android Mobile)\\nsource=72 consecutive real engine frames at 1280x720\\npose_sampling=authored cinematic camera and ship manually advanced at fixed 1/24s simulation intervals for slow llvmpipe runner\\nshader_TIME=Godot runtime TIME during software capture, NOT physical phone time\\nvideo_fps=24\\nvisual_parity=NOT VERIFIED\\n' "${{ github.event.pull_request.head.sha || github.sha }}" > "$RUNNER_TEMP/coastal-fx-evidence/EVIDENCE.txt"
+          printf 'commit=%s\\nengine=Godot 4.7.2\\nrender=Godot Mobile Vulkan under xvfb lavapipe/Mesa software (NOT physical Android device)\\nsource=72 consecutive real engine frames at 1280x720\\npose_sampling=authored cinematic camera and ship manually advanced at fixed 1/24s simulation intervals for slow llvmpipe runner\\nshader_TIME=Godot runtime TIME during software capture, NOT physical phone time\\nvideo_fps=24\\nvisual_parity=NOT VERIFIED\\n' "${{ github.event.pull_request.head.sha || github.sha }}" > "$RUNNER_TEMP/coastal-fx-evidence/EVIDENCE.txt"
           (cd "$RUNNER_TEMP/coastal-fx-evidence" && sha256sum *.png *.mp4 > SHA256SUMS)
           test -s "$RUNNER_TEMP/coastal-fx-evidence/ship-wake-cinematic.mp4"
       - name: Preserve internal partial real frames on renderer failure
