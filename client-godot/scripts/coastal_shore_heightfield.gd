@@ -74,7 +74,7 @@ static func uv_for_world(baked: Dictionary, point_xz: Vector2) -> Vector2:
 	var extent: Vector2 = baked["extent"]
 	var size: Vector2i = baked["resolution"]
 	var uv := (point_xz - origin) / extent
-	return uv * Vector2(float(size.x - 1) / float(size.x), float(size.y - 1) / float(size.y)) 		+ Vector2(0.5 / float(size.x), 0.5 / float(size.y))
+	return uv * Vector2(float(size.x - 1) / float(size.x), float(size.y - 1) / float(size.y)) + Vector2(0.5 / float(size.x), 0.5 / float(size.y))
 
 
 static func sample_height(baked: Dictionary, point_xz: Vector2) -> float:
