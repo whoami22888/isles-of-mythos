@@ -21,7 +21,7 @@ Status: reference-only evaluation contract. This document does not change gamepl
 5. Keep baseline and candidate artifacts in separate immutable directories. Do not overwrite approved screenshots.
 6. For Godot, execute the project's existing headless import/smoke/visual workflow on the exact candidate SHA; verify the new terrain geometry test is actually invoked before counting it as coverage.
 7. Physical Android GPU, FPS/frame-time, memory, thermal and battery results are **unverified** until measured on devices. Never infer them from headless export.
-8. Preserve existing exact-SHA CI/security/performance and independent review requirements. This reference contract adds no blocking GitHub check and does not modify build workflows.
+8. Preserve existing exact-SHA CI/security/performance and final-HEAD AI-review requirements without adding a second independent AI-review gate. This reference contract adds no blocking GitHub check and does not modify build workflows.
 
 ## Gameplay and retention fine-tuning matrix
 
@@ -47,9 +47,9 @@ Status: reference-only evaluation contract. This document does not change gamepl
 - Visual deltas (terrain, shoreline, water, lighting, composition):
 - Gameplay guide impact (onboarding, exploration, accessibility):
 - Confirmed defects / hypotheses / missing evidence:
-- Independent reviewer:
+- Final exact-SHA AI review, findings and disposition:
 - Disposition: PASS / PARTIAL / FAIL / INCONCLUSIVE
 
 ## Scope and dependency policy
 
-This document is additive and documentation-only. Do not alter `Graphic_baseline`, modify other owners' graphics PRs, import unlicensed art, introduce duplicate approval gates, weaken acceptance thresholds, or merge candidate graphics on the strength of this document alone. Visual comparison and gameplay playtests may proceed independently while existing CI executes.
+This document is additive and documentation-only. The owner's SHA-pinned cinematic reference in `docs/graphics/CINEMATIC_QUALITY_FLOOR.md` remains the mandatory premium visual-quality floor for applicable categories; the older `Graphic_baseline` is supplementary and cannot override that requirement. Do not alter `Graphic_baseline`, modify other owners' graphics PRs, import unlicensed art, introduce duplicate approval gates, weaken acceptance thresholds, or merge candidate graphics on the strength of this document alone. Visual comparison and gameplay playtests may proceed independently while existing CI executes.
