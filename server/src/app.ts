@@ -675,7 +675,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   );
 
   await registerAuthRoutes(app, db);
-  registerCreatureResearchRoutes(app, db);
+  registerCreatureResearchRoutes(app, db, players);
 
   app.get("/shop/catalog", { schema: { tags: ["shop"] } }, () => ({
     items: SHOP_ITEMS.map(serializeShopItem),
