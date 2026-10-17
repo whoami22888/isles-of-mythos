@@ -6,19 +6,22 @@ func _init() -> void:
 
 
 func _capture() -> void:
-	var packed: PackedScene = load("res://scenes/island_preview.tscn")
+	var packed: PackedScene = load("res://scenes/realistic_coastal_slice.tscn")
 	if packed == null:
 		push_error("Island preview scene could not be loaded")
 		quit(1)
 		return
 	var scene: Node3D = packed.instantiate()
 	root.add_child(scene)
+	if OS.get_environment("IOM_CAMERA_MODE") == "cinematic":
+		scene.set_cinematic_view()
 	await process_frame
 	await process_frame
 	await process_frame
-	var camera: Camera3D = scene.get_node_or_null("IslandCamera")
+	var camera_name := "CinematicRevealCamera" if OS.get_environment("IOM_CAMERA_MODE") == "cinematic" else "GameplayCamera"
+	var camera: Camera3D = scene.get_node_or_null(camera_name)
 	if camera == null or not camera.current:
-		push_error("No active island preview camera")
+		push_error("No active realistic coastal camera: %s" % camera_name)
 		quit(1)
 		return
 	var screenshot: Image = root.get_viewport().get_texture().get_image()
