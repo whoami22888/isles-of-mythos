@@ -183,6 +183,7 @@ func _build_premium_landmarks() -> void:
 	ship_focal.scale = Vector3.ONE * 0.72
 	add_child(ship_focal)
 	_ship_base_position = ship_focal.position
+	_cache_ship_visual_bounds()
 	_configure_mobile_visibility(ship_focal, 42.0)
 	# Asset footprints are grounded to terrain rather than assigned arbitrary
 	# fixed y-values. Keep the ship/cinematic sightline clear of near foliage.
@@ -244,6 +245,85 @@ func _configure_mobile_visibility(root: Node, max_distance: float) -> void:
 		if child.get_child_count() > 0:
 			_configure_mobile_visibility(child, max_distance)
 
+func _cache_ship_visual_bounds() -> void:
+	# Compute ONCE from genuine nested imported glTF geometry; the hull
+	# origin is not the centre of sails/masts and clips their upper rigging.
+	_ship_bounds_ready = false
+	if ship_focal == null:
+		return
+	var inverse_ship := ship_focal.global_transform.affine_inverse()
+	var queue: Array[Node] = [ship_focal]
+	var has_any := false
+	var lower := Vector3.ZERO
+	var upper := Vector3.ZERO
+	while not queue.is_empty():
+		var node: Node = queue.pop_back()
+		if node is MeshInstance3D:
+			var mesh_instance := node as MeshInstance3D
+			if mesh_instance.mesh:
+				var aabb := mesh_instance.mesh.get_aabb()
+				for i in range(8):
+					var corner := aabb.position + Vector3(
+						aabb.size.x if i & 1 else 0.0,
+						aabb.size.y if i & 2 else 0.0,
+						aabb.size.z if i & 4 else 0.0
+					)
+					var local_pt: Vector3 = inverse_ship * (mesh_instance.global_transform * corner)
+					if not has_any:
+						lower = local_pt
+						upper = local_pt
+						has_any = true
+					else:
+						lower = lower.min(local_pt)
+						upper = upper.max(local_pt)
+		for child in node.get_children():
+			queue.append(child)
+	if has_any:
+		_ship_visual_bounds_local = AABB(lower, upper - lower)
+		_ship_bounds_ready = true
+	else:
+		push_error("Imported vessel contains no renderable mesh; cinematic framing unavailable")
+
+
+func ship_visual_bounds_world() -> AABB:
+	if not _ship_bounds_ready or ship_focal == null:
+		return AABB()
+	var bounds := _ship_visual_bounds_local
+	var lower := Vector3(INF, INF, INF)
+	var upper := Vector3(-INF, -INF, -INF)
+	for i in range(8):
+		var pt := bounds.position + Vector3(
+			bounds.size.x if i & 1 else 0.0,
+			bounds.size.y if i & 2 else 0.0,
+			bounds.size.z if i & 4 else 0.0
+		)
+		var world_pt: Vector3 = ship_focal.to_global(pt)
+		lower = lower.min(world_pt)
+		upper = upper.max(world_pt)
+	return AABB(lower, upper - lower)
+
+
+func frame_ship_cinematic(camera: Camera3D, desired_position: Vector3) -> bool:
+	if camera == null or not _ship_bounds_ready:
+		return false
+	var bounds := ship_visual_bounds_world()
+	if bounds.size.length_squared() < 0.00001:
+		return false
+	var centre := bounds.get_center()
+	var away := (desired_position - centre).normalized()
+	if away.length_squared() < 0.00001:
+		away = Vector3(-0.6, 0.3, -0.7).normalized()
+	var distance := maxf(0.5, desired_position.distance_to(centre))
+	var safe_radius := bounds.size.length() * 0.5
+	var safe_angle := deg_to_rad(camera.fov * 0.45)
+	# Conservatively enclose the ship's *entire* AABB in a vertical frustum;
+	# no hull-only target can silently clip the sails or mast tips.
+	var needed := safe_radius / maxf(0.05, sin(safe_angle))
+	camera.global_position = centre + away * maxf(distance, needed)
+	camera.look_at(centre)
+	return true
+
+
 func _build_cameras() -> void:
 	gameplay_camera = Camera3D.new()
 	gameplay_camera.name = "GameplayCamera"
@@ -278,6 +358,7 @@ func play_cinematic(reduced_motion := false) -> void:
 	set_cinematic_view()
 	# Every reveal starts from its authored establishing pose, including replay.
 	cinematic_camera.position = CINEMATIC_START_CAMERA
+	frame_ship_cinematic(cinematic_camera, cinematic_camera.global_position)
 	if _reduced_motion:
 		set_gameplay_view()
 		return
@@ -298,7 +379,6 @@ func _process(_delta: float) -> void:
 		ship_focal.position.y = _ship_base_position.y + sin(Time.get_ticks_msec() * 0.0012) * 0.035
 	if _cinematic_active and cinematic_camera and cinematic_camera.current:
 		# Follow the moving ship; fixed island look-at pushed the ship fully offscreen.
-		var focal_point := ship_focal.global_position + Vector3(0.0, 2.0, 0.0) if ship_focal else CINEMATIC_LOOK_TARGET
-		cinematic_camera.look_at(focal_point)
+		frame_ship_cinematic(cinematic_camera, cinematic_camera.global_position)
 	if _cinematic_active and (Input.is_action_just_pressed("ui_accept") or Input.is_action_just_pressed("ui_cancel")):
 		skip_cinematic()
