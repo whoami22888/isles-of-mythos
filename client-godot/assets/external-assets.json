@@ -5,361 +5,413 @@
       "id": "polyhaven-polyhaven-b41ed6df92a6",
       "path": "polyhaven/coast_rocks_05/coast_rocks_05.bin",
       "sha256": "c46b19d62dd5d42d5f03bc7508e22fdc00ec88fa197b4fdf8db8e40929ea13cc",
-      "source_url": "https://polyhaven.com/a/polyhaven",
-      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/polyhaven/coast_rocks_05.bin",
+      "source_url": "https://polyhaven.com/a/coast_rocks_05",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/8k/coast_rocks_05/coast_rocks_05.bin",
       "license": "CC0-1.0",
       "license_url": "https://polyhaven.com/license",
-      "attribution": "Poly Haven"
+      "attribution": "Poly Haven",
+      "upstream_md5": "9d4e639dd13128e96335a5d9828b3f47"
     },
     {
       "id": "polyhaven-polyhaven-a4d90723a675",
       "path": "polyhaven/coast_rocks_05/coast_rocks_05_1k.gltf",
       "sha256": "4b5e97d42b4d9e1999ee5961922adc6b5d81f4aad34219915def7975bb2a8eb7",
-      "source_url": "https://polyhaven.com/a/polyhaven",
-      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/polyhaven/coast_rocks_05_1k.gltf",
+      "source_url": "https://polyhaven.com/a/coast_rocks_05",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/coast_rocks_05/coast_rocks_05_1k.gltf",
       "license": "CC0-1.0",
       "license_url": "https://polyhaven.com/license",
-      "attribution": "Poly Haven"
+      "attribution": "Poly Haven",
+      "upstream_md5": "4d4e9186fe053d2385913fd2bf7eddd9"
     },
     {
       "id": "polyhaven-polyhaven-f14aa2aba9e3",
       "path": "polyhaven/coast_rocks_05/textures/coast_rocks_05_arm_1k.jpg",
       "sha256": "26b851f13a6e00500440d964393bee8aa1865660777c05b9082bdb12c43a23b6",
-      "source_url": "https://polyhaven.com/a/polyhaven",
-      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/polyhaven/coast_rocks_05_arm_1k.jpg",
+      "source_url": "https://polyhaven.com/a/coast_rocks_05",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/coast_rocks_05/coast_rocks_05_arm_1k.jpg",
       "license": "CC0-1.0",
       "license_url": "https://polyhaven.com/license",
-      "attribution": "Poly Haven"
+      "attribution": "Poly Haven",
+      "upstream_md5": "e1254e9d26745f5d06e7a266a1231360"
     },
     {
       "id": "polyhaven-polyhaven-76d664ffd7e0",
       "path": "polyhaven/coast_rocks_05/textures/coast_rocks_05_diff_1k.jpg",
       "sha256": "2ec4ec09422a14d55cc890ad902486cf76df8e663688fbc32f78a15684646ee1",
-      "source_url": "https://polyhaven.com/a/polyhaven",
-      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/polyhaven/coast_rocks_05_diff_1k.jpg",
+      "source_url": "https://polyhaven.com/a/coast_rocks_05",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/coast_rocks_05/coast_rocks_05_diff_1k.jpg",
       "license": "CC0-1.0",
       "license_url": "https://polyhaven.com/license",
-      "attribution": "Poly Haven"
+      "attribution": "Poly Haven",
+      "upstream_md5": "f2b66bad46855efa031e21aa392f4349"
     },
     {
       "id": "polyhaven-polyhaven-279c22ee94a1",
       "path": "polyhaven/coast_rocks_05/textures/coast_rocks_05_nor_gl_1k.jpg",
       "sha256": "5d32e03ea42abc05dd913e7ead4e915d9d60f27c8942f75128a87f84e7baee9d",
-      "source_url": "https://polyhaven.com/a/polyhaven",
-      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/polyhaven/coast_rocks_05_nor_gl_1k.jpg",
+      "source_url": "https://polyhaven.com/a/coast_rocks_05",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/coast_rocks_05/coast_rocks_05_nor_gl_1k.jpg",
       "license": "CC0-1.0",
       "license_url": "https://polyhaven.com/license",
-      "attribution": "Poly Haven"
+      "attribution": "Poly Haven",
+      "upstream_md5": "e5f4c65b6fafd54885044cb25a783265"
     },
     {
       "id": "polyhaven-polyhaven-d34e4f07213b",
       "path": "polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_ao_1k.jpg",
       "sha256": "d81efe8e9c331461a649e463e5fbe68af9d531c9c39bc35ec17d0852e7a9881f",
-      "source_url": "https://polyhaven.com/a/polyhaven",
-      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/polyhaven/coast_sand_rocks_02_ao_1k.jpg",
+      "source_url": "https://polyhaven.com/a/coast_sand_rocks_02",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/coast_sand_rocks_02/coast_sand_rocks_02_ao_1k.jpg",
       "license": "CC0-1.0",
       "license_url": "https://polyhaven.com/license",
-      "attribution": "Poly Haven"
+      "attribution": "Poly Haven",
+      "upstream_md5": "f35fa9fef0bc8b910bcef8a0aef2b066"
     },
     {
       "id": "polyhaven-polyhaven-d79dee6c171e",
       "path": "polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_diff_1k.jpg",
       "sha256": "78eae8ce6209f79417a15ba863fe828f983c22f7e63a9ee3ef504a0062a05ea9",
-      "source_url": "https://polyhaven.com/a/polyhaven",
-      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/polyhaven/coast_sand_rocks_02_diff_1k.jpg",
+      "source_url": "https://polyhaven.com/a/coast_sand_rocks_02",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/coast_sand_rocks_02/coast_sand_rocks_02_diff_1k.jpg",
       "license": "CC0-1.0",
       "license_url": "https://polyhaven.com/license",
-      "attribution": "Poly Haven"
+      "attribution": "Poly Haven",
+      "upstream_md5": "6fa7bee516a8c01a383a782d802b6a3b"
     },
     {
       "id": "polyhaven-polyhaven-fd388e9f24de",
       "path": "polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_disp_1k.jpg",
       "sha256": "d19f27effd0cf07d40630169488cb657358881509d2c35a6bad6a1123acf0581",
-      "source_url": "https://polyhaven.com/a/polyhaven",
-      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/polyhaven/coast_sand_rocks_02_disp_1k.jpg",
+      "source_url": "https://polyhaven.com/a/coast_sand_rocks_02",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/coast_sand_rocks_02/coast_sand_rocks_02_disp_1k.jpg",
       "license": "CC0-1.0",
       "license_url": "https://polyhaven.com/license",
-      "attribution": "Poly Haven"
+      "attribution": "Poly Haven",
+      "upstream_md5": "8ff0f6b0ed722ca87f62503b6249c1f4"
     },
     {
       "id": "polyhaven-polyhaven-5f86f2b8c79a",
       "path": "polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_nor_gl_1k.jpg",
       "sha256": "52776374a8f64aaa8334a87ef8484048baa6f689428a9f8b812004871417ef3e",
-      "source_url": "https://polyhaven.com/a/polyhaven",
-      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/polyhaven/coast_sand_rocks_02_nor_gl_1k.jpg",
+      "source_url": "https://polyhaven.com/a/coast_sand_rocks_02",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/coast_sand_rocks_02/coast_sand_rocks_02_nor_gl_1k.jpg",
       "license": "CC0-1.0",
       "license_url": "https://polyhaven.com/license",
-      "attribution": "Poly Haven"
+      "attribution": "Poly Haven",
+      "upstream_md5": "38045b4c257fb5a87b373e960e3cbb9c"
     },
     {
       "id": "polyhaven-polyhaven-c517d2d65933",
       "path": "polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_rough_1k.jpg",
       "sha256": "02209fc6bb56673585fa29ab78f96651975317839292c31a96844ab7d90a413d",
-      "source_url": "https://polyhaven.com/a/polyhaven",
-      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/polyhaven/coast_sand_rocks_02_rough_1k.jpg",
+      "source_url": "https://polyhaven.com/a/coast_sand_rocks_02",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/coast_sand_rocks_02/coast_sand_rocks_02_rough_1k.jpg",
       "license": "CC0-1.0",
       "license_url": "https://polyhaven.com/license",
-      "attribution": "Poly Haven"
+      "attribution": "Poly Haven",
+      "upstream_md5": "fe1a6ef27aba14602724b26e549a2a5c"
     },
     {
       "id": "polyhaven-polyhaven-a8933c7681e8",
       "path": "polyhaven/dutch_ship_medium/dutch_ship_medium.bin",
       "sha256": "7ff5d886d3baea1f60afdc17c50b99029d7abca159db10212c89c95e39c5437e",
-      "source_url": "https://polyhaven.com/a/polyhaven",
-      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/polyhaven/dutch_ship_medium.bin",
+      "source_url": "https://polyhaven.com/a/dutch_ship_medium",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/4k/dutch_ship_medium/dutch_ship_medium.bin",
       "license": "CC0-1.0",
       "license_url": "https://polyhaven.com/license",
-      "attribution": "Poly Haven"
+      "attribution": "Poly Haven",
+      "upstream_md5": "f73e0108855bc3aef1a65a737a37f575"
     },
     {
       "id": "polyhaven-polyhaven-7da64b450180",
       "path": "polyhaven/dutch_ship_medium/dutch_ship_medium_1k.gltf",
       "sha256": "cc0b86d8a32d4fed2d0c346a352beb9e11ca459bc00b1809705214ac51ea8c9d",
-      "source_url": "https://polyhaven.com/a/polyhaven",
-      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/polyhaven/dutch_ship_medium_1k.gltf",
+      "source_url": "https://polyhaven.com/a/dutch_ship_medium",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/dutch_ship_medium/dutch_ship_medium_1k.gltf",
       "license": "CC0-1.0",
       "license_url": "https://polyhaven.com/license",
-      "attribution": "Poly Haven"
+      "attribution": "Poly Haven",
+      "generated_from": [
+        "polyhaven/dutch_ship_medium/textures/dutch_ship_medium_sails_diff_1k.jpg",
+        "polyhaven/dutch_ship_medium/textures/dutch_ship_medium_sails_alpha_1k.png"
+      ],
+      "generation_note": "locally patched glTF to reference admitted alpha-composited PNG; upstream glTF bytes differ"
     },
     {
       "id": "polyhaven-polyhaven-f4cd2f980fcb",
       "path": "polyhaven/dutch_ship_medium/textures/dutch_ship_medium_hull_arm_1k.jpg",
       "sha256": "10274d6f3815b73f559a920d01a7e9df8feba2ee2e3f574fdc106cedd769106b",
-      "source_url": "https://polyhaven.com/a/polyhaven",
-      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/polyhaven/dutch_ship_medium_hull_arm_1k.jpg",
+      "source_url": "https://polyhaven.com/a/dutch_ship_medium",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/dutch_ship_medium/dutch_ship_medium_hull_arm_1k.jpg",
       "license": "CC0-1.0",
       "license_url": "https://polyhaven.com/license",
-      "attribution": "Poly Haven"
+      "attribution": "Poly Haven",
+      "upstream_md5": "0f24fc5c2234c69a532f4d6c7ed743d8"
     },
     {
       "id": "polyhaven-polyhaven-6d3eaf333b24",
       "path": "polyhaven/dutch_ship_medium/textures/dutch_ship_medium_hull_diff_1k.jpg",
       "sha256": "8bb56d0a31b08c5ca133041cf703daa33d6742d6df0d267c7fe5eced45c9d605",
-      "source_url": "https://polyhaven.com/a/polyhaven",
-      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/polyhaven/dutch_ship_medium_hull_diff_1k.jpg",
+      "source_url": "https://polyhaven.com/a/dutch_ship_medium",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/dutch_ship_medium/dutch_ship_medium_hull_diff_1k.jpg",
       "license": "CC0-1.0",
       "license_url": "https://polyhaven.com/license",
-      "attribution": "Poly Haven"
+      "attribution": "Poly Haven",
+      "upstream_md5": "ea6a1429fc1f457d080ddd0a84d0b1d3"
     },
     {
       "id": "polyhaven-polyhaven-32169ca7addd",
       "path": "polyhaven/dutch_ship_medium/textures/dutch_ship_medium_hull_nor_gl_1k.jpg",
       "sha256": "9f2c281b1b34182a8487cb2358d5e926bd1b2a5b898e8a22d17e0c4a5de9fb23",
-      "source_url": "https://polyhaven.com/a/polyhaven",
-      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/polyhaven/dutch_ship_medium_hull_nor_gl_1k.jpg",
+      "source_url": "https://polyhaven.com/a/dutch_ship_medium",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/dutch_ship_medium/dutch_ship_medium_hull_nor_gl_1k.jpg",
       "license": "CC0-1.0",
       "license_url": "https://polyhaven.com/license",
-      "attribution": "Poly Haven"
+      "attribution": "Poly Haven",
+      "upstream_md5": "db1b09ba5e9456a24ca75a04fcdec460"
     },
     {
       "id": "polyhaven-polyhaven-e3ec353d7d5a",
       "path": "polyhaven/dutch_ship_medium/textures/dutch_ship_medium_rigging_arm_1k.jpg",
       "sha256": "7429a00828ab899e00460c128e06dcd8fb291ab906f4af9a5bd49568e6d3062e",
-      "source_url": "https://polyhaven.com/a/polyhaven",
-      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/polyhaven/dutch_ship_medium_rigging_arm_1k.jpg",
+      "source_url": "https://polyhaven.com/a/dutch_ship_medium",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/dutch_ship_medium/dutch_ship_medium_rigging_arm_1k.jpg",
       "license": "CC0-1.0",
       "license_url": "https://polyhaven.com/license",
-      "attribution": "Poly Haven"
+      "attribution": "Poly Haven",
+      "upstream_md5": "ef43b6361c191488cf38e9dc3ae2ff2c"
     },
     {
       "id": "polyhaven-polyhaven-efb1325a407b",
       "path": "polyhaven/dutch_ship_medium/textures/dutch_ship_medium_rigging_diff_1k.jpg",
       "sha256": "e88492e5cceef5b17e31d727b7d67ddce07ca58418e86581d845b949df2cb2d7",
-      "source_url": "https://polyhaven.com/a/polyhaven",
-      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/polyhaven/dutch_ship_medium_rigging_diff_1k.jpg",
+      "source_url": "https://polyhaven.com/a/dutch_ship_medium",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/dutch_ship_medium/dutch_ship_medium_rigging_diff_1k.jpg",
       "license": "CC0-1.0",
       "license_url": "https://polyhaven.com/license",
-      "attribution": "Poly Haven"
+      "attribution": "Poly Haven",
+      "upstream_md5": "9be03bbd49b2351bf876cff4151d885e"
     },
     {
       "id": "polyhaven-polyhaven-6b2274f54bba",
       "path": "polyhaven/dutch_ship_medium/textures/dutch_ship_medium_rigging_nor_gl_1k.jpg",
       "sha256": "1a6c2fd46ba46239c6fe8d19b7462d86252f161d2dc21954780c12addbb6622c",
-      "source_url": "https://polyhaven.com/a/polyhaven",
-      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/polyhaven/dutch_ship_medium_rigging_nor_gl_1k.jpg",
+      "source_url": "https://polyhaven.com/a/dutch_ship_medium",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/dutch_ship_medium/dutch_ship_medium_rigging_nor_gl_1k.jpg",
       "license": "CC0-1.0",
       "license_url": "https://polyhaven.com/license",
-      "attribution": "Poly Haven"
+      "attribution": "Poly Haven",
+      "upstream_md5": "9c80020acc0933c64d1d1cafabfe4355"
     },
     {
       "id": "polyhaven-polyhaven-ff4e9dbb7b83",
       "path": "polyhaven/dutch_ship_medium/textures/dutch_ship_medium_sails_alpha_1k.png",
       "sha256": "b319c5b5815bb1538061d377fdd0d4b753023188edd1fd6a43ce67ccf51a84ab",
-      "source_url": "https://polyhaven.com/a/polyhaven",
-      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/png/1k/polyhaven/dutch_ship_medium_sails_alpha_1k.png",
+      "source_url": "https://polyhaven.com/a/dutch_ship_medium",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/png/1k/dutch_ship_medium/dutch_ship_medium_sails_alpha_1k.png",
       "license": "CC0-1.0",
       "license_url": "https://polyhaven.com/license",
-      "attribution": "Poly Haven"
+      "attribution": "Poly Haven",
+      "upstream_md5": "b39c85cc1e268b45d8aa3d43040baf0f"
     },
     {
       "id": "polyhaven-polyhaven-14d229151bde",
       "path": "polyhaven/dutch_ship_medium/textures/dutch_ship_medium_sails_arm_1k.jpg",
       "sha256": "ecc0c3b7903ae642cd74214d6a20e6804386cab98759c2f0738a6b0268f825c5",
-      "source_url": "https://polyhaven.com/a/polyhaven",
-      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/polyhaven/dutch_ship_medium_sails_arm_1k.jpg",
+      "source_url": "https://polyhaven.com/a/dutch_ship_medium",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/dutch_ship_medium/dutch_ship_medium_sails_arm_1k.jpg",
       "license": "CC0-1.0",
       "license_url": "https://polyhaven.com/license",
-      "attribution": "Poly Haven"
+      "attribution": "Poly Haven",
+      "upstream_md5": "841c9af726ee8fb3fa412cae8cb94068"
     },
     {
       "id": "polyhaven-polyhaven-b1be8be45f81",
       "path": "polyhaven/dutch_ship_medium/textures/dutch_ship_medium_sails_diff_1k.jpg",
       "sha256": "0a877ee5b446ee5fe624618b3bc7224bd4555a077804c4f1afe61d8ae4600147",
-      "source_url": "https://polyhaven.com/a/polyhaven",
-      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/polyhaven/dutch_ship_medium_sails_diff_1k.jpg",
+      "source_url": "https://polyhaven.com/a/dutch_ship_medium",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/dutch_ship_medium/dutch_ship_medium_sails_diff_1k.jpg",
       "license": "CC0-1.0",
       "license_url": "https://polyhaven.com/license",
-      "attribution": "Poly Haven"
+      "attribution": "Poly Haven",
+      "upstream_md5": "bc208c775eb005386d089ad5dc1eec00"
     },
     {
       "id": "polyhaven-polyhaven-3a62db14c78e",
       "path": "polyhaven/dutch_ship_medium/textures/dutch_ship_medium_sails_nor_gl_1k.jpg",
       "sha256": "3ba665979b047c91386e89a855d1b9038f1c2e5cda116ecea1a54f976cf12fa4",
-      "source_url": "https://polyhaven.com/a/polyhaven",
-      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/polyhaven/dutch_ship_medium_sails_nor_gl_1k.jpg",
+      "source_url": "https://polyhaven.com/a/dutch_ship_medium",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/dutch_ship_medium/dutch_ship_medium_sails_nor_gl_1k.jpg",
       "license": "CC0-1.0",
       "license_url": "https://polyhaven.com/license",
-      "attribution": "Poly Haven"
+      "attribution": "Poly Haven",
+      "upstream_md5": "dd9c9577f8e63071c62448b56f2951f5"
     },
     {
       "id": "polyhaven-polyhaven-b0caea935ff2",
       "path": "polyhaven/dutch_ship_medium/textures/dutch_ship_medium_sails_rgba_1k.png",
       "sha256": "d2a32a716ec2b74cb3613714636f30c08ed85648d9db7581d829ff02f5812d0b",
-      "source_url": "https://polyhaven.com/a/polyhaven",
-      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/polyhaven/dutch_ship_medium_sails_rgba_1k.png",
+      "source_url": "https://polyhaven.com/a/dutch_ship_medium",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/dutch_ship_medium/dutch_ship_medium_sails_diff_1k.jpg",
       "license": "CC0-1.0",
       "license_url": "https://polyhaven.com/license",
-      "attribution": "Poly Haven"
+      "attribution": "Poly Haven",
+      "generated_from": [
+        "polyhaven/dutch_ship_medium/textures/dutch_ship_medium_sails_diff_1k.jpg",
+        "polyhaven/dutch_ship_medium/textures/dutch_ship_medium_sails_alpha_1k.png"
+      ],
+      "generation_note": "RGB diffuse combined with separately licensed upstream alpha mask; output SHA-256 pinned"
     },
     {
       "id": "polyhaven-polyhaven-3d8fd0b9544d",
       "path": "polyhaven/tree_small_02/textures/tree_small_02_arm_1k.jpg",
       "sha256": "891c5a1bb124292984b01558e9f2b0302d27d2fa3ccf9dfc6c34f9ea4ca24e6c",
-      "source_url": "https://polyhaven.com/a/polyhaven",
-      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/polyhaven/tree_small_02_arm_1k.jpg",
+      "source_url": "https://polyhaven.com/a/tree_small_02",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/tree_small_02/tree_small_02_arm_1k.jpg",
       "license": "CC0-1.0",
       "license_url": "https://polyhaven.com/license",
-      "attribution": "Poly Haven"
+      "attribution": "Poly Haven",
+      "upstream_md5": "44b6ed4bf32d7cd67cb3e9d5faeacc38"
     },
     {
       "id": "polyhaven-polyhaven-3641026f0363",
       "path": "polyhaven/tree_small_02/textures/tree_small_02_branch_arm_1k.jpg",
       "sha256": "8968b46d76c67da09ebbf4eed04b8123c9e0ddf5b55d123968b35b32aa76d27a",
-      "source_url": "https://polyhaven.com/a/polyhaven",
-      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/polyhaven/tree_small_02_branch_arm_1k.jpg",
+      "source_url": "https://polyhaven.com/a/tree_small_02",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/tree_small_02/tree_small_02_branch_arm_1k.jpg",
       "license": "CC0-1.0",
       "license_url": "https://polyhaven.com/license",
-      "attribution": "Poly Haven"
+      "attribution": "Poly Haven",
+      "upstream_md5": "9ec3d8428295d87ae363bf0d1e0a8288"
     },
     {
       "id": "polyhaven-polyhaven-5ff24c0d2ee5",
       "path": "polyhaven/tree_small_02/textures/tree_small_02_branch_diff_1k.jpg",
       "sha256": "a71b768e330c0c6cca097e30314f6b4e842ef724a1370f6aab14b4434eec64cb",
-      "source_url": "https://polyhaven.com/a/polyhaven",
-      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/polyhaven/tree_small_02_branch_diff_1k.jpg",
+      "source_url": "https://polyhaven.com/a/tree_small_02",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/tree_small_02/tree_small_02_branch_diff_1k.jpg",
       "license": "CC0-1.0",
       "license_url": "https://polyhaven.com/license",
-      "attribution": "Poly Haven"
+      "attribution": "Poly Haven",
+      "upstream_md5": "88b531469f5dba2fc44ca85df3776e7c"
     },
     {
       "id": "polyhaven-polyhaven-05dedf401264",
       "path": "polyhaven/tree_small_02/textures/tree_small_02_branch_nor_gl_1k.jpg",
       "sha256": "a2efae9e7fede259601188cd5cb7e561fc502bd87e04d862a9532b2d8e647a62",
-      "source_url": "https://polyhaven.com/a/polyhaven",
-      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/polyhaven/tree_small_02_branch_nor_gl_1k.jpg",
+      "source_url": "https://polyhaven.com/a/tree_small_02",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/tree_small_02/tree_small_02_branch_nor_gl_1k.jpg",
       "license": "CC0-1.0",
       "license_url": "https://polyhaven.com/license",
-      "attribution": "Poly Haven"
+      "attribution": "Poly Haven",
+      "upstream_md5": "00a3eed0d4d28e7e890d9ec6ac0619af"
     },
     {
       "id": "polyhaven-polyhaven-e958015b8234",
       "path": "polyhaven/tree_small_02/textures/tree_small_02_diff_1k.jpg",
       "sha256": "4e0093f407b3a1120a36de49a48ebe5a465a9a9b77e361c7a3e66866e115e404",
-      "source_url": "https://polyhaven.com/a/polyhaven",
-      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/polyhaven/tree_small_02_diff_1k.jpg",
+      "source_url": "https://polyhaven.com/a/tree_small_02",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/tree_small_02/tree_small_02_diff_1k.jpg",
       "license": "CC0-1.0",
       "license_url": "https://polyhaven.com/license",
-      "attribution": "Poly Haven"
+      "attribution": "Poly Haven",
+      "upstream_md5": "a7287a3f4e7f0d4577cb949b245f5b14"
     },
     {
       "id": "polyhaven-polyhaven-4f3e85669041",
       "path": "polyhaven/tree_small_02/textures/tree_small_02_leaves_alpha_1k.png",
       "sha256": "4f143e2dda8a6a572f427ac378b92255d21761e4611de0d26e21816c01aa533b",
-      "source_url": "https://polyhaven.com/a/polyhaven",
-      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/png/1k/polyhaven/tree_small_02_leaves_alpha_1k.png",
+      "source_url": "https://polyhaven.com/a/tree_small_02",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/png/1k/tree_small_02/tree_small_02_leaves_alpha_1k.png",
       "license": "CC0-1.0",
       "license_url": "https://polyhaven.com/license",
-      "attribution": "Poly Haven"
+      "attribution": "Poly Haven",
+      "upstream_md5": "63199ba87a9e8928424bd8c3b8017bd0"
     },
     {
       "id": "polyhaven-polyhaven-676ec6667fd4",
       "path": "polyhaven/tree_small_02/textures/tree_small_02_leaves_arm_1k.jpg",
       "sha256": "71f81374daf5a8f3e6eb2c694264a1769fdb0bea508178e4105618eecea83c3e",
-      "source_url": "https://polyhaven.com/a/polyhaven",
-      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/polyhaven/tree_small_02_leaves_arm_1k.jpg",
+      "source_url": "https://polyhaven.com/a/tree_small_02",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/tree_small_02/tree_small_02_leaves_arm_1k.jpg",
       "license": "CC0-1.0",
       "license_url": "https://polyhaven.com/license",
-      "attribution": "Poly Haven"
+      "attribution": "Poly Haven",
+      "upstream_md5": "3dad5bafc732f7692db32a262530bbab"
     },
     {
       "id": "polyhaven-polyhaven-01290dae8158",
       "path": "polyhaven/tree_small_02/textures/tree_small_02_leaves_diff_1k.jpg",
       "sha256": "261e7d7a5ac7d2e16ea8823ff8510be8f3f615999724232994039ad2885e5c36",
-      "source_url": "https://polyhaven.com/a/polyhaven",
-      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/polyhaven/tree_small_02_leaves_diff_1k.jpg",
+      "source_url": "https://polyhaven.com/a/tree_small_02",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/tree_small_02/tree_small_02_leaves_diff_1k.jpg",
       "license": "CC0-1.0",
       "license_url": "https://polyhaven.com/license",
-      "attribution": "Poly Haven"
+      "attribution": "Poly Haven",
+      "upstream_md5": "315cbc2cebfb399e649ccd39112c109a"
     },
     {
       "id": "polyhaven-polyhaven-f5331a4d5497",
       "path": "polyhaven/tree_small_02/textures/tree_small_02_leaves_nor_gl_1k.jpg",
       "sha256": "8c72e04fb23e16ae1df79c01385a638473d1dd4dede3d51e83d70153c129f09b",
-      "source_url": "https://polyhaven.com/a/polyhaven",
-      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/polyhaven/tree_small_02_leaves_nor_gl_1k.jpg",
+      "source_url": "https://polyhaven.com/a/tree_small_02",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/tree_small_02/tree_small_02_leaves_nor_gl_1k.jpg",
       "license": "CC0-1.0",
       "license_url": "https://polyhaven.com/license",
-      "attribution": "Poly Haven"
+      "attribution": "Poly Haven",
+      "upstream_md5": "b06c87e73f54d9654f66d67e9de7aa85"
     },
     {
       "id": "polyhaven-polyhaven-05e05646b2dd",
       "path": "polyhaven/tree_small_02/textures/tree_small_02_leaves_rgba_1k.png",
       "sha256": "ffa4df1cf3c8ca8e0e9ac70d9ccc59abe413ffb7417e13445174ce4af7258c2c",
-      "source_url": "https://polyhaven.com/a/polyhaven",
-      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/polyhaven/tree_small_02_leaves_rgba_1k.png",
+      "source_url": "https://polyhaven.com/a/tree_small_02",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/tree_small_02/tree_small_02_leaves_diff_1k.jpg",
       "license": "CC0-1.0",
       "license_url": "https://polyhaven.com/license",
-      "attribution": "Poly Haven"
+      "attribution": "Poly Haven",
+      "generated_from": [
+        "polyhaven/tree_small_02/textures/tree_small_02_leaves_diff_1k.jpg",
+        "polyhaven/tree_small_02/textures/tree_small_02_leaves_alpha_1k.png"
+      ],
+      "generation_note": "RGB diffuse combined with separately licensed upstream alpha mask; output SHA-256 pinned"
     },
     {
       "id": "polyhaven-polyhaven-24524d5c108d",
       "path": "polyhaven/tree_small_02/textures/tree_small_02_nor_gl_1k.jpg",
       "sha256": "9c83be074c950ea1b94c732c0c0291b53b9ba357f932d378bafe3ca3b4418871",
-      "source_url": "https://polyhaven.com/a/polyhaven",
-      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/polyhaven/tree_small_02_nor_gl_1k.jpg",
+      "source_url": "https://polyhaven.com/a/tree_small_02",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/tree_small_02/tree_small_02_nor_gl_1k.jpg",
       "license": "CC0-1.0",
       "license_url": "https://polyhaven.com/license",
-      "attribution": "Poly Haven"
+      "attribution": "Poly Haven",
+      "upstream_md5": "115a20da8621cd3e034e9b1bbe574746"
     },
     {
       "id": "polyhaven-polyhaven-585758309810",
       "path": "polyhaven/tree_small_02/tree_small_02.bin",
       "sha256": "8da6c3c389ad8748286d1b7488cd827f75ebdad9d8f59ef7dfb0916df5edc634",
-      "source_url": "https://polyhaven.com/a/polyhaven",
-      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/polyhaven/tree_small_02.bin",
+      "source_url": "https://polyhaven.com/a/tree_small_02",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/8k/tree_small_02/tree_small_02.bin",
       "license": "CC0-1.0",
       "license_url": "https://polyhaven.com/license",
-      "attribution": "Poly Haven"
+      "attribution": "Poly Haven",
+      "upstream_md5": "7a7019a87e6fe0d7475c0fa2e08d8962"
     },
     {
       "id": "polyhaven-polyhaven-9e4d82d2c7c9",
       "path": "polyhaven/tree_small_02/tree_small_02_1k.gltf",
       "sha256": "67a1c641110567e8cc67160a5ebc3b1957dc78de04f9109c731f846b4b291af5",
-      "source_url": "https://polyhaven.com/a/polyhaven",
-      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/polyhaven/tree_small_02_1k.gltf",
+      "source_url": "https://polyhaven.com/a/tree_small_02",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/tree_small_02/tree_small_02_1k.gltf",
       "license": "CC0-1.0",
       "license_url": "https://polyhaven.com/license",
-      "attribution": "Poly Haven"
+      "attribution": "Poly Haven",
+      "generated_from": [
+        "polyhaven/tree_small_02/textures/tree_small_02_leaves_diff_1k.jpg",
+        "polyhaven/tree_small_02/textures/tree_small_02_leaves_alpha_1k.png"
+      ],
+      "generation_note": "locally patched glTF to reference admitted alpha-composited PNG; upstream glTF bytes differ"
     }
   ]
 }
