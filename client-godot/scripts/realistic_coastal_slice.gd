@@ -8,6 +8,8 @@ const COAST_DIFFUSE := preload("res://assets/external/polyhaven/coast_sand_rocks
 const COAST_NORMAL := preload("res://assets/external/polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_nor_gl_1k.jpg")
 const COAST_ROUGHNESS := preload("res://assets/external/polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_rough_1k.jpg")
 const COAST_AO := preload("res://assets/external/polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_ao_1k.jpg")
+const SHORE_BAKER := preload("res://scripts/coastal_shore_heightfield.gd")
+const OCEAN_SHADER := preload("res://shaders/ocean_surface.gdshader")
 const WATER_Y := -0.35
 const GAMEPLAY_CAMERA := Vector3(13.0, 12.0, -14.0)
 const CINEMATIC_START_CAMERA := Vector3(-11.0, 5.5, -18.0)
@@ -21,6 +23,9 @@ var _ship_base_position := Vector3.ZERO
 var _cinematic_tween: Tween
 var _cinematic_active := false
 var _reduced_motion := false
+var _shore_binding: Dictionary = {}
+var _ship_visual_bounds_local := AABB()
+var _ship_bounds_ready := false
 
 func _ready() -> void:
 	_build_environment()
@@ -141,57 +146,34 @@ func _terrain_material() -> StandardMaterial3D:
 	return material
 
 func _build_water() -> void:
+	# Preserve exact PBR terrain as shoreline source of truth. The binder
+	# rejects missing, transformed or non-grid geometry instead of inventing
+	# a flat shoreline mask. One Image.FORMAT_RF upload at scene load only.
+	var terrain := get_node_or_null("IrregularCoastalTerrain") as MeshInstance3D
+	if terrain == null:
+		push_error("No source coastal mesh for terrain-aware ocean")
+		return
 	var water := MeshInstance3D.new()
 	water.name = "ShallowToDeepWater"
 	var plane := PlaneMesh.new()
 	plane.size = Vector2(160.0, 120.0)
+	plane.subdivide_width = 160
+	plane.subdivide_depth = 120
 	water.mesh = plane
 	water.position.y = WATER_Y
+	water.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var material := ShaderMaterial.new()
-	var shader := Shader.new()
-	shader.code = """
-shader_type spatial;
-render_mode cull_back, depth_draw_opaque;
-uniform vec4 shallow : source_color = vec4(0.025, 0.19, 0.29, 1.0);
-uniform vec4 deep : source_color = vec4(0.005, 0.035, 0.11, 1.0);
-varying vec3 world_position;
-void vertex() {
-    VERTEX.y += sin(TIME * 0.7 + VERTEX.x * 0.25) * 0.018;
-    world_position = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
-}
-void fragment() {
-    float depth_band = clamp((world_position.z + 18.0) / 36.0, 0.0, 1.0);
-    float ripple = sin(world_position.x * 0.75 + TIME * 0.35) * 0.025;
-    ALBEDO = mix(shallow.rgb, deep.rgb, depth_band) + ripple;
-    ROUGHNESS = 0.22;
-    SPECULAR = 0.8;
-}
-"""
-	material.shader = shader
+	material.shader = OCEAN_SHADER
+	var baked: Dictionary = SHORE_BAKER.bind_to_material(terrain, material, 96, 72)
+	if baked.has("error"):
+		push_error("Coast heightmap binding failed: " + str(baked["error"]))
+		return
+	_shore_binding = baked
 	water.material_override = material
 	add_child(water)
-	# Authored shoreline foam bands: bounded geometry, no per-frame generation.
-	for location in [Vector3(-7.5, WATER_Y + 0.015, -3.4), Vector3(1.0, WATER_Y + 0.015, -4.0), Vector3(8.0, WATER_Y + 0.015, -2.7)]:
-		var foam := MeshInstance3D.new()
-		var foam_mesh := QuadMesh.new()
-		foam_mesh.size = Vector2(5.0, 0.22)
-		foam.mesh = foam_mesh
-		foam.position = location
-		foam.rotation_degrees.x = -90.0
-		var foam_mat := ShaderMaterial.new()
-		var foam_shader := Shader.new()
-		foam_shader.code = """
-shader_type spatial;
-render_mode unshaded, cull_disabled, blend_mix;
-void fragment() {
-    float crest = smoothstep(0.25, 0.72, sin(UV.x * 18.0 + TIME * 1.6) * 0.5 + 0.5);
-    ALBEDO = vec3(0.92, 0.98, 0.94);
-    ALPHA = crest * 0.62;
-}
-"""
-		foam_mat.shader = foam_shader
-		foam.material_override = foam_mat
-		add_child(foam)
+	# Contact foam and depth transitions are now sampled from the ACTUAL
+	# indexed coastline mesh. The three old detached white strips are gone.
+
 
 func _build_premium_landmarks() -> void:
 	ship_focal = SHIP_SCENE.instantiate()
