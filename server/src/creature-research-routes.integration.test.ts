@@ -51,7 +51,7 @@ describe("IOM-04 research HTTP boundary", () => {
 
       const before = await app.inject({ method: "GET", url: "/creature-research", headers: ownerAuth });
       expect(before.statusCode).toBe(200);
-      const beforeSkills = (before.json() as { skills: Array<{ skillId: string; unlocked: boolean; researchRequirementsMet: boolean; cost: Array<{ itemId: string; quantity: number }> }> }).skills;
+      const beforeSkills = before.json<{ skills: Array<{ skillId: string; unlocked: boolean; researchRequirementsMet: boolean; cost: Array<{ itemId: string; quantity: number }> }> }>().skills;
       expect(beforeSkills).toHaveLength(9);
       expect(beforeSkills.find(s => s.skillId === "tracking")).toMatchObject({
         unlocked: false, researchRequirementsMet: true, cost: [{ itemId: "resource.herb", quantity: 1 }],
@@ -77,8 +77,8 @@ describe("IOM-04 research HTTP boundary", () => {
       const otherAfter = await app.inject({ method: "GET", url: "/creature-research", headers: otherAuth });
       expect(ownerAfter.statusCode).toBe(200);
       expect(otherAfter.statusCode).toBe(200);
-      const ownerTracking = (ownerAfter.json() as {skills:Array<{skillId:string;unlocked:boolean;rank:number|null}>}).skills.find(s=>s.skillId==="tracking");
-      const otherTracking = (otherAfter.json() as {skills:Array<{skillId:string;unlocked:boolean;rank:number|null}>}).skills.find(s=>s.skillId==="tracking");
+      const ownerTracking = ownerAfter.json<{skills:Array<{skillId:string;unlocked:boolean;rank:number|null}>}>().skills.find(s=>s.skillId==="tracking");
+      const otherTracking = otherAfter.json<{skills:Array<{skillId:string;unlocked:boolean;rank:number|null}>}>().skills.find(s=>s.skillId==="tracking");
       expect(ownerTracking).toMatchObject({ unlocked: true, rank: 1 });
       expect(otherTracking).toMatchObject({ unlocked: false, rank: null });
       expect(JSON.stringify(otherAfter.json())).not.toContain(owner.user.id);
