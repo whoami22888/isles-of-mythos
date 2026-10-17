@@ -90,7 +90,7 @@ jobs:
            "duration_seconds":10,"fps":24,"frames":240,"source":"Poly Haven Ship Pinnace 1K CC0",
            "original_sail_mesh":true,"synthetic_sail_mesh":false,
            "source_skeletal_animation":"UNAVAILABLE","android_lod":"NOT VERIFIED",
-           "source_sha256_pins":"PENDING first download receipts",
+           "source_sha256_pins":"PINNED FROM VERIFIED ORIGINAL BYTES",
            "visual_acceptance":"NOT VERIFIED; hold artifact internal; no merge as premium",
            "owner_master_sha256":"713cd6e90c6f7d589a06eb3bd4b9b2d5ebeb9c0ff711b5de527a68460dfbcb05"}
           EOF

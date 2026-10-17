@@ -127,6 +127,19 @@ class PinnaceSourceTests(unittest.TestCase):
         with self.assertRaises(SourceError):verified_download(wrong,self.root/'wrong',fetch=lambda _:body)
         with self.assertRaises(SourceError):verified_download(record,self.root/'short',fetch=lambda _:body[:-1])
 
+    def test_all_admission_candidate_source_files_have_sha256_pins(self):
+        # Exact hashes are measured from CI's verified 24-source receipt; missing
+        # or stale source pins must block every subsequent import/download.
+        manifest_path = Path(__file__).parents[1]/'asset-sources/ship_pinnace_audition.json'
+        doc = json.loads(manifest_path.read_text(encoding='utf-8'))
+        self.assertEqual(len(doc['files']), 24)
+        self.assertTrue(all(len(item.get('sha256', '')) == 64 for item in doc['files']))
+
+    def test_workflow_does_not_claim_unpinned_sources_after_pin_admission(self):
+        workflow = (Path(__file__).parents[1]/'.github/workflows/iom-pinnace-source-audition.yml').read_text()
+        self.assertIn('"source_sha256_pins":"PINNED FROM VERIFIED ORIGINAL BYTES"', workflow)
+        self.assertNotIn('"source_sha256_pins":"PENDING first download receipts"', workflow)
+
     def test_original_publisher_aft_arm_byte_identity_lock(self):
         # This publisher MD5 is confirmed directly against the live Poly Haven API.
         # Regression: typo in first run caused expected source to be incorrectly rejected.
