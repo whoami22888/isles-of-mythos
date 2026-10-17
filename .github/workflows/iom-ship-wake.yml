@@ -34,10 +34,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          "$RUNNER_TEMP/godot" --headless --editor --path client-godot --quit --import
-          "$RUNNER_TEMP/godot" --headless --path client-godot --script res://tests/ship_wake_effect_test.gd
+          timeout --signal=TERM --kill-after=10s 150s "$RUNNER_TEMP/godot" --headless --editor --path client-godot --quit --import
+          timeout --signal=TERM --kill-after=10s 150s "$RUNNER_TEMP/godot" --headless --path client-godot --script res://tests/ship_wake_effect_test.gd
       - name: Verify baseline client integrity
         shell: bash
         run: |
           set -euo pipefail
-          "$RUNNER_TEMP/godot" --headless --path client-godot --script res://tests/island_preview_smoke.gd
+          timeout --signal=TERM --kill-after=10s 150s "$RUNNER_TEMP/godot" --headless --path client-godot --script res://tests/island_preview_smoke.gd
