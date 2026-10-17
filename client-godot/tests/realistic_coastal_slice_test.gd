@@ -33,7 +33,7 @@ func run() -> void:
 		ok = ok and water_material != null and water_material.shader != null
 		if water_material != null and water_material.shader != null:
 			var ocean_source := water_material.shader.code
-			ok = ok and ocean_source.contains("coastal_floor_height")
+			ok = ok and ocean_source.contains("coastal_shore_sampler.gdshaderinc") and not ocean_source.contains("coastal_floor_height")
 			ok = ok and ocean_source.contains("NORMAL_MAP")
 			ok = ok and ocean_source.contains("contact * foam_motion")
 			ok = ok and ocean_source.contains("swell_crest")
