@@ -3,9 +3,10 @@
 import json
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
-from audit_premium_graphics import audit
+from audit_premium_graphics import audit, main
 
 
 class PremiumVisualAuditTests(unittest.TestCase):
@@ -75,6 +76,43 @@ func _build_water():
                "meshes": [{"name": "tree_LOD0", "primitives": [{"indices": 0}]}]}
         (self.root / "assets/tree.gltf").write_text(json.dumps(doc))
         self.assertTrue({"FOLIAGE_ALPHA", "HEAVY_LOD0"}.issubset(self.codes()))
+
+    def test_rejects_sail_mask_with_jpeg_alpha_loss(self):
+        self.add_scene("premium_ship.tscn", 'const SHIP_SCENE = preload("res://assets/ship.gltf")\n')
+        (self.root / "assets").mkdir()
+        doc = {"images": [{"uri": "sail_diffuse.jpg", "mimeType": "image/jpeg"}],
+               "textures": [{"source": 0}],
+               "materials": [{"name": "ship_sails", "alphaMode": "MASK", "pbrMetallicRoughness": {"baseColorTexture": {"index": 0}}}]}
+        (self.root / "assets/ship.gltf").write_text(json.dumps(doc))
+        self.assertIn("MASKED_ALPHA_JPEG", self.codes())
+
+    def test_rejects_generic_polyhaven_sources(self):
+        self.add_scene("premium_coast.tscn", "# isolated candidate")
+        (self.root / "assets").mkdir()
+        manifest = {"assets": [{"path": "polyhaven/rock_asset/rock.bin",
+                                "source_url": "https://polyhaven.com/a/polyhaven",
+                                "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/polyhaven/rock.bin"}]}
+        (self.root / "assets/external-assets.json").write_text(json.dumps(manifest))
+        self.assertTrue({"ASSET_SOURCE_MISMATCH", "BAD_ASSET_DOWNLOAD_PATH"}.issubset(self.codes()))
+
+    def test_rejects_binary_above_exact_importer_limit(self):
+        (self.root / "assets/external/polyhaven/tree").mkdir(parents=True)
+        binary = self.root / "assets/external/polyhaven/tree/model.bin"
+        with binary.open("wb") as stream:
+            stream.truncate(80 * 1024 * 1024 + 1)
+        (self.root / "assets/external-assets.json").write_text(json.dumps({"assets": [{
+            "path": "polyhaven/tree/model.bin", "source_url": "https://polyhaven.com/a/tree",
+            "download_url": "https://dl.polyhaven.org/file/tree/model.bin"}]}))
+        self.assertIn("ASSET_EXCEEDS_FETCH_LIMIT", self.codes())
+
+    def test_strict_release_mode_fails_without_premium_scene(self):
+        with patch("sys.argv", ["audit", "--client", str(self.root), "--require-candidate"]):
+            self.assertEqual(main(), 1)
+
+    def test_missing_script_is_not_ignored(self):
+        (self.root / "scenes/premium_world.tscn").write_text(
+            '[ext_resource path="res://scripts/gone.gd" type="Script" id="1"]\n')
+        self.assertIn("MISSING_SCENE_SCRIPT", self.codes())
 
     def test_rejects_bad_screenshot_evidence(self):
         self.add_scene("realistic_coastal_slice.tscn", "# simple scene source")
