@@ -162,6 +162,27 @@ func _build_water():
         filename.write_text(json.dumps(base))
         self.assertNotIn("HEAVY_LOD0", self.codes())
 
+    def test_material_split_lod0_triangles_aggregate_across_primitives(self):
+        # Both material partitions are individually below the 300k threshold.
+        # Combined LOD0 geometry must still trigger the review gate.
+        self.add_scene("premium_geometry.tscn", 'const MESH = preload("res://assets/shape.gltf")\\n')
+        (self.root / "assets").mkdir()
+        filename = self.root / "assets/shape.gltf"
+        doc = {
+            "accessors": [{"count": 540000}, {"count": 540003}],
+            "meshes": [{"name": "material_split_LOD0",
+                        "primitives": [{"indices": 0, "mode": 4}]}]
+        }
+        filename.write_text(json.dumps(doc))
+        self.assertNotIn("HEAVY_LOD0", self.codes())
+        doc["meshes"][0]["primitives"].append({"indices": 1, "mode": 4})
+        filename.write_text(json.dumps(doc))
+        self.assertIn("HEAVY_LOD0", self.codes())
+        # Explicit lower-detail mesh names remain outside this LOD0 gate.
+        doc["meshes"][0]["name"] = "material_split_LOD1"
+        filename.write_text(json.dumps(doc))
+        self.assertNotIn("HEAVY_LOD0", self.codes())
+
     def test_unindexed_triangle_primitives_obey_gltf_semantics(self):
         self.add_scene("premium_geometry.tscn", 'const MESH = preload("res://assets/shape.gltf")\\n')
         (self.root / "assets").mkdir()
