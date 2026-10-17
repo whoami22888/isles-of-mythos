@@ -1,0 +1,125 @@
+name: Isles premium vessel in-engine audition
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/audition_assets.py'
+      - 'scripts/test_audition_assets.py'
+      - 'asset-sources/dutch_ship_medium_audition.json'
+      - 'client-godot/tests/render_vessel_audition.gd'
+      - 'docs/graphics/PREMIUM_ASSET_AUDITION.md'
+      - '.github/workflows/iom-premium-asset-audition.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  render-audition:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Python dependency isolated with pinned version
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m venv "$RUNNER_TEMP/iom-py"
+          "$RUNNER_TEMP/iom-py/bin/python" -m pip install --disable-pip-version-check 'Pillow==11.3.0'
+          echo "$RUNNER_TEMP/iom-py/bin" >> "$GITHUB_PATH"
+      - name: Verify rejection tests before external source retrieval
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile scripts/audition_assets.py scripts/test_audition_assets.py
+          python3 -m unittest discover -s scripts -p test_audition_assets.py -v
+          python3 - <<'PY'
+          import json
+          from sys import path
+          path.insert(0, 'scripts')
+          from audition_assets import validate_manifest
+          doc=json.load(open('asset-sources/dutch_ship_medium_audition.json', encoding='utf-8'))
+          validate_manifest(doc)
+          print('PASS: 12 official Poly Haven asset source records')
+          PY
+      - name: Stage actual source and preserve original bytes separately
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/audition_assets.py \
+            --manifest asset-sources/dutch_ship_medium_audition.json \
+            --staging client-godot/assets/world_audition/ship \
+            --receipt "$RUNNER_TEMP/ship-provenance-receipt.json"
+      - name: Install exact Godot and deterministic video encoder
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq xvfb ffmpeg
+          curl --fail --location --retry 3 -o "$RUNNER_TEMP/godot.zip" \
+            'https://github.com/godotengine/godot/releases/download/4.7.2-stable/Godot_v4.7.2-stable_linux.x86_64.zip'
+          echo "cadd3204e728a35d3f13adb7fd0d7902636b79f6b95c40c265eb73b6c35329e4  $RUNNER_TEMP/godot.zip" | sha256sum --check
+          unzip -q "$RUNNER_TEMP/godot.zip" -d "$RUNNER_TEMP"
+          install "$RUNNER_TEMP/Godot_v4.7.2-stable_linux.x86_64" "$RUNNER_TEMP/godot"
+      - name: Import actual PBR glTF into Godot 4.7.2
+        shell: bash
+        run: |
+          set -euo pipefail
+          xvfb-run -a -s '-screen 0 1280x720x24' \
+            "$RUNNER_TEMP/godot" --editor --path client-godot --quit --import
+      - name: Capture actual sequential Godot-engine frames (internal diagnostic)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/visual-audition"
+          IOM_AUDITION_FRAMES="$RUNNER_TEMP/visual-audition" \
+            xvfb-run -a -s '-screen 0 1280x720x24' \
+              "$RUNNER_TEMP/godot" --path client-godot --rendering-method gl_compatibility \
+              --script res://tests/render_vessel_audition.gd
+          test -s "$RUNNER_TEMP/visual-audition/candidate_still.png"
+          python3 scripts/audition_assets.py --verify-frames "$RUNNER_TEMP/visual-audition" --min-frames 240
+      - name: Encode real engine frame sequence to MP4 and close hashes
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/visual-audition"
+          ffmpeg -hide_banner -loglevel error -nostdin -y -framerate 24 \
+            -i frame_%03d.png -c:v libx264 -preset medium -crf 19 \
+            -pix_fmt yuv420p -movflags +faststart candidate_engine_motion.mp4
+          test -s candidate_engine_motion.mp4
+          COUNT="$(ffprobe -v error -count_frames -select_streams v:0 \
+            -show_entries stream=nb_read_frames -of default=noprint_wrappers=1:nokey=1 candidate_engine_motion.mp4)"
+          test "$COUNT" = 240
+          cp "$RUNNER_TEMP/ship-provenance-receipt.json" source-receipt.json
+          cat > evidence.json <<EOF
+          {
+            "commit": "${{ github.event.pull_request.head.sha || github.sha }}",
+            "renderer": "Godot 4.7.2 compatibility (Xvfb CI, NOT Android Mobile)",
+            "asset": "Poly Haven Dutch Ship Medium 1K source + verified original sail alpha",
+            "frames": 240,
+            "fps": 24,
+            "owner_video_sha256": "713cd6e90c6f7d589a06eb3bd4b9b2d5ebeb9c0ff711b5de527a68460dfbcb05",
+            "art_acceptance": "NOT VERIFIED; DO NOT SHOW AS FINAL OR MERGE AS PREMIUM",
+            "mobile_performance": "NOT MEASURED",
+            "skeletal_ship_animation": "NOT AVAILABLE; commissioned surface cloth animation, wave shader, camera tracking; original glTF lacks skeletal animation"
+          }
+          EOF
+          sha256sum candidate_still.png candidate_072.png candidate_192.png candidate_engine_motion.mp4 source-receipt.json evidence.json > SHA256SUMS
+          sha256sum --check SHA256SUMS
+          find . -maxdepth 1 -name 'frame_*.png' -delete
+      - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
+        with:
+          name: iom-internal-premium-vessel-audition-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            ${{ runner.temp }}/visual-audition/candidate_still.png
+            ${{ runner.temp }}/visual-audition/candidate_072.png
+            ${{ runner.temp }}/visual-audition/candidate_192.png
+            ${{ runner.temp }}/visual-audition/candidate_engine_motion.mp4
+            ${{ runner.temp }}/visual-audition/source-receipt.json
+            ${{ runner.temp }}/visual-audition/evidence.json
+            ${{ runner.temp }}/visual-audition/SHA256SUMS
+          if-no-files-found: error
+          retention-days: 14

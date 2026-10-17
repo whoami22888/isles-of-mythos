@@ -1,0 +1,22 @@
+{
+  "asset_id": "dutch_ship_medium",
+  "publisher": "https://polyhaven.com/a/dutch_ship_medium",
+  "license": "CC0-1.0",
+  "status": "audition-only-not-admitted",
+  "gltf_has_skeletal_animation": false,
+  "purpose": "Actual in-engine hull/rigging/sail-material and camera-motion audition, NOT accepted game art",
+  "files": [
+    {"path":"dutch_ship_medium_1k.gltf","size":7494,"md5":"ade58c8bbbc75ebcafd5f7f9bbd5cfea","sha256":"208112252d4f83a9c404563371053820a90963a53b465fd6c745b16868f4bade","url":"https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/dutch_ship_medium/dutch_ship_medium_1k.gltf"},
+    {"path":"dutch_ship_medium.bin","size":2480380,"md5":"f73e0108855bc3aef1a65a737a37f575","sha256":"7ff5d886d3baea1f60afdc17c50b99029d7abca159db10212c89c95e39c5437e","url":"https://dl.polyhaven.org/file/ph-assets/Models/gltf/4k/dutch_ship_medium/dutch_ship_medium.bin"},
+    {"path":"textures/dutch_ship_medium_hull_arm_1k.jpg","size":992318,"md5":"0f24fc5c2234c69a532f4d6c7ed743d8","sha256":"10274d6f3815b73f559a920d01a7e9df8feba2ee2e3f574fdc106cedd769106b","url":"https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/dutch_ship_medium/dutch_ship_medium_hull_arm_1k.jpg"},
+    {"path":"textures/dutch_ship_medium_sails_diff_1k.jpg","size":579788,"md5":"bc208c775eb005386d089ad5dc1eec00","sha256":"0a877ee5b446ee5fe624618b3bc7224bd4555a077804c4f1afe61d8ae4600147","url":"https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/dutch_ship_medium/dutch_ship_medium_sails_diff_1k.jpg"},
+    {"path":"textures/dutch_ship_medium_rigging_arm_1k.jpg","size":556896,"md5":"ef43b6361c191488cf38e9dc3ae2ff2c","sha256":"7429a00828ab899e00460c128e06dcd8fb291ab906f4af9a5bd49568e6d3062e","url":"https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/dutch_ship_medium/dutch_ship_medium_rigging_arm_1k.jpg"},
+    {"path":"textures/dutch_ship_medium_hull_nor_gl_1k.jpg","size":967533,"md5":"db1b09ba5e9456a24ca75a04fcdec460","sha256":"9f2c281b1b34182a8487cb2358d5e926bd1b2a5b898e8a22d17e0c4a5de9fb23","url":"https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/dutch_ship_medium/dutch_ship_medium_hull_nor_gl_1k.jpg"},
+    {"path":"textures/dutch_ship_medium_rigging_nor_gl_1k.jpg","size":535119,"md5":"9c80020acc0933c64d1d1cafabfe4355","sha256":"1a6c2fd46ba46239c6fe8d19b7462d86252f161d2dc21954780c12addbb6622c","url":"https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/dutch_ship_medium/dutch_ship_medium_rigging_nor_gl_1k.jpg"},
+    {"path":"textures/dutch_ship_medium_sails_arm_1k.jpg","size":532281,"md5":"841c9af726ee8fb3fa412cae8cb94068","sha256":"ecc0c3b7903ae642cd74214d6a20e6804386cab98759c2f0738a6b0268f825c5","url":"https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/dutch_ship_medium/dutch_ship_medium_sails_arm_1k.jpg"},
+    {"path":"textures/dutch_ship_medium_hull_diff_1k.jpg","size":745169,"md5":"ea6a1429fc1f457d080ddd0a84d0b1d3","sha256":"8bb56d0a31b08c5ca133041cf703daa33d6742d6df0d267c7fe5eced45c9d605","url":"https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/dutch_ship_medium/dutch_ship_medium_hull_diff_1k.jpg"},
+    {"path":"textures/dutch_ship_medium_sails_nor_gl_1k.jpg","size":770917,"md5":"dd9c9577f8e63071c62448b56f2951f5","sha256":"3ba665979b047c91386e89a855d1b9038f1c2e5cda116ecea1a54f976cf12fa4","url":"https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/dutch_ship_medium/dutch_ship_medium_sails_nor_gl_1k.jpg"},
+    {"path":"textures/dutch_ship_medium_rigging_diff_1k.jpg","size":567644,"md5":"9be03bbd49b2351bf876cff4151d885e","sha256":"e88492e5cceef5b17e31d727b7d67ddce07ca58418e86581d845b949df2cb2d7","url":"https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/dutch_ship_medium/dutch_ship_medium_rigging_diff_1k.jpg"},
+    {"path":"textures/dutch_ship_medium_sails_alpha_1k.png","size":13280,"md5":"b39c85cc1e268b45d8aa3d43040baf0f","sha256":"b319c5b5815bb1538061d377fdd0d4b753023188edd1fd6a43ce67ccf51a84ab","url":"https://dl.polyhaven.org/file/ph-assets/Models/png/1k/dutch_ship_medium/dutch_ship_medium_sails_alpha_1k.png"}
+  ]
+}
