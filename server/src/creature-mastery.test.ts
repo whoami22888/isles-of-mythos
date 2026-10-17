@@ -47,7 +47,15 @@ describe("research-earned creature skills", () => {
   });
   it("makes earned practice improve rank but refuses malformed or unearned XP", () => {
     expect(rankForExperience(0)).toBe(1);
-    expect(rankForExperience(500)).toBeGreaterThan(1);
+    // Exact boundaries: one point below and at each earned-rank threshold.
+    expect(rankForExperience(99)).toBe(1);
+    expect(rankForExperience(100)).toBe(2);
+    expect(rankForExperience(249)).toBe(2);
+    expect(rankForExperience(250)).toBe(3);
+    expect(rankForExperience(499)).toBe(3);
+    expect(rankForExperience(500)).toBe(4);
+    expect(rankForExperience(899)).toBe(4);
+    expect(rankForExperience(900)).toBe(5);
     expect(rankForExperience(1_000_000)).toBe(MAX_SKILL_RANK);
     expect(awardPlayerPractice({unlocked:true,experience:95}, 10)).toEqual({unlocked:true,experience:105});
     expect(()=>awardPlayerPractice({unlocked:false,experience:0},10)).toThrow("SKILL_LOCKED");
