@@ -63,6 +63,7 @@ jobs:
           name: godot-rendered-sculpted-terrain
           path: |
             ${{ runner.temp }}/visual-evidence/sculpted-terrain-preview.png
+            ${{ runner.temp }}/visual-evidence/island-preview.png
             ${{ runner.temp }}/visual-evidence/SHA256SUMS
           if-no-files-found: error
       - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
