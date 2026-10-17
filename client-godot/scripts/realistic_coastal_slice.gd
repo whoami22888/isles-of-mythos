@@ -4,6 +4,10 @@ extends Node3D
 const ROCK_SCENE := preload("res://assets/external/polyhaven/coast_rocks_05/coast_rocks_05_1k.gltf")
 const TREE_SCENE := preload("res://assets/external/polyhaven/tree_small_02/tree_small_02_1k.gltf")
 const SHIP_SCENE := preload("res://assets/external/polyhaven/dutch_ship_medium/dutch_ship_medium_1k.gltf")
+const COAST_DIFFUSE := preload("res://assets/external/polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_diff_1k.jpg")
+const COAST_NORMAL := preload("res://assets/external/polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_nor_gl_1k.jpg")
+const COAST_ROUGHNESS := preload("res://assets/external/polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_rough_1k.jpg")
+const COAST_AO := preload("res://assets/external/polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_ao_1k.jpg")
 const WATER_Y := -0.35
 const GAMEPLAY_CAMERA := Vector3(17.0, 10.5, 18.0)
 
@@ -88,6 +92,13 @@ func _build_coastal_terrain() -> void:
 func _terrain_material() -> StandardMaterial3D:
 	var material := StandardMaterial3D.new()
 	material.albedo_color = Color("#c9a77b")
+	material.albedo_texture = COAST_DIFFUSE
+	material.normal_enabled = true
+	material.normal_texture = COAST_NORMAL
+	material.roughness_texture = COAST_ROUGHNESS
+	material.roughness_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED
+	material.ao_enabled = true
+	material.ao_texture = COAST_AO
 	material.roughness = 0.88
 	material.metallic = 0.0
 	return material

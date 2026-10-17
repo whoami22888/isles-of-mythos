@@ -52,6 +52,56 @@
       "attribution": "Poly Haven"
     },
     {
+      "id": "polyhaven-polyhaven-d34e4f07213b",
+      "path": "polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_ao_1k.jpg",
+      "sha256": "d81efe8e9c331461a649e463e5fbe68af9d531c9c39bc35ec17d0852e7a9881f",
+      "source_url": "https://polyhaven.com/a/polyhaven",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/polyhaven/coast_sand_rocks_02_ao_1k.jpg",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven"
+    },
+    {
+      "id": "polyhaven-polyhaven-d79dee6c171e",
+      "path": "polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_diff_1k.jpg",
+      "sha256": "78eae8ce6209f79417a15ba863fe828f983c22f7e63a9ee3ef504a0062a05ea9",
+      "source_url": "https://polyhaven.com/a/polyhaven",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/polyhaven/coast_sand_rocks_02_diff_1k.jpg",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven"
+    },
+    {
+      "id": "polyhaven-polyhaven-fd388e9f24de",
+      "path": "polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_disp_1k.jpg",
+      "sha256": "d19f27effd0cf07d40630169488cb657358881509d2c35a6bad6a1123acf0581",
+      "source_url": "https://polyhaven.com/a/polyhaven",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/polyhaven/coast_sand_rocks_02_disp_1k.jpg",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven"
+    },
+    {
+      "id": "polyhaven-polyhaven-5f86f2b8c79a",
+      "path": "polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_nor_gl_1k.jpg",
+      "sha256": "52776374a8f64aaa8334a87ef8484048baa6f689428a9f8b812004871417ef3e",
+      "source_url": "https://polyhaven.com/a/polyhaven",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/polyhaven/coast_sand_rocks_02_nor_gl_1k.jpg",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven"
+    },
+    {
+      "id": "polyhaven-polyhaven-c517d2d65933",
+      "path": "polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_rough_1k.jpg",
+      "sha256": "02209fc6bb56673585fa29ab78f96651975317839292c31a96844ab7d90a413d",
+      "source_url": "https://polyhaven.com/a/polyhaven",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/polyhaven/coast_sand_rocks_02_rough_1k.jpg",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven"
+    },
+    {
       "id": "polyhaven-polyhaven-a8933c7681e8",
       "path": "polyhaven/dutch_ship_medium/dutch_ship_medium.bin",
       "sha256": "7ff5d886d3baea1f60afdc17c50b99029d7abca159db10212c89c95e39c5437e",
