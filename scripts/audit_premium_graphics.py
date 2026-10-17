@@ -75,6 +75,9 @@ def _inspect_gltf(root: Path, rel: str) -> List[Finding]:
             issues.append(Finding("FOLIAGE_ALPHA" if "lea" in name else "MASKED_ALPHA_JPEG", rel,
                 f"{name}: {alpha_mode} base texture is JPEG without alpha; supply pinned alpha-capable color or an independently validated opacity path"))
     for mesh in meshes:
+        # Material-split primitives belong to one mesh/LOD cost envelope.
+        # A per-primitive limit silently misses 2 x 200k-triangle LOD0 parts.
+        mesh_triangles = 0
         for primitive in mesh.get("primitives", []):
             # glTF permits unindexed primitives. In that case the POSITION
             # accessor's vertex count determines triangle/strip/fan size.
@@ -94,14 +97,16 @@ def _inspect_gltf(root: Path, rel: str) -> List[Finding]:
                 continue
             mode = primitive.get("mode", 4)
             if mode == 4:  # TRIANGLES
-                triangles = count // 3
+                mesh_triangles += count // 3
             elif mode in (5, 6):  # TRIANGLE_STRIP / TRIANGLE_FAN
-                triangles = max(0, count - 2)
-            else:  # POINTS / LINES cannot be classified as filled triangles
-                continue
-            if triangles > TRIANGLE_REVIEW_LIMIT and not re.search(r"LOD[1-9]", mesh.get("name", ""), re.I):
-                issues.append(Finding("HEAVY_LOD0", rel,
-                    f"{mesh.get('name', 'unnamed')}: {triangles:,} triangles/primitive; mobile LOD and profiling required"))
+                mesh_triangles += max(0, count - 2)
+            elif mode not in (0, 1, 2, 3):  # POINTS/LINES have no filled triangles
+                issues.append(Finding("INVALID_GEOMETRY", rel,
+                    f"{mesh.get('name', 'unnamed')}: unsupported glTF primitive mode {mode!r}"))
+        if mesh_triangles > TRIANGLE_REVIEW_LIMIT and not re.search(
+                r"LOD[1-9]", mesh.get("name", ""), re.I):
+            issues.append(Finding("HEAVY_LOD0", rel,
+                f"{mesh.get('name', 'unnamed')}: {mesh_triangles:,} triangles/mesh across primitives; mobile LOD and profiling required"))
     return issues
 
 
