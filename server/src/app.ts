@@ -10,6 +10,7 @@ import { config } from "./config.js";
 import { recordHttpRequest, recordTick, renderPrometheusMetrics, setActivePlayers, setDatabaseUp, setWebSocketAuthenticated, setWebSocketConnections } from "./metrics.js";
 import { createDbPool } from "./db.js";
 import { registerAuthRoutes } from "./auth.js";
+import { registerCreatureResearchRoutes } from "./creature-research-routes.js";
 import { log } from "./logger.js";
 import { parseClientMessage, type ServerMessage } from "./protocol.js";
 import { PlayerStore, serializePlayerState } from "./player.js";
@@ -674,6 +675,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   );
 
   await registerAuthRoutes(app, db);
+  registerCreatureResearchRoutes(app, db);
 
   app.get("/shop/catalog", { schema: { tags: ["shop"] } }, () => ({
     items: SHOP_ITEMS.map(serializeShopItem),
