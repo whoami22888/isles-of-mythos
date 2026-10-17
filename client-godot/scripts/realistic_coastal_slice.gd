@@ -9,8 +9,9 @@ const COAST_NORMAL := preload("res://assets/external/polyhaven/coast_sand_rocks_
 const COAST_ROUGHNESS := preload("res://assets/external/polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_rough_1k.jpg")
 const COAST_AO := preload("res://assets/external/polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_ao_1k.jpg")
 const WATER_Y := -0.35
-const GAMEPLAY_CAMERA := Vector3(10.5, 6.0, 10.0)
-const CINEMATIC_START_CAMERA := Vector3(-8.0, 4.5, 9.0)
+const GAMEPLAY_CAMERA := Vector3(13.0, 12.0, -14.0)
+const CINEMATIC_START_CAMERA := Vector3(-11.0, 5.5, -18.0)
+const CINEMATIC_LOOK_TARGET := Vector3(1.0, 2.2, 1.0)
 
 var gameplay_camera: Camera3D
 var cinematic_camera: Camera3D
@@ -267,13 +268,14 @@ func _build_cameras() -> void:
 	gameplay_camera.position = GAMEPLAY_CAMERA
 	gameplay_camera.current = true
 	add_child(gameplay_camera)
-	gameplay_camera.look_at(Vector3(1.0, 1.6, -3.0))
+	# Camera stays seaward: ship in front, sculpted island behind.
+	gameplay_camera.look_at(Vector3(1.0, 1.8, -0.5))
 	cinematic_camera = Camera3D.new()
 	cinematic_camera.name = "CinematicRevealCamera"
 	cinematic_camera.position = CINEMATIC_START_CAMERA
 	cinematic_camera.current = false
 	add_child(cinematic_camera)
-	cinematic_camera.look_at(Vector3(0.0, 1.4, -2.0))
+	cinematic_camera.look_at(CINEMATIC_LOOK_TARGET)
 
 func set_gameplay_view() -> void:
 	_cinematic_active = false
@@ -298,8 +300,8 @@ func play_cinematic(reduced_motion := false) -> void:
 		set_gameplay_view()
 		return
 	_cinematic_tween = create_tween()
-	_cinematic_tween.tween_property(cinematic_camera, "position", Vector3(-3.0, 3.5, 6.0), 1.8).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	_cinematic_tween.tween_property(cinematic_camera, "position", GAMEPLAY_CAMERA, 1.8).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_cinematic_tween.tween_property(cinematic_camera, "position", Vector3(-7.0, 4.8, -13.0), 2.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_cinematic_tween.tween_property(cinematic_camera, "position", Vector3(-2.5, 3.9, -9.5), 2.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	_cinematic_tween.finished.connect(set_gameplay_view)
 
 func skip_cinematic() -> void:
@@ -309,6 +311,6 @@ func _process(_delta: float) -> void:
 	if ship_focal:
 		ship_focal.position = _ship_base_position + Vector3(0.0, sin(Time.get_ticks_msec() * 0.0012) * 0.035, 0.0)
 	if _cinematic_active and cinematic_camera and cinematic_camera.current:
-		cinematic_camera.look_at(Vector3(1.0, 1.6, -3.0))
+		cinematic_camera.look_at(CINEMATIC_LOOK_TARGET)
 	if _cinematic_active and (Input.is_action_just_pressed("ui_accept") or Input.is_action_just_pressed("ui_cancel")):
 		skip_cinematic()
