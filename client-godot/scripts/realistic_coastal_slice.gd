@@ -9,11 +9,13 @@ const COAST_NORMAL := preload("res://assets/external/polyhaven/coast_sand_rocks_
 const COAST_ROUGHNESS := preload("res://assets/external/polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_rough_1k.jpg")
 const COAST_AO := preload("res://assets/external/polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_ao_1k.jpg")
 const WATER_Y := -0.35
-const GAMEPLAY_CAMERA := Vector3(9.5, 5.2, 8.5)
+const GAMEPLAY_CAMERA := Vector3(10.5, 6.0, 10.0)
 
 var gameplay_camera: Camera3D
 var cinematic_camera: Camera3D
 var player_marker: Node3D
+var ship_focal: Node3D
+var _ship_base_position := Vector3.ZERO
 var _cinematic_tween: Tween
 var _cinematic_active := false
 var _reduced_motion := false
@@ -115,7 +117,7 @@ func _build_water() -> void:
 	var water := MeshInstance3D.new()
 	water.name = "ShallowToDeepWater"
 	var plane := PlaneMesh.new()
-	plane.size = Vector2(70.0, 54.0)
+	plane.size = Vector2(160.0, 120.0)
 	water.mesh = plane
 	water.position.y = WATER_Y
 	var material := ShaderMaterial.new()
@@ -125,9 +127,15 @@ shader_type spatial;
 render_mode cull_back, depth_draw_opaque;
 uniform vec4 shallow : source_color = vec4(0.025, 0.19, 0.29, 1.0);
 uniform vec4 deep : source_color = vec4(0.005, 0.035, 0.11, 1.0);
+varying vec3 world_position;
+void vertex() {
+    VERTEX.y += sin(TIME * 0.7 + VERTEX.x * 0.25) * 0.018;
+    world_position = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+}
 void fragment() {
-    float depth_band = clamp(UV.x * 0.34 + UV.y * 0.22, 0.0, 1.0);
-    ALBEDO = mix(shallow.rgb, deep.rgb, depth_band);
+    float depth_band = clamp((world_position.z + 18.0) / 36.0, 0.0, 1.0);
+    float ripple = sin(world_position.x * 0.75 + TIME * 0.35) * 0.025;
+    ALBEDO = mix(shallow.rgb, deep.rgb, depth_band) + ripple;
     ROUGHNESS = 0.22;
     SPECULAR = 0.8;
 }
@@ -143,24 +151,33 @@ void fragment() {
 		foam.mesh = foam_mesh
 		foam.position = location
 		foam.rotation_degrees.x = -90.0
-		var foam_mat := StandardMaterial3D.new()
-		foam_mat.albedo_color = Color(0.92, 0.98, 0.94, 0.72)
-		foam_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		foam_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		var foam_mat := ShaderMaterial.new()
+		var foam_shader := Shader.new()
+		foam_shader.code = """
+shader_type spatial;
+render_mode unshaded, cull_disabled, blend_mix;
+void fragment() {
+    float crest = smoothstep(0.25, 0.72, sin(UV.x * 18.0 + TIME * 1.6) * 0.5 + 0.5);
+    ALBEDO = vec3(0.92, 0.98, 0.94);
+    ALPHA = crest * 0.62;
+}
+"""
+		foam_mat.shader = foam_shader
 		foam.material_override = foam_mat
 		add_child(foam)
 
 func _build_premium_landmarks() -> void:
-	var ship := SHIP_SCENE.instantiate()
-	ship.name = "HarbourShipFocalPoint"
-	ship.position = Vector3(2.0, -0.05, -7.5)
-	ship.rotation_degrees = Vector3(0.0, 18.0, 0.0)
-	ship.scale = Vector3.ONE * 0.72
-	add_child(ship)
-	_configure_mobile_visibility(ship, 42.0)
+	ship_focal = SHIP_SCENE.instantiate()
+	ship_focal.name = "HarbourShipFocalPoint"
+	ship_focal.position = Vector3(1.0, -0.05, -5.8)
+	ship_focal.rotation_degrees = Vector3(0.0, 18.0, 0.0)
+	ship_focal.scale = Vector3.ONE * 0.72
+	add_child(ship_focal)
+	_ship_base_position = ship_focal.position
+	_configure_mobile_visibility(ship_focal, 42.0)
 	for entry in [
-		[Vector3(-8.0, 0.35, -2.1), 1.9], [Vector3(-2.0, 0.25, -1.4), 1.35],
-		[Vector3(6.8, 0.48, -2.7), 1.65], [Vector3(11.0, 1.05, 3.5), 2.4]
+		[Vector3(-8.0, 0.35, -2.1), 1.45], [Vector3(-2.0, 0.25, -1.4), 1.1],
+		[Vector3(6.8, 0.48, -2.7), 1.25], [Vector3(11.0, 0.65, 3.5), 1.55]
 	]:
 		var rock := ROCK_SCENE.instantiate()
 		rock.position = entry[0]
@@ -168,8 +185,8 @@ func _build_premium_landmarks() -> void:
 		add_child(rock)
 		_configure_mobile_visibility(rock, 30.0)
 	for entry in [
-		[Vector3(-9.0, 1.0, 2.5), 1.2], [Vector3(-5.5, 1.05, 5.0), 1.0],
-		[Vector3(3.5, 1.0, 4.5), 1.15], [Vector3(9.0, 1.0, 6.0), 0.9]
+		[Vector3(-9.0, 0.35, 2.5), 1.2], [Vector3(-5.5, 0.4, 5.0), 1.0],
+		[Vector3(6.0, 0.4, 4.5), 1.05], [Vector3(9.0, 0.45, 6.0), 0.85]
 	]:
 		var tree := TREE_SCENE.instantiate()
 		tree.position = entry[0]
@@ -196,13 +213,13 @@ func _build_cameras() -> void:
 	gameplay_camera.position = GAMEPLAY_CAMERA
 	gameplay_camera.current = true
 	add_child(gameplay_camera)
-	gameplay_camera.look_at(Vector3(1.0, 0.8, -3.0))
+	gameplay_camera.look_at(Vector3(1.0, 1.6, -3.0))
 	cinematic_camera = Camera3D.new()
 	cinematic_camera.name = "CinematicRevealCamera"
 	cinematic_camera.position = Vector3(-8.0, 4.5, 9.0)
 	cinematic_camera.current = false
 	add_child(cinematic_camera)
-	cinematic_camera.look_at(Vector3(0.0, 0.5, -2.0))
+	cinematic_camera.look_at(Vector3(0.0, 1.4, -2.0))
 
 func set_gameplay_view() -> void:
 	_cinematic_active = false
@@ -233,7 +250,9 @@ func skip_cinematic() -> void:
 	set_gameplay_view()
 
 func _process(_delta: float) -> void:
+	if ship_focal:
+		ship_focal.position = _ship_base_position + Vector3(0.0, sin(Time.get_ticks_msec() * 0.0012) * 0.035, 0.0)
 	if _cinematic_active and cinematic_camera and cinematic_camera.current:
-		cinematic_camera.look_at(Vector3(1.0, 0.8, -3.0))
+		cinematic_camera.look_at(Vector3(1.0, 1.6, -3.0))
 	if _cinematic_active and (Input.is_action_just_pressed("ui_accept") or Input.is_action_just_pressed("ui_cancel")):
 		skip_cinematic()
