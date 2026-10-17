@@ -10,6 +10,7 @@ const COAST_ROUGHNESS := preload("res://assets/external/polyhaven/coast_sand_roc
 const COAST_AO := preload("res://assets/external/polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_ao_1k.jpg")
 const WATER_Y := -0.35
 const GAMEPLAY_CAMERA := Vector3(10.5, 6.0, 10.0)
+const CINEMATIC_START_CAMERA := Vector3(-8.0, 4.5, 9.0)
 
 var gameplay_camera: Camera3D
 var cinematic_camera: Camera3D
@@ -216,7 +217,7 @@ func _build_cameras() -> void:
 	gameplay_camera.look_at(Vector3(1.0, 1.6, -3.0))
 	cinematic_camera = Camera3D.new()
 	cinematic_camera.name = "CinematicRevealCamera"
-	cinematic_camera.position = Vector3(-8.0, 4.5, 9.0)
+	cinematic_camera.position = CINEMATIC_START_CAMERA
 	cinematic_camera.current = false
 	add_child(cinematic_camera)
 	cinematic_camera.look_at(Vector3(0.0, 1.4, -2.0))
@@ -238,6 +239,8 @@ func play_cinematic(reduced_motion := false) -> void:
 	if _cinematic_tween:
 		_cinematic_tween.kill()
 	set_cinematic_view()
+	# Every reveal starts from its authored establishing pose, including replay.
+	cinematic_camera.position = CINEMATIC_START_CAMERA
 	if _reduced_motion:
 		set_gameplay_view()
 		return

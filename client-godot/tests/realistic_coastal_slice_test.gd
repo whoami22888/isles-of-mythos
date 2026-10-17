@@ -28,7 +28,7 @@ func run() -> void:
 	scene.play_cinematic(true)
 	ok = ok and gameplay.current and not scene._cinematic_active
 	scene.play_cinematic()
-	ok = ok and cinematic.current and scene._cinematic_active
+	ok = ok and cinematic.current and scene._cinematic_active and cinematic.position.distance_to(Vector3(-8.0, 4.5, 9.0)) < 0.01
 	scene.skip_cinematic()
 	ok = ok and gameplay.current and not scene._cinematic_active
 	if not ok:
