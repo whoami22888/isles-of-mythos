@@ -1,0 +1,54 @@
+# Isles of Mythos — Binding Cinematic Video Quality Floor
+
+**Owner directive:** 2026-10-17. **Status:** mandatory art-direction reference for NON-PRODUCTION Godot 4.7.2 cinematic, graphical and premium scene acceptance. This document supplements [ART_DIRECTION_STANDARD.md](../ART_DIRECTION_STANDARD.md); it does not replace provenance, security or Android performance gates.
+
+## Exact owner-provided master reference
+
+- **Media:** `gemini_generated_video_804c0c26.mp4` (owner's uploaded rendered reference).
+- **Preserved master:** ChatGPT Library `/isles-of-mythos/graphics-references/cinematic-quality-floor-2026-10-17.mp4`.
+- **Frame storyboard:** ChatGPT Library `/isles-of-mythos/graphics-references/cinematic-quality-floor-contact-sheet.jpg`.
+- **Original master SHA-256:** `713cd6e90c6f7d589a06eb3bd4b9b2d5ebeb9c0ff711b5de527a68460dfbcb05`.
+- **Original byte length:** `7,827,861` bytes; **encoding:** H.264 video / AAC audio; **resolution:** 1280×720; **rate:** 24 FPS; **video frames:** 240; **duration:** approximately 10.005 seconds.
+- **Verification:** decoded ten sampled frames at one-second intervals; separately inspected the final 9.55s title frame. Metadata and master SHA are measured from the actual uploaded bytes. The Library master is NOT yet a public GitHub or build-runner asset; agents and reviewers MUST obtain/read the exact video, check its digest, and view it before declaring visual-reference compliance. A text description or isolated contact sheet is not a substitute for playback.
+
+**NON-NEGOTIABLE QUALITY FLOOR:** Future Isles of Mythos premium in-engine graphics, cinematic previews and final-art claims MUST be at least as visually convincing as this owner's reference in every applicable dimension. **Do not lower the standard merely to achieve a passing CI run, fit placeholder assets or ship a quicker procedural demonstration.** If the required quality cannot yet be rendered or measured within the current asset and Android budgets, report **NOT YET ACCEPTED**, continue legitimate production/optimization, and show honest labeled work-in-progress evidence only.
+
+This is a *visual/art-direction acceptance floor*, **not proof that the uploaded video was captured in Godot or runs in real time on Android**. The source is a cinematic reference: never present the reference itself, a frame interpolation, composited artwork or a synthetic offline clip as evidence that the actual Godot scene has reached the floor.
+
+## Observed 10-second storyboard / visual characteristics
+
+| Master time | Observable reference | Mandatory in-engine target |
+| --- | --- | --- |
+| 0–2s | Wide moving tropical pirate-bay view: textured timber galleon under cream sails with red markings, many sails and rigging lines, elevated island/settlement, smoking lava volcano, seabirds and water-depth gradient | Strong true-3D composition, layered tropical island/cliff/settlement silhouettes, appropriate real PBR detail, detailed moving rigged ship, plausible distant atmosphere and no flat primitive island |
+| 2–5s | Camera and galleon move together; ship grows in frame, sails and pennants respond, bright turquoise shallows transition into textured darker water, hull leaves substantial white bow/contact wake | Continuous cinematic camera tracking, believable scale/parallax, animated sails and flags, clear shoreline and depth cues, reflections, waves, foam and bow spray attached correctly to ship movement |
+| 6–7s | Low, close ship-hull/cannon glide; visible timber planking, ropes, railings and cannon details; foaming water beside hull | Inspection-grade near-field geometry and material response, detailed hull/rigging, cinematic shot without clipping, popping LODs or sprite fakery |
+| ~8s | Cannon discharge/muzzle smoke obscures part of the view | Animated firing with recoil/muzzle flash/audio/smoke and traceable projectile timing, not merely a flash pasted over a still |
+| ~9–10s | Dramatic rock/water blast with flying chunks, splash, dense smoke/fire and large fantasy-styled title reveal | Believable impact, debris/fracture/splash/smoke sequencing and a legible, stable title: **ISLES OF MYTHOS** |
+
+**Master imperfection to correct, NOT replicate:** The generated reference's final title visually duplicates `OF`. The game's exact approved spelling is **ISLES OF MYTHOS** (optional subtitle **Sunken Tides**). Treat misspelt or doubled text as a defect even if present in the visual master.
+
+## Rules enforced on every premium graphics / cinematic PR
+
+1. **Visual parity is mandatory.** The Graphics Director and AI Visual QA compare actual Godot 4.7.2 captured frames or video side-by-side with the complete reference at corresponding beats. Cover ship geometry/rigging and animation, PBR material realism, dense but intentional world composition, waves/spray/foam/reflection, camera movement, VFX timing and typography. Record **PASS / FAIL / NOT VERIFIED for each category**, exact reference digest, candidate SHA, capture artifact IDs, comparison views and specific observed shortcomings. No acceptance based on a single beauty still, markdown checklist or a self-awarded number.
+2. **No quality substitution.** Low-poly/palette-only source assets, basic procedural ships or disc islands, flat translucent water, simple rings replacing foam, stock motion graphics, still-frame pan/zoom, or simulated video outside the real engine are **scaffolding only**. They MAY be shown with prominent WIP/prototype labels; they SHALL NOT be described as meeting this minimum or merged as *premium final-art acceptance*. Do not disguise gaps with cinematic framing.
+3. **Master access is a gate.** If agents cannot access and actually watch the hash-checked master, they MUST mark the visual-parity verdict **NOT VERIFIED**; request the media from the owner or use the owner's Library master, but never invent a comparison or claim that extracted reference art is licensed for game reuse. Frames are review samples, not harvestable PBR textures or mesh assets. The asset provenance and commercial redistribution rules remain independent and mandatory.
+4. **In-engine proof.** Produce deterministic Godot 4.7.2 screenshot series and an actual engine-rendered camera/cannon/destruction clip, not solely AI-generated or third-party offline footage. Preserve native capture metadata, exact commit SHA, renderer, platform, camera and lighting settings, frame timing, artifact SHA-256 and availability of the complete rendered video. Include the normal readable gameplay camera as well as cinematic shots; visual fidelity must persist in actual play.
+5. **Mobile equivalence is not assumed.** Preserve detailed near-field visuals on Android ARM64 with LOD/impostors, compressed textures, instancing, culling and bounded shaders/shadow budgets. Show actual Samsung Galaxy S23 Ultra performance (FPS distribution, frame-time p95/p99, memory, thermals and cinematic streaming stalls) when device access exists. Never claim real-device parity from desktop renders, offline reference video or CI screenshots; retain existing 20 Hz, 150 ms p95 / 300 ms p99 server/performance thresholds.
+6. **Safe sequence and restoration.** Camera reveal → ship approach → cannon discharge → destructible rock impact → smoke/debris clears → exact title reveal → readable gameplay view. Offer skip/reduced-motion; verify interrupted sequence restores camera/HUD/input state without changing authoritative gameplay, security, economy or protected Step 5.
+7. **Fail closed for final art.** Do not approve a graphics-quality milestone or merge a visual feature labelled premium when a demonstrated category is noticeably worse than the reference, the master was not examined, the scene uses rejected assets, source licensing/hashes are unresolved or required exact-head CI/security/performance/AI review is missing. Record which dimensions fail, fix them, and continue independent dependency-ready work. Scoring weights in the art standard are diagnostic guidance, never permission to trade a materially poor ship/water/VFX scene for high scores elsewhere.
+
+## Practical acceptance record
+
+Each graphics/cinematic PR must include a small table:
+
+| Dimension | Owner-video timestamp(s) | Candidate Godot artifact/time(s) | Visual QA verdict | Defect / follow-up |
+| --- | --- | --- | --- | --- |
+| Ship scale, PBR hull, sails and rigging | 0–7s | Required | PASS / FAIL / NOT VERIFIED | ... |
+| Tropical coast, settlement, cliffs and depth | 0–5s | Required | PASS / FAIL / NOT VERIFIED | ... |
+| Water, wake, splashes, foam, reflections | 0–8s | Required | PASS / FAIL / NOT VERIFIED | ... |
+| Camera movement, continuity, near-field stability | 0–8s | Required | PASS / FAIL / NOT VERIFIED | ... |
+| Cannon/rock destruction, smoke, debris, water splash | 8–10s | Required | PASS / FAIL / NOT VERIFIED | ... |
+| Correct title reveal and legibility | 9–10s | Required | PASS / FAIL / NOT VERIFIED | ... |
+| Android performance and runtime fidelity | Separate device capture | Required when claiming device acceptance | PASS / FAIL / NOT VERIFIED | ... |
+
+A video that looks better in one category but conspicuously worse in another does **not** satisfy the owner's **nothing lower quality than this** instruction. Maintain the current project's stronger existing technical/provenance/asset restrictions; never downgrade them to fit this video benchmark.
