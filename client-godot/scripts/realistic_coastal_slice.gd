@@ -10,6 +10,7 @@ const COAST_ROUGHNESS := preload("res://assets/external/polyhaven/coast_sand_roc
 const COAST_AO := preload("res://assets/external/polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_ao_1k.jpg")
 const SHORE_BAKER := preload("res://scripts/coastal_shore_heightfield.gd")
 const OCEAN_SHADER := preload("res://shaders/ocean_surface.gdshader")
+const FAR_OCEAN_SHADER := preload("res://shaders/far_ocean_mobile.gdshader")
 const WATER_Y := -0.35
 const GAMEPLAY_CAMERA := Vector3(13.0, 12.0, -14.0)
 const CINEMATIC_START_CAMERA := Vector3(-11.0, 5.5, -18.0)
@@ -184,9 +185,10 @@ func _build_water() -> void:
 	far.mesh = far_mesh
 	far.position.y = WATER_Y - 0.18
 	far.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	var far_material := material.duplicate(true) as ShaderMaterial
-	far_material.set_shader_parameter("far_ocean_patch", true)
-	far_material.set_shader_parameter("swell_scale", 0.0)
+	# Distant water must not run the near shader's 3 vertex waves and
+	# 32-bit terrain texture sampling over every background screen pixel.
+	var far_material := ShaderMaterial.new()
+	far_material.shader = FAR_OCEAN_SHADER
 	far.material_override = far_material
 	add_child(far)
 	# Contact foam and depth transitions sample ACTUAL indexed terrain.
@@ -243,7 +245,7 @@ func _build_premium_landmarks() -> void:
 		shoreline_tree.scale = Vector3.ONE * entry[1]
 		grove.add_child(shoreline_tree)
 		_ground_asset_on_terrain(shoreline_tree)
-		_configure_mobile_visibility(shoreline_tree, 110.0)
+		_configure_mobile_visibility(shoreline_tree, 90.0, false)
 	for entry in [
 		[Vector3(-8.5, 0.0, 6.8), 1.25],
 		[Vector3(10.5, 0.0, 7.1), 1.5]
@@ -253,7 +255,7 @@ func _build_premium_landmarks() -> void:
 		shore_rock.scale = Vector3.ONE * entry[1]
 		grove.add_child(shore_rock)
 		_ground_asset_on_terrain(shore_rock, 0.18)
-		_configure_mobile_visibility(shore_rock, 110.0)
+		_configure_mobile_visibility(shore_rock, 90.0, false)
 	player_marker = Node3D.new()
 	player_marker.name = "PlayerSpawnMarker"
 	player_marker.position = Vector3(0.0, _terrain_height(0.0, 5.5) + 0.75, 5.5)
@@ -283,14 +285,14 @@ func _ground_asset_on_terrain(asset: Node3D, burial := 0.0) -> void:
 		asset.position.y += _terrain_height(asset.position.x, asset.position.z) - lowest - burial
 
 
-func _configure_mobile_visibility(root: Node, max_distance: float) -> void:
+func _configure_mobile_visibility(root: Node, max_distance: float, shadow_caster: bool = true) -> void:
 	for child in root.get_children():
 		if child is GeometryInstance3D:
 			child.visibility_range_end = max_distance
 			child.visibility_range_end_margin = 4.0
-			child.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			child.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if shadow_caster else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		if child.get_child_count() > 0:
-			_configure_mobile_visibility(child, max_distance)
+			_configure_mobile_visibility(child, max_distance, shadow_caster)
 
 func _cache_ship_visual_bounds() -> void:
 	# Compute ONCE from genuine nested imported glTF geometry; the hull
