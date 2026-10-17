@@ -38,11 +38,33 @@ func _record() -> void:
     if integration == null or not integration.components_ready():
         _fail("Real vessel + both active VFX components not bound")
         return
-    scene.play_cinematic()
+    # The CI llvmpipe renderer may take ~0.5 s per frame. A wall-clock
+    # cinematic tween then finishes before even 10 frames are captured.
+    # Use a true in-engine fixed simulation step for ship/camera poses, not a
+    # static-image pan or AI-generated substitute. Each screenshot still
+    # comes directly from Godot's actual renderer.
+    scene.set_cinematic_view()
+    scene.set_process(false)
+    integration.set_process(false)
+    integration.wake.set_process(false)
+    integration.bow_spray.set_process(false)
+    integration.start_visual_demo()
+    var camera_start: Vector3 = scene.cinematic_camera.position
+    var waypoint_a := Vector3(-7.0, 4.8, -13.0)
+    var waypoint_b := Vector3(-2.5, 3.9, -9.5)
     if not scene.cinematic_camera.current:
         _fail("Cinematic camera not selected")
         return
     for frame_number in range(FRAME_COUNT):
+        var progress := float(frame_number) / float(FRAME_COUNT - 1)
+        if progress < 0.5:
+            var stage := smoothstep(0.0, 1.0, progress * 2.0)
+            scene.cinematic_camera.position = camera_start.lerp(waypoint_a, stage)
+        else:
+            var stage := smoothstep(0.0, 1.0, (progress - 0.5) * 2.0)
+            scene.cinematic_camera.position = waypoint_a.lerp(waypoint_b, stage)
+        scene.cinematic_camera.look_at(Vector3(1.0, 2.2, 1.0))
+        integration.advance_visual_demo(1.0 / 24.0)
         await process_frame
         await RenderingServer.frame_post_draw
         var pixels: Image = root.get_viewport().get_texture().get_image()
@@ -76,7 +98,8 @@ func _record() -> void:
     if integration.wake.get_sample_count() < 2:
         _fail("No real wake geometry accumulated in the captured moving ship scene")
         return
-    scene.skip_cinematic()
+    integration.stop_visual_demo()
+    scene.set_gameplay_view()
     await process_frame
     if integration._demo_active or not scene.gameplay_camera.current:
         _fail("Cinematic capture failed to restore the gameplay camera and vessel")
