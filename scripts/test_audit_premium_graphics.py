@@ -114,10 +114,76 @@ func _build_water():
             '[ext_resource path="res://scripts/gone.gd" type="Script" id="1"]\n')
         self.assertIn("MISSING_SCENE_SCRIPT", self.codes())
 
+    def test_rejects_spoofed_or_partial_publisher_urls(self):
+        self.add_scene("premium_coast.tscn", "# candidate")
+        (self.root / "assets").mkdir()
+        for url in ("https://evil.example/a/tree", "https://polyhaven.com/a/tree_variant"):
+            manifest = {"assets": [{"path": "polyhaven/tree/model.bin",
+                                    "source_url": url, "download_url": "https://dl.polyhaven.org/a.bin"}]}
+            (self.root / "assets/external-assets.json").write_text(json.dumps(manifest))
+            self.assertIn("ASSET_SOURCE_MISMATCH", self.codes())
+
+    def test_payload_limit_applies_to_unprefixed_asset_paths(self):
+        (self.root / "assets/external/models").mkdir(parents=True)
+        payload = self.root / "assets/external/models/large.bin"
+        with payload.open("wb") as handle:
+            handle.truncate(80 * 1024 * 1024 + 1)
+        (self.root / "assets/external-assets.json").write_text(json.dumps({
+            "assets": [{"path": "models/large.bin"}]}))
+        self.assertIn("ASSET_EXCEEDS_FETCH_LIMIT", self.codes())
+
+    def test_glass_with_uniform_jpeg_transparency_is_allowed(self):
+        self.add_scene("premium_glass.tscn", 'const GLASS = preload("res://assets/glass.gltf")\n')
+        (self.root / "assets").mkdir()
+        doc = {"images": [{"uri": "glass.jpg", "mimeType": "image/jpeg"}],
+               "textures": [{"source": 0}],
+               "materials": [{"name": "glass", "alphaMode": "BLEND", "pbrMetallicRoughness": {
+                   "baseColorTexture": {"index": 0}, "baseColorFactor": [1, 1, 1, 0.35]}}]}
+        (self.root / "assets/glass.gltf").write_text(json.dumps(doc))
+        self.assertNotIn("MASKED_ALPHA_JPEG", self.codes())
+
+    def test_triangle_modes_obey_gltf_semantics(self):
+        self.add_scene("premium_geometry.tscn", 'const MESH = preload("res://assets/shape.gltf")\n')
+        (self.root / "assets").mkdir()
+        filename = self.root / "assets/shape.gltf"
+        base = {"accessors": [{"count": 400000}], "meshes": [{"name": "complex_LOD0",
+                "primitives": [{"indices": 0, "mode": 5}]}]}
+        filename.write_text(json.dumps(base))
+        self.assertIn("HEAVY_LOD0", self.codes())
+        base["meshes"][0]["primitives"][0]["mode"] = 1  # LINES
+        filename.write_text(json.dumps(base))
+        self.assertNotIn("HEAVY_LOD0", self.codes())
+
+    def test_missing_or_unrelated_capture_does_not_pass(self):
+        self.add_scene("realistic_coastal_slice.tscn", "# candidate")
+        self.assertIn("MISSING_CAPTURE", self.codes())
+        (self.root / "tests").mkdir()
+        (self.root / "tests/render_capture.gd").write_text(
+            'load("res://scenes/island_preview.tscn")\nvar img = get_image()')
+        self.assertIn("MISSING_CAPTURE", self.codes())
+
+    def test_nested_world_scene_is_audited(self):
+        nested = self.root / "scenes/world"
+        nested.mkdir()
+        (nested / "coast.tscn").write_text(
+            '[ext_resource path="res://scripts/missing.gd" type="Script" id="1"]\n')
+        findings, count = audit(self.root)
+        self.assertEqual(count, 1)
+        self.assertIn("MISSING_SCENE_SCRIPT", {x.code for x in findings})
+
+    def test_render_capture_with_frame_fence_and_content_assertion(self):
+        self.add_scene("premium_scene.tscn", "# candidate")
+        (self.root / "tests").mkdir()
+        (self.root / "tests/render_premium.gd").write_text(
+            'load("res://scenes/premium_scene.tscn")\nawait RenderingServer.frame_post_draw\n'
+            'var img = root.get_viewport().get_texture().get_image()\n'
+            'img.get_pixel(0, 0)\n')
+        self.assertFalse(self.codes() & {"MISSING_CAPTURE", "STALE_CAPTURE", "BLANK_CAPTURE"})
+
     def test_rejects_bad_screenshot_evidence(self):
         self.add_scene("realistic_coastal_slice.tscn", "# simple scene source")
         (self.root / "tests").mkdir()
-        (self.root / "tests/render_capture.gd").write_text('var scene = load("realistic_coastal_slice.tscn")\nawait process_frame\nvar img = viewport.get_texture().get_image()\n')
+        (self.root / "tests/render_capture.gd").write_text('var scene = load("res://scenes/realistic_coastal_slice.tscn")\nawait process_frame\nvar img = viewport.get_texture().get_image()\n')
         self.assertTrue({"STALE_CAPTURE", "BLANK_CAPTURE"}.issubset(self.codes()))
 
     def test_rejects_prototype_in_final_scene(self):
