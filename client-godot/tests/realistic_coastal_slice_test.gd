@@ -35,7 +35,10 @@ func run() -> void:
 	scene.play_cinematic(true)
 	ok = ok and gameplay.current and not scene._cinematic_active
 	scene.play_cinematic()
-	ok = ok and cinematic.current and scene._cinematic_active and cinematic.position.distance_to(Vector3(-8.0, 4.5, 9.0)) < 0.01
+	ok = ok and cinematic.current and scene._cinematic_active and cinematic.position.distance_to(Vector3(-11.0, 5.5, -18.0)) < 0.01
+	# Both cameras must see the coast as a background BEHIND the ship.
+	ok = ok and cinematic.position.z < scene.ship_focal.position.z - 5.0
+	ok = ok and gameplay.position.z < scene.ship_focal.position.z - 5.0
 	scene.skip_cinematic()
 	ok = ok and gameplay.current and not scene._cinematic_active
 	if not ok:
