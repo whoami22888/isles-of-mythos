@@ -36,6 +36,10 @@ func run() -> void:
     if plane != null:
         check(plane.subdivide_width >= 96 and plane.subdivide_depth >= 72,
             "Ocean needs actual geometry for moving swell")
+        check(plane.size.x >= 512.0 and plane.size.y >= 384.0,
+            "Ocean must extend beyond the cinematic camera to avoid a visible rectangular edge")
+        check(plane.subdivide_width <= 320 and plane.subdivide_depth <= 240,
+            "Ocean mesh needs an explicit mobile vertex budget")
     var material := water.material_override as ShaderMaterial
     check(material != null and material.shader != null, "Require real shader material")
     if material == null or material.shader == null:
@@ -69,6 +73,12 @@ func run() -> void:
     for child in scene.get_children():
         if child is MeshInstance3D and child.mesh is QuadMesh:
             check(false, "No detached rectangular foam strips in current coastal scene")
+    var grove := scene.get_node_or_null("CoastalPBRDepthLayer")
+    check(grove != null, "Only genuine sourced PBR coastal depth assets allowed")
+    if grove != null:
+        check(grove.get_child_count() == 10, "Six trees and four rocks must ground to the real terrain")
+        for child in grove.get_children():
+            check(child is Node3D, "Coastal vegetation must use instantiated true 3D assets")
 
     var camera: Camera3D = scene.get_node_or_null("CinematicRevealCamera")
     if camera != null:
