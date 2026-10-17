@@ -103,12 +103,12 @@ func _run() -> void:
 	for frame in range(CAPTURE_FRAMES):
 		var t: float = float(frame) / float(CAPTURE_FRAMES - 1)
 		var orbit := -0.37 + t * 0.88
-		_ship.rotation_degrees = Vector3(sinf(t * TAU * 0.90) * 0.85,
-			sinf(t * TAU * 0.48) * 1.3, sinf(t * TAU * 0.8) * 1.1)
-		_ship.position.y = sinf(t * TAU * 1.25) * 0.06
-		_camera.position = Vector3(sinf(orbit) * distance,
+		_ship.rotation_degrees = Vector3(sin(t * TAU * 0.90) * 0.85,
+			sin(t * TAU * 0.48) * 1.3, sin(t * TAU * 0.8) * 1.1)
+		_ship.position.y = sin(t * TAU * 1.25) * 0.06
+		_camera.position = Vector3(sin(orbit) * distance,
 			maxf(5.5, target_size * 0.21) + t * 2.2,
-			cosf(orbit) * distance)
+			cos(orbit) * distance)
 		_camera.look_at(Vector3.ZERO, Vector3.UP)
 		await process_frame
 		await RenderingServer.frame_post_draw
