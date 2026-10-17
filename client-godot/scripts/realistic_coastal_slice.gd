@@ -156,13 +156,14 @@ func _build_water() -> void:
 	var water := MeshInstance3D.new()
 	water.name = "ShallowToDeepWater"
 	var plane := PlaneMesh.new()
-	# Cover camera travel and horizon without a visible rectangular mesh edge.
-	# 256x192 grid keeps mobile vertex work bounded (49,793 vertices).
-	plane.size = Vector2(640.0, 480.0)
-	plane.subdivide_width = 256
-	plane.subdivide_depth = 192
+	# Full-resolution near swell; remote water is a separate FOUR-vertex
+	# far plane using the same shader. Avoid running wave vertex sine functions
+	# on ~50k vertices on every frame of the mobile client.
+	plane.size = Vector2(160.0, 120.0)
+	plane.subdivide_width = 160
+	plane.subdivide_depth = 120
 	water.mesh = plane
-	water.position.y = WATER_Y
+	water.position.y = WATER_Y - 0.18
 	water.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var material := ShaderMaterial.new()
 	material.shader = OCEAN_SHADER
@@ -173,8 +174,23 @@ func _build_water() -> void:
 	_shore_binding = baked
 	water.material_override = material
 	add_child(water)
-	# Contact foam and depth transitions are now sampled from the ACTUAL
-	# indexed coastline mesh. The three old detached white strips are gone.
+	# A single low-vertex far ocean covers every cinematic camera position.
+	# Identical UV-space shader colours/normals and a wave-faded near patch
+	# avoid the old bright rectangular ocean edge without huge tessellation.
+	var far_mesh := PlaneMesh.new()
+	far_mesh.size = Vector2(2400.0, 2400.0)
+	var far := MeshInstance3D.new()
+	far.name = "FarDeepOcean"
+	far.mesh = far_mesh
+	far.position.y = WATER_Y - 0.18
+	far.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var far_material := material.duplicate(true) as ShaderMaterial
+	far_material.set_shader_parameter("far_ocean_patch", true)
+	far_material.set_shader_parameter("swell_scale", 0.0)
+	far.material_override = far_material
+	add_child(far)
+	# Contact foam and depth transitions sample ACTUAL indexed terrain.
+	# No detached white quads and no invented shoreline equations.
 
 
 func _build_premium_landmarks() -> void:
@@ -217,12 +233,10 @@ func _build_premium_landmarks() -> void:
 	grove.name = "CoastalPBRDepthLayer"
 	add_child(grove)
 	for entry in [
-		[Vector3(-12.2, 0.0, 12.2), 1.8],
 		[Vector3(-8.1, 0.0, 17.0), 2.2],
 		[Vector3(-4.3, 0.0, 11.3), 1.75],
 		[Vector3(3.5, 0.0, 18.2), 2.1],
 		[Vector3(8.7, 0.0, 12.6), 1.85],
-		[Vector3(13.1, 0.0, 18.0), 1.9]
 	]:
 		var shoreline_tree := TREE_SCENE.instantiate()
 		shoreline_tree.position = entry[0]
@@ -231,10 +245,8 @@ func _build_premium_landmarks() -> void:
 		_ground_asset_on_terrain(shoreline_tree)
 		_configure_mobile_visibility(shoreline_tree, 110.0)
 	for entry in [
-		[Vector3(-14.0, 0.0, 5.3), 1.5],
 		[Vector3(-8.5, 0.0, 6.8), 1.25],
-		[Vector3(10.5, 0.0, 7.1), 1.5],
-		[Vector3(14.4, 0.0, 5.9), 1.35]
+		[Vector3(10.5, 0.0, 7.1), 1.5]
 	]:
 		var shore_rock := ROCK_SCENE.instantiate()
 		shore_rock.position = entry[0]
