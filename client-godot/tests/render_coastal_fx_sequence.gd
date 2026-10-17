@@ -64,17 +64,25 @@ func _record() -> void:
             var stage := smoothstep(0.0, 1.0, (progress - 0.5) * 2.0)
             scene.cinematic_camera.position = waypoint_a.lerp(waypoint_b, stage)
         integration.advance_visual_demo(1.0 / 24.0)
-        var focal_point: Vector3 = integration.vessel.global_position + Vector3(0.0, 2.0, 0.0)
-        scene.cinematic_camera.look_at(focal_point)
-        # A genuine cinematic frame must not put its primary vessel target
-        # behind or completely off-screen, even if a valid PNG is generated.
-        if scene.cinematic_camera.is_position_behind(focal_point):
-            _fail("Moving ship exited the front camera frustum at frame %d" % frame_number)
+        if not scene.frame_ship_cinematic(scene.cinematic_camera, scene.cinematic_camera.global_position):
+            _fail("Imported ship has no valid full 3D visual bounds")
             return
-        var projected: Vector2 = scene.cinematic_camera.unproject_position(focal_point)
-        if projected.x < 64.0 or projected.x > 1216.0 or projected.y < 64.0 or projected.y > 656.0:
-            _fail("Moving ship composition lost at frame %d: %s" % [frame_number, projected])
-            return
+        # Fail if ANY ship hull, mast, sail, or rigging bound leaves frame.
+        # A hull centre in view is explicitly not enough for this gate.
+        var bounds: AABB = scene.ship_visual_bounds_world()
+        for corner in range(8):
+            var point := bounds.position + Vector3(
+                bounds.size.x if corner & 1 else 0.0,
+                bounds.size.y if corner & 2 else 0.0,
+                bounds.size.z if corner & 4 else 0.0
+            )
+            if scene.cinematic_camera.is_position_behind(point):
+                _fail("Ship bounds behind camera at frame %d corner %d" % [frame_number, corner])
+                return
+            var projected: Vector2 = scene.cinematic_camera.unproject_position(point)
+            if projected.x < 36.0 or projected.x > 1244.0 or projected.y < 36.0 or projected.y > 684.0:
+                _fail("Ship rigging/hull clips frame at %d corner %d: %s" % [frame_number, corner, projected])
+                return
         await process_frame
         await RenderingServer.frame_post_draw
         var pixels: Image = root.get_viewport().get_texture().get_image()
