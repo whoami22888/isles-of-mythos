@@ -13,8 +13,8 @@ func _initialize() -> void:
     var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
     var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
     var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
-    var expected_vertices := 1 + terrain.radial_segments * terrain.ring_segments
-    var expected_indices := 3 * terrain.radial_segments * (2 * terrain.ring_segments - 1)
+    var expected_vertices: int = 1 + terrain.radial_segments * terrain.ring_segments
+    var expected_indices: int = 3 * terrain.radial_segments * (2 * terrain.ring_segments - 1)
     if vertices.size() != expected_vertices or indices.size() != expected_indices:
         push_error("Unexpected terrain topology")
         quit(1)
