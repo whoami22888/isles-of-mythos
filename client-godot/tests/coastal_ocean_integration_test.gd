@@ -56,6 +56,8 @@ func run() -> void:
             var far_source: String = far_mat.shader.code
             check(far_source.contains("NORMAL_MAP") and far_source.contains("far_deep_color"),
                 "Far horizon must retain animated texture and physically lit detail")
+            check(far_source.contains("fresnel") and far_source.contains("vec2(3.1, 1.55)"),
+                "Far/near ocean must share grazing-angle colour and wave normal frequencies")
             check(not far_source.contains("shore_terrain_height") and not far_source.contains("shore_heightmap"),
                 "Far ocean must not repeat expensive shoreline texture sampling")
         check(far.position.y == water.position.y, "Ocean surfaces must share their base plane")
