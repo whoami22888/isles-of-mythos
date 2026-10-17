@@ -1,7 +1,7 @@
 extends SceneTree
 ## Deterministic behavior / geometry contract. Not proof of visual quality or FPS.
 
-const Wake = preload("res://scripts/ship_wake_effect.gd")
+## Load at runtime so a broken effect script fails cleanly instead of hanging CI.
 var _failures: int = 0
 
 
@@ -16,10 +16,15 @@ func _init() -> void:
 
 
 func _run() -> void:
+    var wake_script: Script = load("res://scripts/ship_wake_effect.gd")
+    if wake_script == null or not wake_script.can_instantiate():
+        push_error("Wake effect script could not be loaded")
+        quit(1)
+        return
     var vessel := Node3D.new()
     vessel.name = "MockShipVisualOnly"
     root.add_child(vessel)
-    var wake := Wake.new()
+    var wake = wake_script.new()
     wake.name = "TestShipWake"
     root.add_child(wake)
     await process_frame
