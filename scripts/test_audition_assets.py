@@ -120,6 +120,20 @@ class CinematicSourceRegressions(unittest.TestCase):
         self.assertIn('_setup_ocean()', self.script)
         self.assertIn('RenderingServer.frame_post_draw', self.script)
 
+    def test_hull_waterline_does_not_submerge_entire_ship(self):
+        self.assertIn('_waterline = lower + ship_extent.y * 0.085', self.script)
+        self.assertNotIn('_waterline = lower + ship_extent.y * 0.25', self.script)
+
+    def test_ocean_is_subdued_and_foam_tracks_hull_not_every_wave(self):
+        self.assertIn('vec3 color_shallow = vec3(0.012, 0.11, 0.14);', self.script)
+        self.assertIn('hull_envelope', self.script)
+        self.assertNotIn('smoothstep(0.82, 0.99, crest) * 0.14', self.script)
+
+    def test_billowed_canvas_has_tapered_silhouette_and_camera_fit_is_bounded(self):
+        self.assertIn('sail_taper', self.script)
+        self.assertIn('force_update_transform()', self.script)
+        self.assertNotIn('await process_frame\n\t\t\tif _all_rendered_meshes_visible():', self.script)
+
     def test_real_ship_sails_with_cloth_motion_not_a_still(self):
         self.assertIn('_setup_canvas_sails(', self.script)
         self.assertIn('fabric_phase', self.script)

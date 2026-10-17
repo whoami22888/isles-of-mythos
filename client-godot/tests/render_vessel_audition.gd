@@ -107,17 +107,19 @@ void fragment() {
                 * sin(q.y * 1.7 - water_phase * 2.2);
     float fine = sin(q.x * 3.1 + water_phase * 2.7) * sin(q.y * 2.8 - water_phase);
     float deep = smoothstep(22.0, 95.0, r);
-    vec3 color_shallow = vec3(0.022, 0.43, 0.44);
-    vec3 color_deep = vec3(0.018, 0.12, 0.22);
+    vec3 color_shallow = vec3(0.012, 0.11, 0.14);
+    vec3 color_deep = vec3(0.010, 0.045, 0.085);
     vec3 water = mix(color_shallow, color_deep, deep);
-    water += vec3(0.03, 0.065, 0.074) * max(crest, 0.0);
+    water += vec3(0.007, 0.018, 0.023) * max(crest, 0.0);
     // Animated turbulent hull contact and an elongated trailing wake.
-    float contact = (1.0 - smoothstep(1.2, 5.9, r)) * (0.45 + 0.55 * crest);
+    float hull_envelope = length(vec2(along / 10.0, sideways / 3.2));
+    float contact = smoothstep(0.68, 0.98, hull_envelope)
+                  * (1.0 - smoothstep(1.05, 1.48, hull_envelope))
+                  * (0.45 + 0.30 * max(crest, 0.0));
     float trail = (1.0 - smoothstep(-28.0, 1.0, along))
                 * exp(-sideways * 0.48) * (0.55 + 0.45 * fine);
-    float foam = clamp(contact * 0.6 + trail * 0.58 +
-                       smoothstep(0.82, 0.99, crest) * 0.14, 0.0, 0.9);
-    ALBEDO = mix(water, vec3(0.84, 0.94, 0.92), foam);
+    float foam = clamp(contact * 0.6 + trail * 0.28, 0.0, 0.62);
+    ALBEDO = mix(water, vec3(0.62, 0.77, 0.76), foam);
     METALLIC = 0.0;
     ROUGHNESS = mix(0.18, 0.55, foam);
     SPECULAR = 0.9;
@@ -155,12 +157,13 @@ uniform float fabric_phase = 0.0;
 void vertex() {
     // Anchored border with wind-driven billow towards the full canvas center.
     float edge = sin(UV.x * 3.14159) * sin(UV.y * 3.14159);
-    VERTEX.z += edge * (0.36 + sin(fabric_phase + UV.x * 5.2 - UV.y * 2.7) * 0.19);
+    VERTEX.z += edge * (0.75 + sin(fabric_phase + UV.x * 5.2 - UV.y * 2.7) * 0.37);
+    VERTEX.x += edge * sin(fabric_phase * 0.82 + UV.y * 4.0) * 0.14;
 }
 void fragment() {
     vec3 scanned_fabric = texture(fabric_albedo, UV).rgb;
     float weave = 0.025 * sin(UV.x * 330.0) * sin(UV.y * 278.0);
-    vec3 canvas = mix(vec3(0.91, 0.83, 0.70), scanned_fabric, 0.22) + weave;
+    vec3 canvas = mix(vec3(0.72, 0.64, 0.52), scanned_fabric, 0.39) + weave;
     float bar_x = 1.0 - smoothstep(0.055, 0.082, abs(UV.x - 0.5));
     float bar_y = 1.0 - smoothstep(0.060, 0.092, abs(UV.y - 0.49));
     float emblem = max(bar_x * smoothstep(0.18, 0.27, UV.y) *
@@ -177,9 +180,10 @@ void fragment() {
 	_fabric_material.shader = shader
 	_fabric_material.set_shader_parameter("fabric_albedo", albedo_tex)
 	_fabric_material.set_shader_parameter("fabric_normal", normal_tex)
-	var width := clampf(ship_width * 0.31, 2.8, 7.2)
+	var width := clampf(ship_width * 0.33, 3.0, 7.8)
 	var height := clampf((mast_top - lower) * 0.42, 3.0, 7.0)
 	var sail_bottom := lower + (mast_top - lower) * 0.41
+	var sail_taper := 0.19
 	for mast in range(2):
 		var canvas := MeshInstance3D.new()
 		canvas.name = "AnimatedPBRCanvas_%d" % mast
@@ -191,12 +195,12 @@ void fragment() {
 				var b := Vector2(float(i + 1) / 24.0, float(j) / 16.0)
 				var c := Vector2(float(i) / 24.0, float(j + 1) / 16.0)
 				var d := Vector2(float(i + 1) / 24.0, float(j + 1) / 16.0)
-				_canvas_vertex(surface, Vector3((a.x - 0.5) * width, a.y * height, 0.0), a)
-				_canvas_vertex(surface, Vector3((b.x - 0.5) * width, b.y * height, 0.0), b)
-				_canvas_vertex(surface, Vector3((c.x - 0.5) * width, c.y * height, 0.0), c)
-				_canvas_vertex(surface, Vector3((b.x - 0.5) * width, b.y * height, 0.0), b)
-				_canvas_vertex(surface, Vector3((d.x - 0.5) * width, d.y * height, 0.0), d)
-				_canvas_vertex(surface, Vector3((c.x - 0.5) * width, c.y * height, 0.0), c)
+				_canvas_vertex(surface, Vector3((a.x - 0.5) * width * (1.0 - sail_taper * a.y), a.y * height, 0.0), a)
+				_canvas_vertex(surface, Vector3((b.x - 0.5) * width * (1.0 - sail_taper * b.y), b.y * height, 0.0), b)
+				_canvas_vertex(surface, Vector3((c.x - 0.5) * width * (1.0 - sail_taper * c.y), c.y * height, 0.0), c)
+				_canvas_vertex(surface, Vector3((b.x - 0.5) * width * (1.0 - sail_taper * b.y), b.y * height, 0.0), b)
+				_canvas_vertex(surface, Vector3((d.x - 0.5) * width * (1.0 - sail_taper * d.y), d.y * height, 0.0), d)
+				_canvas_vertex(surface, Vector3((c.x - 0.5) * width * (1.0 - sail_taper * c.y), c.y * height, 0.0), c)
 		surface.generate_normals()
 		canvas.mesh = surface.commit()
 		canvas.material_override = _fabric_material
@@ -254,7 +258,7 @@ func _run() -> void:
 	_ship_axis = Vector2.RIGHT if raw_extent.x >= raw_extent.z else Vector2.DOWN
 	var lower := -ship_extent.y * 0.5
 	var upper := ship_extent.y * 0.5
-	_waterline = lower + ship_extent.y * 0.25
+	_waterline = lower + ship_extent.y * 0.085
 
 	var env := WorldEnvironment.new()
 	var color := Environment.new()
@@ -275,7 +279,7 @@ func _run() -> void:
 	var sun := DirectionalLight3D.new()
 	sun.name = "NaturalDirectionalSun"
 	sun.light_color = Color("#fff1d8")
-	sun.light_energy = 1.7
+	sun.light_energy = 1.28
 	sun.rotation_degrees = Vector3(-51.0, -22.0, 0.0)
 	sun.shadow_enabled = true
 	_stage.add_child(sun)
@@ -309,13 +313,14 @@ func _run() -> void:
 				maxf(3.6, ship_extent.y * 0.29) + t * 0.95,
 				cos(orbit) * distance)
 			_camera.look_at(Vector3(_rig.position.x, 1.4, 0.0), Vector3.UP)
-			await process_frame
+			_camera.force_update_transform()
 			if _all_rendered_meshes_visible():
 				framed = true
 				break
 		if not framed:
 			_fail("Cannot frame complete ship geometry (mast/rigging/animated sail clipped) on frame %d" % frame)
 			return
+		await process_frame
 		await RenderingServer.frame_post_draw
 		var image: Image = root.get_viewport().get_texture().get_image()
 		if image == null or image.is_empty() or image.get_width() < 1280:
