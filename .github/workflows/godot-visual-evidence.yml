@@ -40,6 +40,32 @@ jobs:
           IOM_SCREENSHOT_PATH="$RUNNER_TEMP/visual-evidence/island-preview.png" xvfb-run -a -s "-screen 0 1280x720x24" "$RUNNER_TEMP/godot" --path client-godot --rendering-method gl_compatibility --script res://tests/render_capture.gd
           file "$RUNNER_TEMP/visual-evidence/island-preview.png"
           test -s "$RUNNER_TEMP/visual-evidence/island-preview.png"
+      - name: Verify both deterministic sculpted terrain regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$RUNNER_TEMP/godot" --headless --path client-godot --script res://tests/sculpted_terrain_test.gd
+          "$RUNNER_TEMP/godot" --headless --path client-godot --script res://tests/test_sculpted_island_terrain.gd
+      - name: Capture sculpted terrain and reject original-prototype duplicate
+        shell: bash
+        run: |
+          set -euo pipefail
+          IOM_SCULPTED_SCREENSHOT_PATH="$RUNNER_TEMP/visual-evidence/sculpted-terrain-preview.png" xvfb-run -a -s "-screen 0 1280x720x24" "$RUNNER_TEMP/godot" --path client-godot --rendering-method gl_compatibility --script res://tests/render_sculpted_terrain.gd
+          test -s "$RUNNER_TEMP/visual-evidence/sculpted-terrain-preview.png"
+          file "$RUNNER_TEMP/visual-evidence/sculpted-terrain-preview.png"
+          if cmp -s "$RUNNER_TEMP/visual-evidence/island-preview.png" "$RUNNER_TEMP/visual-evidence/sculpted-terrain-preview.png"; then
+            echo "::error::Sculpted screenshot is byte-identical to original prototype"
+            exit 1
+          fi
+          (cd "$RUNNER_TEMP/visual-evidence" && sha256sum *.png > SHA256SUMS)
+      - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
+        with:
+          name: godot-rendered-sculpted-terrain
+          path: |
+            ${{ runner.temp }}/visual-evidence/sculpted-terrain-preview.png
+            ${{ runner.temp }}/visual-evidence/island-preview.png
+            ${{ runner.temp }}/visual-evidence/SHA256SUMS
+          if-no-files-found: error
       - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
         with:
           name: godot-rendered-island-reference
