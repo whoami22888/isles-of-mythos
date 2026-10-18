@@ -95,6 +95,20 @@ export function requiredRunsPassed(runs, requiredNames, sha) {
   return { pass: true };
 }
 
+// GitHub computes mergeability asynchronously. Retry *only* its transient
+// unknown state; conflicts, dirty state and failed gates never get retried.
+export async function resolveMergeability(readPr, wait = ms => new Promise(resolve => setTimeout(resolve, ms))) {
+  let result;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    result = await readPr();
+    if (result?.mergeable !== null && result?.mergeable !== undefined &&
+        result?.mergeable_state !== "unknown" && result?.mergeable_state != null)
+      return result;
+    if (attempt < 2) await wait((attempt + 1) * 1000);
+  }
+  return result; // fail-closed if GitHub never resolves.
+}
+
 async function main() {
   const repo = process.env.GITHUB_REPOSITORY;
   const token = process.env.GH_TOKEN;
@@ -132,7 +146,7 @@ async function main() {
   }
 
   function reject(reason) { console.log("Not eligible: " + reason); }
-  const pr = await api("/pulls/" + number);
+  const pr = await resolveMergeability(() => api("/pulls/" + number));
   if (pr.state !== "open" || pr.draft || pr.base?.ref !== "main" ||
       !pr.mergeable || pr.mergeable_state !== "clean" ||
       ![owner.toLowerCase(), CODEX_REVIEWER.toLowerCase()].includes(pr.user?.login?.toLowerCase()) ||
@@ -181,7 +195,7 @@ async function main() {
   }
 
   // Exact-SHA compare-and-swap merge; never select a moving branch by ref.
-  const current = await api("/pulls/" + number);
+  const current = await resolveMergeability(() => api("/pulls/" + number));
   if (current.head?.sha !== sha || current.state !== "open" || !current.mergeable ||
       current.mergeable_state !== "clean") {
     reject("Head or mergeability changed during verification");

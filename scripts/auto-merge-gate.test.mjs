@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
   BASE_CHECKS, CODEX_REVIEWER, changedPaths, modifiesProtectedVerification, applicableChecks, visualRequired,
-  trustedCodexReceipt, hasBlockingCodexFinding, requiredRunsPassed
+  trustedCodexReceipt, hasBlockingCodexFinding, requiredRunsPassed, resolveMergeability
 } from "./auto-merge-gate.mjs";
 
 const sha = "a".repeat(40);
@@ -106,4 +106,36 @@ test("owner visual-acceptance comment can retrigger trusted-main merge reconcili
   assert.match(policy, /github\.event\.comment\.user\.login == github\.repository_owner/);
   assert.match(policy, /VISUAL-ACCEPTED:/);
   assert.match(policy, /github\.event\.issue\.number/);
+});
+
+
+test("unknown GitHub mergeability is retried at most three times", async () => {
+  let calls = 0;
+  const delays = [];
+  const result = await resolveMergeability(async () => {
+    calls++;
+    return calls === 3
+      ? { mergeable: true, mergeable_state: "clean" }
+      : { mergeable: null, mergeable_state: "unknown" };
+  }, async ms => { delays.push(ms); });
+  assert.equal(calls, 3);
+  assert.deepEqual(delays, [1000, 2000]);
+  assert.equal(result.mergeable_state, "clean");
+});
+
+test("unknown mergeability never spins forever, real conflicts never retry", async () => {
+  let calls = 0;
+  const unresolved = await resolveMergeability(async () => {
+    calls++;
+    return { mergeable: null, mergeable_state: "unknown" };
+  }, async () => {});
+  assert.equal(calls, 3);
+  assert.equal(unresolved.mergeable, null);
+  calls = 0;
+  const conflicting = await resolveMergeability(async () => {
+    calls++;
+    return { mergeable: false, mergeable_state: "dirty" };
+  }, async () => { throw Error("Conflicts must not trigger retries"); });
+  assert.equal(calls, 1);
+  assert.equal(conflicting.mergeable, false);
 });
