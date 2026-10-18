@@ -27,7 +27,7 @@ jobs:
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.event.workflow_run.head_sha || github.sha }}
+          ref: ${{ github.event.repository.default_branch }}
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
@@ -104,6 +104,11 @@ jobs:
             if (!allowedFailedWorkflows.has(run.name)) throw new Error('Workflow is not an approved repair trigger');
             const details = JSON.parse(await (await fetch(`https://api.github.com/repos/${process.env.REPOSITORY}/pulls/${pr.number}`, { headers: { authorization: `Bearer ${process.env.GH_TOKEN}`, accept: 'application/vnd.github+json' } })).text());
             if (details.head?.repo?.full_name !== process.env.REPOSITORY || details.head?.sha !== run.head_sha) throw new Error('PR head changed or is not same-repository; refusing repair');
+            if (details.user?.login?.toLowerCase() !== process.env.OWNER.toLowerCase()) throw new Error('Only repository-owner PRs can trigger credentialed repair');
+            const headCommit = await fetch(`https://api.github.com/repos/${process.env.REPOSITORY}/commits/${run.head_sha}`, { headers: { authorization: `Bearer ${process.env.GH_TOKEN}`, accept: 'application/vnd.github+json' } });
+            if (!headCommit.ok) throw new Error('Unable to validate repair commit provenance');
+            const commit = await headCommit.json();
+            if (commit.commit?.message?.startsWith('fix: apply bounded Codex repair')) throw new Error('Repair-generated commits cannot recursively trigger repair');
             appendFileSync(process.env.GITHUB_OUTPUT, `pr=${pr.number}\nsha=${run.head_sha}\n`);
           }
           NODE
@@ -116,4 +121,4 @@ jobs:
           EXPECTED_SHA: ${{ steps.request.outputs.sha }}
         run: |
           set -euo pipefail
-          gh workflow run automated-repair-dispatch.yml --repo "$REPOSITORY" --ref "$GITHUB_REF_NAME" -f repair=true -f pr_number="$PR_NUMBER" -f expected_sha="$EXPECTED_SHA"
+          gh workflow run automated-repair-dispatch.yml --repo "$REPOSITORY" --ref main -f repair=true -f pr_number="$PR_NUMBER" -f expected_sha="$EXPECTED_SHA"
