@@ -79,7 +79,7 @@ export function trustedCodexReceipt(review, sha) {
 }
 
 export function hasBlockingCodexFinding(comments, sha) {
-  return comments.some(c => c?.commit_id === sha &&
+  return comments.some(c => (c?.original_commit_id ?? c?.commit_id) === sha &&
     c.user?.login === CODEX_REVIEWER &&
     (/codex-code-review-finding:v1/.test(c.body ?? "") ||
      /\bP[012]\b/i.test(c.body ?? "")));

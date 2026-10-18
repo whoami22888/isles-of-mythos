@@ -30,6 +30,13 @@ test("final-head actionable finding always blocks; stale SHA does not", () => {
   assert.equal(hasBlockingCodexFinding([finding], sha), true);
   assert.equal(hasBlockingCodexFinding([{ ...finding, commit_id: "b".repeat(40) }], sha), false);
   assert.equal(hasBlockingCodexFinding([{ ...finding, user: { login: "attacker-codex" } }], sha), false);
+  // GitHub reanchors old comments to the current head but preserves the original commit.
+  assert.equal(hasBlockingCodexFinding([{
+    ...finding, commit_id: sha, original_commit_id: "b".repeat(40)
+  }], sha), false);
+  assert.equal(hasBlockingCodexFinding([{
+    ...finding, commit_id: "b".repeat(40), original_commit_id: sha
+  }], sha), true);
 });
 
 test("Godot client edits require client build and visual evidence", () => {
