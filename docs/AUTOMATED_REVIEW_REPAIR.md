@@ -15,32 +15,20 @@ approved Codex worker integration is installed and exercised end to end.
 
 Activation requirements:
 
-- The supported integration is the official OpenAI Codex CLI release
-  `rust-v0.163.0`, downloaded from the pinned OpenAI Codex release asset and
-  verified by SHA-256. It is not a GitHub Action or a custom repair endpoint.
-- Configure an environment-scoped secret named `OPENAI_API_KEY` in the
-  `codex-repair` GitHub Actions environment. This is a dedicated OpenAI
-  project API key consumed by `codex login --with-api-key`; do not use
-  `LIM_API_KEY` or `CODEX_REPAIR_TOKEN`.
-- Grant the repair environment narrowly scoped `contents: write` and
-  `pull-requests: write` permissions, with protected-branch rules unchanged.
+- Credentialed repair is disabled. Do not configure or expose an API key until
+  a separately credentialed host broker and unprivileged container boundary
+  are installed and adversarially tested.
 - Supply a trusted actor allowlist and an exact-SHA GitHub API reader for
   checks, reviews, mergeability, and visual acceptance artifacts.
-- The worker uses Codex CLI `exec --json --sandbox workspace-write
-  --ask-for-approval never`; the unsupported `--full-auto` mode is prohibited.
-  Codex authentication is stored only in a `0700` runner-temporary
-  `CODEX_HOME`, outside the checkout, and is removed after execution.
-- The worker never receives `GITHUB_TOKEN`; repository push credentials are
-  scoped to the separate push step. A branch may receive at most one
-  `fix: apply bounded Codex repair` commit; subsequent dispatches fail closed
-  to prevent recursive repair loops.
+- A future broker must lock the OpenAI destination, revalidate the exact SHA,
+  enforce a one-commit budget, validate a path allowlist, and push only from
+  the trusted host after the container exits. The current workflow refuses
+  before checkout, authentication, agent execution, or push.
 - Prove one end-to-end run on a disposable PR before enabling repair or merge.
 
-No workflow in this change claims that automatic repair or automatic merging
-is operational. Fork heads, missing SHA evidence, duplicate concurrent events,
-missing AI approval, failed/stale checks, and missing visual acceptance are
-rejected. Persistent cross-run deduplication requires the approved worker's
-durable event ledger; no untrusted PR cache is used.
+No workflow claims that automatic repair or automatic merging is operational.
+Fork heads, missing SHA evidence, duplicate concurrent events, missing AI
+approval, failed/stale checks, and missing visual acceptance are rejected.
 
 The dispatch inputs require a same-repository PR number and exact head SHA.
 Repair is manual workflow dispatch only, does not merge, and pushes only to

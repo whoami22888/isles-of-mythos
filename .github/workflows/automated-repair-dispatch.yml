@@ -56,58 +56,8 @@ jobs:
           fs.appendFileSync(process.env.GITHUB_OUTPUT, `sha=${p.sha}\nbranch=${p.branch}\n`);
           NODE
 
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-        with:
-          ref: ${{ steps.pr.outputs.sha }}
-          persist-credentials: false
-
-      - name: Install pinned official Codex CLI
-        env:
-          CODEX_VERSION: rust-v0.163.0
-          CODEX_ARCHIVE_SHA256: beb339e8ecd9ba057a6bb2dc81ad8ca474812edfbf0fc5056ca818797648dde4
+      - name: Refuse credentialed repair until isolated broker is installed
         run: |
           set -euo pipefail
-          archive="$RUNNER_TEMP/codex.tar.gz"
-          curl --fail --location --retry 3 -o "$archive" "https://github.com/openai/codex/releases/download/${CODEX_VERSION}/codex-x86_64-unknown-linux-musl.tar.gz"
-          echo "${CODEX_ARCHIVE_SHA256}  ${archive}" | sha256sum --check --status
-          tar -xzf "$archive" -C "$RUNNER_TEMP"
-          install -m 0755 "$RUNNER_TEMP/codex-x86_64-unknown-linux-musl" "$RUNNER_TEMP/codex"
-
-      - name: Authenticate Codex with dedicated OpenAI project key
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          CODEX_HOME: ${{ runner.temp }}/codex-home
-        run: |
-          set -euo pipefail
-          umask 077
-          install -d "$CODEX_HOME"
-          test -n "$OPENAI_API_KEY" || { echo "Environment secret OPENAI_API_KEY is not configured; repair remains inactive."; exit 1; }
-          printf '%s' "$OPENAI_API_KEY" | CODEX_HOME="$CODEX_HOME" "$RUNNER_TEMP/codex" login --with-api-key
-
-      - name: Run bounded Codex diagnosis and repair
-        env:
-          CODEX_HOME: ${{ runner.temp }}/codex-home
-        run: |
-          set -euo pipefail
-          if git log --all --format='%s' | grep -Fxq 'fix: apply bounded Codex repair'; then
-            echo 'Repair budget exhausted for this branch; refusing a recursive repair.'
-            exit 1
-          fi
-          CODEX_HOME="$CODEX_HOME" "$RUNNER_TEMP/codex" exec --json --sandbox workspace-write --ask-for-approval never 'Diagnose only confirmed failures on this exact PR head. Make at most one smallest root-cause repair. Preserve the existing architecture and security rules, run only targeted tests plus affected verification, and stop if no confirmed defect exists. Do not modify workflows, branch protection, merge state, credentials, or protected migrations. Do not create commits or push. Leave a concise repair summary in the worktree.'
-          git diff --check
-          rm -rf "$CODEX_HOME"
-
-      - name: Push repair commit to the same branch
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-          REPOSITORY: ${{ github.repository }}
-          BRANCH: ${{ steps.pr.outputs.branch }}
-        run: |
-          set -euo pipefail
-          if git diff --quiet && test -z "$(git status --short)"; then echo "No repair changes produced."; exit 0; fi
-          git config user.name "codex-repair-worker"
-          git config user.email "codex-repair-worker@users.noreply.github.com"
-          git add -A
-          git commit -m "fix: apply bounded Codex repair"
-          auth="$(printf 'x-access-token:%s' "$GITHUB_TOKEN" | base64 -w0)"
-          git -c "http.extraheader=AUTHORIZATION: basic ${auth}" push "https://github.com/${REPOSITORY}.git" "HEAD:${BRANCH}"
+          echo "Credentialed repair is disabled: no separately credentialed host broker and unprivileged container boundary has been installed and adversarially tested."
+          exit 1
