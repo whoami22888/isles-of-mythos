@@ -19,14 +19,19 @@ func _measure(scene: Node3D, fx: Node3D, moving: bool) -> Dictionary:
 	var update_costs: Array[float] = []
 	var draw_calls := 0
 	var previous := Time.get_ticks_usec()
+	var phase_name := "moving" if moving else "static"
+	print("IOM07_STAGE_BEGIN phase=%s samples=%d" % [phase_name, SAMPLES])
 	for sample in range(SAMPLES):
+		print("IOM07_FRAME_BEGIN phase=%s sample=%d elapsed_usec=%d" % [phase_name, sample + 1, Time.get_ticks_usec()])
 		var before_step := Time.get_ticks_usec()
 		if moving:
 			fx.advance_visual_demo(STEP_SECONDS)
 		var step_ms := float(Time.get_ticks_usec() - before_step) / 1000.0
 		update_costs.append(maxf(0.001, step_ms))
 		await process_frame
+		print("IOM07_PROCESS_FRAME_DONE phase=%s sample=%d" % [phase_name, sample + 1])
 		await RenderingServer.frame_post_draw
+		print("IOM07_RENDER_FRAME_DONE phase=%s sample=%d" % [phase_name, sample + 1])
 		var now := Time.get_ticks_usec()
 		var interval := float(now - previous) / 1000.0
 		if not is_finite(interval) or interval <= 0.0:
@@ -52,10 +57,13 @@ func _profile() -> void:
 	if packed == null:
 		_fail("Missing actual moving coastal scene")
 		return
+	print("IOM07_SCENE_INSTANTIATE_BEGIN")
 	var scene: Node3D = packed.instantiate()
 	root.add_child(scene)
+	print("IOM07_SCENE_ATTACHED warming_frames=%d" % WARMUP)
 	for i in range(WARMUP):
 		await process_frame
+		print("IOM07_WARMUP_FRAME %d/%d" % [i + 1, WARMUP])
 	var fx: Node3D = scene.get_node_or_null("CoastalShipEffects")
 	var ship: Node3D = scene.get_node_or_null("HarbourShipFocalPoint")
 	var coast: MeshInstance3D = scene.get_node_or_null("IrregularCoastalTerrain")
@@ -80,6 +88,7 @@ func _profile() -> void:
 	var baseline_camera_transform: Transform3D = scene.cinematic_camera.global_transform
 	for i in range(WARMUP):
 		await process_frame
+	print("IOM07_FIXED_CAMERA_READY")
 	var static_stage: Dictionary = await _measure(scene, fx, false)
 	if not static_stage.get("valid", false):
 		_fail("Static coastal scene did not yield real frame samples")
@@ -87,6 +96,7 @@ func _profile() -> void:
 	if scene.cinematic_camera.global_transform != baseline_camera_transform:
 		_fail("Baseline camera moved before coastal A/B sampling")
 		return
+	print("IOM07_STATIC_PHASE_COMPLETE")
 	fx.start_visual_demo()
 	var start_position: Vector3 = ship.position
 	var moving_stage: Dictionary = await _measure(scene, fx, true)
@@ -96,6 +106,7 @@ func _profile() -> void:
 	if scene.cinematic_camera.global_transform != baseline_camera_transform:
 		_fail("Cinematic camera changed between baseline and motion phases")
 		return
+	print("IOM07_MOVING_PHASE_COMPLETE")
 	var distance: float = ship.position.distance_to(start_position)
 	if distance <= 0.2 or fx.wake.get_sample_count() < 2:
 		_fail("Ship or wake failed to actually animate; refusing inert-scene metrics")
