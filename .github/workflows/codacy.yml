@@ -61,21 +61,32 @@ jobs:
           # suppress scanner execution failures (fail-if-incomplete above).
           max-allowed-issues: 2147483647
 
+      # Codacy emits separate runs per tool invocation without analysis IDs.
+      # Assign IDs in the upload source; preserve every run and the raw report.
+      - name: Identify Codacy SARIF analyses
+        id: sarif-identity
+        if: ${{ always() && hashFiles('results.sarif') != '' }}
+        run: |
+          python3 -m unittest discover -s scripts -p test_codacy_sarif_identity.py -v
+          python3 scripts/codacy_sarif_identity.py results.sarif upload-results.sarif
+
       # Preserve complete or partial diagnostic evidence even if a tool crashes.
       - name: Retain SARIF evidence
         if: ${{ always() && hashFiles('results.sarif') != '' }}
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
           name: codacy-sarif-${{ github.event.pull_request.head.sha || github.sha }}
-          path: results.sarif
+          path: |
+            results.sarif
+            upload-results.sarif
           if-no-files-found: error
           retention-days: 30
 
       # Upload the SARIF file generated in the previous step
       - name: Upload SARIF results file
-        if: ${{ always() && hashFiles('results.sarif') != '' }}
+        if: ${{ always() && steps.sarif-identity.outcome == 'success' }}
         uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4
         with:
-          sarif_file: results.sarif
+          sarif_file: upload-results.sarif
           ref: ${{ github.event_name == 'pull_request' && format('refs/pull/{0}/head', github.event.pull_request.number) || github.ref }}
           sha: ${{ github.event.pull_request.head.sha || github.sha }}
