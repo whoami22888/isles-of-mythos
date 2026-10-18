@@ -43,6 +43,12 @@ func _record() -> void:
     # Use a true in-engine fixed simulation step for ship/camera poses, not a
     # static-image pan or AI-generated substitute. Each screenshot still
     # comes directly from Godot's actual renderer.
+    var ocean := scene.get_node_or_null("Ocean") as MeshInstance3D
+    if ocean == null or not (ocean.material_override is ShaderMaterial):
+        _fail("Deterministic capture requires a bound ocean ShaderMaterial")
+        return
+    var ocean_material := ocean.material_override as ShaderMaterial
+    ocean_material.set_shader_parameter("deterministic_capture", true)
     scene.set_cinematic_view()
     scene.set_process(false)
     integration.set_process(false)
@@ -64,6 +70,7 @@ func _record() -> void:
         else:
             var stage := smoothstep(0.0, 1.0, (progress - 0.5) * 2.0)
             scene.cinematic_camera.position = waypoint_a.lerp(waypoint_b, stage)
+        ocean_material.set_shader_parameter("capture_time_seconds", float(frame_number) / 24.0)
         integration.advance_visual_demo(1.0 / 24.0)
         if not scene.frame_ship_cinematic(scene.cinematic_camera, scene.cinematic_camera.global_position):
             _fail("Imported ship has no valid full 3D visual bounds")
