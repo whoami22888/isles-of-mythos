@@ -103,6 +103,9 @@ jobs:
       - name: Verify bounded orchestration controls
         run: npm run test:orchestration
 
+      - name: Verify exact-SHA Codex integration policy regressions
+        run: node --test scripts/auto-merge-gate.test.mjs
+
       - run: npm run test
       - run: npm run build
 
