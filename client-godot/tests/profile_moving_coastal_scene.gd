@@ -67,20 +67,34 @@ func _profile() -> void:
 	if water_material == null or water_material.get_shader_parameter("shoremap_bound") != true:
 		_fail("Coastal shader lost mesh-derived foam shoreline binding")
 		return
-	var static_stage: Dictionary = await _measure(scene, fx, false)
-	if not static_stage.get("valid", false):
-		_fail("Static coastal scene did not yield real frame samples")
-		return
+	# Compare both phases with one fixed cinematic camera pose. A gameplay
+	# camera vs cinematic camera comparison would be an invalid performance A/B.
 	scene.set_cinematic_view()
 	scene.set_process(false)
 	fx.set_process(false)
 	fx.wake.set_process(false)
 	fx.bow_spray.set_process(false)
+	if not scene.frame_ship_cinematic(scene.cinematic_camera, scene.cinematic_camera.global_position):
+		_fail("Could not frame the complete PBR vessel for both profile phases")
+		return
+	var baseline_camera_transform: Transform3D = scene.cinematic_camera.global_transform
+	for i in range(WARMUP):
+		await process_frame
+	var static_stage: Dictionary = await _measure(scene, fx, false)
+	if not static_stage.get("valid", false):
+		_fail("Static coastal scene did not yield real frame samples")
+		return
+	if scene.cinematic_camera.global_transform != baseline_camera_transform:
+		_fail("Baseline camera moved before coastal A/B sampling")
+		return
 	fx.start_visual_demo()
 	var start_position: Vector3 = ship.position
 	var moving_stage: Dictionary = await _measure(scene, fx, true)
 	if not moving_stage.get("valid", false):
 		_fail("Moving cinematic did not yield real frame samples")
+		return
+	if scene.cinematic_camera.global_transform != baseline_camera_transform:
+		_fail("Cinematic camera changed between baseline and motion phases")
 		return
 	var distance: float = ship.position.distance_to(start_position)
 	if distance <= 0.2 or fx.wake.get_sample_count() < 2:
@@ -110,6 +124,8 @@ func _profile() -> void:
 		"device_thermal_memory_input_latency": "NOT_MEASURED",
 		"warmup_frames": WARMUP,
 		"samples_each_phase": SAMPLES,
+		"same_camera_fixed_pose": true,
+		"camera_mode": "cinematic_ship_framed_fixed_pose",
 		"ship_motion_distance_units": distance,
 		"static": static_stage,
 		"moving": moving_stage
