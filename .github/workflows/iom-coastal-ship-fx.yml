@@ -113,24 +113,33 @@ jobs:
         with:
           pattern: internal-coastal-frames-*
           path: frames
-          merge-multiple: true
-      - name: Verify partitions and encode actual Godot footage
+          merge-multiple: false
+      - name: Verify original worker manifests and assemble in exact frame order
         shell: bash
         run: |
           set -euo pipefail
-          test "$(find frames -maxdepth 1 -name 'frame_*.rgba' | wc -l)" -eq 72
-          for i in $(seq 0 71); do
-            printf -v frame 'frames/frame_%04d.rgba' "$i"
-            test -f "$frame"
-            test "$(stat -c %s "$frame")" -eq 3686400
+          mkdir -p ordered-frames evidence
+          for segment in 0 1 2; do
+            source_dir="frames/internal-coastal-frames-$segment"
+            test -d "$source_dir"
+            test -f "$source_dir/SHA256SUMS"
+            (cd "$source_dir" && sha256sum --check --strict SHA256SUMS)
+            test "$(find "$source_dir" -maxdepth 1 -name 'frame_*.rgba' | wc -l)" -eq 24
+            for offset in $(seq 0 23); do
+              frame_number=$((segment * 24 + offset))
+              printf -v filename 'frame_%04d.rgba' "$frame_number"
+              test -f "$source_dir/$filename"
+              test "$(stat -c %s "$source_dir/$filename")" -eq 3686400
+              cp -- "$source_dir/$filename" "ordered-frames/$filename"
+            done
           done
-          for i in 0 1 2; do :; done
+          test "$(find ordered-frames -maxdepth 1 -name 'frame_*.rgba' | wc -l)" -eq 72
           sudo apt-get update -qq
           sudo apt-get install -y -qq ffmpeg
           mkdir -p evidence
-          ffmpeg -hide_banner -loglevel error -nostdin -y -f image2 -start_number 0 -framerate 24 -c:v rawvideo -pixel_format rgba -video_size 1280x720 -i frames/frame_%04d.rgba -frames:v 72 -c:v libx264 -preset veryfast -crf 23 -pix_fmt yuv420p -movflags +faststart evidence/ship-wake-cinematic.mp4
+          ffmpeg -hide_banner -loglevel error -nostdin -y -f image2 -start_number 0 -framerate 24 -c:v rawvideo -pixel_format rgba -video_size 1280x720 -i ordered-frames/frame_%04d.rgba -frames:v 72 -c:v libx264 -preset veryfast -crf 23 -pix_fmt yuv420p -movflags +faststart evidence/ship-wake-cinematic.mp4
           test "$(ffprobe -v error -select_streams v:0 -show_entries stream=nb_frames -of default=noprint_wrappers=1:nokey=1 evidence/ship-wake-cinematic.mp4)" -eq 72
-          (cd frames && sha256sum frame_*.rgba > ../evidence/FRAME_SHA256SUMS)
+          (cd ordered-frames && sha256sum frame_*.rgba > ../evidence/FRAME_SHA256SUMS)
           (cd evidence && sha256sum ship-wake-cinematic.mp4 > SHA256SUMS)
           printf 'commit=%s\\nengine=Godot 4.7.2\\nrender=Mobile Vulkan llvmpipe software\\nframes=72\\nresolution=1280x720\\nfps=24\\nvisual_parity=NOT VERIFIED\\n' "${{ github.event.pull_request.head.sha || github.sha }}" > evidence/EVIDENCE.txt
       - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
