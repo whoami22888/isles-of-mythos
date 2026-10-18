@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "client-godot/scripts/mobile_frame_metrics.gd"
+      - "client-godot/scenes/sculpted_terrain_preview.tscn"
       - "client-godot/tests/mobile_frame_*.gd"
       - ".github/workflows/iom07-mobile-frame-evidence.yml"
   workflow_dispatch:
@@ -75,7 +76,7 @@ jobs:
               print("WARNING: Godot process monitor differs from frame clock; no CPU bottleneck verdict.")
           print("Verified Godot frame evidence schema and exact source commit; Android quality remains NOT VERIFIED.")
           PY
-          (cd "$RUNNER_TEMP/mobile-evidence" && sha256sum *.json > SHA256SUMS)
+          (cd "$RUNNER_TEMP/mobile-evidence" && sha256sum ./*.json > SHA256SUMS)
       - name: Upload real profiler data with provenance
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
         with:

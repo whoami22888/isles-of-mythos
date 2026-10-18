@@ -52,10 +52,6 @@ func _run() -> void:
 	var output := OS.get_environment("IOM_MOBILE_PROFILE_PATH")
 	if output.is_empty():
 		output = "user://mobile-frame-evidence.json"
-	var file := FileAccess.open(output, FileAccess.WRITE)
-	if file == null:
-		_fail("Cannot write Godot performance evidence artifact")
-		return
 	var report := {
 		"schema_version": 1,
 		"source": "actual_godot_scene",
@@ -73,6 +69,10 @@ func _run() -> void:
 		"graphics_quality_verdict": "NOT_VERIFIED",
 		"mobile_acceptance_verdict": "NOT_VERIFIED",
 	}
+	var file := FileAccess.open(output, FileAccess.WRITE)
+	if file == null:
+		_fail("Cannot write Godot performance evidence artifact")
+		return
 	file.store_string(JSON.stringify(report, "\t"))
 	file.flush()
 	file.close()

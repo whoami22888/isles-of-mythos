@@ -4,7 +4,7 @@
 
 ## Implemented
 
-- `client-godot/scripts/mobile_frame_metrics.gd` summarizes verified **actual input intervals** with deterministic nearest-rank p50/p95/p99, mean, min, max and sample count. Fails closed for empty, non-finite, negative or unreasonable sample sets.
+- `client-godot/scripts/mobile_frame_metrics.gd` validates **received sample intervals** with deterministic nearest-rank p50/p95/p99, mean, min, max and sample count. Fails closed for empty, non-finite, negative or unreasonable sample sets.
 - `client-godot/tests/mobile_frame_metrics_test.gd` exercises boundary percentiles, slow-frame tails and invalid input in the actual Godot GDScript runtime.
 - `client-godot/tests/mobile_frame_capture.gd` opens an actual existing Godot 3D terrain scene, requires an active camera, discards warmup frames, measures **180 actual successive engine frame intervals**, process CPU timing and peak 3D draw calls, and writes immutable-context JSON.
 - `.github/workflows/iom07-mobile-frame-evidence.yml` pins the repository's Godot 4.7.2 Linux release and SHA-256, runs the test and Xvfb engine capture, verifies the generated report's commit SHA and hard-coded non-Android verdict, writes SHA-256 provenance, then uploads an inspectable build artifact.
@@ -24,3 +24,7 @@
 4. Compare before and after on the **same camera and phone**. Reject optimizations that reduce target-quality visual categories even if benchmark improves. Record player trial feedback and accessibility, not invented retention.
 
 No mobile/server/gameplay performance pass or player-satisfaction outcome is claimed by this foundational slice.
+
+## Observed clock divergence and evidence interpretation
+
+At commit `7cf4ec3d4333753ad9516dd034751e81e8b4380f`, real Linux Xvfb frame intervals had p95 14.859 ms and p99 16.304 ms, while Godot `Performance.TIME_PROCESS` p95 read 674.273 ms. Since these clocks disagree substantially, **the CPU process monitor is not a reliable same-frame bottleneck measurement in this environment**. The evidence now includes a `engine_process_clock_check` with `comparable=false` and the explicit `PROCESS_MONITOR_CLOCK_DIVERGENCE` reason where applicable; raw monitor values remain visible rather than being changed, hidden, or represented as real Android CPU stalls. A prototype with peak two draw calls does not represent approved premium ship, ocean, foliage or client gameplay performance. Investigate valid frame/GPU metrics on the actual Android device and moving coastal scene before optimising.
