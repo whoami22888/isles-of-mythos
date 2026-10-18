@@ -1,0 +1,29 @@
+name: Authenticated Codex repair dispatch
+
+on:
+  workflow_dispatch:
+    inputs:
+      repair:
+        description: "Run the approved repair worker"
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  guarded-dispatch:
+    if: inputs.repair == true
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Refuse until the approved worker is installed
+        env:
+          CODEX_REPAIR_TOKEN: ${{ secrets.CODEX_REPAIR_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "$CODEX_REPAIR_TOKEN" || { echo "CODEX_REPAIR_TOKEN is not configured; repair remains inactive."; exit 1; }
+          echo "No approved Codex worker action is installed. Configure the reviewed integration before activation."
+          exit 1

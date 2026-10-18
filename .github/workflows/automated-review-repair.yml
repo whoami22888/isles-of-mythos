@@ -8,13 +8,6 @@ on:
   workflow_run:
     workflows: [CI, "Static Security Quality", "Performance Acceptance", "CodeQL Advanced", "Codacy Security Scan", "Godot visual evidence", "IOM-00 Godot client", "IOM-07 mobile frame evidence"]
     types: [completed]
-  workflow_dispatch:
-    inputs:
-      repair:
-        description: "Run the authenticated repair worker (requires repository setup)"
-        required: true
-        type: boolean
-        default: false
 
 permissions:
   contents: read
@@ -61,25 +54,3 @@ jobs:
           test "${HEAD_SHA}" != "" && test "${#HEAD_SHA}" -eq 40
           echo "Event ${EVENT_NAME}/${EVENT_ACTION} classified against exact head ${HEAD_SHA}."
           echo "No repair or merge is performed by this read-only classifier."
-
-  repair:
-    name: Authenticated Codex repair (gated)
-    if: github.event_name == 'workflow_dispatch' && inputs.repair == true
-    needs: classify
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    permissions:
-      contents: write
-      pull-requests: write
-    steps:
-      - name: Refuse until explicit worker setup exists
-        env:
-          CODEX_REPAIR_TOKEN: ${{ secrets.CODEX_REPAIR_TOKEN }}
-          CODEX_REPAIR_COMMAND: ${{ vars.CODEX_REPAIR_COMMAND }}
-        run: |
-          set -euo pipefail
-          test -n "$CODEX_REPAIR_TOKEN" || { echo "CODEX_REPAIR_TOKEN is not configured; repair worker remains inactive."; exit 1; }
-          test -n "$CODEX_REPAIR_COMMAND" || { echo "CODEX_REPAIR_COMMAND is not configured; repair worker remains inactive."; exit 1; }
-          echo "Worker credentials are configured, but this repository does not execute arbitrary repair commands from workflow input."
-          echo "Replace this guarded step with the approved Codex worker action after security review."
-          exit 1

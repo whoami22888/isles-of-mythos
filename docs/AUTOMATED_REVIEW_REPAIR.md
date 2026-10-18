@@ -6,7 +6,8 @@ head SHA. It uses event-specific concurrency groups and deterministic event
 keys so duplicate deliveries cannot run concurrently or be confused with a
 different review, comment, workflow run, or head SHA.
 
-The classifier is intentionally read-only. Existing CI, CodeQL, Codacy,
+The classifier is intentionally read-only. The separate dispatch workflow has
+no untrusted checkout and is only a guarded activation placeholder. Existing CI, CodeQL, Codacy,
 security, performance, Godot export, and visual-evidence workflows remain the
 authoritative checks. Automatic repair and merging are fail-closed until an
 approved Codex worker integration is installed and exercised end to end.
@@ -14,10 +15,9 @@ approved Codex worker integration is installed and exercised end to end.
 Activation requirements:
 
 - Configure a repository or environment secret named `CODEX_REPAIR_TOKEN`.
-- Configure a reviewed repository variable named `CODEX_REPAIR_COMMAND` only
-  after replacing the guarded worker step with the approved, pinned Codex
-  action or worker integration. The current workflow refuses to execute this
-  variable as a shell command.
+- Replace the guarded dispatch step with the approved, pinned Codex action or
+  worker integration after security review; no arbitrary repository variable
+  is executed as a shell command.
 - Grant the repair environment narrowly scoped `contents: write` and
   `pull-requests: write` permissions, with protected-branch rules unchanged.
 - Supply a trusted actor allowlist and an exact-SHA GitHub API reader for
