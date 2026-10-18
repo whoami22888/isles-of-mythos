@@ -1,37 +1,44 @@
-# Automated review and repair controller
+# Automated review/repair bootstrap — NOT ACTIVATED
 
-The `Automated review and repair controller` workflow classifies pull-request
-reviews, review comments, and failed pull-request checks against the exact
-head SHA. It uses event-specific concurrency groups and deterministic event
-keys so duplicate deliveries cannot run concurrently or be confused with a
-different review, comment, workflow run, or head SHA.
+This PR installs only `.github/workflows/automated-repair-dispatch.yml` on a
+repository branch. Until this PR is merged, the manual `workflow_dispatch`
+entrypoint is not registered on the default branch. Even after registration,
+the job deliberately refuses credentialed repair before checkout or running an
+agent. It uses read-only GitHub permissions and does not push or merge changes.
 
-The classifier is intentionally read-only. The separate dispatch workflow uses
-the official pinned Codex CLI, validates a same-repository exact head, and is
-manual-only. Existing CI, CodeQL, Codacy,
-security, performance, Godot export, and visual-evidence workflows remain the
-authoritative checks. Automatic repair and merging are fail-closed until an
-approved Codex worker integration is installed and exercised end to end.
+**Not yet present in this bootstrap:** an event classifier, persistent event
+deduplication, bounded automated repair, an authenticated Codex execution
+boundary, or automatic merging. Those controller components are proposed
+separately in PR #187. The exact-SHA review/check and visual-acceptance
+policies are activation requirements, not capabilities delivered by this
+bootstrap alone.
 
-Activation requirements:
+## Requirements before activating a repair worker
 
-- Credentialed repair is disabled. Do not configure or expose an API key until
-  a separately credentialed host broker and unprivileged container boundary
-  are installed and adversarially tested.
-- Supply a trusted actor allowlist and an exact-SHA GitHub API reader for
-  checks, reviews, mergeability, and visual acceptance artifacts.
-- A future broker must lock the OpenAI destination, revalidate the exact SHA,
-  enforce a one-commit budget, validate a path allowlist, and push only from
-  the trusted host after the container exits. The current workflow refuses
-  before checkout, authentication, agent execution, or push.
-- Prove one end-to-end run on a disposable PR before enabling repair or merge.
+- Prove a separately credentialed host broker and unprivileged, resource-limited
+  container: no OpenAI key, Codex authentication file, GitHub write token, or
+  host secrets can be read from a PR-controlled worktree.
+- Validate the repository and PR identity, final head SHA, trusted actors and
+  branch at dispatch and again immediately before any push.
+- Lock the API proxy destination, cap time/requests/repair attempts, prevent
+  bot-triggered recursion, and allow only reviewed changed paths.
+- Keep git push credentials in a separate trusted process and test that a
+  hostile PR cannot read the credentials or influence executable host hooks.
+- Exercise an authenticated disposable same-repository PR end-to-end:
+  diagnosis, smallest correction, targeted tests, validated commit and push.
+  Verify fork, stale SHA, duplicate, missing broker and repeated-failure
+  rejection. Preserve exact workflow IDs and outputs.
+- Activate automated integration only when final-SHA CI, CodeQL, Codacy,
+  static security, performance, applicable Godot/visual/provenance workflows
+  and independent Codex review all pass. Visual changes also require explicit
+  final-SHA owner acceptance.
 
-No workflow claims that automatic repair or automatic merging is operational.
-Fork heads, missing SHA evidence, duplicate concurrent events, missing AI
-approval, failed/stale checks, and missing visual acceptance are rejected.
+## Present behavior
 
-The dispatch inputs require a same-repository PR number and exact head SHA.
-Repair is manual workflow dispatch only, does not merge, and pushes only to
-the validated non-`main` PR branch. Automatic repair must remain disabled until
-an authenticated disposable-PR run proves diagnosis, targeted testing, push,
-deduplication, fork rejection, and fail-closed behavior.
+Manual dispatch accepts a PR number and expected SHA, checks that the PR head
+is in the same repository, that its SHA matches and that the target branch is
+not `main`. It then exits nonzero with an explicit disabled-repair message.
+
+**Automatic review, repair, automatic merging and credentialed execution are
+not supplied by this bootstrap PR.** Do not infer them from a green CI or a
+Codex review receipt for this documentation-only change.
