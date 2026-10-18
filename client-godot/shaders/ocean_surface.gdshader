@@ -10,6 +10,11 @@ uniform vec4 foam_tint : source_color = vec4(0.76, 0.91, 0.91, 1.0);
 uniform float swell_scale : hint_range(0.0, 1.5) = 1.0;
 uniform float ripple_detail : hint_range(0.0, 1.0) = 0.9;
 uniform float foam_amount : hint_range(0.0, 1.0) = 0.7;
+// The capture harness sets this to the exact frame time. Ordinary gameplay
+// continues to use Godot TIME when deterministic_capture is disabled.
+uniform bool deterministic_capture = false;
+uniform float capture_time_seconds = 0.0;
+
 
 const float SEA_LEVEL = -0.35;
 varying vec3 surface_world;
@@ -22,10 +27,11 @@ uniform bool shoremap_bound = false;
 uniform vec2 near_patch_half_extent = vec2(92.0, 70.0);
 
 void vertex() {
+    float ocean_time = deterministic_capture ? capture_time_seconds : TIME;
     vec2 xz = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xz;
-    float a = dot(xz, vec2(0.84, 0.54)) * 0.55 - TIME * 0.90;
-    float b = dot(xz, vec2(-0.43, 0.90)) * 1.16 - TIME * 1.35;
-    float c = dot(xz, vec2(0.95, -0.31)) * 2.25 - TIME * 1.90;
+    float a = dot(xz, vec2(0.84, 0.54)) * 0.55 - ocean_time * 0.90;
+    float b = dot(xz, vec2(-0.43, 0.90)) * 1.16 - ocean_time * 1.35;
+    float c = dot(xz, vec2(0.95, -0.31)) * 2.25 - ocean_time * 1.90;
     float displacement = (sin(a) * 0.090 + sin(b) * 0.044 + sin(c) * 0.015) * swell_scale;
     float dx = (cos(a) * 0.090 * 0.55 * 0.84
               + cos(b) * 0.044 * 1.16 * -0.43
@@ -48,6 +54,7 @@ void vertex() {
 }
 
 void fragment() {
+    float ocean_time = deterministic_capture ? capture_time_seconds : TIME;
     vec2 p = surface_world.xz;
     float coverage = shore_terrain_coverage(p) * float(shoremap_bound);
     float floor_y = shore_terrain_height(p);
@@ -60,8 +67,8 @@ void fragment() {
 
     // Two counter-moving normal frequencies animate highlights on the water.
     // No screen-space reflection pass or full-screen postprocess is required.
-    float micro_a = sin(dot(p, vec2(3.1, 1.55)) - TIME * 2.35);
-    float micro_b = cos(dot(p, vec2(-1.92, 3.38)) + TIME * 1.68);
+    float micro_a = sin(dot(p, vec2(3.1, 1.55)) - ocean_time * 2.35);
+    float micro_b = cos(dot(p, vec2(-1.92, 3.38)) + ocean_time * 1.68);
     NORMAL_MAP = normalize(vec3(
         (micro_a * 0.12 + micro_b * 0.055) * ripple_detail,
         (micro_a * -0.085 + micro_b * 0.11) * ripple_detail,
@@ -69,9 +76,9 @@ void fragment() {
     ));
 
     // Break up the coastal foam so it moves without straight bright strips.
-    float foam_pattern = sin(p.x * 2.0 + TIME * 1.2)
-                       * cos(p.y * 2.8 - TIME * 0.85);
-    foam_pattern += sin(p.x * 4.2 - p.y * 3.4 + TIME * 1.75) * 0.35;
+    float foam_pattern = sin(p.x * 2.0 + ocean_time * 1.2)
+                       * cos(p.y * 2.8 - ocean_time * 0.85);
+    foam_pattern += sin(p.x * 4.2 - p.y * 3.4 + ocean_time * 1.75) * 0.35;
     float foam_motion = smoothstep(-0.30, 0.65, foam_pattern + swell_crest * 3.0);
     // Shallow breakwater and wave crests only, no detached foam rectangles.
     float crest_foam = smoothstep(0.085, 0.14, swell_crest)
