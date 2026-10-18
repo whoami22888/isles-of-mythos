@@ -21,6 +21,32 @@ const STAGE_SCRIPTS = new Set([
   "scripts/test_stage_polyhaven_coast.py"
 ]);
 
+export function changedPaths(files) {
+  if (!Array.isArray(files)) throw Error("Invalid changed-file collection");
+  return files.flatMap(f => {
+    if (!f?.filename) throw Error("Changed-file entry missing destination");
+    if (f.status === "renamed") {
+      if (!f.previous_filename) throw Error("Renamed file lacks source path");
+      return [f.filename, f.previous_filename];
+    }
+    return [f.filename];
+  });
+}
+
+// Automatic integration must never approve changes to its own evidence sources.
+export function modifiesProtectedVerification(paths) {
+  const guarded = new Set([
+    "AGENTS.md", ".project/VERIFICATION-STANDARD.md",
+    "package.json", "package-lock.json",
+    "scripts/static-security-check.mjs", "scripts/orchestration-control.mjs",
+    "scripts/auto-merge-gate.mjs", "scripts/auto-merge-gate.test.mjs",
+    "scripts/review-controller.mjs", "scripts/review-controller.test.mjs"
+  ]);
+  return paths.some(p => guarded.has(p) ||
+    p.startsWith(".github/workflows/") ||
+    p.startsWith(".github/actions/"));
+}
+
 export function applicableChecks(paths) {
   if (!Array.isArray(paths) || paths.some(p => typeof p !== "string")) throw Error("Invalid changed paths");
   const required = new Set(BASE_CHECKS);
@@ -54,8 +80,9 @@ export function trustedCodexReceipt(review, sha) {
 
 export function hasBlockingCodexFinding(comments, sha) {
   return comments.some(c => c?.commit_id === sha &&
+    c.user?.login === CODEX_REVIEWER &&
     (/codex-code-review-finding:v1/.test(c.body ?? "") ||
-     (c.user?.login === CODEX_REVIEWER && /\bP[012]\b/i.test(c.body ?? ""))));
+     /\bP[012]\b/i.test(c.body ?? "")));
 }
 
 export function requiredRunsPassed(runs, requiredNames, sha) {
@@ -120,7 +147,11 @@ async function main() {
     reject("Changed-file list does not match GitHub PR metadata");
     return;
   }
-  const paths = files.map(f => f.filename);
+  const paths = changedPaths(files);
+  if (modifiesProtectedVerification(paths)) {
+    reject("Protected workflow, verification policy or gate changed: manual owner integration required");
+    return;
+  }
   const required = applicableChecks(paths);
   const runs = await pages("/actions/runs?head_sha=" + sha + "&event=pull_request", "workflow_runs");
   const checks = requiredRunsPassed(runs, required, sha);

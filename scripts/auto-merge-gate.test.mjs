@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
-  BASE_CHECKS, CODEX_REVIEWER, applicableChecks, visualRequired,
+  BASE_CHECKS, CODEX_REVIEWER, changedPaths, modifiesProtectedVerification, applicableChecks, visualRequired,
   trustedCodexReceipt, hasBlockingCodexFinding, requiredRunsPassed
 } from "./auto-merge-gate.mjs";
 
@@ -29,6 +29,7 @@ test("final-head actionable finding always blocks; stale SHA does not", () => {
     body: "<!-- codex-code-review-finding:v1 -->" };
   assert.equal(hasBlockingCodexFinding([finding], sha), true);
   assert.equal(hasBlockingCodexFinding([{ ...finding, commit_id: "b".repeat(40) }], sha), false);
+  assert.equal(hasBlockingCodexFinding([{ ...finding, user: { login: "attacker-codex" } }], sha), false);
 });
 
 test("Godot client edits require client build and visual evidence", () => {
@@ -71,4 +72,31 @@ test("workflow reviews and required Godot completions trigger trusted-main recon
   assert.match(policy, /github\.event\.repository\.default_branch/);
   assert.match(policy, /persist-credentials:\s*false/);
   assert.match(policy, /^  contents:\s*read$/m);
+});
+
+test("renames retain the source path for Godot, provenance and visual gates", () => {
+  const paths = changedPaths([{ filename: "docs/water.txt", previous_filename: "client-godot/assets/water.png", status: "renamed" }]);
+  assert.ok(paths.includes("client-godot/assets/water.png"));
+  assert.ok(applicableChecks(paths).includes("IOM-00 Godot client"));
+  assert.ok(applicableChecks(paths).includes("Godot visual evidence"));
+  assert.ok(applicableChecks(paths).includes("Godot external art provenance"));
+  assert.equal(visualRequired(paths), true);
+  assert.throws(() => changedPaths([{ filename: "docs/water.txt", status: "renamed" }]), /source path/);
+});
+
+test("changes to required workflows or gate policy always need manual verification", () => {
+  for (const file of [".github/workflows/ci.yml", ".github/workflows/verified-codex-auto-merge.yml",
+      ".github/workflows/godot-visual-evidence.yml", "scripts/static-security-check.mjs",
+      "package.json", "AGENTS.md", ".project/VERIFICATION-STANDARD.md"])
+    assert.equal(modifiesProtectedVerification([file]), true, file);
+  assert.equal(modifiesProtectedVerification(["server/src/index.ts"]), false);
+});
+
+test("owner visual-acceptance comment can retrigger trusted-main merge reconciliation", () => {
+  const policy = readFileSync(".github/workflows/verified-codex-auto-merge.yml", "utf8");
+  assert.match(policy, /issue_comment:/);
+  assert.match(policy, /github\.event\.issue\.pull_request != null/);
+  assert.match(policy, /github\.event\.comment\.user\.login == github\.repository_owner/);
+  assert.match(policy, /VISUAL-ACCEPTED:/);
+  assert.match(policy, /github\.event\.issue\.number/);
 });
