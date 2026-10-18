@@ -9,7 +9,7 @@ const base = { eventName: "pull_request_review", action: "submitted", delivery: 
 test("normalizes review, comment and relevant CI events to an exact PR head", () => {
   assert.equal(normalizeEvent(base).kind, "review");
   assert.equal(normalizeEvent({ ...base, eventName: "pull_request_review_comment", action: "created", comment: { id: 3 } }).kind, "review_comment");
-  assert.equal(normalizeEvent({ eventName: "workflow_run", action: "completed", workflow_run: { id: 4, event: "pull_request", conclusion: "failure", name: "CI" }, pullRequestNumber: 7, headSha: sha }).kind, "ci_failure");
+  assert.equal(normalizeEvent({ eventName: "workflow_run", action: "completed", workflow_run: { id: 4, event: "pull_request", conclusion: "failure", name: "CI", head_sha: sha, pull_requests: [{ number: 7 }] } }).kind, "ci_failure");
 });
 
 test("deduplicates the same delivery without conflating distinct events", () => {
