@@ -68,6 +68,7 @@ func _run() -> void:
 		"warmup_frames": WARMUP_FRAMES,
 		"frame_interval_ms": frames_summary,
 		"engine_process_ms": process_summary,
+		"engine_process_clock_check": Stats.compare_clock_summaries(frames_summary, process_summary),
 		"peak_3d_draw_calls": peak_draw_calls,
 		"graphics_quality_verdict": "NOT_VERIFIED",
 		"mobile_acceptance_verdict": "NOT_VERIFIED",

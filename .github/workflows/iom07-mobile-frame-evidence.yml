@@ -68,6 +68,11 @@ jobs:
               metrics = evidence[name]
               assert metrics["valid"] and metrics["samples"] == 180
               assert 0 < metrics["p50_ms"] <= metrics["p95_ms"] <= metrics["p99_ms"] <= metrics["max_ms"]
+          clock_check = evidence["engine_process_clock_check"]
+          assert isinstance(clock_check["comparable"], bool)
+          assert clock_check["reason"] in ("CONSISTENT", "PROCESS_MONITOR_CLOCK_DIVERGENCE")
+          if not clock_check["comparable"]:
+              print("WARNING: Godot process monitor differs from frame clock; no CPU bottleneck verdict.")
           print("Verified Godot frame evidence schema and exact source commit; Android quality remains NOT VERIFIED.")
           PY
           (cd "$RUNNER_TEMP/mobile-evidence" && sha256sum *.json > SHA256SUMS)
