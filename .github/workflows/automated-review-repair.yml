@@ -90,7 +90,8 @@ jobs:
           import { readFileSync, appendFileSync } from 'node:fs';
           const event = JSON.parse(readFileSync(process.env.EVENT_PATH, 'utf8'));
           const actor = event.review?.user?.login ?? event.sender?.login ?? process.env.ACTOR;
-          if (actor.endsWith('[bot]') || actor === 'github-actions') throw new Error('Bot-authored events cannot dispatch repair');
+          const allowedFailedWorkflows = new Set(['CI', 'Static Security Quality', 'Performance Acceptance', 'CodeQL Advanced', 'Codacy Security Scan', 'Godot visual evidence', 'IOM-00 Godot client', 'IOM-07 mobile frame evidence']);
+          if (process.env.EVENT_NAME === 'pull_request_review' && (actor.endsWith('[bot]') || actor === 'github-actions')) throw new Error('Bot-authored review events cannot dispatch repair');
           if (process.env.EVENT_NAME === 'pull_request_review') {
             const pr = event.pull_request;
             if (event.review?.state !== 'approved' || pr?.head?.repo?.full_name !== process.env.REPOSITORY) throw new Error('Repair requires trusted approval on a same-repository PR');
@@ -100,6 +101,7 @@ jobs:
             const run = event.workflow_run;
             const pr = run?.pull_requests?.[0];
             if (run?.conclusion !== 'failure' || !pr?.number || !run.head_sha) throw new Error('Repair requires a failed pull-request workflow with an exact head');
+            if (!allowedFailedWorkflows.has(run.name)) throw new Error('Workflow is not an approved repair trigger');
             const details = JSON.parse(await (await fetch(`https://api.github.com/repos/${process.env.REPOSITORY}/pulls/${pr.number}`, { headers: { authorization: `Bearer ${process.env.GH_TOKEN}`, accept: 'application/vnd.github+json' } })).text());
             if (details.head?.repo?.full_name !== process.env.REPOSITORY || details.head?.sha !== run.head_sha) throw new Error('PR head changed or is not same-repository; refusing repair');
             appendFileSync(process.env.GITHUB_OUTPUT, `pr=${pr.number}\nsha=${run.head_sha}\n`);

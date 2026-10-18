@@ -73,7 +73,7 @@ test("repair workflow uses the pinned Codex CLI and separate GitHub credentials"
   assert.match(workflow, /p\.repo !== repo \|\| p\.owner !== owner/);
   assert.match(controller, /Dispatch exact-SHA repair workflow/);
   assert.match(controller, /actions: write/);
-  assert.match(controller, /Bot-authored events cannot dispatch repair/);
+  assert.match(controller, /Bot-authored review events cannot dispatch repair/);
   assert.match(controller, /github\.event\.review\.state == 'approved'/);
   assert.doesNotMatch(workflow, /CODEX_REPAIR_TOKEN|LIM_API_KEY/);
 });
