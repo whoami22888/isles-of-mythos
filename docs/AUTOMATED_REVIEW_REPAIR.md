@@ -26,6 +26,14 @@ Activation requirements:
   `pull-requests: write` permissions, with protected-branch rules unchanged.
 - Supply a trusted actor allowlist and an exact-SHA GitHub API reader for
   checks, reviews, mergeability, and visual acceptance artifacts.
+- The worker uses Codex CLI `exec --json --sandbox workspace-write
+  --ask-for-approval never`; the unsupported `--full-auto` mode is prohibited.
+  Codex authentication is stored only in a `0700` runner-temporary
+  `CODEX_HOME`, outside the checkout, and is removed after execution.
+- The worker never receives `GITHUB_TOKEN`; repository push credentials are
+  scoped to the separate push step. A branch may receive at most one
+  `fix: apply bounded Codex repair` commit; subsequent dispatches fail closed
+  to prevent recursive repair loops.
 - Prove one end-to-end run on a disposable PR before enabling repair or merge.
 
 No workflow in this change claims that automatic repair or automatic merging

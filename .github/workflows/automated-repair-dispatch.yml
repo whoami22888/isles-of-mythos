@@ -76,16 +76,26 @@ jobs:
       - name: Authenticate Codex with dedicated OpenAI project key
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          CODEX_HOME: ${{ runner.temp }}/codex-home
         run: |
           set -euo pipefail
+          umask 077
+          install -d "$CODEX_HOME"
           test -n "$OPENAI_API_KEY" || { echo "Environment secret OPENAI_API_KEY is not configured; repair remains inactive."; exit 1; }
-          printf '%s' "$OPENAI_API_KEY" | "$RUNNER_TEMP/codex" login --with-api-key
+          printf '%s' "$OPENAI_API_KEY" | CODEX_HOME="$CODEX_HOME" "$RUNNER_TEMP/codex" login --with-api-key
 
       - name: Run bounded Codex diagnosis and repair
+        env:
+          CODEX_HOME: ${{ runner.temp }}/codex-home
         run: |
           set -euo pipefail
-          "$RUNNER_TEMP/codex" exec --full-auto --json 'Diagnose only confirmed failures on this exact PR head. Make the smallest root-cause repair, preserve the existing architecture and security rules, run targeted tests plus affected verification, and stop if no confirmed defect exists. Do not modify branch protection, merge the PR, access secrets, or change protected migrations. Leave a concise repair summary in the worktree.'
+          if git log --all --format='%s' | grep -Fxq 'fix: apply bounded Codex repair'; then
+            echo 'Repair budget exhausted for this branch; refusing a recursive repair.'
+            exit 1
+          fi
+          CODEX_HOME="$CODEX_HOME" "$RUNNER_TEMP/codex" exec --json --sandbox workspace-write --ask-for-approval never 'Diagnose only confirmed failures on this exact PR head. Make at most one smallest root-cause repair. Preserve the existing architecture and security rules, run only targeted tests plus affected verification, and stop if no confirmed defect exists. Do not modify workflows, branch protection, merge state, credentials, or protected migrations. Do not create commits or push. Leave a concise repair summary in the worktree.'
           git diff --check
+          rm -rf "$CODEX_HOME"
 
       - name: Push repair commit to the same branch
         env:

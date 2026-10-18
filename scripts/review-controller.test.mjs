@@ -67,6 +67,10 @@ test("repair workflow uses the pinned Codex CLI and separate GitHub credentials"
   assert.match(workflow, /rust-v0\.163\.0/);
   assert.match(workflow, /beb339e8ecd9ba057a6bb2dc81ad8ca474812edfbf0fc5056ca818797648dde4/);
   assert.match(workflow, /persist-credentials: false/);
+  assert.match(workflow, /--sandbox workspace-write --ask-for-approval never/);
+  assert.doesNotMatch(workflow, /--full-auto/);
+  assert.match(workflow, /Repair budget exhausted for this branch/);
+  assert.match(workflow, /CODEX_HOME: \$\{\{ runner\.temp \}\}\/codex-home/);
   assert.match(workflow, /contents: write/);
   assert.match(workflow, /pull-requests: write/);
   assert.match(workflow, /same-repository PR head/);
