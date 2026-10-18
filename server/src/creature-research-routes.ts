@@ -86,6 +86,9 @@ export function registerCreatureResearchRoutes(app: FastifyInstance, db: Pool, p
     try {
       const userId = request.user.sub;
       return await players.runExclusive(userId, async () => {
+        // Direct HTTP unlocks must initialize persistence without activating
+        // the player in the simulation.
+        await players.ensureProfile(userId);
         const result = await store.unlock(userId, request.body.requestId, request.body.skillId);
         // HTTP-only requests must not enter the simulation. Refresh only a
         // player that is already active through an authenticated WebSocket.
