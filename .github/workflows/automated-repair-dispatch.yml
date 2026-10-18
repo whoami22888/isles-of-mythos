@@ -32,8 +32,8 @@ jobs:
     timeout-minutes: 30
     environment: codex-repair
     permissions:
-      contents: write
-      pull-requests: write
+      contents: read
+      pull-requests: read
     steps:
       - name: Validate trusted same-repository PR and exact head
         id: pr
