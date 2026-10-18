@@ -1,7 +1,5 @@
 name: Verified Codex PR Auto Merge
 on:
-  pull_request:
-    types: [opened, reopened, synchronize, ready_for_review]
   pull_request_review:
     types: [submitted, edited]
   pull_request_review_comment:
@@ -30,7 +28,7 @@ jobs:
       contents: write
       pull-requests: write
       actions: read
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request' || github.event_name == 'pull_request_review' || github.event_name == 'pull_request_review_comment' || (github.event_name == 'workflow_run' && github.event.workflow_run.event == 'pull_request') }}
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request_review' || github.event_name == 'pull_request_review_comment' || (github.event_name == 'workflow_run' && github.event.workflow_run.event == 'pull_request') }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
