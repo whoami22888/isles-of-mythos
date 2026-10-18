@@ -32,25 +32,31 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 24
-      - run: npm ci --ignore-scripts --no-audit --no-fund
-      - name: Derive immutable event key
+      - name: Classify actual event, fail closed for irrelevant or incomplete payloads
         id: event
         env:
           EVENT_PATH: ${{ github.event_path }}
           EVENT_NAME: ${{ github.event_name }}
         run: |
           set -euo pipefail
-          key="$(node --input-type=module -e 'import { readFileSync } from "node:fs"; import { eventKey } from "./scripts/review-controller.mjs"; const e=JSON.parse(readFileSync(process.env.EVENT_PATH,"utf8")); process.stdout.write(eventKey({...e,eventName:process.env.EVENT_NAME}));')"
-          test "${#key}" -eq 64
-          echo "key=$key" >> "$GITHUB_OUTPUT"
+          node --input-type=module <<'NODE'
+          import { readFileSync, appendFileSync } from 'node:fs';
+          import { shouldProcess } from './scripts/review-controller.mjs';
+          const event = JSON.parse(readFileSync(process.env.EVENT_PATH, 'utf8'));
+          const decision = shouldProcess({ ...event, eventName: process.env.EVENT_NAME });
+          appendFileSync(process.env.GITHUB_OUTPUT,
+            `key=${decision.key}\nrelevant=${decision.process ? 'true' : 'false'}\nreason=${decision.reason ?? 'relevant'}\n`);
+          console.log(`Controller event: ${decision.process ? 'relevant' : 'ignored'} (${decision.reason ?? decision.kind})`);
+          NODE
       - name: Validate controller contracts
         run: npm run test:review-controller
-      - name: Record fail-closed event decision
+      - name: Record read-only decision for relevant event
+        if: steps.event.outputs.relevant == 'true'
         env:
-          EVENT_NAME: ${{ github.event_name }}
-          EVENT_ACTION: ${{ github.event.action }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.workflow_run.head_sha || github.sha }}
+          EVENT_KEY: ${{ steps.event.outputs.key }}
         run: |
-          test "${HEAD_SHA}" != "" && test "${#HEAD_SHA}" -eq 40
-          echo "Event ${EVENT_NAME}/${EVENT_ACTION} classified against exact head ${HEAD_SHA}."
-          echo "No repair or merge is performed by this read-only classifier."
+          test "${#EVENT_KEY}" -eq 64
+          echo "Relevant event classified. No repair or merge performed."
+      - name: Report safely ignored event
+        if: steps.event.outputs.relevant != 'true'
+        run: echo "Irrelevant or incomplete event ignored; no repair or merge."

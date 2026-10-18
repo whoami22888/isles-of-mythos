@@ -26,8 +26,35 @@ test("rejects malformed events, fork repair and untrusted actors", () => {
 
 test("merge eligibility requires exact SHA, green required checks, AI and visual gates", () => {
   const checks = [{ name: "CI", status: "completed", conclusion: "success", head_sha: sha }];
-  const args = { headSha: sha, actualSha: sha, checks, requiredChecks: ["CI"], aiApproved: true, visualRequired: true, visualAccepted: true, mergeable: true };
+  const args = { headSha: sha, actualSha: sha, checks, requiredChecks: ["CI"], aiApproved: true, aiApprovalSha: sha, visualRequired: true, visualAccepted: true, visualAcceptanceSha: sha, mergeable: true };
   assert.deepEqual(mergeEligibility(args), { eligible: true, reason: "all_gates_passed" });
   assert.equal(mergeEligibility({ ...args, checks: [{ ...checks[0], head_sha: "b".repeat(40) }] }).reason, "required_check_not_green:CI");
-  assert.equal(mergeEligibility({ ...args, visualAccepted: false }).reason, "visual_acceptance_missing");
+  assert.equal(mergeEligibility({ ...args, visualAccepted: false }).reason, "visual_acceptance_missing_for_exact_sha");
+});
+
+const actualWorkflowRun = { eventName: "workflow_run", action: "completed", workflow_run: { id: 4, event: "pull_request", conclusion: "failure", name: "CI", head_sha: sha, pull_requests: [{ number: 7 }], run_attempt: 1 } };
+
+test("normalizes real GitHub workflow_run and rejects irrelevant events", () => {
+  const result = normalizeEvent(actualWorkflowRun);
+  assert.equal(result.kind, "ci_failure");
+  assert.equal(result.pullRequest, 7);
+  assert.equal(result.headSha, sha);
+  assert.equal(normalizeEvent({ ...actualWorkflowRun, workflow_run: { ...actualWorkflowRun.workflow_run, conclusion: "success" } }).reason, "event_not_relevant");
+  assert.equal(normalizeEvent({ ...actualWorkflowRun, workflow_run: { ...actualWorkflowRun.workflow_run, event: "push" } }).reason, "run_not_for_pull_request");
+  assert.equal(normalizeEvent({ ...actualWorkflowRun, workflow_run: { ...actualWorkflowRun.workflow_run, pull_requests: [] } }).reason, "missing_pr_or_exact_head_sha");
+});
+
+test("review edits and workflow attempts receive distinct event keys", () => {
+  const edited = { ...base, delivery: undefined, action: "edited", review: { id: 9, updated_at: "2026-10-18T01:00:00Z", body: "first" } };
+  assert.notEqual(eventKey(edited), eventKey({ ...edited, review: { ...edited.review, body: "changed" } }));
+  assert.notEqual(eventKey(actualWorkflowRun), eventKey({ ...actualWorkflowRun, workflow_run: { ...actualWorkflowRun.workflow_run, run_attempt: 2 } }));
+});
+
+test("stale AI and visual approvals fail closed", () => {
+  const checks = [{ name: "CI", status: "completed", conclusion: "success", head_sha: sha }];
+  const args = { headSha: sha, actualSha: sha, checks, requiredChecks: ["CI"], aiApproved: true, aiApprovalSha: sha, visualRequired: true, visualAccepted: true, visualAcceptanceSha: sha, mergeable: true };
+  assert.equal(mergeEligibility({ ...args, aiApprovalSha: "b".repeat(40) }).reason, "ai_review_not_approved_for_exact_sha");
+  assert.equal(mergeEligibility({ ...args, visualAcceptanceSha: "b".repeat(40) }).reason, "visual_acceptance_missing_for_exact_sha");
+  assert.equal(mergeEligibility({ ...args, aiApprovalSha: undefined }).eligible, false);
+  assert.equal(mergeEligibility({ ...args, visualAcceptanceSha: undefined }).eligible, false);
 });
