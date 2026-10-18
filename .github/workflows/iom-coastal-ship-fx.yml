@@ -109,6 +109,10 @@ jobs:
     needs: capture
     runs-on: ubuntu-24.04
     steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           pattern: internal-coastal-frames-*
@@ -134,6 +138,8 @@ jobs:
             done
           done
           test "$(find ordered-frames -maxdepth 1 -name 'frame_*.rgba' | wc -l)" -eq 72
+          python3 -m unittest discover -s scripts/tests -p "test_capture_continuity.py" -v
+          python3 scripts/check_capture_continuity.py ordered-frames --frames 72 --width 1280 --height 720 --segment-size 24 > evidence/CONTINUITY.json
           sudo apt-get update -qq
           sudo apt-get install -y -qq ffmpeg
           mkdir -p evidence
