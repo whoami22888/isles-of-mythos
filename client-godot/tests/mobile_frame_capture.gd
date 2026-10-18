@@ -39,7 +39,10 @@ func _run() -> void:
 			return
 		intervals_ms.append(elapsed_ms)
 		var process_time_ms := float(Performance.get_monitor(Performance.TIME_PROCESS)) * 1000.0
-		process_ms.append(maxf(0.001, process_time_ms))
+		if not is_finite(process_time_ms) or process_time_ms <= 0.0:
+			_fail("Invalid engine process time sample")
+			return
+		process_ms.append(process_time_ms)
 		peak_draw_calls = maxi(peak_draw_calls, RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME))
 	var frames_summary: Dictionary = Stats.summarize_frame_intervals(intervals_ms)
 	var process_summary: Dictionary = Stats.summarize_frame_intervals(process_ms)
