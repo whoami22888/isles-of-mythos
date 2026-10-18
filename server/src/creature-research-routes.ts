@@ -86,11 +86,10 @@ export function registerCreatureResearchRoutes(app: FastifyInstance, db: Pool, p
     try {
       const userId = request.user.sub;
       return await players.runExclusive(userId, async () => {
-        await players.loadOrCreate(userId);
         const result = await store.unlock(userId, request.body.requestId, request.body.skillId);
-        // Keep the connected player snapshot and future persistence aligned
-        // with the committed economy transaction.
-        await players.reloadEconomy(userId);
+        // HTTP-only requests must not enter the simulation. Refresh only a
+        // player that is already active through an authenticated WebSocket.
+        if (players.get(userId)) await players.reloadEconomy(userId);
         return result;
       });
     } catch (error) {
