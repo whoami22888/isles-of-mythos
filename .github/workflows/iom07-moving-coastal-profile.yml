@@ -72,6 +72,8 @@ jobs:
           assert data["graphics_reference_parity"] == "NOT_VERIFIED"
           assert data["device_thermal_memory_input_latency"] == "NOT_MEASURED"
           assert data["samples_each_phase"] == 30
+          assert data["same_camera_fixed_pose"] is True
+          assert data["camera_mode"] == "cinematic_ship_framed_fixed_pose"
           assert data["ship_motion_distance_units"] > 0.2
           for phase in ("static","moving"):
               stage=data[phase]
