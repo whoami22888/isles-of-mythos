@@ -25,6 +25,11 @@ func _record() -> void:
     if DirAccess.make_dir_recursive_absolute(directory) != OK:
         _fail("Could not create renderer evidence directory")
         return
+    var start_frame := int(OS.get_environment("IOM_FX_START_FRAME")) if OS.has_environment("IOM_FX_START_FRAME") else 0
+    var end_frame := int(OS.get_environment("IOM_FX_END_FRAME")) if OS.has_environment("IOM_FX_END_FRAME") else FRAME_COUNT
+    if start_frame < 0 or end_frame > FRAME_COUNT or start_frame >= end_frame:
+        _fail("Invalid capture frame range; expected 0 <= start < end <= 72")
+        return
     var packed: PackedScene = load("res://scenes/realistic_coastal_fx_slice.tscn")
     if packed == null:
         _fail("Could not load actual coastal ship FX scene")
@@ -91,6 +96,12 @@ func _record() -> void:
             if projected.x < 36.0 or projected.x > 1244.0 or projected.y < 36.0 or projected.y > 684.0:
                 _fail("Ship rigging/hull clips frame at %d corner %d: %s" % [frame_number, corner, projected])
                 return
+        # Pre-roll the complete vessel/wake/spray state without costly GPU
+        # readbacks. Each worker still starts from frame zero simulation state.
+        if frame_number < start_frame:
+            continue
+        if frame_number >= end_frame:
+            break
         await process_frame
         await RenderingServer.frame_post_draw
         var pixels: Image = root.get_viewport().get_texture().get_image()
@@ -105,10 +116,10 @@ func _record() -> void:
         if current_bytes.size() != 1280 * 720 * 4:
             _fail("Invalid RGBA8 capture byte count at frame %d" % frame_number)
             return
-        if frame_number > 0 and current_bytes != _previous_bytes:
+        if frame_number > start_frame and current_bytes != _previous_bytes:
             _changed_frames += 1
         _previous_bytes = current_bytes
-        if frame_number == 0:
+        if frame_number == start_frame:
             var basis: Color = pixels.get_pixel(0, 0)
             var variation := 0
             for pixel in [Vector2i(320, 180), Vector2i(640, 360), Vector2i(960, 540)]:
@@ -129,7 +140,7 @@ func _record() -> void:
             print("IOM_INTERNAL_CAPTURE_FRAME %d/%d elapsed_ms=%d" % [
                 frame_number + 1, FRAME_COUNT, Time.get_ticks_msec() - render_start_msec
             ])
-    if _changed_frames < 12:
+    if _changed_frames < mini(12, end_frame - start_frame - 1):
         _fail("Frame sequence is effectively static; no valid moving-engine evidence")
         return
     if not integration._demo_active:
@@ -144,8 +155,8 @@ func _record() -> void:
     if integration._demo_active or not scene.gameplay_camera.current:
         _fail("Cinematic capture failed to restore the gameplay camera and vessel")
         return
-    print("Genuine Godot cinematic FX frames: %d, changed: %d, camera restored" % [
-        FRAME_COUNT, _changed_frames
+    print("Genuine Godot cinematic FX frames: %d-%d, changed: %d, camera restored" % [
+        start_frame, end_frame, _changed_frames
     ])
     scene.queue_free()
     quit(0)
