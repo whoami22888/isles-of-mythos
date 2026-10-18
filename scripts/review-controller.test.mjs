@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { eventKey, normalizeEvent, shouldProcess, repairPermission, mergeEligibility } from "./review-controller.mjs";
 
 const sha = "a".repeat(40);
@@ -57,4 +58,17 @@ test("stale AI and visual approvals fail closed", () => {
   assert.equal(mergeEligibility({ ...args, visualAcceptanceSha: "b".repeat(40) }).reason, "visual_acceptance_missing_for_exact_sha");
   assert.equal(mergeEligibility({ ...args, aiApprovalSha: undefined }).eligible, false);
   assert.equal(mergeEligibility({ ...args, visualAcceptanceSha: undefined }).eligible, false);
+});
+
+test("repair workflow uses the pinned Codex CLI and separate GitHub credentials", () => {
+  const workflow = readFileSync(".github/workflows/automated-repair-dispatch.yml", "utf8");
+  assert.match(workflow, /OPENAI_API_KEY/);
+  assert.match(workflow, /rust-v0\.163\.0/);
+  assert.match(workflow, /beb339e8ecd9ba057a6bb2dc81ad8ca474812edfbf0fc5056ca818797648dde4/);
+  assert.match(workflow, /persist-credentials: false/);
+  assert.match(workflow, /contents: write/);
+  assert.match(workflow, /pull-requests: write/);
+  assert.match(workflow, /same-repository PR head/);
+  assert.match(workflow, /p\.repo !== repo \|\| p\.owner !== owner/);
+  assert.doesNotMatch(workflow, /CODEX_REPAIR_TOKEN|LIM_API_KEY/);
 });
