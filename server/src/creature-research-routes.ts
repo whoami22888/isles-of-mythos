@@ -28,7 +28,7 @@ export function registerCreatureResearchRoutes(app: FastifyInstance, db: Pool, p
     try { await request.jwtVerify(); }
     catch { return reply.code(401).send({ error: "UNAUTHORIZED" }); }
     const userId = request.user.sub;
-    await players.loadOrCreate(userId);
+    await players.ensureProfile(userId);
     const [rows, buildings] = await Promise.all([
       db.query<SkillRow>("SELECT skill_id,experience FROM player_creature_skills WHERE user_id=$1", [userId]),
       db.query<BuildingProgress>(
@@ -85,8 +85,8 @@ export function registerCreatureResearchRoutes(app: FastifyInstance, db: Pool, p
     catch { return reply.code(401).send({ error: "UNAUTHORIZED" }); }
     try {
       const userId = request.user.sub;
-      await players.loadOrCreate(userId);
       return await players.runExclusive(userId, async () => {
+        await players.loadOrCreate(userId);
         const result = await store.unlock(userId, request.body.requestId, request.body.skillId);
         // Keep the connected player snapshot and future persistence aligned
         // with the committed economy transaction.

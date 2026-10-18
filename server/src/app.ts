@@ -1304,7 +1304,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           if (!userId) { send(socket, { type: "error", code: "AUTH_REQUIRED" }); return; }
           const timing = createMutationTiming();
           const authenticatedUserId = userId;
-          const response = await runEconomyRequest(authenticatedUserId, message.requestId, "craft|" + message.recipeId, () => runTimedMutation(
+          const response = await runEconomyRequest(authenticatedUserId, message.requestId, "craft|" + message.recipeId, () => players.runExclusive(authenticatedUserId, () => runTimedMutation(
             timing,
             async () => {
               try {
@@ -1327,7 +1327,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
               }
             },
             (snapshot) => emitSlowMutation("craft", snapshot, db),
-          ));
+          )));
           send(socket, response);
           return;
         }
