@@ -58,7 +58,7 @@ describe("IOM-04 research HTTP boundary", () => {
       });
       const action = { requestId: "earned-research-1", skillId: "tracking" };
       const first = await app.inject({ method: "POST", url: "/creature-research/unlock", headers: ownerAuth, payload: action });
-      expect(first.statusCode).toBe(200);
+      expect(first.statusCode, `first research unlock response: ${first.body}`).toBe(200);
       expect(first.json()).toEqual({ skillId: "tracking", unlocked: true, experience: 0 });
 
       const replay = await app.inject({ method: "POST", url: "/creature-research/unlock", headers: ownerAuth, payload: action });
