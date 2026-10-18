@@ -2,8 +2,9 @@
 
 The `Automated review and repair controller` workflow classifies pull-request
 reviews, review comments, and failed pull-request checks against the exact
-head SHA. It uses a per-PR concurrency group and deterministic event keys so
-duplicate deliveries cannot start duplicate work.
+head SHA. It uses event-specific concurrency groups and deterministic event
+keys so duplicate deliveries cannot run concurrently or be confused with a
+different review, comment, workflow run, or head SHA.
 
 The classifier is intentionally read-only. Existing CI, CodeQL, Codacy,
 security, performance, Godot export, and visual-evidence workflows remain the
@@ -24,5 +25,7 @@ Activation requirements:
 - Prove one end-to-end run on a disposable PR before enabling repair or merge.
 
 No workflow in this change claims that automatic repair or automatic merging
-is operational. Fork heads, missing SHA evidence, duplicate events, missing AI
-approval, failed/stale checks, and missing visual acceptance are rejected.
+is operational. Fork heads, missing SHA evidence, duplicate concurrent events,
+missing AI approval, failed/stale checks, and missing visual acceptance are
+rejected. Persistent cross-run deduplication requires the approved worker's
+durable event ledger; no untrusted PR cache is used.

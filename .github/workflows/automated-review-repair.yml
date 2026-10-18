@@ -23,7 +23,7 @@ permissions:
   actions: read
 
 concurrency:
-  group: automated-review-${{ github.event.pull_request.number || github.event.workflow_run.pull_requests[0].number || github.ref }}
+  group: automated-review-${{ github.event.pull_request.number || github.event.workflow_run.pull_requests[0].number || github.ref }}-${{ github.event.review.id || github.event.comment.id || github.event.workflow_run.id || github.run_id }}
   cancel-in-progress: false
 
 jobs:
@@ -52,25 +52,9 @@ jobs:
           key="$(node --input-type=module -e 'import { readFileSync } from "node:fs"; import { eventKey } from "./scripts/review-controller.mjs"; const e=JSON.parse(readFileSync(process.env.EVENT_PATH,"utf8")); process.stdout.write(eventKey({...e,eventName:process.env.EVENT_NAME}));')"
           test "${#key}" -eq 64
           echo "key=$key" >> "$GITHUB_OUTPUT"
-      - name: Restore event deduplication marker
-        id: dedupe
-        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
-        with:
-          path: .review-events
-          key: automated-review-event-${{ steps.event.outputs.key }}
-      - name: Mark first delivery
-        if: steps.dedupe.outputs.cache-hit != 'true'
-        env:
-          EVENT_KEY: ${{ steps.event.outputs.key }}
-        run: |
-          set -euo pipefail
-          mkdir -p .review-events
-          printf '%s\n' "$EVENT_KEY" > ".review-events/$EVENT_KEY"
       - name: Validate controller contracts
-        if: steps.dedupe.outputs.cache-hit != 'true'
         run: npm run test:review-controller
       - name: Record fail-closed event decision
-        if: steps.dedupe.outputs.cache-hit != 'true'
         env:
           EVENT_NAME: ${{ github.event_name }}
           EVENT_ACTION: ${{ github.event.action }}
