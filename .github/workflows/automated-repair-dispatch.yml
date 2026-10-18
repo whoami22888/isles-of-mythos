@@ -10,14 +10,17 @@ on:
         default: false
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
+  pull-requests: read
 
 jobs:
   guarded-dispatch:
     if: inputs.repair == true
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - name: Refuse until the approved worker is installed
         env:
