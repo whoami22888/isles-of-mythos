@@ -43,9 +43,15 @@ describe("IOM-04 research HTTP boundary", () => {
       const owner = await register(app);
       const other = await register(app);
       await new BaseStore(db).create(owner.user.id, "Research Base", 0, 0);
-      await db.query("UPDATE player_profiles SET inventory=$2::jsonb WHERE user_id=$1", [
+      // Registration creates the account, but player_profiles is initialized lazily.
+      // Initialize through the real authenticated API before modifying inventory.
+      const initialized = await app.inject({ method: "GET", url: "/creature-research",
+        headers: { authorization: `Bearer ${owner.accessToken}` } });
+      expect(initialized.statusCode).toBe(200);
+      const seeded = await db.query("UPDATE player_profiles SET inventory=$2::jsonb WHERE user_id=$1", [
         owner.user.id, JSON.stringify({ "resource.herb": 3 }),
       ]);
+      expect(seeded.rowCount).toBe(1);
       const ownerAuth = { authorization: `Bearer ${owner.accessToken}` };
       const otherAuth = { authorization: `Bearer ${other.accessToken}` };
 
