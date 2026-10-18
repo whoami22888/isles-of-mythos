@@ -43,7 +43,7 @@ func _record() -> void:
     # Use a true in-engine fixed simulation step for ship/camera poses, not a
     # static-image pan or AI-generated substitute. Each screenshot still
     # comes directly from Godot's actual renderer.
-    var ocean := scene.get_node_or_null("Ocean") as MeshInstance3D
+    var ocean := scene.get_node_or_null("ShallowToDeepWater") as MeshInstance3D
     if ocean == null or not (ocean.material_override is ShaderMaterial):
         _fail("Deterministic capture requires a bound ocean ShaderMaterial")
         return
