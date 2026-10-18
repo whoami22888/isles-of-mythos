@@ -60,16 +60,18 @@ test("stale AI and visual approvals fail closed", () => {
   assert.equal(mergeEligibility({ ...args, visualAcceptanceSha: undefined }).eligible, false);
 });
 
-test("repair workflow uses the pinned Codex CLI and separate GitHub credentials", () => {
+test("unverified repair fails closed with read-only worker credentials", () => {
   const workflow = readFileSync(".github/workflows/automated-repair-dispatch.yml", "utf8");
   const controller = readFileSync(".github/workflows/automated-review-repair.yml", "utf8");
   assert.match(workflow, /Credentialed repair is disabled/);
   assert.doesNotMatch(workflow, /OPENAI_API_KEY|GITHUB_TOKEN|--full-auto|codex exec/);
-  assert.match(workflow, /contents: write/);
-  assert.match(workflow, /pull-requests: write/);
+  assert.doesNotMatch(workflow, /contents: write|pull-requests: write/);
+  assert.match(workflow, /contents: read/);
+  assert.match(workflow, /pull-requests: read/);
   assert.match(workflow, /same-repository PR head/);
   assert.match(workflow, /p\.repo !== repo \|\| p\.owner !== owner/);
   assert.match(controller, /Dispatch exact-SHA repair workflow/);
+  assert.match(controller, /false &&/);
   assert.match(controller, /actions: write/);
   assert.match(controller, /Bot-authored review events cannot dispatch repair/);
   assert.match(controller, /github\.event\.review\.state == 'approved'/);

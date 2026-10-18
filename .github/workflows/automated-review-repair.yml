@@ -64,7 +64,9 @@ jobs:
   dispatch-repair:
     name: Dispatch guarded repair for trusted approval or CI failure
     needs: classify
+    # Credentialed repair has no tested isolation broker yet; no dispatch attempts.
     if: >-
+      false &&
       needs.classify.result == 'success' &&
       ((github.event_name == 'pull_request_review' && github.event.action == 'submitted' && github.event.review.state == 'approved') ||
        (github.event_name == 'workflow_run' && github.event.action == 'completed' && github.event.workflow_run.conclusion == 'failure'))
