@@ -60,3 +60,58 @@ jobs:
       - name: Report safely ignored event
         if: steps.event.outputs.relevant != 'true'
         run: echo "Irrelevant or incomplete event ignored; no repair or merge."
+
+  dispatch-repair:
+    name: Dispatch guarded repair for trusted approval or CI failure
+    needs: classify
+    if: >-
+      needs.classify.result == 'success' &&
+      ((github.event_name == 'pull_request_review' && github.event.action == 'submitted' && github.event.review.state == 'approved') ||
+       (github.event_name == 'workflow_run' && github.event.action == 'completed' && github.event.workflow_run.conclusion == 'failure'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: write
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Validate trusted same-repository dispatch request
+        id: request
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_PATH: ${{ github.event_path }}
+          REPOSITORY: ${{ github.repository }}
+          OWNER: ${{ github.repository_owner }}
+          ACTOR: ${{ github.actor }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import { readFileSync, appendFileSync } from 'node:fs';
+          const event = JSON.parse(readFileSync(process.env.EVENT_PATH, 'utf8'));
+          const actor = event.review?.user?.login ?? event.sender?.login ?? process.env.ACTOR;
+          if (actor.endsWith('[bot]') || actor === 'github-actions') throw new Error('Bot-authored events cannot dispatch repair');
+          if (process.env.EVENT_NAME === 'pull_request_review') {
+            const pr = event.pull_request;
+            if (event.review?.state !== 'approved' || pr?.head?.repo?.full_name !== process.env.REPOSITORY) throw new Error('Repair requires trusted approval on a same-repository PR');
+            if (actor.toLowerCase() !== process.env.OWNER.toLowerCase()) throw new Error('Review actor is not the trusted repository owner');
+            appendFileSync(process.env.GITHUB_OUTPUT, `pr=${pr.number}\nsha=${pr.head.sha}\n`);
+          } else {
+            const run = event.workflow_run;
+            const pr = run?.pull_requests?.[0];
+            if (run?.conclusion !== 'failure' || !pr?.number || !run.head_sha) throw new Error('Repair requires a failed pull-request workflow with an exact head');
+            const details = JSON.parse(await (await fetch(`https://api.github.com/repos/${process.env.REPOSITORY}/pulls/${pr.number}`, { headers: { authorization: `Bearer ${process.env.GH_TOKEN}`, accept: 'application/vnd.github+json' } })).text());
+            if (details.head?.repo?.full_name !== process.env.REPOSITORY || details.head?.sha !== run.head_sha) throw new Error('PR head changed or is not same-repository; refusing repair');
+            appendFileSync(process.env.GITHUB_OUTPUT, `pr=${pr.number}\nsha=${run.head_sha}\n`);
+          }
+          NODE
+
+      - name: Dispatch exact-SHA repair workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ steps.request.outputs.pr }}
+          EXPECTED_SHA: ${{ steps.request.outputs.sha }}
+        run: |
+          set -euo pipefail
+          gh workflow run automated-repair-dispatch.yml --repo "$REPOSITORY" --ref "$GITHUB_REF_NAME" -f repair=true -f pr_number="$PR_NUMBER" -f expected_sha="$EXPECTED_SHA"

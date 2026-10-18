@@ -62,6 +62,7 @@ test("stale AI and visual approvals fail closed", () => {
 
 test("repair workflow uses the pinned Codex CLI and separate GitHub credentials", () => {
   const workflow = readFileSync(".github/workflows/automated-repair-dispatch.yml", "utf8");
+  const controller = readFileSync(".github/workflows/automated-review-repair.yml", "utf8");
   assert.match(workflow, /OPENAI_API_KEY/);
   assert.match(workflow, /rust-v0\.163\.0/);
   assert.match(workflow, /beb339e8ecd9ba057a6bb2dc81ad8ca474812edfbf0fc5056ca818797648dde4/);
@@ -70,5 +71,9 @@ test("repair workflow uses the pinned Codex CLI and separate GitHub credentials"
   assert.match(workflow, /pull-requests: write/);
   assert.match(workflow, /same-repository PR head/);
   assert.match(workflow, /p\.repo !== repo \|\| p\.owner !== owner/);
+  assert.match(controller, /Dispatch exact-SHA repair workflow/);
+  assert.match(controller, /actions: write/);
+  assert.match(controller, /Bot-authored events cannot dispatch repair/);
+  assert.match(controller, /github\.event\.review\.state == 'approved'/);
   assert.doesNotMatch(workflow, /CODEX_REPAIR_TOKEN|LIM_API_KEY/);
 });
