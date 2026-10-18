@@ -31,5 +31,14 @@ func _run() -> void:
 	var summary: Dictionary = Stats.summarize_frame_intervals(monotonic)
 	_check(summary.get("p50_ms", -1.0) == 40.0, "Long-frame sample p50 must not be smoothed away")
 	_check(summary.get("p95_ms", -1.0) == 40.0, "Long-frame sample p95 must remain visible")
+	# Real Linux/Xvfb report produced a 674ms process monitor p95 against <17ms
+	# measured frame intervals; this must be flagged as an incomparable clock.
+	var frame_clock: Dictionary = Stats.summarize_frame_intervals([14.5, 14.8, 16.4])
+	var cpu_clock: Dictionary = Stats.summarize_frame_intervals([16.3, 674.2, 674.2])
+	var disagreement: Dictionary = Stats.compare_clock_summaries(frame_clock, cpu_clock)
+	_check(not disagreement.get("comparable", true), "Inconsistent process monitor must not be treated as frame timing")
+	_check(disagreement.get("reason", "") == "PROCESS_MONITOR_CLOCK_DIVERGENCE", "Clock mismatch must be explicit")
+	var plausible_clock: Dictionary = Stats.summarize_frame_intervals([11.0, 12.0, 13.0])
+	_check(Stats.compare_clock_summaries(frame_clock, plausible_clock).get("comparable", false), "Plausible CPU profile may be used diagnostically")
 	print("Mobile frame summary tests: %s failure(s)" % _failures)
 	quit(1 if _failures else 0)
