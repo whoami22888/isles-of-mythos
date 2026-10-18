@@ -47,7 +47,10 @@ void vertex() {
     float fade_z = 1.0 - smoothstep(near_patch_half_extent.y - 18.0,
         near_patch_half_extent.y - 1.0, abs(xz.y));
     float envelope = fade_x * fade_z;
-    VERTEX.y += (0.18 + displacement) * envelope;
+    // Keep the far ocean at SEA_LEVEL: the mesh is positioned 0.18m below it.
+    // Fading the 0.18m base offset created a visible rectangular height shelf
+    // at the near-patch boundary. Fade ONLY the animated displacement.
+    VERTEX.y += 0.18 + displacement * envelope;
     NORMAL = normalize(vec3(-dx * envelope, 1.0, -dz * envelope));
     surface_world = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
     swell_crest = displacement * envelope;
