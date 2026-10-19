@@ -135,7 +135,9 @@
         "polyhaven/dutch_ship_medium/textures/dutch_ship_medium_sails_diff_1k.jpg",
         "polyhaven/dutch_ship_medium/textures/dutch_ship_medium_sails_alpha_1k.png"
       ],
-      "generation_note": "locally patched glTF to reference admitted alpha-composited PNG; upstream glTF bytes differ"
+      "generation_note": "locally patched glTF to reference admitted alpha-composited PNG; upstream glTF bytes differ; deterministic JSON reference patch from upstream source SHA-256 208112252d4f83a9c404563371053820a90963a53b465fd6c745b16868f4bade",
+      "upstream_source_sha256": "208112252d4f83a9c404563371053820a90963a53b465fd6c745b16868f4bade",
+      "upstream_source_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/dutch_ship_medium/dutch_ship_medium_1k.gltf"
     },
     {
       "id": "polyhaven-polyhaven-f4cd2f980fcb",
@@ -411,7 +413,9 @@
         "polyhaven/tree_small_02/textures/tree_small_02_leaves_diff_1k.jpg",
         "polyhaven/tree_small_02/textures/tree_small_02_leaves_alpha_1k.png"
       ],
-      "generation_note": "locally patched glTF to reference admitted alpha-composited PNG; upstream glTF bytes differ"
+      "generation_note": "locally patched glTF to reference admitted alpha-composited PNG; upstream glTF bytes differ; deterministic JSON reference patch from upstream source SHA-256 3062a709614c05b80fdc1e56583998bc3cb1027b0d52f956c8ecfb882ff8ca6d",
+      "upstream_source_sha256": "3062a709614c05b80fdc1e56583998bc3cb1027b0d52f956c8ecfb882ff8ca6d",
+      "upstream_source_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/tree_small_02/tree_small_02_1k.gltf"
     }
   ]
 }

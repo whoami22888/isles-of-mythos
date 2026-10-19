@@ -99,6 +99,11 @@ func _record() -> void:
         # Pre-roll the complete vessel/wake/spray state without costly GPU
         # readbacks. Each worker still starts from frame zero simulation state.
         if frame_number < start_frame:
+            # Advance both simulation and renderer state during worker pre-roll.
+            # Skipping these frames would reset TIME-driven foam and GPU spray
+            # at partition boundaries even though CPU poses were fast-forwarded.
+            await process_frame
+            await RenderingServer.frame_post_draw
             continue
         if frame_number >= end_frame:
             break
