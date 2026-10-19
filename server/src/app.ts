@@ -1,4 +1,4 @@
-import Fastify, { type FastifyInstance } from "fastify";
+import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
 import cors from "@fastify/cors";
 import rateLimit from "@fastify/rate-limit";
 import swagger from "@fastify/swagger";
@@ -39,7 +39,7 @@ import { TerritorySeasonStore } from "./territory-seasons.js";
 import { registerFrontendRoutes } from "./frontend.js";
 import { resolve } from "node:path";
 import { AntiCheatService } from "./anti-cheat.js";
-import { createMutationTiming, measureMutationStage, runTimedMutation, type MutationTimingSnapshot } from "./mutation-timing.js";
+import { createMutationTiming, measureMutationStage, runTimedMutation, type MutationTiming, type MutationTimingSnapshot } from "./mutation-timing.js";
 import { runReplayableRequest, type RequestDuplicateOutcome } from "./request-coordinator.js";
 
 function errorCode(error: unknown, fallback: string): string {
@@ -171,14 +171,20 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     const creatures = chunk.creatures.filter((spawn) => !capturedWorldCreatures.has(spawn.id));
     return creatures.length === chunk.creatures.length ? chunk : { ...chunk, creatures };
   };
-  const visibleClientWorldChunk = async (x: number, y: number) => {
+  const chunkTimings = new WeakMap<FastifyRequest, MutationTiming>();
+  const visibleClientWorldChunk = async (x: number, y: number, timing?: MutationTiming) => {
+    const generationStartedAt = performance.now();
     const chunk = visibleWorldChunk(x, y);
+    if (timing) {
+      timing.stages.generationMs = performance.now() - generationStartedAt;
+      timing.stages.resourceQueryMs = 0;
+    }
     if (chunk.resources.length === 0) return chunk;
     const resourceIds = chunk.resources.map((resource) => resource.id);
-    const result = await db.query<{ node_id: string }>(
+    const result = await measureMutationStage(timing, "resourceQueryMs", () => db.query<{ node_id: string }>(
       "SELECT node_id FROM world_resource_nodes WHERE node_id = ANY($1::varchar[]) AND depleted_until > CURRENT_TIMESTAMP",
       [resourceIds],
-    );
+    ));
     if (result.rows.length === 0) return chunk;
     const depleted = new Set(result.rows.map((row) => row.node_id));
     const resources = chunk.resources.filter((resource) => !depleted.has(resource.id));
@@ -206,7 +212,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   let authenticatedSocketCount = 0;
   const app = Fastify({ logger: false });
 
-  app.addHook("onResponse", (_request, reply) => {
+  app.addHook("onResponse", async (_request, reply) => {
     recordHttpRequest(reply.elapsedTime, reply.statusCode);
   });
 
@@ -650,6 +656,25 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   app.get<{ Params: { x: string; y: string } }>(
     "/world/chunks/:x/:y",
     {
+      onRequest: (request, _reply, done) => {
+        chunkTimings.set(request, createMutationTiming());
+        done();
+      },
+      onResponse: async (request, reply) => {
+        const timing = chunkTimings.get(request);
+        chunkTimings.delete(request);
+        // Fastify elapsedTime covers server request handling through response
+        // completion, not network transit or time before Node accepts a request.
+        if (!timing || reply.elapsedTime < 25) return;
+        const rounded = (name: string) => timing.stages[name] === undefined
+          ? null : Math.round(timing.stages[name] * 100) / 100;
+        log("world_chunk_slow_request", {
+          captureLoadMs: rounded("captureLoadMs"),
+          generationMs: rounded("generationMs"),
+          resourceQueryMs: rounded("resourceQueryMs"),
+          totalMs: Math.round(reply.elapsedTime * 100) / 100,
+        });
+      },
       schema: {
         tags: ["world"],
         params: {
@@ -663,26 +688,14 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       },
     },
     async (request, reply) => {
-      const startedAt = performance.now();
-      await ensureCapturedWorldCreaturesLoaded();
-      const captureLoadMs = performance.now() - startedAt;
+      const timing = chunkTimings.get(request);
+      await measureMutationStage(timing, "captureLoadMs", ensureCapturedWorldCreaturesLoaded);
       const x = Number(request.params.x);
       const y = Number(request.params.y);
       if (!Number.isSafeInteger(x) || !Number.isSafeInteger(y)) {
         return reply.code(400).send({ error: "INVALID_CHUNK_COORDINATE" });
       }
-      const worldStartedAt = performance.now();
-      const result = await visibleClientWorldChunk(x, y);
-      const worldAndDatabaseMs = performance.now() - worldStartedAt;
-      const totalMs = performance.now() - startedAt;
-      if (totalMs >= 25) {
-        log("world_chunk_slow_request", {
-          captureLoadMs: Math.round(captureLoadMs * 100) / 100,
-          worldAndDatabaseMs: Math.round(worldAndDatabaseMs * 100) / 100,
-          totalMs: Math.round(totalMs * 100) / 100,
-        });
-      }
-      return result;
+      return visibleClientWorldChunk(x, y, timing);
     },
   );
 
