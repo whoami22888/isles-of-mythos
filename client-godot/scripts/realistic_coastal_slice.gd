@@ -226,6 +226,7 @@ func _build_premium_landmarks() -> void:
 		var shoreline_tree := TREE_SCENE.instantiate()
 		shoreline_tree.position = entry[0]
 		shoreline_tree.scale = Vector3.ONE * entry[1]
+		_apply_far_foliage_lod(shoreline_tree)
 		grove.add_child(shoreline_tree)
 		_ground_asset_on_terrain(shoreline_tree)
 		_configure_mobile_visibility(shoreline_tree, 90.0, false)
@@ -243,6 +244,25 @@ func _build_premium_landmarks() -> void:
 	player_marker.name = "PlayerSpawnMarker"
 	player_marker.position = Vector3(0.0, _terrain_height(0.0, 5.5) + 0.75, 5.5)
 	add_child(player_marker)
+
+func _apply_far_foliage_lod(asset: Node3D) -> void:
+	# The admitted tree's leaf surface is ~1.94M triangles. Background trees
+	# retain their PBR branch/trunk materials but omit the leaf surface; near
+	# gameplay trees keep the full source mesh. This is an explicit geometry
+	# LOD, rather than relying on visibility culling alone.
+	for node in asset.get_children():
+		if not node is MeshInstance3D:
+			continue
+		var source := node as MeshInstance3D
+		if source.mesh == null or source.mesh.get_surface_count() < 3:
+			continue
+		var lod := ArrayMesh.new()
+		for surface_index in [0, 2]:
+			var arrays := source.mesh.surface_get_arrays(surface_index)
+			lod.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+			lod.surface_set_material(lod.get_surface_count() - 1, source.mesh.surface_get_material(surface_index))
+		source.mesh = lod
+		source.lod_bias = 1.5
 
 func _ground_asset_on_terrain(asset: Node3D, burial := 0.0) -> void:
 	# Bounds include nested glTF transforms and mesh offsets. Grounding via

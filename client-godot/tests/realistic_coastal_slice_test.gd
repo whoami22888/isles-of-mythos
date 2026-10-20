@@ -24,7 +24,19 @@ func run() -> void:
 			ship_count += 1
 	var ok := terrain != null and terrain.mesh != null and terrain.mesh.get_surface_count() == 1
 	ok = ok and water != null and gameplay != null and cinematic != null
+	var depth_layer := scene.get_node_or_null("CoastalPBRDepthLayer")
 	ok = ok and rock_count == 4 and tree_count == 4 and ship_count == 1 and gameplay.current
+	# Background trees must use an explicit material-preserving geometry LOD.
+	if depth_layer:
+		for child in depth_layer.get_children():
+			if child.scene_file_path.ends_with("tree_small_02_1k.gltf"):
+				var lod_mesh := child.get_child(0).mesh as ArrayMesh
+				var lod_triangles := 0
+				for surface_index in range(lod_mesh.get_surface_count()):
+					var lod_arrays := lod_mesh.surface_get_arrays(surface_index)
+					var lod_indices: PackedInt32Array = lod_arrays[Mesh.ARRAY_INDEX]
+					lod_triangles += (lod_indices.size() / 3) if not lod_indices.is_empty() else 0
+					ok = ok and lod_triangles < 150000
 	# Guard against reintroducing the sparse 24x18 rectangular mound and
 	# disconnected beach/cliff relief that failed owner visual inspection.
 	var terrain_points: PackedVector3Array = terrain.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
