@@ -86,7 +86,11 @@ jobs:
       - name: Upload SARIF results file
         if: ${{ always() && steps.sarif-identity.outcome == 'success' }}
         uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4
+        env:
+          # upload-sarif derives the code-scanning identity from the runner
+          # context; override that context explicitly because this job scans
+          # the PR head rather than the default pull_request merge ref.
+          GITHUB_REF: ${{ github.event_name == 'pull_request' && format('refs/pull/{0}/head', github.event.pull_request.number) || github.ref }}
+          GITHUB_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         with:
           sarif_file: upload-results.sarif
-          ref: ${{ github.event_name == 'pull_request' && format('refs/pull/{0}/head', github.event.pull_request.number) || github.ref }}
-          sha: ${{ github.event.pull_request.head.sha || github.sha }}
