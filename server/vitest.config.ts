@@ -6,5 +6,6 @@ export default defineConfig({
     maxWorkers: 2,
     fileParallelism: true,
     detectAsyncLeaks: true,
+    exclude: ["dist/**"],
   },
 });
