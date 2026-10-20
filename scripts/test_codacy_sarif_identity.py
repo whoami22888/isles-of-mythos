@@ -1,6 +1,6 @@
 import unittest
 from copy import deepcopy
-from codacy_sarif_identity import identify_runs
+from codacy_sarif_identity import identify_runs, split_reports
 
 
 class SarifIdentityTests(unittest.TestCase):
@@ -47,6 +47,18 @@ class SarifIdentityTests(unittest.TestCase):
         output = identify_runs({"version": "2.1.0", "runs": [
             {"tool": {"driver": {"name": name}}} for name in ["a/b", "a b", "a-b"]]})
         self.assertEqual(len({r["automationDetails"]["id"] for r in output["runs"]}), 3)
+
+    def test_splits_without_dropping_runs_or_findings(self):
+        source = {"version": "2.1.0", "runs": [
+            {"tool": {"driver": {"name": f"tool-{index}"}},
+             "results": [{"ruleId": f"finding-{index}"}]} for index in range(21)
+        ]}
+        reports = split_reports(source, max_runs=20)
+        self.assertEqual([len(report["runs"]) for report in reports], [20, 1])
+        self.assertEqual(
+            [run["results"][0]["ruleId"] for report in reports for run in report["runs"]],
+            [f"finding-{index}" for index in range(21)],
+        )
 
 
 if __name__ == "__main__":

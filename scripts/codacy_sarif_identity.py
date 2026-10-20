@@ -5,6 +5,7 @@ automationDetails.id values. Categories identify a tool's invocation slot, never
 a commit, tool version or finding hash (which would create new alerts each run).
 """
 import json
+import os
 import sys
 from collections import Counter
 from copy import deepcopy
@@ -35,12 +36,26 @@ def identify_runs(document):
     return output
 
 
+def split_reports(document, max_runs=20):
+    """Return lossless SARIF upload parts within GitHub's run limit."""
+    if max_runs < 1:
+        raise ValueError("max_runs must be positive")
+    identified = identify_runs(document)
+    runs = identified["runs"]
+    return [
+        {**identified, "runs": runs[start:start + max_runs]}
+        for start in range(0, len(runs), max_runs)
+    ]
+
+
 if __name__ == "__main__":
     source, destination = sys.argv[1:]
     if source == destination:
         raise ValueError("Preserve the original scanner output")
     with open(source, encoding="utf-8") as stream:
-        result = identify_runs(json.load(stream))
-    with open(destination, "x", encoding="utf-8") as stream:
-        json.dump(result, stream)
-        stream.write("\n")
+        reports = split_reports(json.load(stream))
+    os.makedirs(destination, exist_ok=False)
+    for index, report in enumerate(reports, start=1):
+        with open(os.path.join(destination, f"part-{index:02d}.sarif"), "x", encoding="utf-8") as stream:
+            json.dump(report, stream)
+            stream.write("\n")
