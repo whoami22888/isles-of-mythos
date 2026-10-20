@@ -10,6 +10,7 @@ import { config } from "./config.js";
 import { recordHttpRequest, recordTick, renderPrometheusMetrics, setActivePlayers, setDatabaseUp, setWebSocketAuthenticated, setWebSocketConnections } from "./metrics.js";
 import { createDbPool } from "./db.js";
 import { registerAuthRoutes } from "./auth.js";
+import { registerCreatureResearchRoutes } from "./creature-research-routes.js";
 import { log } from "./logger.js";
 import { parseClientMessage, type ServerMessage } from "./protocol.js";
 import { PlayerStore, serializePlayerState } from "./player.js";
@@ -674,6 +675,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   );
 
   await registerAuthRoutes(app, db);
+  registerCreatureResearchRoutes(app, db, players);
 
   app.get("/shop/catalog", { schema: { tags: ["shop"] } }, () => ({
     items: SHOP_ITEMS.map(serializeShopItem),
@@ -1302,7 +1304,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           if (!userId) { send(socket, { type: "error", code: "AUTH_REQUIRED" }); return; }
           const timing = createMutationTiming();
           const authenticatedUserId = userId;
-          const response = await runEconomyRequest(authenticatedUserId, message.requestId, "craft|" + message.recipeId, () => runTimedMutation(
+          const response = await runEconomyRequest(authenticatedUserId, message.requestId, "craft|" + message.recipeId, () => players.runExclusive(authenticatedUserId, () => runTimedMutation(
             timing,
             async () => {
               try {
@@ -1325,7 +1327,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
               }
             },
             (snapshot) => emitSlowMutation("craft", snapshot, db),
-          ));
+          )));
           send(socket, response);
           return;
         }
