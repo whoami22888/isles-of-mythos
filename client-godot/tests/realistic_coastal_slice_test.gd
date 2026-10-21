@@ -29,7 +29,7 @@ func run() -> void:
 	# The premium content layer must contain real varied tropical geometry; a
 	# shader-only or palette-only replacement cannot satisfy the coastal brief.
 	var premium_layer := scene.get_node_or_null("VerifiedTropicalContentLayer")
-	ok = ok and premium_layer != null and premium_layer.get_child_count() == 8
+	ok = ok and premium_layer != null and premium_layer.get_child_count() == 7
 	if premium_layer:
 		var premium_paths := []
 		for child in premium_layer.get_children():
@@ -38,6 +38,21 @@ func run() -> void:
 		ok = ok and premium_paths.any(func(path): return path.ends_with("coastal_cliff_01_1k.gltf"))
 		ok = ok and premium_paths.any(func(path): return path.ends_with("island_tree_01_1k.gltf"))
 		ok = ok and premium_paths.any(func(path): return path.ends_with("island_tree_02_1k.gltf"))
+		var cliff_count := 0
+		for child in premium_layer.get_children():
+			if child.scene_file_path.ends_with("coastal_cliff_01_1k.gltf"):
+				cliff_count += 1
+				var cliff_bounds: AABB = scene.visual_bounds_world(child)
+				# Imported cliff bounds must remain a background landmark, not a
+				# camera-spanning occluder or a second terrain wall.
+				ok = ok and cliff_bounds.size.x < 50.0 and cliff_bounds.size.z < 35.0
+				ok = ok and cliff_bounds.position.z > scene.ship_focal.position.z + 8.0
+		ok = ok and cliff_count == 1
+		if premium_layer:
+			for child in premium_layer.get_children():
+				if child.scene_file_path.ends_with("island_tree_01_1k.gltf") or child.scene_file_path.ends_with("island_tree_02_1k.gltf"):
+					var foliage_mesh := child.get_child(0).mesh as ArrayMesh
+					ok = ok and foliage_mesh != null and foliage_mesh.get_surface_count() == 1
 	# Background trees must use an explicit material-preserving geometry LOD.
 	if depth_layer:
 		for child in depth_layer.get_children():

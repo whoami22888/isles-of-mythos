@@ -266,8 +266,10 @@ func _build_premium_landmarks() -> void:
 	premium_layer.name = "VerifiedTropicalContentLayer"
 	add_child(premium_layer)
 	for entry in [
-		[Vector3(-21.0, 0.0, 12.0), 2.0, COASTAL_CLIFF_SCENE],
-		[Vector3(20.0, 0.0, 15.0), 1.7, COASTAL_CLIFF_SCENE],
+		# The source cliff is a wide hero mesh; keep one bounded landmark in
+		# the background rather than duplicating a 460k-triangle wall over the
+		# ship sightline. Its imported bounds are regression-tested below.
+		[Vector3(21.0, 0.0, 18.0), 0.24, COASTAL_CLIFF_SCENE],
 		[Vector3(-11.5, 0.0, 10.0), 1.1, TROPICAL_TREE_SCENE],
 		[Vector3(11.0, 0.0, 12.0), 1.0, TROPICAL_TREE_ALT_SCENE],
 		[Vector3(-3.5, 0.0, 16.5), 0.85, TROPICAL_TREE_ALT_SCENE],
@@ -301,12 +303,38 @@ func _apply_far_foliage_lod(asset: Node3D) -> void:
 		if source.mesh == null or source.mesh.get_surface_count() < 3:
 			continue
 		var lod := ArrayMesh.new()
-		for surface_index in [0, 2]:
+		# Surface 0 is the trunk/rock body. Branch and leaf surfaces are
+		# retained on near-field assets; this explicit far LOD avoids drawing
+		# the 700k+ triangle foliage surfaces during every capture pre-roll.
+		for surface_index in [0]:
 			var arrays := source.mesh.surface_get_arrays(surface_index)
 			lod.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 			lod.surface_set_material(lod.get_surface_count() - 1, source.mesh.surface_get_material(surface_index))
 		source.mesh = lod
 		source.lod_bias = 1.5
+
+func visual_bounds_world(asset: Node3D) -> AABB:
+	var lowest := Vector3(INF, INF, INF)
+	var highest := Vector3(-INF, -INF, -INF)
+	var pending: Array[Node] = [asset]
+	while not pending.is_empty():
+		var node: Node = pending.pop_back()
+		if node is MeshInstance3D and node.mesh:
+			var bounds: AABB = node.mesh.get_aabb()
+			for corner in range(8):
+				var local: Vector3 = bounds.position + Vector3(
+					bounds.size.x if corner & 1 else 0.0,
+					bounds.size.y if corner & 2 else 0.0,
+					bounds.size.z if corner & 4 else 0.0
+				)
+				var world: Vector3 = node.to_global(local)
+				lowest = lowest.min(world)
+				highest = highest.max(world)
+		for child in node.get_children():
+			pending.append(child)
+	if lowest.x == INF:
+		return AABB()
+	return AABB(lowest, highest - lowest)
 
 func _ground_asset_on_terrain(asset: Node3D, burial := 0.0) -> void:
 	# Bounds include nested glTF transforms and mesh offsets. Grounding via
@@ -320,7 +348,7 @@ func _ground_asset_on_terrain(asset: Node3D, burial := 0.0) -> void:
 			if mesh_instance.mesh:
 				var bounds := mesh_instance.mesh.get_aabb()
 				for corner in range(8):
-					var local := bounds.position + Vector3(
+					var local: Vector3 = bounds.position + Vector3(
 						bounds.size.x if corner & 1 else 0.0,
 						bounds.size.y if corner & 2 else 0.0,
 						bounds.size.z if corner & 4 else 0.0
