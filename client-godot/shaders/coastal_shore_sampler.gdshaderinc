@@ -14,10 +14,10 @@ float shore_terrain_coverage(vec2 world_xz) {
     // Keep the heightfield authoritative while feathering only its outer
     // sampling border. A hard step at the baked mesh edge produced a visible
     // rectangular colour seam in the ocean; the feather is bounded to the
-    // final 3.5% of the actual terrain extent and cannot invent foam outside
+    // final 12% of the actual terrain extent and cannot invent foam outside
     // the mesh because contact still requires the sampled shoreline height.
-    float edge_x = smoothstep(0.0, 0.035, uv.x) * (1.0 - smoothstep(0.965, 1.0, uv.x));
-    float edge_y = smoothstep(0.0, 0.035, uv.y) * (1.0 - smoothstep(0.965, 1.0, uv.y));
+    float edge_x = smoothstep(0.0, 0.12, uv.x) * (1.0 - smoothstep(0.88, 1.0, uv.x));
+    float edge_y = smoothstep(0.0, 0.12, uv.y) * (1.0 - smoothstep(0.88, 1.0, uv.y));
     return edge_x * edge_y;
 }
 

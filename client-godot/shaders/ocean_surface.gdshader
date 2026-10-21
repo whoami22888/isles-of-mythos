@@ -64,7 +64,11 @@ void fragment() {
     float depth_m = max(SEA_LEVEL - floor_y, 0.0);
     // NO replicated terrain height equation and NO rectangular contact mask.
     // Open ocean is genuinely deep outside the source mesh footprint.
-    float shallow_factor = coverage * (1.0 - smoothstep(0.05, 4.2, depth_m));
+    float depth_factor = 1.0 - smoothstep(0.05, 4.2, depth_m);
+    // A low-frequency seabed variation breaks the visible colour bands while
+    // remaining tied to the sampled mesh and deterministic capture time.
+    float seabed_variation = 0.90 + 0.10 * sin(dot(p, vec2(0.17, 0.11)));
+    float shallow_factor = coverage * depth_factor * seabed_variation;
     float contact = coverage * smoothstep(0.01, 0.055, depth_m)
                     * (1.0 - smoothstep(0.09, 0.74, depth_m));
 
