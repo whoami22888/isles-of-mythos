@@ -51,10 +51,12 @@ func _capture_scene(scene_path: String, camera_name: String, output: String, cin
 		scene.queue_free()
 		return false
 	var first_pixel := screenshot.get_pixel(0, 0)
+	var first_rgba := Vector4(first_pixel.r, first_pixel.g, first_pixel.b, first_pixel.a)
 	var varied_pixels := 0
 	for sample in [Vector2i(320, 180), Vector2i(640, 360), Vector2i(960, 540)]:
 		var pixel := screenshot.get_pixel(sample.x, sample.y)
-		if pixel.distance_to(first_pixel) > 0.03:
+		var sample_rgba := Vector4(pixel.r, pixel.g, pixel.b, pixel.a)
+		if sample_rgba.distance_to(first_rgba) > 0.03:
 			varied_pixels += 1
 	if varied_pixels < 2:
 		push_error("Renderer produced a uniform or blank capture")
