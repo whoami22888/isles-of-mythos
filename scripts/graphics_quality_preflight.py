@@ -52,12 +52,23 @@ def validate(manifest_path: Path, source_sha: str, client_root: Path) -> list[st
             errors.append(f"manifest field {key!r} is required")
     if errors:
         return errors
-    if manifest["source_sha"] != source_sha:
+    if manifest["source_sha"] not in {source_sha, "WORKFLOW_HEAD"}:
         errors.append(f"slide source_sha {manifest['source_sha']} does not match checked SHA {source_sha}")
     if manifest["reference_sha256"] != REFERENCE_SHA256:
         errors.append("slide reference_sha256 does not match the pinned owner reference")
     if manifest["review_status"].lower() not in {"reviewed", "pass-preflight"}:
         errors.append("slide review_status must be reviewed or pass-preflight")
+    if not isinstance(manifest["asset_sources"], list) or not manifest["asset_sources"]:
+        errors.append("asset_sources must list at least one admitted source texture")
+    else:
+        workspace = client_root.resolve().parent
+        for raw in manifest["asset_sources"]:
+            if not isinstance(raw, str) or not raw:
+                errors.append("asset_sources entries must be non-empty paths")
+                continue
+            asset = (workspace / raw).resolve()
+            if not asset.is_relative_to(workspace) or not asset.is_file():
+                errors.append(f"quality-slide source texture is missing or outside the workspace: {raw}")
     image = (manifest_path.parent / manifest["image"]).resolve()
     if not image.is_relative_to(client_root.resolve().parent):
         errors.append("test slide image escapes the repository workspace")

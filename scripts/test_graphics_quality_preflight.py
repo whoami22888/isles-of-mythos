@@ -30,9 +30,11 @@ class QualitySlidePreflightTests(unittest.TestCase):
             "source_sha": source,
             "reference_sha256": preflight.REFERENCE_SHA256,
             "review_status": "reviewed",
+            "asset_sources": ["client-godot/fixture-albedo.png"],
         }
         path = self.root / "quality-test-slide.json"
         path.write_text(json.dumps(manifest), encoding="utf-8")
+        (self.root / "client-godot/fixture-albedo.png").write_bytes(b"fixture")
         return path
 
     def test_missing_manifest_blocks_before_render(self):

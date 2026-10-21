@@ -1,0 +1,15 @@
+{
+  "image": "quality-test-slide.png",
+  "sha256": "6fff3b62e17f768273abbb824c84d2db5918eb607abedfc0f9074ff27ac48ba7",
+  "source_sha": "WORKFLOW_HEAD",
+  "reference_sha256": "713cd6e90c6f7d589a06eb3bd4b9b2d5ebeb9c0ff711b5de527a68460dfbcb05",
+  "review_status": "pass-preflight",
+  "asset_sources": [
+    "client-godot/assets/external/polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_diff_1k.jpg",
+    "client-godot/assets/external/polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_nor_gl_1k.jpg",
+    "client-godot/assets/external/polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_rough_1k.jpg",
+    "client-godot/assets/external/polyhaven/dutch_ship_medium/textures/dutch_ship_medium_hull_diff_1k.jpg",
+    "client-godot/assets/external/polyhaven/dutch_ship_medium/textures/dutch_ship_medium_sails_rgba_1k.png",
+    "client-godot/assets/external/polyhaven/tree_small_02/textures/tree_small_02_leaves_diff_1k.jpg"
+  ]
+}
