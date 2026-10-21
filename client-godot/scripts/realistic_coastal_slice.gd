@@ -72,6 +72,13 @@ func _terrain_height(px: float, pz: float) -> float:
 	var ridge := sin(px * 0.21 + pz * 0.08) * 1.25
 	ridge += cos(px * 0.46 - pz * 0.19) * 0.48
 	ridge += sin(px * 0.91 + pz * 0.63) * 0.15
+	# Add two irregular cliff shelves so the playable coast reads as layered
+	# rock and beach rather than a single smooth mound. The terms are bounded
+	# by the authored island mask and remain deterministic at capture time.
+	var cliff_shelf := smoothstep(3.0, 9.0, pz) * (0.42 * sin(px * 0.37 + pz * 0.11)
+		+ 0.24 * cos(px * 0.71 - pz * 0.23))
+	var high_shelf := smoothstep(10.0, 18.0, pz) * (0.30 * sin(px * 0.52 - pz * 0.17))
+	ridge += cliff_shelf + high_shelf
 	var side_mask := 1.0 - smoothstep(25.0, 34.0, absf(px))
 	var back_mask := 1.0 - smoothstep(19.0, 28.0, pz)
 	var island := side_mask * back_mask
