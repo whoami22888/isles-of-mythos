@@ -43,6 +43,8 @@ func run() -> void:
 		if gateway.is_authenticated():
 			break
 	check(auth_received and gateway.is_authenticated(), "Server-confirmed auth required")
+	check(gateway.send_request("not_a_server_command") == "", "Unknown protocol command rejected")
+	check(gateway.send_request("build", {"buildingType":"town_hall","level":1,"gridX":2,"gridY":3,"currency":999}) == "", "Unknown command fields rejected")
 	var request_id: String = gateway.send_request("get_guild")
 	check(request_id.length() == 32, "Random 32-character requestId")
 	check(gateway.send_request("build", {"requestId":"spoof"}) == "", "Caller cannot overwrite requestId")
@@ -59,13 +61,19 @@ func run() -> void:
 	check(wire_request.get("requestId") == request_id, "Request ID reaches socket peer")
 	gateway._on_protocol_message({"type":"guild_state","requestId":"wrong-id","guild":null})
 	check(gateway.pending_count() == 1 and acked.is_empty(), "Wrong ID cannot acknowledge")
+	gateway._on_protocol_message({"type":"client_only_fake_ack","requestId":request_id})
+	check(gateway.pending_count() == 1 and acked.is_empty(), "Unknown response type cannot acknowledge")
+	gateway._on_protocol_message({"type":"guild_state","requestId":request_id,"guild":null,"currency":999})
+	check(gateway.pending_count() == 0 and acked == [request_id], "Authoritative response is observed, never minted locally")
+	var second_id: String = gateway.send_request("get_guild")
+	check(second_id.length() == 32, "Second read-only request accepted")
 	check(peer.send_text(JSON.stringify({"type":"guild_state","requestId":request_id,"guild":null})) == OK, "Reply transmitted")
 	for _frame in range(200):
 		peer.poll()
 		await process_frame
 		if gateway.pending_count() == 0:
 			break
-	check(acked == [request_id], "Correlated reply acknowledges once")
+	check(acked == [request_id], "Duplicate network ACK cannot alter acknowledged state")
 	gateway._on_protocol_message({"type":"guild_state","requestId":request_id,"guild":null})
 	check(acked.size() == 1, "Duplicate ACK ignored")
 	var unresolved_id: String = gateway.send_request("build", {"buildingType":"town_hall","level":1,"gridX":2,"gridY":3})
