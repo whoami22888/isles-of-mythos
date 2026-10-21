@@ -21,6 +21,12 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Verify coastal download origin regression tests
         run: python3 scripts/test_stage_polyhaven_coast.py
+      - name: Quality-slide preflight (before renderer or capture)
+        run: |
+          set -euo pipefail
+          python3 scripts/graphics_quality_preflight.py \
+            --client client-godot \
+            --source-sha "${{ github.event.pull_request.head.sha || github.sha }}"
       - name: Install pinned Godot 4.7.2
         shell: bash
         run: |
