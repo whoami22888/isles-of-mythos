@@ -26,6 +26,18 @@ func run() -> void:
 	ok = ok and water != null and gameplay != null and cinematic != null
 	var depth_layer := scene.get_node_or_null("CoastalPBRDepthLayer")
 	ok = ok and rock_count == 4 and tree_count == 4 and ship_count == 1 and gameplay.current
+	# The premium content layer must contain real varied tropical geometry; a
+	# shader-only or palette-only replacement cannot satisfy the coastal brief.
+	var premium_layer := scene.get_node_or_null("VerifiedTropicalContentLayer")
+	ok = ok and premium_layer != null and premium_layer.get_child_count() == 8
+	if premium_layer:
+		var premium_paths := []
+		for child in premium_layer.get_children():
+			ok = ok and child is Node3D and child.scene_file_path != ""
+			premium_paths.append(child.scene_file_path)
+		ok = ok and premium_paths.any(func(path): return path.ends_with("coastal_cliff_01_1k.gltf"))
+		ok = ok and premium_paths.any(func(path): return path.ends_with("island_tree_01_1k.gltf"))
+		ok = ok and premium_paths.any(func(path): return path.ends_with("island_tree_02_1k.gltf"))
 	# Background trees must use an explicit material-preserving geometry LOD.
 	if depth_layer:
 		for child in depth_layer.get_children():

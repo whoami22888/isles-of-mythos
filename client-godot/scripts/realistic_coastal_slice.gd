@@ -4,6 +4,10 @@ extends Node3D
 const ROCK_SCENE := preload("res://assets/external/polyhaven/coast_rocks_05/coast_rocks_05_1k.gltf")
 const TREE_SCENE := preload("res://assets/external/polyhaven/tree_small_02/tree_small_02_1k.gltf")
 const SHIP_SCENE := preload("res://assets/external/polyhaven/dutch_ship_medium/dutch_ship_medium_1k.gltf")
+const COASTAL_CLIFF_SCENE := preload("res://assets/external/polyhaven/coastal_cliff_01/coastal_cliff_01_1k.gltf")
+const TROPICAL_TREE_SCENE := preload("res://assets/external/polyhaven/island_tree_01/island_tree_01_1k.gltf")
+const TROPICAL_TREE_ALT_SCENE := preload("res://assets/external/polyhaven/island_tree_02/island_tree_02_1k.gltf")
+const MOSS_ROCK_SCENE := preload("res://assets/external/polyhaven/rock_moss_set_01/rock_moss_set_01_1k.gltf")
 const COAST_DIFFUSE := preload("res://assets/external/polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_diff_1k.jpg")
 const COAST_NORMAL := preload("res://assets/external/polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_nor_gl_1k.jpg")
 const COAST_ROUGHNESS := preload("res://assets/external/polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_rough_1k.jpg")
@@ -253,6 +257,33 @@ func _build_premium_landmarks() -> void:
 		grove.add_child(shore_rock)
 		_ground_asset_on_terrain(shore_rock, 0.18)
 		_configure_mobile_visibility(shore_rock, 90.0, false)
+	# Additional verified CC0 coastal families provide the silhouette and
+	# vegetation variation missing from the original three-asset slice. Keep
+	# them in a separate layer so the existing functional contract remains
+	# stable while every imported mesh receives the same terrain grounding and
+	# bounded visibility policy.
+	var premium_layer := Node3D.new()
+	premium_layer.name = "VerifiedTropicalContentLayer"
+	add_child(premium_layer)
+	for entry in [
+		[Vector3(-21.0, 0.0, 12.0), 2.0, COASTAL_CLIFF_SCENE],
+		[Vector3(20.0, 0.0, 15.0), 1.7, COASTAL_CLIFF_SCENE],
+		[Vector3(-11.5, 0.0, 10.0), 1.1, TROPICAL_TREE_SCENE],
+		[Vector3(11.0, 0.0, 12.0), 1.0, TROPICAL_TREE_ALT_SCENE],
+		[Vector3(-3.5, 0.0, 16.5), 0.85, TROPICAL_TREE_ALT_SCENE],
+		[Vector3(5.5, 0.0, 15.0), 0.9, TROPICAL_TREE_SCENE],
+		[Vector3(-16.0, 0.0, 8.0), 0.8, MOSS_ROCK_SCENE],
+		[Vector3(15.0, 0.0, 9.0), 0.75, MOSS_ROCK_SCENE]
+	]:
+		var imported := entry[2].instantiate() as Node3D
+		imported.position = entry[0]
+		imported.scale = Vector3.ONE * entry[1]
+		if entry[2] == TROPICAL_TREE_SCENE or entry[2] == TROPICAL_TREE_ALT_SCENE:
+			_apply_far_foliage_lod(imported)
+		premium_layer.add_child(imported)
+		_ground_asset_on_terrain(imported, 0.08)
+		_configure_mobile_visibility(imported, 105.0, false)
+
 	player_marker = Node3D.new()
 	player_marker.name = "PlayerSpawnMarker"
 	player_marker.position = Vector3(0.0, _terrain_height(0.0, 5.5) + 0.75, 5.5)
