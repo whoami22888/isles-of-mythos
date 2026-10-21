@@ -26,6 +26,29 @@ func run() -> void:
 	ok = ok and water != null and gameplay != null and cinematic != null
 	var depth_layer := scene.get_node_or_null("CoastalPBRDepthLayer")
 	ok = ok and rock_count == 4 and tree_count == 4 and ship_count == 1 and gameplay.current
+	# Imported sails must retain their authored RGBA atlas and mobile-safe
+	# alpha-mask material; a missing/black material is a visible ship failure.
+	var sail_materials := 0
+	var pending_ship: Array[Node] = [scene.ship_focal]
+	while not pending_ship.is_empty():
+		var ship_node: Node = pending_ship.pop_back()
+		if ship_node is MeshInstance3D:
+			var mesh_instance := ship_node as MeshInstance3D
+			if mesh_instance.mesh:
+				for surface_index in range(mesh_instance.mesh.get_surface_count()):
+					var material := mesh_instance.get_active_material(surface_index) as BaseMaterial3D
+					if material == null:
+						continue
+					var material_name := str(material.resource_name).to_lower()
+					var node_name := str(mesh_instance.name).to_lower()
+					if material_name.contains("sail") or node_name.contains("sail"):
+						sail_materials += 1
+						ok = ok and material.albedo_texture != null
+						ok = ok and material.albedo_color.get_luminance() > 0.8
+						ok = ok and material.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+		for child in ship_node.get_children():
+			pending_ship.append(child)
+	ok = ok and sail_materials > 0
 	# The premium content layer must contain real varied tropical geometry; a
 	# shader-only or palette-only replacement cannot satisfy the coastal brief.
 	var premium_layer := scene.get_node_or_null("VerifiedTropicalContentLayer")

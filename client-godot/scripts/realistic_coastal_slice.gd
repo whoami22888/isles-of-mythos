@@ -202,6 +202,7 @@ func _build_premium_landmarks() -> void:
 	ship_focal.rotation_degrees = Vector3(0.0, 18.0, 0.0)
 	ship_focal.scale = Vector3.ONE * 0.72
 	add_child(ship_focal)
+	_configure_ship_sails(ship_focal)
 	_ship_base_position = ship_focal.position
 	_cache_ship_visual_bounds()
 	_configure_mobile_visibility(ship_focal, 120.0)
@@ -285,6 +286,33 @@ func _build_premium_landmarks() -> void:
 		premium_layer.add_child(imported)
 		_ground_asset_on_terrain(imported, 0.08)
 		_configure_mobile_visibility(imported, 105.0, false)
+
+func _configure_ship_sails(root: Node) -> void:
+	# The imported ship's sail material uses an alpha-mask RGBA atlas.  Keep
+	# its authored PBR textures, but make the renderer contract explicit so
+	# mobile import settings cannot turn the cloth into a black/transparent
+	# surface.  Materials are duplicated per instance; the source GLTF stays
+	# untouched and its provenance remains intact.
+	for node in root.get_children():
+		if node is MeshInstance3D:
+			var mesh_instance := node as MeshInstance3D
+			if mesh_instance.mesh:
+				for surface_index in range(mesh_instance.mesh.get_surface_count()):
+					var material := mesh_instance.get_active_material(surface_index) as BaseMaterial3D
+					if material == null:
+						continue
+					var material_name := str(material.resource_name).to_lower()
+					var node_name := str(mesh_instance.name).to_lower()
+					if not material_name.contains("sail") and not node_name.contains("sail"):
+						continue
+					var corrected := material.duplicate() as BaseMaterial3D
+					corrected.albedo_color = Color.WHITE
+					corrected.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+					corrected.cull_mode = BaseMaterial3D.CULL_DISABLED
+					corrected.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
+					mesh_instance.set_surface_override_material(surface_index, corrected)
+		for child in node.get_children():
+			_configure_ship_sails(child)
 
 	player_marker = Node3D.new()
 	player_marker.name = "PlayerSpawnMarker"
