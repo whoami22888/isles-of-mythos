@@ -1205,7 +1205,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           const response=await runBaseRequest(authenticatedUserId,message.requestId,"create_base|"+message.name+"|"+message.x+"|"+message.y,async()=>{
             try{
               const base=await bases.create(authenticatedUserId,message.name,message.x,message.y);
-              return {type:"base_state",base};
+              return {type:"base_state",requestId:message.requestId,base};
             }catch(error){const code=errorCode(error,"BASE_CREATE_FAILED"); const allowed=["BASE_ALREADY_EXISTS","INVALID_BASE_COORDINATES","BASE_CREATE_FAILED"]; return {type:"error",code:(allowed.includes(code)?code:"BASE_CREATE_FAILED") as "BASE_ALREADY_EXISTS"|"INVALID_BASE_COORDINATES"|"BASE_CREATE_FAILED"};}
           });
           send(socket,response);

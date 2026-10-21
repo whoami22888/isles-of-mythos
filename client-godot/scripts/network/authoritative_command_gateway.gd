@@ -107,7 +107,7 @@ func send_request(action: String, fields: Dictionary = {}) -> String:
 	var request_id := _crypto.generate_random_bytes(16).hex_encode()
 	if request_id.is_empty() or _pending.has(request_id):
 		return ""
-	var message: Dictionary = fields.duplicate(true)
+	var message: Dictionary = _normalized_fields(action, fields)
 	message["type"] = action
 	message["requestId"] = request_id
 	# UI must wait for a correlated server acknowledgement before displaying success.
@@ -190,3 +190,15 @@ func _nullable_int(fields: Dictionary, key: String) -> bool:
 func _enum_string(fields: Dictionary, key: String, values: Array) -> bool:
 	var value = fields.get(key)
 	return value is String and values.has(value)
+
+func _normalized_fields(action: String, fields: Dictionary) -> Dictionary:
+	var normalized: Dictionary = fields.duplicate(true)
+	if action == "chat_history":
+		for key in ["recipientUserId", "guildId", "partyId"]:
+			if not normalized.has(key):
+				normalized[key] = null
+	elif action == "auction_list":
+		for key in ["itemId", "rarity", "category", "minLevel", "maxLevel", "minPrice", "maxPrice"]:
+			if not normalized.has(key):
+				normalized[key] = null
+	return normalized

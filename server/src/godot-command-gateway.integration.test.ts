@@ -53,8 +53,11 @@ describe("Godot authoritative command gateway contract", () => {
 
       socket.send(JSON.stringify({ type: "auth", token: body.accessToken }));
       await waitFor(socket, (message) => message.type === "auth_ok");
-      socket.send(JSON.stringify({ type: "get_guild", requestId: "godot-read-1" }));
-      await expect(waitFor(socket, (message) => message.type === "guild_state" && message.requestId === "godot-read-1")).resolves.toMatchObject({ type: "guild_state", requestId: "godot-read-1" });
+      socket.send(JSON.stringify({ type: "get_party", requestId: "godot-read-1" }));
+      await expect(waitFor(socket, (message) => message.type === "party_state" && message.requestId === "godot-read-1")).resolves.toMatchObject({ type: "party_state", requestId: "godot-read-1", party: null });
+
+      socket.send(JSON.stringify({ type: "create_base", requestId: "godot-base-1", name: "Godot Gateway Base", x: 70123, y: -70123 }));
+      await expect(waitFor(socket, (message) => message.type === "base_state" && message.requestId === "godot-base-1")).resolves.toMatchObject({ type: "base_state", requestId: "godot-base-1" });
 
       socket.send(JSON.stringify({ type: "not_a_server_command", requestId: "godot-invalid-1" }));
       await expect(waitFor(socket, (message) => message.type === "error" && message.code === "INVALID_MESSAGE")).resolves.toMatchObject({ type: "error", code: "INVALID_MESSAGE" });
