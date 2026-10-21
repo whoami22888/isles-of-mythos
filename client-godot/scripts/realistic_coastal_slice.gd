@@ -51,6 +51,11 @@ func _build_environment() -> void:
 	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	environment.ambient_light_color = Color("#b6d6df")
 	environment.ambient_light_energy = 0.38
+	environment.fog_enabled = true
+	environment.fog_light_color = Color("#9bcbd2")
+	environment.fog_light_energy = 0.55
+	environment.fog_density = 0.004
+	environment.fog_sky_affect = 0.72
 	environment.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	world.environment = environment
 	add_child(world)
@@ -108,7 +113,7 @@ func _build_coastal_terrain() -> void:
 			vertices.append(Vector3(px, py, pz))
 			uvs.append(Vector2(px * 0.14, pz * 0.14))
 			var elevation := smoothstep(1.4, 6.8, py)
-			tint.append(Color("#f1e3cb").lerp(Color("#c5c3bc"), elevation))
+			tint.append(Color("#d8b77e").lerp(Color("#74766d"), elevation))
 	for z in range(rows):
 		for x in range(columns):
 			var left := vertices[z * columns + maxi(x - 1, 0)]
@@ -175,6 +180,8 @@ func _build_water() -> void:
 	water.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var material := ShaderMaterial.new()
 	material.shader = OCEAN_SHADER
+	material.set_shader_parameter("swell_scale", 0.72)
+	material.set_shader_parameter("ripple_detail", 0.78)
 	var baked: Dictionary = SHORE_BAKER.bind_to_material(terrain, material, 96, 72)
 	if baked.has("error"):
 		push_error("Coast heightmap binding failed: " + str(baked["error"]))
