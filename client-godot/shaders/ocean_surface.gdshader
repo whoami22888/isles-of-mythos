@@ -4,8 +4,8 @@ render_mode cull_back, depth_draw_opaque;
 // Animated 3-scale swell with analytic vertex normals. This material is opaque
 // on purpose: it retains early depth writes and mobile forward rendering.
 // Surface quality must still be checked against actual Godot footage.
-uniform vec4 water_shallow : source_color = vec4(0.018, 0.185, 0.255, 1.0);
-uniform vec4 water_deep : source_color = vec4(0.007, 0.055, 0.13, 1.0);
+uniform vec4 water_shallow : source_color = vec4(0.024, 0.235, 0.315, 1.0);
+uniform vec4 water_deep : source_color = vec4(0.009, 0.07, 0.15, 1.0);
 uniform vec4 foam_tint : source_color = vec4(0.76, 0.91, 0.91, 1.0);
 uniform float swell_scale : hint_range(0.0, 1.5) = 1.0;
 uniform float ripple_detail : hint_range(0.0, 1.0) = 0.9;
