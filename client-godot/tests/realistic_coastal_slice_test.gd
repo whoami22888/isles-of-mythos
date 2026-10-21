@@ -52,7 +52,12 @@ func run() -> void:
 			for child in premium_layer.get_children():
 				if child.scene_file_path.ends_with("island_tree_01_1k.gltf") or child.scene_file_path.ends_with("island_tree_02_1k.gltf"):
 					var foliage_mesh := child.get_child(0).mesh as ArrayMesh
-					ok = ok and foliage_mesh != null and foliage_mesh.get_surface_count() == 1
+					ok = ok and foliage_mesh != null and foliage_mesh.get_surface_count() == 3
+					var foliage_triangles := 0
+					for surface_index in range(foliage_mesh.get_surface_count()):
+						var indices: PackedInt32Array = foliage_mesh.surface_get_arrays(surface_index)[Mesh.ARRAY_INDEX]
+						foliage_triangles += indices.size() / 3
+					ok = ok and foliage_triangles <= 72000
 	# Background trees must use an explicit material-preserving geometry LOD.
 	if depth_layer:
 		for child in depth_layer.get_children():

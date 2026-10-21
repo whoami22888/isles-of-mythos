@@ -291,27 +291,51 @@ func _build_premium_landmarks() -> void:
 	player_marker.position = Vector3(0.0, _terrain_height(0.0, 5.5) + 0.75, 5.5)
 	add_child(player_marker)
 
+func _reduce_surface_triangles(source: ArrayMesh, surface_index: int, max_triangles: int) -> Array:
+	var arrays: Array = source.surface_get_arrays(surface_index)
+	var source_indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+	if source_indices.is_empty() or max_triangles <= 0:
+		return []
+	var source_triangles := source_indices.size() / 3
+	var target := mini(source_triangles, max_triangles)
+	var reduced_indices := PackedInt32Array()
+	# Evenly sample source triangles so branch/leaf silhouettes remain
+	# distributed over the full mesh instead of retaining a single patch.
+	for sample in range(target):
+		var source_triangle := mini(source_triangles - 1,
+			int(float(sample) * float(source_triangles) / float(target)))
+		var offset := source_triangle * 3
+		reduced_indices.append(source_indices[offset])
+		reduced_indices.append(source_indices[offset + 1])
+		reduced_indices.append(source_indices[offset + 2])
+	arrays[Mesh.ARRAY_INDEX] = reduced_indices
+	return arrays
+
+
 func _apply_far_foliage_lod(asset: Node3D) -> void:
-	# The admitted tree's leaf surface is ~1.94M triangles. Background trees
-	# retain their PBR branch/trunk materials but omit the leaf surface; near
-	# gameplay trees keep the full source mesh. This is an explicit geometry
-	# LOD, rather than relying on visibility culling alone.
+	# Imported tropical trees contain separate trunk, leaf and branch PBR
+	# surfaces. Keep all three, but reduce indexed triangles deterministically
+	# for distant instances. This is a real geometry LOD: foliage remains
+	# visible and uses its original materials, while draw triangles are bounded.
 	for node in asset.get_children():
 		if not node is MeshInstance3D:
 			continue
 		var source := node as MeshInstance3D
 		if source.mesh == null or source.mesh.get_surface_count() < 3:
 			continue
+		var source_mesh := source.mesh as ArrayMesh
 		var lod := ArrayMesh.new()
-		# Surface 0 is the trunk/rock body. Branch and leaf surfaces are
-		# retained on near-field assets; this explicit far LOD avoids drawing
-		# the 700k+ triangle foliage surfaces during every capture pre-roll.
-		for surface_index in [0]:
-			var arrays := source.mesh.surface_get_arrays(surface_index)
-			lod.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-			lod.surface_set_material(lod.get_surface_count() - 1, source.mesh.surface_get_material(surface_index))
-		source.mesh = lod
-		source.lod_bias = 1.5
+		for surface_index in range(source_mesh.get_surface_count()):
+			var cap := 36000 if surface_index == 0 else (24000 if surface_index == 1 else 12000)
+			var reduced := _reduce_surface_triangles(source_mesh, surface_index, cap)
+			if reduced.is_empty():
+				continue
+			lod.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, reduced)
+			lod.surface_set_material(lod.get_surface_count() - 1,
+				source_mesh.surface_get_material(surface_index))
+		if lod.get_surface_count() > 0:
+			source.mesh = lod
+			source.lod_bias = 1.5
 
 func visual_bounds_world(asset: Node3D) -> AABB:
 	var lowest := Vector3(INF, INF, INF)
