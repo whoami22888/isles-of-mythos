@@ -82,9 +82,13 @@ func _terrain_height(px: float, pz: float) -> float:
 	var side_mask := 1.0 - smoothstep(25.0, 34.0, absf(px))
 	var back_mask := 1.0 - smoothstep(19.0, 28.0, pz)
 	var island := side_mask * back_mask
-	var height := beach * (1.65 + ridge * 0.22)
-	height += bluff * (4.2 + ridge * 1.10)
-	height += smoothstep(8.0, 18.0, pz) * 1.15
+	# Give the playable cove a readable beach-to-cliff profile from the
+	# gameplay camera.  The previous low relief read as a single mound even
+	# with the admitted PBR surface; these bounded shelves create a layered
+	# tropical coast without adding runtime geometry or allocations.
+	var height := beach * (1.85 + ridge * 0.28)
+	height += bluff * (5.6 + ridge * 1.35)
+	height += smoothstep(8.0, 18.0, pz) * 2.0
 	return WATER_Y - 0.75 + island * (height + 0.75)
 
 
