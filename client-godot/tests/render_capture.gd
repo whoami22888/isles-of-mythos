@@ -15,7 +15,10 @@ func _capture() -> void:
 
 	var coastal_output := OS.get_environment("IOM_CINEMATIC_SCREENSHOT_PATH")
 	if not coastal_output.is_empty():
-		if not await _capture_scene("res://scenes/realistic_coastal_slice.tscn", "CinematicRevealCamera", coastal_output, true):
+		# The player-facing coastal evidence must exercise the integrated FX
+		# scene. Capturing the base scene here silently dropped wake, bow spray
+		# and the moving-vessel adapter while still producing a valid PNG.
+		if not await _capture_scene("res://scenes/realistic_coastal_fx_slice.tscn", "CinematicRevealCamera", coastal_output, true):
 			quit(1)
 			return
 	quit(0)
