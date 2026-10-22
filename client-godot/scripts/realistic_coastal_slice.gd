@@ -396,17 +396,19 @@ func _is_sail_surface(mesh_instance: MeshInstance3D, surface_index: int) -> bool
 
 func prepare_sail_pixel_mask() -> Array:
 	# Render an object-only pass: sail triangles get an unshaded magenta
-	# material, while every other surface is transparent. This avoids treating
-	# sky, water, masts, or hull pixels in the final composite as sail evidence.
+	# material, while every other surface writes depth with no visible color.
+	# Hull, mast, terrain, and water therefore occlude sails exactly as they do
+	# in the real composite instead of creating a false all-sails-visible pass.
 	var state: Array = []
-	var pending: Array[Node] = [ship_focal]
+	var pending: Array[Node] = [self]
 	var mask_material := StandardMaterial3D.new()
 	mask_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mask_material.albedo_color = Color(1.0, 0.0, 1.0, 1.0)
 	mask_material.cull_mode = BaseMaterial3D.CULL_DISABLED
-	var hidden_material := StandardMaterial3D.new()
-	hidden_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	hidden_material.albedo_color = Color(0.0, 0.0, 0.0, 0.0)
+	var depth_material := ShaderMaterial.new()
+	var depth_shader := Shader.new()
+	depth_shader.code = "shader_type spatial; render_mode unshaded, depth_draw_opaque, cull_disabled; void fragment() { ALBEDO = vec3(0.0); }"
+	depth_material.shader = depth_shader
 	while not pending.is_empty():
 		var node: Node = pending.pop_back()
 		if node is MeshInstance3D:
@@ -416,7 +418,7 @@ func prepare_sail_pixel_mask() -> Array:
 					state.append({"node": mesh_instance, "surface": surface_index,
 						"material": mesh_instance.get_surface_override_material(surface_index)})
 					mesh_instance.set_surface_override_material(surface_index,
-						mask_material if _is_sail_surface(mesh_instance, surface_index) else hidden_material)
+						mask_material if _is_sail_surface(mesh_instance, surface_index) else depth_material)
 		elif node is GeometryInstance3D:
 			state.append({"node": node, "visible": node.visible})
 			node.visible = true if node is MeshInstance3D else false
