@@ -389,6 +389,63 @@ func visual_bounds_world(asset: Node3D) -> AABB:
 		return AABB()
 	return AABB(lowest, highest - lowest)
 
+func rendered_sail_pixel_stats(image: Image, camera: Camera3D) -> Dictionary:
+	# Validate the pixels produced by the bound sail surfaces. Material
+	# metadata can look correct while UVs, alpha, culling, or lighting still
+	# render dark cloth, so this samples each sail surface in camera space.
+	var result := {"sail_surfaces": 0, "visible_surfaces": 0, "dark_surfaces": 0}
+	var pending: Array[Node] = [ship_focal]
+	while not pending.is_empty():
+		var node: Node = pending.pop_back()
+		if node is MeshInstance3D:
+			var mesh_instance := node as MeshInstance3D
+			if mesh_instance.mesh:
+				for surface_index in range(mesh_instance.mesh.get_surface_count()):
+					var material := mesh_instance.get_active_material(surface_index) as BaseMaterial3D
+					var material_name := str(material.resource_name).to_lower() if material else ""
+					var node_name := str(mesh_instance.name).to_lower()
+					if not material_name.contains("sail") and not node_name.contains("sail"):
+						continue
+					result["sail_surfaces"] += 1
+					var arrays := mesh_instance.mesh.surface_get_arrays(surface_index)
+					var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+					if vertices.is_empty():
+						result["dark_surfaces"] += 1
+						continue
+					var min_point := Vector2(INF, INF)
+					var max_point := Vector2(-INF, -INF)
+					var visible := false
+					var stride := maxi(1, vertices.size() / 256)
+					for vertex_index in range(0, vertices.size(), stride):
+						var world := mesh_instance.to_global(vertices[vertex_index])
+						if camera.is_position_behind(world):
+							continue
+						var projected := camera.unproject_position(world)
+						min_point = min_point.min(projected)
+						max_point = max_point.max(projected)
+						visible = true
+					if not visible:
+						continue
+					result["visible_surfaces"] += 1
+					var left := clampi(int(floor(min_point.x)), 0, image.get_width() - 1)
+					var top := clampi(int(floor(min_point.y)), 0, image.get_height() - 1)
+					var right := clampi(int(ceil(max_point.x)), left + 1, image.get_width())
+					var bottom := clampi(int(ceil(max_point.y)), top + 1, image.get_height())
+					var samples := 0
+					var lit := 0
+					for y in range(top, bottom, maxi(1, (bottom - top) / 24)):
+						for x in range(left, right, maxi(1, (right - left) / 24)):
+							var pixel := image.get_pixel(x, y)
+							if pixel.a > 0.05:
+								samples += 1
+								if pixel.get_luminance() > 0.10:
+									lit += 1
+					if samples == 0 or float(lit) / float(samples) < 0.08:
+						result["dark_surfaces"] += 1
+		for child in node.get_children():
+			pending.append(child)
+	return result
+
 func _ground_asset_on_terrain(asset: Node3D, burial := 0.0) -> void:
 	# Bounds include nested glTF transforms and mesh offsets. Grounding via
 	# a fixed arbitrary Y caused visibly floating and buried coastline trees.

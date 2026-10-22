@@ -65,6 +65,12 @@ func _capture_scene(scene_path: String, camera_name: String, output: String, cin
 		push_error("Renderer produced a uniform or blank capture")
 		scene.queue_free()
 		return false
+	if cinematic and scene.has_method("rendered_sail_pixel_stats"):
+		var sail_stats: Dictionary = scene.rendered_sail_pixel_stats(screenshot, camera)
+		if sail_stats["sail_surfaces"] == 0 or sail_stats["visible_surfaces"] != sail_stats["sail_surfaces"] or sail_stats["dark_surfaces"] > 0:
+			push_error("Rendered sail pixel contract failed: %s" % sail_stats)
+			scene.queue_free()
+			return false
 	var error: Error = screenshot.save_png(output)
 	if error != OK:
 		push_error("Could not write rendered capture: %d" % error)
