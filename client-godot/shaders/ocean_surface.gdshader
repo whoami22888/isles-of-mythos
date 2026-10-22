@@ -76,11 +76,14 @@ void fragment() {
     // No screen-space reflection pass or full-screen postprocess is required.
     float micro_a = sin(dot(p, vec2(3.1, 1.55)) - ocean_time * 2.35);
     float micro_b = cos(dot(p, vec2(-1.92, 3.38)) + ocean_time * 1.68);
+    // NORMAL_MAP is an encoded tangent-space value in Godot (0..1), not a
+    // signed normal. Encode the analytic wave normal after normalizing so
+    // mobile lighting does not invert or blacken the water response.
     NORMAL_MAP = normalize(vec3(
         (micro_a * 0.12 + micro_b * 0.055) * ripple_detail,
         (micro_a * -0.085 + micro_b * 0.11) * ripple_detail,
         1.0
-    ));
+    )) * 0.5 + 0.5;
 
     // Break up the coastal foam so it moves without straight bright strips.
     float foam_pattern = sin(p.x * 2.0 + ocean_time * 1.2)

@@ -546,9 +546,19 @@ func ship_visual_bounds_world() -> AABB:
 func frame_ship_cinematic(camera: Camera3D, desired_position: Vector3) -> bool:
 	if camera == null or not _ship_bounds_ready:
 		return false
+	var safe_position := _safe_cinematic_position(camera, desired_position)
+	if safe_position == Vector3(INF, INF, INF):
+		return false
+	camera.global_position = safe_position
+	camera.look_at(ship_visual_bounds_world().get_center())
+	return true
+
+func _safe_cinematic_position(camera: Camera3D, desired_position: Vector3) -> Vector3:
+	if camera == null or not _ship_bounds_ready:
+		return Vector3(INF, INF, INF)
 	var bounds := ship_visual_bounds_world()
 	if bounds.size.length_squared() < 0.00001:
-		return false
+		return Vector3(INF, INF, INF)
 	var centre := bounds.get_center()
 	var away := (desired_position - centre).normalized()
 	if away.length_squared() < 0.00001:
@@ -559,9 +569,7 @@ func frame_ship_cinematic(camera: Camera3D, desired_position: Vector3) -> bool:
 	# Conservatively enclose the ship's *entire* AABB in a vertical frustum;
 	# no hull-only target can silently clip the sails or mast tips.
 	var needed := safe_radius / maxf(0.05, sin(safe_angle))
-	camera.global_position = centre + away * maxf(distance, needed)
-	camera.look_at(centre)
-	return true
+	return centre + away * maxf(distance, needed)
 
 
 func _build_cameras() -> void:
@@ -605,8 +613,10 @@ func play_cinematic(reduced_motion := false) -> void:
 	_cinematic_tween = create_tween()
 	# Stay seaward of the moving visual ship so the vessel and island remain
 	# in a coherent foreground/midground/background composition.
-	_cinematic_tween.tween_property(cinematic_camera, "position", Vector3(-7.0, 4.8, -17.0), 2.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	_cinematic_tween.tween_property(cinematic_camera, "position", Vector3(-2.5, 5.2, -21.0), 2.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	var waypoint_a := _safe_cinematic_position(cinematic_camera, Vector3(-7.0, 4.8, -17.0))
+	var waypoint_b := _safe_cinematic_position(cinematic_camera, Vector3(-2.5, 5.2, -21.0))
+	_cinematic_tween.tween_property(cinematic_camera, "global_position", waypoint_a, 2.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_cinematic_tween.tween_property(cinematic_camera, "global_position", waypoint_b, 2.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	_cinematic_tween.finished.connect(set_gameplay_view)
 
 func skip_cinematic() -> void:

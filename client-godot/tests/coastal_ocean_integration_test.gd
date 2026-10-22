@@ -61,6 +61,8 @@ func run() -> void:
     check(not shader_source.contains("land_region"), "Invented rectangular shore mask banned")
     check(shader_source.contains("fresnel"), "Grazing-angle water response required")
     check(shader_source.contains("NORMAL_MAP"), "Moving water normal detail required")
+    check(shader_source.contains("* 0.5 + 0.5"),
+        "Water normal map must encode signed normals into Godot's 0..1 range")
     check(material.get_shader_parameter("shoremap_bound") == true, "Fail closed if shoreline unbound")
     check(material.get_shader_parameter("shore_heightmap") is Texture2D, "Texture must bind to shader")
     check(material.get_shader_parameter("shore_texture_size") == Vector2(96.0, 72.0),
