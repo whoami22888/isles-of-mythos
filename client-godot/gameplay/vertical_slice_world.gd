@@ -89,22 +89,38 @@ func _on_player_state(state: Dictionary) -> void:
 
 func _on_world_chunk(_request_id: String, chunk: Dictionary) -> void:
 	_status.text = "Authoritative world chunk received"
+	var current_ids: Dictionary = {}
 	for resource in chunk.get("resources", []):
 		if not resource is Dictionary:
 			continue
 		var resource_id = resource.get("id")
 		if not resource_id is String:
 			continue
-		var marker := MeshInstance3D.new()
-		var sphere := SphereMesh.new()
-		sphere.radius = 0.3
-		sphere.height = 0.6
-		marker.mesh = sphere
-		marker.material_override = _material(Color("#67d4a3"))
+		current_ids[resource_id] = true
+		var marker: MeshInstance3D
+		if _markers.has(resource_id):
+			marker = _markers[resource_id]
+		else:
+			marker = _create_resource_marker(resource_id)
 		marker.position = Vector3(float(resource.get("x", 0)), 0.3, float(resource.get("y", 0)))
-		marker.name = "ServerResource_" + resource_id.replace(":", "_")
-		add_child(marker)
-		_markers[resource_id] = marker
+	# The server's chunk snapshot is authoritative: remove resources no longer
+	# present, including depleted nodes, without retaining orphaned MeshInstances.
+	for resource_id in _markers.keys():
+		if not current_ids.has(resource_id):
+			_markers[resource_id].queue_free()
+			_markers.erase(resource_id)
+
+func _create_resource_marker(resource_id: String) -> MeshInstance3D:
+	var marker := MeshInstance3D.new()
+	var sphere := SphereMesh.new()
+	sphere.radius = 0.3
+	sphere.height = 0.6
+	marker.mesh = sphere
+	marker.material_override = _material(Color("#67d4a3"))
+	marker.name = "ServerResource_" + resource_id.replace(":", "_")
+	add_child(marker)
+	_markers[resource_id] = marker
+	return marker
 
 func _gather_nearest() -> void:
 	if _markers.is_empty():

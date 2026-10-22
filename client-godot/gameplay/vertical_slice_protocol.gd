@@ -91,14 +91,14 @@ func _on_message(message: Dictionary) -> void:
 	if message_type == "world_chunk":
 		var request_id = message.get("requestId")
 		var chunk = message.get("chunk")
-		if request_id is String and chunk is Dictionary and _pending.has(request_id):
+		if request_id is String and chunk is Dictionary and _pending_action_matches(request_id, "subscribe_chunks"):
 			_pending.erase(request_id)
 			world_chunk_received.emit(request_id, chunk)
 			command_acknowledged.emit(request_id, message)
 		return
 	if message_type == "resource_gathered":
 		var gather_id = message.get("requestId")
-		if gather_id is String and _pending.has(gather_id):
+		if gather_id is String and _pending_action_matches(gather_id, "gather_resource"):
 			_pending.erase(gather_id)
 			command_acknowledged.emit(gather_id, message)
 		return
@@ -108,3 +108,9 @@ func _on_message(message: Dictionary) -> void:
 			# Current server errors carry no request ID. Never guess which durable
 			# request they reject; the pending request remains outcome-unknown.
 			server_rejected.emit(code)
+
+func _pending_action_matches(request_id: String, expected_action: String) -> bool:
+	if not _pending.has(request_id):
+		return false
+	var pending = _pending[request_id]
+	return pending is Dictionary and pending.get("action") == expected_action

@@ -6,7 +6,9 @@
     "name": "authenticated_world_resource_gather",
     "scene": "client-godot/gameplay/vertical_slice.tscn",
     "protocol": ["auth", "player_state", "subscribe_chunks", "gather_resource", "resource_gathered"],
-    "disposition": "IMPLEMENTED_PENDING_REAL_DB_ANDROID_AND_EXACT_SHA_GATES",
+    "disposition": "DEVELOPER_LAUNCH_ONLY_PENDING_REAL_DB_ANDROID_AND_EXACT_SHA_GATES",
+    "default_user_facing_scene": false,
+    "developer_launch": "godot --path client-godot res://gameplay/vertical_slice.tscn",
     "authority": "Fastify/PostgreSQL",
     "local_state_minting": false
   },
