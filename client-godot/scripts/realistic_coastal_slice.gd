@@ -286,6 +286,12 @@ func _build_premium_landmarks() -> void:
 		premium_layer.add_child(imported)
 		_ground_asset_on_terrain(imported, 0.08)
 		_configure_mobile_visibility(imported, 105.0, false)
+	# Spawn state belongs to scene construction, not recursive material
+	# traversal. Keeping this here guarantees one authoritative marker.
+	player_marker = Node3D.new()
+	player_marker.name = "PlayerSpawnMarker"
+	player_marker.position = Vector3(0.0, _terrain_height(0.0, 5.5) + 0.75, 5.5)
+	add_child(player_marker)
 
 func _configure_ship_sails(root: Node) -> void:
 	# The imported ship's sail material uses an alpha-mask RGBA atlas.  Keep
@@ -313,11 +319,6 @@ func _configure_ship_sails(root: Node) -> void:
 					mesh_instance.set_surface_override_material(surface_index, corrected)
 		for child in node.get_children():
 			_configure_ship_sails(child)
-
-	player_marker = Node3D.new()
-	player_marker.name = "PlayerSpawnMarker"
-	player_marker.position = Vector3(0.0, _terrain_height(0.0, 5.5) + 0.75, 5.5)
-	add_child(player_marker)
 
 func _reduce_surface_triangles(source: ArrayMesh, surface_index: int, max_triangles: int) -> Array:
 	var arrays: Array = source.surface_get_arrays(surface_index)

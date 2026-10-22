@@ -26,6 +26,11 @@ func run() -> void:
 	ok = ok and water != null and gameplay != null and cinematic != null
 	var depth_layer := scene.get_node_or_null("CoastalPBRDepthLayer")
 	ok = ok and rock_count == 4 and tree_count == 4 and ship_count == 1 and gameplay.current
+	var spawn_marker_count := 0
+	for child in scene.get_children():
+		if child.name == "PlayerSpawnMarker":
+			spawn_marker_count += 1
+	ok = ok and spawn_marker_count == 1 and scene.player_marker != null
 	# Imported sails must retain their authored RGBA atlas and mobile-safe
 	# alpha-mask material; a missing/black material is a visible ship failure.
 	var sail_materials := 0
