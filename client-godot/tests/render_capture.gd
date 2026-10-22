@@ -66,8 +66,16 @@ func _capture_scene(scene_path: String, camera_name: String, output: String, cin
 		scene.queue_free()
 		return false
 	if cinematic and scene.has_method("rendered_sail_pixel_stats"):
-		var sail_stats: Dictionary = scene.rendered_sail_pixel_stats(screenshot, camera)
-		if sail_stats["sail_surfaces"] == 0 or sail_stats["visible_surfaces"] != sail_stats["sail_surfaces"] or sail_stats["dark_surfaces"] > 0:
+		var mask_state: Array = scene.prepare_sail_pixel_mask()
+		await process_frame
+		await RenderingServer.frame_post_draw
+		var sail_mask: Image = root.get_viewport().get_texture().get_image()
+		scene.restore_sail_pixel_mask(mask_state)
+		await process_frame
+		await RenderingServer.frame_post_draw
+		screenshot = root.get_viewport().get_texture().get_image()
+		var sail_stats: Dictionary = scene.rendered_sail_pixel_stats(screenshot, sail_mask)
+		if sail_stats["mask_pixels"] < 200 or sail_stats["lit_fraction"] < 0.45:
 			push_error("Rendered sail pixel contract failed: %s" % sail_stats)
 			scene.queue_free()
 			return false

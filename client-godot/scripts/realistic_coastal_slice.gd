@@ -389,62 +389,68 @@ func visual_bounds_world(asset: Node3D) -> AABB:
 		return AABB()
 	return AABB(lowest, highest - lowest)
 
-func rendered_sail_pixel_stats(image: Image, camera: Camera3D) -> Dictionary:
-	# Validate the pixels produced by the bound sail surfaces. Material
-	# metadata can look correct while UVs, alpha, culling, or lighting still
-	# render dark cloth, so this samples each sail surface in camera space.
-	var result := {"sail_surfaces": 0, "visible_surfaces": 0, "dark_surfaces": 0}
+func _is_sail_surface(mesh_instance: MeshInstance3D, surface_index: int) -> bool:
+	var material := mesh_instance.get_active_material(surface_index) as BaseMaterial3D
+	var material_name := str(material.resource_name).to_lower() if material else ""
+	return material_name.contains("sail") or str(mesh_instance.name).to_lower().contains("sail")
+
+func prepare_sail_pixel_mask() -> Array:
+	# Render an object-only pass: sail triangles get an unshaded magenta
+	# material, while every other surface is transparent. This avoids treating
+	# sky, water, masts, or hull pixels in the final composite as sail evidence.
+	var state: Array = []
 	var pending: Array[Node] = [ship_focal]
+	var mask_material := StandardMaterial3D.new()
+	mask_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mask_material.albedo_color = Color(1.0, 0.0, 1.0, 1.0)
+	mask_material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var hidden_material := StandardMaterial3D.new()
+	hidden_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	hidden_material.albedo_color = Color(0.0, 0.0, 0.0, 0.0)
 	while not pending.is_empty():
 		var node: Node = pending.pop_back()
 		if node is MeshInstance3D:
 			var mesh_instance := node as MeshInstance3D
 			if mesh_instance.mesh:
 				for surface_index in range(mesh_instance.mesh.get_surface_count()):
-					var material := mesh_instance.get_active_material(surface_index) as BaseMaterial3D
-					var material_name := str(material.resource_name).to_lower() if material else ""
-					var node_name := str(mesh_instance.name).to_lower()
-					if not material_name.contains("sail") and not node_name.contains("sail"):
-						continue
-					result["sail_surfaces"] += 1
-					var arrays := mesh_instance.mesh.surface_get_arrays(surface_index)
-					var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
-					if vertices.is_empty():
-						result["dark_surfaces"] += 1
-						continue
-					var min_point := Vector2(INF, INF)
-					var max_point := Vector2(-INF, -INF)
-					var visible := false
-					var stride := maxi(1, vertices.size() / 256)
-					for vertex_index in range(0, vertices.size(), stride):
-						var world := mesh_instance.to_global(vertices[vertex_index])
-						if camera.is_position_behind(world):
-							continue
-						var projected := camera.unproject_position(world)
-						min_point = min_point.min(projected)
-						max_point = max_point.max(projected)
-						visible = true
-					if not visible:
-						continue
-					result["visible_surfaces"] += 1
-					var left := clampi(int(floor(min_point.x)), 0, image.get_width() - 1)
-					var top := clampi(int(floor(min_point.y)), 0, image.get_height() - 1)
-					var right := clampi(int(ceil(max_point.x)), left + 1, image.get_width())
-					var bottom := clampi(int(ceil(max_point.y)), top + 1, image.get_height())
-					var samples := 0
-					var lit := 0
-					for y in range(top, bottom, maxi(1, (bottom - top) / 24)):
-						for x in range(left, right, maxi(1, (right - left) / 24)):
-							var pixel := image.get_pixel(x, y)
-							if pixel.a > 0.05:
-								samples += 1
-								if pixel.get_luminance() > 0.10:
-									lit += 1
-					if samples == 0 or float(lit) / float(samples) < 0.08:
-						result["dark_surfaces"] += 1
+					state.append({"node": mesh_instance, "surface": surface_index,
+						"material": mesh_instance.get_surface_override_material(surface_index)})
+					mesh_instance.set_surface_override_material(surface_index,
+						mask_material if _is_sail_surface(mesh_instance, surface_index) else hidden_material)
+		elif node is GeometryInstance3D:
+			state.append({"node": node, "visible": node.visible})
+			node.visible = true if node is MeshInstance3D else false
 		for child in node.get_children():
 			pending.append(child)
-	return result
+	return state
+
+func restore_sail_pixel_mask(state: Array) -> void:
+	for entry in state:
+		var node: Node = entry["node"]
+		if node is MeshInstance3D:
+			node.set_surface_override_material(entry["surface"], entry["material"])
+		elif node is GeometryInstance3D:
+			node.visible = entry["visible"]
+
+static func evaluate_sail_pixel_mask(image: Image, mask: Image) -> Dictionary:
+	# Only magenta pixels from the object-only pass are eligible. This handles
+	# occlusion/offscreen surfaces and proves the final composite is bright at
+	# the same pixels that genuinely contained sail triangles.
+	var mask_pixels := 0
+	var lit_pixels := 0
+	for y in range(mask.get_height()):
+		for x in range(mask.get_width()):
+			var marker := mask.get_pixel(x, y)
+			if marker.r < 0.65 or marker.b < 0.65 or marker.g > 0.35:
+				continue
+			mask_pixels += 1
+			if image.get_pixel(x, y).get_luminance() > 0.10:
+				lit_pixels += 1
+	return {"mask_pixels": mask_pixels, "lit_pixels": lit_pixels,
+		"lit_fraction": float(lit_pixels) / float(mask_pixels) if mask_pixels else 0.0}
+
+func rendered_sail_pixel_stats(image: Image, mask: Image) -> Dictionary:
+	return evaluate_sail_pixel_mask(image, mask)
 
 func _ground_asset_on_terrain(asset: Node3D, burial := 0.0) -> void:
 	# Bounds include nested glTF transforms and mesh offsets. Grounding via
