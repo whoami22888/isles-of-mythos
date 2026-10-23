@@ -12,7 +12,64 @@ Reconcile live GitHub state at session start. This is a dated observation, not a
 - No recurring controller/scheduler is exposed by current tools. A historical claim of an hourly controller is unverified; do not create a duplicate or promise work beyond a live session. Durable task ID: `01a13b62-4eb5-7138-bc70-aea4d2ccc08e` was read and is inProgress in this session; do not send self-follow-ups. Codex Tasks list_environments returned an empty data list on 2026-10-16, so new remote task/environment provisioning is unavailable through that connector. Local subagents/worktrees remain available.
 - Networked git/gh commands require a narrowly approved sandbox escalation in this session. Repository read/write and normal guarded merge were demonstrated; branch-protection administration and Actions settings access are not assumed. Never change protections or expose credentials.
 
-## Live repository observation
+## Canonical evidence-backed repair protocol
+
+This section is the durable repository rule for authorised non-production repair
+work. It is the canonical source; `AGENTS.md` only navigates to it and does not
+mechanically enforce compliance.
+
+1. Reconcile completed work and blockers before acting: read applicable
+   instructions, live branch and PR heads, diffs, logs, reviews and prior
+   evidence. Historical task summaries are not current state.
+2. Reproduce each failure when possible and classify it with Test Failure
+   Triage. Keep confirmed facts, hypotheses and missing evidence separate;
+   a classification is not a proven root cause.
+3. Trace the earliest causal failure through callers, dependencies, state and
+   workflow configuration. Record the trigger, why it occurs and why existing
+   checks missed it. Prove the cause with a focused test or diagnostic.
+4. Apply the smallest sufficient root-cause repair. Preserve architecture,
+   ownership boundaries, visual baselines and all acceptance thresholds;
+   never hide failures by weakening assertions, timeouts, samples or gates.
+5. Add focused regression coverage for the original failure and harden the
+   affected boundary against recurrence.
+6. Inspect related code and workflows for the same demonstrated mechanism.
+   Repair confirmed in-scope instances only; record other evidence with its
+   owner and coordinate rather than editing another active workstream.
+7. Record cause, diagnostic, fix and prevention rule in the canonical project
+   record. Lessons are evidence-backed findings, not universal assumptions or
+   claimed model training.
+8. Verify affected integration paths and every applicable exact-final-HEAD
+   CI, security, performance and AI-review gate. Graphics also require the
+   approved-reference comparison, motion evidence and physical-device checks.
+   A later commit invalidates affected evidence; AI review is the review gate,
+   with no additional human-review requirement introduced here.
+9. Report exact SHA, proven cause, changes, verification, blockers and next
+   action. Continue routine authorised repairs; merge only when every required
+   gate passes.
+
+The protocol is requested process, not automatic enforcement. Existing
+enforcement includes exact-SHA workflows, static security checks, repository
+tests and branch protection where configured. Remaining gaps include human
+judgement about causal proof, ownership, visual comparison, device evidence,
+and whether an independent AI review is actually present; pending or missing
+evidence remains NOT VERIFIED.
+
+## Current repair checkpoint — 2026-10-23
+
+- Live main: `74d4164023cc2af8ebd0bb045a332188309b05f5`.
+- PR #193 live head: `fd4457c9dad4bd13413a2db95c010972d3fd684e`, draft and
+  mergeable. Its latest Performance Acceptance run `39772233317` failed on
+  the separately owned PostgreSQL CVE/image gate; CI `39772233221`, CodeQL
+  `39772233296`, Codacy `39772233224`, Static Security `39772233203`, Godot
+  client `39772233202` and visual evidence `39772233196` passed for that exact
+  head. No merge is authorised.
+- The latest PR #193 repair restored the boot default, constrained the
+  non-premium scaffold to explicit developer launch, added action-specific
+  response correlation, idempotent authoritative marker snapshots and
+  regressions. Real PostgreSQL integration and final exact-head AI review
+  remain required evidence.
+
+## Historical repository observation — 2026-10-16
 
 Observed 2026-10-16: main `73ff4c72d837639fdf16eb4dc4a999457e3edb49`, merge of PR #137. Post-merge evidence observed 2026-10-16: CI38858329359 and Performance38858329401 pending; CodeQL38858329376, Codacy38858329377 and StaticSecurity38858329385 PASS. Do not label this SHA fully verified until all required checks complete.
 
