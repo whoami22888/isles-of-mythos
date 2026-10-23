@@ -772,6 +772,57 @@
       "upstream_source_sha256": "3062a709614c05b80fdc1e56583998bc3cb1027b0d52f956c8ecfb882ff8ca6d",
       "upstream_source_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/tree_small_02/tree_small_02_1k.gltf",
       "upstream_md5": "63f42b19687332f7b3a5c8b531734d8e"
+    },
+    {
+      "id": "generated-coastal-cliff-d559ae34871e",
+      "path": "generated/coastal_cliff_blender/coastal_cliff_lod1.glb",
+      "sha256": "d559ae34871e846471c269f53bbc2ecaf9ceda1265eb9b79d2345da0a11ff55d",
+      "source_url": "https://polyhaven.com/a/coastal_cliff_01",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/coastal_cliff_01/coastal_cliff_01_1k.gltf",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven; deterministic Blender derivative",
+      "generated_from": [
+        "polyhaven/coastal_cliff_01/coastal_cliff_01_1k.gltf"
+      ],
+      "generation_note": "Authored in Blender 4.3.2 headless with deterministic decimation and embedded admitted PBR maps; not a source download.",
+      "upstream_source_sha256": "2e6bb1f77965b314208b309ac89b94b8148c6a08ee6c9808cd71455e5475602d",
+      "authoring_tool": "Blender 4.3.2",
+      "godot_validation": "PENDING_GODOT_4.7.2_MOBILE"
+    },
+    {
+      "id": "generated-coastal-cliff-b18b43fe4e03",
+      "path": "generated/coastal_cliff_blender/coastal_cliff_lod2.glb",
+      "sha256": "b18b43fe4e03429de91f93355fdcd9e16cb14f3deffe0b9b91a47f18d8efce53",
+      "source_url": "https://polyhaven.com/a/coastal_cliff_01",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/coastal_cliff_01/coastal_cliff_01_1k.gltf",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven; deterministic Blender derivative",
+      "generated_from": [
+        "polyhaven/coastal_cliff_01/coastal_cliff_01_1k.gltf"
+      ],
+      "generation_note": "Authored in Blender 4.3.2 headless with deterministic decimation and embedded admitted PBR maps; not a source download.",
+      "upstream_source_sha256": "2e6bb1f77965b314208b309ac89b94b8148c6a08ee6c9808cd71455e5475602d",
+      "authoring_tool": "Blender 4.3.2",
+      "godot_validation": "PENDING_GODOT_4.7.2_MOBILE"
+    },
+    {
+      "id": "generated-coastal-cliff-4df1344af6fd",
+      "path": "generated/coastal_cliff_blender/BLENDER_BUILD_METADATA.json",
+      "sha256": "11f68cf921293f107ffc6819ba9d40f87a627fd3bbd02dc9136dff486b03be94",
+      "source_url": "https://polyhaven.com/a/coastal_cliff_01",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/coastal_cliff_01/coastal_cliff_01_1k.gltf",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven; deterministic Blender derivative",
+      "generated_from": [
+        "polyhaven/coastal_cliff_01/coastal_cliff_01_1k.gltf"
+      ],
+      "generation_note": "Authored in Blender 4.3.2 headless with deterministic decimation and embedded admitted PBR maps; not a source download.",
+      "upstream_source_sha256": "2e6bb1f77965b314208b309ac89b94b8148c6a08ee6c9808cd71455e5475602d",
+      "authoring_tool": "Blender 4.3.2",
+      "godot_validation": "PENDING_GODOT_4.7.2_MOBILE"
     }
   ]
 }
