@@ -86,6 +86,26 @@ func run() -> void:
 						var indices: PackedInt32Array = foliage_mesh.surface_get_arrays(surface_index)[Mesh.ARRAY_INDEX]
 						foliage_triangles += indices.size() / 3
 					ok = ok and foliage_triangles <= 72000
+	# Every visible imported landmark keeps its authored materials while using
+	# a deterministic triangle cap. This guards the capture watchdog regression
+	# without allowing a bare placeholder or an unbounded source mesh back in.
+	for child in scene.get_children():
+		if child.scene_file_path.ends_with("tree_small_02_1k.gltf"):
+			var near_tree_triangles := 0
+			for mesh_node in child.find_children("*", "MeshInstance3D", true, false):
+				var near_mesh := mesh_node as MeshInstance3D
+				if near_mesh.mesh:
+					for surface_index in range(near_mesh.mesh.get_surface_count()):
+						near_tree_triangles += (near_mesh.mesh.surface_get_arrays(surface_index)[Mesh.ARRAY_INDEX] as PackedInt32Array).size() / 3
+			ok = ok and near_tree_triangles <= 90000
+		elif child.scene_file_path.ends_with("coast_rocks_05_1k.gltf"):
+			var rock_triangles := 0
+			for mesh_node in child.find_children("*", "MeshInstance3D", true, false):
+				var rock_mesh := mesh_node as MeshInstance3D
+				if rock_mesh.mesh:
+					for surface_index in range(rock_mesh.mesh.get_surface_count()):
+						rock_triangles += (rock_mesh.mesh.surface_get_arrays(surface_index)[Mesh.ARRAY_INDEX] as PackedInt32Array).size() / 3
+			ok = ok and rock_triangles <= 30000
 	# Background trees must use an explicit material-preserving geometry LOD.
 	if depth_layer:
 		for child in depth_layer.get_children():

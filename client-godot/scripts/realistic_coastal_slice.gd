@@ -215,6 +215,7 @@ func _build_premium_landmarks() -> void:
 		var rock := ROCK_SCENE.instantiate()
 		rock.position = entry[0]
 		rock.scale = Vector3.ONE * entry[1]
+		_apply_landmark_lod(rock, 30000)
 		add_child(rock)
 		_ground_asset_on_terrain(rock, 0.3)
 		_configure_mobile_visibility(rock, 85.0)
@@ -225,6 +226,9 @@ func _build_premium_landmarks() -> void:
 		var tree := TREE_SCENE.instantiate()
 		tree.position = entry[0]
 		tree.scale = Vector3.ONE * entry[1]
+		# Keep a detailed near-field silhouette while bounding the imported
+		# 2.06M-triangle source before the Mobile renderer sees four copies.
+		_apply_far_foliage_lod(tree, 90000)
 		add_child(tree)
 		_ground_asset_on_terrain(tree)
 		_configure_mobile_visibility(tree, 60.0)
@@ -244,7 +248,7 @@ func _build_premium_landmarks() -> void:
 		var shoreline_tree := TREE_SCENE.instantiate()
 		shoreline_tree.position = entry[0]
 		shoreline_tree.scale = Vector3.ONE * entry[1]
-		_apply_far_foliage_lod(shoreline_tree)
+		_apply_far_foliage_lod(shoreline_tree, 36000)
 		grove.add_child(shoreline_tree)
 		_ground_asset_on_terrain(shoreline_tree)
 		_configure_mobile_visibility(shoreline_tree, 90.0, false)
@@ -255,6 +259,7 @@ func _build_premium_landmarks() -> void:
 		var shore_rock := ROCK_SCENE.instantiate()
 		shore_rock.position = entry[0]
 		shore_rock.scale = Vector3.ONE * entry[1]
+		_apply_landmark_lod(shore_rock, 30000)
 		grove.add_child(shore_rock)
 		_ground_asset_on_terrain(shore_rock, 0.18)
 		_configure_mobile_visibility(shore_rock, 90.0, false)
@@ -286,7 +291,14 @@ func _build_premium_landmarks() -> void:
 		imported.position = entry[0]
 		imported.scale = Vector3.ONE * entry[1]
 		if entry[2] == TROPICAL_TREE_SCENE or entry[2] == TROPICAL_TREE_ALT_SCENE:
-			_apply_far_foliage_lod(imported)
+			_apply_far_foliage_lod(imported, 48000)
+		elif entry[2] == COASTAL_CLIFF_SCENE:
+			# The CC0 cliff is a 461k-triangle hero mesh. Three copies in the
+			# background made the software Mobile capture spend its watchdog
+			# budget in the first raster fence. Preserve authored PBR and the
+			# silhouette with a deterministic indexed landmark LOD; the near
+			# terrain remains the high-detail playable surface.
+			_apply_landmark_lod(imported, 60000 if entry[0].x != 21.0 else 90000)
 		premium_layer.add_child(imported)
 		_ground_asset_on_terrain(imported, 0.08)
 		_configure_mobile_visibility(imported, 105.0, false)
@@ -345,7 +357,7 @@ func _reduce_surface_triangles(source: ArrayMesh, surface_index: int, max_triang
 	return arrays
 
 
-func _apply_far_foliage_lod(asset: Node3D) -> void:
+func _apply_far_foliage_lod(asset: Node3D, max_total_triangles: int = 72000) -> void:
 	# Imported tropical trees contain separate trunk, leaf and branch PBR
 	# surfaces. Keep all three, but reduce indexed triangles deterministically
 	# for distant instances. This is a real geometry LOD: foliage remains
@@ -359,8 +371,36 @@ func _apply_far_foliage_lod(asset: Node3D) -> void:
 		var source_mesh := source.mesh as ArrayMesh
 		var lod := ArrayMesh.new()
 		for surface_index in range(source_mesh.get_surface_count()):
-			var cap := 36000 if surface_index == 0 else (24000 if surface_index == 1 else 12000)
+			var cap := int(float(max_total_triangles) * (0.5 if surface_index == 0 else (0.333333 if surface_index == 1 else 0.166667)))
 			var reduced := _reduce_surface_triangles(source_mesh, surface_index, cap)
+			if reduced.is_empty():
+				continue
+			lod.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, reduced)
+			lod.surface_set_material(lod.get_surface_count() - 1,
+				source_mesh.surface_get_material(surface_index))
+		if lod.get_surface_count() > 0:
+			source.mesh = lod
+			source.lod_bias = 1.5
+
+func _apply_landmark_lod(asset: Node3D, max_triangles: int) -> void:
+	# Keep every imported surface and its authored PBR material. Sampling
+	# indexed triangles across the source preserves the full cliff silhouette
+	# better than dropping a surface, while bounding transform/raster work for
+	# distant copies on the Mobile renderer.
+	for node in asset.get_children():
+		if not node is MeshInstance3D:
+			continue
+		var source := node as MeshInstance3D
+		if source.mesh == null:
+			continue
+		var source_mesh := source.mesh as ArrayMesh
+		var surface_count := source_mesh.get_surface_count()
+		if surface_count == 0:
+			continue
+		var per_surface_cap := maxi(1, int(float(max_triangles) / float(surface_count)))
+		var lod := ArrayMesh.new()
+		for surface_index in range(surface_count):
+			var reduced := _reduce_surface_triangles(source_mesh, surface_index, per_surface_cap)
 			if reduced.is_empty():
 				continue
 			lod.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, reduced)
