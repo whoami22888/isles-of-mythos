@@ -271,6 +271,10 @@ func _build_premium_landmarks() -> void:
 		# the background rather than duplicating a 460k-triangle wall over the
 		# ship sightline. Its imported bounds are regression-tested below.
 		[Vector3(21.0, 0.0, 18.0), 0.24, COASTAL_CLIFF_SCENE],
+		# Smaller side anchors complete the cove silhouette without crossing
+		# the ship camera corridor or adding a new asset family.
+		[Vector3(-24.0, 0.0, 16.0), 0.18, COASTAL_CLIFF_SCENE],
+		[Vector3(25.0, 0.0, 14.0), 0.18, COASTAL_CLIFF_SCENE],
 		[Vector3(-11.5, 0.0, 10.0), 1.1, TROPICAL_TREE_SCENE],
 		[Vector3(11.0, 0.0, 12.0), 1.0, TROPICAL_TREE_ALT_SCENE],
 		[Vector3(-3.5, 0.0, 16.5), 0.85, TROPICAL_TREE_ALT_SCENE],

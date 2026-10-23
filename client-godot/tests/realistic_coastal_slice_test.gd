@@ -57,7 +57,7 @@ func run() -> void:
 	# The premium content layer must contain real varied tropical geometry; a
 	# shader-only or palette-only replacement cannot satisfy the coastal brief.
 	var premium_layer := scene.get_node_or_null("VerifiedTropicalContentLayer")
-	ok = ok and premium_layer != null and premium_layer.get_child_count() == 7
+	ok = ok and premium_layer != null and premium_layer.get_child_count() == 9
 	if premium_layer:
 		var premium_paths := []
 		for child in premium_layer.get_children():
@@ -75,7 +75,7 @@ func run() -> void:
 				# camera-spanning occluder or a second terrain wall.
 				ok = ok and cliff_bounds.size.x < 50.0 and cliff_bounds.size.z < 35.0
 				ok = ok and cliff_bounds.position.z > scene.ship_focal.position.z + 8.0
-		ok = ok and cliff_count == 1
+		ok = ok and cliff_count == 3
 		if premium_layer:
 			for child in premium_layer.get_children():
 				if child.scene_file_path.ends_with("island_tree_01_1k.gltf") or child.scene_file_path.ends_with("island_tree_02_1k.gltf"):
