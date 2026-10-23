@@ -57,12 +57,14 @@ evidence remains NOT VERIFIED.
 ## Current repair checkpoint — 2026-10-23
 
 - Live main: `74d4164023cc2af8ebd0bb045a332188309b05f5`.
-- PR #193 live head: `fd4457c9dad4bd13413a2db95c010972d3fd684e`, draft and
-  mergeable. Its latest Performance Acceptance run `39772233317` failed on
-  the separately owned PostgreSQL CVE/image gate; CI `39772233221`, CodeQL
-  `39772233296`, Codacy `39772233224`, Static Security `39772233203`, Godot
-  client `39772233202` and visual evidence `39772233196` passed for that exact
-  head. No merge is authorised.
+- PR #193's source-repair head before this rule update was
+  `fd4457c9dad4bd13413a2db95c010972d3fd684e`, draft and mergeable. The durable
+  rule update was pushed in `dbdcb4afd506c043f1ec42c49eaad5a3388603d9`, which
+  invalidated those earlier checks. Fresh verification for `dbdcb4a` has Static
+  Security run `39955348115` PASS; CI `39955348114`, CodeQL `39955348343`,
+  Codacy `39955348456`, Godot client `39955348144`, visual evidence
+  `39955348439` and Performance `39955348116` are pending at this observation.
+  No merge is authorised.
 - The latest PR #193 repair restored the boot default, constrained the
   non-premium scaffold to explicit developer launch, added action-specific
   response correlation, idempotent authoritative marker snapshots and
