@@ -39,6 +39,7 @@ jobs:
       - name: Comment with the generated summary
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
           SUMMARY: ${{ steps.summary.outputs.summary }}
-        run: gh issue comment "$ISSUE_NUMBER" --body "$SUMMARY"
+        run: gh issue comment "$ISSUE_NUMBER" --repo "$GH_REPO" --body "$SUMMARY"
