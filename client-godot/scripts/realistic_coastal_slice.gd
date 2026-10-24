@@ -349,14 +349,25 @@ func _apply_landmark_lod(asset: Node3D, _max_triangles: int) -> void:
 	_preserve_authored_mesh(asset)
 
 func _preserve_authored_mesh(asset: Node3D) -> void:
-	# Keep imported meshes and their importer-authored LODs intact. Rebuilding
-	# ArrayMesh surfaces loses importer LODs and risks attribute/material loss.
-	# Geometry budgets remain acceptance blockers until verified replacements
-	# are admitted; never silently trade connectivity for a smaller draw count.
-	for child in asset.get_children():
-		if child is MeshInstance3D and child.mesh:
-			child.lod_bias = 1.5
-		_preserve_authored_mesh(child)
+	var asset_name := asset.scene_file_path.get_file().trim_suffix("_1k.gltf")
+	if asset_name not in ["tree_small_02", "island_tree_01", "island_tree_02", "coast_rocks_05"]:
+		return
+	var packed := load("res://assets/external/generated/bounded_lods/" + asset_name + ".glb") as PackedScene
+	if packed == null:
+		push_error("Missing admitted bounded LOD: " + asset_name)
+		return
+	var authored := packed.instantiate()
+	var originals := asset.find_children("*", "MeshInstance3D", true, false)
+	var replacements := authored.find_children("*", "MeshInstance3D", true, false)
+	if originals.size() != 1 or replacements.size() != 1:
+		push_error("Unexpected bounded LOD mesh hierarchy: " + asset_name)
+		authored.free()
+		return
+	# Keep the original scene transform/identity and copy the complete authored
+	# mesh, including material regions, UVs, normals and tangent arrays.
+	originals[0].mesh = replacements[0].mesh
+	originals[0].lod_bias = 1.5
+	authored.free()
 
 func visual_bounds_world(asset: Node3D) -> AABB:
 	var lowest := Vector3(INF, INF, INF)
