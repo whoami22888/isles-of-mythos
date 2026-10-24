@@ -1,0 +1,126 @@
+name: Automated review and repair controller
+
+on:
+  pull_request_review:
+    types: [submitted, edited, dismissed]
+  pull_request_review_comment:
+    types: [created, edited, deleted]
+  workflow_run:
+    workflows: [CI, "Static Security Quality", "Performance Acceptance", "CodeQL Advanced", "Codacy Security Scan", "Godot visual evidence", "IOM-00 Godot client", "IOM-07 mobile frame evidence"]
+    types: [completed]
+
+permissions:
+  contents: read
+  pull-requests: read
+  checks: read
+  actions: read
+
+concurrency:
+  group: automated-review-${{ github.event.pull_request.number || github.event.workflow_run.pull_requests[0].number || github.ref }}-${{ github.event.review.id || github.event.comment.id || github.event.workflow_run.id || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  classify:
+    name: Classify and deduplicate event
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 24
+      - name: Classify actual event, fail closed for irrelevant or incomplete payloads
+        id: event
+        env:
+          EVENT_PATH: ${{ github.event_path }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import { readFileSync, appendFileSync } from 'node:fs';
+          import { shouldProcess } from './scripts/review-controller.mjs';
+          const event = JSON.parse(readFileSync(process.env.EVENT_PATH, 'utf8'));
+          const decision = shouldProcess({ ...event, eventName: process.env.EVENT_NAME });
+          appendFileSync(process.env.GITHUB_OUTPUT,
+            `key=${decision.key}\nrelevant=${decision.process ? 'true' : 'false'}\nreason=${decision.reason ?? 'relevant'}\n`);
+          console.log(`Controller event: ${decision.process ? 'relevant' : 'ignored'} (${decision.reason ?? decision.kind})`);
+          NODE
+      - name: Validate controller contracts
+        run: npm run test:review-controller
+      - name: Record read-only decision for relevant event
+        if: steps.event.outputs.relevant == 'true'
+        env:
+          EVENT_KEY: ${{ steps.event.outputs.key }}
+        run: |
+          test "${#EVENT_KEY}" -eq 64
+          echo "Relevant event classified. No repair or merge performed."
+      - name: Report safely ignored event
+        if: steps.event.outputs.relevant != 'true'
+        run: echo "Irrelevant or incomplete event ignored; no repair or merge."
+
+  dispatch-repair:
+    name: Dispatch guarded repair for trusted approval or CI failure
+    needs: classify
+    # Credentialed repair has no tested isolation broker yet; no dispatch attempts.
+    if: >-
+      false &&
+      needs.classify.result == 'success' &&
+      ((github.event_name == 'pull_request_review' && github.event.action == 'submitted' && github.event.review.state == 'approved') ||
+       (github.event_name == 'workflow_run' && github.event.action == 'completed' && github.event.workflow_run.conclusion == 'failure'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: write
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Validate trusted same-repository dispatch request
+        id: request
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_PATH: ${{ github.event_path }}
+          REPOSITORY: ${{ github.repository }}
+          OWNER: ${{ github.repository_owner }}
+          ACTOR: ${{ github.actor }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import { readFileSync, appendFileSync } from 'node:fs';
+          const event = JSON.parse(readFileSync(process.env.EVENT_PATH, 'utf8'));
+          const actor = event.review?.user?.login ?? event.sender?.login ?? process.env.ACTOR;
+          const allowedFailedWorkflows = new Set(['CI', 'Static Security Quality', 'Performance Acceptance', 'CodeQL Advanced', 'Codacy Security Scan', 'Godot visual evidence', 'IOM-00 Godot client', 'IOM-07 mobile frame evidence']);
+          if (process.env.EVENT_NAME === 'pull_request_review' && (actor.endsWith('[bot]') || actor === 'github-actions')) throw new Error('Bot-authored review events cannot dispatch repair');
+          if (process.env.EVENT_NAME === 'pull_request_review') {
+            const pr = event.pull_request;
+            if (event.review?.state !== 'approved' || pr?.head?.repo?.full_name !== process.env.REPOSITORY) throw new Error('Repair requires trusted approval on a same-repository PR');
+            if (actor.toLowerCase() !== process.env.OWNER.toLowerCase()) throw new Error('Review actor is not the trusted repository owner');
+            appendFileSync(process.env.GITHUB_OUTPUT, `pr=${pr.number}\nsha=${pr.head.sha}\n`);
+          } else {
+            const run = event.workflow_run;
+            const pr = run?.pull_requests?.[0];
+            if (run?.conclusion !== 'failure' || !pr?.number || !run.head_sha) throw new Error('Repair requires a failed pull-request workflow with an exact head');
+            if (!allowedFailedWorkflows.has(run.name)) throw new Error('Workflow is not an approved repair trigger');
+            const details = JSON.parse(await (await fetch(`https://api.github.com/repos/${process.env.REPOSITORY}/pulls/${pr.number}`, { headers: { authorization: `Bearer ${process.env.GH_TOKEN}`, accept: 'application/vnd.github+json' } })).text());
+            if (details.head?.repo?.full_name !== process.env.REPOSITORY || details.head?.sha !== run.head_sha) throw new Error('PR head changed or is not same-repository; refusing repair');
+            if (details.user?.login?.toLowerCase() !== process.env.OWNER.toLowerCase()) throw new Error('Only repository-owner PRs can trigger credentialed repair');
+            const headCommit = await fetch(`https://api.github.com/repos/${process.env.REPOSITORY}/commits/${run.head_sha}`, { headers: { authorization: `Bearer ${process.env.GH_TOKEN}`, accept: 'application/vnd.github+json' } });
+            if (!headCommit.ok) throw new Error('Unable to validate repair commit provenance');
+            const commit = await headCommit.json();
+            if (commit.commit?.message?.startsWith('fix: apply bounded Codex repair')) throw new Error('Repair-generated commits cannot recursively trigger repair');
+            appendFileSync(process.env.GITHUB_OUTPUT, `pr=${pr.number}\nsha=${run.head_sha}\n`);
+          }
+          NODE
+
+      - name: Dispatch exact-SHA repair workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ steps.request.outputs.pr }}
+          EXPECTED_SHA: ${{ steps.request.outputs.sha }}
+        run: |
+          set -euo pipefail
+          gh workflow run automated-repair-dispatch.yml --repo "$REPOSITORY" --ref main -f repair=true -f pr_number="$PR_NUMBER" -f expected_sha="$EXPECTED_SHA"

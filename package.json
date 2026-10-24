@@ -21,7 +21,8 @@
     "migrate:down": "npm run migrate:down -w server",
     "lint:eslint": "eslint client/src server/src --max-warnings=0",
     "lint:ts": "npm run typecheck",
-    "test:orchestration": "node --test scripts/orchestration-control.test.mjs"
+    "test:orchestration": "node --test scripts/orchestration-control.test.mjs",
+    "test:review-controller": "node --test scripts/review-controller.test.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
