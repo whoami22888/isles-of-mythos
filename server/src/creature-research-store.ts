@@ -87,7 +87,7 @@ export class CreatureResearchStore {
       for (const entry of progress.rows) skills[entry.skill_id]={unlocked:true,experience:validStoredXp(entry.experience)};
       if (skills[skillId]?.unlocked) throw new Error("SKILL_ALREADY_UNLOCKED");
       const buildings = await client.query<BuildingProgress>(
-        "SELECT b.type,b.level,b.active FROM base_buildings b JOIN player_bases p ON p.id=b.base_id WHERE p.owner_user_id=$1 FOR SHARE OF b",[userId],
+        "SELECT b.type,b.level,b.active FROM base_buildings b JOIN player_bases p ON p.id=b.base_id WHERE p.owner_user_id=$1",[userId],
       );
       const denial = canResearchSkill(skillId,skills,buildings.rows);
       if (denial) throw new Error(denial);
