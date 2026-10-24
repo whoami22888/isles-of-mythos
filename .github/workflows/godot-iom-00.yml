@@ -75,12 +75,7 @@ jobs:
           unzip -t "$apk" > /dev/null
           entries="$(unzip -Z1 "$apk")"
           printf '%s\n' "$entries" | grep -Fxq 'AndroidManifest.xml'
-          printf '%s\n' "$entries" | grep -Eq '^lib/arm64-v8a/[^/]+\.so
-        with:
-          name: iom-00-android-debug
-          path: ${{ runner.temp }}/iom-artifacts
-          if-no-files-found: error
-
+          printf '%s\n' "$entries" | grep -Eq '^lib/arm64-v8a/[^/]+\.so$'
           if printf '%s\n' "$entries" | grep -Eq '^lib/(armeabi-v7a|x86|x86_64)/'; then
             echo "::error::APK contains non-ARM64 native libraries"
             exit 1
