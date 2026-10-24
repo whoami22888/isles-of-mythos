@@ -209,10 +209,7 @@ export class PlayerStore {
   async loadOrCreate(userId: string): Promise<PlayerState> {
     const existing = this.active.get(userId);
     if (existing) return existing;
-    await this.db.query(
-      "INSERT INTO player_profiles (user_id, inventory, hotbar, selected_hotbar_slot) VALUES ($1, '{\"ammo.flintlock\":30,\"capture.orb\":3,\"creature.feed\":4}'::jsonb, '[\"cutlass\",\"flintlock\",null,null,null,null,null,null]'::jsonb, 0) ON CONFLICT (user_id) DO NOTHING",
-      [userId],
-    );
+    await this.ensureProfile(userId);
     const result = await this.db.query<PlayerRow>(
       "SELECT user_id, x, y, health, defense, stamina, max_stamina, hunger, oxygen, xp, level, gold, triumph_badges, inventory, hotbar, selected_hotbar_slot FROM player_profiles WHERE user_id = $1",
       [userId],
@@ -226,6 +223,12 @@ export class PlayerStore {
     this.movementAuthority.prime(userId);
     this.dirty.delete(userId);
     return state;
+  }
+  async ensureProfile(userId: string): Promise<void> {
+    await this.db.query(
+      "INSERT INTO player_profiles (user_id, inventory, hotbar, selected_hotbar_slot) VALUES ($1, '{\"ammo.flintlock\":30,\"capture.orb\":3,\"creature.feed\":4}'::jsonb, '[\"cutlass\",\"flintlock\",null,null,null,null,null,null]'::jsonb, 0) ON CONFLICT (user_id) DO NOTHING",
+      [userId],
+    );
   }
   get(userId: string): PlayerState | undefined { return this.active.get(userId); }
   markDirty(userId: string): void {

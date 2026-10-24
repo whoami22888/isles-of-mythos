@@ -112,6 +112,61 @@
       "upstream_md5": "fe1a6ef27aba14602724b26e549a2a5c"
     },
     {
+      "id": "polyhaven-coastal_cliff_01-6833dfaf75e0",
+      "path": "polyhaven/coastal_cliff_01/coastal_cliff_01.bin",
+      "sha256": "6833dfaf75e0d039e64bc09ad642c4be3361739f20048af32ad50fd8e6471a65",
+      "source_url": "https://polyhaven.com/a/coastal_cliff_01",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/8k/coastal_cliff_01/coastal_cliff_01.bin",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "upstream_md5": "d9f1e368b18c018e158d06ab9d924646"
+    },
+    {
+      "id": "polyhaven-coastal_cliff_01-2e6bb1f77965",
+      "path": "polyhaven/coastal_cliff_01/coastal_cliff_01_1k.gltf",
+      "sha256": "2e6bb1f77965b314208b309ac89b94b8148c6a08ee6c9808cd71455e5475602d",
+      "source_url": "https://polyhaven.com/a/coastal_cliff_01",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/coastal_cliff_01/coastal_cliff_01_1k.gltf",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "upstream_md5": "da3cb728c6ce195ecc0261d976251c40"
+    },
+    {
+      "id": "polyhaven-coastal_cliff_01-7f287d0b44a3",
+      "path": "polyhaven/coastal_cliff_01/textures/coastal_cliff_01_arm_1k.jpg",
+      "sha256": "7f287d0b44a3162b5e360fe45ccc8b6009c189d21bd33c1094060eef613c6fa6",
+      "source_url": "https://polyhaven.com/a/coastal_cliff_01",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/coastal_cliff_01/coastal_cliff_01_arm_1k.jpg",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "upstream_md5": "ebd8e7dd1877230886bde89da565828e"
+    },
+    {
+      "id": "polyhaven-coastal_cliff_01-6c9626fdb555",
+      "path": "polyhaven/coastal_cliff_01/textures/coastal_cliff_01_diff_1k.jpg",
+      "sha256": "6c9626fdb5550ba260b195638c8c89053faedc22005f4ca94d3be5df72ae525a",
+      "source_url": "https://polyhaven.com/a/coastal_cliff_01",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/coastal_cliff_01/coastal_cliff_01_diff_1k.jpg",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "upstream_md5": "a43df03bd9b94f0594551a42b7a24f1b"
+    },
+    {
+      "id": "polyhaven-coastal_cliff_01-afbe8c2f9ff6",
+      "path": "polyhaven/coastal_cliff_01/textures/coastal_cliff_01_nor_gl_1k.jpg",
+      "sha256": "afbe8c2f9ff62dd616f776c074b996d2d275eef982a40aee1f28f4f3b3a3cf0e",
+      "source_url": "https://polyhaven.com/a/coastal_cliff_01",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/coastal_cliff_01/coastal_cliff_01_nor_gl_1k.jpg",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "upstream_md5": "9257a41db772c4680a8b3cb87d0eaf04"
+    },
+    {
       "id": "polyhaven-polyhaven-a8933c7681e8",
       "path": "polyhaven/dutch_ship_medium/dutch_ship_medium.bin",
       "sha256": "7ff5d886d3baea1f60afdc17c50b99029d7abca159db10212c89c95e39c5437e",
@@ -135,7 +190,10 @@
         "polyhaven/dutch_ship_medium/textures/dutch_ship_medium_sails_diff_1k.jpg",
         "polyhaven/dutch_ship_medium/textures/dutch_ship_medium_sails_alpha_1k.png"
       ],
-      "generation_note": "locally patched glTF to reference admitted alpha-composited PNG; upstream glTF bytes differ"
+      "generation_note": "locally patched glTF to reference admitted alpha-composited PNG; upstream glTF bytes differ; deterministic JSON reference patch from upstream source SHA-256 208112252d4f83a9c404563371053820a90963a53b465fd6c745b16868f4bade",
+      "upstream_source_sha256": "208112252d4f83a9c404563371053820a90963a53b465fd6c745b16868f4bade",
+      "upstream_source_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/dutch_ship_medium/dutch_ship_medium_1k.gltf",
+      "upstream_md5": "ade58c8bbbc75ebcafd5f7f9bbd5cfea"
     },
     {
       "id": "polyhaven-polyhaven-f4cd2f980fcb",
@@ -260,7 +318,305 @@
         "polyhaven/dutch_ship_medium/textures/dutch_ship_medium_sails_diff_1k.jpg",
         "polyhaven/dutch_ship_medium/textures/dutch_ship_medium_sails_alpha_1k.png"
       ],
-      "generation_note": "RGB diffuse combined with separately licensed upstream alpha mask; output SHA-256 pinned"
+      "generation_note": "RGB diffuse combined with separately licensed upstream alpha mask; output SHA-256 pinned",
+      "upstream_md5": "bc208c775eb005386d089ad5dc1eec00"
+    },
+    {
+      "id": "polyhaven-island_tree_01-1faa817b46e2",
+      "path": "polyhaven/island_tree_01/island_tree_01.bin",
+      "sha256": "1faa817b46e24ed6fc90d3ec72188a0dc5ac75e82c89b3dd3c5fdaecf7cc005c",
+      "source_url": "https://polyhaven.com/a/island_tree_01",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/8k/island_tree_01/island_tree_01.bin",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "upstream_md5": "8271f2d12c2727bd647ce0c242acdcec"
+    },
+    {
+      "id": "polyhaven-island_tree_01-78e905a40670",
+      "path": "polyhaven/island_tree_01/island_tree_01_1k.gltf",
+      "sha256": "78e905a40670bfabb2760601d4d9a6c17193a50d68e6271c66893eb7bd75906d",
+      "source_url": "https://polyhaven.com/a/island_tree_01",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/island_tree_01/island_tree_01_1k.gltf",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "upstream_md5": "fbc0c570ebd71ea88cedc1f9d5edb835"
+    },
+    {
+      "id": "polyhaven-island_tree_01-bf972dff0fbc",
+      "path": "polyhaven/island_tree_01/textures/island_tree_01_arm_1k.jpg",
+      "sha256": "bf972dff0fbc71f146b4c02103fc3596477a49a9eff46b87b13c89b7b90d18ca",
+      "source_url": "https://polyhaven.com/a/island_tree_01",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/island_tree_01/island_tree_01_arm_1k.jpg",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "upstream_md5": "8077da7d1a001867c0da0cde6bc807f2"
+    },
+    {
+      "id": "polyhaven-island_tree_01-9e3f82263247",
+      "path": "polyhaven/island_tree_01/textures/island_tree_01_branches_arm_1k.jpg",
+      "sha256": "9e3f82263247ce4f619692cea4c4f6fe9936ff465a86623481849062642c7d05",
+      "source_url": "https://polyhaven.com/a/island_tree_01",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/island_tree_01/island_tree_01_branches_arm_1k.jpg",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "upstream_md5": "5b6f5b3838f4a8f60fea14fa3a3fef9f"
+    },
+    {
+      "id": "polyhaven-island_tree_01-bee5ec22196e",
+      "path": "polyhaven/island_tree_01/textures/island_tree_01_branches_diff_1k.jpg",
+      "sha256": "bee5ec22196e9e31ad0c95a5a9b4636571cc0124d5bb27a92f1e307d289cc60d",
+      "source_url": "https://polyhaven.com/a/island_tree_01",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/island_tree_01/island_tree_01_branches_diff_1k.jpg",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "upstream_md5": "7792907fe2b2b748c129a2384192a579"
+    },
+    {
+      "id": "polyhaven-island_tree_01-2d67393ba76a",
+      "path": "polyhaven/island_tree_01/textures/island_tree_01_branches_nor_gl_1k.jpg",
+      "sha256": "2d67393ba76a0f49cf965fa0c99d8c16268e71e87b1203d35539bfdb971a514e",
+      "source_url": "https://polyhaven.com/a/island_tree_01",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/island_tree_01/island_tree_01_branches_nor_gl_1k.jpg",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "upstream_md5": "789084affb01f4a22290a848558f5e12"
+    },
+    {
+      "id": "polyhaven-island_tree_01-51bff9a3a6ed",
+      "path": "polyhaven/island_tree_01/textures/island_tree_01_diff_1k.jpg",
+      "sha256": "51bff9a3a6ed7d89ff4c73f01708b7267ed8d7a82b0cb12343741894f708218f",
+      "source_url": "https://polyhaven.com/a/island_tree_01",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/island_tree_01/island_tree_01_diff_1k.jpg",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "upstream_md5": "8a67489846657df6b859d97e0b80fcf4"
+    },
+    {
+      "id": "polyhaven-island_tree_01-90da3a072dbc",
+      "path": "polyhaven/island_tree_01/textures/island_tree_01_leaves_arm_1k.jpg",
+      "sha256": "90da3a072dbcb052715b1313b9dbc69a4aa8a09a31a4b3868411a2bb51d72037",
+      "source_url": "https://polyhaven.com/a/island_tree_01",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/island_tree_01/island_tree_01_leaves_arm_1k.jpg",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "upstream_md5": "27b06c4a53ff115ed7d51ee94e417257"
+    },
+    {
+      "id": "polyhaven-island_tree_01-f56d762a1507",
+      "path": "polyhaven/island_tree_01/textures/island_tree_01_leaves_diff_1k.jpg",
+      "sha256": "f56d762a1507754752abf164cc12acbc1e87ce87fa609ac44b98a1b0037c89d8",
+      "source_url": "https://polyhaven.com/a/island_tree_01",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/island_tree_01/island_tree_01_leaves_diff_1k.jpg",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "upstream_md5": "1356cbb5a5dd1318f9f2a01eddbf03e1"
+    },
+    {
+      "id": "polyhaven-island_tree_01-07ba461c0c95",
+      "path": "polyhaven/island_tree_01/textures/island_tree_01_leaves_nor_gl_1k.jpg",
+      "sha256": "07ba461c0c95da4e49a42981766bdb6191d4c3c4d815796c082266dcc3cecdb8",
+      "source_url": "https://polyhaven.com/a/island_tree_01",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/island_tree_01/island_tree_01_leaves_nor_gl_1k.jpg",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "upstream_md5": "a08ffb98b5ffb7dfa682e05a1639c642"
+    },
+    {
+      "id": "polyhaven-island_tree_01-ca22e428e1b1",
+      "path": "polyhaven/island_tree_01/textures/island_tree_01_nor_gl_1k.jpg",
+      "sha256": "ca22e428e1b1ebac47b2fc67ec355700c8779d6628d2fc6c3ebae9002988f63e",
+      "source_url": "https://polyhaven.com/a/island_tree_01",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/island_tree_01/island_tree_01_nor_gl_1k.jpg",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "upstream_md5": "3871f67863453a16b866950202fa2b7f"
+    },
+    {
+      "id": "polyhaven-island_tree_02-427d69ccc1ea",
+      "path": "polyhaven/island_tree_02/island_tree_02.bin",
+      "sha256": "427d69ccc1ea12d1fb9c6af89691563b4a097f39a6f34c15be6e45ef5e5fd4ce",
+      "source_url": "https://polyhaven.com/a/island_tree_02",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/8k/island_tree_02/island_tree_02.bin",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "upstream_md5": "7fa9d6ee752b670cabb65053a5c6395b"
+    },
+    {
+      "id": "polyhaven-island_tree_02-d8c5d9ead41c",
+      "path": "polyhaven/island_tree_02/island_tree_02_1k.gltf",
+      "sha256": "d8c5d9ead41cdbef91a648f40ff60470faa19eb3a7010e59e44cb1a01250f75d",
+      "source_url": "https://polyhaven.com/a/island_tree_02",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/island_tree_02/island_tree_02_1k.gltf",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "upstream_md5": "825057164e987894cbfc6c462977fa71"
+    },
+    {
+      "id": "polyhaven-island_tree_02-ada61dd4fad0",
+      "path": "polyhaven/island_tree_02/textures/island_tree_02_arm_1k.jpg",
+      "sha256": "ada61dd4fad023e699b6314b8b76590017b301719bf74ffc9e20b95893ed62b6",
+      "source_url": "https://polyhaven.com/a/island_tree_02",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/island_tree_02/island_tree_02_arm_1k.jpg",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "upstream_md5": "e487f91bcb37a2a1109ef6234f1db27e"
+    },
+    {
+      "id": "polyhaven-island_tree_02-9e3f82263247",
+      "path": "polyhaven/island_tree_02/textures/island_tree_02_branches_arm_1k.jpg",
+      "sha256": "9e3f82263247ce4f619692cea4c4f6fe9936ff465a86623481849062642c7d05",
+      "source_url": "https://polyhaven.com/a/island_tree_02",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/island_tree_02/island_tree_02_branches_arm_1k.jpg",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "upstream_md5": "5b6f5b3838f4a8f60fea14fa3a3fef9f"
+    },
+    {
+      "id": "polyhaven-island_tree_02-bee5ec22196e",
+      "path": "polyhaven/island_tree_02/textures/island_tree_02_branches_diff_1k.jpg",
+      "sha256": "bee5ec22196e9e31ad0c95a5a9b4636571cc0124d5bb27a92f1e307d289cc60d",
+      "source_url": "https://polyhaven.com/a/island_tree_02",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/island_tree_02/island_tree_02_branches_diff_1k.jpg",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "upstream_md5": "7792907fe2b2b748c129a2384192a579"
+    },
+    {
+      "id": "polyhaven-island_tree_02-2d67393ba76a",
+      "path": "polyhaven/island_tree_02/textures/island_tree_02_branches_nor_gl_1k.jpg",
+      "sha256": "2d67393ba76a0f49cf965fa0c99d8c16268e71e87b1203d35539bfdb971a514e",
+      "source_url": "https://polyhaven.com/a/island_tree_02",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/island_tree_02/island_tree_02_branches_nor_gl_1k.jpg",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "upstream_md5": "789084affb01f4a22290a848558f5e12"
+    },
+    {
+      "id": "polyhaven-island_tree_02-8fc20397ab5d",
+      "path": "polyhaven/island_tree_02/textures/island_tree_02_diff_1k.jpg",
+      "sha256": "8fc20397ab5d514c119d7a025868414d78e436138d3867a4b7ba12334a72ec3a",
+      "source_url": "https://polyhaven.com/a/island_tree_02",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/island_tree_02/island_tree_02_diff_1k.jpg",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "upstream_md5": "b7435527d9628527ce47d89fc1468e9a"
+    },
+    {
+      "id": "polyhaven-island_tree_02-90da3a072dbc",
+      "path": "polyhaven/island_tree_02/textures/island_tree_02_leaves_arm_1k.jpg",
+      "sha256": "90da3a072dbcb052715b1313b9dbc69a4aa8a09a31a4b3868411a2bb51d72037",
+      "source_url": "https://polyhaven.com/a/island_tree_02",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/island_tree_02/island_tree_02_leaves_arm_1k.jpg",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "upstream_md5": "27b06c4a53ff115ed7d51ee94e417257"
+    },
+    {
+      "id": "polyhaven-island_tree_02-f56d762a1507",
+      "path": "polyhaven/island_tree_02/textures/island_tree_02_leaves_diff_1k.jpg",
+      "sha256": "f56d762a1507754752abf164cc12acbc1e87ce87fa609ac44b98a1b0037c89d8",
+      "source_url": "https://polyhaven.com/a/island_tree_02",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/island_tree_02/island_tree_02_leaves_diff_1k.jpg",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "upstream_md5": "1356cbb5a5dd1318f9f2a01eddbf03e1"
+    },
+    {
+      "id": "polyhaven-island_tree_02-07ba461c0c95",
+      "path": "polyhaven/island_tree_02/textures/island_tree_02_leaves_nor_gl_1k.jpg",
+      "sha256": "07ba461c0c95da4e49a42981766bdb6191d4c3c4d815796c082266dcc3cecdb8",
+      "source_url": "https://polyhaven.com/a/island_tree_02",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/island_tree_02/island_tree_02_leaves_nor_gl_1k.jpg",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "upstream_md5": "a08ffb98b5ffb7dfa682e05a1639c642"
+    },
+    {
+      "id": "polyhaven-island_tree_02-1580d5a42d02",
+      "path": "polyhaven/island_tree_02/textures/island_tree_02_nor_gl_1k.jpg",
+      "sha256": "1580d5a42d02f4ede51bfb03972ab0aef3d8acafbd3692276879171007bb70ec",
+      "source_url": "https://polyhaven.com/a/island_tree_02",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/island_tree_02/island_tree_02_nor_gl_1k.jpg",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "upstream_md5": "d8b8bc86de9934a743fc9b0a5470e695"
+    },
+    {
+      "id": "polyhaven-rock_moss_set_01-de8360e61758",
+      "path": "polyhaven/rock_moss_set_01/rock_moss_set_01.bin",
+      "sha256": "de8360e6175879aaf02c171911069cf5f1852547f9ca7f10e440085dbcc3315e",
+      "source_url": "https://polyhaven.com/a/rock_moss_set_01",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/8k/rock_moss_set_01/rock_moss_set_01.bin",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "upstream_md5": "207a51c9f56d34732e9814bbf9cc07b1"
+    },
+    {
+      "id": "polyhaven-rock_moss_set_01-c36675aca9c6",
+      "path": "polyhaven/rock_moss_set_01/rock_moss_set_01_1k.gltf",
+      "sha256": "c36675aca9c6b2be7785c2534cf413b03ec82a5a2a5407a2b1c0cdb0346c9727",
+      "source_url": "https://polyhaven.com/a/rock_moss_set_01",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/rock_moss_set_01/rock_moss_set_01_1k.gltf",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "upstream_md5": "75113cc1c21806cca5d8badad4737af7"
+    },
+    {
+      "id": "polyhaven-rock_moss_set_01-40cea65d8aa4",
+      "path": "polyhaven/rock_moss_set_01/textures/rock_moss_set_01_diff_1k.jpg",
+      "sha256": "40cea65d8aa4ee73a93b04af19963834d061eee9779c3fc2c1cba76eef812ccc",
+      "source_url": "https://polyhaven.com/a/rock_moss_set_01",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/rock_moss_set_01/rock_moss_set_01_diff_1k.jpg",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "upstream_md5": "b8742301e6b4bc5683d2de712e83f772"
+    },
+    {
+      "id": "polyhaven-rock_moss_set_01-eb4aad3f207f",
+      "path": "polyhaven/rock_moss_set_01/textures/rock_moss_set_01_nor_gl_1k.jpg",
+      "sha256": "eb4aad3f207f1dc5b624d74ae240372171626a66912bd71adf7bd3e518181d6e",
+      "source_url": "https://polyhaven.com/a/rock_moss_set_01",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/rock_moss_set_01/rock_moss_set_01_nor_gl_1k.jpg",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "upstream_md5": "eb7ebd31ad08e78d0497900652ff1568"
+    },
+    {
+      "id": "polyhaven-rock_moss_set_01-4d6ec46623ab",
+      "path": "polyhaven/rock_moss_set_01/textures/rock_moss_set_01_rough_1k.jpg",
+      "sha256": "4d6ec46623abd8e2cdb855f59c7ce31873ad61b36b60e4de579e9e776a497c6b",
+      "source_url": "https://polyhaven.com/a/rock_moss_set_01",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/rock_moss_set_01/rock_moss_set_01_rough_1k.jpg",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "upstream_md5": "ed9d8a2c863262f76f881346e8047c6a"
     },
     {
       "id": "polyhaven-polyhaven-3d8fd0b9544d",
@@ -374,7 +730,8 @@
         "polyhaven/tree_small_02/textures/tree_small_02_leaves_diff_1k.jpg",
         "polyhaven/tree_small_02/textures/tree_small_02_leaves_alpha_1k.png"
       ],
-      "generation_note": "RGB diffuse combined with separately licensed upstream alpha mask; output SHA-256 pinned"
+      "generation_note": "RGB diffuse combined with separately licensed upstream alpha mask; output SHA-256 pinned",
+      "upstream_md5": "315cbc2cebfb399e649ccd39112c109a"
     },
     {
       "id": "polyhaven-polyhaven-24524d5c108d",
@@ -411,7 +768,553 @@
         "polyhaven/tree_small_02/textures/tree_small_02_leaves_diff_1k.jpg",
         "polyhaven/tree_small_02/textures/tree_small_02_leaves_alpha_1k.png"
       ],
-      "generation_note": "locally patched glTF to reference admitted alpha-composited PNG; upstream glTF bytes differ"
+      "generation_note": "locally patched glTF to reference admitted alpha-composited PNG; upstream glTF bytes differ; deterministic JSON reference patch from upstream source SHA-256 3062a709614c05b80fdc1e56583998bc3cb1027b0d52f956c8ecfb882ff8ca6d",
+      "upstream_source_sha256": "3062a709614c05b80fdc1e56583998bc3cb1027b0d52f956c8ecfb882ff8ca6d",
+      "upstream_source_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/tree_small_02/tree_small_02_1k.gltf",
+      "upstream_md5": "63f42b19687332f7b3a5c8b531734d8e"
+    },
+    {
+      "id": "generated-coastal-cliff-d559ae34871e",
+      "path": "generated/coastal_cliff_blender/coastal_cliff_lod1.glb",
+      "sha256": "d559ae34871e846471c269f53bbc2ecaf9ceda1265eb9b79d2345da0a11ff55d",
+      "source_url": "https://polyhaven.com/a/coastal_cliff_01",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/coastal_cliff_01/coastal_cliff_01_1k.gltf",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven; deterministic Blender derivative",
+      "generated_from": [
+        "polyhaven/coastal_cliff_01/coastal_cliff_01_1k.gltf"
+      ],
+      "generation_note": "Authored in Blender 4.3.2 headless with deterministic decimation and embedded admitted PBR maps; not a source download.",
+      "upstream_source_sha256": "2e6bb1f77965b314208b309ac89b94b8148c6a08ee6c9808cd71455e5475602d",
+      "authoring_tool": "Blender 4.3.2",
+      "godot_validation": "PENDING_GODOT_4.7.2_MOBILE"
+    },
+    {
+      "id": "generated-coastal-cliff-b18b43fe4e03",
+      "path": "generated/coastal_cliff_blender/coastal_cliff_lod2.glb",
+      "sha256": "b18b43fe4e03429de91f93355fdcd9e16cb14f3deffe0b9b91a47f18d8efce53",
+      "source_url": "https://polyhaven.com/a/coastal_cliff_01",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/coastal_cliff_01/coastal_cliff_01_1k.gltf",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven; deterministic Blender derivative",
+      "generated_from": [
+        "polyhaven/coastal_cliff_01/coastal_cliff_01_1k.gltf"
+      ],
+      "generation_note": "Authored in Blender 4.3.2 headless with deterministic decimation and embedded admitted PBR maps; not a source download.",
+      "upstream_source_sha256": "2e6bb1f77965b314208b309ac89b94b8148c6a08ee6c9808cd71455e5475602d",
+      "authoring_tool": "Blender 4.3.2",
+      "godot_validation": "PENDING_GODOT_4.7.2_MOBILE"
+    },
+    {
+      "id": "generated-coastal-cliff-4df1344af6fd",
+      "path": "generated/coastal_cliff_blender/BLENDER_BUILD_METADATA.json",
+      "sha256": "11f68cf921293f107ffc6819ba9d40f87a627fd3bbd02dc9136dff486b03be94",
+      "source_url": "https://polyhaven.com/a/coastal_cliff_01",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/coastal_cliff_01/coastal_cliff_01_1k.gltf",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven; deterministic Blender derivative",
+      "generated_from": [
+        "polyhaven/coastal_cliff_01/coastal_cliff_01_1k.gltf"
+      ],
+      "generation_note": "Authored in Blender 4.3.2 headless with deterministic decimation and embedded admitted PBR maps; not a source download.",
+      "upstream_source_sha256": "2e6bb1f77965b314208b309ac89b94b8148c6a08ee6c9808cd71455e5475602d",
+      "authoring_tool": "Blender 4.3.2",
+      "godot_validation": "PENDING_GODOT_4.7.2_MOBILE"
+    },
+    {
+      "id": "blender-bounded-tree_small_02",
+      "path": "generated/bounded_lods/tree_small_02.glb",
+      "sha256": "e0838d388508ecf57c4111a1dbb63c22c2ef1c82a27275f318f7b172d74b3556",
+      "source_url": "https://polyhaven.com/a/tree_small_02",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/tree_small_02/tree_small_02_1k.gltf",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "generated_from": [
+        "polyhaven/tree_small_02/tree_small_02_1k.gltf"
+      ],
+      "generation_note": "Blender 4.3.2 COLLAPSE decimation; selected mesh only; original PBR regions, UVs, normals and exported tangents; recipe scripts/blender/author_bounded_lods.py",
+      "upstream_source_sha256": "3062a709614c05b80fdc1e56583998bc3cb1027b0d52f956c8ecfb882ff8ca6d",
+      "upstream_source_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/tree_small_02/tree_small_02_1k.gltf"
+    },
+    {
+      "id": "blender-bounded-island_tree_01",
+      "path": "generated/bounded_lods/island_tree_01.glb",
+      "sha256": "c62acae053b51d3574677f96e48071b1a7c59119b9f017b3e3e40ccacda95a52",
+      "source_url": "https://polyhaven.com/a/island_tree_01",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/island_tree_01/island_tree_01_1k.gltf",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "generated_from": [
+        "polyhaven/island_tree_01/island_tree_01_1k.gltf"
+      ],
+      "generation_note": "Blender 4.3.2 COLLAPSE decimation; selected mesh only; original PBR regions, UVs, normals and exported tangents; recipe scripts/blender/author_bounded_lods.py"
+    },
+    {
+      "id": "blender-bounded-island_tree_02",
+      "path": "generated/bounded_lods/island_tree_02.glb",
+      "sha256": "0bdef2b056848ed38733edac22402c3d5b7fa886817690d33fece207415e6346",
+      "source_url": "https://polyhaven.com/a/island_tree_02",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/island_tree_02/island_tree_02_1k.gltf",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "generated_from": [
+        "polyhaven/island_tree_02/island_tree_02_1k.gltf"
+      ],
+      "generation_note": "Blender 4.3.2 COLLAPSE decimation; selected mesh only; original PBR regions, UVs, normals and exported tangents; recipe scripts/blender/author_bounded_lods.py"
+    },
+    {
+      "id": "blender-bounded-coast_rocks_05",
+      "path": "generated/bounded_lods/coast_rocks_05.glb",
+      "sha256": "49a98aea985249f368a3491f1331d7199ac9989cc2f45bcdde48496cd851422a",
+      "source_url": "https://polyhaven.com/a/coast_rocks_05",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/coast_rocks_05/coast_rocks_05_1k.gltf",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "generated_from": [
+        "polyhaven/coast_rocks_05/coast_rocks_05_1k.gltf"
+      ],
+      "generation_note": "Blender 4.3.2 COLLAPSE decimation; selected mesh only; original PBR regions, UVs, normals and exported tangents; recipe scripts/blender/author_bounded_lods.py"
+    },
+    {
+      "id": "bounded-derived-coast_rocks_05_coast_rocks_05_arm_1k",
+      "path": "generated/bounded_lods/coast_rocks_05_coast_rocks_05_arm_1k.jpg",
+      "sha256": "26b851f13a6e00500440d964393bee8aa1865660777c05b9082bdb12c43a23b6",
+      "source_url": "https://polyhaven.com/a/coast_rocks_05",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/coast_rocks_05/coast_rocks_05_1k.gltf",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "generated_from": [
+        "polyhaven/coast_rocks_05/coast_rocks_05_1k.gltf"
+      ],
+      "generation_note": "Blender 4.3.2 COLLAPSE decimation; selected mesh only; original PBR regions, UVs, normals and exported tangents; recipe scripts/blender/author_bounded_lods.py"
+    },
+    {
+      "id": "bounded-derived-tree_small_02_tree_small_02_branch_diff_1k",
+      "path": "generated/bounded_lods/tree_small_02_tree_small_02_branch_diff_1k.jpg",
+      "sha256": "a71b768e330c0c6cca097e30314f6b4e842ef724a1370f6aab14b4434eec64cb",
+      "source_url": "https://polyhaven.com/a/coast_rocks_05",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/coast_rocks_05/coast_rocks_05_1k.gltf",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "generated_from": [
+        "polyhaven/coast_rocks_05/coast_rocks_05_1k.gltf"
+      ],
+      "generation_note": "Blender 4.3.2 COLLAPSE decimation; selected mesh only; original PBR regions, UVs, normals and exported tangents; recipe scripts/blender/author_bounded_lods.py"
+    },
+    {
+      "id": "bounded-derived-island_tree_02_island_tree_02_arm_1k",
+      "path": "generated/bounded_lods/island_tree_02_island_tree_02_arm_1k.jpg",
+      "sha256": "ada61dd4fad023e699b6314b8b76590017b301719bf74ffc9e20b95893ed62b6",
+      "source_url": "https://polyhaven.com/a/coast_rocks_05",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/coast_rocks_05/coast_rocks_05_1k.gltf",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "generated_from": [
+        "polyhaven/coast_rocks_05/coast_rocks_05_1k.gltf"
+      ],
+      "generation_note": "Blender 4.3.2 COLLAPSE decimation; selected mesh only; original PBR regions, UVs, normals and exported tangents; recipe scripts/blender/author_bounded_lods.py"
+    },
+    {
+      "id": "bounded-derived-metadata",
+      "path": "generated/bounded_lods/metadata.json",
+      "sha256": "87ef0212f809f2df809839b3f1fc1a39fb7a1fc2444d92f9e63f3e4c5dc6b254",
+      "source_url": "https://polyhaven.com/a/coast_rocks_05",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/coast_rocks_05/coast_rocks_05_1k.gltf",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "generated_from": [
+        "polyhaven/coast_rocks_05/coast_rocks_05_1k.gltf"
+      ],
+      "generation_note": "Blender 4.3.2 COLLAPSE decimation; selected mesh only; original PBR regions, UVs, normals and exported tangents; recipe scripts/blender/author_bounded_lods.py"
+    },
+    {
+      "id": "bounded-derived-island_tree_01_island_tree_01_branches_nor_gl_1k",
+      "path": "generated/bounded_lods/island_tree_01_island_tree_01_branches_nor_gl_1k.jpg",
+      "sha256": "2d67393ba76a0f49cf965fa0c99d8c16268e71e87b1203d35539bfdb971a514e",
+      "source_url": "https://polyhaven.com/a/coast_rocks_05",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/coast_rocks_05/coast_rocks_05_1k.gltf",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "generated_from": [
+        "polyhaven/coast_rocks_05/coast_rocks_05_1k.gltf"
+      ],
+      "generation_note": "Blender 4.3.2 COLLAPSE decimation; selected mesh only; original PBR regions, UVs, normals and exported tangents; recipe scripts/blender/author_bounded_lods.py"
+    },
+    {
+      "id": "bounded-derived-island_tree_02_island_tree_02_leaves_nor_gl_1k",
+      "path": "generated/bounded_lods/island_tree_02_island_tree_02_leaves_nor_gl_1k.jpg",
+      "sha256": "07ba461c0c95da4e49a42981766bdb6191d4c3c4d815796c082266dcc3cecdb8",
+      "source_url": "https://polyhaven.com/a/coast_rocks_05",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/coast_rocks_05/coast_rocks_05_1k.gltf",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "generated_from": [
+        "polyhaven/coast_rocks_05/coast_rocks_05_1k.gltf"
+      ],
+      "generation_note": "Blender 4.3.2 COLLAPSE decimation; selected mesh only; original PBR regions, UVs, normals and exported tangents; recipe scripts/blender/author_bounded_lods.py"
+    },
+    {
+      "id": "bounded-derived-island_tree_02_island_tree_02_branches_nor_gl_1k",
+      "path": "generated/bounded_lods/island_tree_02_island_tree_02_branches_nor_gl_1k.jpg",
+      "sha256": "2d67393ba76a0f49cf965fa0c99d8c16268e71e87b1203d35539bfdb971a514e",
+      "source_url": "https://polyhaven.com/a/coast_rocks_05",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/coast_rocks_05/coast_rocks_05_1k.gltf",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "generated_from": [
+        "polyhaven/coast_rocks_05/coast_rocks_05_1k.gltf"
+      ],
+      "generation_note": "Blender 4.3.2 COLLAPSE decimation; selected mesh only; original PBR regions, UVs, normals and exported tangents; recipe scripts/blender/author_bounded_lods.py"
+    },
+    {
+      "id": "bounded-derived-island_tree_02_island_tree_02_nor_gl_1k",
+      "path": "generated/bounded_lods/island_tree_02_island_tree_02_nor_gl_1k.jpg",
+      "sha256": "1580d5a42d02f4ede51bfb03972ab0aef3d8acafbd3692276879171007bb70ec",
+      "source_url": "https://polyhaven.com/a/coast_rocks_05",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/coast_rocks_05/coast_rocks_05_1k.gltf",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "generated_from": [
+        "polyhaven/coast_rocks_05/coast_rocks_05_1k.gltf"
+      ],
+      "generation_note": "Blender 4.3.2 COLLAPSE decimation; selected mesh only; original PBR regions, UVs, normals and exported tangents; recipe scripts/blender/author_bounded_lods.py"
+    },
+    {
+      "id": "bounded-derived-island_tree_01_island_tree_01_nor_gl_1k",
+      "path": "generated/bounded_lods/island_tree_01_island_tree_01_nor_gl_1k.jpg",
+      "sha256": "ca22e428e1b1ebac47b2fc67ec355700c8779d6628d2fc6c3ebae9002988f63e",
+      "source_url": "https://polyhaven.com/a/coast_rocks_05",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/coast_rocks_05/coast_rocks_05_1k.gltf",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "generated_from": [
+        "polyhaven/coast_rocks_05/coast_rocks_05_1k.gltf"
+      ],
+      "generation_note": "Blender 4.3.2 COLLAPSE decimation; selected mesh only; original PBR regions, UVs, normals and exported tangents; recipe scripts/blender/author_bounded_lods.py"
+    },
+    {
+      "id": "bounded-derived-coast_rocks_05_coast_rocks_05_diff_1k",
+      "path": "generated/bounded_lods/coast_rocks_05_coast_rocks_05_diff_1k.jpg",
+      "sha256": "2ec4ec09422a14d55cc890ad902486cf76df8e663688fbc32f78a15684646ee1",
+      "source_url": "https://polyhaven.com/a/coast_rocks_05",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/coast_rocks_05/coast_rocks_05_1k.gltf",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "generated_from": [
+        "polyhaven/coast_rocks_05/coast_rocks_05_1k.gltf"
+      ],
+      "generation_note": "Blender 4.3.2 COLLAPSE decimation; selected mesh only; original PBR regions, UVs, normals and exported tangents; recipe scripts/blender/author_bounded_lods.py"
+    },
+    {
+      "id": "bounded-derived-tree_small_02_tree_small_02_branch_arm_1k",
+      "path": "generated/bounded_lods/tree_small_02_tree_small_02_branch_arm_1k.jpg",
+      "sha256": "8968b46d76c67da09ebbf4eed04b8123c9e0ddf5b55d123968b35b32aa76d27a",
+      "source_url": "https://polyhaven.com/a/coast_rocks_05",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/coast_rocks_05/coast_rocks_05_1k.gltf",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "generated_from": [
+        "polyhaven/coast_rocks_05/coast_rocks_05_1k.gltf"
+      ],
+      "generation_note": "Blender 4.3.2 COLLAPSE decimation; selected mesh only; original PBR regions, UVs, normals and exported tangents; recipe scripts/blender/author_bounded_lods.py"
+    },
+    {
+      "id": "bounded-derived-tree_small_02_tree_small_02_leaves_rgba_1k",
+      "path": "generated/bounded_lods/tree_small_02_tree_small_02_leaves_rgba_1k.png",
+      "sha256": "ffa4df1cf3c8ca8e0e9ac70d9ccc59abe413ffb7417e13445174ce4af7258c2c",
+      "source_url": "https://polyhaven.com/a/coast_rocks_05",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/coast_rocks_05/coast_rocks_05_1k.gltf",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "generated_from": [
+        "polyhaven/coast_rocks_05/coast_rocks_05_1k.gltf"
+      ],
+      "generation_note": "Blender 4.3.2 COLLAPSE decimation; selected mesh only; original PBR regions, UVs, normals and exported tangents; recipe scripts/blender/author_bounded_lods.py"
+    },
+    {
+      "id": "bounded-derived-island_tree_01_island_tree_01_leaves_arm_1k",
+      "path": "generated/bounded_lods/island_tree_01_island_tree_01_leaves_arm_1k.jpg",
+      "sha256": "90da3a072dbcb052715b1313b9dbc69a4aa8a09a31a4b3868411a2bb51d72037",
+      "source_url": "https://polyhaven.com/a/coast_rocks_05",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/coast_rocks_05/coast_rocks_05_1k.gltf",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "generated_from": [
+        "polyhaven/coast_rocks_05/coast_rocks_05_1k.gltf"
+      ],
+      "generation_note": "Blender 4.3.2 COLLAPSE decimation; selected mesh only; original PBR regions, UVs, normals and exported tangents; recipe scripts/blender/author_bounded_lods.py"
+    },
+    {
+      "id": "bounded-derived-island_tree_01_island_tree_01_arm_1k",
+      "path": "generated/bounded_lods/island_tree_01_island_tree_01_arm_1k.jpg",
+      "sha256": "bf972dff0fbc71f146b4c02103fc3596477a49a9eff46b87b13c89b7b90d18ca",
+      "source_url": "https://polyhaven.com/a/coast_rocks_05",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/coast_rocks_05/coast_rocks_05_1k.gltf",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "generated_from": [
+        "polyhaven/coast_rocks_05/coast_rocks_05_1k.gltf"
+      ],
+      "generation_note": "Blender 4.3.2 COLLAPSE decimation; selected mesh only; original PBR regions, UVs, normals and exported tangents; recipe scripts/blender/author_bounded_lods.py"
+    },
+    {
+      "id": "bounded-derived-island_tree_01_island_tree_01_leaves_nor_gl_1k",
+      "path": "generated/bounded_lods/island_tree_01_island_tree_01_leaves_nor_gl_1k.jpg",
+      "sha256": "07ba461c0c95da4e49a42981766bdb6191d4c3c4d815796c082266dcc3cecdb8",
+      "source_url": "https://polyhaven.com/a/coast_rocks_05",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/coast_rocks_05/coast_rocks_05_1k.gltf",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "generated_from": [
+        "polyhaven/coast_rocks_05/coast_rocks_05_1k.gltf"
+      ],
+      "generation_note": "Blender 4.3.2 COLLAPSE decimation; selected mesh only; original PBR regions, UVs, normals and exported tangents; recipe scripts/blender/author_bounded_lods.py"
+    },
+    {
+      "id": "bounded-derived-island_tree_01_island_tree_01_branches_arm_1k",
+      "path": "generated/bounded_lods/island_tree_01_island_tree_01_branches_arm_1k.jpg",
+      "sha256": "9e3f82263247ce4f619692cea4c4f6fe9936ff465a86623481849062642c7d05",
+      "source_url": "https://polyhaven.com/a/coast_rocks_05",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/coast_rocks_05/coast_rocks_05_1k.gltf",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "generated_from": [
+        "polyhaven/coast_rocks_05/coast_rocks_05_1k.gltf"
+      ],
+      "generation_note": "Blender 4.3.2 COLLAPSE decimation; selected mesh only; original PBR regions, UVs, normals and exported tangents; recipe scripts/blender/author_bounded_lods.py"
+    },
+    {
+      "id": "bounded-derived-island_tree_01_island_tree_01_branches_diff_1k",
+      "path": "generated/bounded_lods/island_tree_01_island_tree_01_branches_diff_1k.jpg",
+      "sha256": "bee5ec22196e9e31ad0c95a5a9b4636571cc0124d5bb27a92f1e307d289cc60d",
+      "source_url": "https://polyhaven.com/a/coast_rocks_05",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/coast_rocks_05/coast_rocks_05_1k.gltf",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "generated_from": [
+        "polyhaven/coast_rocks_05/coast_rocks_05_1k.gltf"
+      ],
+      "generation_note": "Blender 4.3.2 COLLAPSE decimation; selected mesh only; original PBR regions, UVs, normals and exported tangents; recipe scripts/blender/author_bounded_lods.py"
+    },
+    {
+      "id": "bounded-derived-tree_small_02_tree_small_02_leaves_arm_1k",
+      "path": "generated/bounded_lods/tree_small_02_tree_small_02_leaves_arm_1k.jpg",
+      "sha256": "71f81374daf5a8f3e6eb2c694264a1769fdb0bea508178e4105618eecea83c3e",
+      "source_url": "https://polyhaven.com/a/coast_rocks_05",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/coast_rocks_05/coast_rocks_05_1k.gltf",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "generated_from": [
+        "polyhaven/coast_rocks_05/coast_rocks_05_1k.gltf"
+      ],
+      "generation_note": "Blender 4.3.2 COLLAPSE decimation; selected mesh only; original PBR regions, UVs, normals and exported tangents; recipe scripts/blender/author_bounded_lods.py"
+    },
+    {
+      "id": "bounded-derived-island_tree_02_island_tree_02_leaves_diff_1k",
+      "path": "generated/bounded_lods/island_tree_02_island_tree_02_leaves_diff_1k.png",
+      "sha256": "92804e7f5d9ccbe99dd631fe3238bc5858d77af99c6ee34cb5570236219b9243",
+      "source_url": "https://polyhaven.com/a/coast_rocks_05",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/coast_rocks_05/coast_rocks_05_1k.gltf",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "generated_from": [
+        "polyhaven/coast_rocks_05/coast_rocks_05_1k.gltf"
+      ],
+      "generation_note": "Blender 4.3.2 COLLAPSE decimation; selected mesh only; original PBR regions, UVs, normals and exported tangents; recipe scripts/blender/author_bounded_lods.py"
+    },
+    {
+      "id": "bounded-derived-island_tree_02_island_tree_02_leaves_arm_1k",
+      "path": "generated/bounded_lods/island_tree_02_island_tree_02_leaves_arm_1k.jpg",
+      "sha256": "90da3a072dbcb052715b1313b9dbc69a4aa8a09a31a4b3868411a2bb51d72037",
+      "source_url": "https://polyhaven.com/a/coast_rocks_05",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/coast_rocks_05/coast_rocks_05_1k.gltf",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "generated_from": [
+        "polyhaven/coast_rocks_05/coast_rocks_05_1k.gltf"
+      ],
+      "generation_note": "Blender 4.3.2 COLLAPSE decimation; selected mesh only; original PBR regions, UVs, normals and exported tangents; recipe scripts/blender/author_bounded_lods.py"
+    },
+    {
+      "id": "bounded-derived-tree_small_02_tree_small_02_nor_gl_1k",
+      "path": "generated/bounded_lods/tree_small_02_tree_small_02_nor_gl_1k.jpg",
+      "sha256": "9c83be074c950ea1b94c732c0c0291b53b9ba357f932d378bafe3ca3b4418871",
+      "source_url": "https://polyhaven.com/a/coast_rocks_05",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/coast_rocks_05/coast_rocks_05_1k.gltf",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "generated_from": [
+        "polyhaven/coast_rocks_05/coast_rocks_05_1k.gltf"
+      ],
+      "generation_note": "Blender 4.3.2 COLLAPSE decimation; selected mesh only; original PBR regions, UVs, normals and exported tangents; recipe scripts/blender/author_bounded_lods.py"
+    },
+    {
+      "id": "bounded-derived-island_tree_01_island_tree_01_diff_1k",
+      "path": "generated/bounded_lods/island_tree_01_island_tree_01_diff_1k.jpg",
+      "sha256": "51bff9a3a6ed7d89ff4c73f01708b7267ed8d7a82b0cb12343741894f708218f",
+      "source_url": "https://polyhaven.com/a/coast_rocks_05",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/coast_rocks_05/coast_rocks_05_1k.gltf",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "generated_from": [
+        "polyhaven/coast_rocks_05/coast_rocks_05_1k.gltf"
+      ],
+      "generation_note": "Blender 4.3.2 COLLAPSE decimation; selected mesh only; original PBR regions, UVs, normals and exported tangents; recipe scripts/blender/author_bounded_lods.py"
+    },
+    {
+      "id": "bounded-derived-tree_small_02_tree_small_02_leaves_nor_gl_1k",
+      "path": "generated/bounded_lods/tree_small_02_tree_small_02_leaves_nor_gl_1k.jpg",
+      "sha256": "8c72e04fb23e16ae1df79c01385a638473d1dd4dede3d51e83d70153c129f09b",
+      "source_url": "https://polyhaven.com/a/coast_rocks_05",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/coast_rocks_05/coast_rocks_05_1k.gltf",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "generated_from": [
+        "polyhaven/coast_rocks_05/coast_rocks_05_1k.gltf"
+      ],
+      "generation_note": "Blender 4.3.2 COLLAPSE decimation; selected mesh only; original PBR regions, UVs, normals and exported tangents; recipe scripts/blender/author_bounded_lods.py"
+    },
+    {
+      "id": "bounded-derived-tree_small_02_tree_small_02_branch_nor_gl_1k",
+      "path": "generated/bounded_lods/tree_small_02_tree_small_02_branch_nor_gl_1k.jpg",
+      "sha256": "a2efae9e7fede259601188cd5cb7e561fc502bd87e04d862a9532b2d8e647a62",
+      "source_url": "https://polyhaven.com/a/coast_rocks_05",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/coast_rocks_05/coast_rocks_05_1k.gltf",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "generated_from": [
+        "polyhaven/coast_rocks_05/coast_rocks_05_1k.gltf"
+      ],
+      "generation_note": "Blender 4.3.2 COLLAPSE decimation; selected mesh only; original PBR regions, UVs, normals and exported tangents; recipe scripts/blender/author_bounded_lods.py"
+    },
+    {
+      "id": "bounded-derived-island_tree_02_island_tree_02_branches_arm_1k",
+      "path": "generated/bounded_lods/island_tree_02_island_tree_02_branches_arm_1k.jpg",
+      "sha256": "9e3f82263247ce4f619692cea4c4f6fe9936ff465a86623481849062642c7d05",
+      "source_url": "https://polyhaven.com/a/coast_rocks_05",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/coast_rocks_05/coast_rocks_05_1k.gltf",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "generated_from": [
+        "polyhaven/coast_rocks_05/coast_rocks_05_1k.gltf"
+      ],
+      "generation_note": "Blender 4.3.2 COLLAPSE decimation; selected mesh only; original PBR regions, UVs, normals and exported tangents; recipe scripts/blender/author_bounded_lods.py"
+    },
+    {
+      "id": "bounded-derived-island_tree_02_island_tree_02_diff_1k",
+      "path": "generated/bounded_lods/island_tree_02_island_tree_02_diff_1k.jpg",
+      "sha256": "8fc20397ab5d514c119d7a025868414d78e436138d3867a4b7ba12334a72ec3a",
+      "source_url": "https://polyhaven.com/a/coast_rocks_05",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/coast_rocks_05/coast_rocks_05_1k.gltf",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "generated_from": [
+        "polyhaven/coast_rocks_05/coast_rocks_05_1k.gltf"
+      ],
+      "generation_note": "Blender 4.3.2 COLLAPSE decimation; selected mesh only; original PBR regions, UVs, normals and exported tangents; recipe scripts/blender/author_bounded_lods.py"
+    },
+    {
+      "id": "bounded-derived-coast_rocks_05_coast_rocks_05_nor_gl_1k",
+      "path": "generated/bounded_lods/coast_rocks_05_coast_rocks_05_nor_gl_1k.jpg",
+      "sha256": "5d32e03ea42abc05dd913e7ead4e915d9d60f27c8942f75128a87f84e7baee9d",
+      "source_url": "https://polyhaven.com/a/coast_rocks_05",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/coast_rocks_05/coast_rocks_05_1k.gltf",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "generated_from": [
+        "polyhaven/coast_rocks_05/coast_rocks_05_1k.gltf"
+      ],
+      "generation_note": "Blender 4.3.2 COLLAPSE decimation; selected mesh only; original PBR regions, UVs, normals and exported tangents; recipe scripts/blender/author_bounded_lods.py"
+    },
+    {
+      "id": "bounded-derived-island_tree_02_island_tree_02_branches_diff_1k",
+      "path": "generated/bounded_lods/island_tree_02_island_tree_02_branches_diff_1k.jpg",
+      "sha256": "bee5ec22196e9e31ad0c95a5a9b4636571cc0124d5bb27a92f1e307d289cc60d",
+      "source_url": "https://polyhaven.com/a/coast_rocks_05",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/coast_rocks_05/coast_rocks_05_1k.gltf",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "generated_from": [
+        "polyhaven/coast_rocks_05/coast_rocks_05_1k.gltf"
+      ],
+      "generation_note": "Blender 4.3.2 COLLAPSE decimation; selected mesh only; original PBR regions, UVs, normals and exported tangents; recipe scripts/blender/author_bounded_lods.py"
+    },
+    {
+      "id": "bounded-derived-island_tree_01_island_tree_01_leaves_diff_1k",
+      "path": "generated/bounded_lods/island_tree_01_island_tree_01_leaves_diff_1k.png",
+      "sha256": "92804e7f5d9ccbe99dd631fe3238bc5858d77af99c6ee34cb5570236219b9243",
+      "source_url": "https://polyhaven.com/a/coast_rocks_05",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/coast_rocks_05/coast_rocks_05_1k.gltf",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "generated_from": [
+        "polyhaven/coast_rocks_05/coast_rocks_05_1k.gltf"
+      ],
+      "generation_note": "Blender 4.3.2 COLLAPSE decimation; selected mesh only; original PBR regions, UVs, normals and exported tangents; recipe scripts/blender/author_bounded_lods.py"
+    },
+    {
+      "id": "bounded-derived-tree_small_02_tree_small_02_diff_1k",
+      "path": "generated/bounded_lods/tree_small_02_tree_small_02_diff_1k.jpg",
+      "sha256": "4e0093f407b3a1120a36de49a48ebe5a465a9a9b77e361c7a3e66866e115e404",
+      "source_url": "https://polyhaven.com/a/coast_rocks_05",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/coast_rocks_05/coast_rocks_05_1k.gltf",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "generated_from": [
+        "polyhaven/coast_rocks_05/coast_rocks_05_1k.gltf"
+      ],
+      "generation_note": "Blender 4.3.2 COLLAPSE decimation; selected mesh only; original PBR regions, UVs, normals and exported tangents; recipe scripts/blender/author_bounded_lods.py"
+    },
+    {
+      "id": "bounded-derived-tree_small_02_tree_small_02_arm_1k",
+      "path": "generated/bounded_lods/tree_small_02_tree_small_02_arm_1k.jpg",
+      "sha256": "891c5a1bb124292984b01558e9f2b0302d27d2fa3ccf9dfc6c34f9ea4ca24e6c",
+      "source_url": "https://polyhaven.com/a/coast_rocks_05",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/coast_rocks_05/coast_rocks_05_1k.gltf",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "generated_from": [
+        "polyhaven/coast_rocks_05/coast_rocks_05_1k.gltf"
+      ],
+      "generation_note": "Blender 4.3.2 COLLAPSE decimation; selected mesh only; original PBR regions, UVs, normals and exported tangents; recipe scripts/blender/author_bounded_lods.py"
     }
   ]
 }

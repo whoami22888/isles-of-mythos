@@ -60,6 +60,17 @@ func _record() -> void:
     integration.wake.set_process(false)
     integration.bow_spray.set_process(false)
     integration.start_visual_demo()
+    var scene_triangles := 0
+    var mesh_instances := 0
+    for node in scene.find_children("*", "MeshInstance3D", true, false):
+        var mesh_instance := node as MeshInstance3D
+        if mesh_instance.mesh == null:
+            continue
+        mesh_instances += 1
+        for surface_index in range(mesh_instance.mesh.get_surface_count()):
+            var indices: PackedInt32Array = mesh_instance.mesh.surface_get_arrays(surface_index)[Mesh.ARRAY_INDEX]
+            scene_triangles += indices.size() / 3
+    print("IOM_INTERNAL_SCENE_GEOMETRY mesh_instances=%d triangles=%d" % [mesh_instances, scene_triangles])
     var camera_start: Vector3 = scene.cinematic_camera.position
     var waypoint_a := Vector3(-7.0, 4.8, -17.0)
     var waypoint_b := Vector3(-2.5, 5.2, -21.0)
@@ -99,11 +110,31 @@ func _record() -> void:
         # Pre-roll the complete vessel/wake/spray state without costly GPU
         # readbacks. Each worker still starts from frame zero simulation state.
         if frame_number < start_frame:
+            # This path has deterministic_capture enabled, particle/process updates
+            # disabled, and CPU-driven wake/spray state. The state above is the
+            # complete boundary state; rendering 48 discarded full-resolution
+            # frames only burned llvmpipe time and caused worker-2 watchdog exits.
+            # The first retained frame still fences normally below.
+            if frame_number % 6 == 0:
+                print("IOM_INTERNAL_STAGE preroll frame=%d state_ms=%d" % [
+                    frame_number, Time.get_ticks_msec() - render_start_msec
+                ])
             continue
         if frame_number >= end_frame:
             break
+        if frame_number == start_frame and start_frame > 0:
+            var boundary_time: float = ocean_material.get_shader_parameter("capture_time_seconds")
+            if absf(boundary_time - float(start_frame) / 24.0) > 0.0001:
+                _fail("Partition boundary lost deterministic ocean time")
+            if integration.wake.get_sample_count() < 2:
+                _fail("Partition boundary lost CPU wake history")
+        var fence_start_msec := Time.get_ticks_msec()
+        print("IOM_INTERNAL_CAPTURE_BEGIN frame=%d state_ms=%d" % [
+            frame_number, Time.get_ticks_msec() - render_start_msec
+        ])
         await process_frame
         await RenderingServer.frame_post_draw
+        var fence_elapsed_msec := Time.get_ticks_msec() - fence_start_msec
         var pixels: Image = root.get_viewport().get_texture().get_image()
         if pixels == null or pixels.is_empty() or pixels.get_width() != 1280 or pixels.get_height() != 720:
             _fail("Missing 1280x720 actual engine frame at %d" % frame_number)
@@ -137,8 +168,9 @@ func _record() -> void:
         frame_file.store_buffer(current_bytes)
         frame_file.close()
         if frame_number % 6 == 0:
-            print("IOM_INTERNAL_CAPTURE_FRAME %d/%d elapsed_ms=%d" % [
-                frame_number + 1, FRAME_COUNT, Time.get_ticks_msec() - render_start_msec
+            print("IOM_INTERNAL_CAPTURE_FRAME %d/%d elapsed_ms=%d fence_ms=%d" % [
+                frame_number + 1, FRAME_COUNT, Time.get_ticks_msec() - render_start_msec,
+                fence_elapsed_msec
             ])
     if _changed_frames < mini(12, end_frame - start_frame - 1):
         _fail("Frame sequence is effectively static; no valid moving-engine evidence")

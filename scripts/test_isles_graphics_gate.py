@@ -1,7 +1,8 @@
 """Regressions for source-observable graphics failures, not visual acceptance."""
 import json
 import struct
-import subprocess
+import contextlib
+import io
 import sys
 import tempfile
 import unittest
@@ -34,8 +35,11 @@ class GraphicsGateTest(unittest.TestCase):
 
     def test_no_candidate_is_blocker(self):
         self.assertIn('NO_CANDIDATE', self.codes())
-        result = subprocess.run([sys.executable, gate.__file__, '--client', str(self.root)], capture_output=True)
-        self.assertEqual(1, result.returncode)
+        sys.argv = ['isles_graphics_gate.py', '--client', str(self.root)]
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            result = gate.main()
+        self.assertEqual(1, result)
 
     def test_missing_glb_is_not_silently_accepted(self):
         self.scene('assets/missing.glb')
@@ -149,10 +153,13 @@ class GraphicsGateTest(unittest.TestCase):
         (self.root / 'scripts/ship.gd').write_text('var foam = QuadMesh.new()')
         (self.root / 'scenes/ship_view.tscn').write_text(
             '[ext_resource type="Script" path="res://scripts/ship.gd" id="1"]')
-        result = subprocess.run([sys.executable, gate.__file__, '--client', str(self.root)], capture_output=True, text=True)
-        self.assertEqual(0, result.returncode)
-        self.assertIn('::warning::FLAT_FOAM', result.stdout)
-        self.assertIn('does NOT certify', result.stdout)
+        sys.argv = ['isles_graphics_gate.py', '--client', str(self.root)]
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            result = gate.main()
+        self.assertEqual(0, result)
+        self.assertIn('::warning::FLAT_FOAM', output.getvalue())
+        self.assertIn('does NOT certify', output.getvalue())
 
 if __name__ == '__main__':
     unittest.main()

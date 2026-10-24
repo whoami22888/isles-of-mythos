@@ -48,8 +48,8 @@ void vertex() {
         near_patch_half_extent.y - 1.0, abs(xz.y));
     float envelope = fade_x * fade_z;
     // Keep the far ocean at SEA_LEVEL: the mesh is positioned 0.18m below it.
-    // Fading the 0.18m base offset created a visible rectangular height shelf
-    // at the near-patch boundary. Fade ONLY the animated displacement.
+    // Fading the base offset created a visible rectangular height shelf at the
+    // near-patch boundary. Fade only the animated displacement.
     VERTEX.y += 0.18 + displacement * envelope;
     NORMAL = normalize(vec3(-dx * envelope, 1.0, -dz * envelope));
     surface_world = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
@@ -64,7 +64,11 @@ void fragment() {
     float depth_m = max(SEA_LEVEL - floor_y, 0.0);
     // NO replicated terrain height equation and NO rectangular contact mask.
     // Open ocean is genuinely deep outside the source mesh footprint.
-    float shallow_factor = coverage * (1.0 - smoothstep(0.05, 4.2, depth_m));
+    float depth_factor = 1.0 - smoothstep(0.05, 4.2, depth_m);
+    // A low-frequency seabed variation breaks the visible colour bands while
+    // remaining tied to the sampled mesh and deterministic capture time.
+    float seabed_variation = 0.90 + 0.10 * sin(dot(p, vec2(0.17, 0.11)));
+    float shallow_factor = coverage * depth_factor * seabed_variation;
     float contact = coverage * smoothstep(0.01, 0.055, depth_m)
                     * (1.0 - smoothstep(0.09, 0.74, depth_m));
 
@@ -72,11 +76,14 @@ void fragment() {
     // No screen-space reflection pass or full-screen postprocess is required.
     float micro_a = sin(dot(p, vec2(3.1, 1.55)) - ocean_time * 2.35);
     float micro_b = cos(dot(p, vec2(-1.92, 3.38)) + ocean_time * 1.68);
+    // NORMAL_MAP is an encoded tangent-space value in Godot (0..1), not a
+    // signed normal. Encode the analytic wave normal after normalizing so
+    // mobile lighting does not invert or blacken the water response.
     NORMAL_MAP = normalize(vec3(
         (micro_a * 0.12 + micro_b * 0.055) * ripple_detail,
         (micro_a * -0.085 + micro_b * 0.11) * ripple_detail,
         1.0
-    ));
+    )) * 0.5 + 0.5;
 
     // Break up the coastal foam so it moves without straight bright strips.
     float foam_pattern = sin(p.x * 2.0 + ocean_time * 1.2)

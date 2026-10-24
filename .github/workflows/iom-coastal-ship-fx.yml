@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "client-godot/scenes/realistic_coastal_fx_slice.tscn"
+      - "client-godot/scenes/realistic_coastal_slice.tscn"
       - "client-godot/scripts/coastal_ship_fx_controller.gd"
       - "client-godot/scripts/ship_wake_effect.gd"
       - "client-godot/shaders/ship_wake_foam.gdshader"
@@ -17,6 +18,7 @@ on:
       - "client-godot/scripts/coastal_shore_heightfield.gd"
       - "client-godot/shaders/coastal_shore_sampler.gdshaderinc"
       - "client-godot/shaders/ocean_surface.gdshader"
+      - "client-godot/assets/external/**"
       - ".github/workflows/iom-coastal-ship-fx.yml"
   workflow_dispatch:
 

@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "client-godot/assets/external-assets.json"
 DEST = ROOT / "client-godot/assets/external"
 ALLOWED_HOSTS = {"dl.polyhaven.org", "polyhaven.com", "cdn.polyhaven.com"}
-MAX_BYTES = 80 * 1024 * 1024
+MAX_BYTES = 100 * 1024 * 1024
 
 
 def validate_origin(url):
