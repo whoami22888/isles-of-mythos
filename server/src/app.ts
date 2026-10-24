@@ -70,6 +70,10 @@ function emitSlowMutation(action: string, snapshot: MutationTimingSnapshot, db: 
     dbPoolWaiting: db.waitingCount,
     dbPoolTotal: db.totalCount,
     dbPoolIdle: db.idleCount,
+    diagnosticTraceId: snapshot.diagnostic?.traceId ?? null,
+    backendPid: snapshot.diagnostic?.backendPid ?? null,
+    commitEventLoopActiveMs: snapshot.diagnostic?.commitEventLoopActiveMs ?? null,
+    commitEventLoopIdleMs: snapshot.diagnostic?.commitEventLoopIdleMs ?? null,
   });
 }
 
