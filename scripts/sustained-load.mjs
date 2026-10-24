@@ -58,6 +58,11 @@ async function httpLoad() {
     if (remainingMs > 0) await sleep(remainingMs);
   }
   const latencies = [];
+  // Diagnostic-only: preserve the original full-sample SLO while separating
+  // the first concurrency wave from subsequent requests. Never warm the
+  // endpoint before measurement or exclude slow first requests.
+  const firstWaveLatencies = [];
+  const subsequentLatencies = [];
   let errors = 0;
   let next = 0;
   const started = performance.now();
@@ -77,7 +82,10 @@ async function httpLoad() {
       } catch {
         errors++;
       }
-      latencies.push(performance.now() - startedRequest);
+      const latencyMs = performance.now() - startedRequest;
+      latencies.push(latencyMs);
+      if (index < Math.min(20, httpRequests)) firstWaveLatencies.push(latencyMs);
+      else subsequentLatencies.push(latencyMs);
     }
   }
 
@@ -93,6 +101,16 @@ async function httpLoad() {
     p50Ms: percentile(latencies, 0.5),
     p95Ms: percentile(latencies, 0.95),
     p99Ms: percentile(latencies, 0.99),
+    diagnosticFirstWave: {
+      requests: firstWaveLatencies.length,
+      p95Ms: percentile(firstWaveLatencies, 0.95),
+      p99Ms: percentile(firstWaveLatencies, 0.99),
+    },
+    diagnosticSubsequent: {
+      requests: subsequentLatencies.length,
+      p95Ms: percentile(subsequentLatencies, 0.95),
+      p99Ms: percentile(subsequentLatencies, 0.99),
+    },
   };
 }
 

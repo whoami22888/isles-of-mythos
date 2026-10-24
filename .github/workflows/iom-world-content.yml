@@ -1,0 +1,76 @@
+name: Isles world content and source harvest
+
+on:
+  pull_request:
+    paths:
+      - "client-godot/content/world_population.json"
+      - "client-godot/scripts/world_content_director.gd"
+      - "client-godot/tests/world_content_director_test.gd"
+      - "scripts/world_content.py"
+      - "scripts/harvest_world_lighting.py"
+      - "scripts/test_world_content.py"
+      - "scripts/test_harvest_world_lighting.py"
+      - ".github/workflows/iom-world-content.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-content:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Compile the source admission pipeline
+        run: python3 -m py_compile scripts/world_content.py scripts/harvest_world_lighting.py
+      - name: Run deterministic content and download rejection regressions
+        run: PYTHONPATH=scripts python3 -m unittest discover -s scripts -p 'test_*world*.py' -v
+      - name: Verify entire source catalogue and pending admission state
+        run: |
+          set -euo pipefail
+          PYTHONPATH=scripts python3 - <<'PY'
+          from pathlib import Path
+          from world_content import load_catalog, verify_admitted_assets
+          data = load_catalog(Path('client-godot/content/world_population.json'))
+          assert len(data['archetypes']) >= 60
+          assert len(data['encounter_shots']) >= 11
+          assert len(data['lighting_candidates']) == 5
+          assert verify_admitted_assets(data, Path('client-godot/assets/world_content')) == []
+          print('Content registry valid; 61 requested art slots remain unadmitted')
+          PY
+      - name: Install exact Godot 4.7.2 (headless)
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 -o "$RUNNER_TEMP/godot.zip" "https://github.com/godotengine/godot/releases/download/4.7.2-stable/Godot_v4.7.2-stable_linux.x86_64.zip"
+          echo "cadd3204e728a35d3f13adb7fd0d7902636b79f6b95c40c265eb73b6c35329e4  $RUNNER_TEMP/godot.zip" | sha256sum --check
+          unzip -q "$RUNNER_TEMP/godot.zip" -d "$RUNNER_TEMP"
+          install "$RUNNER_TEMP/Godot_v4.7.2-stable_linux.x86_64" "$RUNNER_TEMP/godot"
+      - name: Import and smoke-test the visual content director
+        run: |
+          set -euo pipefail
+          "$RUNNER_TEMP/godot" --headless --editor --path client-godot --quit --import
+          "$RUNNER_TEMP/godot" --headless --path client-godot --script res://tests/world_content_director_test.gd
+      - name: Restore genuine CC0 HDRI bytes into isolated staging
+        run: |
+          set -euo pipefail
+          PYTHONPATH=scripts python3 scripts/harvest_world_lighting.py \
+            --catalog client-godot/content/world_population.json \
+            --staging-dir "$RUNNER_TEMP/world-lighting-stage" \
+            --ids harbour_sunset volcanic_golden moonlit_reef night_overcast tropical_daylight
+          cd "$RUNNER_TEMP/world-lighting-stage"
+          find lighting -type f -name '*.hdr' -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
+          sha256sum --check SHA256SUMS
+      - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
+        with:
+          name: iom-cc0-world-lighting-candidates
+          path: |
+            ${{ runner.temp }}/world-lighting-stage/lighting/*.hdr
+            ${{ runner.temp }}/world-lighting-stage/SHA256SUMS
+            ${{ runner.temp }}/world-lighting-stage/source-receipts.json
+          if-no-files-found: error
+          retention-days: 14
