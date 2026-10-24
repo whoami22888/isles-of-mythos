@@ -173,5 +173,30 @@ class FetcherTests(unittest.TestCase):
         self.assertFalse(self.target.exists())
 
 
+    def test_generated_asset_requires_committed_matching_bytes(self):
+        """A derived RGBA output must not fetch a different upstream diffuse."""
+        item = {
+            "path": "terrain.glb",
+            "generated_from": ["source-rgb.jpg", "source-mask.png"],
+            "generation_note": "RGB and mask are composed offline",
+        }
+        with self.assertRaisesRegex(ValueError, "Generated asset missing"):
+            fetcher.verify_generated(self.target, self.digest, item)
+        self.target.write_bytes(self.payload)
+        fetcher.verify_generated(self.target, self.digest, item)
+        self.target.write_bytes(b"mismatched-image")
+        with self.assertRaisesRegex(ValueError, "Generated asset hash mismatch"):
+            fetcher.verify_generated(self.target, self.digest, item)
+
+    def test_generated_asset_rejects_unrecorded_dependencies(self):
+        """Never interpret a made-up upstream URL as a reproducible derivative."""
+        self.target.write_bytes(self.payload)
+        with self.assertRaisesRegex(ValueError, "Invalid generated"):
+            fetcher.verify_generated(
+                self.target, self.digest,
+                {"path": "terrain.glb", "generated_from": ["terrain.glb"],
+                 "generation_note": "not reproducible"}
+            )
+
 if __name__ == "__main__":
     unittest.main()
