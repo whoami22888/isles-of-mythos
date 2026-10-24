@@ -142,7 +142,11 @@ jobs:
             test "$digest" = "$expected_signer"
           }
           verify_expected_signer "$apk" "$RUNNER_TEMP/iom-artifacts/APK_SIGNATURE.txt" || {
+            # Certificate digests are public identifiers; print them to classify
+            # an export-key mismatch versus a parser or multi-signer defect.
             echo "::error::APK signer does not match the debug key supplied to Godot"
+            echo "expected_debug_cert_sha256=$expected_signer"
+            sed -n '/^Signer #[0-9][0-9]* certificate SHA-256 digest:/p' "$RUNNER_TEMP/iom-artifacts/APK_SIGNATURE.txt"
             exit 1
           }
           # Negative regression: valid APK signed with an unrelated key is rejected.
