@@ -98,10 +98,10 @@ jobs:
           test "${#sdk_versions[@]}" -gt 0
           sdk_tools="${sdk_versions[${#sdk_versions[@]}-1]}"
           test -x "$sdk_tools/apksigner"
-          test -x "$sdk_tools/aapt"
+          test -x "$sdk_tools/aapt2"
           "$sdk_tools/apksigner" verify --verbose --print-certs "$apk" > "$RUNNER_TEMP/iom-artifacts/APK_SIGNATURE.txt"
-          "$sdk_tools/aapt" dump badging "$apk" > "$RUNNER_TEMP/iom-artifacts/APK_BADGING.txt"
-          grep -Fq "package: name='com.whoami22888.islesofmythos'" "$RUNNER_TEMP/iom-artifacts/APK_BADGING.txt"
+          "$sdk_tools/aapt2" dump packagename "$apk" > "$RUNNER_TEMP/iom-artifacts/APK_PACKAGE.txt"
+          grep -Fxq "com.whoami22888.islesofmythos" "$RUNNER_TEMP/iom-artifacts/APK_PACKAGE.txt"
       - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
         with:
           name: iom-00-android-debug
