@@ -64,8 +64,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/iom-artifacts"
-          # Use a known per-run debug signing identity so the resulting APK can
-          # be verified against the exact key supplied to Godot.
+          # Explicit per-run debug identity, verified against the final APK.
           debug_keystore="$RUNNER_TEMP/iom-debug.keystore"
           keytool -genkeypair -noprompt -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 3650 -storetype PKCS12 -keystore "$debug_keystore" -storepass android -keypass android -dname "CN=Android Debug,O=Android,C=US" > /dev/null
           chmod 600 "$debug_keystore"
@@ -86,7 +85,31 @@ jobs:
           validate_arm64_entries() {
             local listing="$1"
             grep -Fxq 'AndroidManifest.xml' "$listing" || return 1
-            grep -Eq '^lib/arm64-v8a/[^/]+\.so
+            grep -Eq '^lib/arm64-v8a/[^/]+\.so$' "$listing" || return 1
+            if grep -Eq '^lib/(armeabi-v7a|x86|x86_64)/' "$listing"; then
+              return 1
+            fi
+          }
+          validate_arm64_entries "$entries_file" || {
+            echo "::error::APK manifest or ARM64-only library contract failed"
+            exit 1
+          }
+          # Regression: large valid listings must pass; any foreign ABI must fail.
+          listing_test="$(mktemp)"
+          {
+            printf 'AndroidManifest.xml\nlib/arm64-v8a/libgodot_android.so\n'
+            printf 'assets/file-%s.bin\n' {1..5000}
+          } > "$listing_test"
+          validate_arm64_entries "$listing_test" || {
+            echo "::error::Large valid APK listing was rejected"
+            exit 1
+          }
+          printf 'lib/x86/libforeign.so\n' >> "$listing_test"
+          if validate_arm64_entries "$listing_test"; then
+            echo "::error::Mixed-ABI listing was incorrectly accepted"
+            exit 1
+          fi
+          rm -f "$listing_test"
           {
             echo "source_sha=${{ github.event.pull_request.head.sha || github.sha }}"
             echo "godot_version=$("$RUNNER_TEMP/godot/godot" --version)"
@@ -122,8 +145,7 @@ jobs:
             echo "::error::APK signer does not match the debug key supplied to Godot"
             exit 1
           }
-          # Negative regression: a valid APK re-signed with an unrelated key
-          # must fail the exact same identity check used for the real artifact.
+          # Negative regression: valid APK signed with an unrelated key is rejected.
           alternate_keystore="$RUNNER_TEMP/iom-alternate-debug.keystore"
           keytool -genkeypair -noprompt -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 3650 -storetype PKCS12 -keystore "$alternate_keystore" -storepass android -keypass android -dname "CN=Unrelated Debug,O=Android,C=US" > /dev/null
           alternate_apk="$RUNNER_TEMP/iom-alternate-debug.apk"
@@ -133,59 +155,6 @@ jobs:
             exit 1
           fi
           rm -f "$alternate_apk" "$alternate_keystore" "$RUNNER_TEMP/iom-alternate-signature.txt"
-          "$sdk_tools/aapt2" dump packagename "$apk" > "$RUNNER_TEMP/iom-artifacts/APK_PACKAGE.txt"
-          grep -Fxq "com.whoami22888.islesofmythos" "$RUNNER_TEMP/iom-artifacts/APK_PACKAGE.txt"
-      - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
-        with:
-          name: iom-00-android-debug
-          path: ${{ runner.temp }}/iom-artifacts
-          if-no-files-found: error
- "$listing" || return 1
-            if grep -Eq '^lib/(armeabi-v7a|x86|x86_64)/' "$listing"; then
-              return 1
-            fi
-          }
-          # Read a file, not a pipe into grep -q: early grep exit under
-          # pipefail can hide forbidden ABIs or reject valid large APKs.
-          validate_arm64_entries "$entries_file" || {
-            echo "::error::APK manifest or ARM64-only library contract failed"
-            exit 1
-          }
-          listing_test="$(mktemp)"
-          {
-            printf 'AndroidManifest.xml\nlib/arm64-v8a/libgodot_android.so\n'
-            printf 'assets/file-%s.bin\n' {1..5000}
-          } > "$listing_test"
-          validate_arm64_entries "$listing_test" || {
-            echo "::error::Large valid APK listing was rejected"
-            exit 1
-          }
-          printf 'lib/x86/libforeign.so\n' >> "$listing_test"
-          if validate_arm64_entries "$listing_test"; then
-            echo "::error::Mixed-ABI listing was incorrectly accepted"
-            exit 1
-          fi
-          rm -f "$listing_test"
-          {
-            echo "source_sha=${{ github.event.pull_request.head.sha || github.sha }}"
-            echo "godot_version=$("$RUNNER_TEMP/godot/godot" --version)"
-            echo "target_abi=arm64-v8a"
-            echo "export_preset=Android Debug"
-          } > "$RUNNER_TEMP/iom-artifacts/BUILD_PROVENANCE.txt"
-          (cd "$RUNNER_TEMP/iom-artifacts" && sha256sum --check SHA256SUMS)
-      - name: Verify Android package identity and debug signature
-        shell: bash
-        run: |
-          set -euo pipefail
-          apk="$RUNNER_TEMP/iom-artifacts/isles-of-mythos-debug.apk"
-          : "${ANDROID_HOME:=${ANDROID_SDK_ROOT:-}}"
-          test -d "$ANDROID_HOME/build-tools"
-          mapfile -t sdk_versions < <(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d -print | sort -V)
-          test "${#sdk_versions[@]}" -gt 0
-          sdk_tools="${sdk_versions[${#sdk_versions[@]}-1]}"
-          test -x "$sdk_tools/apksigner"
-          test -x "$sdk_tools/aapt2"
-          "$sdk_tools/apksigner" verify --verbose --print-certs "$apk" > "$RUNNER_TEMP/iom-artifacts/APK_SIGNATURE.txt"
           "$sdk_tools/aapt2" dump packagename "$apk" > "$RUNNER_TEMP/iom-artifacts/APK_PACKAGE.txt"
           grep -Fxq "com.whoami22888.islesofmythos" "$RUNNER_TEMP/iom-artifacts/APK_PACKAGE.txt"
       - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
