@@ -336,79 +336,27 @@ func _configure_ship_sails(root: Node) -> void:
 		for child in node.get_children():
 			_configure_ship_sails(child)
 
-func _reduce_surface_triangles(source: ArrayMesh, surface_index: int, max_triangles: int) -> Array:
-	var arrays: Array = source.surface_get_arrays(surface_index)
-	var source_indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
-	if source_indices.is_empty() or max_triangles <= 0:
-		return []
-	var source_triangles := source_indices.size() / 3
-	var target := mini(source_triangles, max_triangles)
-	var reduced_indices := PackedInt32Array()
-	# Evenly sample source triangles so branch/leaf silhouettes remain
-	# distributed over the full mesh instead of retaining a single patch.
-	for sample in range(target):
-		var source_triangle := mini(source_triangles - 1,
-			int(float(sample) * float(source_triangles) / float(target)))
-		var offset := source_triangle * 3
-		reduced_indices.append(source_indices[offset])
-		reduced_indices.append(source_indices[offset + 1])
-		reduced_indices.append(source_indices[offset + 2])
-	arrays[Mesh.ARRAY_INDEX] = reduced_indices
-	return arrays
+func _reduce_surface_triangles(source: ArrayMesh, surface_index: int, _max_triangles: int) -> Array:
+	# A triangle budget cannot justify punching holes in an authored surface.
+	# Until an admitted LOD has equivalent topology/material evidence, retain
+	# the exact source arrays, including every vertex attribute and index.
+	return source.surface_get_arrays(surface_index)
 
+func _apply_far_foliage_lod(asset: Node3D, _max_total_triangles: int = 72000) -> void:
+	_preserve_authored_mesh(asset)
 
-func _apply_far_foliage_lod(asset: Node3D, max_total_triangles: int = 72000) -> void:
-	# Imported tropical trees contain separate trunk, leaf and branch PBR
-	# surfaces. Keep all three, but reduce indexed triangles deterministically
-	# for distant instances. This is a real geometry LOD: foliage remains
-	# visible and uses its original materials, while draw triangles are bounded.
-	for node in asset.get_children():
-		if not node is MeshInstance3D:
-			continue
-		var source := node as MeshInstance3D
-		if source.mesh == null or source.mesh.get_surface_count() < 3:
-			continue
-		var source_mesh := source.mesh as ArrayMesh
-		var lod := ArrayMesh.new()
-		for surface_index in range(source_mesh.get_surface_count()):
-			var cap := int(float(max_total_triangles) * (0.5 if surface_index == 0 else (0.333333 if surface_index == 1 else 0.166667)))
-			var reduced := _reduce_surface_triangles(source_mesh, surface_index, cap)
-			if reduced.is_empty():
-				continue
-			lod.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, reduced)
-			lod.surface_set_material(lod.get_surface_count() - 1,
-				source_mesh.surface_get_material(surface_index))
-		if lod.get_surface_count() > 0:
-			source.mesh = lod
-			source.lod_bias = 1.5
+func _apply_landmark_lod(asset: Node3D, _max_triangles: int) -> void:
+	_preserve_authored_mesh(asset)
 
-func _apply_landmark_lod(asset: Node3D, max_triangles: int) -> void:
-	# Keep every imported surface and its authored PBR material. Sampling
-	# indexed triangles across the source preserves the full cliff silhouette
-	# better than dropping a surface, while bounding transform/raster work for
-	# distant copies on the Mobile renderer.
-	for node in asset.get_children():
-		if not node is MeshInstance3D:
-			continue
-		var source := node as MeshInstance3D
-		if source.mesh == null:
-			continue
-		var source_mesh := source.mesh as ArrayMesh
-		var surface_count := source_mesh.get_surface_count()
-		if surface_count == 0:
-			continue
-		var per_surface_cap := maxi(1, int(float(max_triangles) / float(surface_count)))
-		var lod := ArrayMesh.new()
-		for surface_index in range(surface_count):
-			var reduced := _reduce_surface_triangles(source_mesh, surface_index, per_surface_cap)
-			if reduced.is_empty():
-				continue
-			lod.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, reduced)
-			lod.surface_set_material(lod.get_surface_count() - 1,
-				source_mesh.surface_get_material(surface_index))
-		if lod.get_surface_count() > 0:
-			source.mesh = lod
-			source.lod_bias = 1.5
+func _preserve_authored_mesh(asset: Node3D) -> void:
+	# Keep imported meshes and their importer-authored LODs intact. Rebuilding
+	# ArrayMesh surfaces loses importer LODs and risks attribute/material loss.
+	# Geometry budgets remain acceptance blockers until verified replacements
+	# are admitted; never silently trade connectivity for a smaller draw count.
+	for child in asset.get_children():
+		if child is MeshInstance3D and child.mesh:
+			child.lod_bias = 1.5
+		_preserve_authored_mesh(child)
 
 func visual_bounds_world(asset: Node3D) -> AABB:
 	var lowest := Vector3(INF, INF, INF)
