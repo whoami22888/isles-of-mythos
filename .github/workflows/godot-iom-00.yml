@@ -87,6 +87,21 @@ jobs:
             echo "export_preset=Android Debug"
           } > "$RUNNER_TEMP/iom-artifacts/BUILD_PROVENANCE.txt"
           sha256sum --check "$RUNNER_TEMP/iom-artifacts/SHA256SUMS"
+      - name: Verify Android package identity and debug signature
+        shell: bash
+        run: |
+          set -euo pipefail
+          apk="$RUNNER_TEMP/iom-artifacts/isles-of-mythos-debug.apk"
+          : "${ANDROID_HOME:=${ANDROID_SDK_ROOT:-}}"
+          test -d "$ANDROID_HOME/build-tools"
+          mapfile -t sdk_versions < <(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d -print | sort -V)
+          test "${#sdk_versions[@]}" -gt 0
+          sdk_tools="${sdk_versions[${#sdk_versions[@]}-1]}"
+          test -x "$sdk_tools/apksigner"
+          test -x "$sdk_tools/aapt"
+          "$sdk_tools/apksigner" verify --verbose --print-certs "$apk" > "$RUNNER_TEMP/iom-artifacts/APK_SIGNATURE.txt"
+          "$sdk_tools/aapt" dump badging "$apk" > "$RUNNER_TEMP/iom-artifacts/APK_BADGING.txt"
+          grep -Fq "package: name='com.whoami22888.islesofmythos'" "$RUNNER_TEMP/iom-artifacts/APK_BADGING.txt"
       - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
         with:
           name: iom-00-android-debug
