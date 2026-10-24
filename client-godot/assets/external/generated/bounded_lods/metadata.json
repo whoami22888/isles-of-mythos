@@ -1,0 +1,34 @@
+[
+  {
+    "asset": "tree_small_02",
+    "before": 2062487,
+    "after": 89900,
+    "source_sha256": "67a1c641110567e8cc67160a5ebc3b1957dc78de04f9109c731f846b4b291af5",
+    "output_sha256": "e0838d388508ecf57c4111a1dbb63c22c2ef1c82a27275f318f7b172d74b3556",
+    "blender": "4.3.2"
+  },
+  {
+    "asset": "island_tree_01",
+    "before": 1599403,
+    "after": 71900,
+    "source_sha256": "78e905a40670bfabb2760601d4d9a6c17193a50d68e6271c66893eb7bd75906d",
+    "output_sha256": "c62acae053b51d3574677f96e48071b1a7c59119b9f017b3e3e40ccacda95a52",
+    "blender": "4.3.2"
+  },
+  {
+    "asset": "island_tree_02",
+    "before": 1072212,
+    "after": 71900,
+    "source_sha256": "d8c5d9ead41cdbef91a648f40ff60470faa19eb3a7010e59e44cb1a01250f75d",
+    "output_sha256": "0bdef2b056848ed38733edac22402c3d5b7fa886817690d33fece207415e6346",
+    "blender": "4.3.2"
+  },
+  {
+    "asset": "coast_rocks_05",
+    "before": 771724,
+    "after": 29899,
+    "source_sha256": "4b5e97d42b4d9e1999ee5961922adc6b5d81f4aad34219915def7975bb2a8eb7",
+    "output_sha256": "49a98aea985249f368a3491f1331d7199ac9989cc2f45bcdde48496cd851422a",
+    "blender": "4.3.2"
+  }
+]

@@ -5,6 +5,7 @@ import json
 import pathlib
 import re
 import sys
+from urllib.parse import urlparse
 
 from fetch_verified_godot_assets import validate_origin
 
@@ -41,6 +42,35 @@ def validate_metadata(index, item, seen_ids, seen_paths):
     if not HASH.fullmatch(item["sha256"]):
         fail(f"Asset {index}: invalid SHA-256 digest")
     validate_origin(item["download_url"])
+    # Poly Haven metadata must identify the actual package and an approved
+    # source-file path. A generic /a/polyhaven page or /1k/polyhaven/ URL
+    # is not enough to prove commercial redistribution provenance.
+    relative = pathlib.PurePosixPath(item["path"])
+    if relative.parts and relative.parts[0] == "polyhaven":
+        if len(relative.parts) < 3:
+            fail(f"Asset {index}: missing Poly Haven package path")
+        package = relative.parts[1]
+        expected_source = f"https://polyhaven.com/a/{package}"
+        if item["source_url"] != expected_source:
+            fail(f"Asset {index}: Poly Haven source does not match package")
+        download = urlparse(item["download_url"])
+        if (download.hostname != "dl.polyhaven.org"
+                or f"/{package}/" not in download.path):
+            fail(f"Asset {index}: download URL not bound to Poly Haven package")
+        if "generated_from" in item:
+            parents = item["generated_from"]
+            if (not isinstance(parents, list) or not parents
+                    or not all(isinstance(p, str) and p and p != item["path"]
+                               for p in parents)
+                    or not isinstance(item.get("generation_note"), str)
+                    or not item["generation_note"].strip()):
+                fail(f"Asset {index}: invalid generated source metadata")
+        else:
+            if pathlib.PurePosixPath(download.path).name != relative.name:
+                fail(f"Asset {index}: upstream filename mismatch")
+            md5 = item.get("upstream_md5")
+            if not isinstance(md5, str) or not re.fullmatch(r"[a-f0-9]{32}", md5):
+                fail(f"Asset {index}: missing upstream catalogue MD5")
 
 
 def validate_path(index, item, root):
@@ -78,6 +108,13 @@ def validate() -> int:
     for index, item in enumerate(data["assets"]):
         validate_metadata(index, item, seen_ids, seen_paths)
         registered.add(validate_path(index, item, root))
+    # Generated outputs are verified in-place, and must have fully recorded
+    # source dependencies. They are never downloaded as if upstream provided
+    # a binary with the derived SHA-256.
+    for entry in data["assets"]:
+        for source in entry.get("generated_from", []):
+            if source not in seen_paths:
+                fail(f"Generated asset dependency is absent: {source}")
     if ASSETS.exists():
         actual = set()
         for candidate in ASSETS.rglob("*"):
