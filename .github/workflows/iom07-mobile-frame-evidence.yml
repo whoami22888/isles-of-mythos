@@ -1,0 +1,87 @@
+name: IOM-07 mobile frame evidence
+
+on:
+  pull_request:
+    paths:
+      - "client-godot/scripts/mobile_frame_metrics.gd"
+      - "client-godot/scenes/sculpted_terrain_preview.tscn"
+      - "client-godot/tests/mobile_frame_*.gd"
+      - ".github/workflows/iom07-mobile-frame-evidence.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: iom07-frame-evidence-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  godot-real-frame-evidence:
+    name: Godot 4.7.2 real frame evidence (Linux virtual display, NOT Android)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      GODOT_SHA256: cadd3204e728a35d3f13adb7fd0d7902636b79f6b95c40c265eb73b6c35329e4
+      IOM_GIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Install pinned Godot and Linux virtual display
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq xvfb
+          curl --fail --location --retry 3 -o "$RUNNER_TEMP/godot.zip" "https://github.com/godotengine/godot/releases/download/4.7.2-stable/Godot_v4.7.2-stable_linux.x86_64.zip"
+          echo "$GODOT_SHA256  $RUNNER_TEMP/godot.zip" | sha256sum --check
+          unzip -q "$RUNNER_TEMP/godot.zip" -d "$RUNNER_TEMP"
+          install "$RUNNER_TEMP/Godot_v4.7.2-stable_linux.x86_64" "$RUNNER_TEMP/godot"
+          "$RUNNER_TEMP/godot" --version | grep -F "4.7.2.stable"
+      - name: Test frame percentile math in real Godot
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$RUNNER_TEMP/godot" --headless --path client-godot --script res://tests/mobile_frame_metrics_test.gd
+      - name: Collect actual engine workload samples (not Android)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/mobile-evidence"
+          xvfb-run -a -s "-screen 0 1280x720x24" "$RUNNER_TEMP/godot" --editor --path client-godot --quit --import
+          IOM_MOBILE_PROFILE_PATH="$RUNNER_TEMP/mobile-evidence/godot-frame-evidence.json" xvfb-run -a -s "-screen 0 1280x720x24" "$RUNNER_TEMP/godot" --path client-godot --rendering-method gl_compatibility --script res://tests/mobile_frame_capture.gd
+          python3 - "$RUNNER_TEMP/mobile-evidence/godot-frame-evidence.json" <<'PY'
+          import json
+          import os
+          import sys
+          from pathlib import Path
+          evidence = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+          assert evidence["source"] == "actual_godot_scene"
+          assert evidence["commit_sha"] == os.environ["IOM_GIT_SHA"]
+          assert evidence["godot_version"].startswith("4.7.2")
+          assert evidence["renderer"] == "gl_compatibility"
+          assert evidence["physical_android_measurement"] is False
+          assert evidence["graphics_quality_verdict"] == "NOT_VERIFIED"
+          assert evidence["mobile_acceptance_verdict"] == "NOT_VERIFIED"
+          for name in ("frame_interval_ms", "engine_process_ms"):
+              metrics = evidence[name]
+              assert metrics["valid"] and metrics["samples"] == 180
+              assert 0 < metrics["p50_ms"] <= metrics["p95_ms"] <= metrics["p99_ms"] <= metrics["max_ms"]
+          clock_check = evidence["engine_process_clock_check"]
+          assert isinstance(clock_check["comparable"], bool)
+          assert clock_check["reason"] in ("CONSISTENT", "PROCESS_MONITOR_CLOCK_DIVERGENCE")
+          if not clock_check["comparable"]:
+              print("WARNING: Godot process monitor differs from frame clock; no CPU bottleneck verdict.")
+          print("Verified Godot frame evidence schema and exact source commit; Android quality remains NOT VERIFIED.")
+          PY
+          (cd "$RUNNER_TEMP/mobile-evidence" && sha256sum ./*.json > SHA256SUMS)
+      - name: Upload real profiler data with provenance
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
+        with:
+          name: iom07-godot-linux-frame-evidence
+          path: |
+            ${{ runner.temp }}/mobile-evidence/godot-frame-evidence.json
+            ${{ runner.temp }}/mobile-evidence/SHA256SUMS
+          if-no-files-found: error
