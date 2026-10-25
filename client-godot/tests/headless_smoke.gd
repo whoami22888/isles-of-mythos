@@ -15,6 +15,7 @@ func run() -> void:
 	var scene = load("res://scenes/boot.tscn").instantiate()
 	root.add_child(scene)
 	check(scene._http.max_redirects == 0, "Password-bearing auth requests must not follow redirects")
+	check(scene._http.timeout > 0.0 and scene._http.timeout <= 30.0, "Authentication must have a bounded network timeout")
 	check(scene.get_node("Panel/Margin/Content/Password").secret, "Password entry must be masked")
 	check(scene.get_node("Panel/Margin/Content/Modes/PlayerLogin").pressed.get_connections().size() == 1, "Player mode button must be wired")
 	check(scene.get_node("Panel/Margin/Content/Modes/RegisterPlayer").pressed.get_connections().size() == 1, "Registration button must be wired")
@@ -34,6 +35,20 @@ func run() -> void:
 	scene._switch_mode("player")
 	check(str(ProjectSettings.get_setting("application/config/default_ws_url", "")) == "", "Client must not advertise Android localhost as a live server")
 	check(scene.get_node("Panel/Margin/Content/Connect").pressed.is_connected(scene._connect_from_form), "Connect must be wired")
+	var login_endpoint := "ws://127.0.0.1:1/ws"
+	scene.get_node("Panel/Margin/Content/Endpoint").text = login_endpoint
+	scene.get_node("Panel/Margin/Content/Identifier").text = "test-player"
+	scene.get_node("Panel/Margin/Content/Password").text = "test-password-only"
+	scene._connect_from_form()
+	check(scene._busy, "Login request must enter busy state")
+	scene.get_node("Panel/Margin/Content/Endpoint").text = "ws://127.0.0.1:2/ws"
+	scene._on_auth_completed(HTTPRequest.RESULT_SUCCESS, 200, PackedStringArray(), JSON.stringify({"accessToken": "test-token"}).to_utf8_buffer())
+	check(scene._adapter._url == login_endpoint, "JWT must use the endpoint that received the password")
+	scene._http.cancel_request()
+	scene._set_busy(true)
+	scene.get_node("Panel/Margin/Content/Password").text = "test-password-only"
+	scene._on_auth_completed(HTTPRequest.RESULT_TIMEOUT, 0, PackedStringArray(), PackedByteArray())
+	check(not scene._busy and scene.get_node("Panel/Margin/Content/Password").text.is_empty(), "Timeout must restore the form and clear the password")
 	var preset := ConfigFile.new()
 	check(preset.load("res://export_presets.cfg") == OK, "Export preset must load")
 	check(preset.get_value("preset.0.options", "permissions/internet", false), "APK must allow Internet access")

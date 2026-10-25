@@ -3,6 +3,7 @@ extends Control
 ## The backend issues JWTs. Never store passwords or require users to paste JWTs.
 
 const Adapter = preload("res://scripts/websocket_adapter.gd")
+const AUTH_REQUEST_TIMEOUT_SECONDS := 15.0
 
 @onready var _status: Label = $Panel/Margin/Content/Status
 @onready var _endpoint: LineEdit = $Panel/Margin/Content/Endpoint
@@ -18,6 +19,7 @@ var _adapter: Node
 var _http: HTTPRequest
 var _mode := "player"
 var _busy := false
+var _pending_auth_endpoint := ""
 
 func _ready() -> void:
     _adapter = Adapter.new()
@@ -27,6 +29,7 @@ func _ready() -> void:
     _http = HTTPRequest.new()
     # Credentials must never be forwarded to a different origin by a 3xx.
     _http.max_redirects = 0
+    _http.timeout = AUTH_REQUEST_TIMEOUT_SECONDS
     add_child(_http)
     _http.request_completed.connect(_on_auth_completed)
 
@@ -81,6 +84,7 @@ func _auth_payload(identifier: String, password: String, email: String, mode: St
 
 func _set_busy(value: bool) -> void:
     _busy = value
+    _endpoint.editable = not value
     _connect.disabled = value
     _player_button.disabled = value or _mode == "player"
     _register_button.disabled = value or _mode == "register"
@@ -104,16 +108,20 @@ func _connect_from_form() -> void:
         return
 
     var body := JSON.stringify(_auth_payload(identifier, password, _email.text.strip_edges(), _mode))
+    _pending_auth_endpoint = endpoint
     _set_busy(true)
     _status.text = "Creating account…" if _mode == "register" else "Checking credentials…"
     var headers := PackedStringArray(["Content-Type: application/json", "Accept: application/json"])
     var error := _http.request(base + _auth_api_path(_mode), headers, HTTPClient.METHOD_POST, body)
     if error != OK:
+        _pending_auth_endpoint = ""
         _password.clear()
         _set_busy(false)
         _status.text = "Cannot reach the authentication service. Check server configuration."
 
 func _on_auth_completed(result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
+    var authenticated_endpoint := _pending_auth_endpoint
+    _pending_auth_endpoint = ""
     _password.clear()
     _set_busy(false)
     if result != HTTPRequest.RESULT_SUCCESS:
@@ -148,7 +156,10 @@ func _on_auth_completed(result: int, response_code: int, _headers: PackedStringA
         return
 
     _status.text = "Authenticated. Connecting to game server…"
-    _adapter.configure(_endpoint.text.strip_edges(), token)
+    if authenticated_endpoint.is_empty():
+        _status.text = "Authentication response had no matching server. Sign in again."
+        return
+    _adapter.configure(authenticated_endpoint, token)
     _adapter.connect_to_server()
 
 func _on_status_changed(status: String) -> void:
