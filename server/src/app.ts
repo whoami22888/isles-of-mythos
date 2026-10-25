@@ -15,6 +15,7 @@ import { log } from "./logger.js";
 import { parseClientMessage, type ServerMessage } from "./protocol.js";
 import { PlayerStore, serializePlayerState } from "./player.js";
 import { WorldChunkCache } from "./world.js";
+import { createWorldResourceVisibilityBatcher } from "./world-resource-visibility.js";
 import { SHOP_ITEMS, calculatePurchase, getShopItem, serializeShopItem } from "./shop.js";
 import { craftRecipe } from "./crafting.js";
 import { gatherResource, resourceGatherFingerprint } from "./resource-gathering.js";
@@ -173,23 +174,22 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     return creatures.length === chunk.creatures.length ? chunk : { ...chunk, creatures };
   };
   const chunkTimings = new WeakMap<FastifyRequest, MutationTiming>();
-  const visibleClientWorldChunk = async (x: number, y: number, timing?: MutationTiming) => {
+  const filterDepletedResources = createWorldResourceVisibilityBatcher(async (resourceIds) => {
+    const result = await db.query<{ node_id: string }>(
+      "SELECT node_id FROM world_resource_nodes WHERE node_id = ANY($1::varchar[]) AND depleted_until > CURRENT_TIMESTAMP",
+      [resourceIds],
+    );
+    return new Set(result.rows.map((row) => row.node_id));
+  });
+  const visibleClientWorldChunk = async (
+    x: number, y: number, timing?: MutationTiming,
+  ) => {
     const generationStartedAt = performance.now();
     const chunk = visibleWorldChunk(x, y);
     if (timing) {
       timing.stages.generationMs = performance.now() - generationStartedAt;
-      timing.stages.resourceQueryMs = 0;
     }
-    if (chunk.resources.length === 0) return chunk;
-    const resourceIds = chunk.resources.map((resource) => resource.id);
-    const result = await measureMutationStage(timing, "resourceQueryMs", () => db.query<{ node_id: string }>(
-      "SELECT node_id FROM world_resource_nodes WHERE node_id = ANY($1::varchar[]) AND depleted_until > CURRENT_TIMESTAMP",
-      [resourceIds],
-    ));
-    if (result.rows.length === 0) return chunk;
-    const depleted = new Set(result.rows.map((row) => row.node_id));
-    const resources = chunk.resources.filter((resource) => !depleted.has(resource.id));
-    return resources.length === chunk.resources.length ? chunk : { ...chunk, resources };
+    return measureMutationStage(timing, "resourceQueryMs", () => filterDepletedResources(chunk));
   };
 
   const projectiles = new Map<string, CombatProjectile>();

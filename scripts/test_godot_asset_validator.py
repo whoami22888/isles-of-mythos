@@ -152,5 +152,54 @@ class AssetValidatorTests(unittest.TestCase):
             validator.validate()
 
 
+    def test_polyhaven_rejects_generic_source_page(self):
+        """A generic publisher page cannot establish package provenance."""
+        self.entry.update({
+            "path": "polyhaven/coast_rocks_05/coast_rocks_05.bin",
+            "source_url": "https://polyhaven.com/a/polyhaven",
+            "download_url": (
+                "https://dl.polyhaven.org/file/ph-assets/Models/gltf/8k/"
+                "coast_rocks_05/coast_rocks_05.bin"
+            ),
+            "upstream_md5": "a" * 32,
+        })
+        with self.assertRaisesRegex(ValueError, "source does not match"):
+            validator.validate_metadata(0, self.entry, set(), set())
+
+    def test_polyhaven_rejects_wrong_package_download(self):
+        """Do not accept an asset from a different package just by host."""
+        self.entry.update({
+            "path": "polyhaven/coast_rocks_05/coast_rocks_05.bin",
+            "source_url": "https://polyhaven.com/a/coast_rocks_05",
+            "download_url": (
+                "https://dl.polyhaven.org/file/ph-assets/Models/gltf/8k/"
+                "other_asset/coast_rocks_05.bin"
+            ),
+            "upstream_md5": "a" * 32,
+        })
+        with self.assertRaisesRegex(ValueError, "not bound"):
+            validator.validate_metadata(0, self.entry, set(), set())
+
+    def test_generated_asset_dependency_must_be_manifested(self):
+        """Committed derivatives cannot point to missing source textures."""
+        (self.assets / "terrain.glb").write_bytes(self.sample)
+        self.entry.update({
+            "path": "polyhaven/coast_rocks_05/coast_rocks_05.bin",
+            "source_url": "https://polyhaven.com/a/coast_rocks_05",
+            "download_url": (
+                "https://dl.polyhaven.org/file/ph-assets/Models/gltf/8k/"
+                "coast_rocks_05/coast_rocks_05.bin"
+            ),
+            "generated_from": ["polyhaven/coast_rocks_05/missing-source.png"],
+            "generation_note": "Derived locally",
+        })
+        destination = self.assets / self.entry["path"]
+        destination.parent.mkdir(parents=True)
+        destination.write_bytes(self.sample)
+        (self.assets / "terrain.glb").unlink()
+        self.write([self.entry])
+        with self.assertRaisesRegex(ValueError, "dependency is absent"):
+            validator.validate()
+
 if __name__ == "__main__":
     unittest.main()

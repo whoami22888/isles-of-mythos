@@ -26,7 +26,7 @@ jobs:
       JWT_SECRET: test-only-jwt-secret-not-for-production
     services:
       postgres:
-        image: cgr.dev/chainguard/postgres@sha256:1a417cf464d938b1b1182411416401215af7fbc88395d9b90f7c805e96d639a7
+        image: cgr.dev/chainguard/postgres@sha256:0926ac7262a2c1963179eb939cd5d610e1be3ecca90b4b5cad8db8df16fab87e
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
@@ -82,10 +82,10 @@ jobs:
       - name: Verify PostgreSQL backup and restore
         run: |
           mkdir -p "$RUNNER_TEMP/isles-backup"
-          docker run --rm --network host -e PGPASSWORD=postgres -v "$RUNNER_TEMP/isles-backup:/backup" --entrypoint pg_dump cgr.dev/chainguard/postgres@sha256:1a417cf464d938b1b1182411416401215af7fbc88395d9b90f7c805e96d639a7 -Fc -h 127.0.0.1 -U postgres -d isles_test -f /backup/isles_test.dump
-          docker run --rm --network host -e PGPASSWORD=postgres --entrypoint psql cgr.dev/chainguard/postgres@sha256:1a417cf464d938b1b1182411416401215af7fbc88395d9b90f7c805e96d639a7 -h 127.0.0.1 -U postgres -d postgres -c "CREATE DATABASE isles_restore"
-          docker run --rm --network host -e PGPASSWORD=postgres -v "$RUNNER_TEMP/isles-backup:/backup" --entrypoint pg_restore cgr.dev/chainguard/postgres@sha256:1a417cf464d938b1b1182411416401215af7fbc88395d9b90f7c805e96d639a7 --no-owner -h 127.0.0.1 -U postgres -d isles_restore /backup/isles_test.dump
-          docker run --rm --network host -e PGPASSWORD=postgres --entrypoint psql cgr.dev/chainguard/postgres@sha256:1a417cf464d938b1b1182411416401215af7fbc88395d9b90f7c805e96d639a7 -h 127.0.0.1 -U postgres -d isles_restore -v ON_ERROR_STOP=1 -c "SELECT COUNT(*) > 0 FROM information_schema.tables WHERE table_schema = 'public'"
+          docker run --rm --network host -e PGPASSWORD=postgres -v "$RUNNER_TEMP/isles-backup:/backup" --entrypoint pg_dump cgr.dev/chainguard/postgres@sha256:0926ac7262a2c1963179eb939cd5d610e1be3ecca90b4b5cad8db8df16fab87e -Fc -h 127.0.0.1 -U postgres -d isles_test -f /backup/isles_test.dump
+          docker run --rm --network host -e PGPASSWORD=postgres --entrypoint psql cgr.dev/chainguard/postgres@sha256:0926ac7262a2c1963179eb939cd5d610e1be3ecca90b4b5cad8db8df16fab87e -h 127.0.0.1 -U postgres -d postgres -c "CREATE DATABASE isles_restore"
+          docker run --rm --network host -e PGPASSWORD=postgres -v "$RUNNER_TEMP/isles-backup:/backup" --entrypoint pg_restore cgr.dev/chainguard/postgres@sha256:0926ac7262a2c1963179eb939cd5d610e1be3ecca90b4b5cad8db8df16fab87e --no-owner -h 127.0.0.1 -U postgres -d isles_restore /backup/isles_test.dump
+          docker run --rm --network host -e PGPASSWORD=postgres --entrypoint psql cgr.dev/chainguard/postgres@sha256:0926ac7262a2c1963179eb939cd5d610e1be3ecca90b4b5cad8db8df16fab87e -h 127.0.0.1 -U postgres -d isles_restore -v ON_ERROR_STOP=1 -c "SELECT COUNT(*) > 0 FROM information_schema.tables WHERE table_schema = 'public'"
 
       - name: Validate Docker Compose configuration
         env:
@@ -102,6 +102,9 @@ jobs:
 
       - name: Verify bounded orchestration controls
         run: npm run test:orchestration
+
+      - name: Verify exact-SHA Codex integration policy regressions
+        run: node --test scripts/auto-merge-gate.test.mjs
 
       - run: npm run test
       - run: npm run build
