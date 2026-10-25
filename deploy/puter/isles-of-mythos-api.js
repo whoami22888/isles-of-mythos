@@ -1,3 +1,4 @@
+/* jshint esversion: 11 */
 // Isles of Mythos — Puter HTTP auth gateway v0.3.0.
 // Infrastructure only: Fastify remains the sole account/token authority.
 // Configure after deploying the real TLS-protected Fastify backend.
@@ -52,7 +53,9 @@ async function forward({request}, method, path) {
 router.get('/', () => ({service:'isles-of-mythos-api',version:VERSION,status:'ok'}));
 router.get('/health', () => ({service:'isles-of-mythos-api',version:VERSION,status:'ok',
   authBackendConfigured:!!upstreamOrigin()}));
-for (const [method,path] of [
+[
   ['post','/auth/register'],['post','/auth/login'],['post','/auth/admin/login'],
   ['get','/auth/me'],['get','/auth/admin/me']
-]) router[method](path, context => forward(context,method.toUpperCase(),path));
+].forEach(([method, path]) => {
+  router[method](path, context => forward(context, method.toUpperCase(), path));
+});
