@@ -45,7 +45,16 @@ describe("scoped player registration and admin authentication", () => {
       const attempt = await app.inject({ method: "POST", url: "/auth/register", payload: {
         username: "role_attack", email: "role_attack@example.test", password: PASSWORD, role: "admin",
       } });
-      expect(attempt.statusCode).toBe(400);
+      // Fastify's Ajv removes unrecognised fields by design. Acceptance is
+      // safe only if an injected 'role' cannot make the new user an admin.
+      expect(attempt.statusCode).toBe(201);
+      const attempted = attempt.json<{ accessToken: string; user: { id: string; username: string; email: string } }>();
+      expect(attempted.user).not.toHaveProperty("role");
+      const injectedRoleAccess = await app.inject({
+        method: "GET", url: "/auth/admin/me",
+        headers: { authorization: "Bearer " + attempted.accessToken },
+      });
+      expect(injectedRoleAccess.statusCode).toBe(401);
       const created = await app.inject({ method: "POST", url: "/auth/register", payload: {
         username: "new_player", email: "new_player@example.test", password: PASSWORD,
       } });
