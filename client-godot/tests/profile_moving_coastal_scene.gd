@@ -83,10 +83,12 @@ func _profile() -> void:
 	print("IOM07_SCENE_INSTANTIATE_BEGIN")
 	var scene: Node3D = packed.instantiate()
 	root.add_child(scene)
-	print("IOM07_SCENE_ATTACHED warming_frames=%d" % WARMUP)
-	for i in range(WARMUP):
-		await process_frame
-		print("IOM07_WARMUP_FRAME %d/%d" % [i + 1, WARMUP])
+	# The effects controller binds nodes via call_deferred in _ready(). One
+	# process frame is enough for that binding; six here were expensive
+	# redundant *gameplay-camera* software-render frames before selecting the
+	# benchmark camera. Keep all six fixed-cinematic-camera warmup frames below.
+	print("IOM07_SCENE_ATTACHED waiting_for_deferred_bind")
+	await process_frame
 	var fx: Node3D = scene.get_node_or_null("CoastalShipEffects")
 	var ship: Node3D = scene.get_node_or_null("HarbourShipFocalPoint")
 	var coast: MeshInstance3D = scene.get_node_or_null("IrregularCoastalTerrain")
