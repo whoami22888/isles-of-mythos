@@ -89,12 +89,24 @@ jobs:
           print(f"REAL GODOT LINUX COAST: static p95={static:.2f}ms, moving p95={moving:.2f}ms; Android metrics NOT MEASURED")
           PY
           (cd "$RUNNER_TEMP/coastal-profile" && sha256sum ./moving-coastal-profile.json > SHA256SUMS)
+      - name: Hash partial diagnostic separately on any profiler outcome
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          directory="$RUNNER_TEMP/coastal-profile"
+          if [[ -f "$directory/INCOMPLETE_NOT_ACCEPTED.json" ]]; then
+            (cd "$directory" && sha256sum INCOMPLETE_NOT_ACCEPTED.json > INCOMPLETE_SHA256SUMS)
+          fi
       - name: Retain exact-head motion workload report
+        if: always()
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
         with:
           name: iom07-real-coastal-motion-profile
           path: |
             ${{ runner.temp }}/coastal-profile/moving-coastal-profile.json
             ${{ runner.temp }}/coastal-profile/SHA256SUMS
+            ${{ runner.temp }}/coastal-profile/INCOMPLETE_NOT_ACCEPTED.json
+            ${{ runner.temp }}/coastal-profile/INCOMPLETE_SHA256SUMS
           if-no-files-found: error
           retention-days: 14
