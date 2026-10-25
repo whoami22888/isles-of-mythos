@@ -4,7 +4,11 @@ extends SceneTree
 
 const Stats = preload("res://scripts/mobile_frame_metrics.gd")
 const SAMPLES := 30
-const WARMUP := 6
+# One fully rendered frame with the fixed benchmark camera is enough to
+# establish its material/pipeline state before measurement. Six redundant
+# warmup renders cost >15 seconds on CI llvmpipe without changing the scene.
+# The 30 static + 30 moving *measured* frames remain mandatory.
+const WARMUP := 1
 const STEP_SECONDS := 1.0 / 24.0
 
 func _init() -> void:
@@ -111,8 +115,13 @@ func _profile() -> void:
 		_fail("Could not frame the complete PBR vessel for both profile phases")
 		return
 	var baseline_camera_transform: Transform3D = scene.cinematic_camera.global_transform
+	print("IOM07_FIXED_CAMERA_WARMUP_BEGIN count=%d" % WARMUP)
 	for i in range(WARMUP):
 		await process_frame
+		# Wait for the actual GPU/software render to finish: a process_frame
+		# signal alone occurs before the draw and is not a rendered warmup.
+		await RenderingServer.frame_post_draw
+		print("IOM07_FIXED_CAMERA_WARMUP_RENDERED %d/%d" % [i + 1, WARMUP])
 	print("IOM07_FIXED_CAMERA_READY")
 	var static_stage: Dictionary = await _measure(scene, fx, false)
 	if not static_stage.get("valid", false):
