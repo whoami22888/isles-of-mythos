@@ -76,6 +76,11 @@ jobs:
             client-godot/.godot/imported
             client-godot/.godot/uid_cache.bin
           key: godot-4.7.2-linux-asset-import-v1-${{ hashFiles('client-godot/assets/external/**', 'client-godot/**/*.import', 'client-godot/project.godot') }}
+      - name: Verify complete/incomplete profiler evidence lifecycle regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s scripts -p 'test_validate_iom07_coastal_profile.py' -v
       - name: Profile actual moving coastal scene on Godot Mobile Vulkan software renderer
         shell: bash
         run: |
@@ -83,34 +88,9 @@ jobs:
           mkdir -p "$RUNNER_TEMP/coastal-profile"
           export IOM_COAST_PROFILE_PATH="$RUNNER_TEMP/coastal-profile/moving-coastal-profile.json"
           timeout --signal=TERM --kill-after=10s 240s xvfb-run -a -s "-screen 0 1280x720x24" "$RUNNER_TEMP/godot" --path client-godot --rendering-method mobile --script res://tests/profile_moving_coastal_scene.gd
-          python3 - "$IOM_COAST_PROFILE_PATH" <<'PY'
-          import json,math,os,sys
-          from pathlib import Path
-          data=json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-          assert data["exact_git_sha"] == os.environ["IOM_GIT_SHA"]
-          assert data["source"] == "actual_godot_renderer"
-          assert data["godot"].startswith("4.7.2")
-          assert data["renderer"] == "mobile"
-          assert data["physical_android_measurement"] is False
-          assert data["graphics_reference_parity"] == "NOT_VERIFIED"
-          assert data["device_thermal_memory_input_latency"] == "NOT_MEASURED"
-          assert data["samples_each_phase"] == 30
-          assert data["same_camera_fixed_pose"] is True
-          assert data["camera_mode"] == "cinematic_ship_framed_fixed_pose"
-          assert data["ship_motion_distance_units"] > 0.2
-          for phase in ("static","moving"):
-              stage=data[phase]
-              assert stage["valid"], stage
-              assert stage["peak_draw_calls"] > 0
-              for stat in ("frame_interval_ms","visual_update_cpu_wall_ms"):
-                  report=stage[stat]
-                  assert report["valid"] and report["samples"] == 30
-                  vals=[report[key] for key in ("min_ms","p50_ms","p95_ms","p99_ms","max_ms")]
-                  assert all(math.isfinite(v) and v>0 for v in vals) and vals==sorted(vals)
-          static=data["static"]["frame_interval_ms"]["p95_ms"]
-          moving=data["moving"]["frame_interval_ms"]["p95_ms"]
-          print(f"REAL GODOT LINUX COAST: static p95={static:.2f}ms, moving p95={moving:.2f}ms; Android metrics NOT MEASURED")
-          PY
+          python3 scripts/validate_iom07_coastal_profile.py "$IOM_COAST_PROFILE_PATH"
+          # Success must never ship a stale INCOMPLETE marker as diagnostic evidence.
+          test ! -e "$RUNNER_TEMP/coastal-profile/INCOMPLETE_NOT_ACCEPTED.json"
           (cd "$RUNNER_TEMP/coastal-profile" && sha256sum ./moving-coastal-profile.json > SHA256SUMS)
       - name: Hash partial diagnostic separately on any profiler outcome
         if: always()
