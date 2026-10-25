@@ -14,6 +14,7 @@ func _init() -> void:
 func run() -> void:
 	var scene = load("res://scenes/boot.tscn").instantiate()
 	root.add_child(scene)
+	check(scene._http.max_redirects == 0, "Password-bearing auth requests must not follow redirects")
 	check(scene.get_node("Panel/Margin/Content/Password").secret, "Password entry must be masked")
 	check(scene.get_node("Panel/Margin/Content/Modes/PlayerLogin").pressed.get_connections().size() == 1, "Player mode button must be wired")
 	check(scene.get_node("Panel/Margin/Content/Modes/RegisterPlayer").pressed.get_connections().size() == 1, "Registration button must be wired")

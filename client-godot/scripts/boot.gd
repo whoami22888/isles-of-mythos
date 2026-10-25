@@ -25,6 +25,8 @@ func _ready() -> void:
     _adapter.status_changed.connect(_on_status_changed)
     _adapter.message_received.connect(_on_message)
     _http = HTTPRequest.new()
+    # Credentials must never be forwarded to a different origin by a 3xx.
+    _http.max_redirects = 0
     add_child(_http)
     _http.request_completed.connect(_on_auth_completed)
 
