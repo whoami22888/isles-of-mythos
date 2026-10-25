@@ -14,22 +14,22 @@ async function fixture() {
     { id: ADMIN_ID, username: "approved_operator", email: "operator@example.test", password_hash: secret },
     { id: PLAYER_ID, username: "normal_player", email: "player@example.test", password_hash: secret },
   ];
-  const query = async (sql: string, values: unknown[]) => {
+  const query = (sql: string, values: unknown[]) => {
     if (sql.startsWith("SELECT id, username, email, password_hash")) {
       const user = users.find(u => u.username === values[0] || u.email === values[0]);
-      return { rows: user ? [user] : [], rowCount: user ? 1 : 0 };
+      return Promise.resolve({ rows: user ? [user] : [], rowCount: user ? 1 : 0 });
     }
     if (sql.startsWith("SELECT id, username, email FROM users WHERE id")) {
       const user = users.find(u => u.id === values[0]);
-      return { rows: user ? [{ id: user.id, username: user.username, email: user.email }] : [], rowCount: user ? 1 : 0 };
+      return Promise.resolve({ rows: user ? [{ id: user.id, username: user.username, email: user.email }] : [], rowCount: user ? 1 : 0 });
     }
     if (sql.startsWith("SELECT id FROM users WHERE username")) {
-      return { rows: [], rowCount: 0 };
+      return Promise.resolve({ rows: [], rowCount: 0 });
     }
     if (sql.startsWith("INSERT INTO users")) {
       const user = { id: "a7c054b6-e5b7-4d4b-9d31-3d75f64286ce", username: values[0] as string, email: values[1] as string, password_hash: values[2] as string };
       users.push(user);
-      return { rows: [{ id: user.id, username: user.username, email: user.email }], rowCount: 1 };
+      return Promise.resolve({ rows: [{ id: user.id, username: user.username, email: user.email }], rowCount: 1 });
     }
     throw new Error("Unexpected SQL in auth fixture: " + sql);
   };
@@ -50,7 +50,7 @@ describe("scoped player registration and admin authentication", () => {
         username: "new_player", email: "new_player@example.test", password: PASSWORD,
       } });
       expect(created.statusCode).toBe(201);
-      const token = created.json().accessToken as string;
+      const token = (created.json() as { accessToken: string }).accessToken;
       expect(token).toBeTruthy();
       const adminMe = await app.inject({ method: "GET", url: "/auth/admin/me", headers: { authorization: "Bearer " + token } });
       expect(adminMe.statusCode).toBe(401);
@@ -74,14 +74,14 @@ describe("scoped player registration and admin authentication", () => {
     try {
       const playerMode = await app.inject({ method: "POST", url: "/auth/login", payload: { identifier: "approved_operator", password: PASSWORD } });
       expect(playerMode.statusCode).toBe(200);
-      const playerToken = playerMode.json().accessToken as string;
+      const playerToken = (playerMode.json() as { accessToken: string }).accessToken;
       const playerMe = await app.inject({ method: "GET", url: "/auth/admin/me", headers: { authorization: "Bearer " + playerToken } });
       expect(playerMe.statusCode).toBe(401);
 
       const login = await app.inject({ method: "POST", url: "/auth/admin/login", payload: { identifier: "approved_operator", password: PASSWORD } });
       expect(login.statusCode).toBe(200);
-      expect(login.json().role).toBe("admin");
-      const adminToken = login.json().accessToken as string;
+      expect((login.json() as { role: string }).role).toBe("admin");
+      const adminToken = (login.json() as { accessToken: string }).accessToken;
       const adminMe = await app.inject({ method: "GET", url: "/auth/admin/me", headers: { authorization: "Bearer " + adminToken } });
       expect(adminMe.statusCode).toBe(200);
       expect(adminMe.json()).toMatchObject({ role: "admin", user: { id: ADMIN_ID } });
@@ -91,7 +91,7 @@ describe("scoped player registration and admin authentication", () => {
   it("fails closed when no administrator IDs are provisioned", async () => {
     const app = Fastify();
     const secret = await argon2.hash(PASSWORD);
-    const query = async () => ({ rows: [{ id: ADMIN_ID, username: "approved_operator", email: "operator@example.test", password_hash: secret }], rowCount: 1 });
+    const query = () => Promise.resolve({ rows: [{ id: ADMIN_ID, username: "approved_operator", email: "operator@example.test", password_hash: secret }], rowCount: 1 });
     try {
       await registerAuthRoutes(app, { query } as unknown as Pool, { adminUserIds: new Set() });
       const result = await app.inject({ method: "POST", url: "/auth/admin/login", payload: { identifier: "approved_operator", password: PASSWORD } });
