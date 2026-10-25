@@ -1,0 +1,135 @@
+name: IOM-07 real moving coastal scene profiler
+
+on:
+  pull_request:
+    paths:
+      - "client-godot/tests/profile_moving_coastal_scene.gd"
+      - "client-godot/scripts/mobile_frame_metrics.gd"
+      - "client-godot/scenes/realistic_coastal_fx_slice.tscn"
+      - "client-godot/scripts/coastal_ship_fx_controller.gd"
+      - "client-godot/scripts/realistic_coastal_slice.gd"
+      - "client-godot/scripts/ship_wake_effect.gd"
+      - "client-godot/scripts/ship_bow_spray_effect.gd"
+      - "client-godot/shaders/ocean_surface.gdshader"
+      - ".github/workflows/iom07-moving-coastal-profile.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: iom07-real-coast-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  coastal-motion-performance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    env:
+      IOM_GIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      GODOT_SHA256: cadd3204e728a35d3f13adb7fd0d7902636b79f6b95c40c265eb73b6c35329e4
+    steps:
+      - name: Exact source SHA
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Install pinned Godot 4.7.2 and virtual display
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq xvfb mesa-vulkan-drivers
+          curl --fail --location --retry 3 -o "$RUNNER_TEMP/godot.zip" "https://github.com/godotengine/godot/releases/download/4.7.2-stable/Godot_v4.7.2-stable_linux.x86_64.zip"
+          echo "$GODOT_SHA256  $RUNNER_TEMP/godot.zip" | sha256sum --check
+          unzip -q "$RUNNER_TEMP/godot.zip" -d "$RUNNER_TEMP"
+          install "$RUNNER_TEMP/Godot_v4.7.2-stable_linux.x86_64" "$RUNNER_TEMP/godot"
+          "$RUNNER_TEMP/godot" --version | grep -F "4.7.2.stable"
+      # Content-addressed reuse of *validated* Godot imports. Never restore
+      # from prefix/fuzzy keys: changes to assets, .import metadata or project
+      # settings must produce a fresh import. This is not source provenance
+      # proof; the real Godot --import and FX integration gates still run.
+      - name: Restore exact-content Godot imported asset cache
+        id: godot_import_cache
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: |
+            client-godot/.godot/imported
+            client-godot/.godot/uid_cache.bin
+          key: godot-4.7.2-linux-asset-import-v1-${{ hashFiles('client-godot/assets/external/**', 'client-godot/**/*.import', 'client-godot/project.godot') }}
+      - name: Import actual coastal source assets exactly once
+        run: |
+          set -euo pipefail
+          timeout --signal=TERM --kill-after=10s 180s "$RUNNER_TEMP/godot" --headless --path client-godot --editor --quit --import
+      - name: Preserve moving water, ship and wake integration gates
+        run: |
+          set -euo pipefail
+          timeout --signal=TERM --kill-after=10s 120s "$RUNNER_TEMP/godot" --headless --path client-godot --script res://tests/coastal_ship_fx_integration_test.gd
+      # Cache only after both real import and component integration succeeded.
+      # Save BEFORE the expensive renderer workload so failed profiling does
+      # not force another cold import. Cache misses never alter the test gates.
+      - name: Save validated Godot import cache for the next build
+        if: steps.godot_import_cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: |
+            client-godot/.godot/imported
+            client-godot/.godot/uid_cache.bin
+          key: godot-4.7.2-linux-asset-import-v1-${{ hashFiles('client-godot/assets/external/**', 'client-godot/**/*.import', 'client-godot/project.godot') }}
+      - name: Profile actual moving coastal scene on Godot Mobile Vulkan software renderer
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/coastal-profile"
+          export IOM_COAST_PROFILE_PATH="$RUNNER_TEMP/coastal-profile/moving-coastal-profile.json"
+          timeout --signal=TERM --kill-after=10s 240s xvfb-run -a -s "-screen 0 1280x720x24" "$RUNNER_TEMP/godot" --path client-godot --rendering-method mobile --script res://tests/profile_moving_coastal_scene.gd
+          python3 - "$IOM_COAST_PROFILE_PATH" <<'PY'
+          import json,math,os,sys
+          from pathlib import Path
+          data=json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+          assert data["exact_git_sha"] == os.environ["IOM_GIT_SHA"]
+          assert data["source"] == "actual_godot_renderer"
+          assert data["godot"].startswith("4.7.2")
+          assert data["renderer"] == "mobile"
+          assert data["physical_android_measurement"] is False
+          assert data["graphics_reference_parity"] == "NOT_VERIFIED"
+          assert data["device_thermal_memory_input_latency"] == "NOT_MEASURED"
+          assert data["samples_each_phase"] == 30
+          assert data["same_camera_fixed_pose"] is True
+          assert data["camera_mode"] == "cinematic_ship_framed_fixed_pose"
+          assert data["ship_motion_distance_units"] > 0.2
+          for phase in ("static","moving"):
+              stage=data[phase]
+              assert stage["valid"], stage
+              assert stage["peak_draw_calls"] > 0
+              for stat in ("frame_interval_ms","visual_update_cpu_wall_ms"):
+                  report=stage[stat]
+                  assert report["valid"] and report["samples"] == 30
+                  vals=[report[key] for key in ("min_ms","p50_ms","p95_ms","p99_ms","max_ms")]
+                  assert all(math.isfinite(v) and v>0 for v in vals) and vals==sorted(vals)
+          static=data["static"]["frame_interval_ms"]["p95_ms"]
+          moving=data["moving"]["frame_interval_ms"]["p95_ms"]
+          print(f"REAL GODOT LINUX COAST: static p95={static:.2f}ms, moving p95={moving:.2f}ms; Android metrics NOT MEASURED")
+          PY
+          (cd "$RUNNER_TEMP/coastal-profile" && sha256sum ./moving-coastal-profile.json > SHA256SUMS)
+      - name: Hash partial diagnostic separately on any profiler outcome
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          directory="$RUNNER_TEMP/coastal-profile"
+          if [[ -f "$directory/INCOMPLETE_NOT_ACCEPTED.json" ]]; then
+            (cd "$directory" && sha256sum INCOMPLETE_NOT_ACCEPTED.json > INCOMPLETE_SHA256SUMS)
+          fi
+      - name: Retain exact-head motion workload report
+        if: always()
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
+        with:
+          name: iom07-real-coastal-motion-profile
+          path: |
+            ${{ runner.temp }}/coastal-profile/moving-coastal-profile.json
+            ${{ runner.temp }}/coastal-profile/SHA256SUMS
+            ${{ runner.temp }}/coastal-profile/INCOMPLETE_NOT_ACCEPTED.json
+            ${{ runner.temp }}/coastal-profile/INCOMPLETE_SHA256SUMS
+          if-no-files-found: error
+          retention-days: 14
