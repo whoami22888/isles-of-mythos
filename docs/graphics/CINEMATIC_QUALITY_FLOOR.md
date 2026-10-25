@@ -52,3 +52,7 @@ Each graphics/cinematic PR must include a small table. Set **Applicable** for ca
 | Android performance and runtime fidelity | Separate device capture | Required when claiming device acceptance | PASS / FAIL / NOT VERIFIED | ... |
 
 A video that looks better in one category but conspicuously worse in another does **not** satisfy the owner's **nothing lower quality than this** instruction. Maintain the current project's stronger existing technical/provenance/asset restrictions; never downgrade them to fit this video benchmark.
+
+## Actual still or MP4 deliverable — binding owner requirement (18 October 2026)
+
+In addition to all relevant screenshot/video scopes above, apply [`REAL_RENDER_DELIVERABLE_GATE.md`](REAL_RENDER_DELIVERABLE_GATE.md). No visual asset, scene, creature, ship, water effect, camera or battle implementation is premium-complete without independently inspectable real Godot PNG(s), and for motion, **an actual MP4 encoded from sequential Godot frames**. Each artifact needs exact source/candidate SHA, hash manifest, relevant visual comparison and final human-visible assessment against the owner master. A status-only source report, green code tests, an offline/artificial render, still-frame pan or inaccessible ZIP cannot satisfy this visual gate. Poorer visuals stay internal and unaccepted; leave status FAIL or NOT VERIFIED, and maintain every existing protected gate.

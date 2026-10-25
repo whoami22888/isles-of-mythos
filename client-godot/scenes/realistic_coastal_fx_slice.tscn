@@ -1,0 +1,9 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/realistic_coastal_slice.tscn" id="1_coast"]
+[ext_resource type="Script" path="res://scripts/coastal_ship_fx_controller.gd" id="2_fx"]
+
+[node name="RealisticCoastalSlice" instance=ExtResource("1_coast")]
+
+[node name="CoastalShipEffects" type="Node3D" parent="."]
+script = ExtResource("2_fx")
