@@ -50,7 +50,7 @@ describe("scoped player registration and admin authentication", () => {
         username: "new_player", email: "new_player@example.test", password: PASSWORD,
       } });
       expect(created.statusCode).toBe(201);
-      const token = (created.json() as { accessToken: string }).accessToken;
+      const token = created.json<{ accessToken: string }>().accessToken;
       expect(token).toBeTruthy();
       const adminMe = await app.inject({ method: "GET", url: "/auth/admin/me", headers: { authorization: "Bearer " + token } });
       expect(adminMe.statusCode).toBe(401);
@@ -74,14 +74,14 @@ describe("scoped player registration and admin authentication", () => {
     try {
       const playerMode = await app.inject({ method: "POST", url: "/auth/login", payload: { identifier: "approved_operator", password: PASSWORD } });
       expect(playerMode.statusCode).toBe(200);
-      const playerToken = (playerMode.json() as { accessToken: string }).accessToken;
+      const playerToken = playerMode.json<{ accessToken: string }>().accessToken;
       const playerMe = await app.inject({ method: "GET", url: "/auth/admin/me", headers: { authorization: "Bearer " + playerToken } });
       expect(playerMe.statusCode).toBe(401);
 
       const login = await app.inject({ method: "POST", url: "/auth/admin/login", payload: { identifier: "approved_operator", password: PASSWORD } });
       expect(login.statusCode).toBe(200);
-      expect((login.json() as { role: string }).role).toBe("admin");
-      const adminToken = (login.json() as { accessToken: string }).accessToken;
+      expect(login.json<{ role: string }>().role).toBe("admin");
+      const adminToken = login.json<{ accessToken: string }>().accessToken;
       const adminMe = await app.inject({ method: "GET", url: "/auth/admin/me", headers: { authorization: "Bearer " + adminToken } });
       expect(adminMe.statusCode).toBe(200);
       expect(adminMe.json()).toMatchObject({ role: "admin", user: { id: ADMIN_ID } });
