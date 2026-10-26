@@ -60,6 +60,27 @@ test("art provenance and coastal staging checks follow their path filters", () =
   assert.deepEqual(applicableChecks(["server/src/health.ts"]), BASE_CHECKS);
 });
 
+test("IOM-07 profiler is required for every profiler source and evidence validator", () => {
+  for (const path of ["client-godot/scripts/mobile_frame_metrics.gd",
+      "client-godot/scenes/sculpted_terrain_preview.tscn",
+      "scripts/validate_iom07_frame_evidence.py",
+      "scripts/test_validate_iom07_frame_evidence.py",
+      ".github/workflows/iom07-mobile-frame-evidence.yml"])
+    assert.ok(applicableChecks([path]).includes("IOM-07 mobile frame evidence"), path);
+  for (const path of ["client-godot/tests/profile_moving_coastal_scene.gd",
+      "client-godot/scripts/coastal_ship_fx_controller.gd",
+      "client-godot/scripts/realistic_coastal_slice.gd",
+      "client-godot/scripts/ship_wake_effect.gd",
+      "client-godot/scripts/ship_bow_spray_effect.gd",
+      "client-godot/scenes/realistic_coastal_fx_slice.tscn",
+      "client-godot/shaders/ocean_surface.gdshader",
+      "scripts/validate_iom07_coastal_profile.py",
+      "scripts/test_validate_iom07_coastal_profile.py",
+      ".github/workflows/iom07-moving-coastal-profile.yml"])
+    assert.ok(applicableChecks([path]).includes("IOM-07 real moving coastal scene profiler"), path);
+  assert.deepEqual(applicableChecks(["server/src/health.ts"]), BASE_CHECKS);
+});
+
 test("pending or stale required workflow cannot be accepted", () => {
   assert.deepEqual(requiredRunsPassed(BASE_CHECKS.map(run), BASE_CHECKS, sha), { pass: true });
   const pending = [...BASE_CHECKS.map(run), { ...run("CI"), id: 6, status: "in_progress" }];
@@ -69,12 +90,27 @@ test("pending or stale required workflow cannot be accepted", () => {
   assert.equal(requiredRunsPassed([{ ...run("CI"), event: "push" }], ["CI"], sha).pass, false);
 });
 
+test("applicable IOM-07 profiler rejects missing, failed, pending, skipped and stale runs", () => {
+  const name = "IOM-07 mobile frame evidence";
+  assert.deepEqual(requiredRunsPassed([run(name)], [name], sha), { pass: true });
+  assert.equal(requiredRunsPassed([], [name], sha).pass, false);
+  for (const bad of [
+    { ...run(name), conclusion: "failure" },
+    { ...run(name), status: "in_progress", conclusion: null },
+    { ...run(name), conclusion: "skipped" },
+    { ...run(name), head_sha: "b".repeat(40) }
+  ]) assert.equal(requiredRunsPassed([bad], [name], sha).pass, false);
+  assert.equal(requiredRunsPassed([{ ...run(name), event: "push" }], [name], sha).pass, false);
+});
+
 test("workflow reviews and required Godot completions trigger trusted-main reconciliation", () => {
   const policy = readFileSync(".github/workflows/verified-codex-auto-merge.yml", "utf8");
   assert.match(policy, /Godot external art provenance/);
   assert.match(policy, /IOM-00 Godot client/);
   assert.match(policy, /Godot visual evidence/);
   assert.match(policy, /Stage Poly Haven coastal PBR candidate/);
+  assert.match(policy, /IOM-07 mobile frame evidence/);
+  assert.match(policy, /IOM-07 real moving coastal scene profiler/);
   assert.match(policy, /pull_request_review_comment:/);
   assert.match(policy, /github\.event\.repository\.default_branch/);
   assert.match(policy, /persist-credentials:\s*false/);

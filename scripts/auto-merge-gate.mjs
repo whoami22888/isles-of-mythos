@@ -20,6 +20,25 @@ const STAGE_SCRIPTS = new Set([
   "scripts/stage_polyhaven_coast.py",
   "scripts/test_stage_polyhaven_coast.py"
 ]);
+const IOM07_FRAME_PATHS = new Set([
+  "client-godot/scripts/mobile_frame_metrics.gd",
+  "client-godot/scenes/sculpted_terrain_preview.tscn",
+  "scripts/validate_iom07_frame_evidence.py",
+  "scripts/test_validate_iom07_frame_evidence.py",
+  ".github/workflows/iom07-mobile-frame-evidence.yml"
+]);
+const IOM07_COAST_PATHS = new Set([
+  "client-godot/tests/profile_moving_coastal_scene.gd",
+  "client-godot/scripts/coastal_ship_fx_controller.gd",
+  "client-godot/scripts/realistic_coastal_slice.gd",
+  "client-godot/scripts/ship_wake_effect.gd",
+  "client-godot/scripts/ship_bow_spray_effect.gd",
+  "client-godot/scenes/realistic_coastal_fx_slice.tscn",
+  "client-godot/shaders/ocean_surface.gdshader",
+  "scripts/validate_iom07_coastal_profile.py",
+  "scripts/test_validate_iom07_coastal_profile.py",
+  ".github/workflows/iom07-moving-coastal-profile.yml"
+]);
 
 export function changedPaths(files) {
   if (!Array.isArray(files)) throw Error("Invalid changed-file collection");
@@ -59,6 +78,10 @@ export function applicableChecks(paths) {
     required.add("Godot external art provenance");
   if (paths.some(p => STAGE_SCRIPTS.has(p) || p === ".github/workflows/godot-stage-coast.yml"))
     required.add("Stage Poly Haven coastal PBR candidate");
+  if (paths.some(p => IOM07_FRAME_PATHS.has(p)))
+    required.add("IOM-07 mobile frame evidence");
+  if (paths.some(p => IOM07_COAST_PATHS.has(p)))
+    required.add("IOM-07 real moving coastal scene profiler");
   return [...required];
 }
 
