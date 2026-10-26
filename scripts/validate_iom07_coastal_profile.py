@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 
 INCOMPLETE = "INCOMPLETE_NOT_ACCEPTED.json"
-GODOT_VERSION = "4.7.2.stable.official.ed1daf0bf"
+GODOT_VERSION = "4.7.2-stable (official)"
 
 def require(condition, message):
     if not condition:

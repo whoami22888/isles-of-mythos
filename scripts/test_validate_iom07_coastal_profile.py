@@ -123,8 +123,8 @@ class ProfileLifecycleRegression(unittest.TestCase):
                 self.assertTrue(self.diagnostic.exists())
 
     def test_engine_version_must_match_exact_pinned_build(self):
-        for version in ("4.7.20.stable.official.ed1daf0bf", "4.7.2.stable.extra",
-                        "4.7.2", "4.7.2.stable.official.other"):
+        for version in ("4.7.20-stable (official)", "4.7.2-stable (custom)",
+                        "4.7.2", "4.7.2.stable.official.ed1daf0bf"):
             with self.subTest(version=version):
                 data = fixture()
                 data["godot"] = version
