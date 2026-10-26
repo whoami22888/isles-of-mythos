@@ -233,9 +233,19 @@ test("renames retain the source path for Godot, provenance and visual gates", ()
 test("changes to required workflows or gate policy always need manual verification", () => {
   for (const file of [".github/workflows/ci.yml", ".github/workflows/verified-codex-auto-merge.yml",
       ".github/workflows/godot-visual-evidence.yml", "scripts/static-security-check.mjs",
-      "package.json", "AGENTS.md", ".project/VERIFICATION-STANDARD.md"])
+      "package.json", "AGENTS.md", ".project/VERIFICATION-STANDARD.md",
+      "docs/ART_DIRECTION_STANDARD.md", "docs/graphics/CINEMATIC_QUALITY_FLOOR.md",
+      "docs/graphics/REAL_RENDER_DELIVERABLE_GATE.md",
+      "docs/PLAYER_EXPERIENCE_QUALITY_STANDARD.md", "docs/VISUAL_REFERENCE_INDEX.md"])
     assert.equal(modifiesProtectedVerification([file]), true, file);
   assert.equal(modifiesProtectedVerification(["server/src/index.ts"]), false);
+  assert.equal(modifiesProtectedVerification(["docs/GRAPHICS_ASSET_DECISIONS.md"]), false);
+  assert.equal(modifiesProtectedVerification(changedPaths([{
+    filename: "docs/archived-standard.md",
+    previous_filename: "docs/PLAYER_EXPERIENCE_QUALITY_STANDARD.md",
+    status: "renamed"
+  }])), true);
+
 });
 
 test("owner visual-acceptance comment can retrigger trusted-main merge reconciliation", () => {
