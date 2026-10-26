@@ -307,3 +307,27 @@ test("unknown mergeability never spins forever, real conflicts never retry", asy
   assert.equal(calls, 1);
   assert.equal(conflicting.mergeable, false);
 });
+
+test("protected evidence validators and provenance scripts require manual integration", () => {
+  for (const path of [
+    "scripts/validate_godot_assets.py",
+    "scripts/test_godot_asset_validator.py",
+    "scripts/fetch_verified_godot_assets.py",
+    "scripts/test_godot_asset_fetcher.py",
+    "scripts/stage_polyhaven_coast.py",
+    "scripts/test_stage_polyhaven_coast.py",
+    "scripts/validate_iom07_frame_evidence.py",
+    "scripts/test_validate_iom07_frame_evidence.py",
+    "scripts/validate_iom07_coastal_profile.py",
+    "scripts/test_validate_iom07_coastal_profile.py",
+    "scripts/test_iom07_coastal_profile_workflow.py",
+    "scripts/isles_graphics_gate.py",
+    "scripts/test_isles_graphics_gate.py"
+  ]) assert.equal(modifiesProtectedVerification([path]), true, path);
+  assert.equal(modifiesProtectedVerification(changedPaths([{
+    filename: "scripts/renamed_coastal_validator.py",
+    previous_filename: "scripts/validate_iom07_coastal_profile.py",
+    status: "renamed"
+  }])), true);
+  assert.equal(modifiesProtectedVerification(["server/src/health.ts"]), false);
+});

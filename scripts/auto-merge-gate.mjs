@@ -65,6 +65,20 @@ const IOM07_COAST_PATH_PREFIXES = Object.freeze([
   "client-godot/assets/external/"
 ]);
 
+// Validation and provenance scripts define the evidence admitted by protected
+// workflows. They require manual integration just like the workflows themselves.
+const PROTECTED_EVIDENCE_SCRIPTS = new Set([
+  ...ART_PROVENANCE_SCRIPTS,
+  ...STAGE_SCRIPTS,
+  "scripts/validate_iom07_frame_evidence.py",
+  "scripts/test_validate_iom07_frame_evidence.py",
+  "scripts/validate_iom07_coastal_profile.py",
+  "scripts/test_validate_iom07_coastal_profile.py",
+  "scripts/test_iom07_coastal_profile_workflow.py",
+  "scripts/isles_graphics_gate.py",
+  "scripts/test_isles_graphics_gate.py"
+]);
+
 export function changedPaths(files) {
   if (!Array.isArray(files)) throw Error("Invalid changed-file collection");
   return files.flatMap(f => {
@@ -91,7 +105,7 @@ export function modifiesProtectedVerification(paths) {
     "scripts/auto-merge-gate.mjs", "scripts/auto-merge-gate.test.mjs",
     "scripts/review-controller.mjs", "scripts/review-controller.test.mjs"
   ]);
-  return paths.some(p => guarded.has(p) ||
+  return paths.some(p => guarded.has(p) || PROTECTED_EVIDENCE_SCRIPTS.has(p) ||
     p.startsWith(".github/workflows/") ||
     p.startsWith(".github/actions/"));
 }
