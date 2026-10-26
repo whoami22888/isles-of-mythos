@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
   BASE_CHECKS, CODEX_REVIEWER, changedPaths, modifiesProtectedVerification, applicableChecks, visualRequired,
-  trustedCodexReceipt, hasBlockingCodexFinding, collectReviewThreads, requiredRunsPassed, resolveMergeability
+  trustedCodexReceipt, codexReviewsPassed, hasBlockingCodexFinding, collectReviewThreads, requiredRunsPassed, resolveMergeability
 } from "./auto-merge-gate.mjs";
 
 const sha = "a".repeat(40);
@@ -29,6 +29,21 @@ test("Codex review receipt with explicit negative verdict is not approval", () =
   assert.equal(trustedCodexReceipt({
     ...receipt, body: "<!-- codex-review-receipt:v1 -->\nNo changes required"
   }, sha), true);
+});
+
+test("contradictory final-SHA Codex reviews cannot bypass an earlier PASS", () => {
+  const passing = { ...receipt, body: "<!-- codex-review-receipt:v1 -->\nVERDICT: PASS" };
+  const failing = { ...receipt, body: "VERDICT: FAIL\nP1 unresolved safety finding" };
+  assert.equal(codexReviewsPassed([passing], sha), true);
+  assert.equal(codexReviewsPassed([passing, failing], sha), false);
+  assert.equal(codexReviewsPassed([failing, passing], sha), false);
+  assert.equal(codexReviewsPassed([passing, { ...failing, state: "CHANGES_REQUESTED", body: "" }], sha), false);
+  assert.equal(codexReviewsPassed([passing, { ...failing, state: "DISMISSED" }], sha), true);
+  assert.equal(codexReviewsPassed([passing, { ...failing, commit_id: "b".repeat(40) }], sha), true);
+  assert.equal(codexReviewsPassed([passing, { ...failing, user: { login: "other-reviewer" } }], sha), true);
+  assert.equal(codexReviewsPassed([failing], sha), false);
+  assert.equal(codexReviewsPassed([], sha), false);
+  assert.throws(() => codexReviewsPassed(null, sha), /Codex reviews missing/);
 });
 
 test("only current-SHA, active, exact trusted Codex bot review counts", () => {
