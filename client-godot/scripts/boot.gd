@@ -168,3 +168,17 @@ func _on_status_changed(status: String) -> void:
 func _on_message(message: Dictionary) -> void:
     if message.get("type", "") == "auth_ok":
         _status.text = "Ready · player authenticated by server"
+        if ProjectSettings.get_setting("application/config/internal_gameplay_handoff", false):
+            _launch_internal_gameplay(message)
+
+func _launch_internal_gameplay(message: Dictionary) -> void:
+    var user_id = message.get("userId")
+    if not (user_id is String) or user_id.is_empty() or not _adapter._attempt_active or not _adapter._auth_sent:
+        return
+    if _adapter._url.is_empty() or _adapter._token.is_empty():
+        return
+    var gameplay = load("res://gameplay/vertical_slice.tscn").instantiate()
+    gameplay.begin_authenticated_session(_adapter._url, _adapter._token)
+    get_tree().root.add_child(gameplay)
+    get_tree().current_scene = gameplay
+    queue_free()

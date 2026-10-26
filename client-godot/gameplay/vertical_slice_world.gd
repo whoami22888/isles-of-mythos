@@ -10,6 +10,12 @@ var _gather: Button
 var _endpoint: LineEdit
 var _token: LineEdit
 var _connect_button: Button
+var _handoff_endpoint := ""
+var _handoff_token := ""
+
+func begin_authenticated_session(endpoint: String, token: String) -> void:
+	_handoff_endpoint = endpoint
+	_handoff_token = token
 
 func _ready() -> void:
 	_status = $Interface/Panel/Margin/Content/Status
@@ -35,13 +41,20 @@ func _ready() -> void:
 		endpoint = ProjectSettings.get_setting("application/config/default_ws_url", "ws://127.0.0.1:3000/ws")
 	_endpoint.text = endpoint
 	_token.text = OS.get_environment("IOM_AUTH_TOKEN")
-	if not _token.text.is_empty():
+	if not _handoff_token.is_empty():
+		_endpoint.text = _handoff_endpoint
+		_token.text = ""
+		_token.hide()
+		_connect_button.hide()
+		_connect()
+	elif not _token.text.is_empty():
 		_connect()
 	else:
 		_status.text = "Enter a JWT token; this slice has no local authority"
 
 func _connect() -> void:
-	_client.configure(_endpoint.text, _token.text)
+	_client.configure(_handoff_endpoint if not _handoff_token.is_empty() else _endpoint.text,
+		_handoff_token if not _handoff_token.is_empty() else _token.text)
 	_client.connect_to_server()
 
 func _build_scaffold_world() -> void:

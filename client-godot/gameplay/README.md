@@ -13,3 +13,14 @@ godot --path client-godot res://gameplay/vertical_slice.tscn
 The scene only renders server-authenticated state and sends the supported
 `subscribe_chunks` and `gather_resource` messages. It does not mint inventory,
 currency, buildings, quests, or other client-owned state.
+
+For an internal end-to-end auth test, combine this branch with the native auth
+branch and set `application/config/internal_gameplay_handoff=true` in a
+**temporary developer project override**. The normal boot remains the default:
+after player login and WebSocket `auth_ok`, the boot hands the JWT and the same
+validated endpoint to this scene in memory. The manual JWT field is hidden on
+that path. Do not enable this setting in a distributed APK: the primitive
+terrain/player/resource meshes are internal scaffolding below the required
+visual floor. A phone-playable build still requires accepted 3D presentation,
+an independently verified HTTPS/WSS test backend reachable by the phone, and
+physical-device evidence. No endpoint or secret is shipped by this branch.
