@@ -12,6 +12,16 @@ export const CODEX_REVIEWER = "chatgpt-codex-connector[bot]";
 const SHA = /^[a-f0-9]{40}$/i;
 const BLOCKING_CODEX_VERDICT = /(?:^|\n)\s*(?:>\s*)?(?:#{1,6}\s*)?(?:[-*]\s*)?(?:\*\*)?(?:(?:DISPOSITION|VERDICT|REVIEW STATUS|REVIEW RESULT|STATUS)\s*(?:\*\*)?\s*:\s*(?:\*\*)?\s*)?(?:CHANGES REQUIRED|FAIL(?:ED)?|REJECTED|P[012]\b)/im;
 const PASSING_CODEX_VERDICT = /(?:^|\n)\s*(?:#{1,6}\s*)?(?:[-*]\s*)?(?:\*\*)?(?:DISPOSITION|VERDICT)\s*:\s*(?:PASS|APPROVED)(?:\*\*)?(?=\s|$)/im;
+// Fail closed on any structured Codex decision field that is not unambiguously
+// positive. This prevents novel negative statuses from contradicting a PASS
+// receipt without requiring an ever-growing list of negative synonyms.
+const CODEX_DECISION_FIELD = /(?:^|\n)\s*(?:>\s*)?(?:#{1,6}\s*)?(?:[-*]\s*)?(?:\*\*)?(?:DISPOSITION|VERDICT|REVIEW STATUS|REVIEW RESULT|STATUS)(?:\*\*)?\s*:\s*(?:\*\*)?\s*([^\r\n]+)/gim;
+const POSITIVE_CODEX_DECISION = /^(?:PASS|APPROVED)(?:\*\*)?[.!]?$/i;
+function hasContradictoryCodexDecision(body) {
+  if (typeof body !== "string") return false;
+  return [...body.matchAll(CODEX_DECISION_FIELD)].some(match =>
+    !POSITIVE_CODEX_DECISION.test(match[1].trim()));
+}
 const ART_PROVENANCE_SCRIPTS = new Set([
   "scripts/validate_godot_assets.py",
   "scripts/test_godot_asset_validator.py",
@@ -127,6 +137,7 @@ export function trustedCodexReceipt(review, sha) {
     (review?.state === "COMMENTED" || review?.state === "APPROVED") &&
     /<!--\s*codex-review-receipt:v1\s*-->/.test(body) &&
     PASSING_CODEX_VERDICT.test(body) &&
+    !hasContradictoryCodexDecision(body) &&
     !BLOCKING_CODEX_VERDICT.test(body);
 }
 
@@ -137,7 +148,8 @@ export function codexReviewsPassed(reviews, sha) {
   const current = reviews.filter(r => r?.user?.login === CODEX_REVIEWER &&
     r?.commit_id === sha && r?.state !== "DISMISSED");
   if (current.some(r => r.state === "CHANGES_REQUESTED" ||
-      (typeof r.body === "string" && BLOCKING_CODEX_VERDICT.test(r.body))))
+      (typeof r.body === "string" &&
+        (BLOCKING_CODEX_VERDICT.test(r.body) || hasContradictoryCodexDecision(r.body)))))
     return false;
   return current.some(r => trustedCodexReceipt(r, sha));
 }
