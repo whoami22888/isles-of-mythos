@@ -82,6 +82,9 @@ test("IOM-07 profiler is required for every profiler source and evidence validat
       "client-godot/scripts/ship_bow_spray_effect.gd",
       "client-godot/scenes/realistic_coastal_fx_slice.tscn",
       "client-godot/shaders/ocean_surface.gdshader",
+      "client-godot/project.godot",
+      "client-godot/assets/external/polyhaven/coastal_cliff_01/coastal_cliff_01_1k.gltf",
+      "client-godot/assets/external/polyhaven/dutch_ship_medium/textures/dutch_ship_medium_sails_diff_1k.jpg",
       "scripts/validate_iom07_coastal_profile.py",
       "scripts/test_validate_iom07_coastal_profile.py",
       ".github/workflows/iom07-moving-coastal-profile.yml"])

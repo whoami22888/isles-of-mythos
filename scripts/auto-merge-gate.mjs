@@ -30,6 +30,7 @@ const IOM07_FRAME_PATHS = new Set([
   ".github/workflows/iom07-mobile-frame-evidence.yml"
 ]);
 const IOM07_COAST_PATHS = new Set([
+  "client-godot/project.godot",
   "client-godot/scripts/mobile_frame_metrics.gd",
   "client-godot/shaders/coastal_shore_sampler.gdshaderinc",
   "client-godot/scripts/coastal_shore_heightfield.gd",
@@ -46,6 +47,9 @@ const IOM07_COAST_PATHS = new Set([
   "scripts/validate_iom07_coastal_profile.py",
   "scripts/test_validate_iom07_coastal_profile.py",
   ".github/workflows/iom07-moving-coastal-profile.yml"
+]);
+const IOM07_COAST_PATH_PREFIXES = Object.freeze([
+  "client-godot/assets/external/"
 ]);
 
 export function changedPaths(files) {
@@ -89,7 +93,8 @@ export function applicableChecks(paths) {
   if (paths.some(p => IOM07_FRAME_PATHS.has(p) ||
       /^client-godot\/tests\/mobile_frame_[^/]*\.gd$/.test(p)))
     required.add("IOM-07 mobile frame evidence");
-  if (paths.some(p => IOM07_COAST_PATHS.has(p)))
+  if (paths.some(p => IOM07_COAST_PATHS.has(p) ||
+      IOM07_COAST_PATH_PREFIXES.some(prefix => p.startsWith(prefix))))
     required.add("IOM-07 real moving coastal scene profiler");
   return [...required];
 }
