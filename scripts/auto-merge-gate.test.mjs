@@ -87,6 +87,7 @@ test("IOM-07 profiler is required for every profiler source and evidence validat
       "client-godot/assets/external/polyhaven/dutch_ship_medium/textures/dutch_ship_medium_sails_diff_1k.jpg",
       "scripts/validate_iom07_coastal_profile.py",
       "scripts/test_validate_iom07_coastal_profile.py",
+      "scripts/test_iom07_coastal_profile_workflow.py",
       ".github/workflows/iom07-moving-coastal-profile.yml"])
     assert.ok(applicableChecks([path]).includes("IOM-07 real moving coastal scene profiler"), path);
   assert.ok(applicableChecks(["client-godot/tests/mobile_frame_future_regression.gd"]).includes("IOM-07 mobile frame evidence"));
