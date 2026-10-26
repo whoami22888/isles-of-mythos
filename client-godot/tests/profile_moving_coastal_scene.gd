@@ -21,18 +21,19 @@ func _fail(reason: String) -> void:
 func _measure(scene: Node3D, fx: Node3D, moving: bool) -> Dictionary:
 	var intervals: Array[float] = []
 	var update_costs: Array[float] = []
+	var update_work: Dictionary = {}
 	var draw_calls := 0
 	var phase_name := "moving" if moving else "static"
 	print("IOM07_STAGE_BEGIN phase=%s samples=%d" % [phase_name, SAMPLES])
 	var previous := Time.get_ticks_usec()
 	for sample in range(SAMPLES):
-		var before_step := Time.get_ticks_usec()
 		if moving:
+			var before_step := Time.get_ticks_usec()
 			fx.advance_visual_demo(STEP_SECONDS)
-		var step_ms := float(Time.get_ticks_usec() - before_step) / 1000.0
-		if not is_finite(step_ms) or step_ms <= 0.0:
-			return {"valid": false, "reason": "INVALID_VISUAL_UPDATE_INTERVAL"}
-		update_costs.append(step_ms)
+			var step_ms := float(Time.get_ticks_usec() - before_step) / 1000.0
+			if not is_finite(step_ms) or step_ms <= 0.0:
+				return {"valid": false, "reason": "INVALID_VISUAL_UPDATE_INTERVAL"}
+			update_costs.append(step_ms)
 		await process_frame
 		await RenderingServer.frame_post_draw
 		var now := Time.get_ticks_usec()
@@ -44,14 +45,16 @@ func _measure(scene: Node3D, fx: Node3D, moving: bool) -> Dictionary:
 		draw_calls = maxi(draw_calls, RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME))
 		# Keep the render interval free of diagnostic output and filesystem I/O.
 	var frames: Dictionary = Stats.summarize_frame_intervals(intervals)
-	var update_work: Dictionary = Stats.summarize_frame_intervals(update_costs)
-	if not frames.get("valid", false) or not update_work.get("valid", false):
+	if moving:
+		update_work = Stats.summarize_frame_intervals(update_costs)
+	if not frames.get("valid", false) or (moving and not update_work.get("valid", false)):
 		return {"valid": false, "reason": "INVALID_STAGE_SAMPLES"}
 	return {
 		"valid": true,
 		"phase": "moving_ship_wake_spray" if moving else "same_scene_static_ship",
 		"frame_interval_ms": frames,
-		"visual_update_cpu_wall_ms": update_work,
+		"visual_update_cpu_wall_ms": update_work if moving else null,
+		"visual_update_cpu_wall_status": "MEASURED" if moving else "NOT_APPLICABLE_STATIC_PHASE",
 		"peak_draw_calls": draw_calls,
 		"note": "Linux renderer wall-clock frames, with Godot manual 24Hz visual simulation; not live-network gameplay or device input latency"
 	}

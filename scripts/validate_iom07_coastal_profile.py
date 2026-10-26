@@ -31,17 +31,31 @@ def validate_profile(path: Path, expected_sha: str):
             "actual ship motion required")
     for phase in ("static", "moving"):
         stage = data[phase]
+        require(isinstance(stage, dict), phase + " stage malformed")
         require(stage["valid"] is True, phase + " stage invalid")
         calls = stage["peak_draw_calls"]
         require(type(calls) is int and calls > 0,
                 phase + " 3D draw calls missing")
-        for metric in ("frame_interval_ms", "visual_update_cpu_wall_ms"):
-            report = stage[metric]
-            require(report["valid"] is True and report["samples"] == 30,
-                    phase + " " + metric + " missing required samples")
-            vals = [report[key] for key in ("min_ms", "p50_ms", "p95_ms", "p99_ms", "max_ms")]
-            require(all(type(v) in (int, float) and math.isfinite(v) and v > 0 for v in vals)
-                    and vals == sorted(vals), phase + " " + metric + " invalid quantiles")
+        frame_report = stage["frame_interval_ms"]
+        require(isinstance(frame_report, dict) and frame_report["valid"] is True and
+                type(frame_report["samples"]) is int and frame_report["samples"] == 30,
+                phase + " frame interval missing required samples")
+        frame_values = [frame_report[key] for key in ("min_ms", "p50_ms", "p95_ms", "p99_ms", "max_ms")]
+        require(all(type(v) in (int, float) and math.isfinite(v) and v > 0 for v in frame_values)
+                and frame_values == sorted(frame_values), phase + " frame interval quantiles invalid")
+        cpu_report = stage.get("visual_update_cpu_wall_ms")
+        if phase == "static":
+            require(cpu_report is None and
+                    stage.get("visual_update_cpu_wall_status") == "NOT_APPLICABLE_STATIC_PHASE",
+                    "static phase must not fabricate visual-update CPU samples")
+        else:
+            require(stage.get("visual_update_cpu_wall_status") == "MEASURED" and
+                    isinstance(cpu_report, dict) and cpu_report.get("valid") is True and
+                    type(cpu_report.get("samples")) is int and cpu_report["samples"] == 30,
+                    "moving visual-update CPU workload requires 30 samples")
+            cpu_values = [cpu_report[key] for key in ("min_ms", "p50_ms", "p95_ms", "p99_ms", "max_ms")]
+            require(all(type(v) in (int, float) and math.isfinite(v) and v > 0 for v in cpu_values)
+                    and cpu_values == sorted(cpu_values), "moving visual-update CPU quantiles invalid")
     return (data["static"]["frame_interval_ms"]["p95_ms"],
             data["moving"]["frame_interval_ms"]["p95_ms"])
 

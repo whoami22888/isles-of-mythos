@@ -13,8 +13,12 @@ SHA = "a" * 40
 def fixture():
     stats = {"valid": True, "samples": 30, "min_ms": 1.0, "p50_ms": 2.0,
              "p95_ms": 3.0, "p99_ms": 4.0, "max_ms": 5.0}
-    stage = {"valid": True, "peak_draw_calls": 12, "frame_interval_ms": stats,
-             "visual_update_cpu_wall_ms": copy.deepcopy(stats)}
+    static = {"valid": True, "peak_draw_calls": 12, "frame_interval_ms": copy.deepcopy(stats),
+              "visual_update_cpu_wall_ms": None,
+              "visual_update_cpu_wall_status": "NOT_APPLICABLE_STATIC_PHASE"}
+    moving = {"valid": True, "peak_draw_calls": 12, "frame_interval_ms": copy.deepcopy(stats),
+              "visual_update_cpu_wall_ms": copy.deepcopy(stats),
+              "visual_update_cpu_wall_status": "MEASURED"}
     return {"exact_git_sha": SHA, "source": "actual_godot_renderer", "godot": GODOT_VERSION,
             "renderer": "mobile", "physical_android_measurement": False,
             "graphics_reference_parity": "NOT_VERIFIED",
@@ -22,7 +26,7 @@ def fixture():
             "samples_each_phase": 30, "same_camera_fixed_pose": True,
             "camera_mode": "cinematic_ship_framed_fixed_pose",
             "ship_motion_distance_units": 1.0,
-            "static": copy.deepcopy(stage), "moving": copy.deepcopy(stage)}
+            "static": static, "moving": moving}
 
 class ProfileLifecycleRegression(unittest.TestCase):
     def setUp(self):
@@ -45,6 +49,24 @@ class ProfileLifecycleRegression(unittest.TestCase):
         self.diagnostic.unlink()
         self.store(fixture())
         self.assertEqual(validate_and_finalize(self.report, SHA), (3.0, 3.0))
+
+    def test_static_phase_does_not_fabricate_cpu_update_samples(self):
+        data = fixture()
+        self.assertIsNone(data["static"]["visual_update_cpu_wall_ms"])
+        self.assertEqual(data["static"]["visual_update_cpu_wall_status"],
+                         "NOT_APPLICABLE_STATIC_PHASE")
+        self.assertEqual(data["moving"]["visual_update_cpu_wall_ms"]["samples"], 30)
+        self.store(data)
+        self.assertEqual(validate_and_finalize(self.report, SHA), (3.0, 3.0))
+
+    def test_static_phase_rejects_fabricated_cpu_update_samples(self):
+        data = fixture()
+        data["static"]["visual_update_cpu_wall_ms"] = copy.deepcopy(
+            data["moving"]["visual_update_cpu_wall_ms"])
+        self.store(data)
+        with self.assertRaises(ValueError):
+            validate_and_finalize(self.report, SHA)
+        self.assertTrue(self.diagnostic.exists())
 
     def test_missing_full_report_keeps_checkpoint(self):
         with self.assertRaises(OSError):
@@ -108,7 +130,7 @@ class ProfileLifecycleRegression(unittest.TestCase):
                                     ("moving", "peak_draw_calls", False),
                                     ("static", "ship_motion_distance_units", True),
                                     ("moving", "ship_motion_distance_units", False),
-                                    ("static", "p95_ms", True)):
+                                    ("moving", "p95_ms", True)):
             with self.subTest(phase=phase, field=field):
                 data = fixture()
                 if field == "ship_motion_distance_units":
