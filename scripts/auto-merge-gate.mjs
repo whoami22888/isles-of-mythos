@@ -10,7 +10,8 @@ export const BASE_CHECKS = Object.freeze([
 ]);
 export const CODEX_REVIEWER = "chatgpt-codex-connector[bot]";
 const SHA = /^[a-f0-9]{40}$/i;
-const BLOCKING_CODEX_VERDICT = /(?:^|\n)\s*(?:#{1,6}\s*)?(?:[-*]\s*)?(?:\*\*)?(?:(?:DISPOSITION|VERDICT)\s*:\s*)?(?:CHANGES REQUIRED|FAIL(?:ED)?|REJECTED|P[012]\b)/im;
+const BLOCKING_CODEX_VERDICT = /(?:^|\n)\s*(?:#{1,6}\s*)?(?:[-*]\s*)?(?:\*\*)?(?:(?:DISPOSITION|VERDICT|REVIEW STATUS|REVIEW RESULT|STATUS)\s*:\s*)?(?:CHANGES REQUIRED|FAIL(?:ED)?|REJECTED|P[012]\b)/im;
+const PASSING_CODEX_VERDICT = /(?:^|\n)\s*(?:#{1,6}\s*)?(?:[-*]\s*)?(?:\*\*)?(?:DISPOSITION|VERDICT)\s*:\s*(?:PASS|APPROVED)(?:\*\*)?(?=\s|$)/im;
 const ART_PROVENANCE_SCRIPTS = new Set([
   "scripts/validate_godot_assets.py",
   "scripts/test_godot_asset_validator.py",
@@ -120,6 +121,7 @@ export function trustedCodexReceipt(review, sha) {
     review?.user?.login === CODEX_REVIEWER &&
     (review?.state === "COMMENTED" || review?.state === "APPROVED") &&
     /<!--\s*codex-review-receipt:v1\s*-->/.test(body) &&
+    PASSING_CODEX_VERDICT.test(body) &&
     !BLOCKING_CODEX_VERDICT.test(body);
 }
 
