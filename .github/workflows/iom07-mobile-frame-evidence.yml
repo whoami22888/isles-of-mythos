@@ -6,6 +6,8 @@ on:
       - "client-godot/scripts/mobile_frame_metrics.gd"
       - "client-godot/scenes/sculpted_terrain_preview.tscn"
       - "client-godot/tests/mobile_frame_*.gd"
+      - "scripts/validate_iom07_frame_evidence.py"
+      - "scripts/test_validate_iom07_frame_evidence.py"
       - ".github/workflows/iom07-mobile-frame-evidence.yml"
   workflow_dispatch:
 
@@ -39,7 +41,9 @@ jobs:
           echo "$GODOT_SHA256  $RUNNER_TEMP/godot.zip" | sha256sum --check
           unzip -q "$RUNNER_TEMP/godot.zip" -d "$RUNNER_TEMP"
           install "$RUNNER_TEMP/Godot_v4.7.2-stable_linux.x86_64" "$RUNNER_TEMP/godot"
-          "$RUNNER_TEMP/godot" --version | grep -F "4.7.2.stable"
+          test "$("$RUNNER_TEMP/godot" --version)" = "4.7.2.stable.official.ed1daf0bf"
+      - name: Reject malformed frame evidence
+        run: python3 -m unittest scripts/test_validate_iom07_frame_evidence.py
       - name: Test frame percentile math in real Godot
         shell: bash
         run: |
@@ -52,30 +56,7 @@ jobs:
           mkdir -p "$RUNNER_TEMP/mobile-evidence"
           xvfb-run -a -s "-screen 0 1280x720x24" "$RUNNER_TEMP/godot" --editor --path client-godot --quit --import
           IOM_MOBILE_PROFILE_PATH="$RUNNER_TEMP/mobile-evidence/godot-frame-evidence.json" xvfb-run -a -s "-screen 0 1280x720x24" "$RUNNER_TEMP/godot" --path client-godot --rendering-method gl_compatibility --script res://tests/mobile_frame_capture.gd
-          python3 - "$RUNNER_TEMP/mobile-evidence/godot-frame-evidence.json" <<'PY'
-          import json
-          import os
-          import sys
-          from pathlib import Path
-          evidence = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-          assert evidence["source"] == "actual_godot_scene"
-          assert evidence["commit_sha"] == os.environ["IOM_GIT_SHA"]
-          assert evidence["godot_version"].startswith("4.7.2")
-          assert evidence["renderer"] == "gl_compatibility"
-          assert evidence["physical_android_measurement"] is False
-          assert evidence["graphics_quality_verdict"] == "NOT_VERIFIED"
-          assert evidence["mobile_acceptance_verdict"] == "NOT_VERIFIED"
-          for name in ("frame_interval_ms", "engine_process_ms"):
-              metrics = evidence[name]
-              assert metrics["valid"] and metrics["samples"] == 180
-              assert 0 < metrics["p50_ms"] <= metrics["p95_ms"] <= metrics["p99_ms"] <= metrics["max_ms"]
-          clock_check = evidence["engine_process_clock_check"]
-          assert isinstance(clock_check["comparable"], bool)
-          assert clock_check["reason"] in ("CONSISTENT", "PROCESS_MONITOR_CLOCK_DIVERGENCE")
-          if not clock_check["comparable"]:
-              print("WARNING: Godot process monitor differs from frame clock; no CPU bottleneck verdict.")
-          print("Verified Godot frame evidence schema and exact source commit; Android quality remains NOT VERIFIED.")
-          PY
+          python3 scripts/validate_iom07_frame_evidence.py "$RUNNER_TEMP/mobile-evidence/godot-frame-evidence.json" "$IOM_GIT_SHA"
           (cd "$RUNNER_TEMP/mobile-evidence" && sha256sum ./*.json > SHA256SUMS)
       - name: Upload real profiler data with provenance
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
