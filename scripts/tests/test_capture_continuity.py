@@ -44,6 +44,7 @@ class CaptureContinuityTests(unittest.TestCase):
                 MODULE.verify(Path(folder), frames=6, width=8, height=8, segment_size=2)
 
     def test_far_ocean_keeps_same_sea_level_across_wave_lod_boundary(self):
+        """Keep the far-ocean sea-level offset constant across wave LOD transitions."""
         # Structural regression only: actual Godot footage remains the visual gate.
         shader = (Path(__file__).resolve().parents[2]
                   / "client-godot/shaders/ocean_surface.gdshader").read_text()
