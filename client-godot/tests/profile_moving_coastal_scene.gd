@@ -22,9 +22,9 @@ func _measure(scene: Node3D, fx: Node3D, moving: bool) -> Dictionary:
 	var intervals: Array[float] = []
 	var update_costs: Array[float] = []
 	var draw_calls := 0
-	var previous := Time.get_ticks_usec()
 	var phase_name := "moving" if moving else "static"
 	print("IOM07_STAGE_BEGIN phase=%s samples=%d" % [phase_name, SAMPLES])
+	var previous := Time.get_ticks_usec()
 	for sample in range(SAMPLES):
 		var before_step := Time.get_ticks_usec()
 		if moving:
