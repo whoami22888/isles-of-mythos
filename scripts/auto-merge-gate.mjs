@@ -10,6 +10,7 @@ export const BASE_CHECKS = Object.freeze([
 ]);
 export const CODEX_REVIEWER = "chatgpt-codex-connector[bot]";
 const SHA = /^[a-f0-9]{40}$/i;
+const BLOCKING_CODEX_VERDICT = /(?:^|\n)\s*(?:#{1,6}\s*)?(?:[-*]\s*)?(?:\*\*)?(?:(?:DISPOSITION|VERDICT)\s*:\s*)?(?:CHANGES REQUIRED|FAIL(?:ED)?|REJECTED|P[012]\b)/im;
 const ART_PROVENANCE_SCRIPTS = new Set([
   "scripts/validate_godot_assets.py",
   "scripts/test_godot_asset_validator.py",
@@ -113,13 +114,25 @@ export function trustedCodexReceipt(review, sha) {
   if (typeof body !== "string") return false;
   // A bot receipt proves review occurred, not that its verdict passed.
   // A blocking verdict in the review body must not bypass inline-thread checks.
-  const blockingVerdict = /(?:^|\n)\s*(?:#{1,6}\s*)?(?:[-*]\s*)?(?:\*\*)?(?:(?:DISPOSITION|VERDICT)\s*:\s*)?(?:CHANGES REQUIRED|FAIL(?:ED)?|REJECTED|P[012]\b)/im.test(body);
+  // A negative verdict cannot be overridden by a separate positive receipt.
   return SHA.test(sha) &&
     review?.commit_id === sha &&
     review?.user?.login === CODEX_REVIEWER &&
     (review?.state === "COMMENTED" || review?.state === "APPROVED") &&
     /<!--\s*codex-review-receipt:v1\s*-->/.test(body) &&
-    !blockingVerdict;
+    !BLOCKING_CODEX_VERDICT.test(body);
+}
+
+// A positive receipt cannot override a contradictory active bot review on the
+// same final SHA. A later blocking review may have no inline review thread.
+export function codexReviewsPassed(reviews, sha) {
+  if (!Array.isArray(reviews)) throw Error("Codex reviews missing");
+  const current = reviews.filter(r => r?.user?.login === CODEX_REVIEWER &&
+    r?.commit_id === sha && r?.state !== "DISMISSED");
+  if (current.some(r => r.state === "CHANGES_REQUESTED" ||
+      (typeof r.body === "string" && BLOCKING_CODEX_VERDICT.test(r.body))))
+    return false;
+  return current.some(r => trustedCodexReceipt(r, sha));
 }
 
 export function isCodexAuthor(login) {
@@ -285,8 +298,8 @@ async function main() {
 
   const reviews = await pages("/pulls/" + number + "/reviews");
   // Dismissed receipts and self-authored imitation text are never eligible.
-  if (!reviews.some(review => trustedCodexReceipt(review, sha))) {
-    reject("No active trusted Codex receipt for final SHA");
+  if (!codexReviewsPassed(reviews, sha)) {
+    reject("Missing or contradicted trusted Codex receipt for final SHA");
     return;
   }
 
