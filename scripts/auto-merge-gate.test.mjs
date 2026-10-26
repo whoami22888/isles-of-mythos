@@ -23,7 +23,13 @@ test("Codex review receipt with explicit negative verdict is not approval", () =
     "**VERDICT:** FAIL",
     "VERDICT: **FAIL**",
     "**Review status:** CHANGES REQUIRED",
-    "> VERDICT: FAIL"
+    "> VERDICT: FAIL",
+    "STATUS: NEEDS WORK",
+    "REVIEW STATUS: BLOCKED",
+    "DISPOSITION: REQUEST CHANGES",
+    "VERDICT: NOT APPROVED",
+    "STATUS: PASS WITH EXCEPTIONS",
+    "> **Review status:** BLOCKED"
   ];
   for (const verdict of negative) {
     assert.equal(trustedCodexReceipt({
@@ -45,6 +51,15 @@ test("a receipt marker alone is not a positive review verdict", () => {
   assert.equal(trustedCodexReceipt({
     ...receipt, body: "<!-- codex-review-receipt:v1 -->\nDISPOSITION: APPROVED"
   }, sha), true);
+});
+
+test("structured Codex decision fields reject unknown statuses across reviews", () => {
+  const approved = { ...receipt,
+    body: "<!-- codex-review-receipt:v1 -->\\nVERDICT: PASS\\nSTATUS: APPROVED" };
+  const blocked = { ...receipt, body: "STATUS: NEEDS WORK" };
+  assert.equal(trustedCodexReceipt(approved, sha), true);
+  assert.equal(codexReviewsPassed([approved, blocked], sha), false);
+  assert.equal(codexReviewsPassed([blocked, approved], sha), false);
 });
 
 test("contradictory final-SHA Codex reviews cannot bypass an earlier PASS", () => {
