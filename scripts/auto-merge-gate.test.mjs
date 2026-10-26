@@ -19,7 +19,11 @@ test("Codex review receipt with explicit negative verdict is not approval", () =
     "REJECTED: unresolved vulnerability",
     "**P1** Security defect",
     "### P0 release blocker",
-    "- P2 incorrect gameplay"
+    "- P2 incorrect gameplay",
+    "**VERDICT:** FAIL",
+    "VERDICT: **FAIL**",
+    "**Review status:** CHANGES REQUIRED",
+    "> VERDICT: FAIL"
   ];
   for (const verdict of negative) {
     assert.equal(trustedCodexReceipt({
