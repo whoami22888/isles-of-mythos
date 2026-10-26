@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
   BASE_CHECKS, CODEX_REVIEWER, changedPaths, modifiesProtectedVerification, applicableChecks, visualRequired,
-  trustedCodexReceipt, hasBlockingCodexFinding, requiredRunsPassed, resolveMergeability
+  trustedCodexReceipt, hasBlockingCodexFinding, collectReviewThreads, requiredRunsPassed, resolveMergeability
 } from "./auto-merge-gate.mjs";
 
 const sha = "a".repeat(40);
@@ -24,19 +24,52 @@ test("only current-SHA, active, exact trusted Codex bot review counts", () => {
   ]) assert.equal(trustedCodexReceipt(counterfeit, sha), false);
 });
 
-test("final-head actionable finding always blocks; stale SHA does not", () => {
-  const finding = { commit_id: sha, user: { login: CODEX_REVIEWER },
-    body: "<!-- codex-code-review-finding:v1 -->" };
-  assert.equal(hasBlockingCodexFinding([finding], sha), true);
-  assert.equal(hasBlockingCodexFinding([{ ...finding, commit_id: "b".repeat(40) }], sha), false);
-  assert.equal(hasBlockingCodexFinding([{ ...finding, user: { login: "attacker-codex" } }], sha), false);
-  // GitHub reanchors old comments to the current head but preserves the original commit.
-  assert.equal(hasBlockingCodexFinding([{
-    ...finding, commit_id: sha, original_commit_id: "b".repeat(40)
-  }], sha), false);
-  assert.equal(hasBlockingCodexFinding([{
-    ...finding, commit_id: "b".repeat(40), original_commit_id: sha
-  }], sha), true);
+const findingThread = (id, isResolved = false, author = "chatgpt-codex-connector") => ({
+  id, isResolved, isOutdated: true,
+  comments: { pageInfo: { hasNextPage: false }, nodes: [{
+    author: { login: author }, body: "**P1** Fix cliff LOD\n<!-- codex-code-review-finding:v1 -->"
+  }] }
+});
+
+test("unresolved earlier-commit Codex P1 blocks despite newer final-head receipt", () => {
+  assert.equal(trustedCodexReceipt(receipt, sha), true);
+  assert.equal(hasBlockingCodexFinding([findingThread("old-sha-unresolved")]), true);
+  assert.equal(hasBlockingCodexFinding([findingThread("old-sha-resolved", true)]), false);
+  assert.equal(hasBlockingCodexFinding([findingThread("untrusted", false, "attacker-codex")]), false);
+  assert.equal(hasBlockingCodexFinding([findingThread("rest-bot", false, CODEX_REVIEWER)]), true);
+});
+
+test("complete review-thread pagination includes older unresolved findings", async () => {
+  const cursors = [];
+  const threads = await collectReviewThreads(async after => {
+    cursors.push(after);
+    return after === null
+      ? { nodes: [findingThread("resolved", true)],
+          pageInfo: { hasNextPage: true, endCursor: "page-two" } }
+      : { nodes: [findingThread("older-unresolved")],
+          pageInfo: { hasNextPage: false, endCursor: null } };
+  });
+  assert.deepEqual(cursors, [null, "page-two"]);
+  assert.equal(hasBlockingCodexFinding(threads), true);
+});
+
+test("missing, malformed, truncated and failed review-thread evidence blocks", async () => {
+  assert.throws(() => hasBlockingCodexFinding([{
+    ...findingThread("truncated"),
+    comments: { pageInfo: { hasNextPage: true }, nodes: findingThread("x").comments.nodes }
+  }]), /Incomplete/);
+  assert.throws(() => hasBlockingCodexFinding([{ id: "unknown", isResolved: null,
+    comments: { pageInfo: { hasNextPage: false }, nodes: [] } }]), /Incomplete/);
+  await assert.rejects(collectReviewThreads(async () => null), /Incomplete/);
+  await assert.rejects(collectReviewThreads(async () => ({
+    nodes: [findingThread("one")],
+    pageInfo: { hasNextPage: true, endCursor: null }
+  })), /cursor/);
+  await assert.rejects(collectReviewThreads(async () => ({
+    nodes: [findingThread("same")],
+    pageInfo: { hasNextPage: true, endCursor: "again" }
+  }), 1), /pagination limit/);
+  await assert.rejects(collectReviewThreads(async () => { throw Error("API failure"); }), /API failure/);
 });
 
 test("Godot client edits require client build and visual evidence", () => {

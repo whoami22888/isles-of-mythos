@@ -116,11 +116,63 @@ export function trustedCodexReceipt(review, sha) {
     /<!--\s*codex-review-receipt:v1\s*-->/.test(review?.body ?? "");
 }
 
-export function hasBlockingCodexFinding(comments, sha) {
-  return comments.some(c => (c?.original_commit_id ?? c?.commit_id) === sha &&
-    c.user?.login === CODEX_REVIEWER &&
-    (/codex-code-review-finding:v1/.test(c.body ?? "") ||
-     /\bP[012]\b/i.test(c.body ?? "")));
+export function isCodexAuthor(login) {
+  // REST and GraphQL expose the same GitHub App account with different bot suffixes.
+  return login === CODEX_REVIEWER || login === "chatgpt-codex-connector";
+}
+
+// Resolution is a property of a review thread, not of its original commit.
+// A newer HEAD or an outdated diff position never disposes of a P0/P1/P2 finding.
+export function hasBlockingCodexFinding(threads) {
+  if (!Array.isArray(threads)) throw Error("Review threads missing");
+  let blocking = false;
+  for (const thread of threads) {
+    if (typeof thread?.isResolved !== "boolean" ||
+        !Array.isArray(thread?.comments?.nodes) ||
+        thread.comments.pageInfo?.hasNextPage !== false ||
+        thread.comments.nodes.length === 0)
+      throw Error("Incomplete review-thread evidence");
+    for (const comment of thread.comments.nodes) {
+      if (typeof comment?.body !== "string" || typeof comment?.author?.login !== "string")
+        throw Error("Incomplete review comment");
+      if (!thread.isResolved && isCodexAuthor(comment.author.login) &&
+          (/codex-code-review-finding:v1/.test(comment.body) ||
+           /\bP[012]\b/i.test(comment.body)))
+        blocking = true;
+    }
+  }
+  return blocking;
+}
+
+// The GitHub REST review-comments endpoint has no isResolved field. Query
+// complete GraphQL thread pages; any partial page, nested comment truncation,
+// duplicate thread or API failure must prevent automatic integration.
+export async function collectReviewThreads(readPage, maxPages = 20) {
+  const threads = [];
+  const seen = new Set();
+  let after = null;
+  for (let page = 0; page < maxPages; page++) {
+    const connection = await readPage(after);
+    if (!Array.isArray(connection?.nodes) ||
+        typeof connection?.pageInfo?.hasNextPage !== "boolean")
+      throw Error("Incomplete GitHub review-thread response");
+    for (const thread of connection.nodes) {
+      if (typeof thread?.id !== "string" || seen.has(thread.id) ||
+          typeof thread.isResolved !== "boolean" ||
+          !Array.isArray(thread.comments?.nodes) ||
+          thread.comments.pageInfo?.hasNextPage !== false ||
+          thread.comments.nodes.length === 0)
+        throw Error("Incomplete or duplicate GitHub review thread");
+      seen.add(thread.id);
+      threads.push(thread);
+    }
+    if (!connection.pageInfo.hasNextPage) return threads;
+    const cursor = connection.pageInfo.endCursor;
+    if (typeof cursor !== "string" || !cursor || cursor === after)
+      throw Error("Invalid review-thread pagination cursor");
+    after = cursor;
+  }
+  throw Error("Review-thread pagination limit reached without complete evidence");
 }
 
 export function requiredRunsPassed(runs, requiredNames, sha) {
@@ -167,6 +219,22 @@ async function main() {
     });
     if (!response.ok) throw Error("GitHub API " + path + " returned HTTP " + response.status);
     return response.json();
+  }
+
+  async function graphql(query, variables) {
+    const response = await fetch("https://api.github.com/graphql", {
+      method: "POST",
+      headers: {
+        accept: "application/vnd.github+json", authorization: "Bearer " + token,
+        "x-github-api-version": "2022-11-28", "content-type": "application/json"
+      },
+      body: JSON.stringify({ query, variables })
+    });
+    if (!response.ok) throw Error("GitHub GraphQL returned HTTP " + response.status);
+    const result = await response.json();
+    if (result.errors?.length || !result.data)
+      throw Error("GitHub GraphQL review-thread query incomplete");
+    return result.data;
   }
 
   // No success inference from a truncated first page: incomplete evidence fails closed.
@@ -216,9 +284,20 @@ async function main() {
     return;
   }
 
-  const comments = await pages("/pulls/" + number + "/comments");
-  if (hasBlockingCodexFinding(comments, sha)) {
-    reject("Unresolved final-SHA Codex finding: update code and re-review");
+  const [repoOwner, repoName] = repo.split("/");
+  const reviewThreadQuery = "query($owner:String!,$name:String!,$number:Int!,$after:String) {" +
+    " repository(owner:$owner,name:$name) { pullRequest(number:$number) {" +
+    " reviewThreads(first:100,after:$after) { pageInfo { hasNextPage endCursor }" +
+    " nodes { id isResolved comments(first:100) {" +
+    " pageInfo { hasNextPage } nodes { author { login } body } } } } } } }";
+  const threads = await collectReviewThreads(async after => {
+    const data = await graphql(reviewThreadQuery, {
+      owner: repoOwner, name: repoName, number, after
+    });
+    return data?.repository?.pullRequest?.reviewThreads;
+  });
+  if (hasBlockingCodexFinding(threads)) {
+    reject("Unresolved actionable Codex finding from any PR commit");
     return;
   }
 
