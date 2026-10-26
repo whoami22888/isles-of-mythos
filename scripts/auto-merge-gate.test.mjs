@@ -55,7 +55,7 @@ test("a receipt marker alone is not a positive review verdict", () => {
 
 test("structured Codex decision fields reject unknown statuses across reviews", () => {
   const approved = { ...receipt,
-    body: "<!-- codex-review-receipt:v1 -->\\nVERDICT: PASS\\nSTATUS: APPROVED" };
+    body: "<!-- codex-review-receipt:v1 -->\nVERDICT: PASS\nSTATUS: APPROVED" };
   const blocked = { ...receipt, body: "STATUS: NEEDS WORK" };
   assert.equal(trustedCodexReceipt(approved, sha), true);
   assert.equal(codexReviewsPassed([approved, blocked], sha), false);
