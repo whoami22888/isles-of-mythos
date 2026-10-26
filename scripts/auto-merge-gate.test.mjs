@@ -8,7 +8,7 @@ import {
 
 const sha = "a".repeat(40);
 const receipt = { commit_id: sha, state: "COMMENTED",
-  user: { login: CODEX_REVIEWER }, body: "<!-- codex-review-receipt:v1 -->" };
+  user: { login: CODEX_REVIEWER }, body: "<!-- codex-review-receipt:v1 -->\nVERDICT: PASS" };
 const run = name => ({ name, head_sha: sha, event: "pull_request", id: 5,
   status: "completed", conclusion: "success" });
 
@@ -23,11 +23,23 @@ test("Codex review receipt with explicit negative verdict is not approval", () =
   ];
   for (const verdict of negative) {
     assert.equal(trustedCodexReceipt({
-      ...receipt, body: "<!-- codex-review-receipt:v1 -->\n" + verdict
+      ...receipt, body: "<!-- codex-review-receipt:v1 -->\nVERDICT: PASS\n" + verdict
     }, sha), false, verdict);
   }
   assert.equal(trustedCodexReceipt({
     ...receipt, body: "<!-- codex-review-receipt:v1 -->\nNo changes required"
+  }, sha), false);
+});
+
+test("a receipt marker alone is not a positive review verdict", () => {
+  assert.equal(trustedCodexReceipt({
+    ...receipt, body: "<!-- codex-review-receipt:v1 -->"
+  }, sha), false);
+  assert.equal(trustedCodexReceipt({
+    ...receipt, body: "<!-- codex-review-receipt:v1 -->\nVERDICT: PASS\nReview status: CHANGES REQUIRED"
+  }, sha), false);
+  assert.equal(trustedCodexReceipt({
+    ...receipt, body: "<!-- codex-review-receipt:v1 -->\nDISPOSITION: APPROVED"
   }, sha), true);
 });
 
