@@ -6,7 +6,7 @@ import re
 import sys
 from pathlib import Path
 
-GODOT_VERSION = "4.7.2.stable.official.ed1daf0bf"
+GODOT_VERSION = "4.7.2-stable (official)"
 
 
 def positive_number(value):

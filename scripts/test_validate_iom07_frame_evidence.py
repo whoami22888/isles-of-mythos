@@ -36,8 +36,8 @@ class FrameEvidenceValidation(unittest.TestCase):
             validate(report, SHA)
 
     def test_engine_version_requires_exact_pinned_build(self):
-        for value in ("4.7.20.stable.official.ed1daf0bf", "4.7.2.stable.extra",
-                      "4.7.2", "4.7.2.stable.official.other"):
+        for value in ("4.7.20-stable (official)", "4.7.2-stable (custom)",
+                      "4.7.2", "4.7.2.stable.official.ed1daf0bf"):
             with self.subTest(value=value):
                 report = fixture()
                 report["godot_version"] = value
