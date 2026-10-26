@@ -26,16 +26,15 @@ func _measure(scene: Node3D, fx: Node3D, moving: bool) -> Dictionary:
 	var phase_name := "moving" if moving else "static"
 	print("IOM07_STAGE_BEGIN phase=%s samples=%d" % [phase_name, SAMPLES])
 	for sample in range(SAMPLES):
-		print("IOM07_FRAME_BEGIN phase=%s sample=%d elapsed_usec=%d" % [phase_name, sample + 1, Time.get_ticks_usec()])
 		var before_step := Time.get_ticks_usec()
 		if moving:
 			fx.advance_visual_demo(STEP_SECONDS)
 		var step_ms := float(Time.get_ticks_usec() - before_step) / 1000.0
-		update_costs.append(maxf(0.001, step_ms))
+		if not is_finite(step_ms) or step_ms <= 0.0:
+			return {"valid": false, "reason": "INVALID_VISUAL_UPDATE_INTERVAL"}
+		update_costs.append(step_ms)
 		await process_frame
-		print("IOM07_PROCESS_FRAME_DONE phase=%s sample=%d" % [phase_name, sample + 1])
 		await RenderingServer.frame_post_draw
-		print("IOM07_RENDER_FRAME_DONE phase=%s sample=%d" % [phase_name, sample + 1])
 		var now := Time.get_ticks_usec()
 		var interval := float(now - previous) / 1000.0
 		if not is_finite(interval) or interval <= 0.0:
@@ -43,29 +42,7 @@ func _measure(scene: Node3D, fx: Node3D, moving: bool) -> Dictionary:
 		intervals.append(interval)
 		previous = now
 		draw_calls = maxi(draw_calls, RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME))
-		# Save diagnostic-only samples before the 240s runner deadline; never
-		# substitute this checkpoint for the required full 30+30 result.
-		var profile_path := OS.get_environment("IOM_COAST_PROFILE_PATH")
-		if not profile_path.is_empty():
-			var partial_path := profile_path.get_base_dir().path_join("INCOMPLETE_NOT_ACCEPTED.json")
-			var checkpoint := FileAccess.open(partial_path, FileAccess.WRITE)
-			if checkpoint != null:
-				checkpoint.store_string(JSON.stringify({
-					"status": "INCOMPLETE_DIAGNOSTIC_ONLY",
-					"exact_git_sha": OS.get_environment("IOM_GIT_SHA"),
-					"godot": Engine.get_version_info().get("string", "unknown"),
-					"renderer": "mobile",
-					"source_scene": "res://scenes/realistic_coastal_fx_slice.tscn",
-					"phase": phase_name,
-					"completed_samples_in_phase": intervals.size(),
-					"required_samples_each_phase": SAMPLES,
-					"frame_interval_ms": intervals,
-					"visual_update_cpu_wall_ms": update_costs,
-					"peak_draw_calls": draw_calls,
-					"physical_android_measurement": false,
-					"graphics_reference_parity": "NOT_VERIFIED"
-				}))
-				checkpoint.close()
+		# Keep the render interval free of diagnostic output and filesystem I/O.
 	var frames: Dictionary = Stats.summarize_frame_intervals(intervals)
 	var update_work: Dictionary = Stats.summarize_frame_intervals(update_costs)
 	if not frames.get("valid", false) or not update_work.get("valid", false):

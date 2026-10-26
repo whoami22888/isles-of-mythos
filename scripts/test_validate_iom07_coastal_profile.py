@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from validate_iom07_coastal_profile import INCOMPLETE, validate_and_finalize
+from validate_iom07_coastal_profile import GODOT_VERSION, INCOMPLETE, validate_and_finalize
 
 SHA = "a" * 40
 
@@ -15,7 +15,7 @@ def fixture():
              "p95_ms": 3.0, "p99_ms": 4.0, "max_ms": 5.0}
     stage = {"valid": True, "peak_draw_calls": 12, "frame_interval_ms": stats,
              "visual_update_cpu_wall_ms": copy.deepcopy(stats)}
-    return {"exact_git_sha": SHA, "source": "actual_godot_renderer", "godot": "4.7.2.stable",
+    return {"exact_git_sha": SHA, "source": "actual_godot_renderer", "godot": GODOT_VERSION,
             "renderer": "mobile", "physical_android_measurement": False,
             "graphics_reference_parity": "NOT_VERIFIED",
             "device_thermal_memory_input_latency": "NOT_MEASURED",
@@ -102,6 +102,46 @@ class ProfileLifecycleRegression(unittest.TestCase):
         with self.assertRaises(ValueError):
             validate_and_finalize(self.report, SHA)
         self.assertTrue(self.diagnostic.exists())
+
+    def test_boolean_numeric_values_are_rejected(self):
+        for phase, field, value in (("static", "peak_draw_calls", True),
+                                    ("moving", "peak_draw_calls", False),
+                                    ("static", "ship_motion_distance_units", True),
+                                    ("moving", "ship_motion_distance_units", False),
+                                    ("static", "p95_ms", True)):
+            with self.subTest(phase=phase, field=field):
+                data = fixture()
+                if field == "ship_motion_distance_units":
+                    data[field] = value
+                elif field == "p95_ms":
+                    data[phase]["frame_interval_ms"][field] = value
+                else:
+                    data[phase][field] = value
+                self.store(data)
+                with self.assertRaises(ValueError):
+                    validate_and_finalize(self.report, SHA)
+                self.assertTrue(self.diagnostic.exists())
+
+    def test_engine_version_must_match_exact_pinned_build(self):
+        for version in ("4.7.20.stable.official.ed1daf0bf", "4.7.2.stable.extra",
+                        "4.7.2", "4.7.2.stable.official.other"):
+            with self.subTest(version=version):
+                data = fixture()
+                data["godot"] = version
+                self.store(data)
+                with self.assertRaises(ValueError):
+                    validate_and_finalize(self.report, SHA)
+                self.assertTrue(self.diagnostic.exists())
+
+    def test_malformed_nested_values_keep_checkpoint(self):
+        for key, value in (("static", None), ("moving", "bad")):
+            with self.subTest(key=key):
+                data = fixture()
+                data[key] = value
+                self.store(data)
+                with self.assertRaises((ValueError, TypeError)):
+                    validate_and_finalize(self.report, SHA)
+                self.assertTrue(self.diagnostic.exists())
 
 if __name__ == "__main__":
     unittest.main()

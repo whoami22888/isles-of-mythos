@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 
 INCOMPLETE = "INCOMPLETE_NOT_ACCEPTED.json"
+GODOT_VERSION = "4.7.2.stable.official.ed1daf0bf"
 
 def require(condition, message):
     if not condition:
@@ -14,9 +15,10 @@ def require(condition, message):
 
 def validate_profile(path: Path, expected_sha: str):
     data = json.loads(path.read_text(encoding="utf-8"))
+    require(isinstance(data, dict), "profile must be an object")
     require(data["exact_git_sha"] == expected_sha, "source SHA mismatch")
     require(data["source"] == "actual_godot_renderer", "not actual Godot evidence")
-    require(data["godot"].startswith("4.7.2"), "Godot version mismatch")
+    require(data["godot"] == GODOT_VERSION, "Godot version mismatch")
     require(data["renderer"] == "mobile", "renderer mismatch")
     require(data["physical_android_measurement"] is False, "unverified Android claim")
     require(data["graphics_reference_parity"] == "NOT_VERIFIED", "unverified visual claim")
@@ -25,20 +27,20 @@ def validate_profile(path: Path, expected_sha: str):
     require(data["same_camera_fixed_pose"] is True, "camera must be fixed")
     require(data["camera_mode"] == "cinematic_ship_framed_fixed_pose", "camera mode mismatch")
     distance = data["ship_motion_distance_units"]
-    require(isinstance(distance, (int, float)) and math.isfinite(distance) and distance > 0.2,
+    require(type(distance) in (int, float) and math.isfinite(distance) and distance > 0.2,
             "actual ship motion required")
     for phase in ("static", "moving"):
         stage = data[phase]
         require(stage["valid"] is True, phase + " stage invalid")
         calls = stage["peak_draw_calls"]
-        require(isinstance(calls, (int, float)) and math.isfinite(calls) and calls > 0,
+        require(type(calls) is int and calls > 0,
                 phase + " 3D draw calls missing")
         for metric in ("frame_interval_ms", "visual_update_cpu_wall_ms"):
             report = stage[metric]
             require(report["valid"] is True and report["samples"] == 30,
                     phase + " " + metric + " missing required samples")
             vals = [report[key] for key in ("min_ms", "p50_ms", "p95_ms", "p99_ms", "max_ms")]
-            require(all(isinstance(v, (int, float)) and math.isfinite(v) and v > 0 for v in vals)
+            require(all(type(v) in (int, float) and math.isfinite(v) and v > 0 for v in vals)
                     and vals == sorted(vals), phase + " " + metric + " invalid quantiles")
     return (data["static"]["frame_interval_ms"]["p95_ms"],
             data["moving"]["frame_interval_ms"]["p95_ms"])

@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - "client-godot/tests/profile_moving_coastal_scene.gd"
+      - "scripts/validate_iom07_coastal_profile.py"
+      - "scripts/test_validate_iom07_coastal_profile.py"
       - "client-godot/scripts/mobile_frame_metrics.gd"
       - "client-godot/scenes/realistic_coastal_fx_slice.tscn"
       - "client-godot/scripts/coastal_ship_fx_controller.gd"
@@ -44,7 +46,7 @@ jobs:
           echo "$GODOT_SHA256  $RUNNER_TEMP/godot.zip" | sha256sum --check
           unzip -q "$RUNNER_TEMP/godot.zip" -d "$RUNNER_TEMP"
           install "$RUNNER_TEMP/Godot_v4.7.2-stable_linux.x86_64" "$RUNNER_TEMP/godot"
-          "$RUNNER_TEMP/godot" --version | grep -F "4.7.2.stable"
+          test "$("$RUNNER_TEMP/godot" --version)" = "4.7.2.stable.official.ed1daf0bf"
       # Content-addressed reuse of *validated* Godot imports. Never restore
       # from prefix/fuzzy keys: changes to assets, .import metadata or project
       # settings must produce a fresh import. This is not source provenance
@@ -87,6 +89,7 @@ jobs:
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/coastal-profile"
           export IOM_COAST_PROFILE_PATH="$RUNNER_TEMP/coastal-profile/moving-coastal-profile.json"
+          printf '{"status":"INCOMPLETE_DIAGNOSTIC_ONLY","exact_git_sha":"%s","reason":"Profiler did not complete and validate"}\n' "$IOM_GIT_SHA" > "$RUNNER_TEMP/coastal-profile/INCOMPLETE_NOT_ACCEPTED.json"
           timeout --signal=TERM --kill-after=10s 240s xvfb-run -a -s "-screen 0 1280x720x24" "$RUNNER_TEMP/godot" --path client-godot --rendering-method mobile --script res://tests/profile_moving_coastal_scene.gd
           python3 scripts/validate_iom07_coastal_profile.py "$IOM_COAST_PROFILE_PATH"
           # Success must never ship a stale INCOMPLETE marker as diagnostic evidence.
