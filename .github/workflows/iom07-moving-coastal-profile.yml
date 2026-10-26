@@ -18,6 +18,8 @@ on:
       - "client-godot/tests/coastal_shore_heightfield_test.gd"
       - "client-godot/tests/coastal_ocean_integration_test.gd"
       - "client-godot/tests/coastal_ship_fx_integration_test.gd"
+      - "client-godot/assets/external/**"
+      - "client-godot/project.godot"
       - "scripts/test_iom07_coastal_profile_workflow.py"
       - ".github/workflows/iom07-moving-coastal-profile.yml"
   workflow_dispatch:

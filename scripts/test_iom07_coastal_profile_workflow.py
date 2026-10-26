@@ -12,6 +12,8 @@ WORKFLOW = (
     / "iom07-moving-coastal-profile.yml"
 )
 REQUIRED_PULL_REQUEST_PATHS = {
+    "client-godot/project.godot",
+    "client-godot/assets/external/**",
     "client-godot/shaders/coastal_shore_sampler.gdshaderinc",
     "client-godot/scripts/coastal_shore_heightfield.gd",
     "client-godot/tests/coastal_shore_heightfield_test.gd",
