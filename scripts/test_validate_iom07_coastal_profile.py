@@ -68,6 +68,14 @@ class ProfileLifecycleRegression(unittest.TestCase):
             validate_and_finalize(self.report, SHA)
         self.assertTrue(self.diagnostic.exists())
 
+    def test_static_phase_requires_explicit_not_applicable_value(self):
+        data = fixture()
+        del data["static"]["visual_update_cpu_wall_ms"]
+        self.store(data)
+        with self.assertRaises(ValueError):
+            validate_and_finalize(self.report, SHA)
+        self.assertTrue(self.diagnostic.exists())
+
     def test_missing_full_report_keeps_checkpoint(self):
         with self.assertRaises(OSError):
             validate_and_finalize(self.report, SHA)

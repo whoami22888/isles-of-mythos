@@ -45,7 +45,7 @@ def validate_profile(path: Path, expected_sha: str):
                 and frame_values == sorted(frame_values), phase + " frame interval quantiles invalid")
         cpu_report = stage.get("visual_update_cpu_wall_ms")
         if phase == "static":
-            require(cpu_report is None and
+            require("visual_update_cpu_wall_ms" in stage and cpu_report is None and
                     stage.get("visual_update_cpu_wall_status") == "NOT_APPLICABLE_STATIC_PHASE",
                     "static phase must not fabricate visual-update CPU samples")
         else:
