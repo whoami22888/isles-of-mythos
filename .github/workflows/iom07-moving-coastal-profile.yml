@@ -13,6 +13,12 @@ on:
       - "client-godot/scripts/ship_wake_effect.gd"
       - "client-godot/scripts/ship_bow_spray_effect.gd"
       - "client-godot/shaders/ocean_surface.gdshader"
+      - "client-godot/shaders/coastal_shore_sampler.gdshaderinc"
+      - "client-godot/scripts/coastal_shore_heightfield.gd"
+      - "client-godot/tests/coastal_shore_heightfield_test.gd"
+      - "client-godot/tests/coastal_ocean_integration_test.gd"
+      - "client-godot/tests/coastal_ship_fx_integration_test.gd"
+      - "scripts/test_iom07_coastal_profile_workflow.py"
       - ".github/workflows/iom07-moving-coastal-profile.yml"
   workflow_dispatch:
 
@@ -83,6 +89,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 -m unittest discover -s scripts -p 'test_validate_iom07_coastal_profile.py' -v
+          python3 -m unittest discover -s scripts -p 'test_iom07_coastal_profile_workflow.py' -v
       - name: Profile actual moving coastal scene on Godot Mobile Vulkan software renderer
         shell: bash
         run: |
