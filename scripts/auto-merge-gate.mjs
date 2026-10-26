@@ -109,11 +109,17 @@ export function visualRequired(paths) {
 }
 
 export function trustedCodexReceipt(review, sha) {
+  const body = review?.body;
+  if (typeof body !== "string") return false;
+  // A bot receipt proves review occurred, not that its verdict passed.
+  // A blocking verdict in the review body must not bypass inline-thread checks.
+  const blockingVerdict = /(?:^|\n)\s*(?:#{1,6}\s*)?(?:[-*]\s*)?(?:\*\*)?(?:(?:DISPOSITION|VERDICT)\s*:\s*)?(?:CHANGES REQUIRED|FAIL(?:ED)?|REJECTED|P[012]\b)/im.test(body);
   return SHA.test(sha) &&
     review?.commit_id === sha &&
     review?.user?.login === CODEX_REVIEWER &&
     (review?.state === "COMMENTED" || review?.state === "APPROVED") &&
-    /<!--\s*codex-review-receipt:v1\s*-->/.test(review?.body ?? "");
+    /<!--\s*codex-review-receipt:v1\s*-->/.test(body) &&
+    !blockingVerdict;
 }
 
 export function isCodexAuthor(login) {

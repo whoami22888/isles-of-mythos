@@ -12,6 +12,25 @@ const receipt = { commit_id: sha, state: "COMMENTED",
 const run = name => ({ name, head_sha: sha, event: "pull_request", id: 5,
   status: "completed", conclusion: "success" });
 
+test("Codex review receipt with explicit negative verdict is not approval", () => {
+  const negative = [
+    "DISPOSITION: CHANGES REQUIRED",
+    "VERDICT: FAIL",
+    "REJECTED: unresolved vulnerability",
+    "**P1** Security defect",
+    "### P0 release blocker",
+    "- P2 incorrect gameplay"
+  ];
+  for (const verdict of negative) {
+    assert.equal(trustedCodexReceipt({
+      ...receipt, body: "<!-- codex-review-receipt:v1 -->\\n" + verdict
+    }, sha), false, verdict);
+  }
+  assert.equal(trustedCodexReceipt({
+    ...receipt, body: "<!-- codex-review-receipt:v1 -->\\nNo changes required"
+  }, sha), true);
+});
+
 test("only current-SHA, active, exact trusted Codex bot review counts", () => {
   assert.equal(trustedCodexReceipt(receipt, sha), true);
   for (const counterfeit of [
