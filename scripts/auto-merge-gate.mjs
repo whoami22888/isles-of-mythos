@@ -46,6 +46,7 @@ const IOM07_COAST_PATHS = new Set([
   "client-godot/shaders/ocean_surface.gdshader",
   "scripts/validate_iom07_coastal_profile.py",
   "scripts/test_validate_iom07_coastal_profile.py",
+  "scripts/test_iom07_coastal_profile_workflow.py",
   ".github/workflows/iom07-moving-coastal-profile.yml"
 ]);
 const IOM07_COAST_PATH_PREFIXES = Object.freeze([
