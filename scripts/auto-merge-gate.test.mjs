@@ -23,11 +23,11 @@ test("Codex review receipt with explicit negative verdict is not approval", () =
   ];
   for (const verdict of negative) {
     assert.equal(trustedCodexReceipt({
-      ...receipt, body: "<!-- codex-review-receipt:v1 -->\\n" + verdict
+      ...receipt, body: "<!-- codex-review-receipt:v1 -->\n" + verdict
     }, sha), false, verdict);
   }
   assert.equal(trustedCodexReceipt({
-    ...receipt, body: "<!-- codex-review-receipt:v1 -->\\nNo changes required"
+    ...receipt, body: "<!-- codex-review-receipt:v1 -->\nNo changes required"
   }, sha), true);
 });
 
