@@ -71,6 +71,11 @@ export function changedPaths(files) {
 export function modifiesProtectedVerification(paths) {
   const guarded = new Set([
     "AGENTS.md", ".project/VERIFICATION-STANDARD.md",
+    "docs/ART_DIRECTION_STANDARD.md",
+    "docs/graphics/CINEMATIC_QUALITY_FLOOR.md",
+    "docs/graphics/REAL_RENDER_DELIVERABLE_GATE.md",
+    "docs/PLAYER_EXPERIENCE_QUALITY_STANDARD.md",
+    "docs/VISUAL_REFERENCE_INDEX.md",
     "package.json", "package-lock.json",
     "scripts/static-security-check.mjs", "scripts/orchestration-control.mjs",
     "scripts/auto-merge-gate.mjs", "scripts/auto-merge-gate.test.mjs",
