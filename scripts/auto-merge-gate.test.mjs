@@ -63,11 +63,14 @@ test("art provenance and coastal staging checks follow their path filters", () =
 test("IOM-07 profiler is required for every profiler source and evidence validator", () => {
   for (const path of ["client-godot/scripts/mobile_frame_metrics.gd",
       "client-godot/scenes/sculpted_terrain_preview.tscn",
+      "client-godot/tests/mobile_frame_capture.gd",
+      "client-godot/tests/mobile_frame_metrics_test.gd",
       "scripts/validate_iom07_frame_evidence.py",
       "scripts/test_validate_iom07_frame_evidence.py",
       ".github/workflows/iom07-mobile-frame-evidence.yml"])
     assert.ok(applicableChecks([path]).includes("IOM-07 mobile frame evidence"), path);
-  for (const path of ["client-godot/tests/profile_moving_coastal_scene.gd",
+  for (const path of ["client-godot/scripts/mobile_frame_metrics.gd",
+      "client-godot/tests/profile_moving_coastal_scene.gd",
       "client-godot/scripts/coastal_ship_fx_controller.gd",
       "client-godot/scripts/realistic_coastal_slice.gd",
       "client-godot/scripts/ship_wake_effect.gd",
@@ -78,6 +81,12 @@ test("IOM-07 profiler is required for every profiler source and evidence validat
       "scripts/test_validate_iom07_coastal_profile.py",
       ".github/workflows/iom07-moving-coastal-profile.yml"])
     assert.ok(applicableChecks([path]).includes("IOM-07 real moving coastal scene profiler"), path);
+  assert.ok(applicableChecks(["client-godot/tests/mobile_frame_future_regression.gd"]).includes("IOM-07 mobile frame evidence"));
+  assert.ok(!applicableChecks(["client-godot/tests/mobile_frame_nested/test.gd"]).includes("IOM-07 mobile frame evidence"));
+  assert.ok(!applicableChecks(["client-godot/tests/mobile_frame_invalid.txt"]).includes("IOM-07 mobile frame evidence"));
+  const shared = applicableChecks(["client-godot/scripts/mobile_frame_metrics.gd"]);
+  assert.ok(shared.includes("IOM-07 mobile frame evidence"));
+  assert.ok(shared.includes("IOM-07 real moving coastal scene profiler"));
   assert.deepEqual(applicableChecks(["server/src/health.ts"]), BASE_CHECKS);
 });
 
@@ -90,17 +99,23 @@ test("pending or stale required workflow cannot be accepted", () => {
   assert.equal(requiredRunsPassed([{ ...run("CI"), event: "push" }], ["CI"], sha).pass, false);
 });
 
-test("applicable IOM-07 profiler rejects missing, failed, pending, skipped and stale runs", () => {
-  const name = "IOM-07 mobile frame evidence";
-  assert.deepEqual(requiredRunsPassed([run(name)], [name], sha), { pass: true });
-  assert.equal(requiredRunsPassed([], [name], sha).pass, false);
-  for (const bad of [
-    { ...run(name), conclusion: "failure" },
-    { ...run(name), status: "in_progress", conclusion: null },
-    { ...run(name), conclusion: "skipped" },
-    { ...run(name), head_sha: "b".repeat(40) }
-  ]) assert.equal(requiredRunsPassed([bad], [name], sha).pass, false);
-  assert.equal(requiredRunsPassed([{ ...run(name), event: "push" }], [name], sha).pass, false);
+test("both applicable IOM-07 profilers reject missing, failed, pending, cancelled, skipped and stale runs", () => {
+  for (const name of ["IOM-07 mobile frame evidence", "IOM-07 real moving coastal scene profiler"]) {
+    assert.deepEqual(requiredRunsPassed([run(name)], [name], sha), { pass: true });
+    assert.equal(requiredRunsPassed([], [name], sha).pass, false);
+    for (const bad of [
+      { ...run(name), conclusion: "failure" },
+      { ...run(name), status: "in_progress", conclusion: null },
+      { ...run(name), status: "queued", conclusion: null },
+      { ...run(name), conclusion: "cancelled" },
+      { ...run(name), conclusion: "skipped" },
+      { ...run(name), conclusion: "timed_out" },
+      { ...run(name), conclusion: "neutral" },
+      { ...run(name), head_sha: "b".repeat(40) }
+    ]) assert.equal(requiredRunsPassed([bad], [name], sha).pass, false);
+    assert.equal(requiredRunsPassed([{ ...run(name), event: "push" }], [name], sha).pass, false);
+    assert.equal(requiredRunsPassed([run(name), { ...run(name), id: 6, status: "in_progress", conclusion: null }], [name], sha).pass, false);
+  }
 });
 
 test("workflow reviews and required Godot completions trigger trusted-main reconciliation", () => {

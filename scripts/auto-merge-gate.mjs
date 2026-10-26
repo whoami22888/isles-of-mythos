@@ -23,11 +23,14 @@ const STAGE_SCRIPTS = new Set([
 const IOM07_FRAME_PATHS = new Set([
   "client-godot/scripts/mobile_frame_metrics.gd",
   "client-godot/scenes/sculpted_terrain_preview.tscn",
+  "client-godot/tests/mobile_frame_capture.gd",
+  "client-godot/tests/mobile_frame_metrics_test.gd",
   "scripts/validate_iom07_frame_evidence.py",
   "scripts/test_validate_iom07_frame_evidence.py",
   ".github/workflows/iom07-mobile-frame-evidence.yml"
 ]);
 const IOM07_COAST_PATHS = new Set([
+  "client-godot/scripts/mobile_frame_metrics.gd",
   "client-godot/tests/profile_moving_coastal_scene.gd",
   "client-godot/scripts/coastal_ship_fx_controller.gd",
   "client-godot/scripts/realistic_coastal_slice.gd",
@@ -78,7 +81,8 @@ export function applicableChecks(paths) {
     required.add("Godot external art provenance");
   if (paths.some(p => STAGE_SCRIPTS.has(p) || p === ".github/workflows/godot-stage-coast.yml"))
     required.add("Stage Poly Haven coastal PBR candidate");
-  if (paths.some(p => IOM07_FRAME_PATHS.has(p)))
+  if (paths.some(p => IOM07_FRAME_PATHS.has(p) ||
+      /^client-godot\/tests\/mobile_frame_[^/]*\.gd$/.test(p)))
     required.add("IOM-07 mobile frame evidence");
   if (paths.some(p => IOM07_COAST_PATHS.has(p)))
     required.add("IOM-07 real moving coastal scene profiler");
