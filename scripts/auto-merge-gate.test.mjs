@@ -63,6 +63,8 @@ test("art provenance and coastal staging checks follow their path filters", () =
 test("IOM-07 profiler is required for every profiler source and evidence validator", () => {
   for (const path of ["client-godot/scripts/mobile_frame_metrics.gd",
       "client-godot/scenes/sculpted_terrain_preview.tscn",
+      "client-godot/tests/mobile_frame_capture.gd",
+      "client-godot/tests/mobile_frame_metrics_test.gd",
       "scripts/validate_iom07_frame_evidence.py",
       "scripts/test_validate_iom07_frame_evidence.py",
       ".github/workflows/iom07-mobile-frame-evidence.yml"])
