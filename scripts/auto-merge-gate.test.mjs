@@ -70,6 +70,11 @@ test("IOM-07 profiler is required for every profiler source and evidence validat
       ".github/workflows/iom07-mobile-frame-evidence.yml"])
     assert.ok(applicableChecks([path]).includes("IOM-07 mobile frame evidence"), path);
   for (const path of ["client-godot/scripts/mobile_frame_metrics.gd",
+      "client-godot/shaders/coastal_shore_sampler.gdshaderinc",
+      "client-godot/scripts/coastal_shore_heightfield.gd",
+      "client-godot/tests/coastal_shore_heightfield_test.gd",
+      "client-godot/tests/coastal_ocean_integration_test.gd",
+      "client-godot/tests/coastal_ship_fx_integration_test.gd",
       "client-godot/tests/profile_moving_coastal_scene.gd",
       "client-godot/scripts/coastal_ship_fx_controller.gd",
       "client-godot/scripts/realistic_coastal_slice.gd",
