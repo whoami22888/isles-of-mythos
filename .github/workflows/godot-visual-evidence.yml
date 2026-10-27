@@ -5,6 +5,12 @@ on:
     paths:
       - "client-godot/**"
       - ".github/workflows/godot-visual-evidence.yml"
+      - "scripts/graphics_quality_preflight.py"
+      - "scripts/test_graphics_quality_preflight.py"
+      - "scripts/stage_polyhaven_models.py"
+      - "scripts/test_stage_polyhaven_models.py"
+      - "scripts/stage_polyhaven_coast.py"
+      - "scripts/test_stage_polyhaven_coast.py"
   workflow_dispatch:
 
 permissions:
@@ -23,6 +29,8 @@ jobs:
         run: python3 scripts/test_stage_polyhaven_coast.py
       - name: Verify hash-pinned tropical model closure
         run: python3 scripts/test_stage_polyhaven_models.py
+      - name: Verify quality-slide preflight regressions
+        run: python3 scripts/test_graphics_quality_preflight.py
       - name: Quality-slide preflight (before renderer or capture)
         run: |
           set -euo pipefail

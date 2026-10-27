@@ -331,3 +331,29 @@ test("protected evidence validators and provenance scripts require manual integr
   }])), true);
   assert.equal(modifiesProtectedVerification(["server/src/health.ts"]), false);
 });
+
+// Every Python dependency of the mandatory visual-evidence preflight must be
+// protected and must trigger its own workflow when changed without Godot files.
+test("mandatory visual evidence Python dependency closure is protected and triggered", () => {
+  const workflow = readFileSync(".github/workflows/godot-visual-evidence.yml", "utf8");
+  const paths = [
+      "scripts/graphics_quality_preflight.py",
+      "scripts/test_graphics_quality_preflight.py",
+      "scripts/stage_polyhaven_models.py",
+      "scripts/test_stage_polyhaven_models.py",
+      "scripts/stage_polyhaven_coast.py",
+      "scripts/test_stage_polyhaven_coast.py"
+  ];
+  const trigger = workflow.split("  workflow_dispatch:")[0];
+  for (const path of paths) {
+    assert.equal(modifiesProtectedVerification([path]), true, path);
+    assert.ok(applicableChecks([path]).includes("Godot visual evidence"), path);
+    assert.ok(trigger.includes('"' + path + '"'), path);
+    const renamed = changedPaths([{
+      filename: "scripts/renamed_evidence_dependency.py",
+      previous_filename: path, status: "renamed"
+    }]);
+    assert.equal(modifiesProtectedVerification(renamed), true, path);
+  }
+  assert.ok(workflow.includes("python3 scripts/test_graphics_quality_preflight.py"));
+});

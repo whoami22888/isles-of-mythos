@@ -65,11 +65,21 @@ const IOM07_COAST_PATH_PREFIXES = Object.freeze([
   "client-godot/assets/external/"
 ]);
 
+const VISUAL_EVIDENCE_SCRIPTS = new Set([
+  "scripts/graphics_quality_preflight.py",
+  "scripts/test_graphics_quality_preflight.py",
+  "scripts/stage_polyhaven_models.py",
+  "scripts/test_stage_polyhaven_models.py",
+  "scripts/stage_polyhaven_coast.py",
+  "scripts/test_stage_polyhaven_coast.py"
+]);
+
 // Validation and provenance scripts define the evidence admitted by protected
 // workflows. They require manual integration just like the workflows themselves.
 const PROTECTED_EVIDENCE_SCRIPTS = new Set([
   ...ART_PROVENANCE_SCRIPTS,
   ...STAGE_SCRIPTS,
+  ...VISUAL_EVIDENCE_SCRIPTS,
   "scripts/validate_iom07_frame_evidence.py",
   "scripts/test_validate_iom07_frame_evidence.py",
   "scripts/validate_iom07_coastal_profile.py",
@@ -115,7 +125,8 @@ export function applicableChecks(paths) {
   const required = new Set(BASE_CHECKS);
   if (paths.some(p => p.startsWith("client-godot/") || p === ".github/workflows/godot-iom-00.yml"))
     required.add("IOM-00 Godot client");
-  if (paths.some(p => p.startsWith("client-godot/") || p === ".github/workflows/godot-visual-evidence.yml"))
+  if (paths.some(p => p.startsWith("client-godot/") || VISUAL_EVIDENCE_SCRIPTS.has(p) ||
+      p === ".github/workflows/godot-visual-evidence.yml"))
     required.add("Godot visual evidence");
   if (paths.some(p => p.startsWith("client-godot/assets/") ||
        ART_PROVENANCE_SCRIPTS.has(p) || p === ".github/workflows/godot-art-provenance.yml"))
