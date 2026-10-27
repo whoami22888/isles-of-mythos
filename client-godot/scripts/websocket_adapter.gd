@@ -9,6 +9,17 @@ var _url := ""
 var _token := ""
 var _attempt_active := false
 var _auth_sent := false
+var _authenticated := false
+
+func is_authenticated() -> bool:
+	return _authenticated and _attempt_active and _socket.get_ready_state() == WebSocketPeer.STATE_OPEN
+
+## Sends a gameplay frame only on an authenticated open socket. The server
+## validates every field; the client never treats a send as an applied change.
+func send_message(message: Dictionary) -> bool:
+	if not is_authenticated():
+		return false
+	return _socket.send_text(JSON.stringify(message)) == OK
 
 func configure(url: String, token: String) -> void:
 	_url = url.strip_edges()
@@ -20,6 +31,7 @@ func connect_to_server() -> void:
 	_socket = WebSocketPeer.new()
 	_attempt_active = false
 	_auth_sent = false
+	_authenticated = false
 	if _url.is_empty():
 		status_changed.emit("No server endpoint configured")
 		return
@@ -53,9 +65,12 @@ func _process(_delta: float) -> void:
 		while _socket.get_available_packet_count() > 0:
 			var parsed = JSON.parse_string(_socket.get_packet().get_string_from_utf8())
 			if parsed is Dictionary:
+				if parsed.get("type", "") == "auth_ok":
+					_authenticated = true
 				message_received.emit(parsed)
 	elif state == WebSocketPeer.STATE_CLOSED:
 		_attempt_active = false
+		_authenticated = false
 		status_changed.emit("Disconnected" if _auth_sent else "Connection failed; check endpoint and server availability")
 
 func _is_safe_authenticated_url(url: String) -> bool:
