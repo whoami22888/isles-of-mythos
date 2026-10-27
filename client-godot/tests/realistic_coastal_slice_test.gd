@@ -124,6 +124,26 @@ func run() -> void:
 	ok = _check(scene._terrain_height(0.0, 15.0) > scene._terrain_height(0.0, -12.0) + 3.0, "contract line 124") and ok
 	ok = _check(absf(scene._terrain_height(-15.0, -6.0) - scene._terrain_height(15.0, -6.0)) > 0.3, "contract line 125") and ok
 	ok = _check(scene.player_marker.position.y > scene._terrain_height(0.0, 5.5), "contract line 126") and ok
+	# Regression: the terrain was emitted counter-clockwise, so Godot (clockwise
+	# front faces) culled every upward-facing triangle and the beach rendered
+	# behind the ocean. Every triangle must face up: for Godot's clockwise front
+	# winding, (b - a) x (c - a) points DOWN for a surface seen from above.
+	var terrain_arrays := terrain.mesh.surface_get_arrays(0)
+	var terrain_vertices: PackedVector3Array = terrain_arrays[Mesh.ARRAY_VERTEX]
+	var terrain_indices: PackedInt32Array = terrain_arrays[Mesh.ARRAY_INDEX]
+	var upward_triangles := 0
+	for t in range(0, terrain_indices.size(), 3):
+		var a := terrain_vertices[terrain_indices[t]]
+		var b := terrain_vertices[terrain_indices[t + 1]]
+		var c := terrain_vertices[terrain_indices[t + 2]]
+		if (b - a).cross(c - a).y < 0.0:
+			upward_triangles += 1
+	ok = _check(upward_triangles == terrain_indices.size() / 3, "terrain triangles must face up (clockwise front winding)") and ok
+	# The beach must genuinely rise out of the sea with a sloped seabed in
+	# front of it, not a sea-level sheet across the whole bay.
+	ok = _check(scene._terrain_height(12.0, 7.0) > scene.WATER_Y + 0.2, "dry beach above sea level") and ok
+	ok = _check(scene._terrain_height(12.0, -6.0) < scene.WATER_Y - 2.5, "offshore seabed has real depth") and ok
+	ok = _check(scene._terrain_height(1.0, -5.8) < scene.WATER_Y - 1.5, "moored hull has clearance over the seabed") and ok
 	scene.play_cinematic(true)
 	ok = _check(gameplay.current and not scene._cinematic_active, "contract line 128") and ok
 	scene.play_cinematic()

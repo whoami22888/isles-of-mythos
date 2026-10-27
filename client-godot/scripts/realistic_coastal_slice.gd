@@ -14,6 +14,7 @@ const COAST_ROUGHNESS := preload("res://assets/external/polyhaven/coast_sand_roc
 const COAST_AO := preload("res://assets/external/polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_ao_1k.jpg")
 const SHORE_BAKER := preload("res://scripts/coastal_shore_heightfield.gd")
 const OCEAN_SHADER := preload("res://shaders/ocean_surface.gdshader")
+const BEACH_TERRAIN_SHADER := preload("res://shaders/coastal_beach_terrain.gdshader")
 const WATER_Y := -0.35
 const GAMEPLAY_CAMERA := Vector3(13.0, 12.0, -14.0)
 const CINEMATIC_START_CAMERA := Vector3(-11.0, 5.5, -18.0)
@@ -67,33 +68,37 @@ func _build_environment() -> void:
 	add_child(sun)
 
 func _terrain_height(px: float, pz: float) -> float:
-	# Irregular cove waterline and broad uplift, with layered beach, bluff
-	# and inland ridges. The same height function grounds decorative meshes.
-	var waterline := -7.1 + sin(px * 0.19) * 1.3 + sin(px * 0.53) * 0.6
+	# Irregular cove waterline with a real underwater shelf, a gently sloped
+	# sand beach (~1:8), then bluff and inland ridges. The same height
+	# function grounds decorative meshes and feeds the ocean heightfield.
+	var waterline := 2.0 + sin(px * 0.19) * 1.3 + sin(px * 0.53) * 0.6
 	waterline += cos(px * 0.095) * 1.2
-	var beach := smoothstep(waterline - 2.4, waterline + 3.8, pz)
-	var bluff := smoothstep(1.4, 12.5, pz)
+	var shore_t := pz - waterline
+	# Wide, low beach shelf instead of the previous 6 m ramp that met the
+	# water with no visible sand.
+	var beach := smoothstep(-5.0, 9.0, shore_t)
+	var bluff := smoothstep(waterline + 6.5, waterline + 15.0, pz)
 	var ridge := sin(px * 0.21 + pz * 0.08) * 1.25
 	ridge += cos(px * 0.46 - pz * 0.19) * 0.48
 	ridge += sin(px * 0.91 + pz * 0.63) * 0.15
-	# Add two irregular cliff shelves so the playable coast reads as layered
-	# rock and beach rather than a single smooth mound. The terms are bounded
-	# by the authored island mask and remain deterministic at capture time.
-	var cliff_shelf := smoothstep(3.0, 9.0, pz) * (0.42 * sin(px * 0.37 + pz * 0.11)
+	# Irregular cliff shelves keep the inland coast layered rather than a
+	# single smooth mound; bounded and deterministic at capture time.
+	var cliff_shelf := smoothstep(waterline + 5.0, waterline + 11.0, pz) * (0.42 * sin(px * 0.37 + pz * 0.11)
 		+ 0.24 * cos(px * 0.71 - pz * 0.23))
-	var high_shelf := smoothstep(10.0, 18.0, pz) * (0.30 * sin(px * 0.52 - pz * 0.17))
+	var high_shelf := smoothstep(13.0, 20.0, pz) * (0.30 * sin(px * 0.52 - pz * 0.17))
 	ridge += cliff_shelf + high_shelf
 	var side_mask := 1.0 - smoothstep(25.0, 34.0, absf(px))
 	var back_mask := 1.0 - smoothstep(19.0, 28.0, pz)
 	var island := side_mask * back_mask
-	# Give the playable cove a readable beach-to-cliff profile from the
-	# gameplay camera.  The previous low relief read as a single mound even
-	# with the admitted PBR surface; these bounded shelves create a layered
-	# tropical coast without adding runtime geometry or allocations.
-	var height := beach * (1.85 + ridge * 0.28)
-	height += bluff * (5.6 + ridge * 1.35)
-	height += smoothstep(8.0, 18.0, pz) * 2.0
-	return WATER_Y - 0.75 + island * (height + 0.75)
+	var height := beach * (1.45 + ridge * 0.12)
+	height += bluff * (5.4 + ridge * 1.35)
+	height += smoothstep(11.0, 20.0, pz) * 2.0
+	# The seabed previously sat at sea level across the whole bay, so the
+	# ocean read uniformly "shallow". Drop it into a believable shelf: sand
+	# shallows near the beach, then a turquoise-to-navy slope offshore.
+	var offshore := smoothstep(0.5, -19.0, shore_t)
+	var land := WATER_Y - 0.25 + height - offshore * 7.5
+	return lerpf(WATER_Y - 8.0, land, island)
 
 
 func _build_coastal_terrain() -> void:
@@ -127,7 +132,7 @@ func _build_coastal_terrain() -> void:
 	for z in range(rows - 1):
 		for x in range(columns - 1):
 			var i := z * columns + x
-			indices.append_array([i, i + columns, i + 1, i + 1, i + columns, i + columns + 1])
+			indices.append_array([i, i + 1, i + columns, i + 1, i + columns + 1, i + columns])
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = vertices
@@ -140,24 +145,20 @@ func _build_coastal_terrain() -> void:
 	var terrain := MeshInstance3D.new()
 	terrain.name = "IrregularCoastalTerrain"
 	terrain.mesh = mesh
-	var material := _terrain_material()
-	material.vertex_color_use_as_albedo = true
-	terrain.material_override = material
+	terrain.material_override = _terrain_material()
 	add_child(terrain)
 
 
-func _terrain_material() -> StandardMaterial3D:
-	var material := StandardMaterial3D.new()
-	material.albedo_color = Color("#c9a77b")
-	material.albedo_texture = COAST_DIFFUSE
-	material.normal_enabled = true
-	material.normal_texture = COAST_NORMAL
-	material.roughness_texture = COAST_ROUGHNESS
-	material.roughness_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED
-	material.ao_enabled = true
-	material.ao_texture = COAST_AO
-	material.roughness = 0.88
-	material.metallic = 0.0
+func _terrain_material() -> ShaderMaterial:
+	# Height/slope-layered beach: wet sand, dry sand, rock and vegetated soil,
+	# all from the admitted coast_sand_rocks_02 PBR maps.
+	var material := ShaderMaterial.new()
+	material.shader = BEACH_TERRAIN_SHADER
+	material.set_shader_parameter("rock_albedo", COAST_DIFFUSE)
+	material.set_shader_parameter("rock_normal", COAST_NORMAL)
+	material.set_shader_parameter("rock_roughness", COAST_ROUGHNESS)
+	material.set_shader_parameter("rock_ao", COAST_AO)
+	material.set_shader_parameter("sea_level", WATER_Y)
 	return material
 
 func _build_water() -> void:
@@ -300,7 +301,15 @@ func _build_premium_landmarks() -> void:
 			# terrain remains the high-detail playable surface.
 			_apply_landmark_lod(imported, 60000 if entry[0].x != 21.0 else 90000)
 		premium_layer.add_child(imported)
-		_ground_asset_on_terrain(imported, 0.08)
+		if entry[2] == COASTAL_CLIFF_SCENE:
+			# The source is an overhanging cliff-edge slab: grounding its
+			# lowest vertex left most of it hanging in the air as a dark plank
+			# along the ridge. Seat it so only the weathered crest emerges from
+			# the slope as a rock outcrop.
+			var cliff_height := visual_bounds_world(imported).size.y
+			_ground_asset_on_terrain(imported, cliff_height * 0.9)
+		else:
+			_ground_asset_on_terrain(imported, 0.08)
 		_configure_mobile_visibility(imported, 105.0, false)
 	# Spawn state belongs to scene construction, not recursive material
 	# traversal. Keeping this here guarantees one authoritative marker.
