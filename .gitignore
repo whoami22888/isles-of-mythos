@@ -8,3 +8,9 @@ client-godot/.godot/
 
 # Godot regenerates these on import; never commit them
 *.import
+
+# Python bytecode
+__pycache__/
+
+# Blender-exported cliff textures not yet recorded in BLENDER_BUILD_METADATA.json or the manifest
+client-godot/assets/external/generated/coastal_cliff_blender/*_1k.jpg
