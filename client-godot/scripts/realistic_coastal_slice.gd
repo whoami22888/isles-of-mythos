@@ -17,7 +17,13 @@ const OCEAN_SHADER := preload("res://shaders/ocean_surface.gdshader")
 const BEACH_TERRAIN_SHADER := preload("res://shaders/coastal_beach_terrain.gdshader")
 const WATER_Y := -0.35
 const GAMEPLAY_CAMERA := Vector3(13.0, 12.0, -14.0)
-const CINEMATIC_START_CAMERA := Vector3(-11.0, 5.5, -18.0)
+# Elevated three-quarter view across the cove (owner concept frames): coast
+# and settlement on the left, ship right of centre, open sea behind it.
+const CINEMATIC_START_CAMERA := Vector3(21.0, 13.0, -17.0)
+# Fraction of the way from the ship centre toward the coast that the camera
+# aims; keeps the full-ship safe-frame contract while composing off-centre.
+const CINEMATIC_COAST_BIAS := 0.22
+const CINEMATIC_COAST_POINT := Vector3(4.0, 2.0, 10.0)
 const CINEMATIC_LOOK_TARGET := Vector3(1.0, 2.2, 1.0)
 
 var gameplay_camera: Camera3D
@@ -48,8 +54,10 @@ func _build_environment() -> void:
 	var sky_material := ProceduralSkyMaterial.new()
 	sky_material.sky_top_color = Color("#2d78b7")
 	sky_material.sky_horizon_color = Color("#b7e6ee")
-	sky_material.ground_bottom_color = Color("#1b3d53")
-	sky_material.ground_horizon_color = Color("#83b6bd")
+	# Below-horizon sky shows past the far edge of the ocean plane from an
+	# elevated camera; match it to the sea haze so no grey band appears.
+	sky_material.ground_bottom_color = Color("#2f6f96")
+	sky_material.ground_horizon_color = Color("#bfe3ee")
 	sky_material.sun_angle_max = 12.0
 	sky.sky_material = sky_material
 	environment.sky = sky
@@ -62,6 +70,17 @@ func _build_environment() -> void:
 	environment.glow_enabled = true
 	environment.glow_intensity = 0.35
 	environment.glow_hdr_threshold = 1.2
+	# Aerial perspective: distance haze toward the horizon colour. It also
+	# fades the edge of the single 640 x 480 m ocean plane, which an elevated
+	# camera otherwise sees as a grey band. Depth fog is Mobile-supported.
+	environment.fog_enabled = true
+	environment.fog_mode = Environment.FOG_MODE_DEPTH
+	environment.fog_light_color = Color("#bfe3ee")
+	environment.fog_depth_begin = 70.0
+	environment.fog_depth_end = 215.0
+	environment.fog_depth_curve = 1.6
+	environment.fog_density = 1.0
+	environment.fog_sky_affect = 0.0
 	world.environment = environment
 	add_child(world)
 	var sun := DirectionalLight3D.new()
@@ -285,8 +304,8 @@ func _build_premium_landmarks() -> void:
 		[Vector3(21.0, 0.0, 18.0), 0.24, COASTAL_CLIFF_SCENE],
 		# Smaller side anchors complete the cove silhouette without crossing
 		# the ship camera corridor or adding a new asset family.
-		[Vector3(-24.0, 0.0, 16.0), 0.18, COASTAL_CLIFF_SCENE],
-		[Vector3(25.0, 0.0, 14.0), 0.18, COASTAL_CLIFF_SCENE],
+		[Vector3(-8.5, 0.0, 16.5), 0.18, COASTAL_CLIFF_SCENE],
+		[Vector3(9.5, 0.0, 16.0), 0.18, COASTAL_CLIFF_SCENE],
 		[Vector3(-11.5, 0.0, 10.0), 1.1, TROPICAL_TREE_SCENE],
 		[Vector3(11.0, 0.0, 12.0), 1.0, TROPICAL_TREE_ALT_SCENE],
 		[Vector3(-3.5, 0.0, 16.5), 0.85, TROPICAL_TREE_ALT_SCENE],
@@ -580,7 +599,8 @@ func frame_ship_cinematic(camera: Camera3D, desired_position: Vector3) -> bool:
 	if safe_position == Vector3(INF, INF, INF):
 		return false
 	camera.global_position = safe_position
-	camera.look_at(ship_visual_bounds_world().get_center())
+	var centre := ship_visual_bounds_world().get_center()
+	camera.look_at(centre.lerp(CINEMATIC_COAST_POINT, CINEMATIC_COAST_BIAS))
 	return true
 
 func _safe_cinematic_position(camera: Camera3D, desired_position: Vector3) -> Vector3:
@@ -598,7 +618,10 @@ func _safe_cinematic_position(camera: Camera3D, desired_position: Vector3) -> Ve
 	var safe_angle := deg_to_rad(camera.fov * 0.45)
 	# Conservatively enclose the ship's *entire* AABB in a vertical frustum;
 	# no hull-only target can silently clip the sails or mast tips.
-	var needed := safe_radius / maxf(0.05, sin(safe_angle))
+	# The camera aims slightly toward the coast, so the ship sits off-centre;
+	# enclose that aim offset too or the far mast/hull can leave the frame.
+	var aim_offset := centre.distance_to(centre.lerp(CINEMATIC_COAST_POINT, CINEMATIC_COAST_BIAS))
+	var needed := (safe_radius + aim_offset) / maxf(0.05, sin(safe_angle))
 	return centre + away * maxf(distance, needed)
 
 
