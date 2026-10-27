@@ -2,7 +2,7 @@
 ## Master AI Software, Gameplay, Graphics and Engineering Specification
 
 **Project:** Isles of Mythos: Sunken Tides  
-**Repository:** https://github.com/whoami22888/isles-of-mythos  
+**Repository:** <https://github.com/whoami22888/isles-of-mythos>  
 **Software type:** Mobile-first persistent 3D strategy MMORPG  
 **Game engine:** Godot 4.7.2 Mobile Renderer  
 **Primary platform:** Android ARM64  
