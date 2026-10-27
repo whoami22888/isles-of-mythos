@@ -1,0 +1,25 @@
+---
+# Codacy tool scoping for Isles of Mythos.
+#
+# Root cause (observed on PR #149, run 38927573780 / job 120882069127,
+# Codacy Analysis CLI 7.10.0 with fail-if-incomplete enabled): the default
+# tool set includes PMD, which only analyzes Java/Apex/Visualforce/XML.
+# This repository has zero .java/.apex/.vf/.cls files (verified by repo
+# scan), so PMD's legacy rule-loading step has no applicable ruleset and
+# crashes instead of reporting a clean "no files" result under CLI 7.x.
+# Disabling an inapplicable tool is a correctness fix, not a lowered
+# threshold: no PMD finding was ever possible on this codebase, and every
+# other analyzer (including security-focused tools such as Trivy/Semgrep-
+# equivalents Codacy auto-selects for TS/JS/Python/GDScript) stays enabled.
+engines:
+  pmd:
+    enabled: false
+  eslint:
+    enabled: true
+exclude_paths:
+  - "**/node_modules/**"
+  - "**/dist/**"
+  - "**/coverage/**"
+  - "**/.vite/**"
+  - "**/build/**"
+  - "client-godot/addons/**"
