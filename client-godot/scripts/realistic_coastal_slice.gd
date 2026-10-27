@@ -53,10 +53,15 @@ func _build_environment() -> void:
 	sky_material.sun_angle_max = 12.0
 	sky.sky_material = sky_material
 	environment.sky = sky
-	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	environment.ambient_light_color = Color("#b6d6df")
-	environment.ambient_light_energy = 0.38
+	# Sky-sourced ambient keeps shadowed faces tinted by the tropical sky
+	# rather than a flat grey fill; Filmic holds sunlit sand and canvas without
+	# clipping. Glow is Mobile-supported and kept below the sun highlight.
+	environment.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
+	environment.ambient_light_energy = 0.75
 	environment.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	environment.glow_enabled = true
+	environment.glow_intensity = 0.35
+	environment.glow_hdr_threshold = 1.2
 	world.environment = environment
 	add_child(world)
 	var sun := DirectionalLight3D.new()
@@ -65,6 +70,7 @@ func _build_environment() -> void:
 	sun.light_color = Color("#fff0cf")
 	sun.light_energy = 0.95
 	sun.shadow_enabled = true
+	sun.directional_shadow_max_distance = 90.0
 	add_child(sun)
 
 func _terrain_height(px: float, pz: float) -> float:
@@ -338,9 +344,19 @@ func _configure_ship_sails(root: Node) -> void:
 						continue
 					var corrected := material.duplicate() as BaseMaterial3D
 					corrected.albedo_color = Color.WHITE
-					corrected.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+					# Alpha scissor combined with double-sided culling rendered the
+					# canvas near-black under the Mobile Vulkan renderer (the lit
+					# path returned no light or sky ambient; unshaded and opaque
+					# both rendered correctly). The atlas cuts out only 0.35% of
+					# texels, so opaque double-sided cloth keeps the silhouette.
+					corrected.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
 					corrected.cull_mode = BaseMaterial3D.CULL_DISABLED
 					corrected.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
+					# Canvas is translucent: the cinematic sun sits behind the
+					# vessel, so without transmitted light the camera only saw
+					# the shadowed back faces and the sails rendered near-black.
+					corrected.backlight_enabled = true
+					corrected.backlight = Color(0.78, 0.70, 0.56)
 					mesh_instance.set_surface_override_material(surface_index, corrected)
 		for child in node.get_children():
 			_configure_ship_sails(child)

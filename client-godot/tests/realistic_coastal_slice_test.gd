@@ -50,7 +50,10 @@ func run() -> void:
 						sail_materials += 1
 						ok = _check(material.albedo_texture != null, "contract line 51") and ok
 						ok = _check(material.albedo_color.get_luminance() > 0.8, "contract line 52") and ok
-						ok = _check(material.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR, "contract line 53") and ok
+						# Opaque + double-sided: alpha scissor with cull disabled
+						# rendered unlit black canvas on the Mobile renderer.
+						ok = _check(material.transparency == BaseMaterial3D.TRANSPARENCY_DISABLED, "contract line 53") and ok
+						ok = _check(material.cull_mode == BaseMaterial3D.CULL_DISABLED, "sails must be double-sided") and ok
 		for child in ship_node.get_children():
 			pending_ship.append(child)
 	ok = _check(sail_materials > 0, "contract line 56") and ok
