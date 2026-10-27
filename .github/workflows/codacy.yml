@@ -47,9 +47,28 @@ jobs:
       - name: Run Codacy Analysis CLI
         uses: codacy/codacy-analysis-cli-action@d43360362776a6789b47b99ae8973510854e2d3d # CLI 7.10.0
         with:
-          # Check https://github.com/codacy/codacy-analysis-cli#project-token to get your project token from your Codacy repository
-          # You can also omit the token and run the tools that support default configurations
-          project-token: ${{ secrets.CODACY_PROJECT_TOKEN }}
+          # Root cause (confirmed from codacy-analysis-cli source,
+          # AnalyseExecutor.scala::getToolConfiguration): when a
+          # project-token is set, the CLI fetches the project's remote
+          # Codacy-dashboard tool configuration and that takes precedence
+          # over this repo's local .codacy.yml. A tool only runs if it has
+          # a *local* config file (shouldUseConfigFile) or the *remote*
+          # config carries explicit patterns for it
+          # (shouldUseRemoteConfiguredPatterns); a tool present in the
+          # remote list with neither (observed for Trivy: "no patterns
+          # configured") fails the whole run under fail-if-incomplete, and
+          # the remote list can also include tools (legacy eslint/
+          # eslint-8, PMD, metrics) this repo's .codacy.yml never asked
+          # for. This job never sets `upload: true`, so no Codacy account
+          # or dashboard state is used downstream — the token bought
+          # nothing here except pulling in that remote tool list. Omitting
+          # it makes toolConfigurations absent, so the CLI falls through
+          # to "running with defaults": local .codacy.yml governs tool
+          # selection, and every tool with a usable default configuration
+          # runs normally. See the action's own inline comment below.
+          #
+          # Check https://github.com/codacy/codacy-analysis-cli#project-token
+          # if a project-token is reintroduced for dashboard upload later.
           verbose: true
           # Scanner crashes are failures even when a partial SARIF can be generated.
           fail-if-incomplete: true
