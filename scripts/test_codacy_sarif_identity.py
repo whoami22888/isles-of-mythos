@@ -1,5 +1,6 @@
 import unittest
 from copy import deepcopy
+
 from codacy_sarif_identity import identify_runs, split_reports
 
 
