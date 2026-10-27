@@ -233,6 +233,7 @@ test("workflow reviews and required Godot completions trigger trusted-main recon
   assert.match(policy, /Stage Poly Haven coastal PBR candidate/);
   assert.match(policy, /IOM-07 mobile frame evidence/);
   assert.match(policy, /IOM-07 real moving coastal scene profiler/);
+  assert.match(policy, /IOM Coastal Ship FX Integration/);
   assert.match(policy, /pull_request_review_comment:/);
   assert.match(policy, /github\.event\.repository\.default_branch/);
   assert.match(policy, /persist-credentials:\s*false/);
@@ -356,4 +357,45 @@ test("mandatory visual evidence Python dependency closure is protected and trigg
     assert.equal(modifiesProtectedVerification(renamed), true, path);
   }
   assert.ok(workflow.includes("python3 scripts/test_graphics_quality_preflight.py"));
+});
+
+test("coastal capture validator and workflow trigger closure is fail-closed", () => {
+  const workflow = readFileSync(".github/workflows/iom-coastal-ship-fx.yml", "utf8");
+  const trigger = workflow.split("  workflow_dispatch:")[0];
+  const paths = ["client-godot/scenes/realistic_coastal_fx_slice.tscn","client-godot/scenes/realistic_coastal_slice.tscn","client-godot/scripts/coastal_ship_fx_controller.gd","client-godot/scripts/ship_wake_effect.gd","client-godot/shaders/ship_wake_foam.gdshader","client-godot/scripts/ship_bow_spray_effect.gd","client-godot/shaders/ship_bow_spray.gdshader","client-godot/scripts/realistic_coastal_slice.gd","client-godot/tests/coastal_ship_fx_integration_test.gd","client-godot/tests/render_coastal_fx_sequence.gd","client-godot/tests/coastal_ocean_integration_test.gd","client-godot/tests/coastal_shore_heightfield_test.gd","client-godot/scripts/coastal_shore_heightfield.gd","client-godot/shaders/coastal_shore_sampler.gdshaderinc","client-godot/shaders/ocean_surface.gdshader",".github/workflows/iom-coastal-ship-fx.yml","client-godot/project.godot","client-godot/tests/realistic_coastal_slice_test.gd","scripts/check_capture_continuity.py","scripts/tests/test_capture_continuity.py"];
+  for (const path of paths) {
+    assert.ok(applicableChecks([path]).includes("IOM Coastal Ship FX Integration"), path);
+    assert.ok(trigger.includes('"' + path + '"'), path);
+  }
+  assert.ok(applicableChecks(["client-godot/assets/external/asset.glb"])
+    .includes("IOM Coastal Ship FX Integration"));
+  assert.ok(trigger.includes('"client-godot/assets/external/**"'));
+  for (const path of ["scripts/check_capture_continuity.py",
+      "scripts/tests/test_capture_continuity.py"]) {
+    assert.equal(modifiesProtectedVerification([path]), true, path);
+    const renamed = changedPaths([{ filename: "docs/retired-capture.txt",
+      previous_filename: path, status: "renamed" }]);
+    assert.equal(modifiesProtectedVerification(renamed), true, path);
+    assert.ok(applicableChecks(renamed).includes("IOM Coastal Ship FX Integration"), path);
+  }
+  assert.ok(workflow.includes('python3 -m unittest discover -s scripts/tests -p "test_capture_continuity.py" -v'));
+  assert.ok(workflow.includes("python3 scripts/check_capture_continuity.py ordered-frames"));
+});
+
+test("coastal capture rejects missing, failed, pending, skipped and stale workflow runs", () => {
+  const name = "IOM Coastal Ship FX Integration";
+  assert.deepEqual(requiredRunsPassed([run(name)], [name], sha), { pass: true });
+  assert.equal(requiredRunsPassed([], [name], sha).pass, false);
+  for (const bad of [
+    { ...run(name), status: "queued", conclusion: null },
+    { ...run(name), status: "in_progress", conclusion: null },
+    { ...run(name), conclusion: "failure" },
+    { ...run(name), conclusion: "cancelled" },
+    { ...run(name), conclusion: "skipped" },
+    { ...run(name), conclusion: "timed_out" },
+    { ...run(name), head_sha: "b".repeat(40) },
+    { ...run(name), event: "push" }
+  ]) assert.equal(requiredRunsPassed([bad], [name], sha).pass, false);
+  assert.equal(requiredRunsPassed([run(name), { ...run(name), id: 6,
+    status: "in_progress", conclusion: null }], [name], sha).pass, false);
 });

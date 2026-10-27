@@ -65,6 +65,32 @@ const IOM07_COAST_PATH_PREFIXES = Object.freeze([
   "client-godot/assets/external/"
 ]);
 
+// All executed coastal-capture source and validator dependencies must trigger
+// the dedicated workflow and be required by the protected merge gate.
+const COASTAL_FX_PATHS = new Set([
+  "client-godot/scenes/realistic_coastal_fx_slice.tscn",
+  "client-godot/scenes/realistic_coastal_slice.tscn",
+  "client-godot/scripts/coastal_ship_fx_controller.gd",
+  "client-godot/scripts/ship_wake_effect.gd",
+  "client-godot/shaders/ship_wake_foam.gdshader",
+  "client-godot/scripts/ship_bow_spray_effect.gd",
+  "client-godot/shaders/ship_bow_spray.gdshader",
+  "client-godot/scripts/realistic_coastal_slice.gd",
+  "client-godot/tests/coastal_ship_fx_integration_test.gd",
+  "client-godot/tests/render_coastal_fx_sequence.gd",
+  "client-godot/tests/coastal_ocean_integration_test.gd",
+  "client-godot/tests/coastal_shore_heightfield_test.gd",
+  "client-godot/scripts/coastal_shore_heightfield.gd",
+  "client-godot/shaders/coastal_shore_sampler.gdshaderinc",
+  "client-godot/shaders/ocean_surface.gdshader",
+  ".github/workflows/iom-coastal-ship-fx.yml",
+  "client-godot/project.godot",
+  "client-godot/tests/realistic_coastal_slice_test.gd",
+  "scripts/check_capture_continuity.py",
+  "scripts/tests/test_capture_continuity.py"
+]);
+const COASTAL_FX_PREFIXES = Object.freeze(["client-godot/assets/external/"]);
+
 const VISUAL_EVIDENCE_SCRIPTS = new Set([
   "scripts/graphics_quality_preflight.py",
   "scripts/test_graphics_quality_preflight.py",
@@ -86,7 +112,9 @@ const PROTECTED_EVIDENCE_SCRIPTS = new Set([
   "scripts/test_validate_iom07_coastal_profile.py",
   "scripts/test_iom07_coastal_profile_workflow.py",
   "scripts/isles_graphics_gate.py",
-  "scripts/test_isles_graphics_gate.py"
+  "scripts/test_isles_graphics_gate.py",
+  "scripts/check_capture_continuity.py",
+  "scripts/tests/test_capture_continuity.py"
 ]);
 
 export function changedPaths(files) {
@@ -139,6 +167,9 @@ export function applicableChecks(paths) {
   if (paths.some(p => IOM07_COAST_PATHS.has(p) ||
       IOM07_COAST_PATH_PREFIXES.some(prefix => p.startsWith(prefix))))
     required.add("IOM-07 real moving coastal scene profiler");
+  if (paths.some(p => COASTAL_FX_PATHS.has(p) ||
+      COASTAL_FX_PREFIXES.some(prefix => p.startsWith(prefix))))
+    required.add("IOM Coastal Ship FX Integration");
   return [...required];
 }
 
