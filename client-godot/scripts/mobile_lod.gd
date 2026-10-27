@@ -19,9 +19,28 @@ func _ready() -> void:
 
 func _process(_delta: float) -> void:
     var distance := global_position.distance_to(_camera.global_position)
-    if _is_high and distance > switch_distance + hysteresis:
-        _is_high = false
-    elif not _is_high and distance < switch_distance - hysteresis:
-        _is_high = true
+    _is_high = next_detail_state(_is_high, distance, switch_distance, hysteresis)
     _high.visible = _is_high
     _low.visible = not _is_high
+
+
+## Pure switching logic, extracted for deterministic testing without a
+## scene tree. `hysteresis` can be configured up to switch_distance's own
+## range, so the low-detail-to-high-detail return threshold
+## (switch_distance - hysteresis) is clamped to zero: a raw negative
+## threshold can never be reached by a nonnegative distance, which would
+## permanently strand the controller in low detail once it switched away
+## (e.g. switch_distance=10, hysteresis=15 -> raw threshold -5).
+static func next_detail_state(
+    is_high: bool, distance: float, switch_distance: float, hysteresis: float
+) -> bool:
+    if is_high and distance > switch_distance + hysteresis:
+        return false
+    if is_high:
+        return true
+    # <=, not <: when hysteresis clamps the threshold to exactly 0.0, a
+    # strict "<" can never be satisfied by a nonnegative distance even
+    # when the camera returns to distance 0.0 exactly, which would still
+    # permanently strand the controller in low detail.
+    var return_threshold := maxf(0.0, switch_distance - hysteresis)
+    return distance <= return_threshold
