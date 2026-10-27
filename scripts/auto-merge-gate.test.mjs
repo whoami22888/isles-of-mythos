@@ -3,14 +3,120 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
   BASE_CHECKS, CODEX_REVIEWER, changedPaths, modifiesProtectedVerification, applicableChecks, visualRequired,
-  trustedCodexReceipt, hasBlockingCodexFinding, requiredRunsPassed, resolveMergeability
+  trustedCodexReceipt, codexReviewsPassed, hasUndispositionedBlockingCodexReview,
+  hasBlockingCodexFinding, collectReviewThreads, requiredRunsPassed, resolveMergeability
 } from "./auto-merge-gate.mjs";
 
 const sha = "a".repeat(40);
 const receipt = { commit_id: sha, state: "COMMENTED",
-  user: { login: CODEX_REVIEWER }, body: "<!-- codex-review-receipt:v1 -->" };
+  user: { login: CODEX_REVIEWER }, body: "<!-- codex-review-receipt:v1 -->\nVERDICT: PASS" };
 const run = name => ({ name, head_sha: sha, event: "pull_request", id: 5,
   status: "completed", conclusion: "success" });
+
+test("Codex review receipt with explicit negative verdict is not approval", () => {
+  const negative = [
+    "DISPOSITION: CHANGES REQUIRED",
+    "VERDICT: FAIL",
+    "REJECTED: unresolved vulnerability",
+    "**P1** Security defect",
+    "### P0 release blocker",
+    "- P2 incorrect gameplay",
+    "**VERDICT:** FAIL",
+    "VERDICT: **FAIL**",
+    "**Review status:** CHANGES REQUIRED",
+    "> VERDICT: FAIL",
+    "STATUS: NEEDS WORK",
+    "REVIEW STATUS: BLOCKED",
+    "DISPOSITION: REQUEST CHANGES",
+    "VERDICT: NOT APPROVED",
+    "STATUS: PASS WITH EXCEPTIONS",
+    "> **Review status:** BLOCKED"
+  ];
+  for (const verdict of negative) {
+    assert.equal(trustedCodexReceipt({
+      ...receipt, body: "<!-- codex-review-receipt:v1 -->\nVERDICT: PASS\n" + verdict
+    }, sha), false, verdict);
+  }
+  assert.equal(trustedCodexReceipt({
+    ...receipt, body: "<!-- codex-review-receipt:v1 -->\nNo changes required"
+  }, sha), false);
+});
+
+test("a receipt marker alone is not a positive review verdict", () => {
+  assert.equal(trustedCodexReceipt({
+    ...receipt, body: "<!-- codex-review-receipt:v1 -->"
+  }, sha), false);
+  assert.equal(trustedCodexReceipt({
+    ...receipt, body: "<!-- codex-review-receipt:v1 -->\nVERDICT: PASS\nReview status: CHANGES REQUIRED"
+  }, sha), false);
+  assert.equal(trustedCodexReceipt({
+    ...receipt, body: "<!-- codex-review-receipt:v1 -->\nDISPOSITION: APPROVED"
+  }, sha), true);
+});
+
+test("structured Codex decision fields reject unknown statuses across reviews", () => {
+  const approved = { ...receipt,
+    body: "<!-- codex-review-receipt:v1 -->\nVERDICT: PASS\nSTATUS: APPROVED" };
+  const blocked = { ...receipt, body: "STATUS: NEEDS WORK" };
+  assert.equal(trustedCodexReceipt(approved, sha), true);
+  assert.equal(codexReviewsPassed([approved, blocked], sha), false);
+  assert.equal(codexReviewsPassed([blocked, approved], sha), false);
+});
+
+test("contradictory final-SHA Codex reviews cannot bypass an earlier PASS", () => {
+  const passing = { ...receipt, body: "<!-- codex-review-receipt:v1 -->\nVERDICT: PASS" };
+  const failing = { ...receipt, body: "VERDICT: FAIL\nP1 unresolved safety finding" };
+  assert.equal(codexReviewsPassed([passing], sha), true);
+  assert.equal(codexReviewsPassed([passing, failing], sha), false);
+  assert.equal(codexReviewsPassed([failing, passing], sha), false);
+  assert.equal(codexReviewsPassed([passing, { ...failing, state: "CHANGES_REQUESTED", body: "" }], sha), false);
+  assert.equal(codexReviewsPassed([passing, { ...failing, state: "DISMISSED" }], sha), true);
+  assert.equal(codexReviewsPassed([passing, { ...failing, commit_id: "b".repeat(40) }], sha), true);
+  assert.equal(codexReviewsPassed([passing, { ...failing, user: { login: "other-reviewer" } }], sha), true);
+  assert.equal(codexReviewsPassed([failing], sha), false);
+  assert.equal(codexReviewsPassed([], sha), false);
+  assert.throws(() => codexReviewsPassed(null, sha), /Codex reviews missing/);
+});
+
+const reviewDisposition = (review, owner = "repo-owner", overrides = {}) => ({
+  user: { login: owner },
+  created_at: "2026-10-27T01:00:01Z",
+  body: "<!-- codex-review-disposition:v1 -->\n" +
+    "CODEX-REVIEW-DISPOSITION: " + review.id + " RESOLVED " + review.commit_id,
+  ...overrides
+});
+
+test("prior non-inline Codex negative review blocks despite a later final-SHA PASS", () => {
+  const old = { id: 91, commit_id: "b".repeat(40), submitted_at: "2026-10-27T01:00:00Z",
+    state: "CHANGES_REQUESTED", user: { login: CODEX_REVIEWER }, body: "P1: repair required" };
+  const currentPass = { ...receipt, id: 92 };
+  assert.equal(hasUndispositionedBlockingCodexReview([old, currentPass], [], "repo-owner"), true);
+  assert.equal(codexReviewsPassed([currentPass], sha), true);
+});
+
+test("only an authorized, exact, later disposition or GitHub dismissal clears an older negative review", () => {
+  const old = { id: 93, commit_id: "b".repeat(40), submitted_at: "2026-10-27T01:00:00Z",
+    state: "COMMENTED", user: { login: CODEX_REVIEWER }, body: "VERDICT: FAIL\nP1: repair required" };
+  assert.equal(hasUndispositionedBlockingCodexReview([old], [reviewDisposition(old)], "repo-owner"), false);
+  assert.equal(hasUndispositionedBlockingCodexReview([old], [reviewDisposition(old, "attacker")], "repo-owner"), true);
+  assert.equal(hasUndispositionedBlockingCodexReview([old], [reviewDisposition(old, "repo-owner", {
+    body: "<!-- codex-review-disposition:v1 -->\nCODEX-REVIEW-DISPOSITION: 94 RESOLVED " + old.commit_id
+  })], "repo-owner"), true);
+  assert.equal(hasUndispositionedBlockingCodexReview([old], [reviewDisposition(old, "repo-owner", {
+    created_at: "2026-10-27T00:59:59Z"
+  })], "repo-owner"), true);
+  assert.equal(hasUndispositionedBlockingCodexReview([{ ...old, state: "DISMISSED" }], [], "repo-owner"), false);
+});
+
+test("malformed review or disposition evidence remains blocking and spoofed reviewers do not block", () => {
+  const old = { id: 95, commit_id: "b".repeat(40), submitted_at: "2026-10-27T01:00:00Z",
+    state: "CHANGES_REQUESTED", user: { login: CODEX_REVIEWER }, body: "" };
+  assert.equal(hasUndispositionedBlockingCodexReview([old], [{ user: { login: "repo-owner" }, body: "bad" }], "repo-owner"), true);
+  assert.equal(hasUndispositionedBlockingCodexReview([{ ...old, user: { login: "attacker-codex" } }], [], "repo-owner"), false);
+  assert.throws(() => hasUndispositionedBlockingCodexReview(null, [], "repo-owner"), /Codex reviews missing/);
+  assert.throws(() => hasUndispositionedBlockingCodexReview([old], null, "repo-owner"), /Issue comments missing/);
+  assert.throws(() => hasUndispositionedBlockingCodexReview([old], [], ""), /Repository owner missing/);
+});
 
 test("only current-SHA, active, exact trusted Codex bot review counts", () => {
   assert.equal(trustedCodexReceipt(receipt, sha), true);
@@ -24,19 +130,52 @@ test("only current-SHA, active, exact trusted Codex bot review counts", () => {
   ]) assert.equal(trustedCodexReceipt(counterfeit, sha), false);
 });
 
-test("final-head actionable finding always blocks; stale SHA does not", () => {
-  const finding = { commit_id: sha, user: { login: CODEX_REVIEWER },
-    body: "<!-- codex-code-review-finding:v1 -->" };
-  assert.equal(hasBlockingCodexFinding([finding], sha), true);
-  assert.equal(hasBlockingCodexFinding([{ ...finding, commit_id: "b".repeat(40) }], sha), false);
-  assert.equal(hasBlockingCodexFinding([{ ...finding, user: { login: "attacker-codex" } }], sha), false);
-  // GitHub reanchors old comments to the current head but preserves the original commit.
-  assert.equal(hasBlockingCodexFinding([{
-    ...finding, commit_id: sha, original_commit_id: "b".repeat(40)
-  }], sha), false);
-  assert.equal(hasBlockingCodexFinding([{
-    ...finding, commit_id: "b".repeat(40), original_commit_id: sha
-  }], sha), true);
+const findingThread = (id, isResolved = false, author = "chatgpt-codex-connector") => ({
+  id, isResolved, isOutdated: true,
+  comments: { pageInfo: { hasNextPage: false }, nodes: [{
+    author: { login: author }, body: "**P1** Fix cliff LOD\n<!-- codex-code-review-finding:v1 -->"
+  }] }
+});
+
+test("unresolved earlier-commit Codex P1 blocks despite newer final-head receipt", () => {
+  assert.equal(trustedCodexReceipt(receipt, sha), true);
+  assert.equal(hasBlockingCodexFinding([findingThread("old-sha-unresolved")]), true);
+  assert.equal(hasBlockingCodexFinding([findingThread("old-sha-resolved", true)]), false);
+  assert.equal(hasBlockingCodexFinding([findingThread("untrusted", false, "attacker-codex")]), false);
+  assert.equal(hasBlockingCodexFinding([findingThread("rest-bot", false, CODEX_REVIEWER)]), true);
+});
+
+test("complete review-thread pagination includes older unresolved findings", async () => {
+  const cursors = [];
+  const threads = await collectReviewThreads(async after => {
+    cursors.push(after);
+    return after === null
+      ? { nodes: [findingThread("resolved", true)],
+          pageInfo: { hasNextPage: true, endCursor: "page-two" } }
+      : { nodes: [findingThread("older-unresolved")],
+          pageInfo: { hasNextPage: false, endCursor: null } };
+  });
+  assert.deepEqual(cursors, [null, "page-two"]);
+  assert.equal(hasBlockingCodexFinding(threads), true);
+});
+
+test("missing, malformed, truncated and failed review-thread evidence blocks", async () => {
+  assert.throws(() => hasBlockingCodexFinding([{
+    ...findingThread("truncated"),
+    comments: { pageInfo: { hasNextPage: true }, nodes: findingThread("x").comments.nodes }
+  }]), /Incomplete/);
+  assert.throws(() => hasBlockingCodexFinding([{ id: "unknown", isResolved: null,
+    comments: { pageInfo: { hasNextPage: false }, nodes: [] } }]), /Incomplete/);
+  await assert.rejects(collectReviewThreads(async () => null), /Incomplete/);
+  await assert.rejects(collectReviewThreads(async () => ({
+    nodes: [findingThread("one")],
+    pageInfo: { hasNextPage: true, endCursor: null }
+  })), /cursor/);
+  await assert.rejects(collectReviewThreads(async () => ({
+    nodes: [findingThread("same")],
+    pageInfo: { hasNextPage: true, endCursor: "again" }
+  }), 1), /pagination limit/);
+  await assert.rejects(collectReviewThreads(async () => { throw Error("API failure"); }), /API failure/);
 });
 
 test("Godot client edits require client build and visual evidence", () => {
@@ -60,6 +199,45 @@ test("art provenance and coastal staging checks follow their path filters", () =
   assert.deepEqual(applicableChecks(["server/src/health.ts"]), BASE_CHECKS);
 });
 
+test("IOM-07 profiler is required for every profiler source and evidence validator", () => {
+  for (const path of ["client-godot/scripts/mobile_frame_metrics.gd",
+      "client-godot/scenes/sculpted_terrain_preview.tscn",
+      "client-godot/tests/mobile_frame_capture.gd",
+      "client-godot/tests/mobile_frame_metrics_test.gd",
+      "scripts/validate_iom07_frame_evidence.py",
+      "scripts/test_validate_iom07_frame_evidence.py",
+      ".github/workflows/iom07-mobile-frame-evidence.yml"])
+    assert.ok(applicableChecks([path]).includes("IOM-07 mobile frame evidence"), path);
+  for (const path of ["client-godot/scripts/mobile_frame_metrics.gd",
+      "client-godot/shaders/coastal_shore_sampler.gdshaderinc",
+      "client-godot/scripts/coastal_shore_heightfield.gd",
+      "client-godot/tests/coastal_shore_heightfield_test.gd",
+      "client-godot/tests/coastal_ocean_integration_test.gd",
+      "client-godot/tests/coastal_ship_fx_integration_test.gd",
+      "client-godot/tests/profile_moving_coastal_scene.gd",
+      "client-godot/scripts/coastal_ship_fx_controller.gd",
+      "client-godot/scripts/realistic_coastal_slice.gd",
+      "client-godot/scripts/ship_wake_effect.gd",
+      "client-godot/scripts/ship_bow_spray_effect.gd",
+      "client-godot/scenes/realistic_coastal_fx_slice.tscn",
+      "client-godot/shaders/ocean_surface.gdshader",
+      "client-godot/project.godot",
+      "client-godot/assets/external/polyhaven/coastal_cliff_01/coastal_cliff_01_1k.gltf",
+      "client-godot/assets/external/polyhaven/dutch_ship_medium/textures/dutch_ship_medium_sails_diff_1k.jpg",
+      "scripts/validate_iom07_coastal_profile.py",
+      "scripts/test_validate_iom07_coastal_profile.py",
+      "scripts/test_iom07_coastal_profile_workflow.py",
+      ".github/workflows/iom07-moving-coastal-profile.yml"])
+    assert.ok(applicableChecks([path]).includes("IOM-07 real moving coastal scene profiler"), path);
+  assert.ok(applicableChecks(["client-godot/tests/mobile_frame_future_regression.gd"]).includes("IOM-07 mobile frame evidence"));
+  assert.ok(!applicableChecks(["client-godot/tests/mobile_frame_nested/test.gd"]).includes("IOM-07 mobile frame evidence"));
+  assert.ok(!applicableChecks(["client-godot/tests/mobile_frame_invalid.txt"]).includes("IOM-07 mobile frame evidence"));
+  const shared = applicableChecks(["client-godot/scripts/mobile_frame_metrics.gd"]);
+  assert.ok(shared.includes("IOM-07 mobile frame evidence"));
+  assert.ok(shared.includes("IOM-07 real moving coastal scene profiler"));
+  assert.deepEqual(applicableChecks(["server/src/health.ts"]), BASE_CHECKS);
+});
+
 test("pending or stale required workflow cannot be accepted", () => {
   assert.deepEqual(requiredRunsPassed(BASE_CHECKS.map(run), BASE_CHECKS, sha), { pass: true });
   const pending = [...BASE_CHECKS.map(run), { ...run("CI"), id: 6, status: "in_progress" }];
@@ -69,12 +247,34 @@ test("pending or stale required workflow cannot be accepted", () => {
   assert.equal(requiredRunsPassed([{ ...run("CI"), event: "push" }], ["CI"], sha).pass, false);
 });
 
+test("both applicable IOM-07 profilers reject missing, failed, pending, cancelled, skipped and stale runs", () => {
+  for (const name of ["IOM-07 mobile frame evidence", "IOM-07 real moving coastal scene profiler"]) {
+    assert.deepEqual(requiredRunsPassed([run(name)], [name], sha), { pass: true });
+    assert.equal(requiredRunsPassed([], [name], sha).pass, false);
+    for (const bad of [
+      { ...run(name), conclusion: "failure" },
+      { ...run(name), status: "in_progress", conclusion: null },
+      { ...run(name), status: "queued", conclusion: null },
+      { ...run(name), conclusion: "cancelled" },
+      { ...run(name), conclusion: "skipped" },
+      { ...run(name), conclusion: "timed_out" },
+      { ...run(name), conclusion: "neutral" },
+      { ...run(name), head_sha: "b".repeat(40) }
+    ]) assert.equal(requiredRunsPassed([bad], [name], sha).pass, false);
+    assert.equal(requiredRunsPassed([{ ...run(name), event: "push" }], [name], sha).pass, false);
+    assert.equal(requiredRunsPassed([run(name), { ...run(name), id: 6, status: "in_progress", conclusion: null }], [name], sha).pass, false);
+  }
+});
+
 test("workflow reviews and required Godot completions trigger trusted-main reconciliation", () => {
   const policy = readFileSync(".github/workflows/verified-codex-auto-merge.yml", "utf8");
   assert.match(policy, /Godot external art provenance/);
   assert.match(policy, /IOM-00 Godot client/);
   assert.match(policy, /Godot visual evidence/);
   assert.match(policy, /Stage Poly Haven coastal PBR candidate/);
+  assert.match(policy, /IOM-07 mobile frame evidence/);
+  assert.match(policy, /IOM-07 real moving coastal scene profiler/);
+  assert.match(policy, /IOM Coastal Ship FX Integration/);
   assert.match(policy, /pull_request_review_comment:/);
   assert.match(policy, /github\.event\.repository\.default_branch/);
   assert.match(policy, /persist-credentials:\s*false/);
@@ -94,9 +294,19 @@ test("renames retain the source path for Godot, provenance and visual gates", ()
 test("changes to required workflows or gate policy always need manual verification", () => {
   for (const file of [".github/workflows/ci.yml", ".github/workflows/verified-codex-auto-merge.yml",
       ".github/workflows/godot-visual-evidence.yml", "scripts/static-security-check.mjs",
-      "package.json", "AGENTS.md", ".project/VERIFICATION-STANDARD.md"])
+      "package.json", "AGENTS.md", ".project/VERIFICATION-STANDARD.md",
+      "docs/ART_DIRECTION_STANDARD.md", "docs/graphics/CINEMATIC_QUALITY_FLOOR.md",
+      "docs/graphics/REAL_RENDER_DELIVERABLE_GATE.md",
+      "docs/PLAYER_EXPERIENCE_QUALITY_STANDARD.md", "docs/VISUAL_REFERENCE_INDEX.md"])
     assert.equal(modifiesProtectedVerification([file]), true, file);
   assert.equal(modifiesProtectedVerification(["server/src/index.ts"]), false);
+  assert.equal(modifiesProtectedVerification(["docs/GRAPHICS_ASSET_DECISIONS.md"]), false);
+  assert.equal(modifiesProtectedVerification(changedPaths([{
+    filename: "docs/archived-standard.md",
+    previous_filename: "docs/PLAYER_EXPERIENCE_QUALITY_STANDARD.md",
+    status: "renamed"
+  }])), true);
+
 });
 
 test("owner visual-acceptance comment can retrigger trusted-main merge reconciliation", () => {
@@ -138,4 +348,95 @@ test("unknown mergeability never spins forever, real conflicts never retry", asy
   }, async () => { throw Error("Conflicts must not trigger retries"); });
   assert.equal(calls, 1);
   assert.equal(conflicting.mergeable, false);
+});
+
+test("protected evidence validators and provenance scripts require manual integration", () => {
+  for (const path of [
+    "scripts/validate_godot_assets.py",
+    "scripts/test_godot_asset_validator.py",
+    "scripts/fetch_verified_godot_assets.py",
+    "scripts/test_godot_asset_fetcher.py",
+    "scripts/stage_polyhaven_coast.py",
+    "scripts/test_stage_polyhaven_coast.py",
+    "scripts/validate_iom07_frame_evidence.py",
+    "scripts/test_validate_iom07_frame_evidence.py",
+    "scripts/validate_iom07_coastal_profile.py",
+    "scripts/test_validate_iom07_coastal_profile.py",
+    "scripts/test_iom07_coastal_profile_workflow.py",
+    "scripts/isles_graphics_gate.py",
+    "scripts/test_isles_graphics_gate.py"
+  ]) assert.equal(modifiesProtectedVerification([path]), true, path);
+  assert.equal(modifiesProtectedVerification(changedPaths([{
+    filename: "scripts/renamed_coastal_validator.py",
+    previous_filename: "scripts/validate_iom07_coastal_profile.py",
+    status: "renamed"
+  }])), true);
+  assert.equal(modifiesProtectedVerification(["server/src/health.ts"]), false);
+});
+
+// Every Python dependency of the mandatory visual-evidence preflight must be
+// protected and must trigger its own workflow when changed without Godot files.
+test("mandatory visual evidence Python dependency closure is protected and triggered", () => {
+  const workflow = readFileSync(".github/workflows/godot-visual-evidence.yml", "utf8");
+  const paths = [
+      "scripts/graphics_quality_preflight.py",
+      "scripts/test_graphics_quality_preflight.py",
+      "scripts/stage_polyhaven_models.py",
+      "scripts/test_stage_polyhaven_models.py",
+      "scripts/stage_polyhaven_coast.py",
+      "scripts/test_stage_polyhaven_coast.py"
+  ];
+  const trigger = workflow.split("  workflow_dispatch:")[0];
+  for (const path of paths) {
+    assert.equal(modifiesProtectedVerification([path]), true, path);
+    assert.ok(applicableChecks([path]).includes("Godot visual evidence"), path);
+    assert.ok(trigger.includes('"' + path + '"'), path);
+    const renamed = changedPaths([{
+      filename: "scripts/renamed_evidence_dependency.py",
+      previous_filename: path, status: "renamed"
+    }]);
+    assert.equal(modifiesProtectedVerification(renamed), true, path);
+  }
+  assert.ok(workflow.includes("python3 scripts/test_graphics_quality_preflight.py"));
+});
+
+test("coastal capture validator and workflow trigger closure is fail-closed", () => {
+  const workflow = readFileSync(".github/workflows/iom-coastal-ship-fx.yml", "utf8");
+  const trigger = workflow.split("  workflow_dispatch:")[0];
+  const paths = ["client-godot/scenes/realistic_coastal_fx_slice.tscn","client-godot/scenes/realistic_coastal_slice.tscn","client-godot/scripts/coastal_ship_fx_controller.gd","client-godot/scripts/ship_wake_effect.gd","client-godot/shaders/ship_wake_foam.gdshader","client-godot/scripts/ship_bow_spray_effect.gd","client-godot/shaders/ship_bow_spray.gdshader","client-godot/scripts/realistic_coastal_slice.gd","client-godot/tests/coastal_ship_fx_integration_test.gd","client-godot/tests/render_coastal_fx_sequence.gd","client-godot/tests/coastal_ocean_integration_test.gd","client-godot/tests/coastal_shore_heightfield_test.gd","client-godot/scripts/coastal_shore_heightfield.gd","client-godot/shaders/coastal_shore_sampler.gdshaderinc","client-godot/shaders/ocean_surface.gdshader",".github/workflows/iom-coastal-ship-fx.yml","client-godot/project.godot","client-godot/tests/realistic_coastal_slice_test.gd","scripts/check_capture_continuity.py","scripts/tests/test_capture_continuity.py"];
+  for (const path of paths) {
+    assert.ok(applicableChecks([path]).includes("IOM Coastal Ship FX Integration"), path);
+    assert.ok(trigger.includes('"' + path + '"'), path);
+  }
+  assert.ok(applicableChecks(["client-godot/assets/external/asset.glb"])
+    .includes("IOM Coastal Ship FX Integration"));
+  assert.ok(trigger.includes('"client-godot/assets/external/**"'));
+  for (const path of ["scripts/check_capture_continuity.py",
+      "scripts/tests/test_capture_continuity.py"]) {
+    assert.equal(modifiesProtectedVerification([path]), true, path);
+    const renamed = changedPaths([{ filename: "docs/retired-capture.txt",
+      previous_filename: path, status: "renamed" }]);
+    assert.equal(modifiesProtectedVerification(renamed), true, path);
+    assert.ok(applicableChecks(renamed).includes("IOM Coastal Ship FX Integration"), path);
+  }
+  assert.ok(workflow.includes('python3 -m unittest discover -s scripts/tests -p "test_capture_continuity.py" -v'));
+  assert.ok(workflow.includes("python3 scripts/check_capture_continuity.py ordered-frames"));
+});
+
+test("coastal capture rejects missing, failed, pending, skipped and stale workflow runs", () => {
+  const name = "IOM Coastal Ship FX Integration";
+  assert.deepEqual(requiredRunsPassed([run(name)], [name], sha), { pass: true });
+  assert.equal(requiredRunsPassed([], [name], sha).pass, false);
+  for (const bad of [
+    { ...run(name), status: "queued", conclusion: null },
+    { ...run(name), status: "in_progress", conclusion: null },
+    { ...run(name), conclusion: "failure" },
+    { ...run(name), conclusion: "cancelled" },
+    { ...run(name), conclusion: "skipped" },
+    { ...run(name), conclusion: "timed_out" },
+    { ...run(name), head_sha: "b".repeat(40) },
+    { ...run(name), event: "push" }
+  ]) assert.equal(requiredRunsPassed([bad], [name], sha).pass, false);
+  assert.equal(requiredRunsPassed([run(name), { ...run(name), id: 6,
+    status: "in_progress", conclusion: null }], [name], sha).pass, false);
 });

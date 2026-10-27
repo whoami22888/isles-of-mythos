@@ -3,6 +3,7 @@ name: IOM Coastal Ship FX Integration
 on:
   pull_request:
     paths:
+      - "client-godot/project.godot"
       - "client-godot/scenes/realistic_coastal_fx_slice.tscn"
       - "client-godot/scenes/realistic_coastal_slice.tscn"
       - "client-godot/scripts/coastal_ship_fx_controller.gd"
@@ -13,12 +14,15 @@ on:
       - "client-godot/scripts/realistic_coastal_slice.gd"
       - "client-godot/tests/coastal_ship_fx_integration_test.gd"
       - "client-godot/tests/render_coastal_fx_sequence.gd"
+      - "client-godot/tests/realistic_coastal_slice_test.gd"
       - "client-godot/tests/coastal_ocean_integration_test.gd"
       - "client-godot/tests/coastal_shore_heightfield_test.gd"
       - "client-godot/scripts/coastal_shore_heightfield.gd"
       - "client-godot/shaders/coastal_shore_sampler.gdshaderinc"
       - "client-godot/shaders/ocean_surface.gdshader"
       - "client-godot/assets/external/**"
+      - "scripts/check_capture_continuity.py"
+      - "scripts/tests/test_capture_continuity.py"
       - ".github/workflows/iom-coastal-ship-fx.yml"
   workflow_dispatch:
 
