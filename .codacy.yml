@@ -1,32 +1,20 @@
 ---
 # Codacy tool scoping for Isles of Mythos.
 #
-# Root cause (observed on PR #149, run 38927573780 / job 120882069127,
-# Codacy Analysis CLI 7.10.0 with fail-if-incomplete enabled): the default
-# tool set includes PMD, which only analyzes Java/Apex/Visualforce/XML.
-# This repository has zero .java/.apex/.vf/.cls files (verified by repo
-# scan), so PMD's legacy rule-loading step has no applicable ruleset and
-# crashes instead of reporting a clean "no files" result under CLI 7.x.
-# Disabling an inapplicable tool is a correctness fix, not a lowered
-# threshold: no PMD finding was ever possible on this codebase, and every
-# other analyzer (including security-focused tools such as Trivy/Semgrep-
-# equivalents Codacy auto-selects for TS/JS/Python/GDScript) stays enabled.
+# Codacy's .codacy.yml configures tools but cannot enable or disable them.
+# Use supported per-tool path exclusions instead.
 engines:
   pmd:
-    enabled: false
-  eslint:
-    enabled: true
-  metrics:
-    # The original PR #149 failure report named three distinct Codacy
-    # CLI crashes: PMD, ESLint, and "a failed metrics tool" (run
-    # 38927573780 / job 117062939243). The metrics/complexity engine's
-    # parser does not understand GDScript (.gd) or Godot scene/resource
-    # files (.tscn/.tres), both present in client-godot/, and crashes on
-    # them rather than skipping unsupported syntax. Disabling it here is
-    # the same inapplicable-tool scoping as the PMD fix above, not a
-    # lowered threshold: no metrics finding was ever being produced
-    # successfully on this codebase.
-    enabled: false
+    # This repository has no Java/Apex/Visualforce source files for PMD.
+    exclude_paths:
+      - "**/*"
+  metric:
+    # Keep metrics for supported languages; skip Godot files the metrics
+    # analyzers cannot parse (GDScript and Godot scene/resource formats).
+    exclude_paths:
+      - "**/*.gd"
+      - "**/*.tscn"
+      - "**/*.tres"
 exclude_paths:
   - "**/node_modules/**"
   - "**/dist/**"
