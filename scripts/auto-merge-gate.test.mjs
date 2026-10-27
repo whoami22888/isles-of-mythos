@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
   BASE_CHECKS, CODEX_REVIEWER, changedPaths, modifiesProtectedVerification, applicableChecks, visualRequired,
-  trustedCodexReceipt, codexReviewsPassed, hasBlockingCodexFinding, collectReviewThreads, requiredRunsPassed, resolveMergeability
+  trustedCodexReceipt, codexReviewsPassed, hasUndispositionedBlockingCodexReview,
+  hasBlockingCodexFinding, collectReviewThreads, requiredRunsPassed, resolveMergeability
 } from "./auto-merge-gate.mjs";
 
 const sha = "a".repeat(40);
@@ -75,6 +76,46 @@ test("contradictory final-SHA Codex reviews cannot bypass an earlier PASS", () =
   assert.equal(codexReviewsPassed([failing], sha), false);
   assert.equal(codexReviewsPassed([], sha), false);
   assert.throws(() => codexReviewsPassed(null, sha), /Codex reviews missing/);
+});
+
+const reviewDisposition = (review, owner = "repo-owner", overrides = {}) => ({
+  user: { login: owner },
+  created_at: "2026-10-27T01:00:01Z",
+  body: "<!-- codex-review-disposition:v1 -->\n" +
+    "CODEX-REVIEW-DISPOSITION: " + review.id + " RESOLVED " + review.commit_id,
+  ...overrides
+});
+
+test("prior non-inline Codex negative review blocks despite a later final-SHA PASS", () => {
+  const old = { id: 91, commit_id: "b".repeat(40), submitted_at: "2026-10-27T01:00:00Z",
+    state: "CHANGES_REQUESTED", user: { login: CODEX_REVIEWER }, body: "P1: repair required" };
+  const currentPass = { ...receipt, id: 92 };
+  assert.equal(hasUndispositionedBlockingCodexReview([old, currentPass], [], "repo-owner"), true);
+  assert.equal(codexReviewsPassed([currentPass], sha), true);
+});
+
+test("only an authorized, exact, later disposition or GitHub dismissal clears an older negative review", () => {
+  const old = { id: 93, commit_id: "b".repeat(40), submitted_at: "2026-10-27T01:00:00Z",
+    state: "COMMENTED", user: { login: CODEX_REVIEWER }, body: "VERDICT: FAIL\nP1: repair required" };
+  assert.equal(hasUndispositionedBlockingCodexReview([old], [reviewDisposition(old)], "repo-owner"), false);
+  assert.equal(hasUndispositionedBlockingCodexReview([old], [reviewDisposition(old, "attacker")], "repo-owner"), true);
+  assert.equal(hasUndispositionedBlockingCodexReview([old], [reviewDisposition(old, "repo-owner", {
+    body: "<!-- codex-review-disposition:v1 -->\nCODEX-REVIEW-DISPOSITION: 94 RESOLVED " + old.commit_id
+  })], "repo-owner"), true);
+  assert.equal(hasUndispositionedBlockingCodexReview([old], [reviewDisposition(old, "repo-owner", {
+    created_at: "2026-10-27T00:59:59Z"
+  })], "repo-owner"), true);
+  assert.equal(hasUndispositionedBlockingCodexReview([{ ...old, state: "DISMISSED" }], [], "repo-owner"), false);
+});
+
+test("malformed review or disposition evidence remains blocking and spoofed reviewers do not block", () => {
+  const old = { id: 95, commit_id: "b".repeat(40), submitted_at: "2026-10-27T01:00:00Z",
+    state: "CHANGES_REQUESTED", user: { login: CODEX_REVIEWER }, body: "" };
+  assert.equal(hasUndispositionedBlockingCodexReview([old], [{ user: { login: "repo-owner" }, body: "bad" }], "repo-owner"), true);
+  assert.equal(hasUndispositionedBlockingCodexReview([{ ...old, user: { login: "attacker-codex" } }], [], "repo-owner"), false);
+  assert.throws(() => hasUndispositionedBlockingCodexReview(null, [], "repo-owner"), /Codex reviews missing/);
+  assert.throws(() => hasUndispositionedBlockingCodexReview([old], null, "repo-owner"), /Issue comments missing/);
+  assert.throws(() => hasUndispositionedBlockingCodexReview([old], [], ""), /Repository owner missing/);
 });
 
 test("only current-SHA, active, exact trusted Codex bot review counts", () => {

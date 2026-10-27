@@ -215,6 +215,43 @@ export function isCodexAuthor(login) {
   return login === CODEX_REVIEWER || login === "chatgpt-codex-connector";
 }
 
+function isBlockingCodexReview(review) {
+  return review?.state === "CHANGES_REQUESTED" ||
+    (typeof review?.body === "string" &&
+      (BLOCKING_CODEX_VERDICT.test(review.body) || hasContradictoryCodexDecision(review.body)));
+}
+
+function hasAuthorizedCodexReviewDisposition(review, issueComments, owner) {
+  if (review?.state === "DISMISSED") return true;
+  const reviewId = review?.id;
+  const reviewSha = review?.commit_id;
+  const reviewedAt = Date.parse(review?.submitted_at ?? "");
+  if ((typeof reviewId !== "number" && typeof reviewId !== "string") ||
+      !SHA.test(reviewSha ?? "") || !Number.isFinite(reviewedAt)) return false;
+  const disposition = new RegExp(
+    "(?:^|\\r?\\n)<!--\\s*codex-review-disposition:v1\\s*-->\\r?\\n" +
+    "CODEX-REVIEW-DISPOSITION:\\s*" + String(reviewId).replace(/[.*+?^${}()|[\\]\\\\]/g, "\\$&") +
+    "\\s+RESOLVED\\s+" + reviewSha + "\\s*(?=\\r?$|\\r?\\n)", "m");
+  return issueComments.some(comment => {
+    const createdAt = Date.parse(comment?.created_at ?? "");
+    return comment?.user?.login?.toLowerCase() === owner.toLowerCase() &&
+      Number.isFinite(createdAt) && createdAt >= reviewedAt &&
+      typeof comment?.body === "string" && disposition.test(comment.body);
+  });
+}
+
+// PR-level reviews have no GitHub resolution state. An earlier non-inline
+// negative Codex review remains blocking unless GitHub dismissed it or the
+// repository owner posted a strict, review-id-and-SHA-bound disposition later.
+export function hasUndispositionedBlockingCodexReview(reviews, issueComments, owner) {
+  if (!Array.isArray(reviews)) throw Error("Codex reviews missing");
+  if (!Array.isArray(issueComments)) throw Error("Issue comments missing");
+  if (typeof owner !== "string" || !owner) throw Error("Repository owner missing");
+  return reviews.some(review => isCodexAuthor(review?.user?.login) &&
+    isBlockingCodexReview(review) &&
+    !hasAuthorizedCodexReviewDisposition(review, issueComments, owner));
+}
+
 // Resolution is a property of a review thread, not of its original commit.
 // A newer HEAD or an outdated diff position never disposes of a P0/P1/P2 finding.
 export function hasBlockingCodexFinding(threads) {
@@ -372,9 +409,14 @@ async function main() {
   if (!checks.pass) { reject(checks.reason); return; }
 
   const reviews = await pages("/pulls/" + number + "/reviews");
+  const issueComments = await pages("/issues/" + number + "/comments");
   // Dismissed receipts and self-authored imitation text are never eligible.
   if (!codexReviewsPassed(reviews, sha)) {
     reject("Missing or contradicted trusted Codex receipt for final SHA");
+    return;
+  }
+  if (hasUndispositionedBlockingCodexReview(reviews, issueComments, owner)) {
+    reject("Undispositioned blocking Codex PR review from any commit");
     return;
   }
 
@@ -396,7 +438,6 @@ async function main() {
   }
 
   if (visualRequired(paths)) {
-    const issueComments = await pages("/issues/" + number + "/comments");
     const exact = "VISUAL-ACCEPTED: " + sha;
     if (!issueComments.some(c => c.user?.login?.toLowerCase() === owner.toLowerCase() &&
         c.body?.split(/\r?\n/).some(line => line.trim() === exact))) {
