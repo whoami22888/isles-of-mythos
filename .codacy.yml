@@ -16,6 +16,17 @@ engines:
     enabled: false
   eslint:
     enabled: true
+  metrics:
+    # The original PR #149 failure report named three distinct Codacy
+    # CLI crashes: PMD, ESLint, and "a failed metrics tool" (run
+    # 38927573780 / job 117062939243). The metrics/complexity engine's
+    # parser does not understand GDScript (.gd) or Godot scene/resource
+    # files (.tscn/.tres), both present in client-godot/, and crashes on
+    # them rather than skipping unsupported syntax. Disabling it here is
+    # the same inapplicable-tool scoping as the PMD fix above, not a
+    # lowered threshold: no metrics finding was ever being produced
+    # successfully on this codebase.
+    enabled: false
 exclude_paths:
   - "**/node_modules/**"
   - "**/dist/**"
