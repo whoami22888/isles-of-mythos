@@ -4,6 +4,7 @@ import {
   MAX_BACKLOG_OVERFLOW_STRIKES,
   MAX_QUEUED_MESSAGES_PER_SOCKET,
   MessageBacklogGuard,
+  enqueueBacklogWork,
 } from "./ws-backlog.js";
 
 // MYTHOS-NET-02: invariants of the per-socket backlog guard. These need no
@@ -99,5 +100,91 @@ describe("MessageBacklogGuard", () => {
     expect(() => new MessageBacklogGuard(0, 1)).toThrow("INVALID_MAX_QUEUED");
     expect(() => new MessageBacklogGuard(1.5, 1)).toThrow("INVALID_MAX_QUEUED");
     expect(() => new MessageBacklogGuard(1, 0)).toThrow("INVALID_MAX_STRIKES");
+  });
+
+  // A-09: the error reporter must never be able to leave the chain rejected.
+  describe("enqueueBacklogWork", () => {
+    function harness() {
+      const guard = new MessageBacklogGuard(8, 8);
+      let queue: Promise<void> = Promise.resolve();
+      const ran: number[] = [];
+      const reported: string[] = [];
+      const reporterFailures: string[] = [];
+      const enqueue = (
+        id: number,
+        handler: () => Promise<void>,
+        report: (error: unknown) => void,
+      ): void => {
+        expect(guard.admit()).toBe("accept");
+        queue = enqueueBacklogWork(
+          queue,
+          guard,
+          async () => {
+            ran.push(id);
+            await handler();
+          },
+          report,
+          (error) => { reporterFailures.push(error instanceof Error ? error.message : String(error)); },
+        );
+      };
+      return { guard, ran, reported, reporterFailures, enqueue, tail: () => queue };
+    }
+
+    it("keeps running later handlers in order when the handler AND the reporter throw", async () => {
+      const h = harness();
+      const brokenReport = (): void => { throw new Error("reporter-broken"); };
+      h.enqueue(1, () => Promise.reject(new Error("handler-1-failed")), brokenReport);
+      h.enqueue(2, () => Promise.resolve(), brokenReport);
+      h.enqueue(3, () => Promise.resolve(), brokenReport);
+      expect(h.guard.depth).toBe(3);
+      await h.tail().catch(() => undefined);
+      expect(h.ran).toEqual([1, 2, 3]);
+      expect(h.guard.depth).toBe(0);
+      await expect(h.tail()).resolves.toBeUndefined();
+      expect(h.reporterFailures).toEqual(["reporter-broken"]);
+    });
+
+    it("reports the original handler error once and still runs later handlers", async () => {
+      const h = harness();
+      const report = (error: unknown): void => { h.reported.push(error instanceof Error ? error.message : String(error)); };
+      h.enqueue(1, () => Promise.reject(new Error("handler-1-failed")), report);
+      h.enqueue(2, () => Promise.resolve(), report);
+      h.enqueue(3, () => Promise.resolve(), report);
+      await h.tail();
+      expect(h.reported).toEqual(["handler-1-failed"]);
+      expect(h.reporterFailures).toEqual([]);
+      expect(h.ran).toEqual([1, 2, 3]);
+      expect(h.guard.depth).toBe(0);
+    });
+
+    it("runs successful handlers in FIFO order, never reports, and drains depth to 0", async () => {
+      const h = harness();
+      const report = (error: unknown): void => { h.reported.push(String(error)); };
+      h.enqueue(1, () => new Promise<void>((resolve) => setTimeout(resolve, 5)), report);
+      h.enqueue(2, () => Promise.resolve(), report);
+      h.enqueue(3, () => Promise.resolve(), report);
+      expect(h.guard.depth).toBe(3);
+      await h.tail();
+      expect(h.ran).toEqual([1, 2, 3]);
+      expect(h.reported).toEqual([]);
+      expect(h.guard.depth).toBe(0);
+    });
+
+    it("releases exactly once per frame even when the reporter-failure logger also throws", async () => {
+      const guard = new MessageBacklogGuard(2, 2);
+      expect(guard.admit()).toBe("accept");
+      const ran: number[] = [];
+      const tail = enqueueBacklogWork(
+        Promise.resolve(),
+        guard,
+        () => { ran.push(1); return Promise.reject(new Error("x")); },
+        () => { throw new Error("reporter-broken"); },
+        () => { throw new Error("logger-broken"); },
+      );
+      await expect(tail).resolves.toBeUndefined();
+      expect(guard.depth).toBe(0);
+      expect(guard.admit()).toBe("accept");
+      expect(guard.depth).toBe(1);
+    });
   });
 });

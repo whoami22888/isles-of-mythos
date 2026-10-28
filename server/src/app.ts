@@ -43,7 +43,7 @@ import { resolve } from "node:path";
 import { AntiCheatService } from "./anti-cheat.js";
 import { createMutationTiming, measureMutationStage, runTimedMutation, type MutationTiming, type MutationTimingSnapshot } from "./mutation-timing.js";
 import { runReplayableRequest, type RequestDuplicateOutcome } from "./request-coordinator.js";
-import { BACKLOG_CLOSE_CODE, BACKLOG_CLOSE_REASON, MessageBacklogGuard } from "./ws-backlog.js";
+import { BACKLOG_CLOSE_CODE, BACKLOG_CLOSE_REASON, MessageBacklogGuard, enqueueBacklogWork } from "./ws-backlog.js";
 
 function errorCode(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
@@ -803,7 +803,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         }
         return;
       }
-      messageQueue = messageQueue.then(async () => {
+      messageQueue = enqueueBacklogWork(messageQueue, backlog, async () => {
         const message = parseClientMessage(rawMessageToString(raw));
 
         if (!message) {
@@ -1800,15 +1800,21 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
            });
           }
         }
-      }).catch((error) => {
+      }, (error) => {
         log("websocket_message_failed", {
           message: error instanceof Error ? error.message : String(error),
         });
         send(socket, { type: "error", code: "INTERNAL_SERVER_ERROR" });
+      }, (reporterError) => {
+        // A failing reporter (e.g. send on a closing socket) must not reject the
+        // chain; later queued frames still run. No identifiers or payloads.
+        log("websocket_error_reporter_failed", {
+          message: reporterError instanceof Error ? reporterError.message : String(reporterError),
+        });
       });
-      // Depth is released when the frame finishes (success or failure); strikes
-      // reset once the backlog fully drains.
-      messageQueue = messageQueue.finally(() => backlog.release());
+      // Depth is released inside enqueueBacklogWork when the frame finishes
+      // (success, handler failure or reporter failure); strikes reset once the
+      // backlog fully drains.
     });
 
     socket.on("close", () => {
