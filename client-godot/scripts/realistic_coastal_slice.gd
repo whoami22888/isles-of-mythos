@@ -389,8 +389,50 @@ func _reduce_surface_triangles(source: ArrayMesh, surface_index: int, _max_trian
 func _apply_far_foliage_lod(asset: Node3D, _max_total_triangles: int = 72000) -> void:
 	_preserve_authored_mesh(asset)
 
-func _apply_landmark_lod(asset: Node3D, _max_triangles: int) -> void:
+func _apply_landmark_lod(asset: Node3D, max_triangles: int) -> void:
+	if asset.scene_file_path.get_file() == "coastal_cliff_01_1k.gltf":
+		_apply_cliff_lod(asset, max_triangles)
+		return
 	_preserve_authored_mesh(asset)
+
+# Replaces the 461k-triangle source cliff with the highest-detail admitted LOD
+# whose real triangle count fits the cap. If none fits, the cliff is hidden
+# rather than rendered at full source detail, so the budget can never be bypassed.
+func _apply_cliff_lod(asset: Node3D, max_triangles: int) -> void:
+	var originals := asset.find_children("*", "MeshInstance3D", true, false)
+	if originals.size() != 1:
+		push_error("Unexpected cliff mesh hierarchy")
+		asset.visible = false
+		return
+	for path in [
+		"res://assets/external/generated/coastal_cliff_blender/coastal_cliff_lod1.glb",
+		"res://assets/external/generated/coastal_cliff_blender/coastal_cliff_lod2.glb"
+	]:
+		var packed := load(path) as PackedScene
+		if packed == null:
+			continue
+		var authored := packed.instantiate()
+		var replacements := authored.find_children("*", "MeshInstance3D", true, false)
+		var fits := replacements.size() == 1 and _triangle_count(replacements[0].mesh) <= max_triangles
+		if fits:
+			originals[0].mesh = replacements[0].mesh
+			originals[0].lod_bias = 1.5
+		authored.free()
+		if fits:
+			return
+	push_error("No admitted cliff LOD fits triangle cap %d" % max_triangles)
+	asset.visible = false
+
+func _triangle_count(mesh: Mesh) -> int:
+	var total := 0
+	for surface in range(mesh.get_surface_count()):
+		var arrays := mesh.surface_get_arrays(surface)
+		var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+		if indices.is_empty():
+			total += (arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array).size() / 3
+		else:
+			total += indices.size() / 3
+	return total
 
 func _preserve_authored_mesh(asset: Node3D) -> void:
 	var asset_name := asset.scene_file_path.get_file().trim_suffix("_1k.gltf")

@@ -78,6 +78,12 @@ func run() -> void:
 				# camera-spanning occluder or a second terrain wall.
 				ok = _check(cliff_bounds.size.x < 50.0 and cliff_bounds.size.z < 35.0, "contract line 76") and ok
 				ok = _check(cliff_bounds.position.z > scene.ship_focal.position.z + 8.0, "contract line 77") and ok
+				# The unbounded source cliff is 461,824 triangles; every cliff
+				# instance must render an admitted LOD within the 90k cap.
+				var cliff_triangles := 0
+				for mesh_node in child.find_children("*", "MeshInstance3D", true, false):
+					cliff_triangles += scene._triangle_count((mesh_node as MeshInstance3D).mesh)
+				ok = _check(cliff_triangles > 0 and cliff_triangles <= 90000, "cliff triangle cap") and ok
 		ok = _check(cliff_count == 3, "contract line 78") and ok
 		if premium_layer:
 			for child in premium_layer.get_children():
