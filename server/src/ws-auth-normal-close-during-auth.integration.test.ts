@@ -107,3 +107,61 @@ describe("normal close of an authenticated socket during another socket's authen
     }
   });
 });
+
+describe("replacement socket lifecycle persists account state", () => {
+  it("persists the replacement socket's moved position after its final normal close and reloads it for a new socket", async () => {
+    const db = createDbPool();
+    const antiCheat = new AntiCheatService({ store: new MemoryAntiCheatStateStore() });
+    const app = await buildApp({ db, antiCheat });
+    const unique = randomUUID().replace(/-/g, "").slice(0, 20);
+    const sockets: WebSocket[] = [];
+    try {
+      const register = await app.inject({
+        method: "POST",
+        url: "/auth/register",
+        payload: { username: `persist_${unique}`, email: `persist_${unique}@example.com`, password: "Correct-Horse-Battery-9" },
+      });
+      if (register.statusCode !== 201) throw new Error("REGISTER_" + register.statusCode);
+      const body = JSON.parse(register.body) as { accessToken: string };
+
+      await app.listen({ host: "127.0.0.1", port: 0 });
+      const address = app.server.address();
+      if (address === null || typeof address === "string") throw new Error("TEST_SERVER_NOT_LISTENING");
+      const url = `ws://127.0.0.1:${address.port}/ws`;
+
+      // A authenticates, then closes normally; B authenticates for the same account and is registered.
+      const a = await connect(url);
+      sockets.push(a.socket);
+      await waitForMessage(a.inbox, (m) => m.type === "server_ready", "a_ready");
+      a.socket.send(JSON.stringify({ type: "auth", token: body.accessToken }));
+      await waitForMessage(a.inbox, (m) => m.type === "auth_ok", "a_auth");
+      const b = await connect(url);
+      sockets.push(b.socket);
+      await waitForMessage(b.inbox, (m) => m.type === "server_ready", "b_ready");
+      b.socket.send(JSON.stringify({ type: "auth", token: body.accessToken }));
+      await waitForMessage(b.inbox, (m) => m.type === "auth_ok", "b_auth");
+      a.socket.close();
+
+      // B moves; the accepted move reports the authoritative position.
+      const statesBeforeMove = b.inbox.filter((m) => m.type === "player_state").length;
+      b.socket.send(JSON.stringify({ type: "move", dx: 1, dy: 0, dt: 0.25, sequence: 1 }));
+      const moved = await waitForMessage(b.inbox, (m) => m.type === "player_state", "b_move_state", statesBeforeMove);
+      const movedState = moved.state as { x: number; y: number };
+      expect(movedState.x).not.toBe(0);
+
+      // B's final normal close unloads and persists; a new socket C must reload the same position.
+      b.socket.close();
+      const c = await connect(url);
+      sockets.push(c.socket);
+      await waitForMessage(c.inbox, (m) => m.type === "server_ready", "c_ready");
+      c.socket.send(JSON.stringify({ type: "auth", token: body.accessToken }));
+      const reloaded = await waitForMessage(c.inbox, (m) => m.type === "player_state", "c_state");
+      expect(c.inbox.some((m) => m.type === "error")).toBe(false);
+      expect(reloaded.state).toMatchObject({ x: movedState.x, y: movedState.y });
+    } finally {
+      for (const socket of sockets) socket.close();
+      await app.close();
+      await db.end();
+    }
+  });
+});
