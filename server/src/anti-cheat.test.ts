@@ -214,3 +214,29 @@ describe("anti-cheat evidence service", () => {
     });
   });
 });
+
+describe("multi-socket detection during a store outage", () => {
+  it("counts sockets this instance already holds when the shared store degrades mid-session", async () => {
+    // Primary accepts the first three lease writes, then fails: only the fourth socket reaches the fallback.
+    class FailAfterStore extends MemoryAntiCheatStateStore {
+      // Reports as a shared (redis) store so the service degrades to its process-local fallback on failure.
+      override readonly kind = "redis" as unknown as "memory";
+      private writes = 0;
+      override async leaseSocket(...args: Parameters<MemoryAntiCheatStateStore["leaseSocket"]>): Promise<number> {
+        this.writes += 1;
+        if (this.writes > 3) throw new Error("redis unavailable");
+        return super.leaseSocket(...args);
+      }
+    }
+    const service = new AntiCheatService({ store: new FailAfterStore() });
+    expect(await service.connectSocket("u1", "s1", 1_000)).toBeNull();
+    expect(await service.connectSocket("u1", "s2", 1_100)).toBeNull();
+    expect(await service.connectSocket("u1", "s3", 1_200)).toBeNull();
+    // Fourth socket: the store is down, so the fallback alone would count 1 and miss the abuse.
+    const event = await service.connectSocket("u1", "s4", 1_300);
+    expect(event).toMatchObject({
+      type: "MULTI_SOCKET_ABUSE",
+      evidence: { connectionCount: 4, threshold: 4 },
+    });
+  });
+});

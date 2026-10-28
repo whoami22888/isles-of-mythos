@@ -299,7 +299,10 @@ export class AntiCheatService {
     this.leases.set(userId, held);
     this.startHeartbeat();
     const count = await this.leaseIfHeld(userId, socketId, nowMs);
-    return count === null ? null : this.observeMultiSocket(userId, count, nowMs);
+    if (count === null) return null;
+    // The store's count can under-report after an outage (sockets leased before the failure are missing from the
+    // fallback). Live sockets this process holds are a lower bound on the account's total, so use the larger.
+    return this.observeMultiSocket(userId, Math.max(count, held.size), nowMs);
   }
 
   async disconnectSocket(userId: string, socketId: string): Promise<void> {
