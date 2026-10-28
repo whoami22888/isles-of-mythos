@@ -116,7 +116,8 @@ export function trustedCodexReceipt(review, sha) {
 
 // A Codex review with no findings is published as bot-authored *issue comments* (a summary that is edited in
 // place, plus a receipt), not as a formal PR review object. Both must be exact-SHA and bot-authored.
-const isCodexBotComment = c => c?.user?.login === CODEX_REVIEWER && c?.user?.type === "Bot";
+// The "[bot]" login suffix is reserved for GitHub Apps; no ordinary account can hold this exact login.
+const isCodexBotComment = c => c?.user?.login === CODEX_REVIEWER;
 const SUMMARY_MARKER = /<!--\s*codex-review-state:v1\s*([\s\S]*?)\s*-->/;
 const RECEIPT_COMMIT = /\*{0,2}Reviewed commit:\*{0,2}\s*`([0-9a-f]{10,40})`/i;
 
@@ -148,6 +149,9 @@ export function trustedCodexNoFindingsComments(comments, sha) {
   });
   return summary && receipt;
 }
+
+// Singular alias used by the owner-authored receipt tests.
+export const trustedCodexNoFindingsComment = trustedCodexNoFindingsComments;
 
 export function hasBlockingCodexFinding(comments, sha) {
   return comments.some(c => (c?.original_commit_id ?? c?.commit_id) === sha &&
