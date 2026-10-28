@@ -238,8 +238,11 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const settleDeferredUnload = (authUserId: string) => {
     const scheduleUnload = deferredAccountUnloads.get(authUserId);
     if (!scheduleUnload) return;
-    if (authsInFlight.has(authUserId) || userSockets.has(authUserId) || (playerConnections.get(authUserId) ?? 0) > 0) return;
+    if (authsInFlight.has(authUserId)) return;
+    // The final in-flight authentication has settled. Exactly one of these applies: a live socket owns the account
+    // (the superseded closure is discarded), or no socket remains (the unload runs once).
     deferredAccountUnloads.delete(authUserId);
+    if (userSockets.has(authUserId) || (playerConnections.get(authUserId) ?? 0) > 0) return;
     scheduleUnload();
   };
   const beginAuth = (authUserId: string): (() => void) => {
@@ -1932,7 +1935,10 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         // An authentication for this account is still loading. It may already hold the cached state this unload would
         // evict, so the unload waits until that authentication settles (see settleDeferredUnload).
         if (authsInFlight.has(disconnectedUserId)) deferredAccountUnloads.set(disconnectedUserId, scheduleUnload);
-        else scheduleUnload();
+        else {
+          deferredAccountUnloads.delete(disconnectedUserId);
+          scheduleUnload();
+        }
       } else {
         playerConnections.set(disconnectedUserId, connections);
       }

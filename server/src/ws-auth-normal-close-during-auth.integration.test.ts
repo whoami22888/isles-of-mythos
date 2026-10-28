@@ -18,10 +18,15 @@ function connect(url: string): Promise<{ socket: WebSocket; inbox: Message[] }> 
   });
 }
 
-async function waitForMessage(inbox: Message[], predicate: (message: Message) => boolean, label: string): Promise<Message> {
+async function waitForMessage(
+  inbox: Message[],
+  predicate: (message: Message) => boolean,
+  label: string,
+  skip = 0,
+): Promise<Message> {
   const deadline = Date.now() + 3_000;
   for (;;) {
-    const found = inbox.find(predicate);
+    const found = inbox.filter(predicate)[skip];
     if (found) return found;
     if (Date.now() > deadline) throw new Error("TIMEOUT_" + label);
     await new Promise((resolve) => setTimeout(resolve, 10));
@@ -89,10 +94,12 @@ describe("normal close of an authenticated socket during another socket's authen
       releaseGate();
       await waitForMessage(b.inbox, (m) => m.type === "auth_ok", "b_auth");
 
-      // B must still have live authoritative state after A's unload.
+      // B must still have live authoritative state after A's unload: an accepted move answers with a new
+      // player_state and no error. Wait for that event, not for a fixed delay.
+      const stateCountBeforeMove = b.inbox.filter((m) => m.type === "player_state").length;
       b.socket.send(JSON.stringify({ type: "move", dx: 1, dy: 0, dt: 0.25, sequence: 1 }));
-      await new Promise((resolve) => setTimeout(resolve, 300));
-      expect(b.inbox.some((m) => m.type === "error" && m.code === "AUTH_REQUIRED")).toBe(false);
+      await waitForMessage(b.inbox, (m) => m.type === "player_state", "b_move_state_after", stateCountBeforeMove);
+      expect(b.inbox.some((m) => m.type === "error")).toBe(false);
     } finally {
       for (const socket of sockets) socket.close();
       await app.close();
