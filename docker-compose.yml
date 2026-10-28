@@ -68,6 +68,7 @@ services:
       CORS_ORIGIN: ${CORS_ORIGIN:?CORS_ORIGIN is required}
       SERVER_HOST: 0.0.0.0
       SERVER_PORT: 3000
+      ADMIN_USER_IDS: ${ADMIN_USER_IDS:-}
     depends_on:
       migrate:
         condition: service_completed_successfully

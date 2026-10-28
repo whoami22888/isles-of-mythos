@@ -1,6 +1,7 @@
 import Fastify from "fastify";
 import argon2 from "argon2";
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
 import type { Pool } from "pg";
 import { registerAuthRoutes } from "./auth.js";
 
@@ -106,5 +107,15 @@ describe("scoped player registration and admin authentication", () => {
       const result = await app.inject({ method: "POST", url: "/auth/admin/login", payload: { identifier: "approved_operator", password: PASSWORD } });
       expect(result.statusCode).toBe(401);
     } finally { await app.close(); }
+  });
+});
+
+describe("deployment wiring for the administrator allowlist", () => {
+  it("forwards ADMIN_USER_IDS into the server container with an empty default", () => {
+    const compose = readFileSync(new URL("../../docker-compose.yml", import.meta.url), "utf8");
+    const serverBlock = compose.split(/^ {2}server:\s*$/m)[1]?.split(/^ {2}\S/m)[0] ?? "";
+    expect(serverBlock).toContain("environment:");
+    // Pass-through with an empty default: no admin exists unless an operator sets it.
+    expect(serverBlock).toMatch(/^\s+ADMIN_USER_IDS: \$\{ADMIN_USER_IDS:-\}\s*$/m);
   });
 });

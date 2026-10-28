@@ -39,6 +39,11 @@ expiry; silent refresh and the full gameplay scene are separate features.
 3. An authorized backend operator sets `ADMIN_USER_IDS` to a comma-separated
    allow-list of exact registered UUIDs (no default admin account or password).
    Apply this environment setting to the **backend only**, not Godot/APK.
+   With the supplied Docker Compose stack, export `ADMIN_USER_IDS` in the
+   host environment or the project `.env` before `docker compose up`;
+   `docker-compose.yml` forwards it to the `server` service and defaults to
+   empty (no administrators) when unset. Example shape only:
+   `ADMIN_USER_IDS=<uuid-1>,<uuid-2>`. Do not commit real values.
 4. The "Admin login" tab posts the existing username/email and password
    over HTTPS to `/auth/admin/login`. Only verified credentials plus
    allow-list membership receive an admin-scoped JWT. `/auth/admin/me`
