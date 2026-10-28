@@ -1,6 +1,6 @@
 extends Control
 
-const Adapter = preload("res://scripts/websocket_adapter.gd")
+const Adapter = preload("res://scripts/network/authoritative_command_gateway.gd")
 @onready var _status: Label = $Panel/Margin/Content/Status
 @onready var _endpoint: LineEdit = $Panel/Margin/Content/Endpoint
 @onready var _token: LineEdit = $Panel/Margin/Content/Token
