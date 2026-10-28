@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
   BASE_CHECKS, CODEX_REVIEWER, changedPaths, modifiesProtectedVerification, applicableChecks, visualRequired,
-  trustedCodexReceipt, hasBlockingCodexFinding, requiredRunsPassed, resolveMergeability
+  trustedCodexReceipt, hasBlockingCodexFinding, requiredRunsPassed, resolveMergeability,
+  WORLD_CONTENT_PATHS, COASTAL_FX_PATHS
 } from "./auto-merge-gate.mjs";
 
 const sha = "a".repeat(40);
@@ -138,4 +139,41 @@ test("unknown mergeability never spins forever, real conflicts never retry", asy
   }, async () => { throw Error("Conflicts must not trigger retries"); });
   assert.equal(calls, 1);
   assert.equal(conflicting.mergeable, false);
+});
+
+// Reads the real workflow files so the gate inventory cannot drift from the path filters GitHub actually uses.
+function workflowPaths(file) {
+  const text = readFileSync(".github/workflows/" + file, "utf8");
+  const block = text.match(/pull_request:\s*\n\s*paths:\s*\n((?:\s*-\s*"[^"]+"\s*\n)+)/);
+  assert.ok(block, "pull_request paths not found in " + file);
+  return [...block[1].matchAll(/"([^"]+)"/g)].map(m => m[1]);
+}
+
+test("world-content and coastal-FX workflows are required whenever their path filters fire", () => {
+  const world = workflowPaths("iom-world-content.yml");
+  assert.deepEqual([...WORLD_CONTENT_PATHS].sort(), [...world].sort());
+  for (const p of world) assert.ok(applicableChecks([p]).includes("Isles world content and source harvest"), p);
+  const coastal = workflowPaths("iom-coastal-ship-fx.yml");
+  const exact = coastal.filter(p => !p.includes("*"));
+  assert.deepEqual([...COASTAL_FX_PATHS].sort(), [...exact].sort());
+  for (const p of exact) assert.ok(applicableChecks([p]).includes("IOM Coastal Ship FX Integration"), p);
+  assert.ok(coastal.includes("client-godot/assets/external/**"));
+  assert.ok(applicableChecks(["client-godot/assets/external/x/y.glb"]).includes("IOM Coastal Ship FX Integration"));
+  assert.ok(!applicableChecks(["server/src/health.ts"]).includes("IOM Coastal Ship FX Integration"));
+  assert.ok(!applicableChecks(["client-godot/scripts/unrelated.gd"]).includes("Isles world content and source harvest"));
+});
+
+test("renamed or deleted workflow-triggering files still require their workflows", () => {
+  const renamed = changedPaths([{ filename: "docs/old.md", previous_filename: "scripts/world_content.py", status: "renamed" }]);
+  assert.ok(applicableChecks(renamed).includes("Isles world content and source harvest"));
+  const removed = changedPaths([{ filename: "client-godot/scripts/ship_wake_effect.gd", status: "removed" }]);
+  assert.ok(applicableChecks(removed).includes("IOM Coastal Ship FX Integration"));
+});
+
+test("auto-merge workflow_run list names every gate-required workflow", () => {
+  const policy = readFileSync(".github/workflows/verified-codex-auto-merge.yml", "utf8");
+  assert.match(policy, /Isles world content and source harvest/);
+  assert.match(policy, /IOM Coastal Ship FX Integration/);
+  for (const name of applicableChecks([...WORLD_CONTENT_PATHS, ...COASTAL_FX_PATHS, "client-godot/assets/a.png", "scripts/stage_polyhaven_coast.py"]))
+    assert.ok(policy.includes(name), name);
 });

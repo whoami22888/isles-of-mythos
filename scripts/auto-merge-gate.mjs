@@ -21,6 +21,38 @@ const STAGE_SCRIPTS = new Set([
   "scripts/test_stage_polyhaven_coast.py"
 ]);
 
+// Exact path filters of .github/workflows/iom-world-content.yml and iom-coastal-ship-fx.yml. The gate must require
+// a workflow whenever GitHub would have triggered it; tests assert this inventory against the workflow files.
+export const WORLD_CONTENT_PATHS = Object.freeze(new Set([
+  "client-godot/content/world_population.json",
+  "client-godot/scripts/world_content_director.gd",
+  "client-godot/tests/world_content_director_test.gd",
+  "scripts/world_content.py",
+  "scripts/harvest_world_lighting.py",
+  "scripts/test_world_content.py",
+  "scripts/test_harvest_world_lighting.py",
+  ".github/workflows/iom-world-content.yml"
+]));
+export const COASTAL_FX_PATHS = Object.freeze(new Set([
+  "client-godot/scenes/realistic_coastal_fx_slice.tscn",
+  "client-godot/scenes/realistic_coastal_slice.tscn",
+  "client-godot/scripts/coastal_ship_fx_controller.gd",
+  "client-godot/scripts/ship_wake_effect.gd",
+  "client-godot/shaders/ship_wake_foam.gdshader",
+  "client-godot/scripts/ship_bow_spray_effect.gd",
+  "client-godot/shaders/ship_bow_spray.gdshader",
+  "client-godot/scripts/realistic_coastal_slice.gd",
+  "client-godot/tests/coastal_ship_fx_integration_test.gd",
+  "client-godot/tests/render_coastal_fx_sequence.gd",
+  "client-godot/tests/coastal_ocean_integration_test.gd",
+  "client-godot/tests/coastal_shore_heightfield_test.gd",
+  "client-godot/scripts/coastal_shore_heightfield.gd",
+  "client-godot/shaders/coastal_shore_sampler.gdshaderinc",
+  "client-godot/shaders/ocean_surface.gdshader",
+  ".github/workflows/iom-coastal-ship-fx.yml"
+]));
+const COASTAL_FX_PREFIX = "client-godot/assets/external/";
+
 export function changedPaths(files) {
   if (!Array.isArray(files)) throw Error("Invalid changed-file collection");
   return files.flatMap(f => {
@@ -59,6 +91,10 @@ export function applicableChecks(paths) {
     required.add("Godot external art provenance");
   if (paths.some(p => STAGE_SCRIPTS.has(p) || p === ".github/workflows/godot-stage-coast.yml"))
     required.add("Stage Poly Haven coastal PBR candidate");
+  if (paths.some(p => WORLD_CONTENT_PATHS.has(p)))
+    required.add("Isles world content and source harvest");
+  if (paths.some(p => COASTAL_FX_PATHS.has(p) || p.startsWith(COASTAL_FX_PREFIX)))
+    required.add("IOM Coastal Ship FX Integration");
   return [...required];
 }
 
