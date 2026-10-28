@@ -39,6 +39,7 @@ import { WorldEventCoordinator } from "./world-events.js";
 import { EndgameStore } from "./endgame.js";
 import { TerritorySeasonStore } from "./territory-seasons.js";
 import { registerFrontendRoutes } from "./frontend.js";
+import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
 import { AntiCheatService } from "./anti-cheat.js";
 import { PostgresAntiCheatEvidenceSink } from "./anti-cheat-evidence-store.js";
@@ -794,6 +795,8 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     sockets.add(socket);
     setWebSocketConnections(sockets.size);
     let userId: string | null = null;
+    // Identifies this socket in the shared (cross-instance) multi-socket lease set.
+    const socketLeaseId = randomUUID();
     let messageWindowStartedAt = Date.now();
     let messageWindowCount = 0;
     let authDeadline: NodeJS.Timeout | null = setTimeout(() => {
@@ -850,7 +853,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             const connections = playerConnections.get(authenticatedUserId) ?? 0;
             const nextConnectionCount = connections + 1;
             playerConnections.set(authenticatedUserId, nextConnectionCount);
-            logAntiCheatEvidence(antiCheat.observeMultiSocket(authenticatedUserId, nextConnectionCount));
+            logAntiCheatEvidence(antiCheat.connectSocket(authenticatedUserId, socketLeaseId));
             combatActivationNextAt.set(authenticatedUserId, Date.now());
             const socketsForUser = userSockets.get(authenticatedUserId) ?? new Set<WebSocket>();
             socketsForUser.add(socket);
@@ -1831,6 +1834,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         authenticatedSocketCount = Math.max(0, authenticatedSocketCount - 1);
         setWebSocketAuthenticated(authenticatedSocketCount);
       }
+      if (userId !== null) void antiCheat.disconnectSocket(userId, socketLeaseId).catch(() => undefined);
       if (shuttingDown || !userId) return;
       const disconnectedUserId=userId;
       const connections = (playerConnections.get(disconnectedUserId) ?? 1) - 1;

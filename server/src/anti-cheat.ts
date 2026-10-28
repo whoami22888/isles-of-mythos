@@ -39,6 +39,7 @@ const DECAY_PER_SECOND = 1;
 const MAX_SUSPICION = 100;
 const MAX_EVENTS = 5000;
 const MULTI_SOCKET_THRESHOLD = 4;
+export const SOCKET_LEASE_TTL_MS = 90_000;
 const MULTI_SOCKET_WINDOW_MS = 10_000;
 // Persisted evidence is throttled per user and event type so sustained hostile traffic cannot flood storage.
 // Suppressed occurrences are counted and attached to the next persisted row rather than discarded silently.
@@ -68,12 +69,15 @@ export class AntiCheatService {
   private degradedCount = 0;
   // Handlers start observations without awaiting them; shutdown must wait for them or their evidence is lost.
   private readonly inflight = new Set<Promise<unknown>>();
+  // Socket leases held by this process; refreshed on a timer so they outlive the TTL only while we are alive.
+  private readonly leases = new Map<string, Set<string>>();
+  private heartbeat: NodeJS.Timeout | null = null;
 
   constructor(options: AntiCheatServiceOptions = {}) {
     this.primary = options.store ?? new MemoryAntiCheatStateStore();
     this.sink = options.sink;
     this.onDegraded = options.onDegraded;
-    for (const name of ["record", "observeMovement", "observePosition", "observeRejectedAction", "observeRequestDuplicate", "observeMultiSocket"] as const) {
+    for (const name of ["record", "observeMovement", "observePosition", "observeRejectedAction", "observeRequestDuplicate", "observeMultiSocket", "connectSocket"] as const) {
       const original = this[name].bind(this) as (...args: unknown[]) => Promise<unknown>;
       (this as unknown as Record<typeof name, typeof original>)[name] = (...args) => this.track(original(...args));
     }
@@ -284,6 +288,40 @@ export class AntiCheatService {
     }, nowMs);
   }
 
+  /**
+   * Registers an authenticated socket and evaluates the user's session count across all backend instances.
+   * The lease is refreshed while this process lives and expires on its own if the process dies.
+   */
+  async connectSocket(userId: string, socketId: string, nowMs?: number): Promise<AntiCheatEvidence | null> {
+    const held = this.leases.get(userId) ?? new Set<string>();
+    held.add(socketId);
+    this.leases.set(userId, held);
+    this.startHeartbeat();
+    const count = await this.withStore((store) => store.leaseSocket({ userId, socketId, ttlMs: SOCKET_LEASE_TTL_MS, nowMs }));
+    return this.observeMultiSocket(userId, count, nowMs);
+  }
+
+  async disconnectSocket(userId: string, socketId: string): Promise<void> {
+    const held = this.leases.get(userId);
+    held?.delete(socketId);
+    if (held && held.size === 0) this.leases.delete(userId);
+    await this.withStore((store) => store.releaseSocket(userId, socketId));
+    if (this.primary.kind !== "memory") await this.fallback.releaseSocket(userId, socketId);
+  }
+
+  private startHeartbeat(): void {
+    if (this.heartbeat) return;
+    this.heartbeat = setInterval(() => {
+      for (const [userId, sockets] of this.leases) {
+        for (const socketId of sockets) {
+          // Best effort: a failed refresh only lets the lease lapse, which under-counts, never over-counts.
+          void this.withStore((store) => store.leaseSocket({ userId, socketId, ttlMs: SOCKET_LEASE_TTL_MS })).catch(() => undefined);
+        }
+      }
+    }, SOCKET_LEASE_TTL_MS / 3);
+    this.heartbeat.unref();
+  }
+
   /** Process-local, bounded diagnostic view. Durable history is read from the evidence table. */
   listRecent(userId?: string, limit = 100): AntiCheatEvidence[] {
     const boundedLimit = Math.max(1, Math.min(1000, Math.floor(limit)));
@@ -309,7 +347,14 @@ export class AntiCheatService {
   }
 
   async close(): Promise<void> {
+    if (this.heartbeat) clearInterval(this.heartbeat);
+    this.heartbeat = null;
     await this.drainInflight();
+    // Release our leases so peers stop counting these sockets immediately instead of waiting for the TTL.
+    for (const [userId, sockets] of this.leases) {
+      for (const socketId of sockets) await this.withStore((store) => store.releaseSocket(userId, socketId)).catch(() => undefined);
+    }
+    this.leases.clear();
     await this.sink?.close();
     await this.primary.close();
     await this.fallback.close();

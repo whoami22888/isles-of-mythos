@@ -52,8 +52,25 @@ export interface AntiCheatStateStore {
   addSuspicion(request: SuspicionRequest): Promise<number>;
   getSuspicion(userId: string, decayPerSecond: number, nowMs?: number): Promise<number>;
   clearUser(userId: string): Promise<void>;
+  /**
+   * Registers or refreshes one socket lease for a user and returns how many unexpired leases the user holds
+   * across every backend instance. Leases expire after `ttlMs` unless refreshed, so a crashed instance's
+   * sockets stop counting without cleanup.
+   */
+  leaseSocket(request: SocketLeaseRequest): Promise<number>;
+  releaseSocket(userId: string, socketId: string): Promise<void>;
   close(): Promise<void>;
 }
+
+export interface SocketLeaseRequest {
+  userId: string;
+  socketId: string;
+  ttlMs: number;
+  nowMs?: number;
+}
+
+/** Hard cap on tracked leases per user so hostile reconnect storms cannot grow state without bound. */
+export const MAX_SOCKET_LEASES_PER_USER = 64;
 
 export const MAX_KEY_PART_LENGTH = 64;
 
@@ -104,6 +121,7 @@ export class MemoryAntiCheatStateStore implements AntiCheatStateStore {
   private readonly windows = new Map<string, MemoryWindow>();
   private readonly cooldowns = new Map<string, MemoryCooldown>();
   private readonly suspicion = new Map<string, MemorySuspicion>();
+  private readonly socketLeases = new Map<string, Map<string, number>>();
 
   constructor(private readonly limits: MemoryStoreLimits = DEFAULT_MEMORY_LIMITS) {}
 
@@ -150,6 +168,7 @@ export class MemoryAntiCheatStateStore implements AntiCheatStateStore {
   }
 
   clearUser(userId: string): Promise<void> {
+    this.socketLeases.delete(userKeyPrefix(userId));
     this.suspicion.delete(userId);
     const prefix = userKeyPrefix(userId);
     for (const map of [this.windows, this.cooldowns]) {
@@ -160,10 +179,37 @@ export class MemoryAntiCheatStateStore implements AntiCheatStateStore {
     return Promise.resolve();
   }
 
+  leaseSocket(request: SocketLeaseRequest): Promise<number> {
+    const nowMs = request.nowMs ?? Date.now();
+    const key = userKeyPrefix(request.userId);
+    const leases = this.socketLeases.get(key) ?? new Map<string, number>();
+    for (const [id, expiresAtMs] of leases) if (expiresAtMs <= nowMs) leases.delete(id);
+    if (leases.has(request.socketId) || leases.size < MAX_SOCKET_LEASES_PER_USER) {
+      leases.set(request.socketId, nowMs + request.ttlMs);
+    }
+    this.socketLeases.delete(key);
+    this.socketLeases.set(key, leases);
+    while (this.socketLeases.size > this.limits.maxSuspicion) {
+      const oldest = this.socketLeases.keys().next().value;
+      if (oldest === undefined) break;
+      this.socketLeases.delete(oldest);
+    }
+    return Promise.resolve(leases.size);
+  }
+
+  releaseSocket(userId: string, socketId: string): Promise<void> {
+    const key = userKeyPrefix(userId);
+    const leases = this.socketLeases.get(key);
+    leases?.delete(socketId);
+    if (leases && leases.size === 0) this.socketLeases.delete(key);
+    return Promise.resolve();
+  }
+
   close(): Promise<void> {
     this.windows.clear();
     this.cooldowns.clear();
     this.suspicion.clear();
+    this.socketLeases.clear();
     return Promise.resolve();
   }
 
@@ -246,6 +292,22 @@ redis.call('PEXPIRE', KEYS[1], ttlMs)
 return tostring(score)
 `;
 
+const SOCKET_SCRIPT = `
+local now = tonumber(ARGV[1])
+if now < 0 then
+  local t = redis.call('TIME')
+  now = tonumber(t[1]) * 1000 + math.floor(tonumber(t[2]) / 1000)
+end
+local ttl = tonumber(ARGV[2])
+local cap = tonumber(ARGV[4])
+redis.call('ZREMRANGEBYSCORE', KEYS[1], '-inf', now)
+if redis.call('ZSCORE', KEYS[1], ARGV[3]) or redis.call('ZCARD', KEYS[1]) < cap then
+  redis.call('ZADD', KEYS[1], now + ttl, ARGV[3])
+end
+redis.call('PEXPIRE', KEYS[1], ttl)
+return redis.call('ZCARD', KEYS[1])
+`;
+
 declare module "ioredis" {
   // Declaration merging requires the original type parameter list even though it is unused here.
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -253,6 +315,7 @@ declare module "ioredis" {
     antiCheatWindow(keys: [string, string, string], args: [number, number, number, number]): Promise<[number, number]>;
     antiCheatCooldown(keys: [string, string], args: [number, number]): Promise<[number, number]>;
     antiCheatSuspicion(key: string, args: [number, number, number, number]): Promise<string>;
+    antiCheatSockets(key: string, args: [number, number, string, number]): Promise<number>;
   }
 }
 
@@ -289,6 +352,7 @@ export class RedisAntiCheatStateStore implements AntiCheatStateStore {
     this.client.defineCommand("antiCheatWindow", { numberOfKeys: 3, lua: WINDOW_SCRIPT });
     this.client.defineCommand("antiCheatCooldown", { numberOfKeys: 2, lua: COOLDOWN_SCRIPT });
     this.client.defineCommand("antiCheatSuspicion", { numberOfKeys: 1, lua: SUSPICION_SCRIPT });
+    this.client.defineCommand("antiCheatSockets", { numberOfKeys: 1, lua: SOCKET_SCRIPT });
   }
 
   /**
@@ -353,6 +417,23 @@ export class RedisAntiCheatStateStore implements AntiCheatStateStore {
     if (raw[0] === null || raw[0] === undefined || raw[1] === null || raw[1] === undefined) return 0;
     const now = nowMs ?? Number((await this.client.time())[0]) * 1000;
     return Math.max(0, Number(raw[0]) - ((now - Number(raw[1])) / 1000) * decayPerSecond);
+  }
+
+  async leaseSocket(request: SocketLeaseRequest): Promise<number> {
+    await this.waitReady();
+    return Number(
+      await this.client.antiCheatSockets(userKeyPrefix(request.userId) + "sockets", [
+        request.nowMs ?? -1,
+        request.ttlMs,
+        sanitizeKeyPart(request.socketId),
+        MAX_SOCKET_LEASES_PER_USER,
+      ]),
+    );
+  }
+
+  async releaseSocket(userId: string, socketId: string): Promise<void> {
+    await this.waitReady();
+    await this.client.zrem(userKeyPrefix(userId) + "sockets", sanitizeKeyPart(socketId));
   }
 
   async clearUser(userId: string): Promise<void> {
