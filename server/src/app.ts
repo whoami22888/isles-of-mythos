@@ -845,6 +845,16 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             const state = await players.loadOrCreate(authenticatedUserId);
             const ownedCreatures = await creatures.load(authenticatedUserId);
             const base = await bases.load(authenticatedUserId);
+            if (socket.readyState !== socket.OPEN) {
+              // Closed while authenticating: the close handler saw no userId, so it cannot release anything loaded here.
+              // Register nothing (no lease, no socket) and release the loaded state unless another live connection uses it.
+              if ((playerConnections.get(authenticatedUserId) ?? 0) === 0 && !userSockets.has(authenticatedUserId)) {
+                await bases.persistAndUnload(authenticatedUserId).catch(() => null);
+                await creatures.unload(authenticatedUserId).catch(() => undefined);
+                await players.unload(authenticatedUserId).catch(() => undefined);
+              }
+              return;
+            }
             userId = authenticatedUserId;
             if (authDeadline) {
               clearTimeout(authDeadline);
