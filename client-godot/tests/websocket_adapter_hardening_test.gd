@@ -205,7 +205,9 @@ func run() -> void:
 	adapter.set_process(true)
 
 	# --- Lost session: reconnect with backoff, re-auth, signal ---------------
-	peer.close(1001, "server_shutdown")
+	# 1013 "Try Again Later" is what the server sends when a socket's message
+	# backlog overflows (MYTHOS-NET-02). It must be retryable, unlike 1008.
+	peer.close(1013, "message_backlog")
 	await _wait_until(func(): return _scheduled.size() >= 1, 3000, [peer])
 	check(_scheduled.size() == 1 and _scheduled[0][0] == 1, "First drop must schedule reconnect attempt 1")
 	check(absf(_scheduled[0][1] - 0.05) < 0.001, "First backoff must equal base delay")
