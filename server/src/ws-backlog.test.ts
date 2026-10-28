@@ -82,7 +82,10 @@ describe("WebSocket message backlog cap", () => {
     }
   });
 
-  it("closes the socket with 1008 after sustained backlog overflow", async () => {
+  // 1013 "Try Again Later", not 1008: the Godot client never reconnects after a
+  // 1008 (rejected credentials), so 1008 would permanently drop a legitimate
+  // player whose requests only queued behind a slow database.
+  it("closes the socket with 1013 (retryable) after sustained backlog overflow", async () => {
     const { app, socket, release, errors, closeInfo } = await openStalledSocket();
     try {
       const token = app.jwt.sign({ sub: "backlog-user-2", username: "backlog2" });
@@ -90,7 +93,7 @@ describe("WebSocket message backlog cap", () => {
       // 110 pings => 47 over the cap; the 32nd overflow strike closes the socket.
       for (let i = 0; i < 110; i += 1) socket.send(JSON.stringify({ type: "ping" }));
       expect(await waitFor(() => closeInfo.code !== undefined, 3000)).toBe(true);
-      expect(closeInfo.code).toBe(1008);
+      expect(closeInfo.code).toBe(1013);
       expect(closeInfo.reason).toBe("message_backlog");
       expect(errors.filter((code) => code === "RATE_LIMITED")).toHaveLength(32);
     } finally {

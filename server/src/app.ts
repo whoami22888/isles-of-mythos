@@ -43,6 +43,7 @@ import { resolve } from "node:path";
 import { AntiCheatService } from "./anti-cheat.js";
 import { createMutationTiming, measureMutationStage, runTimedMutation, type MutationTiming, type MutationTimingSnapshot } from "./mutation-timing.js";
 import { runReplayableRequest, type RequestDuplicateOutcome } from "./request-coordinator.js";
+import { BACKLOG_CLOSE_CODE, BACKLOG_CLOSE_REASON, MessageBacklogGuard } from "./ws-backlog.js";
 
 function errorCode(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
@@ -53,8 +54,6 @@ function send(socket: WebSocket, message: ServerMessage): void {
 }
 
 const SLOW_MUTATION_THRESHOLD_MS = 50;
-const MAX_QUEUED_MESSAGES_PER_SOCKET = 64;
-const MAX_BACKLOG_OVERFLOW_STRIKES = 32;
 
 function emitSlowMutation(action: string, snapshot: MutationTimingSnapshot, db: Pool): void {
   if (snapshot.totalMs < SLOW_MUTATION_THRESHOLD_MS) return;
@@ -779,8 +778,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     send(socket, { type: "server_ready", timestamp: Date.now() });
 
     let messageQueue = Promise.resolve();
-    let queuedMessages = 0;
-    let backlogOverflowStrikes = 0;
+    const backlog = new MessageBacklogGuard();
     socket.on("message", (raw) => {
       const now = Date.now();
       if (now - messageWindowStartedAt >= 1_000) {
@@ -795,15 +793,16 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       // Bound unfinished work per socket: slow handlers must not build an
       // unbounded backlog. Rejected frames never enter the FIFO queue, so
       // ordering and requestId replay/idempotency are unchanged.
-      if (queuedMessages >= MAX_QUEUED_MESSAGES_PER_SOCKET) {
+      const admission = backlog.admit();
+      if (admission !== "accept") {
+        // One small frame per rejected inbound frame; inbound is already capped
+        // at 120/s above, and the socket closes within 32 rejected frames.
         send(socket, { type: "error", code: "RATE_LIMITED" });
-        backlogOverflowStrikes += 1;
-        if (backlogOverflowStrikes >= MAX_BACKLOG_OVERFLOW_STRIKES && socket.readyState === socket.OPEN) {
-          socket.close(1008, "message_backlog");
+        if (admission === "close" && socket.readyState === socket.OPEN) {
+          socket.close(BACKLOG_CLOSE_CODE, BACKLOG_CLOSE_REASON);
         }
         return;
       }
-      queuedMessages += 1;
       messageQueue = messageQueue.then(async () => {
         const message = parseClientMessage(rawMessageToString(raw));
 
@@ -1809,10 +1808,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       });
       // Depth is released when the frame finishes (success or failure); strikes
       // reset once the backlog fully drains.
-      messageQueue = messageQueue.finally(() => {
-        queuedMessages -= 1;
-        if (queuedMessages === 0) backlogOverflowStrikes = 0;
-      });
+      messageQueue = messageQueue.finally(() => backlog.release());
     });
 
     socket.on("close", () => {
