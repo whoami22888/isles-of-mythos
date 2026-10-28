@@ -75,19 +75,20 @@ describe("startRealmAiScheduler", () => {
     await vi.advanceTimersByTimeAsync(30_000);
     expect(run).toHaveBeenCalledTimes(1);
   });
-  it("stop() resolves after the drain timeout on a never-settling run and logs it", async () => {
+  it("stop() on a never-settling run aborts, waits a second grace, then rejects (fail closed) and logs both", async () => {
     const log = vi.fn();
     const run = vi.fn(() => new Promise<boolean>(() => {}));
     const s = startRealmAiScheduler({ run, intervalMs: 5_000, log, drainTimeoutMs: 2_000 });
     await vi.advanceTimersByTimeAsync(5_000);
-    let stopped = false;
-    const stopping = s.stop().then(() => { stopped = true; });
+    let outcome = "pending";
+    const stopping = s.stop().then(() => { outcome = "resolved"; }, (e: Error) => { outcome = e.message; });
     await vi.advanceTimersByTimeAsync(1_999);
-    expect(stopped).toBe(false);
-    await vi.advanceTimersByTimeAsync(1);
+    expect(outcome).toBe("pending");
+    await vi.advanceTimersByTimeAsync(2_001);
     await stopping;
-    expect(stopped).toBe(true);
+    expect(outcome).toBe("realm_ai_tick_unsettled");
     expect(log).toHaveBeenCalledWith("realm_ai_stop_drain_timeout", {});
+    expect(log).toHaveBeenCalledWith("realm_ai_tick_unsettled", {});
     expect(vi.getTimerCount()).toBe(0);
   });
   it("stop() with nothing in flight resolves immediately and leaves no timer", async () => {
@@ -168,5 +169,51 @@ describe.skipIf(!url)("runRealmAiTickOnce (real Postgres)", () => {
     await expectLockFree(pool);
     // and a later healthy run still works
     expect(await runRealmAiTickOnce(pool, new RealmStore(pool), 60_000)).toBe(true);
+  });
+});
+
+describe("startRealmAiScheduler stop() fail-closed drain", () => {
+  it("aborts the run's signal after the drain deadline and resolves only after the run settled", async () => {
+    vi.useFakeTimers();
+    try {
+      let settled = false;
+      let sawAbort = false;
+      const scheduler = startRealmAiScheduler({
+        intervalMs: 1000,
+        drainTimeoutMs: 200,
+        run: (signal) => new Promise<boolean>((resolve) => {
+          signal.addEventListener("abort", () => { sawAbort = true; settled = true; resolve(false); });
+        }),
+      });
+      await vi.advanceTimersByTimeAsync(1000);
+      const stopping = scheduler.stop();
+      await vi.advanceTimersByTimeAsync(250);
+      await stopping;
+      expect(sawAbort).toBe(true);
+      expect(settled).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("rejects with realm_ai_tick_unsettled when the run ignores abort", async () => {
+    vi.useFakeTimers();
+    try {
+      const logged: string[] = [];
+      const scheduler = startRealmAiScheduler({
+        intervalMs: 1000,
+        drainTimeoutMs: 200,
+        log: (e) => logged.push(e),
+        run: () => new Promise<boolean>(() => undefined),
+      });
+      await vi.advanceTimersByTimeAsync(1000);
+      const stopping = scheduler.stop();
+      const assertion = expect(stopping).rejects.toThrow("realm_ai_tick_unsettled");
+      await vi.advanceTimersByTimeAsync(500);
+      await assertion;
+      expect(logged).toContain("realm_ai_stop_drain_timeout");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

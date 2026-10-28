@@ -29,9 +29,21 @@ export function parseRealmAiIntervalMs(raw: string | undefined): number {
  * COMMIT/ROLLBACK. A tick is skipped when the newest 'tick' event is younger than 90% of the
  * interval, so staggered instances do not double-tick a window. Returns true when a tick ran.
  */
-export async function runRealmAiTickOnce(db: Pool, realms: Pick<RealmStore, "tickAI">, intervalMs: number): Promise<boolean> {
+export async function runRealmAiTickOnce(db: Pool, realms: Pick<RealmStore, "tickAI">, intervalMs: number, signal?: AbortSignal): Promise<boolean> {
   const client = await db.connect();
+  let destroyed = false;
+  // Abort = destroy the connection. The server rolls back an open transaction when its client vanishes,
+  // and no COMMIT can be sent afterwards, so an aborted tick can never persist. Pending queries reject,
+  // which settles this function promptly.
+  const onAbort = (): void => {
+    if (destroyed) return;
+    destroyed = true;
+    client.release(new Error("realm_ai_tick_aborted"));
+  };
+  if (signal?.aborted) onAbort();
+  else signal?.addEventListener("abort", onAbort, { once: true });
   try {
+    if (destroyed) throw new Error("realm_ai_tick_aborted");
     await client.query("BEGIN");
     const got = await client.query<{ locked: boolean }>("SELECT pg_try_advisory_xact_lock($1) AS locked", [REALM_AI_LOCK_KEY]);
     if (got.rows[0]?.locked !== true) {
@@ -53,14 +65,20 @@ export async function runRealmAiTickOnce(db: Pool, realms: Pick<RealmStore, "tic
     try { await client.query("ROLLBACK"); } catch { /* best effort; never mask the original error */ }
     throw error;
   } finally {
-    client.release();
+    signal?.removeEventListener("abort", onAbort);
+    if (!destroyed) { destroyed = true; client.release(); }
   }
 }
 
 export const REALM_AI_DEFAULT_DRAIN_TIMEOUT_MS = 10_000;
 
 export interface RealmAiScheduler {
-  /** Stops scheduling and resolves once any in-flight run has settled (bounded by drainTimeoutMs). */
+  /**
+   * Stops scheduling and resolves only once any in-flight run has settled. If the run does not settle
+   * within drainTimeoutMs its AbortSignal is fired (the DB connection is destroyed, so it cannot commit)
+   * and a second bounded grace applies. Rejects with `realm_ai_tick_unsettled` if it still has not settled,
+   * so callers must never treat a resolved stop() as anything but "no tick is running".
+   */
   stop(): Promise<void>;
 }
 
@@ -70,7 +88,7 @@ export interface RealmAiScheduler {
  * waits (bounded) for an in-flight run so no tick executes after shutdown returns.
  */
 export function startRealmAiScheduler(options: {
-  run: () => Promise<boolean>;
+  run: (signal: AbortSignal) => Promise<boolean>;
   intervalMs: number;
   log?: (event: string, fields: Record<string, unknown>) => void;
   drainTimeoutMs?: number;
@@ -78,13 +96,14 @@ export function startRealmAiScheduler(options: {
   if (options.intervalMs <= 0) return { stop: () => Promise.resolve() };
   let inFlight: Promise<void> | undefined;
   let stopped = false;
+  const abort = new AbortController();
   const safeLog = (event: string, fields: Record<string, unknown>): void => {
     try { options.log?.(event, fields); } catch { /* logging is best-effort and must never break the scheduler */ }
   };
   const timer = setInterval(() => {
     if (stopped || inFlight) return;
     const current: Promise<void> = Promise.resolve()
-      .then(() => options.run())
+      .then(() => options.run(abort.signal))
       .then(() => undefined, (error: unknown) => safeLog("realm_ai_tick_failed", { message: error instanceof Error ? error.message : String(error) }))
       .finally(() => { if (inFlight === current) inFlight = undefined; });
     inFlight = current;
@@ -97,16 +116,24 @@ export function startRealmAiScheduler(options: {
       const pending = inFlight;
       if (!pending) return;
       const limit = Math.min(options.drainTimeoutMs ?? REALM_AI_DEFAULT_DRAIN_TIMEOUT_MS, REALM_AI_DEFAULT_DRAIN_TIMEOUT_MS);
-      let deadline: NodeJS.Timeout | undefined;
-      const timedOut = new Promise<boolean>((resolve) => {
-        deadline = setTimeout(() => resolve(true), limit);
-        deadline.unref();
-      });
-      try {
-        if (await Promise.race([pending.then(() => false), timedOut])) safeLog("realm_ai_stop_drain_timeout", {});
-      } finally {
-        clearTimeout(deadline);
-      }
+      const settledWithin = async (ms: number): Promise<boolean> => {
+        let deadline: NodeJS.Timeout | undefined;
+        const timedOut = new Promise<boolean>((resolve) => {
+          deadline = setTimeout(() => resolve(false), ms);
+          deadline.unref();
+        });
+        try {
+          return await Promise.race([pending.then(() => true), timedOut]);
+        } finally {
+          clearTimeout(deadline);
+        }
+      };
+      if (await settledWithin(limit)) return;
+      safeLog("realm_ai_stop_drain_timeout", {});
+      abort.abort();
+      if (await settledWithin(limit)) return;
+      safeLog("realm_ai_tick_unsettled", {});
+      throw new Error("realm_ai_tick_unsettled");
     },
   };
 }

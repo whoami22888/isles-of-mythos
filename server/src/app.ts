@@ -98,6 +98,8 @@ export interface BuildAppOptions {
   antiCheat?: AntiCheatService;
   /** Realm AI tick interval in ms; 0 disables. Defaults to config.realmAiTickMs (REALM_AI_TICK_MS). */
   realmAiTickMs?: number;
+  /** Max wait for an in-flight realm AI tick on shutdown before it is aborted (default 10 s, capped at 10 s). */
+  realmAiDrainTimeoutMs?: number;
 }
 
 export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyInstance> {
@@ -449,7 +451,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   worldEventTick.unref();
   endgameTick.unref();
   territorySeasonTick.unref();
-  { const realmAiIntervalMs = options.realmAiTickMs ?? config.realmAiTickMs; realmAiScheduler = startRealmAiScheduler({ intervalMs: realmAiIntervalMs, run: () => runRealmAiTickOnce(db, realms, realmAiIntervalMs), log }); }
+  { const realmAiIntervalMs = options.realmAiTickMs ?? config.realmAiTickMs; realmAiScheduler = startRealmAiScheduler({ intervalMs: realmAiIntervalMs, run: (signal) => runRealmAiTickOnce(db, realms, realmAiIntervalMs, signal), log, drainTimeoutMs: options.realmAiDrainTimeoutMs }); }
   survivalTick.unref();
 
   combatTick = setInterval(() => {
@@ -635,11 +637,15 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     if (persistenceTick) clearInterval(persistenceTick);
     if (combatTick) clearInterval(combatTick);
     // Drain the in-flight realm AI tick only after every other timer is stopped and shutdown is flagged.
-    await realmAiScheduler?.stop();
+    // Fail closed: if the tick cannot be proven settled (even after abort), still persist and close sockets,
+    // but never tear down the pool under a live transaction, and surface the failure to the caller.
+    let tickUnsettled: Error | undefined;
+    try { await realmAiScheduler?.stop(); } catch (error) { tickUnsettled = error instanceof Error ? error : new Error(String(error)); }
     await players.persistAll();
     await creatures.persistAll();
     await bases.processAll();
     for (const socket of sockets) socket.close(1001, "server_shutdown");
+    if (tickUnsettled !== undefined) throw tickUnsettled;
     if (ownsDb) await db.end();
   });
 
