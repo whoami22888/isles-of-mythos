@@ -233,6 +233,15 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   // Authentications from acceptance until their caller has registered the socket or abandoned it. Early-close
   // cleanup must not evict state under any of them.
   const authsInFlight = new Map<string, number>();
+  // Unloads requested by a normal close while an authentication for the same account was in flight.
+  const deferredAccountUnloads = new Map<string, () => void>();
+  const settleDeferredUnload = (authUserId: string) => {
+    const scheduleUnload = deferredAccountUnloads.get(authUserId);
+    if (!scheduleUnload) return;
+    if (authsInFlight.has(authUserId) || userSockets.has(authUserId) || (playerConnections.get(authUserId) ?? 0) > 0) return;
+    deferredAccountUnloads.delete(authUserId);
+    scheduleUnload();
+  };
   const beginAuth = (authUserId: string): (() => void) => {
     authsInFlight.set(authUserId, (authsInFlight.get(authUserId) ?? 0) + 1);
     let released = false;
@@ -242,6 +251,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       const remaining = (authsInFlight.get(authUserId) ?? 1) - 1;
       if (remaining <= 0) authsInFlight.delete(authUserId);
       else authsInFlight.set(authUserId, remaining);
+      settleDeferredUnload(authUserId);
     };
   };
   const loadAuthenticatedState = async (authUserId: string) => {
@@ -1896,27 +1906,33 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         playerStatuses.delete(disconnectedUserId);
         combatActivationNextAt.delete(disconnectedUserId);
         for (const [key] of pendingCombatRequests) if (key.startsWith(disconnectedUserId + ":")) pendingCombatRequests.delete(key);
-        const pendingMessageWork = messageQueue.catch(() => undefined);
-        const pendingCreatureWork = pendingCreatureOperations.get(disconnectedUserId) ?? Promise.resolve();
-        const pendingBaseWork = bases.persistAndUnload(disconnectedUserId).catch((error) => { log("base_disconnect_persistence_failed",{message:error instanceof Error?error.message:String(error)}); return null; });
-        const unloadPromise = pendingMessageWork.then(() => pendingCreatureWork).then(() => pendingBaseWork).then(
-          () => creatures.unload(disconnectedUserId),
-          () => creatures.unload(disconnectedUserId),
-        ).then(
-          () => players.unload(disconnectedUserId),
-          (error) => {
-            log("creature_disconnect_persistence_failed",{message:error instanceof Error?error.message:String(error)});
-            return players.unload(disconnectedUserId);
-          },
-        ).catch((error) => {
-          log("player_disconnect_persistence_failed", {
-            message: error instanceof Error ? error.message : String(error),
+        const scheduleUnload = () => {
+          const pendingMessageWork = messageQueue.catch(() => undefined);
+          const pendingCreatureWork = pendingCreatureOperations.get(disconnectedUserId) ?? Promise.resolve();
+          const pendingBaseWork = bases.persistAndUnload(disconnectedUserId).catch((error) => { log("base_disconnect_persistence_failed",{message:error instanceof Error?error.message:String(error)}); return null; });
+          const unloadPromise = pendingMessageWork.then(() => pendingCreatureWork).then(() => pendingBaseWork).then(
+            () => creatures.unload(disconnectedUserId),
+            () => creatures.unload(disconnectedUserId),
+          ).then(
+            () => players.unload(disconnectedUserId),
+            (error) => {
+              log("creature_disconnect_persistence_failed",{message:error instanceof Error?error.message:String(error)});
+              return players.unload(disconnectedUserId);
+            },
+          ).catch((error) => {
+            log("player_disconnect_persistence_failed", {
+              message: error instanceof Error ? error.message : String(error),
+            });
           });
-        });
-        pendingPlayerUnloads.set(disconnectedUserId, unloadPromise);
-        void unloadPromise.finally(() => {
-          if (pendingPlayerUnloads.get(disconnectedUserId) === unloadPromise) pendingPlayerUnloads.delete(disconnectedUserId);
-        });
+          pendingPlayerUnloads.set(disconnectedUserId, unloadPromise);
+          void unloadPromise.finally(() => {
+            if (pendingPlayerUnloads.get(disconnectedUserId) === unloadPromise) pendingPlayerUnloads.delete(disconnectedUserId);
+          });
+        };
+        // An authentication for this account is still loading. It may already hold the cached state this unload would
+        // evict, so the unload waits until that authentication settles (see settleDeferredUnload).
+        if (authsInFlight.has(disconnectedUserId)) deferredAccountUnloads.set(disconnectedUserId, scheduleUnload);
+        else scheduleUnload();
       } else {
         playerConnections.set(disconnectedUserId, connections);
       }
