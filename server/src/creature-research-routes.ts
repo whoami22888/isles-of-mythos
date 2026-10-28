@@ -6,6 +6,17 @@ import { CreatureResearchStore, RESEARCH_MATERIALS } from "./creature-research-s
 
 interface UnlockBody { requestId: string; skillId: SkillId; }
 interface SkillRow { skill_id: string; experience: number; }
+interface TrainingRow {
+  id: string;
+  species: string;
+  nickname: string | null;
+  level: number;
+  tame_progress: number;
+  training_experience: number;
+  bond: number;
+  learned_commands: unknown[];
+  training_unlocked: boolean;
+}
 
 const unlockConflicts = new Set([
   "SKILL_PREREQUISITE_MISSING", "RESEARCH_FACILITY_MISSING",
@@ -57,6 +68,43 @@ export function registerCreatureResearchRoutes(app: FastifyInstance, db: Pool, p
           cost: RESEARCH_MATERIALS[skillId],
         };
       }),
+    };
+  });
+
+  app.get("/creature-training", {
+    schema: { tags: ["creatures"], security: [{ bearerAuth: [] }] },
+    config: { rateLimit: { max: 60, timeWindow: "1 minute" } },
+  }, async (request, reply) => {
+    try { await request.jwtVerify(); }
+    catch { return reply.code(401).send({ error: "UNAUTHORIZED" }); }
+    const userId = request.user.sub;
+    const { rows } = await db.query<TrainingRow>(
+      `SELECT c.id,c.species,c.nickname,c.level,c.tame_progress,
+              COALESCE(t.experience,0)::int AS training_experience,
+              COALESCE(t.bond,0)::int AS bond,
+              COALESCE(t.learned_commands,'[]'::jsonb) AS learned_commands,
+              (s.user_id IS NOT NULL) AS training_unlocked
+         FROM player_creatures c
+         LEFT JOIN creature_training_progress t ON t.creature_id=c.id
+         LEFT JOIN player_creature_skills s
+           ON s.user_id=c.owner_user_id AND s.skill_id='creature_training'
+        WHERE c.owner_user_id=$1
+        ORDER BY c.created_at,c.id`,
+      [userId],
+    );
+    return {
+      creatures: rows.map(row => ({
+        id: row.id,
+        species: row.species,
+        nickname: row.nickname,
+        level: row.level,
+        tameProgress: row.tame_progress,
+        trainingExperience: row.training_experience,
+        bond: row.bond,
+        learnedCommands: row.learned_commands,
+        trainingUnlocked: row.training_unlocked,
+        trainable: row.training_unlocked && row.tame_progress >= 100,
+      })),
     };
   });
 

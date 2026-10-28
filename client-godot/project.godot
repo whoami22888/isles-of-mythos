@@ -21,3 +21,7 @@ environment/defaults/default_clear_color=Color(0.035, 0.055, 0.09, 1)
 
 [input]
 ui_accept={"deadzone": 0.5, "events": [Object(InputEventKey,"physical_keycode":4194309)]}
+
+[gui]
+
+theme/custom="res://ui/iom_theme.tres"
