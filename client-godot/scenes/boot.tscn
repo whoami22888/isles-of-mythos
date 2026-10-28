@@ -19,26 +19,26 @@ anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
 offset_left = -300.0
-offset_top = -130.0
+offset_top = -270.0
 offset_right = 300.0
-offset_bottom = 130.0
+offset_bottom = 270.0
 
 [node name="Margin" type="MarginContainer" parent="Panel"]
 layout_mode = 2
 theme_override_constants/margin_left = 32
-theme_override_constants/margin_top = 28
+theme_override_constants/margin_top = 26
 theme_override_constants/margin_right = 32
-theme_override_constants/margin_bottom = 28
+theme_override_constants/margin_bottom = 26
 
 [node name="Content" type="VBoxContainer" parent="Panel/Margin"]
 layout_mode = 2
-theme_override_constants/separation = 16
+theme_override_constants/separation = 12
 
 [node name="Title" type="Label" parent="Panel/Margin/Content"]
 layout_mode = 2
-text = "Isles of Mythos"
+text = "ISLES OF MYTHOS"
 horizontal_alignment = 1
-theme_override_font_sizes/font_size = 32
+theme_override_font_sizes/font_size = 30
 
 [node name="Subtitle" type="Label" parent="Panel/Margin/Content"]
 layout_mode = 2
@@ -48,27 +48,54 @@ theme_override_font_sizes/font_size = 18
 
 [node name="Status" type="Label" parent="Panel/Margin/Content"]
 layout_mode = 2
-text = "Loading client…"
+text = "Set up your game connection."
 horizontal_alignment = 1
 autowrap_mode = 2
-theme_override_font_sizes/font_size = 20
+theme_override_font_sizes/font_size = 17
 
 [node name="Endpoint" type="LineEdit" parent="Panel/Margin/Content"]
 layout_mode = 2
-placeholder_text = "Server URL (wss://…/ws)"
-text = ""
+placeholder_text = "Game server URL (wss://host/ws)"
 
-[node name="Token" type="LineEdit" parent="Panel/Margin/Content"]
+[node name="Modes" type="HBoxContainer" parent="Panel/Margin/Content"]
 layout_mode = 2
-placeholder_text = "Login token"
+theme_override_constants/separation = 8
+
+[node name="PlayerLogin" type="Button" parent="Panel/Margin/Content/Modes"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Player login"
+
+[node name="RegisterPlayer" type="Button" parent="Panel/Margin/Content/Modes"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Register"
+
+[node name="AdminLogin" type="Button" parent="Panel/Margin/Content/Modes"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Admin login"
+
+[node name="Identifier" type="LineEdit" parent="Panel/Margin/Content"]
+layout_mode = 2
+placeholder_text = "Username or email"
+
+[node name="Email" type="LineEdit" parent="Panel/Margin/Content"]
+layout_mode = 2
+placeholder_text = "Email (new registrations)"
+visible = false
+
+[node name="Password" type="LineEdit" parent="Panel/Margin/Content"]
+layout_mode = 2
+placeholder_text = "Password"
 secret = true
 
 [node name="Connect" type="Button" parent="Panel/Margin/Content"]
 layout_mode = 2
-text = "Connect"
+text = "Player sign in"
 
 [node name="Hint" type="Label" parent="Panel/Margin/Content"]
 layout_mode = 2
-text = "The authoritative game server supplies player state."
+text = "Accounts are verified by the authoritative game server. Admin access is operator-provisioned."
 horizontal_alignment = 1
 autowrap_mode = 2
