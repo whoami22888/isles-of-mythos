@@ -69,6 +69,8 @@ describe("realm AI is server-scheduled (NET-04 slice 2b)", () => {
         if (text === "HANG") { started(); return new Promise((_res, rej) => { hangReject = rej; }); }
         return Promise.resolve({ rows: [] });
       },
+      on: () => fakeClient,
+      removeListener: () => fakeClient,
       release: (err?: Error) => { released = err; hangReject?.(err ?? new Error("released")); },
     };
     const db = new Proxy(real, {

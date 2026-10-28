@@ -52,6 +52,11 @@ async function terminateBackend(db: Pool, pid: number | undefined): Promise<bool
  */
 export async function runRealmAiTickOnce(db: Pool, realms: Pick<RealmStore, "tickAI">, intervalMs: number, signal?: AbortSignal, lockKey: number = REALM_AI_LOCK_KEY): Promise<boolean> {
   const client = await db.connect();
+  // A checked-out client has no pool 'error' listener. When the backend is terminated (or the connection drops)
+  // pg emits 'error' on the client in addition to rejecting the active query; without a listener that becomes
+  // an uncaught exception. The rejected query is the real signal, so the event itself is intentionally ignored.
+  const onClientError = (): void => undefined;
+  client.on("error", onClientError);
   let released = false;
   let aborted = false;
   let commitSent = false;
@@ -108,6 +113,7 @@ export async function runRealmAiTickOnce(db: Pool, realms: Pick<RealmStore, "tic
       released = true;
       client.release();
     }
+    client.removeListener("error", onClientError);
   }
 }
 

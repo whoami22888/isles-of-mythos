@@ -251,10 +251,12 @@ describe.skipIf(!url)("runRealmAiTickOnce abort semantics (real Postgres)", () =
     const abort = new AbortController();
     let streamEnded: Promise<void> | undefined;
     let backendPid: number | undefined;
+    let tickClient: pg.PoolClient | undefined;
     const observedDb = {
       options: pool.options,
       connect: async () => {
         const c = await pool.connect();
+        tickClient = c;
         backendPid = (c as unknown as { processID?: number }).processID;
         const stream = (c as unknown as { connection: { stream: NodeJS.EventEmitter } }).connection.stream;
         streamEnded = new Promise<void>((resolve) => stream.once("end", () => resolve()));
@@ -265,6 +267,9 @@ describe.skipIf(!url)("runRealmAiTickOnce abort semantics (real Postgres)", () =
     const started = Date.now();
     const run = runRealmAiTickOnce(observedDb as never, realms, 1, abort.signal, TEST_LOCK_KEY);
     await new Promise((r) => setTimeout(r, 300));
+    // Terminating the backend makes pg emit 'error' on the checked-out client; with no listener that is an
+    // uncaught exception (observed on CI). A listener must be attached for the tick's lifetime.
+    expect(tickClient?.listenerCount("error"), "checked-out tick client needs an 'error' listener").toBeGreaterThan(0);
     abort.abort();
     await expect(run).rejects.toThrow();
     // Clean teardown: the server closed the socket, so the client stream ended (no orphaned pg parser promise).
