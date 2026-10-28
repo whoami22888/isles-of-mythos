@@ -1,18 +1,34 @@
 extends SceneTree
 
-# MYTHOS-NET-01: the client adapter must mirror the server's bounded-message
-# contract, report (never silently drop) bad packets, and recover from lost
-# sessions with capped backoff. Uses a real loopback WebSocket server.
+# MYTHOS-NET-01: the client adapter must stay inside the server's bounded-message
+# contract, report (never silently drop) bad packets without letting a hostile
+# peer flood the diagnostics, and recover from lost sessions with capped backoff
+# and a protocol-correct resync. Uses a real loopback WebSocket server.
+#
+# Scope limits (deliberate): the loopback server is NOT the Fastify server. The
+# 200-packet burst proves the client's own per-frame drain bound only; the real
+# server's 120 msgs/s per-socket throttle and 64 KiB maxPayload are enforced and
+# tested server-side. Resync uses only existing server messages: the server pushes
+# auth_ok/player_state/creature_party/base_state after every `auth`, and
+# `subscribe_chunks` (1-9 chunks, |x|,|y| <= 1,000,000) is the chunk-state request.
 
 const Adapter = preload("res://scripts/websocket_adapter.gd")
 const AUTH_OK := '{"type":"auth_ok"}'
+const FRAME_LIMIT := 65536
 
 var _failures := 0
 var _errors: Array = []
 var _messages: Array = []
 var _scheduled: Array = []
+var _resyncs: Array = []
 var _reconnected := 0
 var _reconnect_failed := 0
+
+func _frame_of_size(total_bytes: int) -> String:
+	# {"type":"pad","d":"<padding>"} padded to exactly total_bytes bytes.
+	var prefix := '{"type":"pad","d":"'
+	var suffix := '"}'
+	return prefix + "x".repeat(total_bytes - prefix.length() - suffix.length()) + suffix
 
 func check(condition: bool, description: String) -> void:
 	if not condition:
@@ -60,6 +76,10 @@ func run() -> void:
 	for signal_name in ["protocol_error", "reconnect_scheduled", "reconnected", "reconnect_failed"]:
 		check(adapter.has_signal(signal_name), "Adapter must expose signal " + signal_name)
 	check(adapter.has_method("disconnect_from_server"), "Adapter must expose disconnect_from_server")
+	check(adapter.has_signal("resync_requested"), "Adapter must expose signal resync_requested")
+	check(adapter.has_method("subscribe_chunks"), "Adapter must expose subscribe_chunks")
+	check(adapter.has_method("reset_error_window"), "Adapter must expose reset_error_window")
+	check("invalid_packet_count" in adapter and "suppressed_error_count" in adapter, "Adapter must expose diagnostic counters")
 	if _failures > 0:
 		print("MYTHOS-NET-01 adapter hardening: %s failures (API missing)" % _failures)
 		quit(1)
@@ -73,6 +93,7 @@ func run() -> void:
 	adapter.reconnect_scheduled.connect(func(attempt: int, delay: float): _scheduled.append([attempt, delay]))
 	adapter.reconnected.connect(func(): _reconnected += 1)
 	adapter.reconnect_failed.connect(func(): _reconnect_failed += 1)
+	adapter.resync_requested.connect(func(chunk_count: int): _resyncs.append(chunk_count))
 
 	var server := TCPServer.new()
 	check(server.listen(0, "127.0.0.1") == OK, "Loopback server must start")
@@ -102,6 +123,67 @@ func run() -> void:
 	check("packet_too_large" in _errors, "Oversize packet must be reported as packet_too_large")
 	check(_errors.count("packet_not_json_object") == 2, "Non-object and invalid JSON must be reported as packet_not_json_object")
 	check(_messages.size() == 2 and _messages[1].get("type") == "still_ok", "A valid packet after bad ones must still be delivered")
+
+	# Inbound frame bound equals the server's 64 KiB frame limit. Measured
+	# headroom: the worst of 6,561 generated world chunks serialises to 4,626 bytes.
+	check(adapter.MAX_PACKET_BYTES == FRAME_LIMIT, "MAX_PACKET_BYTES must be 65536 (got %s)" % adapter.MAX_PACKET_BYTES)
+	var messages_before_boundary := _messages.size()
+	var errors_before_boundary := _errors.size()
+	peer.send_text(_frame_of_size(FRAME_LIMIT))
+	await _wait_until(func(): return _messages.size() > messages_before_boundary, 3000, [peer])
+	check(_messages.size() == messages_before_boundary + 1 and _messages[-1].get("type") == "pad", "A frame of exactly 65536 bytes must be delivered")
+	peer.send_text(_frame_of_size(FRAME_LIMIT + 1))
+	await _wait_until(func(): return _errors.size() > errors_before_boundary, 3000, [peer])
+	check(_errors.size() == errors_before_boundary + 1 and _errors[-1] == "packet_too_large", "A frame of 65537 bytes must be rejected as packet_too_large")
+
+	# max_packets_per_frame is clamped: zero/negative must never stall delivery.
+	adapter.max_packets_per_frame = 0
+	check(adapter.max_packets_per_frame >= 1, "max_packets_per_frame must clamp zero up to >= 1 (got %s)" % adapter.max_packets_per_frame)
+	adapter.max_packets_per_frame = -5
+	check(adapter.max_packets_per_frame >= 1, "max_packets_per_frame must clamp negatives up to >= 1 (got %s)" % adapter.max_packets_per_frame)
+	adapter.max_packets_per_frame = 100000
+	check(adapter.max_packets_per_frame <= adapter.MAX_PACKETS_PER_FRAME_LIMIT, "max_packets_per_frame must clamp to the hard limit (got %s)" % adapter.max_packets_per_frame)
+	adapter.max_packets_per_frame = 8
+
+	# Diagnostics are bounded: a hostile burst of invalid frames raises a capped
+	# number of protocol_error signals plus one summary; counters stay exact.
+	adapter.error_window_msec = 60000
+	adapter.reset_error_window()
+	var burst_errors_before := _errors.size()
+	var invalid_before: int = adapter.invalid_packet_count
+	var suppressed_before: int = adapter.suppressed_error_count
+	for i in range(200):
+		peer.send_text("nope")
+	await _wait_until(func(): return adapter.invalid_packet_count - invalid_before >= 200, 5000, [peer])
+	check(adapter.invalid_packet_count - invalid_before == 200, "Every invalid packet must be counted (got %s)" % (adapter.invalid_packet_count - invalid_before))
+	var burst_errors := _errors.size() - burst_errors_before
+	check(burst_errors == adapter.MAX_ERROR_SIGNALS_PER_WINDOW + 1, "Burst must raise %s signals plus one summary (got %s)" % [adapter.MAX_ERROR_SIGNALS_PER_WINDOW, burst_errors])
+	check(_errors.count("errors_suppressed") == 1, "Exactly one errors_suppressed summary per window")
+	check(adapter.suppressed_error_count - suppressed_before == 200 - adapter.MAX_ERROR_SIGNALS_PER_WINDOW, "Suppressed counter must be exact (got %s)" % (adapter.suppressed_error_count - suppressed_before))
+	peer.send_text('{"type":"after_burst"}')
+	await _wait_until(func(): return _messages[-1].get("type") == "after_burst", 3000, [peer])
+	check(_messages[-1].get("type") == "after_burst", "Valid delivery must continue after a hostile burst")
+
+	# subscribe_chunks: validated against the server's parser bounds; invalid input
+	# sends nothing and never replaces a tracked set.
+	check(not adapter.subscribe_chunks([]), "Empty chunk list must be rejected")
+	var ten: Array = []
+	for i in range(10):
+		ten.append({"x": i, "y": 0})
+	check(not adapter.subscribe_chunks(ten), "More than 9 chunks must be rejected")
+	check(not adapter.subscribe_chunks([{"x": 1.5, "y": 0}]), "Non-integer coordinate must be rejected")
+	check(not adapter.subscribe_chunks([{"x": 1000001, "y": 0}]), "Coordinate beyond 1,000,000 must be rejected")
+	check(not adapter.subscribe_chunks(["bad"]), "Non-dictionary entry must be rejected")
+	check(not adapter.subscribe_chunks([{"x": 1}]), "Entry missing y must be rejected")
+	check(adapter.subscribe_chunks([{"x": 0, "y": 0}, {"x": 1, "y": -1}]), "A valid chunk set must be accepted")
+	var sub = await _read_packet(peer)
+	check(sub is Dictionary and sub.get("type") == "subscribe_chunks", "First packet after validation failures must be the valid subscribe_chunks")
+	var first_request_id := ""
+	if sub is Dictionary:
+		first_request_id = str(sub.get("requestId", ""))
+		check(first_request_id.length() >= 1 and first_request_id.length() <= 64, "requestId must satisfy the server's 1-64 character rule")
+		var chunks = sub.get("chunks", [])
+		check(chunks is Array and chunks.size() == 2 and int(chunks[0]["x"]) == 0 and int(chunks[1]["y"]) == -1, "Chunk coordinates must round-trip")
 
 	# Per-frame drain cap: 200 queued packets, at most 8 delivered per frame.
 	adapter.set_process(false)
@@ -137,6 +219,15 @@ func run() -> void:
 	peer2.send_text(AUTH_OK)
 	await _wait_until(func(): return _reconnected == 1, 3000, [peer2])
 	check(_reconnected == 1, "reconnected must be emitted once after re-auth")
+	# Resync: replay the tracked chunk subscription with a fresh requestId. The
+	# server itself re-pushes player_state/creature_party/base_state after `auth`.
+	var resync = await _read_packet(peer2)
+	check(resync is Dictionary and resync.get("type") == "subscribe_chunks", "Reconnect must replay subscribe_chunks for tracked chunks")
+	if resync is Dictionary:
+		check(str(resync.get("requestId", "")) != first_request_id and str(resync.get("requestId", "")).length() >= 1, "Resync must use a fresh requestId")
+		var resync_chunks = resync.get("chunks", [])
+		check(resync_chunks is Array and resync_chunks.size() == 2, "Resync must carry the tracked chunk set")
+	check(_resyncs == [2], "resync_requested must report the chunk count once (got %s)" % [_resyncs])
 
 	# --- Rejected credentials (1008) must NOT trigger reconnect --------------
 	var scheduled_before := _scheduled.size()
