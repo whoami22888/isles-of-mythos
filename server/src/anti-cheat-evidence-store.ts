@@ -147,13 +147,7 @@ export class PostgresAntiCheatEvidenceSink implements AntiCheatEvidenceSink {
           await this.insertIndividually(batch);
           continue;
         }
-        // Re-queue at the front (still bounded) so a transient outage does not lose evidence.
-        this.queue.unshift(...batch);
-        if (this.queue.length > this.maxQueue) {
-          const overflow = this.queue.length - this.maxQueue;
-          this.queue.splice(this.maxQueue, overflow);
-          this.dropped += overflow;
-        }
+        this.requeueFront(batch);
         log("anti_cheat_evidence_flush_failed", {
           message: error instanceof Error ? error.message : String(error),
           queued: this.queue.length,
@@ -164,13 +158,27 @@ export class PostgresAntiCheatEvidenceSink implements AntiCheatEvidenceSink {
     }
   }
 
+  // Re-queue at the front in original order (still bounded; overflow drops the newest and is counted) so a
+  // transient outage never loses evidence.
+  private requeueFront(rows: PersistedAntiCheatEvidence[]): void {
+    this.queue.unshift(...rows);
+    if (this.queue.length > this.maxQueue) {
+      const overflow = this.queue.length - this.maxQueue;
+      this.queue.splice(this.maxQueue, overflow);
+      this.dropped += overflow;
+    }
+  }
+
   private async insertIndividually(batch: PersistedAntiCheatEvidence[]): Promise<void> {
-    for (const row of batch) {
+    for (let index = 0; index < batch.length; index += 1) {
+      const row = batch[index] as PersistedAntiCheatEvidence;
       try {
         await this.insert([row]);
       } catch (error) {
         if (!isDataError(error)) {
-          this.queue.unshift(row);
+          // Rows before `index` are stored or rejected; this row and every not-yet-attempted trailing row
+          // must stay queued, otherwise they would vanish without drop/reject accounting.
+          this.requeueFront(batch.slice(index));
           throw error;
         }
         this.rejected += 1;

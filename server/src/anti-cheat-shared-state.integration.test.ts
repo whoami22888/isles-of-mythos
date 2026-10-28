@@ -319,6 +319,37 @@ describe("durable evidence (PostgreSQL)", () => {
     await sink.close();
   });
 
+  it("keeps every unattempted row when a transient DB error interrupts poison-row isolation", async () => {
+    const user = newUser();
+    let injected = false;
+    // Real pool, except the first single-row insert of n=4 fails with a transient (non-data) error.
+    const flaky = {
+      query: (sql: string, values?: unknown[]) => {
+        if (!injected && Array.isArray(values) && values.length === 7 && String(values[5]).includes('"n":4')) {
+          injected = true;
+          return Promise.reject(Object.assign(new Error("terminating connection"), { code: "57P01" }));
+        }
+        return pool.query(sql, values);
+      },
+      connect: () => pool.connect(),
+    } as unknown as pg.Pool;
+    const sink = new PostgresAntiCheatEvidenceSink(flaky, { flushIntervalMs: 60_000, batchSize: 100 });
+    const base = { type: "IMPOSSIBLE_MOVEMENT", severity: "HIGH" as const, suspicion: 5, suppressedCount: 0, occurredAtMs: Date.now(), userId: user };
+    for (const n of [1, 2]) sink.enqueue({ ...base, evidence: { n } });
+    sink.enqueue({ ...base, severity: "BOGUS" as unknown as "HIGH", evidence: { n: 3 } });
+    for (const n of [4, 5, 6]) sink.enqueue({ ...base, evidence: { n } });
+    await expect(sink.flush()).rejects.toThrow("terminating connection");
+    // n=4 (failed) and the never-attempted n=5, n=6 must all still be queued; nothing silently lost.
+    expect(sink.queuedCount()).toBe(3);
+    expect(sink.droppedCount()).toBe(0);
+    await sink.flush();
+    expect(sink.queuedCount()).toBe(0);
+    const stored = await listStoredEvidence(pool, user);
+    expect(stored.map((row) => row.evidence.n).sort()).toEqual([1, 2, 4, 5, 6]);
+    expect(sink.rejectedCount()).toBe(1);
+    await sink.close();
+  });
+
   it("keeps escape-heavy evidence under the database size limit instead of failing the insert", async () => {
     const userId = newUser();
     const sink = new PostgresAntiCheatEvidenceSink(pool, { flushIntervalMs: 60_000 });
