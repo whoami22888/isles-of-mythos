@@ -25,10 +25,6 @@ offset_bottom = 130.0
 
 [node name="Margin" type="MarginContainer" parent="Panel"]
 layout_mode = 2
-theme_override_constants/margin_left = 32
-theme_override_constants/margin_top = 28
-theme_override_constants/margin_right = 32
-theme_override_constants/margin_bottom = 28
 
 [node name="Content" type="VBoxContainer" parent="Panel/Margin"]
 layout_mode = 2
@@ -36,22 +32,22 @@ theme_override_constants/separation = 16
 
 [node name="Title" type="Label" parent="Panel/Margin/Content"]
 layout_mode = 2
-text = "Isles of Mythos"
+theme_type_variation = &"TitleLabel"
+text = "ISLES OF MYTHOS"
 horizontal_alignment = 1
-theme_override_font_sizes/font_size = 32
 
 [node name="Subtitle" type="Label" parent="Panel/Margin/Content"]
 layout_mode = 2
-text = "Sunken Tides · Android client"
+theme_type_variation = &"SubtitleLabel"
+text = "SUNKEN TIDES"
 horizontal_alignment = 1
-theme_override_font_sizes/font_size = 18
 
 [node name="Status" type="Label" parent="Panel/Margin/Content"]
 layout_mode = 2
 text = "Loading client…"
 horizontal_alignment = 1
+theme_type_variation = &"HudChip"
 autowrap_mode = 2
-theme_override_font_sizes/font_size = 20
 
 [node name="Endpoint" type="LineEdit" parent="Panel/Margin/Content"]
 layout_mode = 2
@@ -65,10 +61,12 @@ secret = true
 
 [node name="Connect" type="Button" parent="Panel/Margin/Content"]
 layout_mode = 2
-text = "Connect"
+theme_type_variation = &"HeroButton"
+text = "CONNECT"
 
 [node name="Hint" type="Label" parent="Panel/Margin/Content"]
 layout_mode = 2
+theme_type_variation = &"BodyLabel"
 text = "The authoritative game server supplies player state."
 horizontal_alignment = 1
 autowrap_mode = 2
