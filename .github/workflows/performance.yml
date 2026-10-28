@@ -142,6 +142,7 @@ jobs:
               sleep 1
             done
           ) > performance-system.log 2>&1 &
+          echo $! > performance-sampler.pid
       - name: Self-test persisted-evidence validator
         run: node scripts/validate-performance-report.mjs --self-test
       - name: Run sustained player-load and domain stress scenarios
@@ -153,6 +154,13 @@ jobs:
         run: |
           kill "$(cat server.pid)" 2>/dev/null || true
           wait "$(cat server.pid)" 2>/dev/null || true
+          # The metrics sampler exits on its own once the server is gone, but may still be mid-iteration. Wait (bounded)
+          # so performance-system.log is final before the evidence manifest hashes it; otherwise its size changes.
+          if [ -f performance-sampler.pid ]; then
+            sampler="$(cat performance-sampler.pid)"
+            for _ in $(seq 1 30); do kill -0 "$sampler" 2>/dev/null || break; sleep 1; done
+            if kill -0 "$sampler" 2>/dev/null; then kill "$sampler" 2>/dev/null || true; fi
+          fi
       - name: Verify acceptance evidence completeness
         if: always()
         shell: bash
