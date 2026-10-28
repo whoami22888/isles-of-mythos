@@ -41,6 +41,8 @@ import { TerritorySeasonStore } from "./territory-seasons.js";
 import { registerFrontendRoutes } from "./frontend.js";
 import { resolve } from "node:path";
 import { AntiCheatService } from "./anti-cheat.js";
+import { PostgresAntiCheatEvidenceSink } from "./anti-cheat-evidence-store.js";
+import { RedisAntiCheatStateStore } from "./anti-cheat-store.js";
 import { createMutationTiming, measureMutationStage, runTimedMutation, type MutationTiming, type MutationTimingSnapshot } from "./mutation-timing.js";
 import { runReplayableRequest, type RequestDuplicateOutcome } from "./request-coordinator.js";
 
@@ -95,6 +97,10 @@ export interface BuildAppOptions {
   db?: Pool;
   clientDistDir?: string;
   antiCheat?: AntiCheatService;
+  /** When set (and no `antiCheat` is injected), detection windows are shared across instances through Redis. */
+  antiCheatRedisUrl?: string;
+  /** When true (and no `antiCheat` is injected), anti-cheat evidence is persisted to PostgreSQL. */
+  persistAntiCheatEvidence?: boolean;
 }
 
 export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyInstance> {
@@ -118,16 +124,30 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const worldEvents = new WorldEventCoordinator(db, (userId) => players.get(userId)?.level);
   const endgame = new EndgameStore(db);
   const territorySeasons = new TerritorySeasonStore(db);
-  const antiCheat = options.antiCheat ?? new AntiCheatService();
-  const logAntiCheatEvidence = (event: ReturnType<AntiCheatService["record"]> | null): void => {
-    if (!event) return;
-    log("anti_cheat_event", {
-      type: event.type,
-      severity: event.severity,
-      timestampMs: event.timestampMs,
-      evidence: event.evidence,
-      suspicion: event.suspicion,
-    });
+  const ownsAntiCheat = options.antiCheat === undefined;
+  const antiCheat = options.antiCheat ?? new AntiCheatService({
+    store: options.antiCheatRedisUrl ? new RedisAntiCheatStateStore({ url: options.antiCheatRedisUrl }) : undefined,
+    sink: options.persistAntiCheatEvidence ? new PostgresAntiCheatEvidenceSink(db) : undefined,
+  });
+  // Anti-cheat observation is diagnostic and never gates a gameplay mutation: hard validity checks run in the
+  // authoritative handlers/transactions. Observations are therefore fire-and-forget so a slow or failed
+  // detection store can neither delay nor change the outcome of an action.
+  const logAntiCheatEvidence = (pending: Promise<Awaited<ReturnType<AntiCheatService["record"]>> | null>): void => {
+    void pending.then(
+      (event) => {
+        if (!event) return;
+        log("anti_cheat_event", {
+          type: event.type,
+          severity: event.severity,
+          timestampMs: event.timestampMs,
+          evidence: event.evidence,
+          suspicion: event.suspicion,
+        });
+      },
+      (error: unknown) => {
+        log("anti_cheat_observe_failed", { message: error instanceof Error ? error.message : String(error) });
+      },
+    );
   };
   const recordInventoryMutationRejection = (userId: string, action: string, reason: string): void => {
     logAntiCheatEvidence(antiCheat.observeRejectedAction(userId, "INVENTORY_MUTATION_REJECTED", { action, reason }));
@@ -633,6 +653,13 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     await creatures.persistAll();
     await bases.processAll();
     for (const socket of sockets) socket.close(1001, "server_shutdown");
+    // Evidence must reach PostgreSQL before the pool it shares is closed.
+    try {
+      if (ownsAntiCheat) await antiCheat.close();
+      else await antiCheat.flush();
+    } catch (error) {
+      log("anti_cheat_shutdown_failed", { message: error instanceof Error ? error.message : String(error) });
+    }
     if (ownsDb) await db.end();
   });
 

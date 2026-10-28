@@ -16,6 +16,16 @@ func run() -> void:
 	root.add_child(scene)
 	check(scene.get_node("Panel/Margin/Content/Token").secret, "Token entry must be masked")
 	check(scene.get_node("Panel/Margin/Content/Connect").pressed.is_connected(scene._connect_from_form), "Connect must be wired")
+	var theme: Theme = load("res://ui/iom_theme.tres")
+	check(theme != null, "Shared UI theme must load")
+	check(ProjectSettings.get_setting("gui/theme/custom", "") == "res://ui/iom_theme.tres", "Shared UI theme must be the project theme")
+	if theme != null:
+		check(theme.get_color("font_color", "TitleLabel").to_html(false) == "f4e6c8", "Title must use parchment token")
+		check(theme.get_color("font_color", "SubtitleLabel").to_html(false) == "6ed6d1", "Subtitle must use seafoam token")
+		var normal := theme.get_stylebox("normal", "Button") as StyleBoxFlat
+		check(normal != null and normal.bg_color.to_html(false) == "145b63", "Button must use lagoon token")
+		check(theme.get_type_variation_base("HeroButton") == &"Button", "HeroButton must extend Button")
+	check(scene.get_node("Panel/Margin/Content/Title").text == "ISLES OF MYTHOS", "Title must read exactly ISLES OF MYTHOS")
 	var preset := ConfigFile.new()
 	check(preset.load("res://export_presets.cfg") == OK, "Export preset must load")
 	check(preset.get_value("preset.0.options", "permissions/internet", false), "APK must allow Internet access")

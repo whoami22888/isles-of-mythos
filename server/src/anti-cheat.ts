@@ -1,3 +1,12 @@
+import {
+  MemoryAntiCheatStateStore,
+  sanitizeKeyPart,
+  userKeyPrefix,
+  type AntiCheatStateStore,
+} from "./anti-cheat-store.js";
+import type { AntiCheatEvidenceSink } from "./anti-cheat-evidence-store.js";
+import { log } from "./logger.js";
+
 export type AntiCheatSeverity = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 export type AntiCheatEventType =
   | "MOVEMENT_RATE_LIMIT"
@@ -19,20 +28,6 @@ export interface AntiCheatEvidence {
   suspicion: number;
 }
 
-interface SuspicionState {
-  score: number;
-  lastUpdatedMs: number;
-}
-
-interface RejectedActionWindow {
-  timestampsMs: number[];
-  lastEmittedMs: number;
-}
-
-interface MultiSocketWindow {
-  lastEmittedMs: number;
-}
-
 const REJECTED_ACTION_RULES = {
   ATTACK_COOLDOWN_SPAM: { threshold: 8, windowMs: 5_000, severity: "HIGH" as const },
   RESOURCE_RANGE_ABUSE: { threshold: 5, windowMs: 10_000, severity: "MEDIUM" as const },
@@ -41,41 +36,149 @@ const REJECTED_ACTION_RULES = {
 } as const;
 
 const DECAY_PER_SECOND = 1;
+const MAX_SUSPICION = 100;
 const MAX_EVENTS = 5000;
-const MAX_REJECTED_ACTION_WINDOWS = 10_000;
 const MULTI_SOCKET_THRESHOLD = 4;
 const MULTI_SOCKET_WINDOW_MS = 10_000;
+// Persisted evidence is throttled per user and event type so sustained hostile traffic cannot flood storage.
+// Suppressed occurrences are counted and attached to the next persisted row rather than discarded silently.
+const PERSIST_COOLDOWN_MS = 5_000;
+const PERSIST_COOLDOWN_CRITICAL_MS = 1_000;
+// After a primary-store failure, skip it briefly so a dead Redis does not add a timeout to every observation.
+const PRIMARY_RETRY_AFTER_MS = 5_000;
+const DEGRADED_LOG_INTERVAL_MS = 30_000;
+
+export interface AntiCheatServiceOptions {
+  /** Shared detection state (Redis in production). Defaults to a process-local store. */
+  store?: AntiCheatStateStore;
+  /** Durable evidence destination (PostgreSQL in production). Optional. */
+  sink?: AntiCheatEvidenceSink;
+  /** Called when the primary store fails and detection degrades to process-local state. */
+  onDegraded?: (reason: string) => void;
+}
 
 export class AntiCheatService {
   private readonly events: AntiCheatEvidence[] = [];
-  private readonly suspicion = new Map<string, SuspicionState>();
-  private readonly rejectedActions = new Map<string, RejectedActionWindow>();
-  private readonly multiSocketWindows = new Map<string, MultiSocketWindow>();
+  private readonly primary: AntiCheatStateStore;
+  private readonly fallback = new MemoryAntiCheatStateStore();
+  private readonly sink: AntiCheatEvidenceSink | undefined;
+  private readonly onDegraded: ((reason: string) => void) | undefined;
+  private primaryRetryAtMs = 0;
+  private lastDegradedLogMs = Number.NEGATIVE_INFINITY;
+  private degradedCount = 0;
+  // Handlers start observations without awaiting them; shutdown must wait for them or their evidence is lost.
+  private readonly inflight = new Set<Promise<unknown>>();
 
-  record(
+  constructor(options: AntiCheatServiceOptions = {}) {
+    this.primary = options.store ?? new MemoryAntiCheatStateStore();
+    this.sink = options.sink;
+    this.onDegraded = options.onDegraded;
+    for (const name of ["record", "observeMovement", "observePosition", "observeRejectedAction", "observeRequestDuplicate", "observeMultiSocket"] as const) {
+      const original = this[name].bind(this) as (...args: unknown[]) => Promise<unknown>;
+      (this as unknown as Record<typeof name, typeof original>)[name] = (...args) => this.track(original(...args));
+    }
+  }
+
+  private track<T>(operation: Promise<T>): Promise<T> {
+    this.inflight.add(operation);
+    const release = (): void => {
+      this.inflight.delete(operation);
+    };
+    operation.then(release, release);
+    return operation;
+  }
+
+  /** Waits for every observation started so far (each store call is individually time-bounded). */
+  private async drainInflight(): Promise<void> {
+    while (this.inflight.size > 0) await Promise.allSettled([...this.inflight]);
+  }
+
+  /** Number of observations served from process-local fallback state because the primary store failed. */
+  degradedObservations(): number {
+    return this.degradedCount;
+  }
+
+  private async withStore<T>(operation: (store: AntiCheatStateStore) => Promise<T>): Promise<T> {
+    const wallMs = Date.now();
+    if (this.primary.kind === "memory" || wallMs < this.primaryRetryAtMs) {
+      if (this.primary.kind !== "memory") this.degradedCount += 1;
+      return operation(this.primary.kind === "memory" ? this.primary : this.fallback);
+    }
+    try {
+      return await operation(this.primary);
+    } catch (error) {
+      this.primaryRetryAtMs = wallMs + PRIMARY_RETRY_AFTER_MS;
+      this.degradedCount += 1;
+      const reason = error instanceof Error ? error.message : String(error);
+      if (wallMs - this.lastDegradedLogMs >= DEGRADED_LOG_INTERVAL_MS) {
+        this.lastDegradedLogMs = wallMs;
+        log("anti_cheat_store_degraded", { store: this.primary.kind, message: reason });
+      }
+      try {
+        this.onDegraded?.(reason);
+      } catch {
+        // Diagnostics must never alter detection behaviour.
+      }
+      return operation(this.fallback);
+    }
+  }
+
+  async record(
     userId: string,
     type: AntiCheatEventType,
     severity: AntiCheatSeverity,
     evidence: Record<string, number | string | boolean>,
-    nowMs = Date.now(),
-  ): AntiCheatEvidence {
-    const state = this.suspicion.get(userId);
-    const previous = state ? Math.max(0, state.score - ((nowMs - state.lastUpdatedMs) / 1000) * DECAY_PER_SECOND) : 0;
+    nowMs: number | undefined = undefined,
+  ): Promise<AntiCheatEvidence> {
+    const timestampMs = nowMs ?? Date.now();
     const increment = severity === "CRITICAL" ? 10 : severity === "HIGH" ? 5 : severity === "MEDIUM" ? 2 : 1;
-    const next: SuspicionState = { score: Math.min(100, previous + increment), lastUpdatedMs: nowMs };
-    this.suspicion.set(userId, next);
+    const suspicion = await this.withStore((store) =>
+      store.addSuspicion({
+        userId,
+        nowMs,
+        increment,
+        decayPerSecond: DECAY_PER_SECOND,
+        max: MAX_SUSPICION,
+      }),
+    );
 
-    const event: AntiCheatEvidence = { userId, type, severity, timestampMs: nowMs, evidence, suspicion: next.score };
+    const event: AntiCheatEvidence = { userId, type, severity, timestampMs, evidence, suspicion };
     this.events.push(event);
     if (this.events.length > MAX_EVENTS) this.events.splice(0, this.events.length - MAX_EVENTS);
+    await this.persist(event, nowMs);
     return event;
   }
 
-  observeMovement(
+  private async persist(event: AntiCheatEvidence, nowMs: number | undefined): Promise<void> {
+    if (!this.sink) return;
+    try {
+      const cooldown = await this.withStore((store) =>
+        store.acquireCooldown({
+          key: userKeyPrefix(event.userId) + "persist:" + event.type,
+          nowMs,
+          cooldownMs: event.severity === "CRITICAL" ? PERSIST_COOLDOWN_CRITICAL_MS : PERSIST_COOLDOWN_MS,
+        }),
+      );
+      if (!cooldown.emit) return;
+      this.sink.enqueue({
+        userId: event.userId,
+        type: event.type,
+        severity: event.severity,
+        suspicion: event.suspicion,
+        suppressedCount: cooldown.suppressed,
+        evidence: event.evidence,
+        occurredAtMs: event.timestampMs,
+      });
+    } catch (error) {
+      log("anti_cheat_persist_failed", { message: error instanceof Error ? error.message : String(error) });
+    }
+  }
+
+  async observeMovement(
     userId: string,
     decision: { accepted: boolean; reason?: string; sequenceGap: number; serverDt: number },
-    nowMs = Date.now(),
-  ): AntiCheatEvidence | null {
+    nowMs?: number,
+  ): Promise<AntiCheatEvidence | null> {
     if (decision.reason === "RATE_LIMITED") {
       return this.record(userId, "MOVEMENT_RATE_LIMIT", "HIGH", {
         serverDt: decision.serverDt,
@@ -97,13 +200,13 @@ export class AntiCheatService {
     return null;
   }
 
-  observePosition(
+  async observePosition(
     userId: string,
     before: { x: number; y: number },
     after: { x: number; y: number },
     serverDt: number,
-    nowMs = Date.now(),
-  ): AntiCheatEvidence | null {
+    nowMs?: number,
+  ): Promise<AntiCheatEvidence | null> {
     const coordinates = [before.x, before.y, after.x, after.y, serverDt];
     if (coordinates.some((value) => !Number.isFinite(value))) {
       return this.record(userId, "IMPOSSIBLE_MOVEMENT", "CRITICAL", {
@@ -128,88 +231,87 @@ export class AntiCheatService {
     }, nowMs);
   }
 
-  observeRejectedAction(
+  async observeRejectedAction(
     userId: string,
     type: "ATTACK_COOLDOWN_SPAM" | "RESOURCE_RANGE_ABUSE" | "INVENTORY_MUTATION_REJECTED" | "REQUEST_DUPLICATION",
     evidence: Record<string, number | string | boolean>,
-    nowMs = Date.now(),
-  ): AntiCheatEvidence | null {
+    nowMs?: number,
+  ): Promise<AntiCheatEvidence | null> {
     const rule = REJECTED_ACTION_RULES[type];
     const action = typeof evidence.action === "string" ? evidence.action : "";
     const reason = typeof evidence.reason === "string" ? evidence.reason : "";
-    const key = [userId, type, action, reason].join(":");
-    const previous = this.rejectedActions.get(key);
-    const timestampsMs = (previous?.timestampsMs ?? []).filter(
-      (timestampMs) => nowMs >= timestampMs && nowMs - timestampMs <= rule.windowMs,
+    const key = userKeyPrefix(userId) + [type, sanitizeKeyPart(action), sanitizeKeyPart(reason)].join(":");
+    const window = await this.withStore((store) =>
+      store.observeWindow({ key, nowMs, windowMs: rule.windowMs, threshold: rule.threshold, cooldownMs: rule.windowMs }),
     );
-    timestampsMs.push(nowMs);
-    if (timestampsMs.length > rule.threshold) timestampsMs.splice(0, timestampsMs.length - rule.threshold);
-    const lastEmittedMs = previous?.lastEmittedMs ?? Number.NEGATIVE_INFINITY;
-    this.rejectedActions.delete(key);
-    this.rejectedActions.set(key, { timestampsMs, lastEmittedMs });
-    while (this.rejectedActions.size > MAX_REJECTED_ACTION_WINDOWS) {
-      const oldestKey = this.rejectedActions.keys().next().value;
-      if (oldestKey === undefined) break;
-      this.rejectedActions.delete(oldestKey);
-    }
-
-    if (timestampsMs.length < rule.threshold || nowMs - lastEmittedMs < rule.windowMs) return null;
-
-    const event = this.record(userId, type, rule.severity, {
+    if (!window.emit) return null;
+    return this.record(userId, type, rule.severity, {
       ...evidence,
-      rejectedCount: timestampsMs.length,
+      rejectedCount: window.count,
       windowMs: rule.windowMs,
     }, nowMs);
-    this.rejectedActions.delete(key);
-    this.rejectedActions.set(key, { timestampsMs, lastEmittedMs: nowMs });
-    return event;
   }
 
-  observeRequestDuplicate(
+  async observeRequestDuplicate(
     userId: string,
     outcome: "REPLAYED" | "CONFLICT" | "COALESCED",
-    nowMs = Date.now(),
-  ): AntiCheatEvidence | null {
+    nowMs?: number,
+  ): Promise<AntiCheatEvidence | null> {
     return this.observeRejectedAction(userId, "REQUEST_DUPLICATION", {
       action: "request_duplicate",
       reason: outcome,
     }, nowMs);
   }
 
-  observeMultiSocket(userId: string, connectionCount: number, nowMs = Date.now()): AntiCheatEvidence | null {
+  /**
+   * `connectionCount` is the caller's local view; the emission cooldown is shared so that several backend
+   * instances observing the same abusive account do not each emit.
+   */
+  async observeMultiSocket(userId: string, connectionCount: number, nowMs?: number): Promise<AntiCheatEvidence | null> {
     if (!Number.isSafeInteger(connectionCount) || connectionCount < MULTI_SOCKET_THRESHOLD) return null;
-    const previous = this.multiSocketWindows.get(userId);
-    const lastEmittedMs = previous?.lastEmittedMs ?? Number.NEGATIVE_INFINITY;
-    if (nowMs - lastEmittedMs < MULTI_SOCKET_WINDOW_MS) return null;
-    const event = this.record(userId, "MULTI_SOCKET_ABUSE", "MEDIUM", {
+    const cooldown = await this.withStore((store) =>
+      store.acquireCooldown({
+        key: userKeyPrefix(userId) + "multisocket",
+        nowMs,
+        cooldownMs: MULTI_SOCKET_WINDOW_MS,
+      }),
+    );
+    if (!cooldown.emit) return null;
+    return this.record(userId, "MULTI_SOCKET_ABUSE", "MEDIUM", {
       connectionCount,
       threshold: MULTI_SOCKET_THRESHOLD,
       windowMs: MULTI_SOCKET_WINDOW_MS,
     }, nowMs);
-    this.multiSocketWindows.set(userId, { lastEmittedMs: nowMs });
-    return event;
   }
 
+  /** Process-local, bounded diagnostic view. Durable history is read from the evidence table. */
   listRecent(userId?: string, limit = 100): AntiCheatEvidence[] {
     const boundedLimit = Math.max(1, Math.min(1000, Math.floor(limit)));
     const filtered = userId ? this.events.filter((event) => event.userId === userId) : this.events;
     return filtered.slice(-boundedLimit);
   }
 
-  suspicionScore(userId: string, nowMs = Date.now()): number {
-    const state = this.suspicion.get(userId);
-    if (!state) return 0;
-    return Math.max(0, state.score - ((nowMs - state.lastUpdatedMs) / 1000) * DECAY_PER_SECOND);
+  async suspicionScore(userId: string, nowMs?: number): Promise<number> {
+    return this.withStore((store) => store.getSuspicion(userId, DECAY_PER_SECOND, nowMs));
   }
 
-  reset(userId: string): void {
-    this.suspicion.delete(userId);
-    for (const key of this.rejectedActions.keys()) {
-      if (key.startsWith(userId + ":")) this.rejectedActions.delete(key);
-    }
-    this.multiSocketWindows.delete(userId);
+  async reset(userId: string): Promise<void> {
+    await this.withStore((store) => store.clearUser(userId));
+    if (this.primary.kind !== "memory") await this.fallback.clearUser(userId);
     for (let index = this.events.length - 1; index >= 0; index -= 1) {
       if (this.events[index]?.userId === userId) this.events.splice(index, 1);
     }
+  }
+
+  async flush(): Promise<void> {
+    await this.drainInflight();
+    await this.sink?.flush();
+  }
+
+  async close(): Promise<void> {
+    await this.drainInflight();
+    await this.sink?.close();
+    await this.primary.close();
+    await this.fallback.close();
   }
 }

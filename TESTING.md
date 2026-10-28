@@ -36,3 +36,14 @@ PostgreSQL acceptance requires an immutable exact-registry digest, verified sign
 
 
 **Compatibility warning:** this pin selects PostgreSQL 18.6, a major-version change from PostgreSQL 17. Do not accept it unless the exact-image migration, integration, regression and full CI chain passes.
+
+## Anti-cheat shared-state tests (Redis + PostgreSQL)
+
+`server/src/anti-cheat-shared-state.integration.test.ts` exercises the real Redis-backed detection store and the PostgreSQL evidence table (cross-instance aggregation, concurrency, restart persistence, Redis failure degradation, append-only/retention rules and bounded storage). It requires:
+
+- PostgreSQL with all migrations applied (including `039_anti_cheat_evidence`), via `DATABASE_URL`.
+- A reachable Redis at `REDIS_URL` (default `redis://127.0.0.1:6379`). The suite **fails** rather than skips when Redis is unreachable, so a missing service can never read as a pass. CI starts a digest-pinned Redis container for this purpose.
+
+Detection state is diagnostic only. Hard gameplay validity checks run in the authoritative handlers and database transactions and must not depend on this store; Redis failure degrades detection to per-instance memory and never changes a mutation outcome.
+
+Known test-hygiene limitation (pre-existing, reproduced on `46296ef`): several integration suites (guild, realm, invasion, request-ID) fail when the whole suite is run a second time against the *same* database because fixtures leak rows between runs. CI is unaffected (it starts from a fresh PostgreSQL service); locally, recreate the test database before each full run.
