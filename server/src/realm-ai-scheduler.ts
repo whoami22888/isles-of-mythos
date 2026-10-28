@@ -1,3 +1,4 @@
+import pg from "pg";
 import type { Pool } from "pg";
 import type { RealmStore } from "./realm.js";
 
@@ -23,6 +24,26 @@ export function parseRealmAiIntervalMs(raw: string | undefined): number {
 }
 
 /**
+ * Terminates a backend from a separate, short-lived connection (a pool of size 1 has no spare client).
+ * The server closes the socket, which ends the client stream cleanly and rolls the transaction back.
+ * Returns false when that was not possible so the caller can fall back to destroying the socket.
+ */
+async function terminateBackend(db: Pool, pid: number | undefined): Promise<boolean> {
+  if (pid === undefined || !db.options) return false;
+  const killer = new pg.Client({ ...db.options, connectionTimeoutMillis: 2_000 });
+  killer.on("error", () => undefined);
+  try {
+    await killer.connect();
+    const res = await killer.query<{ ok: boolean }>("SELECT pg_terminate_backend($1) AS ok", [pid]);
+    return res.rows[0]?.ok === true;
+  } catch {
+    return false;
+  } finally {
+    await killer.end().catch(() => undefined);
+  }
+}
+
+/**
  * Runs at most one realm AI tick across all server instances per window.
  * One dedicated connection carries the transaction-level advisory lock, the freshness check and
  * the tick itself, so a pool of size 1 cannot deadlock. The lock is released automatically at
@@ -31,21 +52,29 @@ export function parseRealmAiIntervalMs(raw: string | undefined): number {
  */
 export async function runRealmAiTickOnce(db: Pool, realms: Pick<RealmStore, "tickAI">, intervalMs: number, signal?: AbortSignal, lockKey: number = REALM_AI_LOCK_KEY): Promise<boolean> {
   const client = await db.connect();
-  let destroyed = false;
-  // Abort before COMMIT is sent = destroy the connection: the server rolls back the open transaction and no
-  // COMMIT can follow. Once COMMIT has been issued the outcome is decided by PostgreSQL, so abort is ignored
-  // and the acknowledgment is awaited (destroying the socket then would leave the outcome ambiguous).
-  // Retry safety does not depend on this: the freshness guard skips a window that already has a committed tick.
+  let released = false;
+  let aborted = false;
   let commitSent = false;
-  const onAbort = (): void => {
-    if (destroyed || commitSent) return;
-    destroyed = true;
+  let killing: Promise<void> = Promise.resolve();
+  const forceRelease = (): void => {
+    if (released) return;
+    released = true;
     client.release(new Error("realm_ai_tick_aborted"));
+  };
+  // Abort before COMMIT is sent = terminate the tick's backend from a second connection: the server rolls
+  // back the open transaction, no COMMIT can follow, and the client stream ends cleanly (so the pg parser
+  // promise settles). If the backend cannot be terminated the socket is destroyed instead. Once COMMIT has
+  // been issued the outcome is decided by PostgreSQL, so abort is ignored and the acknowledgment is awaited.
+  // Retry safety does not depend on any of this: the freshness guard skips a window that already has a tick.
+  const onAbort = (): void => {
+    if (aborted || commitSent) return;
+    aborted = true;
+    killing = terminateBackend(db, (client as unknown as { processID?: number }).processID).then((ok) => { if (!ok) forceRelease(); });
   };
   if (signal?.aborted) onAbort();
   else signal?.addEventListener("abort", onAbort, { once: true });
   try {
-    if (destroyed) throw new Error("realm_ai_tick_aborted");
+    if (aborted) throw new Error("realm_ai_tick_aborted");
     await client.query("BEGIN");
     const got = await client.query<{ locked: boolean }>("SELECT pg_try_advisory_xact_lock($1) AS locked", [lockKey]);
     if (got.rows[0]?.locked !== true) {
@@ -61,16 +90,24 @@ export async function runRealmAiTickOnce(db: Pool, realms: Pick<RealmStore, "tic
       return false;
     }
     await realms.tickAI(client);
-    if (destroyed) throw new Error("realm_ai_tick_aborted");
+    if (aborted) throw new Error("realm_ai_tick_aborted");
     commitSent = true;
     await client.query("COMMIT");
     return true;
   } catch (error) {
-    try { await client.query("ROLLBACK"); } catch { /* best effort; never mask the original error */ }
+    if (!aborted) {
+      try { await client.query("ROLLBACK"); } catch { /* best effort; never mask the original error */ }
+    }
     throw error;
   } finally {
     signal?.removeEventListener("abort", onAbort);
-    if (!destroyed) { destroyed = true; client.release(); }
+    if (aborted) {
+      await killing;
+      forceRelease();
+    } else if (!released) {
+      released = true;
+      client.release();
+    }
   }
 }
 

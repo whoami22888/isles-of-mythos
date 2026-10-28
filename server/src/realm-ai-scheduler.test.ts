@@ -247,16 +247,32 @@ describe.skipIf(!url)("runRealmAiTickOnce abort semantics (real Postgres)", () =
   // Real clocks: the other describes in this file use fake timers only inside their own scope.
   beforeEach(() => vi.useRealTimers());
 
-  it("abort while the transaction is blocked destroys the connection, settles, and never persists the tick", async () => {
+  it("abort while the transaction is blocked terminates the backend, ends the client stream cleanly, and never persists the tick", async () => {
     const abort = new AbortController();
-    const realms = realmsWriting(async (c) => { await c.query("SELECT pg_sleep(1.5)"); });
-    const run = runRealmAiTickOnce(pool, realms, 1, abort.signal, TEST_LOCK_KEY);
+    let streamEnded: Promise<void> | undefined;
+    let backendPid: number | undefined;
+    const observedDb = {
+      options: pool.options,
+      connect: async () => {
+        const c = await pool.connect();
+        backendPid = (c as unknown as { processID?: number }).processID;
+        const stream = (c as unknown as { connection: { stream: NodeJS.EventEmitter } }).connection.stream;
+        streamEnded = new Promise<void>((resolve) => stream.once("end", () => resolve()));
+        return c;
+      },
+    };
+    const realms = realmsWriting(async (c) => { await c.query("SELECT pg_sleep(30)"); });
+    const started = Date.now();
+    const run = runRealmAiTickOnce(observedDb as never, realms, 1, abort.signal, TEST_LOCK_KEY);
     await new Promise((r) => setTimeout(r, 300));
     abort.abort();
     await expect(run).rejects.toThrow();
-    // The backend finishes its sleep, finds the client gone and rolls back; nothing may ever become durable.
-    for (let i = 0; i < 40; i++) await new Promise((r) => setTimeout(r, 100));
+    // Clean teardown: the server closed the socket, so the client stream ended (no orphaned pg parser promise).
+    await streamEnded;
+    expect(Date.now() - started, "abort must not wait for the 30 s query").toBeLessThan(10_000);
     expect(await count()).toBe(0);
+    const alive = await pool.query<{ n: string }>("SELECT COUNT(*)::text n FROM pg_stat_activity WHERE pid=$1", [backendPid]);
+    expect(Number(alive.rows[0]?.n), "the tick backend must be gone").toBe(0);
     const lock = await pool.query<{ n: string }>("SELECT COUNT(*)::text n FROM pg_locks WHERE locktype='advisory' AND objid=$1", [TEST_LOCK_KEY]);
     expect(Number(lock.rows[0]?.n)).toBe(0);
   }, 20_000);
