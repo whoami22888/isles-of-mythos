@@ -38,6 +38,26 @@ describe("startRealmAiScheduler", () => {
     expect(run).toHaveBeenCalledTimes(2);
     s.stop();
   });
+  it("a throwing logger never causes an unhandled rejection and ticks keep running", async () => {
+    const unhandled: unknown[] = [];
+    const onUnhandled = (reason: unknown): void => { unhandled.push(reason); };
+    process.on("unhandledRejection", onUnhandled);
+    try {
+      const log = vi.fn(() => { throw new Error("logger exploded"); });
+      const run = vi.fn().mockRejectedValue(new Error("boom"));
+      const s = startRealmAiScheduler({ run, intervalMs: 5_000, log });
+      await vi.advanceTimersByTimeAsync(20_000);
+      await vi.advanceTimersByTimeAsync(0);
+      vi.useRealTimers();
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      expect(log).toHaveBeenCalled();
+      expect(run).toHaveBeenCalledTimes(4);
+      expect(unhandled).toEqual([]);
+      s.stop();
+    } finally {
+      process.off("unhandledRejection", onUnhandled);
+    }
+  });
   it("logs failures, keeps running, and intervalMs 0 starts nothing", async () => {
     const log = vi.fn();
     const run = vi.fn().mockRejectedValue(new Error("boom"));
@@ -53,6 +73,14 @@ describe("startRealmAiScheduler", () => {
 });
 
 const url = process.env.DATABASE_URL;
+async function expectLockFree(pool: pg.Pool): Promise<void> {
+  const c = await pool.connect();
+  try {
+    const lock = await c.query<{ locked: boolean }>("SELECT pg_try_advisory_lock(18018) AS locked");
+    expect(lock.rows[0].locked).toBe(true);
+    await c.query("SELECT pg_advisory_unlock(18018)");
+  } finally { c.release(); }
+}
 describe.skipIf(!url)("runRealmAiTickOnce (real Postgres)", () => {
   let pool: pg.Pool;
   beforeEach(async () => { pool = new pg.Pool({ connectionString: url }); await pool.query("DELETE FROM realm_ai_events WHERE event_type='tick'"); });
@@ -66,8 +94,40 @@ describe.skipIf(!url)("runRealmAiTickOnce (real Postgres)", () => {
     expect(spy).toHaveBeenCalledTimes(1);
     // inside the window: skipped; lock must be free (a later attempt must not be blocked by a leaked lock)
     expect(await runRealmAiTickOnce(pool, realms, 60_000)).toBe(false);
-    const lock = await pool.query<{ locked: boolean }>("SELECT pg_try_advisory_lock(18018) AS locked");
-    expect(lock.rows[0].locked).toBe(true);
-    await pool.query("SELECT pg_advisory_unlock(18018)");
+    await expectLockFree(pool);
+  });
+
+  it("completes with a single-connection pool (DB_POOL_MAX=1) without deadlocking", async () => {
+    const one = new pg.Pool({ connectionString: url, max: 1 });
+    try {
+      const realms = new RealmStore(one);
+      const spy = vi.spyOn(realms, "tickAI");
+      let timer: NodeJS.Timeout | undefined;
+      const timeout = new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error("deadlock: runRealmAiTickOnce did not finish with max=1")), 5_000); });
+      try {
+        expect(await Promise.race([runRealmAiTickOnce(one, realms, 60_000), timeout])).toBe(true);
+      } finally { clearTimeout(timer); }
+      expect(spy).toHaveBeenCalledTimes(1);
+      const ticks = await one.query<{ n: string }>("SELECT COUNT(*)::text n FROM realm_ai_events WHERE event_type='tick'");
+      expect(Number(ticks.rows[0].n)).toBeGreaterThan(0);
+    } finally {
+      await one.end();
+    }
+  });
+
+  it("rolls back a failed tick (no partial tick rows) and leaves the lock free", async () => {
+    const failing: Pick<RealmStore, "tickAI"> = {
+      tickAI: async (executor) => {
+        const realm = await executor!.query<{ id: string }>("SELECT id FROM realms LIMIT 1");
+        await executor!.query("INSERT INTO realm_ai_events(realm_id,event_type,payload) VALUES($1,'tick','{}'::jsonb)", [realm.rows[0].id]);
+        throw new Error("tick failed midway");
+      },
+    };
+    await expect(runRealmAiTickOnce(pool, failing, 60_000)).rejects.toThrow("tick failed midway");
+    const rows = await pool.query<{ n: string }>("SELECT COUNT(*)::text n FROM realm_ai_events WHERE event_type='tick'");
+    expect(rows.rows[0].n).toBe("0");
+    await expectLockFree(pool);
+    // and a later healthy run still works
+    expect(await runRealmAiTickOnce(pool, new RealmStore(pool), 60_000)).toBe(true);
   });
 });

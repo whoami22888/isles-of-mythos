@@ -21,29 +21,35 @@ export function parseRealmAiIntervalMs(raw: string | undefined): number {
 
 /**
  * Runs at most one realm AI tick across all server instances per window.
- * A dedicated connection holds a session-level advisory lock for the duration of the tick
- * and always unlocks on that same connection. A tick is skipped when the newest 'tick' event
- * is younger than 90% of the interval, so staggered instances do not double-tick a window.
- * Returns true when a tick ran.
+ * One dedicated connection carries the transaction-level advisory lock, the freshness check and
+ * the tick itself, so a pool of size 1 cannot deadlock. The lock is released automatically at
+ * COMMIT/ROLLBACK. A tick is skipped when the newest 'tick' event is younger than 90% of the
+ * interval, so staggered instances do not double-tick a window. Returns true when a tick ran.
  */
 export async function runRealmAiTickOnce(db: Pool, realms: Pick<RealmStore, "tickAI">, intervalMs: number): Promise<boolean> {
   const client = await db.connect();
-  let locked = false;
   try {
-    const got = await client.query<{ locked: boolean }>("SELECT pg_try_advisory_lock($1) AS locked", [REALM_AI_LOCK_KEY]);
-    locked = got.rows[0]?.locked === true;
-    if (!locked) return false;
+    await client.query("BEGIN");
+    const got = await client.query<{ locked: boolean }>("SELECT pg_try_advisory_xact_lock($1) AS locked", [REALM_AI_LOCK_KEY]);
+    if (got.rows[0]?.locked !== true) {
+      await client.query("ROLLBACK");
+      return false;
+    }
     const recent = await client.query<{ fresh: boolean }>(
       "SELECT EXISTS(SELECT 1 FROM realm_ai_events WHERE event_type='tick' AND created_at > CURRENT_TIMESTAMP - ($1::double precision * interval '1 millisecond')) AS fresh",
       [Math.floor(intervalMs * 0.9)],
     );
-    if (recent.rows[0]?.fresh === true) return false;
-    await realms.tickAI();
-    return true;
-  } finally {
-    if (locked) {
-      try { await client.query("SELECT pg_advisory_unlock($1)", [REALM_AI_LOCK_KEY]); } catch { /* connection is released below; a dead session drops its locks */ }
+    if (recent.rows[0]?.fresh === true) {
+      await client.query("ROLLBACK");
+      return false;
     }
+    await realms.tickAI(client);
+    await client.query("COMMIT");
+    return true;
+  } catch (error) {
+    try { await client.query("ROLLBACK"); } catch { /* best effort; never mask the original error */ }
+    throw error;
+  } finally {
     client.release();
   }
 }
@@ -61,11 +67,14 @@ export function startRealmAiScheduler(options: {
 }): RealmAiScheduler {
   if (options.intervalMs <= 0) return { stop() {} };
   let inFlight = false;
+  const safeLog = (event: string, fields: Record<string, unknown>): void => {
+    try { options.log?.(event, fields); } catch { /* logging is best-effort and must never break the scheduler */ }
+  };
   const timer = setInterval(() => {
     if (inFlight) return;
     inFlight = true;
     options.run()
-      .catch((error: unknown) => options.log?.("realm_ai_tick_failed", { message: error instanceof Error ? error.message : String(error) }))
+      .catch((error: unknown) => safeLog("realm_ai_tick_failed", { message: error instanceof Error ? error.message : String(error) }))
       .finally(() => { inFlight = false; });
   }, options.intervalMs);
   timer.unref();
