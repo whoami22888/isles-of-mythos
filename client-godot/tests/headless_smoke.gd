@@ -14,8 +14,8 @@ func _init() -> void:
 func run() -> void:
 	var scene = load("res://scenes/boot.tscn").instantiate()
 	root.add_child(scene)
-	check(scene.get_node("Panel/Margin/Content/Token").secret, "Token entry must be masked")
-	check(scene.get_node("Panel/Margin/Content/Connect").pressed.is_connected(scene._connect_from_form), "Connect must be wired")
+	check(scene.get_node("Panel/Margin/Content/Password").secret, "Password entry must be masked")
+	check(scene.get_node("Panel/Margin/Content/Submit").pressed.is_connected(scene._on_submit), "Submit must be wired to the auth flow")
 	var theme: Theme = load("res://ui/iom_theme.tres")
 	check(theme != null, "Shared UI theme must load")
 	check(ProjectSettings.get_setting("gui/theme/custom", "") == "res://ui/iom_theme.tres", "Shared UI theme must be the project theme")

@@ -19,16 +19,16 @@ anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
 offset_left = -300.0
-offset_top = -230.0
+offset_top = -350.0
 offset_right = 300.0
-offset_bottom = 230.0
+offset_bottom = 350.0
 
 [node name="Margin" type="MarginContainer" parent="Panel"]
 layout_mode = 2
 
 [node name="Content" type="VBoxContainer" parent="Panel/Margin"]
 layout_mode = 2
-theme_override_constants/separation = 16
+theme_override_constants/separation = 12
 
 [node name="Title" type="Label" parent="Panel/Margin/Content"]
 layout_mode = 2
@@ -49,24 +49,61 @@ horizontal_alignment = 1
 theme_type_variation = &"HudChip"
 autowrap_mode = 2
 
+[node name="ModeRow" type="HBoxContainer" parent="Panel/Margin/Content"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="LoginMode" type="Button" parent="Panel/Margin/Content/ModeRow"]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+size_flags_horizontal = 3
+toggle_mode = true
+text = "LOG IN"
+
+[node name="RegisterMode" type="Button" parent="Panel/Margin/Content/ModeRow"]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+size_flags_horizontal = 3
+toggle_mode = true
+text = "REGISTER"
+
 [node name="Endpoint" type="LineEdit" parent="Panel/Margin/Content"]
+custom_minimum_size = Vector2(0, 48)
 layout_mode = 2
 placeholder_text = "Server URL (wss://…/ws)"
 text = ""
 
-[node name="Token" type="LineEdit" parent="Panel/Margin/Content"]
+[node name="Username" type="LineEdit" parent="Panel/Margin/Content"]
+custom_minimum_size = Vector2(0, 48)
 layout_mode = 2
-placeholder_text = "Login token"
-secret = true
+placeholder_text = "Username or email"
+max_length = 254
 
-[node name="Connect" type="Button" parent="Panel/Margin/Content"]
+[node name="Email" type="LineEdit" parent="Panel/Margin/Content"]
+visible = false
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+placeholder_text = "Email"
+max_length = 254
+
+[node name="Password" type="LineEdit" parent="Panel/Margin/Content"]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+placeholder_text = "Password (12+ characters to register)"
+secret = true
+max_length = 128
+
+[node name="Submit" type="Button" parent="Panel/Margin/Content"]
+custom_minimum_size = Vector2(0, 56)
 layout_mode = 2
 theme_type_variation = &"HeroButton"
-text = "CONNECT"
+text = "ENTER WORLD"
 
 [node name="Hint" type="Label" parent="Panel/Margin/Content"]
 layout_mode = 2
 theme_type_variation = &"BodyLabel"
-text = "The authoritative game server supplies player state."
+text = "The authoritative game server holds your account and position."
 horizontal_alignment = 1
 autowrap_mode = 2
+
+[node name="Http" type="HTTPRequest" parent="."]

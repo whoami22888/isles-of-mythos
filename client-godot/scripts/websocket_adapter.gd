@@ -9,6 +9,7 @@ var _url := ""
 var _token := ""
 var _attempt_active := false
 var _auth_sent := false
+var _authenticated := false
 
 func configure(url: String, token: String) -> void:
 	_url = url.strip_edges()
@@ -20,6 +21,7 @@ func connect_to_server() -> void:
 	_socket = WebSocketPeer.new()
 	_attempt_active = false
 	_auth_sent = false
+	_authenticated = false
 	if _url.is_empty():
 		status_changed.emit("No server endpoint configured")
 		return
@@ -53,10 +55,21 @@ func _process(_delta: float) -> void:
 		while _socket.get_available_packet_count() > 0:
 			var parsed = JSON.parse_string(_socket.get_packet().get_string_from_utf8())
 			if parsed is Dictionary:
+				if parsed.get("type", "") == "auth_ok":
+					_authenticated = true
 				message_received.emit(parsed)
 	elif state == WebSocketPeer.STATE_CLOSED:
 		_attempt_active = false
 		status_changed.emit("Disconnected" if _auth_sent else "Connection failed; check endpoint and server availability")
+
+func is_authenticated() -> bool:
+	return _authenticated
+
+# Sends one gameplay intent. Refused until the server has confirmed authentication.
+func send_message(payload: Dictionary) -> Error:
+	if not _attempt_active or not _authenticated or _socket.get_ready_state() != WebSocketPeer.STATE_OPEN:
+		return ERR_UNAVAILABLE
+	return _socket.send_text(JSON.stringify(payload))
 
 func _is_safe_authenticated_url(url: String) -> bool:
 	var pattern := RegEx.new()
