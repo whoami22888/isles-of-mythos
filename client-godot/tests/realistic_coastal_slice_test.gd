@@ -85,6 +85,10 @@ func run() -> void:
 					cliff_triangles += scene._triangle_count((mesh_node as MeshInstance3D).mesh)
 				ok = _check(cliff_triangles > 0 and cliff_triangles <= 90000, "cliff triangle cap") and ok
 		ok = _check(cliff_count == 3, "contract line 78") and ok
+		# Negative fixture: the unbounded source cliff must violate the same cap,
+		# proving the per-instance check above would catch a skipped LOD.
+		var unbounded := (scene.COASTAL_CLIFF_SCENE.instantiate().find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D).mesh
+		ok = _check(scene._triangle_count(unbounded) > 90000, "negative fixture: unbounded cliff source exceeds the cap") and ok
 		if premium_layer:
 			for child in premium_layer.get_children():
 				if child.scene_file_path.ends_with("island_tree_01_1k.gltf") or child.scene_file_path.ends_with("island_tree_02_1k.gltf"):

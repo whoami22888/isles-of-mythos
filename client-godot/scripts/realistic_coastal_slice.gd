@@ -25,13 +25,29 @@ const CINEMATIC_START_CAMERA := Vector3(21.0, 13.0, -17.0)
 const CINEMATIC_COAST_BIAS := 0.22
 const CINEMATIC_COAST_POINT := Vector3(4.0, 2.0, 10.0)
 const CINEMATIC_LOOK_TARGET := Vector3(1.0, 2.2, 1.0)
+# One deterministic shot path shared by the player-visible reveal and the
+# engine capture harness (tests/render_coastal_fx_sequence.gd). Raw waypoints
+# are *desired* camera positions; _safe_cinematic_position() turns each into a
+# pose that frames the whole vessel above the sea.
+const CINEMATIC_WAYPOINT_A := Vector3(-7.0, 4.8, -17.0)
+const CINEMATIC_WAYPOINT_B := Vector3(-2.5, 5.2, -21.0)
+const CINEMATIC_DURATION := 4.0
+const CINEMATIC_FPS := 24.0
+# Minimum camera height above the sea surface. The ocean surface is back-face
+# culled, so a camera at or below it exposes the finite seabed mesh and its
+# straight edge. Also keep a floor on elevation so the shot stays an elevated
+# three-quarter view (owner concept frames) rather than a waterline crawl.
+const CINEMATIC_MIN_CLEARANCE := 3.0
+const CINEMATIC_MIN_ELEVATION_DEG := 12.0
+const WATER_HALF_EXTENT := Vector2(320.0, 240.0)
+const CINEMATIC_WATER_MARGIN := 40.0
 
 var gameplay_camera: Camera3D
 var cinematic_camera: Camera3D
 var player_marker: Node3D
 var ship_focal: Node3D
 var _ship_base_position := Vector3.ZERO
-var _cinematic_tween: Tween
+var _cinematic_time := 0.0
 var _cinematic_active := false
 var _reduced_motion := false
 var _shore_binding: Dictionary = {}
@@ -652,10 +668,10 @@ func _safe_cinematic_position(camera: Camera3D, desired_position: Vector3) -> Ve
 	if bounds.size.length_squared() < 0.00001:
 		return Vector3(INF, INF, INF)
 	var centre := bounds.get_center()
-	var away := (desired_position - centre).normalized()
-	if away.length_squared() < 0.00001:
-		away = Vector3(-0.6, 0.3, -0.7).normalized()
-	var distance := maxf(0.5, desired_position.distance_to(centre))
+	var offset := desired_position - centre
+	if offset.length_squared() < 0.00001:
+		offset = Vector3(-0.6, 0.3, -0.7)
+	var distance := maxf(0.5, offset.length())
 	var safe_radius := bounds.size.length() * 0.5
 	var safe_angle := deg_to_rad(camera.fov * 0.45)
 	# Conservatively enclose the ship's *entire* AABB in a vertical frustum;
@@ -664,7 +680,57 @@ func _safe_cinematic_position(camera: Camera3D, desired_position: Vector3) -> Ve
 	# enclose that aim offset too or the far mast/hull can leave the frame.
 	var aim_offset := centre.distance_to(centre.lerp(CINEMATIC_COAST_POINT, CINEMATIC_COAST_BIAS))
 	var needed := (safe_radius + aim_offset) / maxf(0.05, sin(safe_angle))
-	return centre + away * maxf(distance, needed)
+	var radius := maxf(distance, needed)
+	# Work in (azimuth, elevation) about the ship centre. The previous code
+	# scaled the raw offset outward, so a waypoint below the (tall) rigging
+	# centre pushed the camera further DOWN as the framing radius grew; with
+	# the ship moving it ended under the sea surface.
+	var horizontal := Vector2(offset.x, offset.z)
+	if horizontal.length_squared() < 0.00001:
+		horizontal = Vector2(-0.6, -0.7)
+	horizontal = horizontal.normalized()
+	var elevation := maxf(asin(clampf(offset.y / distance, -1.0, 1.0)),
+		deg_to_rad(CINEMATIC_MIN_ELEVATION_DEG))
+	var min_camera_y := WATER_Y + CINEMATIC_MIN_CLEARANCE
+	elevation = maxf(elevation, asin(clampf((min_camera_y - centre.y) / radius, -1.0, 1.0)))
+	return centre + Vector3(horizontal.x * cos(elevation), sin(elevation),
+		horizontal.y * cos(elevation)) * radius
+
+
+## Raw (pre-framing) desired camera position at cinematic time `t` seconds.
+## Same easing as the former tween (Tween.TRANS_SINE / EASE_IN_OUT).
+func cinematic_raw_position_at(t: float) -> Vector3:
+	var progress := clampf(t / CINEMATIC_DURATION, 0.0, 1.0)
+	if progress < 0.5:
+		return CINEMATIC_START_CAMERA.lerp(CINEMATIC_WAYPOINT_A, _sine_in_out(progress * 2.0))
+	return CINEMATIC_WAYPOINT_A.lerp(CINEMATIC_WAYPOINT_B, _sine_in_out((progress - 0.5) * 2.0))
+
+
+static func _sine_in_out(x: float) -> float:
+	return 0.5 - 0.5 * cos(PI * clampf(x, 0.0, 1.0))
+
+
+## Single source of truth for the reveal pose: runtime playback and the
+## capture harness both call this with the same `t`, against the live ship.
+func apply_cinematic_time(camera: Camera3D, t: float) -> bool:
+	return frame_ship_cinematic(camera, cinematic_raw_position_at(t))
+
+
+## Pure validator for a cinematic camera pose; no scene state required.
+## `sealed` means the opaque ocean surface fully covers every downward view:
+## the camera is above the sea by the clearance floor and well inside the
+## water plane, so neither the seabed nor the finite terrain edge can show.
+static func evaluate_cinematic_pose(camera_position: Vector3) -> Dictionary:
+	var clearance := camera_position.y - WATER_Y
+	var inside_x := WATER_HALF_EXTENT.x - CINEMATIC_WATER_MARGIN - absf(camera_position.x)
+	var inside_z := WATER_HALF_EXTENT.y - CINEMATIC_WATER_MARGIN - absf(camera_position.z)
+	return {
+		"clearance": clearance,
+		"water_margin": minf(inside_x, inside_z),
+		"above_sea": clearance >= CINEMATIC_MIN_CLEARANCE - 0.001,
+		"inside_water": inside_x >= 0.0 and inside_z >= 0.0,
+		"sealed": clearance >= CINEMATIC_MIN_CLEARANCE - 0.001 and inside_x >= 0.0 and inside_z >= 0.0,
+	}
 
 
 func _build_cameras() -> void:
@@ -684,8 +750,6 @@ func _build_cameras() -> void:
 
 func set_gameplay_view() -> void:
 	_cinematic_active = false
-	if _cinematic_tween:
-		_cinematic_tween.kill()
 	if gameplay_camera:
 		gameplay_camera.current = true
 
@@ -696,34 +760,36 @@ func set_cinematic_view() -> void:
 func play_cinematic(reduced_motion := false) -> void:
 	_reduced_motion = reduced_motion
 	_cinematic_active = true
-	if _cinematic_tween:
-		_cinematic_tween.kill()
+	_cinematic_time = 0.0
 	set_cinematic_view()
 	# Every reveal starts from its authored establishing pose, including replay.
-	cinematic_camera.position = CINEMATIC_START_CAMERA
-	frame_ship_cinematic(cinematic_camera, cinematic_camera.global_position)
+	apply_cinematic_time(cinematic_camera, 0.0)
 	if _reduced_motion:
 		set_gameplay_view()
-		return
-	_cinematic_tween = create_tween()
-	# Stay seaward of the moving visual ship so the vessel and island remain
-	# in a coherent foreground/midground/background composition.
-	var waypoint_a := _safe_cinematic_position(cinematic_camera, Vector3(-7.0, 4.8, -17.0))
-	var waypoint_b := _safe_cinematic_position(cinematic_camera, Vector3(-2.5, 5.2, -21.0))
-	_cinematic_tween.tween_property(cinematic_camera, "global_position", waypoint_a, 2.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	_cinematic_tween.tween_property(cinematic_camera, "global_position", waypoint_b, 2.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	_cinematic_tween.finished.connect(set_gameplay_view)
 
 func skip_cinematic() -> void:
 	set_gameplay_view()
 
-func _process(_delta: float) -> void:
+## Advance the reveal by `delta` seconds of *simulated* time and return true
+## while it is still playing. _process() drives this at runtime; tests drive it
+## with fixed steps so runtime and capture are provably the same path.
+func advance_cinematic(delta: float) -> bool:
+	if not _cinematic_active or cinematic_camera == null or not cinematic_camera.current:
+		return false
+	_cinematic_time += delta
+	apply_cinematic_time(cinematic_camera, _cinematic_time)
+	if _cinematic_time >= CINEMATIC_DURATION:
+		set_gameplay_view()
+		return false
+	return true
+
+func _process(delta: float) -> void:
 	if ship_focal:
 		# Preserve navigation XZ; only render-bob the Y channel. Overwriting
 		# XZ here previously defeated any genuine vessel movement/VFX sampling.
 		ship_focal.position.y = _ship_base_position.y + sin(Time.get_ticks_msec() * 0.0012) * 0.035
 	if _cinematic_active and cinematic_camera and cinematic_camera.current:
 		# Follow the moving ship; fixed island look-at pushed the ship fully offscreen.
-		frame_ship_cinematic(cinematic_camera, cinematic_camera.global_position)
+		advance_cinematic(delta)
 	if _cinematic_active and (Input.is_action_just_pressed("ui_accept") or Input.is_action_just_pressed("ui_cancel")):
 		skip_cinematic()
