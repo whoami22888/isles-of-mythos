@@ -21,6 +21,7 @@ func _run() -> void:
 		_fail("Could not create boot UI evidence directory")
 		return
 	for viewport_size in SIZES:
+		root.content_scale_size = viewport_size
 		root.size = viewport_size
 		var scene: Control = packed.instantiate()
 		root.add_child(scene)
@@ -54,7 +55,7 @@ func _run() -> void:
 
 func _verify_layout(scene: Control, expected: Vector2i) -> bool:
 	if root.get_visible_rect().size != Vector2(expected):
-		_fail("Godot viewport does not match requested capture dimensions")
+		_fail("Godot viewport does not match requested capture dimensions: expected %s, got %s" % [expected, root.get_visible_rect().size])
 		return false
 	var viewport_rect := Rect2(Vector2.ZERO, Vector2(expected))
 	var panel: Control = scene.get_node("Panel")
