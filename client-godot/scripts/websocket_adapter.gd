@@ -26,8 +26,11 @@ signal reconnect_failed()
 # The tracked chunk subscription was replayed after a reconnect.
 signal resync_requested(chunk_count: int)
 
-const INBOUND_BUFFER_BYTES := 262144
-const MAX_PACKET_BYTES := 65536
+# The server caps only client->server frames (64 KiB). Server->client snapshots such
+# as the post-auth creature_party are not capped, so the inbound bound must admit
+# legitimate large snapshots: 1 MiB per packet inside a 2 MiB receive buffer.
+const INBOUND_BUFFER_BYTES := 2097152
+const MAX_PACKET_BYTES := 1048576
 const MAX_PACKETS_PER_FRAME_LIMIT := 256
 const MAX_ERROR_SIGNALS_PER_WINDOW := 8
 const MIN_ERROR_WINDOW_MSEC := 100

@@ -14,7 +14,7 @@ extends SceneTree
 
 const Adapter = preload("res://scripts/websocket_adapter.gd")
 const AUTH_OK := '{"type":"auth_ok"}'
-const FRAME_LIMIT := 65536
+const FRAME_LIMIT := 1048576
 
 var _failures := 0
 var _errors: Array = []
@@ -54,7 +54,7 @@ func _open_peer(server: TCPServer) -> WebSocketPeer:
 	if not arrived:
 		return null
 	var peer := WebSocketPeer.new()
-	peer.outbound_buffer_size = 262144
+	peer.outbound_buffer_size = 2097152
 	if peer.accept_stream(server.take_connection()) != OK:
 		return null
 	var opened := await _wait_until(func():
@@ -114,7 +114,7 @@ func run() -> void:
 	check(_messages.size() == 1 and _messages[0].get("type") == "auth_ok", "auth_ok must reach the consumer")
 	check(_errors.is_empty(), "No protocol errors expected so far")
 
-	peer.send_text("x".repeat(140000))
+	peer.send_text("x".repeat(FRAME_LIMIT + 4000))
 	peer.send_text("[1,2,3]")
 	peer.send_text("not json at all")
 	peer.send_text('{"type":"still_ok"}')
@@ -124,17 +124,23 @@ func run() -> void:
 	check(_errors.count("packet_not_json_object") == 2, "Non-object and invalid JSON must be reported as packet_not_json_object")
 	check(_messages.size() == 2 and _messages[1].get("type") == "still_ok", "A valid packet after bad ones must still be delivered")
 
-	# Inbound frame bound equals the server's 64 KiB frame limit. Measured
-	# headroom: the worst of 6,561 generated world chunks serialises to 4,626 bytes.
-	check(adapter.MAX_PACKET_BYTES == FRAME_LIMIT, "MAX_PACKET_BYTES must be 65536 (got %s)" % adapter.MAX_PACKET_BYTES)
+	# The server's 64 KiB limit applies to CLIENT->server frames only. Server->client
+	# snapshots (e.g. the full creature_party sent after auth, app.ts) are not capped
+	# server-side, so the client bound must admit legitimate large snapshots (Codex
+	# review finding on #217) while still being finite: 1 MiB.
+	check(adapter.MAX_PACKET_BYTES == FRAME_LIMIT, "MAX_PACKET_BYTES must be 1048576 (got %s)" % adapter.MAX_PACKET_BYTES)
+	var messages_before_large := _messages.size()
+	peer.send_text(_frame_of_size(200000))
+	await _wait_until(func(): return _messages.size() > messages_before_large, 3000, [peer])
+	check(_messages.size() == messages_before_large + 1 and _messages[-1].get("type") == "pad", "A 200000-byte snapshot (above the old 64 KiB cap) must be delivered")
 	var messages_before_boundary := _messages.size()
 	var errors_before_boundary := _errors.size()
 	peer.send_text(_frame_of_size(FRAME_LIMIT))
 	await _wait_until(func(): return _messages.size() > messages_before_boundary, 3000, [peer])
-	check(_messages.size() == messages_before_boundary + 1 and _messages[-1].get("type") == "pad", "A frame of exactly 65536 bytes must be delivered")
+	check(_messages.size() == messages_before_boundary + 1 and _messages[-1].get("type") == "pad", "A frame of exactly 1048576 bytes must be delivered")
 	peer.send_text(_frame_of_size(FRAME_LIMIT + 1))
 	await _wait_until(func(): return _errors.size() > errors_before_boundary, 3000, [peer])
-	check(_errors.size() == errors_before_boundary + 1 and _errors[-1] == "packet_too_large", "A frame of 65537 bytes must be rejected as packet_too_large")
+	check(_errors.size() == errors_before_boundary + 1 and _errors[-1] == "packet_too_large", "A frame of 1048577 bytes must be rejected as packet_too_large")
 
 	# max_packets_per_frame is clamped: zero/negative must never stall delivery.
 	adapter.max_packets_per_frame = 0
