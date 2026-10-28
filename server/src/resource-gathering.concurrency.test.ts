@@ -69,8 +69,10 @@ describe("resource gathering parallel authority", () => {
       const results = await Promise.allSettled(
         Array.from({ length: 6 }, () => gatherResource(db, userId, "same-request", "gather_resource|" + node.id, node)),
       );
-      const ok = results.filter((r): r is PromiseFulfilledResult<Awaited<ReturnType<typeof gatherResource>>> => r.status === "fulfilled");
-      expect(ok.length).toBeGreaterThanOrEqual(1);
+      // Every identical retry must replay the winner's result; none may be told the node is depleted.
+      const failures = results.flatMap((r) => (r.status === "rejected" ? [String(r.reason)] : []));
+      expect(failures).toEqual([]);
+      const ok = results as PromiseFulfilledResult<Awaited<ReturnType<typeof gatherResource>>>[];
       expect(new Set(ok.map((r) => r.value.transactionId)).size).toBe(1);
       const player = await db.query<{ inventory: Record<string, number> }>("SELECT inventory FROM player_profiles WHERE user_id=$1", [userId]);
       expect(total(player.rows[0]?.inventory)).toBe(ok[0]?.value.quantity);
