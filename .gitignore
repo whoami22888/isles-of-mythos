@@ -5,3 +5,10 @@ coverage/
 .vite/
 .DS_Store
 client-godot/.godot/
+
+# Redis persistence artifacts written by local redis-server runs
+dump.rdb
+*.rdb
+appendonly.aof
+appendonlydir/
+*.aof
