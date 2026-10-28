@@ -184,6 +184,43 @@ describe("shared detection state across backend instances (Redis)", () => {
     }
   });
 
+  it("leaves no shared lease when a disconnect overtakes a slow registration (real Redis)", async () => {
+    const userId = newUser();
+    class SlowLeaseStore extends RedisAntiCheatStateStore {
+      override async leaseSocket(...args: Parameters<RedisAntiCheatStateStore["leaseSocket"]>): Promise<number> {
+        await new Promise((resolve) => setTimeout(resolve, 150));
+        return super.leaseSocket(...args);
+      }
+    }
+    const a = new AntiCheatService({ store: new SlowLeaseStore({ url: REDIS_URL }) });
+    const probe = new RedisAntiCheatStateStore({ url: REDIS_URL });
+    try {
+      const connecting = a.connectSocket(userId, "slow-1");
+      await new Promise((resolve) => setTimeout(resolve, 20)); // registration is in flight
+      await a.disconnectSocket(userId, "slow-1");
+      await connecting;
+      expect(await probe.leaseSocket({ userId, socketId: "probe", ttlMs: 60_000 })).toBe(1);
+      // Rapid reconnect cycles, then 2+2 across instances still counts exactly the live sockets.
+      const b = redisService();
+      try {
+        for (let i = 0; i < 5; i += 1) {
+          void a.connectSocket(userId, "flap-" + i);
+          await a.disconnectSocket(userId, "flap-" + i);
+        }
+        await a.connectSocket(userId, "a-live");
+        expect(await b.connectSocket(userId, "b-live")).toBeNull();
+        expect(await probe.leaseSocket({ userId, socketId: "probe", ttlMs: 60_000 })).toBe(3);
+      } finally {
+        await b.close();
+      }
+    } finally {
+      await a.reset(userId);
+      await a.close();
+      await probe.clearUser(userId);
+      await probe.close();
+    }
+  });
+
   it("lets leases of a crashed instance expire instead of counting forever", async () => {
     const userId = newUser();
     const store = new RedisAntiCheatStateStore({ url: REDIS_URL });

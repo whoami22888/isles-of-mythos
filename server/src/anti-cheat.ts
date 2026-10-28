@@ -72,12 +72,13 @@ export class AntiCheatService {
   // Socket leases held by this process; refreshed on a timer so they outlive the TTL only while we are alive.
   private readonly leases = new Map<string, Set<string>>();
   private heartbeat: NodeJS.Timeout | null = null;
+  private readonly socketOperations = new Map<string, Promise<void>>();
 
   constructor(options: AntiCheatServiceOptions = {}) {
     this.primary = options.store ?? new MemoryAntiCheatStateStore();
     this.sink = options.sink;
     this.onDegraded = options.onDegraded;
-    for (const name of ["record", "observeMovement", "observePosition", "observeRejectedAction", "observeRequestDuplicate", "observeMultiSocket", "connectSocket"] as const) {
+    for (const name of ["record", "observeMovement", "observePosition", "observeRejectedAction", "observeRequestDuplicate", "observeMultiSocket", "connectSocket", "disconnectSocket"] as const) {
       const original = this[name].bind(this) as (...args: unknown[]) => Promise<unknown>;
       (this as unknown as Record<typeof name, typeof original>)[name] = (...args) => this.track(original(...args));
     }
@@ -297,16 +298,41 @@ export class AntiCheatService {
     held.add(socketId);
     this.leases.set(userId, held);
     this.startHeartbeat();
-    const count = await this.withStore((store) => store.leaseSocket({ userId, socketId, ttlMs: SOCKET_LEASE_TTL_MS, nowMs }));
-    return this.observeMultiSocket(userId, count, nowMs);
+    const count = await this.leaseIfHeld(userId, socketId, nowMs);
+    return count === null ? null : this.observeMultiSocket(userId, count, nowMs);
   }
 
   async disconnectSocket(userId: string, socketId: string): Promise<void> {
     const held = this.leases.get(userId);
     held?.delete(socketId);
     if (held && held.size === 0) this.leases.delete(userId);
-    await this.withStore((store) => store.releaseSocket(userId, socketId));
-    if (this.primary.kind !== "memory") await this.fallback.releaseSocket(userId, socketId);
+    // Queued behind any lease write for this socket, so a registration still waiting on the network cannot
+    // land after the release and leave a stale shared lease that other instances would count until the TTL.
+    await this.serializeSocket(userId, socketId, async () => {
+      await this.withStore((store) => store.releaseSocket(userId, socketId));
+      if (this.primary.kind !== "memory") await this.fallback.releaseSocket(userId, socketId);
+    });
+  }
+
+  /** Leases a socket only while this process still holds it; returns null when it was already disconnected. */
+  private leaseIfHeld(userId: string, socketId: string, nowMs?: number): Promise<number | null> {
+    return this.serializeSocket(userId, socketId, async () => {
+      if (!this.leases.get(userId)?.has(socketId)) return null;
+      return this.withStore((store) => store.leaseSocket({ userId, socketId, ttlMs: SOCKET_LEASE_TTL_MS, nowMs }));
+    });
+  }
+
+  /** Runs lease operations for one socket strictly in call order. */
+  private serializeSocket<T>(userId: string, socketId: string, operation: () => Promise<T>): Promise<T> {
+    const key = userId + "\u0000" + socketId;
+    const previous = this.socketOperations.get(key) ?? Promise.resolve();
+    const next = previous.then(operation, operation);
+    const tail = next.then(() => undefined, () => undefined);
+    this.socketOperations.set(key, tail);
+    void tail.then(() => {
+      if (this.socketOperations.get(key) === tail) this.socketOperations.delete(key);
+    });
+    return next;
   }
 
   private startHeartbeat(): void {
@@ -315,7 +341,7 @@ export class AntiCheatService {
       for (const [userId, sockets] of this.leases) {
         for (const socketId of sockets) {
           // Best effort: a failed refresh only lets the lease lapse, which under-counts, never over-counts.
-          void this.withStore((store) => store.leaseSocket({ userId, socketId, ttlMs: SOCKET_LEASE_TTL_MS })).catch(() => undefined);
+          void this.track(this.leaseIfHeld(userId, socketId)).catch(() => undefined);
         }
       }
     }, SOCKET_LEASE_TTL_MS / 3);

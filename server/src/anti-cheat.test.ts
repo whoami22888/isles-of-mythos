@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { AntiCheatService } from "./anti-cheat.js";
+import { MemoryAntiCheatStateStore } from "./anti-cheat-store.js";
 
 describe("anti-cheat evidence service", () => {
   it("records movement rate abuse with evidence and suspicion", async () => {
@@ -166,4 +167,50 @@ describe("anti-cheat evidence service", () => {
     expect(JSON.stringify(event)).not.toContain("socketId");
   });
 
+
+  describe("socket lease lifecycle", () => {
+    // A store whose lease write can be held back, to force a disconnect to overtake an in-flight registration.
+    class GatedStore extends MemoryAntiCheatStateStore {
+      entered: (() => void) | null = null;
+      release: (() => void) | null = null;
+      gate = false;
+      override async leaseSocket(...args: Parameters<MemoryAntiCheatStateStore["leaseSocket"]>): Promise<number> {
+        if (this.gate) {
+          this.gate = false;
+          await new Promise<void>((resolve) => {
+            this.release = resolve;
+            this.entered?.();
+          });
+        }
+        return super.leaseSocket(...args);
+      }
+    }
+
+    it("does not leave a lease behind when disconnect overtakes an in-flight registration", async () => {
+      const store = new GatedStore();
+      const service = new AntiCheatService({ store });
+      const entered = new Promise<void>((resolve) => {
+        store.entered = resolve;
+      });
+      store.gate = true;
+      const connecting = service.connectSocket("u1", "s1", 1_000);
+      await entered; // the lease write is now waiting on the (simulated) network
+      const disconnecting = service.disconnectSocket("u1", "s1");
+      store.release?.();
+      await Promise.all([connecting, disconnecting]);
+      // A fresh probe socket must be the only lease the shared store knows about.
+      expect(await store.leaseSocket({ userId: "u1", socketId: "probe", ttlMs: 60_000, nowMs: 1_100 })).toBe(1);
+      await service.close();
+    });
+
+    it("never registers a socket that was already disconnected before its lease ran", async () => {
+      const store = new GatedStore();
+      const service = new AntiCheatService({ store });
+      const first = service.connectSocket("u1", "s1", 1_000);
+      const second = service.disconnectSocket("u1", "s1");
+      await Promise.all([first, second]);
+      expect(await store.leaseSocket({ userId: "u1", socketId: "probe", ttlMs: 60_000, nowMs: 1_100 })).toBe(1);
+      await service.close();
+    });
+  });
 });
