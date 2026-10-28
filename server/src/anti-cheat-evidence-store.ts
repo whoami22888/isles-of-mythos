@@ -171,7 +171,7 @@ export class PostgresAntiCheatEvidenceSink implements AntiCheatEvidenceSink {
 
   private async insertIndividually(batch: PersistedAntiCheatEvidence[]): Promise<void> {
     for (let index = 0; index < batch.length; index += 1) {
-      const row = batch[index] as PersistedAntiCheatEvidence;
+      const row = batch[index];
       try {
         await this.insert([row]);
       } catch (error) {
