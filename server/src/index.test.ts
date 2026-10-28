@@ -269,7 +269,7 @@ describe("server foundation", () => {
           await expect(response).resolves.toEqual(outcome === "REPLAYED" ? originalAttack : { type: "error", code: "INVALID_MESSAGE" });
         }
         expect(duplicates.mock.calls.filter(call => call[1] === outcome)).toHaveLength(5);
-        expect(duplicates.mock.results.at(-1)?.value).toMatchObject({
+        expect(await duplicates.mock.results.at(-1)?.value).toMatchObject({
           type: "REQUEST_DUPLICATION", evidence: { reason: outcome, rejectedCount: 5 },
         });
       }
@@ -419,7 +419,7 @@ describe("server foundation", () => {
         clock.mockRestore();
       }
       expect(duplicates.mock.calls.filter(call => call[1] === "COALESCED")).toHaveLength(5);
-      expect(duplicates.mock.results.at(-1)?.value).toMatchObject({
+      expect(await duplicates.mock.results.at(-1)?.value).toMatchObject({
         type: "REQUEST_DUPLICATION", evidence: { reason: "COALESCED", rejectedCount: 5 },
       });
 
