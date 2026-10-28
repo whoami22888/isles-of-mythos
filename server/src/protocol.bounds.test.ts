@@ -108,6 +108,12 @@ describe("NET-04 gap 2: gold and price strings", () => {
     expect(parse({ type: "guild_bank_deposit", requestId: "r1", guildId: "g1", itemId: "i1", quantity: 0, gold: "0" })).toBeNull();
     expect(parse({ type: "guild_bank_withdraw", requestId: "r1", guildId: "g1", itemId: "i1", quantity: 0, gold: "0" })).toBeNull();
     expect(parse({ type: "guild_bank_deposit", requestId: "r1", guildId: "g1", itemId: "i1", quantity: 0, gold: "100" })).not.toBeNull();
+    // Gold-only treasury operations use an empty itemId (stored as NULL); must stay valid.
+    for (const type of ["guild_bank_deposit", "guild_bank_withdraw"] as const) {
+      expect(parse({ type, requestId: "r1", guildId: "g1", itemId: "", quantity: 0, gold: "100" }), `${type} gold-only`).not.toBeNull();
+      expect(parse({ type, requestId: "r1", guildId: "g1", itemId: "", quantity: 1, gold: "100" }), `${type} empty id with item`).toBeNull();
+      expect(parse({ type, requestId: "r1", guildId: "g1", itemId: "x".repeat(129), quantity: 0, gold: "100" }), `${type} oversize id`).toBeNull();
+    }
   });
 
   it("rejects malformed auction prices", () => {
