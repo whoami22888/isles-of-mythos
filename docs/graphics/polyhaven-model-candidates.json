@@ -7,7 +7,11 @@
     "island_tree_01",
     "island_tree_02",
     "coastal_cliff_01",
-    "rock_moss_set_01"
+    "rock_moss_set_01",
+    "dutch_ship_large_01",
+    "dutch_ship_medium",
+    "ship_pinnace",
+    "modular_wooden_pier"
   ],
   "files": [
     {
@@ -169,6 +173,280 @@
       "path": "rock_moss_set_01/textures/rock_moss_set_01_rough_1k.jpg",
       "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/rock_moss_set_01/rock_moss_set_01_rough_1k.jpg",
       "sha256": "4d6ec46623abd8e2cdb855f59c7ce31873ad61b36b60e4de579e9e776a497c6b"
+    },
+    {
+      "path": "dutch_ship_large_01/dutch_ship_large_01_1k.gltf",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/dutch_ship_large_01/dutch_ship_large_01_1k.gltf",
+      "sha256": "fd17c359e618f0efba1c07b03742d9e896923c0797ed95ad8a57a7fccc0c7a78"
+    },
+    {
+      "path": "dutch_ship_large_01/textures/dutch_ship_large_01_sails_nor_gl_1k.jpg",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/dutch_ship_large_01/dutch_ship_large_01_sails_nor_gl_1k.jpg",
+      "sha256": "3ba665979b047c91386e89a855d1b9038f1c2e5cda116ecea1a54f976cf12fa4"
+    },
+    {
+      "path": "dutch_ship_large_01/textures/dutch_ship_large_01_rigging_diff_1k.jpg",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/dutch_ship_large_01/dutch_ship_large_01_rigging_diff_1k.jpg",
+      "sha256": "e88492e5cceef5b17e31d727b7d67ddce07ca58418e86581d845b949df2cb2d7"
+    },
+    {
+      "path": "dutch_ship_large_01/textures/dutch_ship_large_01_sails_arm_1k.jpg",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/dutch_ship_large_01/dutch_ship_large_01_sails_arm_1k.jpg",
+      "sha256": "ecc0c3b7903ae642cd74214d6a20e6804386cab98759c2f0738a6b0268f825c5"
+    },
+    {
+      "path": "dutch_ship_large_01/textures/dutch_ship_large_01_sails_diff_1k.jpg",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/dutch_ship_large_01/dutch_ship_large_01_sails_diff_1k.jpg",
+      "sha256": "0a877ee5b446ee5fe624618b3bc7224bd4555a077804c4f1afe61d8ae4600147"
+    },
+    {
+      "path": "dutch_ship_large_01/textures/dutch_ship_large_01_hull_diff_1k.jpg",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/dutch_ship_large_01/dutch_ship_large_01_hull_diff_1k.jpg",
+      "sha256": "8bb56d0a31b08c5ca133041cf703daa33d6742d6df0d267c7fe5eced45c9d605"
+    },
+    {
+      "path": "dutch_ship_large_01/dutch_ship_large_01.bin",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/4k/dutch_ship_large_01/dutch_ship_large_01.bin",
+      "sha256": "b5e8a7007b2522e5a438e2a072324003ca41cb5c198ee0e99202edb824dba07b"
+    },
+    {
+      "path": "dutch_ship_large_01/textures/dutch_ship_large_01_rigging_nor_gl_1k.jpg",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/dutch_ship_large_01/dutch_ship_large_01_rigging_nor_gl_1k.jpg",
+      "sha256": "1a6c2fd46ba46239c6fe8d19b7462d86252f161d2dc21954780c12addbb6622c"
+    },
+    {
+      "path": "dutch_ship_large_01/textures/dutch_ship_large_01_hull_arm_1k.jpg",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/dutch_ship_large_01/dutch_ship_large_01_hull_arm_1k.jpg",
+      "sha256": "10274d6f3815b73f559a920d01a7e9df8feba2ee2e3f574fdc106cedd769106b"
+    },
+    {
+      "path": "dutch_ship_large_01/textures/dutch_ship_large_01_rigging_arm_1k.jpg",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/dutch_ship_large_01/dutch_ship_large_01_rigging_arm_1k.jpg",
+      "sha256": "7429a00828ab899e00460c128e06dcd8fb291ab906f4af9a5bd49568e6d3062e"
+    },
+    {
+      "path": "dutch_ship_large_01/textures/dutch_ship_large_01_hull_nor_gl_1k.jpg",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/dutch_ship_large_01/dutch_ship_large_01_hull_nor_gl_1k.jpg",
+      "sha256": "9f2c281b1b34182a8487cb2358d5e926bd1b2a5b898e8a22d17e0c4a5de9fb23"
+    },
+    {
+      "path": "dutch_ship_medium/dutch_ship_medium_1k.gltf",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/dutch_ship_medium/dutch_ship_medium_1k.gltf",
+      "sha256": "208112252d4f83a9c404563371053820a90963a53b465fd6c745b16868f4bade"
+    },
+    {
+      "path": "dutch_ship_medium/textures/dutch_ship_medium_hull_arm_1k.jpg",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/dutch_ship_medium/dutch_ship_medium_hull_arm_1k.jpg",
+      "sha256": "10274d6f3815b73f559a920d01a7e9df8feba2ee2e3f574fdc106cedd769106b"
+    },
+    {
+      "path": "dutch_ship_medium/textures/dutch_ship_medium_sails_diff_1k.jpg",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/dutch_ship_medium/dutch_ship_medium_sails_diff_1k.jpg",
+      "sha256": "0a877ee5b446ee5fe624618b3bc7224bd4555a077804c4f1afe61d8ae4600147"
+    },
+    {
+      "path": "dutch_ship_medium/textures/dutch_ship_medium_rigging_arm_1k.jpg",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/dutch_ship_medium/dutch_ship_medium_rigging_arm_1k.jpg",
+      "sha256": "7429a00828ab899e00460c128e06dcd8fb291ab906f4af9a5bd49568e6d3062e"
+    },
+    {
+      "path": "dutch_ship_medium/dutch_ship_medium.bin",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/4k/dutch_ship_medium/dutch_ship_medium.bin",
+      "sha256": "7ff5d886d3baea1f60afdc17c50b99029d7abca159db10212c89c95e39c5437e"
+    },
+    {
+      "path": "dutch_ship_medium/textures/dutch_ship_medium_hull_nor_gl_1k.jpg",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/dutch_ship_medium/dutch_ship_medium_hull_nor_gl_1k.jpg",
+      "sha256": "9f2c281b1b34182a8487cb2358d5e926bd1b2a5b898e8a22d17e0c4a5de9fb23"
+    },
+    {
+      "path": "dutch_ship_medium/textures/dutch_ship_medium_rigging_nor_gl_1k.jpg",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/dutch_ship_medium/dutch_ship_medium_rigging_nor_gl_1k.jpg",
+      "sha256": "1a6c2fd46ba46239c6fe8d19b7462d86252f161d2dc21954780c12addbb6622c"
+    },
+    {
+      "path": "dutch_ship_medium/textures/dutch_ship_medium_sails_arm_1k.jpg",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/dutch_ship_medium/dutch_ship_medium_sails_arm_1k.jpg",
+      "sha256": "ecc0c3b7903ae642cd74214d6a20e6804386cab98759c2f0738a6b0268f825c5"
+    },
+    {
+      "path": "dutch_ship_medium/textures/dutch_ship_medium_hull_diff_1k.jpg",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/dutch_ship_medium/dutch_ship_medium_hull_diff_1k.jpg",
+      "sha256": "8bb56d0a31b08c5ca133041cf703daa33d6742d6df0d267c7fe5eced45c9d605"
+    },
+    {
+      "path": "dutch_ship_medium/textures/dutch_ship_medium_sails_nor_gl_1k.jpg",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/dutch_ship_medium/dutch_ship_medium_sails_nor_gl_1k.jpg",
+      "sha256": "3ba665979b047c91386e89a855d1b9038f1c2e5cda116ecea1a54f976cf12fa4"
+    },
+    {
+      "path": "dutch_ship_medium/textures/dutch_ship_medium_rigging_diff_1k.jpg",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/dutch_ship_medium/dutch_ship_medium_rigging_diff_1k.jpg",
+      "sha256": "e88492e5cceef5b17e31d727b7d67ddce07ca58418e86581d845b949df2cb2d7"
+    },
+    {
+      "path": "modular_wooden_pier/modular_wooden_pier_1k.gltf",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/modular_wooden_pier/modular_wooden_pier_1k.gltf",
+      "sha256": "eeea9853deb63e43510f8d9d6af21963c88adab77e17ccac9f9b8d3a7d34a923"
+    },
+    {
+      "path": "modular_wooden_pier/textures/modular_wooden_pier_poles_arm_1k.jpg",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/modular_wooden_pier/modular_wooden_pier_poles_arm_1k.jpg",
+      "sha256": "dacaff86f936bef10220aa60843efadae53039f064ad1a6fad735b912f1ba285"
+    },
+    {
+      "path": "modular_wooden_pier/modular_wooden_pier.bin",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/8k/modular_wooden_pier/modular_wooden_pier.bin",
+      "sha256": "6ec10b84aaaa02800b095850fc92cf850632e5becd76698dc6609f40f05e1b60"
+    },
+    {
+      "path": "modular_wooden_pier/textures/modular_wooden_pier_planks_arm_1k.jpg",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/modular_wooden_pier/modular_wooden_pier_planks_arm_1k.jpg",
+      "sha256": "4c03bcee7d0fb9708be5e5ebc4dd5fd73789f4eb24b6391dff6167f11c3ce95d"
+    },
+    {
+      "path": "modular_wooden_pier/textures/modular_wooden_pier_planks_diff_1k.jpg",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/modular_wooden_pier/modular_wooden_pier_planks_diff_1k.jpg",
+      "sha256": "2670a7eae2a3104e8537e61d90a8d8b169c7eb0f69b51622bec10e9472dc4573"
+    },
+    {
+      "path": "modular_wooden_pier/textures/modular_wooden_pier_poles_diff_1k.jpg",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/modular_wooden_pier/modular_wooden_pier_poles_diff_1k.jpg",
+      "sha256": "da9e017b41e052d5e47558bb98e61b577f66e9d44eb2d26dc9b085e317bede9e"
+    },
+    {
+      "path": "modular_wooden_pier/textures/modular_wooden_pier_poles_nor_gl_1k.jpg",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/modular_wooden_pier/modular_wooden_pier_poles_nor_gl_1k.jpg",
+      "sha256": "9b2d7ca04642e249428969fa32189f36fcea8577a282dbccca1ac15d59dce18e"
+    },
+    {
+      "path": "modular_wooden_pier/textures/modular_wooden_pier_planks_nor_gl_1k.jpg",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/modular_wooden_pier/modular_wooden_pier_planks_nor_gl_1k.jpg",
+      "sha256": "b23d7b0c23c9a41d50b7e1691e183902765aa4c21ac6ca6da678e874c4ddfb04"
+    },
+    {
+      "path": "ship_pinnace/ship_pinnace_1k.gltf",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/ship_pinnace/ship_pinnace_1k.gltf",
+      "sha256": "668298cada1731ec93886bb7ec2f170bbbf45575d341b838a09580199fdf5ec5"
+    },
+    {
+      "path": "ship_pinnace/textures/ship_pinnace_rigging_diff_1k.jpg",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/ship_pinnace/ship_pinnace_rigging_diff_1k.jpg",
+      "sha256": "8964c211b0462bc0546ad175cd492718b3a4019a47ae2c23c82eb824272c032a"
+    },
+    {
+      "path": "ship_pinnace/textures/ship_pinnace_sails_diff_1k.jpg",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/ship_pinnace/ship_pinnace_sails_diff_1k.jpg",
+      "sha256": "8aedb5c11ce8fec0ee9e2c369848e5fa3d41df299e1f886a25f0ae3b6587f5c0"
+    },
+    {
+      "path": "ship_pinnace/textures/ship_pinnace_deck_diff_1k.jpg",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/ship_pinnace/ship_pinnace_deck_diff_1k.jpg",
+      "sha256": "24ff82bf815607a3f4376d0fdb8df2a70437e9d4df77a059da39d685de8837ec"
+    },
+    {
+      "path": "ship_pinnace/textures/ship_pinnace_aft_arm_1k.jpg",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/ship_pinnace/ship_pinnace_aft_arm_1k.jpg",
+      "sha256": "4ad6d2bf79e7e0aab89519543c65cf2a122ece1c940b7fd23846151131b1a061"
+    },
+    {
+      "path": "ship_pinnace/textures/ship_pinnace_rigging_arm_1k.jpg",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/ship_pinnace/ship_pinnace_rigging_arm_1k.jpg",
+      "sha256": "86d7d6e3c8f2753db4fb22ad44cf52e361b858a4f3ad76c13435b8d385a2197e"
+    },
+    {
+      "path": "ship_pinnace/textures/ship_pinnace_details_nor_gl_1k.jpg",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/ship_pinnace/ship_pinnace_details_nor_gl_1k.jpg",
+      "sha256": "d38b20a57225153d97214184893b4e785b9312f776556af2f297aa6a446fcb56"
+    },
+    {
+      "path": "ship_pinnace/textures/ship_pinnace_deck_nor_gl_1k.jpg",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/ship_pinnace/ship_pinnace_deck_nor_gl_1k.jpg",
+      "sha256": "1362d0b0e48a7ce8ebcb154fd1d366efff2ba62fbf6398e15a89240fa4c84c9f"
+    },
+    {
+      "path": "ship_pinnace/textures/ship_pinnace_rigging_nor_gl_1k.jpg",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/ship_pinnace/ship_pinnace_rigging_nor_gl_1k.jpg",
+      "sha256": "d6d895880d64043288771bfdf0db79511c2e5d4541fd60bc693a4464f826a763"
+    },
+    {
+      "path": "ship_pinnace/textures/ship_pinnace_interior_nor_gl_1k.jpg",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/ship_pinnace/ship_pinnace_interior_nor_gl_1k.jpg",
+      "sha256": "47b7da411c5936c755e935f20f6480af0dd9e8bc6c47d1b16464014e15d733d9"
+    },
+    {
+      "path": "ship_pinnace/ship_pinnace.bin",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/4k/ship_pinnace/ship_pinnace.bin",
+      "sha256": "2066c551c756ca1bef9a03d8b2f7ee980b56f69eddf1682531899e9bcf2539db"
+    },
+    {
+      "path": "ship_pinnace/textures/ship_pinnace_hull_diff_1k.jpg",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/ship_pinnace/ship_pinnace_hull_diff_1k.jpg",
+      "sha256": "0fc6ae7bab8fb36aa3ae58bd5dc0d794854370b3be3ed72eb25c52f801877d00"
+    },
+    {
+      "path": "ship_pinnace/textures/ship_pinnace_hull_nor_gl_1k.jpg",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/ship_pinnace/ship_pinnace_hull_nor_gl_1k.jpg",
+      "sha256": "0c303af6b5f28d0cd1d366e264cfbfb0021e4b297478e7f9948c0435ef7e2028"
+    },
+    {
+      "path": "ship_pinnace/textures/ship_pinnace_sails_arm_1k.jpg",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/ship_pinnace/ship_pinnace_sails_arm_1k.jpg",
+      "sha256": "625a1a3e82d20ddba3ad6a05c5a9223ad0f1ab7690b04f1acec9be526a63a1df"
+    },
+    {
+      "path": "ship_pinnace/textures/ship_pinnace_hull_arm_1k.jpg",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/ship_pinnace/ship_pinnace_hull_arm_1k.jpg",
+      "sha256": "938e234941aa39fc514f14025c4f1941fa5ab59f18b426f96b8e0057a7731c2b"
+    },
+    {
+      "path": "ship_pinnace/textures/ship_pinnace_interior_diff_1k.jpg",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/ship_pinnace/ship_pinnace_interior_diff_1k.jpg",
+      "sha256": "82fcb97bf757f97ddba5a72e0ccee76a163a2f13e574b13f480d06bc1a8e8e57"
+    },
+    {
+      "path": "ship_pinnace/textures/ship_pinnace_interior_arm_1k.jpg",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/ship_pinnace/ship_pinnace_interior_arm_1k.jpg",
+      "sha256": "0bd7db3c15984cd3abb63e3aa185f4e07132bc30a8e96d64a8070d4cff50e6f9"
+    },
+    {
+      "path": "ship_pinnace/textures/ship_pinnace_aft_diff_1k.jpg",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/ship_pinnace/ship_pinnace_aft_diff_1k.jpg",
+      "sha256": "1f068682360f7f1a99bb8f6da817ef1264c8f648de505555eeff84d2c5b76c6a"
+    },
+    {
+      "path": "ship_pinnace/textures/ship_pinnace_deck_arm_1k.jpg",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/ship_pinnace/ship_pinnace_deck_arm_1k.jpg",
+      "sha256": "438d31dfa17b043242ec4984edbc719be217b5a42dfd05f28a670a862c123a9d"
+    },
+    {
+      "path": "ship_pinnace/textures/ship_pinnace_sails_nor_gl_1k.jpg",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/ship_pinnace/ship_pinnace_sails_nor_gl_1k.jpg",
+      "sha256": "f27589c79ebb986e865e4492506e4ce6633c2896a721f980734f159c13fd00ef"
+    },
+    {
+      "path": "ship_pinnace/textures/ship_pinnace_details_arm_1k.jpg",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/ship_pinnace/ship_pinnace_details_arm_1k.jpg",
+      "sha256": "e0f4f97183c5559fd549c3ef35385646d613acd666338c4062643d2890d3e73c"
+    },
+    {
+      "path": "ship_pinnace/textures/ship_pinnace_aft_nor_gl_1k.jpg",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/ship_pinnace/ship_pinnace_aft_nor_gl_1k.jpg",
+      "sha256": "927077bb68b306e5eac3c7aaabb5ea07b26d66b91b1efdfee2ea2c0ece4da053"
+    },
+    {
+      "path": "ship_pinnace/textures/ship_pinnace_details_diff_1k.jpg",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/ship_pinnace/ship_pinnace_details_diff_1k.jpg",
+      "sha256": "ef2359e86687fc4b5527ab622f9c7d787960cbe2d5ca56266b433ae42f678534"
     }
-  ]
+  ],
+  "intended_use": {
+    "dutch_ship_large_01": "galleon (harbour hero vessel); requires bounded LODs before import",
+    "dutch_ship_medium": "brigantine (player starter vessel); requires bounded LODs before import",
+    "ship_pinnace": "sloop / diving_skiff; requires bounded LODs before import",
+    "modular_wooden_pier": "harbour_docks environment kit"
+  },
+  "rejected": {
+    "cannon_01": "2026-10-28: served cannon_01.bin (1198792 B) does not match Poly Haven API size/md5 (1143768 B, 1fe0c83d...); not staged until upstream metadata is consistent"
+  }
 }
