@@ -350,6 +350,23 @@ describe("durable evidence (PostgreSQL)", () => {
     await sink.close();
   });
 
+  it("persists evidence from observations still in flight when the service is closed", async () => {
+    const user = newUser();
+    class SlowStore extends MemoryAntiCheatStateStore {
+      override async addSuspicion(...args: Parameters<MemoryAntiCheatStateStore["addSuspicion"]>) {
+        await new Promise((resolve) => setTimeout(resolve, 150));
+        return super.addSuspicion(...args);
+      }
+    }
+    const sink = new PostgresAntiCheatEvidenceSink(pool, { flushIntervalMs: 60_000 });
+    const service = new AntiCheatService({ store: new SlowStore(), sink });
+    // Handlers fire observations without awaiting them; shutdown begins while one is still waiting on its store.
+    void service.record(user, "IMPOSSIBLE_MOVEMENT", "HIGH", { n: 1 });
+    await service.close();
+    const stored = await listStoredEvidence(pool, user);
+    expect(stored.map((row) => row.evidence.n)).toEqual([1]);
+  });
+
   it("keeps escape-heavy evidence under the database size limit instead of failing the insert", async () => {
     const userId = newUser();
     const sink = new PostgresAntiCheatEvidenceSink(pool, { flushIntervalMs: 60_000 });

@@ -66,11 +66,31 @@ export class AntiCheatService {
   private primaryRetryAtMs = 0;
   private lastDegradedLogMs = Number.NEGATIVE_INFINITY;
   private degradedCount = 0;
+  // Handlers start observations without awaiting them; shutdown must wait for them or their evidence is lost.
+  private readonly inflight = new Set<Promise<unknown>>();
 
   constructor(options: AntiCheatServiceOptions = {}) {
     this.primary = options.store ?? new MemoryAntiCheatStateStore();
     this.sink = options.sink;
     this.onDegraded = options.onDegraded;
+    for (const name of ["record", "observeMovement", "observePosition", "observeRejectedAction", "observeRequestDuplicate", "observeMultiSocket"] as const) {
+      const original = this[name].bind(this) as (...args: unknown[]) => Promise<unknown>;
+      (this as unknown as Record<typeof name, typeof original>)[name] = (...args) => this.track(original(...args));
+    }
+  }
+
+  private track<T>(operation: Promise<T>): Promise<T> {
+    this.inflight.add(operation);
+    const release = (): void => {
+      this.inflight.delete(operation);
+    };
+    operation.then(release, release);
+    return operation;
+  }
+
+  /** Waits for every observation started so far (each store call is individually time-bounded). */
+  private async drainInflight(): Promise<void> {
+    while (this.inflight.size > 0) await Promise.allSettled([...this.inflight]);
   }
 
   /** Number of observations served from process-local fallback state because the primary store failed. */
@@ -284,10 +304,12 @@ export class AntiCheatService {
   }
 
   async flush(): Promise<void> {
+    await this.drainInflight();
     await this.sink?.flush();
   }
 
   async close(): Promise<void> {
+    await this.drainInflight();
     await this.sink?.close();
     await this.primary.close();
     await this.fallback.close();
