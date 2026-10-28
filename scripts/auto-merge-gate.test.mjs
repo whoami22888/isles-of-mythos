@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import {
   BASE_CHECKS, CODEX_REVIEWER, changedPaths, modifiesProtectedVerification, applicableChecks, visualRequired,
   trustedCodexReceipt, hasBlockingCodexFinding, requiredRunsPassed, resolveMergeability,
-  WORLD_CONTENT_PATHS, COASTAL_FX_PATHS
+  WORLD_CONTENT_PATHS, COASTAL_FX_PATHS, trustedCodexNoFindingsComments, codexSummaryState
 } from "./auto-merge-gate.mjs";
 
 const sha = "a".repeat(40);
@@ -176,4 +176,44 @@ test("auto-merge workflow_run list names every gate-required workflow", () => {
   assert.match(policy, /IOM Coastal Ship FX Integration/);
   for (const name of applicableChecks([...WORLD_CONTENT_PATHS, ...COASTAL_FX_PATHS, "client-godot/assets/a.png", "scripts/stage_polyhaven_coast.py"]))
     assert.ok(policy.includes(name), name);
+});
+
+// Genuine no-findings Codex reviews arrive as bot-authored issue comments, not formal review objects.
+const bot = { login: CODEX_REVIEWER, type: "Bot" };
+const state = (overrides = {}, commit = sha) => "<!-- codex-pull-request-review-summary -->\n<!-- codex-review-state:v1 " +
+  JSON.stringify({ code_review: { commit_sha: commit, has_any_findings: false, has_unresolved_findings: false,
+    status: "completed", ...overrides }, security_review: { commit_sha: null } })
+    .replaceAll("{", "&#123;").replaceAll("}", "&#125;") + " -->\n## Codex Review Summary";
+const summaryComment = (overrides, commit) => ({ user: bot, body: state(overrides, commit) });
+const receiptComment = (short = sha.slice(0, 10)) => ({ user: bot,
+  body: "<!-- codex-review-receipt:v1 -->\n\nCodex Review: Didn't find any major issues.\n\n**Reviewed commit:** `" + short + "`" });
+
+test("exact-SHA no-findings bot summary plus bot receipt comments are accepted", () => {
+  assert.equal(trustedCodexNoFindingsComments([summaryComment(), receiptComment()], sha), true);
+  assert.equal(trustedCodexNoFindingsComments([summaryComment(), receiptComment(sha)], sha), true);
+  assert.deepEqual(codexSummaryState(state()).code_review.status, "completed");
+});
+
+test("no-findings comment evidence fails closed on any deviation", () => {
+  const ok = [summaryComment(), receiptComment()];
+  assert.equal(trustedCodexNoFindingsComments([summaryComment()], sha), false, "summary alone");
+  assert.equal(trustedCodexNoFindingsComments([receiptComment()], sha), false, "receipt alone");
+  for (const overrides of [{ has_any_findings: true }, { has_unresolved_findings: true },
+    { status: "running" }, { has_any_findings: null }, { has_unresolved_findings: undefined }])
+    assert.equal(trustedCodexNoFindingsComments([summaryComment(overrides), receiptComment()], sha), false, JSON.stringify(overrides));
+  assert.equal(trustedCodexNoFindingsComments([summaryComment({}, "b".repeat(40)), receiptComment()], sha), false, "other SHA summary");
+  assert.equal(trustedCodexNoFindingsComments([summaryComment(), receiptComment("b".repeat(10))], sha), false, "other SHA receipt");
+  assert.equal(trustedCodexNoFindingsComments([summaryComment(), receiptComment("aaaaaaaaa")], sha), false, "short prefix");
+  for (const user of [{ login: "attacker-codex", type: "Bot" }, { login: CODEX_REVIEWER, type: "User" }, { login: "whoami22888", type: "User" }, null])
+    assert.equal(trustedCodexNoFindingsComments([{ ...summaryComment(), user }, { ...receiptComment(), user }], sha), false, JSON.stringify(user));
+  assert.equal(trustedCodexNoFindingsComments([{ user: bot, body: "<!-- codex-review-state:v1 not json -->" }, receiptComment()], sha), false, "malformed");
+  assert.equal(trustedCodexNoFindingsComments(ok, "not-a-sha"), false);
+  assert.equal(trustedCodexNoFindingsComments(null, sha), false);
+});
+
+test("auto-merge workflow reacts to bot issue comments and keeps protected-file refusal", () => {
+  const policy = readFileSync(".github/workflows/verified-codex-auto-merge.yml", "utf8");
+  assert.match(policy, /github\.event\.comment\.user\.login == 'chatgpt-codex-connector\[bot\]'/);
+  assert.equal(modifiesProtectedVerification(["scripts/auto-merge-gate.mjs"]), true);
+  assert.equal(modifiesProtectedVerification([".github/workflows/verified-codex-auto-merge.yml"]), true);
 });
