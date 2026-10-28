@@ -28,6 +28,35 @@ describe("NET-04 gap 1: bounded jsonb payloads", () => {
     expect(parse(order({ blob: long(8000) }))).toBeNull();
   });
 
+  it("measures the size cap in UTF-8 bytes, not UTF-16 code units", () => {
+    const layout: Record<string, string> = {};
+    for (let i = 0; i < 12; i += 1) layout[`k${i}`] = "\u00e9".repeat(200);
+    const json = JSON.stringify(layout);
+    expect(json.length).toBeLessThan(4096);
+    expect(Buffer.byteLength(json, "utf8")).toBeGreaterThan(4096);
+    expect(parse(formation(layout))).toBeNull();
+    expect(parse(order(layout))).toBeNull();
+  });
+
+  it("accepts a payload at exactly 4096 UTF-8 bytes and rejects 4097", () => {
+    const withTail = (n: number) => {
+      const layout: Record<string, string> = {};
+      for (let i = 0; i < 15; i += 1) layout[`k${i}`] = "x".repeat(250);
+      layout.tail = "x".repeat(n);
+      return layout;
+    };
+    const base = Buffer.byteLength(JSON.stringify(withTail(0)), "utf8");
+    const fill = 4096 - base;
+    expect(fill).toBeGreaterThan(0);
+    expect(fill).toBeLessThanOrEqual(256);
+    expect(Buffer.byteLength(JSON.stringify(withTail(fill)), "utf8")).toBe(4096);
+    expect(parse(formation(withTail(fill)))).not.toBeNull();
+    expect(parse(order(withTail(fill)))).not.toBeNull();
+    expect(Buffer.byteLength(JSON.stringify(withTail(fill + 1)), "utf8")).toBe(4097);
+    expect(parse(formation(withTail(fill + 1)))).toBeNull();
+    expect(parse(order(withTail(fill + 1)))).toBeNull();
+  });
+
   it("rejects deeply nested payloads", () => {
     expect(parse(formation(nested(20)))).toBeNull();
     expect(parse(order(nested(20)))).toBeNull();
@@ -238,6 +267,10 @@ describe("NET-04 gap 4: unbounded numerics", () => {
   it("bounds auction level filters", () => {
     const base = { type: "auction_list", requestId: "r1", itemId: null, minPrice: null, maxPrice: null };
     expect(parse({ ...base, minLevel: 1, maxLevel: 50 })).not.toBeNull();
+    expect(parse({ ...base, minLevel: 100, maxLevel: 100 })).not.toBeNull();
+    expect(parse({ ...base, minLevel: 0 })).toBeNull();
+    expect(parse({ ...base, maxLevel: 0 })).toBeNull();
+    expect(parse({ ...base, maxLevel: 101 })).toBeNull();
     expect(parse({ ...base, minLevel: -1 })).toBeNull();
     expect(parse({ ...base, maxLevel: Number.MAX_SAFE_INTEGER })).toBeNull();
     expect(parse({ ...base, minLevel: 10, maxLevel: 5 })).toBeNull();

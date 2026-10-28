@@ -243,7 +243,7 @@ function boundedJsonValue(value:unknown,depth:number,budget:{nodes:number}):bool
 function boundedJsonRecord(value:unknown):value is Record<string,unknown>{
   if(!recordValue(value))return false;
   if(!boundedJsonValue(value,0,{nodes:0}))return false;
-  return JSON.stringify(value).length<=JSON_MAX_BYTES;
+  return Buffer.byteLength(JSON.stringify(value),"utf8")<=JSON_MAX_BYTES;
 }
 
 const isAuctionRarity = (value: unknown): value is AuctionRarity => typeof value === "string" && ["common","uncommon","rare","epic","legendary","mythic"].includes(value);
@@ -399,7 +399,7 @@ export function parseClientMessage(raw:string):ClientMessage|null{
       const id=(value as {requestId?:unknown}).requestId,item=(value as {itemId?:unknown}).itemId;
       const rarityRaw=(value as {rarity?:unknown}).rarity,categoryRaw=(value as {category?:unknown}).category,minLevelRaw=(value as {minLevel?:unknown}).minLevel,maxLevelRaw=(value as {maxLevel?:unknown}).maxLevel,min=(value as {minPrice?:unknown}).minPrice,max=(value as {maxPrice?:unknown}).maxPrice;
       const rarity=rarityRaw===undefined?null:rarityRaw,category=categoryRaw===undefined?null:categoryRaw,minLevel=minLevelRaw===undefined?null:minLevelRaw,maxLevel=maxLevelRaw===undefined?null:maxLevelRaw;
-      return requestId(id)&&optionalId(item,128)&&(rarity===null||isAuctionRarity(rarity))&&(category===null||isAuctionCategory(category))&&(minLevel===null||(isSafeInteger(minLevel)&&minLevel>=0&&minLevel<=1000))&&(maxLevel===null||(isSafeInteger(maxLevel)&&maxLevel>=0&&maxLevel<=1000))&&(minLevel===null||maxLevel===null||minLevel<=maxLevel)&&(min===null||goldString(min))&&(max===null||goldString(max))?{type:"auction_list",requestId:id,itemId:item,rarity,category,minLevel,maxLevel,minPrice:min,maxPrice:max}:null;
+      return requestId(id)&&optionalId(item,128)&&(rarity===null||isAuctionRarity(rarity))&&(category===null||isAuctionCategory(category))&&(minLevel===null||(isSafeInteger(minLevel)&&minLevel>=1&&minLevel<=100))&&(maxLevel===null||(isSafeInteger(maxLevel)&&maxLevel>=1&&maxLevel<=100))&&(minLevel===null||maxLevel===null||minLevel<=maxLevel)&&(min===null||goldString(min))&&(max===null||goldString(max))?{type:"auction_list",requestId:id,itemId:item,rarity,category,minLevel,maxLevel,minPrice:min,maxPrice:max}:null;
     }
     if(type==="auction_create"){
       const id=(value as {requestId?:unknown}).requestId,item=(value as {itemId?:unknown}).itemId,q=(value as {quantity?:unknown}).quantity,start=(value as {startPrice?:unknown}).startPrice,buy=(value as {buyNowPrice?:unknown}).buyNowPrice,d=(value as {durationMs?:unknown}).durationMs;
