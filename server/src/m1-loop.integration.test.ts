@@ -270,7 +270,13 @@ describe("M1 first playable loop (server contract)", () => {
     // Same requestId reused for a different intent is a conflict, not a second grant.
     const other = [...nodes].find((n) => n.id !== target.id)!;
     const conflict = await client.request({ type: "gather_resource", requestId, resourceId: other.id }, ["resource_gathered"]);
-    expect(conflict.type).toBe("error");
+    // The in-memory economy replay layer (app.ts runEconomyRequest) answers a reused requestId with a
+    // different intent with INVALID_MESSAGE before the range check or any DB work. Pin that exact code,
+    // and prove it is the conflict path and not a range rejection: the same far node with a FRESH
+    // requestId is rejected with RESOURCE_OUT_OF_RANGE instead.
+    expect(conflict).toMatchObject({ type: "error", code: "INVALID_MESSAGE" });
+    const freshFar = await client.request({ type: "gather_resource", requestId: `${requestId}-far`, resourceId: other.id }, ["resource_gathered"]);
+    expect(freshFar).toMatchObject({ type: "error", code: "RESOURCE_OUT_OF_RANGE" });
     const afterConflict = await db.query<{ inventory: Record<string, number> }>("SELECT inventory FROM player_profiles WHERE user_id=$1", [userId]);
     expect(afterConflict.rows[0]?.inventory[itemId]).toBe(quantity);
     console.log(`[m1-loop] local wall-clock (not an SLO): gather round trip ${timings.gatherMs.toFixed(1)} ms`);
