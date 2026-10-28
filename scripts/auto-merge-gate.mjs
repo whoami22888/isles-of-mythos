@@ -123,12 +123,12 @@ export function trustedCodexNoFindingsComment(issueComments, sha) {
   if (!SHA.test(sha) || !Array.isArray(issueComments)) return false;
   const botComments = issueComments.filter(c => c?.user?.login === CODEX_REVIEWER);
   const summaries = botComments.filter(c =>
-    /<!--\\s*codex-pull-request-review-summary\\s*-->/.test(c.body ?? ""));
+    /<!--\s*codex-pull-request-review-summary\s*-->/.test(c.body ?? ""));
   // Require the latest bot-authored state rather than reusing an earlier PASS.
   const last = summaries.sort((a, b) =>
     (Date.parse(b.updated_at ?? b.created_at ?? "") || 0) -
     (Date.parse(a.updated_at ?? a.created_at ?? "") || 0))[0];
-  const match = last?.body?.match(/<!--\\s*codex-review-state:v1\\s+(\\{[^\\r\\n]*\\})\\s*-->/);
+  const match = last?.body?.match(/<!--\s*codex-review-state:v1\s+(\{[^\r\n]*\})\s*-->/);
   if (!match) return false;
   let state;
   try { state = JSON.parse(match[1]); } catch { return false; }
@@ -137,8 +137,8 @@ export function trustedCodexNoFindingsComment(issueComments, sha) {
       state.code_review.has_any_findings !== false ||
       state.code_review.has_unresolved_findings !== false) return false;
   return botComments.some(c => {
-    if (!/<!--\\s*codex-review-receipt:v1\\s*-->/.test(c.body ?? "")) return false;
-    const reviewed = c.body.match(/\\*\\*Reviewed commit:\\*\\*\\s*`([a-f0-9]{12})`/i);
+    if (!/<!--\s*codex-review-receipt:v1\s*-->/.test(c.body ?? "")) return false;
+    const reviewed = c.body.match(/\*\*Reviewed commit:\*\*\s*`([a-f0-9]{12})`/i);
     return reviewed != null && sha.toLowerCase().startsWith(reviewed[1].toLowerCase());
   });
 }
