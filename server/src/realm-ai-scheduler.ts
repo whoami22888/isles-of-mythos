@@ -54,29 +54,56 @@ export async function runRealmAiTickOnce(db: Pool, realms: Pick<RealmStore, "tic
   }
 }
 
-export interface RealmAiScheduler { stop(): void }
+export const REALM_AI_DEFAULT_DRAIN_TIMEOUT_MS = 10_000;
+
+export interface RealmAiScheduler {
+  /** Stops scheduling and resolves once any in-flight run has settled (bounded by drainTimeoutMs). */
+  stop(): Promise<void>;
+}
 
 /**
  * Starts the server-owned realm AI scheduler. `intervalMs` 0 disables it (returns a no-op handle).
- * Single-flight within one process; the timer is unref'd and cleared by stop().
+ * Single-flight within one process; the timer is unref'd and cleared by stop(), which also
+ * waits (bounded) for an in-flight run so no tick executes after shutdown returns.
  */
 export function startRealmAiScheduler(options: {
   run: () => Promise<boolean>;
   intervalMs: number;
   log?: (event: string, fields: Record<string, unknown>) => void;
+  drainTimeoutMs?: number;
 }): RealmAiScheduler {
-  if (options.intervalMs <= 0) return { stop() {} };
-  let inFlight = false;
+  if (options.intervalMs <= 0) return { stop: () => Promise.resolve() };
+  let inFlight: Promise<void> | undefined;
+  let stopped = false;
   const safeLog = (event: string, fields: Record<string, unknown>): void => {
     try { options.log?.(event, fields); } catch { /* logging is best-effort and must never break the scheduler */ }
   };
   const timer = setInterval(() => {
-    if (inFlight) return;
-    inFlight = true;
-    options.run()
-      .catch((error: unknown) => safeLog("realm_ai_tick_failed", { message: error instanceof Error ? error.message : String(error) }))
-      .finally(() => { inFlight = false; });
+    if (stopped || inFlight) return;
+    const current: Promise<void> = Promise.resolve()
+      .then(() => options.run())
+      .then(() => undefined, (error: unknown) => safeLog("realm_ai_tick_failed", { message: error instanceof Error ? error.message : String(error) }))
+      .finally(() => { if (inFlight === current) inFlight = undefined; });
+    inFlight = current;
   }, options.intervalMs);
   timer.unref();
-  return { stop() { clearInterval(timer); } };
+  return {
+    async stop(): Promise<void> {
+      stopped = true;
+      clearInterval(timer);
+      const pending = inFlight;
+      if (!pending) return;
+      const limit = Math.min(options.drainTimeoutMs ?? REALM_AI_DEFAULT_DRAIN_TIMEOUT_MS, REALM_AI_DEFAULT_DRAIN_TIMEOUT_MS);
+      let deadline: NodeJS.Timeout | undefined;
+      const timedOut = new Promise<boolean>((resolve) => {
+        deadline = setTimeout(() => resolve(true), limit);
+        deadline.unref();
+      });
+      try {
+        if (await Promise.race([pending.then(() => false), timedOut])) safeLog("realm_ai_stop_drain_timeout", {});
+      } finally {
+        clearTimeout(deadline);
+      }
+    },
+  };
 }

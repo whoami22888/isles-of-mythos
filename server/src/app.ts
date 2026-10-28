@@ -627,7 +627,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     if (worldEventTick) clearInterval(worldEventTick);
     if (endgameTick) clearInterval(endgameTick);
     if (territorySeasonTick) clearInterval(territorySeasonTick);
-    realmAiScheduler?.stop();
+    await realmAiScheduler?.stop();
     shuttingDown = true;
     if (heartbeat) clearInterval(heartbeat);
     if (survivalTick) clearInterval(survivalTick);

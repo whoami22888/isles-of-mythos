@@ -22,7 +22,7 @@ describe("startRealmAiScheduler", () => {
     const s = startRealmAiScheduler({ run, intervalMs: 10_000 });
     await vi.advanceTimersByTimeAsync(30_000);
     expect(run).toHaveBeenCalledTimes(3);
-    s.stop();
+    void s.stop();
     expect(vi.getTimerCount()).toBe(0);
     await vi.advanceTimersByTimeAsync(30_000);
     expect(run).toHaveBeenCalledTimes(3);
@@ -36,7 +36,7 @@ describe("startRealmAiScheduler", () => {
     release();
     await vi.advanceTimersByTimeAsync(5_000);
     expect(run).toHaveBeenCalledTimes(2);
-    s.stop();
+    void s.stop();
   });
   it("a throwing logger never causes an unhandled rejection and ticks keep running", async () => {
     const unhandled: unknown[] = [];
@@ -53,10 +53,48 @@ describe("startRealmAiScheduler", () => {
       expect(log).toHaveBeenCalled();
       expect(run).toHaveBeenCalledTimes(4);
       expect(unhandled).toEqual([]);
-      s.stop();
+      void s.stop();
     } finally {
       process.off("unhandledRejection", onUnhandled);
     }
+  });
+  it("stop() waits for an in-flight run to settle and no new run starts afterwards", async () => {
+    let settle!: () => void;
+    const run = vi.fn(() => new Promise<boolean>((resolve) => { settle = () => resolve(true); }));
+    const s = startRealmAiScheduler({ run, intervalMs: 5_000 });
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(run).toHaveBeenCalledTimes(1);
+    let stopped = false;
+    const stopping = s.stop().then(() => { stopped = true; });
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(stopped).toBe(false);
+    settle();
+    await stopping;
+    expect(stopped).toBe(true);
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(run).toHaveBeenCalledTimes(1);
+  });
+  it("stop() resolves after the drain timeout on a never-settling run and logs it", async () => {
+    const log = vi.fn();
+    const run = vi.fn(() => new Promise<boolean>(() => {}));
+    const s = startRealmAiScheduler({ run, intervalMs: 5_000, log, drainTimeoutMs: 2_000 });
+    await vi.advanceTimersByTimeAsync(5_000);
+    let stopped = false;
+    const stopping = s.stop().then(() => { stopped = true; });
+    await vi.advanceTimersByTimeAsync(1_999);
+    expect(stopped).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    await stopping;
+    expect(stopped).toBe(true);
+    expect(log).toHaveBeenCalledWith("realm_ai_stop_drain_timeout", {});
+    expect(vi.getTimerCount()).toBe(0);
+  });
+  it("stop() with nothing in flight resolves immediately and leaves no timer", async () => {
+    const run = vi.fn().mockResolvedValue(true);
+    const s = startRealmAiScheduler({ run, intervalMs: 5_000 });
+    await s.stop();
+    expect(vi.getTimerCount()).toBe(0);
+    expect(run).not.toHaveBeenCalled();
   });
   it("logs failures, keeps running, and intervalMs 0 starts nothing", async () => {
     const log = vi.fn();
@@ -65,10 +103,10 @@ describe("startRealmAiScheduler", () => {
     await vi.advanceTimersByTimeAsync(10_000);
     expect(log).toHaveBeenCalledWith("realm_ai_tick_failed", { message: "boom" });
     expect(run).toHaveBeenCalledTimes(2);
-    s.stop();
+    void s.stop();
     const off = startRealmAiScheduler({ run, intervalMs: 0 });
     expect(vi.getTimerCount()).toBe(0);
-    off.stop();
+    void off.stop();
   });
 });
 
