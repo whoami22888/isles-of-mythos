@@ -1,0 +1,154 @@
+[gd_resource type="Theme" load_steps=13 format=3]
+
+[sub_resource type="StyleBoxFlat" id="btn_normal"]
+bg_color = Color(0.0784, 0.3569, 0.3882, 1.0000)
+content_margin_left = 16.0
+content_margin_right = 16.0
+content_margin_top = 10.0
+content_margin_bottom = 10.0
+
+[sub_resource type="StyleBoxFlat" id="btn_hover"]
+bg_color = Color(0.1059, 0.4706, 0.5020, 1.0000)
+content_margin_left = 16.0
+content_margin_right = 16.0
+content_margin_top = 10.0
+content_margin_bottom = 10.0
+
+[sub_resource type="StyleBoxFlat" id="btn_focus"]
+bg_color = Color(0.0000, 0.0000, 0.0000, 0.0000)
+content_margin_left = 16.0
+content_margin_right = 16.0
+content_margin_top = 10.0
+content_margin_bottom = 10.0
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.9569, 0.9020, 0.7843, 1.0000)
+
+[sub_resource type="StyleBoxFlat" id="hero_normal"]
+bg_color = Color(0.0784, 0.3569, 0.3882, 1.0000)
+content_margin_left = 24.0
+content_margin_right = 24.0
+content_margin_top = 14.0
+content_margin_bottom = 14.0
+
+[sub_resource type="StyleBoxFlat" id="hero_hover"]
+bg_color = Color(0.1059, 0.4706, 0.5020, 1.0000)
+content_margin_left = 24.0
+content_margin_right = 24.0
+content_margin_top = 14.0
+content_margin_bottom = 14.0
+
+[sub_resource type="StyleBoxFlat" id="plank"]
+bg_color = Color(0.0902, 0.1922, 0.3020, 0.8000)
+content_margin_left = 7.0
+content_margin_right = 7.0
+content_margin_top = 6.0
+content_margin_bottom = 6.0
+
+[sub_resource type="StyleBoxFlat" id="plank_hover"]
+bg_color = Color(0.0902, 0.1922, 0.3020, 1.0000)
+content_margin_left = 7.0
+content_margin_right = 7.0
+content_margin_top = 6.0
+content_margin_bottom = 6.0
+
+[sub_resource type="StyleBoxFlat" id="panel"]
+bg_color = Color(0.0431, 0.1255, 0.1725, 1.0000)
+content_margin_left = 32.0
+content_margin_right = 32.0
+content_margin_top = 28.0
+content_margin_bottom = 28.0
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.9569, 0.9020, 0.7843, 1.0000)
+
+[sub_resource type="StyleBoxFlat" id="dock"]
+bg_color = Color(0.0275, 0.0745, 0.1216, 0.9686)
+content_margin_left = 12.0
+content_margin_right = 12.0
+content_margin_top = 10.0
+content_margin_bottom = 10.0
+
+[sub_resource type="StyleBoxFlat" id="chip"]
+bg_color = Color(0.0275, 0.0745, 0.1216, 0.8000)
+content_margin_left = 8.0
+content_margin_right = 8.0
+content_margin_top = 6.0
+content_margin_bottom = 6.0
+
+[sub_resource type="StyleBoxFlat" id="line"]
+bg_color = Color(0.0275, 0.0745, 0.1216, 1.0000)
+content_margin_left = 8.0
+content_margin_right = 8.0
+content_margin_top = 14.0
+content_margin_bottom = 14.0
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.0902, 0.1922, 0.3020, 1.0000)
+
+[sub_resource type="StyleBoxFlat" id="line_focus"]
+bg_color = Color(0.0275, 0.0745, 0.1216, 1.0000)
+content_margin_left = 8.0
+content_margin_right = 8.0
+content_margin_top = 14.0
+content_margin_bottom = 14.0
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.4314, 0.8392, 0.8196, 1.0000)
+
+[resource]
+default_font_size = 16
+Button/colors/font_color = Color(1.0000, 1.0000, 1.0000, 1.0000)
+Button/colors/font_hover_color = Color(1.0000, 1.0000, 1.0000, 1.0000)
+Button/colors/font_pressed_color = Color(1.0000, 1.0000, 1.0000, 1.0000)
+Button/colors/font_focus_color = Color(1.0000, 1.0000, 1.0000, 1.0000)
+Button/font_sizes/font_size = 16
+Button/styles/normal = SubResource("btn_normal")
+Button/styles/hover = SubResource("btn_hover")
+Button/styles/pressed = SubResource("btn_hover")
+Button/styles/focus = SubResource("btn_focus")
+HeroButton/base_type = &"Button"
+HeroButton/font_sizes/font_size = 20
+HeroButton/styles/normal = SubResource("hero_normal")
+HeroButton/styles/hover = SubResource("hero_hover")
+HeroButton/styles/pressed = SubResource("hero_hover")
+GlassButton/base_type = &"Button"
+GlassButton/font_sizes/font_size = 12
+GlassButton/styles/normal = SubResource("plank")
+GlassButton/styles/hover = SubResource("plank_hover")
+GlassButton/styles/pressed = SubResource("plank_hover")
+Label/colors/font_color = Color(1.0000, 1.0000, 1.0000, 1.0000)
+Label/font_sizes/font_size = 16
+TitleLabel/base_type = &"Label"
+TitleLabel/colors/font_color = Color(0.9569, 0.9020, 0.7843, 1.0000)
+TitleLabel/font_sizes/font_size = 48
+SubtitleLabel/base_type = &"Label"
+SubtitleLabel/colors/font_color = Color(0.4314, 0.8392, 0.8196, 1.0000)
+SubtitleLabel/font_sizes/font_size = 22
+OverlayTitleLabel/base_type = &"Label"
+OverlayTitleLabel/colors/font_color = Color(0.9569, 0.9020, 0.7843, 1.0000)
+OverlayTitleLabel/font_sizes/font_size = 28
+BodyLabel/base_type = &"Label"
+BodyLabel/colors/font_color = Color(0.8353, 0.8941, 0.9098, 1.0000)
+BodyLabel/constants/line_spacing = 8
+BodyLabel/font_sizes/font_size = 16
+HudChip/base_type = &"Label"
+HudChip/font_sizes/font_size = 15
+HudChip/styles/normal = SubResource("chip")
+LineEdit/colors/font_color = Color(1.0000, 1.0000, 1.0000, 1.0000)
+LineEdit/colors/font_placeholder_color = Color(0.8353, 0.8941, 0.9098, 1.0000)
+LineEdit/colors/caret_color = Color(0.4314, 0.8392, 0.8196, 1.0000)
+LineEdit/font_sizes/font_size = 18
+LineEdit/styles/normal = SubResource("line")
+LineEdit/styles/focus = SubResource("line_focus")
+PanelContainer/styles/panel = SubResource("panel")
+DockPanel/base_type = &"PanelContainer"
+DockPanel/styles/panel = SubResource("dock")
