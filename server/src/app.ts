@@ -1758,9 +1758,9 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
               if(message.type==="sail")return {type:"ship_state",requestId:message.requestId,ship:await ships.sail(authenticatedUserId,message.shipId,message.dx,message.dy,message.dt)};
               if(message.type==="assign_ship_crew"){
                 if(!CREW_ROLES.includes(message.role as CrewRole))throw new Error("INVALID_CREW_ASSIGNMENT");
-                return {type:"ship_crew",requestId:message.requestId,crew:await ships.assignCrew(authenticatedUserId,message.shipId,message.creatureId,message.role as CrewRole,message.skill,message.morale)};
+                return {type:"ship_crew",requestId:message.requestId,crew:await ships.assignCrew(authenticatedUserId,message.shipId,message.creatureId,message.role as CrewRole)};
               }
-              if(message.type==="assign_ship_npc_crew")return {type:"ship_crew",requestId:message.requestId,crew:await naval.assignNpcCrew(authenticatedUserId,message.shipId,message.npcType,message.role as CrewRole,message.skill,message.morale)};
+              if(message.type==="assign_ship_npc_crew")return {type:"ship_crew",requestId:message.requestId,crew:await naval.assignNpcCrew(authenticatedUserId,message.shipId,message.npcType,message.role as CrewRole)};
               if(message.type==="board_ship")return {type:"naval_combat_result",requestId:message.requestId,...await naval.boardShip(authenticatedUserId,message.shipId,message.targetShipId)};
               if(message.type==="repair_ship")return {type:"ship_state",requestId:message.requestId,ship:await naval.repairShip(authenticatedUserId,message.shipId)};
               if(message.type==="retreat_ship")return {type:"ship_state",requestId:message.requestId,ship:await naval.retreatShip(authenticatedUserId,message.shipId)};

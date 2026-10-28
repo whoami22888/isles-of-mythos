@@ -1,3 +1,4 @@
+import { CREW_START_MORALE, deriveNpcCrewSkill } from "./crew-stats.js";
 import { CREATURE_STATS } from "./combat.js";
 import type { Pool } from "pg";
 
@@ -25,8 +26,9 @@ const mapShip = (r:Row) => ({
 export class NavalStore {
   constructor(private readonly db:Pool) {}
 
-  async assignNpcCrew(userId:string,shipId:string,npcType:CrewType,role:CrewRole,skill:number,morale:number) {
-    if(!CREW_TYPES.includes(npcType) || !CREW_ROLES.includes(role) || !Number.isSafeInteger(skill) || skill<1 || skill>100 || !Number.isSafeInteger(morale) || morale<0 || morale>100) throw new Error("INVALID_CREW_ASSIGNMENT");
+  async assignNpcCrew(userId:string,shipId:string,npcType:CrewType,role:CrewRole) {
+    if(!CREW_TYPES.includes(npcType) || !CREW_ROLES.includes(role)) throw new Error("INVALID_CREW_ASSIGNMENT");
+    const skill=deriveNpcCrewSkill(npcType),morale=CREW_START_MORALE;
     const c=await this.db.connect();
     try {
       await c.query("BEGIN");

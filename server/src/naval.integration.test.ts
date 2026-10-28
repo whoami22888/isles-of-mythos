@@ -9,6 +9,7 @@ import {NavalStore} from "./naval.js";
 import {parseClientMessage} from "./protocol.js";
 import {FleetStore} from "./fleet.js";
 import {ShipInventoryStore} from "./ship-inventory.js";
+import { CREW_START_MORALE, deriveNpcCrewSkill } from "./crew-stats.js";
 import {PlayerStore} from "./player.js";
 
 async function register(app:FastifyInstance,tag:string):Promise<string>{
@@ -40,10 +41,10 @@ describe("Gate 9 naval mechanics",()=>{
       const defender=await ships.create(b,"Target Raft","raft");
       await db.query("UPDATE player_ships SET x=0,y=0,heading=0 WHERE id=$1",[attacker.id]);
       await db.query("UPDATE player_ships SET x=20,y=0 WHERE id=$1",[defender.id]);
-      expect((await naval.assignNpcCrew(a,attacker.id,"pirate","boarding_specialist",90,100)).npcType).toBe("pirate");
-      expect((await naval.assignNpcCrew(a,attacker.id,"npc_specialist","engineer",80,100)).role).toBe("engineer");
-      expect((await naval.assignNpcCrew(a,attacker.id,"mermaid","medic",80,100)).npcType).toBe("mermaid");
-      expect((await naval.assignNpcCrew(a,attacker.id,"dragon","gunner",80,100)).npcType).toBe("dragon");
+      const pirate=await naval.assignNpcCrew(a,attacker.id,"pirate","boarding_specialist");expect(pirate.npcType).toBe("pirate");expect(pirate.skill).toBe(deriveNpcCrewSkill("pirate"));expect(pirate.morale).toBe(CREW_START_MORALE);
+      expect((await naval.assignNpcCrew(a,attacker.id,"npc_specialist","engineer")).role).toBe("engineer");
+      expect((await naval.assignNpcCrew(a,attacker.id,"mermaid","medic")).npcType).toBe("mermaid");
+      expect((await naval.assignNpcCrew(a,attacker.id,"dragon","gunner")).npcType).toBe("dragon");
       const shot=await naval.fireCannon(a,attacker.id,defender.id);
       expect(shot.damage).toBeGreaterThan(0);expect(shot.fireStarted).toBe(true);
       const fireStopped=await naval.fightFire(b,defender.id);
