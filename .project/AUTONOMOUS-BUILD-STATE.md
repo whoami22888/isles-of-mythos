@@ -98,3 +98,18 @@ Cost policy: bounded task packets, one owner/path; reuse unchanged exact-SHA evi
 - Local evidence: Godot 4.6.3 import and `realistic_coastal_slice_test.gd` PASS; existing island smoke and IOM-00 connection checks PASS; provenance validator PASS for 27 files. Required CI Godot 4.7.2/Android validation remains authoritative.
 - Exact PR #163 checks currently running for `dd72d73`: CI, Codacy, CodeQL, Static Security, Godot import/export, and display-backed capture. Prior capture artifact download returned HTTP 403, so no pixel-level acceptance is claimed. Visual acceptance and merge remain BLOCKED until a downloadable capture is inspected and all exact-head gates plus independent review pass.
 - Source limitation: no compliant creature asset is admitted yet. This does not block coastal environment work, but it blocks a complete game visual claim. `game-dev` CLI is unavailable (exit 127); no plugin receipt is claimed.
+
+## Checkpoint — 2026-10-28 (owner: Claude, sole writer per PR)
+
+Base: main `46296ef1efbbe9304361ac032d83226ef4a4d90e`. Exact-SHA CI for the PRs below is NOT yet recorded; update this section with run IDs once complete.
+
+| PR | Branch | Head SHA | Purpose | Status |
+| --- | --- | --- | --- | --- |
+| #225 | `fix/anti-cheat-shared-durable-state` | `72db8763b017835f4c841dcfde0fc8a42823007b` | Anti-cheat root cause: detection state was per-process (cross-instance abuse never reached a threshold; restart erased evidence). Redis atomic bounded state, PostgreSQL append-only evidence (migration `039_anti_cheat_evidence`), diagnostic only, Redis failure degrades without changing authoritative outcomes. | CI/review pending. Local: server 411/411, new real PG+Redis suite 20/20. |
+| #226 | `fix/auto-merge-gate-workflow-inventory` | `34faf218e5c5576c113221952b28b140cfb7ddda` | `applicableChecks()` omitted `Isles world content and source harvest` and `IOM Coastal Ship FX Integration`; inventory now asserted against the real workflow path filters. Touches protected gate files: manual owner integration required. | CI pending. Local: gate 14/14, orchestration 23/23. |
+
+Overlap: PRs #218/#221/#222/#197/#191 also touch `server/src/app.ts`; trial merges clean except #221 (stale base `1ecdacc`, already conflicts with merged #219; needs rebase).
+
+Not yet done: gathering-replay / forged-command / economy-concurrency acceptance tests against real handlers (acceptance items 1, 2, 5, 6, 8, 9).
+
+Step 5 remains BLOCKED. Repo-side migration facts only (not production evidence): `029_trade_transaction_ids` introduced 6b22f9b (2026-10-07), `029_resource_gathering` 7f1626d (2026-10-07), `036_pdf_92_93_mutation_idempotency` ea2c8e8 (2026-10-08), `036_guild_bank_idempotency` 53d706b (2026-10-07). Deployment history (environment, run_on, release, checksum from the target `pgmigrations` table) is external and unavailable from this session; no protected migration was run. Capture formula, save/load reconciliation, the independent Step 2 audit and owner authorization are likewise unproven.
