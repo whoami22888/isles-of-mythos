@@ -32,6 +32,7 @@ import { ShipInventoryStore } from "./ship-inventory.js";
 import { GuildStore } from "./guild.js";
 import { ArmyStore } from "./army.js";
 import { RealmStore } from "./realm.js";
+import { runRealmAiTickOnce, startRealmAiScheduler, type RealmAiScheduler } from "./realm-ai-scheduler.js";
 import { InvasionStore } from "./invasion.js";
 import { SocialStore } from "./social.js";
 import { AuctionStore } from "./auction.js";
@@ -95,6 +96,8 @@ export interface BuildAppOptions {
   db?: Pool;
   clientDistDir?: string;
   antiCheat?: AntiCheatService;
+  /** Realm AI tick interval in ms; 0 disables. Defaults to config.realmAiTickMs (REALM_AI_TICK_MS). */
+  realmAiTickMs?: number;
 }
 
 export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyInstance> {
@@ -404,6 +407,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   let auctionTick: ReturnType<typeof setInterval> | undefined;
   let endgameTick: ReturnType<typeof setInterval> | undefined;
   let territorySeasonTick: ReturnType<typeof setInterval> | undefined;
+  let realmAiScheduler: RealmAiScheduler | undefined;
   let worldEventTick: ReturnType<typeof setInterval> | undefined;
   let combatTick: ReturnType<typeof setInterval> | undefined;
   let persistenceTick: ReturnType<typeof setInterval> | undefined;
@@ -445,6 +449,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   worldEventTick.unref();
   endgameTick.unref();
   territorySeasonTick.unref();
+  { const realmAiIntervalMs = options.realmAiTickMs ?? config.realmAiTickMs; realmAiScheduler = startRealmAiScheduler({ intervalMs: realmAiIntervalMs, run: () => runRealmAiTickOnce(db, realms, realmAiIntervalMs), log }); }
   survivalTick.unref();
 
   combatTick = setInterval(() => {
@@ -622,6 +627,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     if (worldEventTick) clearInterval(worldEventTick);
     if (endgameTick) clearInterval(endgameTick);
     if (territorySeasonTick) clearInterval(territorySeasonTick);
+    realmAiScheduler?.stop();
     shuttingDown = true;
     if (heartbeat) clearInterval(heartbeat);
     if (survivalTick) clearInterval(survivalTick);

@@ -1,3 +1,5 @@
+import { parseRealmAiIntervalMs } from "./realm-ai-scheduler.js";
+
 const DEFAULT_PORT = 3000;
 const DEFAULT_CORS_ORIGIN = "http://localhost:5173";
 const DEFAULT_DATABASE_POOL_MAX = 50;
@@ -54,6 +56,7 @@ export const config = {
   environment,
   databaseUrl: databaseUrl || "postgres://postgres:postgres@localhost:5432/isles",
   redisUrl: process.env.REDIS_URL ?? "redis://localhost:6379",
+  realmAiTickMs: parseRealmAiIntervalMs(process.env.REALM_AI_TICK_MS),
   jwtSecret: jwtSecret || "development-only-secret-change-me",
   corsOrigin: parseCorsOrigin(process.env.CORS_ORIGIN, environment),
   databasePoolMax: parseDatabasePoolMax(process.env.DB_POOL_MAX),
