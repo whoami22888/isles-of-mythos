@@ -14,6 +14,10 @@ const MAX_PENDING := 8
 var _authenticated := false
 var _pending: Dictionary = {}
 var _crypto := Crypto.new()
+## Movement intents carry a strictly increasing sequence. Seeding from the wall
+## clock in milliseconds keeps it above any sequence a previous run could have
+## sent (<= 40 packets/s) so the server never sees a duplicate after restart.
+var _move_sequence: int = int(Time.get_unix_time_from_system() * 1000.0)
 
 func _process(_delta: float) -> void:
 	var was_open: bool = _attempt_active and _socket.get_ready_state() == WebSocketPeer.STATE_OPEN
@@ -56,6 +60,15 @@ func request_world_chunk(chunk_x: int, chunk_y: int) -> String:
 
 func request_gather(resource_id: String) -> String:
 	return _send_request("gather_resource", {"resourceId": resource_id})
+
+## Sends the existing server `move` intent (direction only, no request ID, no
+## client-supplied time or speed). The server alone computes the new position.
+func request_move(dx: float, dy: float) -> bool:
+	if not is_authenticated() or not is_finite(dx) or not is_finite(dy):
+		return false
+	_move_sequence += 1
+	var message := {"type": "move", "dx": clampf(dx, -1.0, 1.0), "dy": clampf(dy, -1.0, 1.0), "sequence": _move_sequence}
+	return _socket.send_text(JSON.stringify(message)) == OK
 
 func _send_request(action: String, fields: Dictionary) -> String:
 	if not is_authenticated() or _pending.size() >= MAX_PENDING:

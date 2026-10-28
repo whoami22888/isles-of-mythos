@@ -34,6 +34,8 @@ func _init() -> void:
 	protocol._clear_pending_as_unknown()
 	_assert(protocol._pending.is_empty(), "disconnect clears pending correlation")
 	_assert(_unknown == ["disconnect-1"], "disconnect reports ambiguous outcome")
+	_assert(not protocol.request_move(1.0, 0.0), "move intent is refused while unauthenticated")
+	_assert(not protocol.request_move(INF, 0.0), "non-finite move intent is refused")
 	protocol.queue_free()
 	await process_frame
 	quit(0)

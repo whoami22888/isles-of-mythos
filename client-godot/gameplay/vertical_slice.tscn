@@ -44,4 +44,4 @@ secret = true
 text = "Connect to authenticated server"
 
 [node name="Gather" type="Button" parent="Interface/Panel/Margin/Content"]
-text = "Touch / click: gather nearest visible resource"
+text = "Touch / click: walk to and gather nearest visible resource"

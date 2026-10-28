@@ -11,7 +11,10 @@ godot --path client-godot res://gameplay/vertical_slice.tscn
 ```
 
 The scene only renders server-authenticated state and sends the supported
-`subscribe_chunks` and `gather_resource` messages. It does not mint inventory,
+`subscribe_chunks` (for the chunk containing the server-reported player
+position, refreshed every 10 s because snapshots are not pushed), `move`
+(direction-only intent used to walk into the server's 2.5-unit gather range)
+and `gather_resource` messages. A Reconnect button remains after handoff. It does not mint inventory,
 currency, buildings, quests, or other client-owned state.
 
 For an internal end-to-end auth test, combine this branch with the native auth
