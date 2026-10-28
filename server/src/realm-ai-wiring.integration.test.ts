@@ -39,7 +39,7 @@ describe("realm AI is server-scheduled (NET-04 slice 2b)", () => {
     const app = await buildApp({ db, realmAiTickMs: 100 });
     try {
       await app.listen({ host: "127.0.0.1", port: 0 });
-      await Promise.race([inFlight, sleep(15_000).then(() => { throw new Error("tick never started"); })]);
+      await inFlight; // a tick that never starts surfaces as this test's own timeout
       cleared.mockClear();
       const closing = app.close();
       await sleep(400);
@@ -90,7 +90,7 @@ describe("realm AI is server-scheduled (NET-04 slice 2b)", () => {
     const app = await buildApp({ db, realmAiTickMs: 100, realmAiDrainTimeoutMs: 300 });
     try {
       await app.listen({ host: "127.0.0.1", port: 0 });
-      await Promise.race([inFlight, sleep(15_000).then(() => { throw new Error("tick never started"); })]);
+      await inFlight; // a tick that never starts surfaces as this test's own timeout
       const t0 = Date.now();
       await app.close();
       expect(settled, "tick must have settled before app.close() resolves").toBe(true);

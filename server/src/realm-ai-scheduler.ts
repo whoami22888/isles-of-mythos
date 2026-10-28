@@ -121,15 +121,17 @@ export function startRealmAiScheduler(options: {
       if (!pending) return;
       const limit = Math.min(options.drainTimeoutMs ?? REALM_AI_DEFAULT_DRAIN_TIMEOUT_MS, REALM_AI_DEFAULT_DRAIN_TIMEOUT_MS);
       const settledWithin = async (ms: number): Promise<boolean> => {
-        let deadline: NodeJS.Timeout | undefined;
+        let finish: () => void = () => undefined;
         const timedOut = new Promise<boolean>((resolve) => {
-          deadline = setTimeout(() => resolve(false), ms);
+          const deadline = setTimeout(() => resolve(false), ms);
           deadline.unref();
+          // Settle the timer promise on exit so no pending promise outlives the race.
+          finish = () => { clearTimeout(deadline); resolve(false); };
         });
         try {
           return await Promise.race([pending.then(() => true), timedOut]);
         } finally {
-          clearTimeout(deadline);
+          finish();
         }
       };
       if (await settledWithin(limit)) return;

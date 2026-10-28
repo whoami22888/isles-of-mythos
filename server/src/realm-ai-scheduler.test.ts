@@ -23,7 +23,7 @@ describe("startRealmAiScheduler", () => {
     const s = startRealmAiScheduler({ run, intervalMs: 10_000 });
     await vi.advanceTimersByTimeAsync(30_000);
     expect(run).toHaveBeenCalledTimes(3);
-    void s.stop();
+    await s.stop();
     expect(vi.getTimerCount()).toBe(0);
     await vi.advanceTimersByTimeAsync(30_000);
     expect(run).toHaveBeenCalledTimes(3);
@@ -37,7 +37,8 @@ describe("startRealmAiScheduler", () => {
     release();
     await vi.advanceTimersByTimeAsync(5_000);
     expect(run).toHaveBeenCalledTimes(2);
-    void s.stop();
+    release();
+    await s.stop();
   });
   it("a throwing logger never causes an unhandled rejection and ticks keep running", async () => {
     const unhandled: unknown[] = [];
@@ -54,7 +55,7 @@ describe("startRealmAiScheduler", () => {
       expect(log).toHaveBeenCalled();
       expect(run).toHaveBeenCalledTimes(4);
       expect(unhandled).toEqual([]);
-      void s.stop();
+      await s.stop();
     } finally {
       process.off("unhandledRejection", onUnhandled);
     }
@@ -77,7 +78,8 @@ describe("startRealmAiScheduler", () => {
   });
   it("stop() on a never-settling run aborts, waits a second grace, then rejects (fail closed) and logs both", async () => {
     const log = vi.fn();
-    const run = vi.fn(() => new Promise<boolean>(() => {}));
+    let settle!: () => void;
+    const run = vi.fn(() => new Promise<boolean>((resolve) => { settle = () => resolve(false); }));
     const s = startRealmAiScheduler({ run, intervalMs: 5_000, log, drainTimeoutMs: 2_000 });
     await vi.advanceTimersByTimeAsync(5_000);
     let outcome = "pending";
@@ -89,6 +91,8 @@ describe("startRealmAiScheduler", () => {
     expect(outcome).toBe("realm_ai_tick_unsettled");
     expect(log).toHaveBeenCalledWith("realm_ai_stop_drain_timeout", {});
     expect(log).toHaveBeenCalledWith("realm_ai_tick_unsettled", {});
+    settle();
+    await vi.advanceTimersByTimeAsync(0);
     expect(vi.getTimerCount()).toBe(0);
   });
   it("stop() with nothing in flight resolves immediately and leaves no timer", async () => {
@@ -105,10 +109,10 @@ describe("startRealmAiScheduler", () => {
     await vi.advanceTimersByTimeAsync(10_000);
     expect(log).toHaveBeenCalledWith("realm_ai_tick_failed", { message: "boom" });
     expect(run).toHaveBeenCalledTimes(2);
-    void s.stop();
+    await s.stop();
     const off = startRealmAiScheduler({ run, intervalMs: 0 });
     expect(vi.getTimerCount()).toBe(0);
-    void off.stop();
+    await off.stop();
   });
 });
 
@@ -142,18 +146,15 @@ describe.skipIf(!url)("runRealmAiTickOnce (real Postgres)", () => {
     try {
       const realms = new RealmStore(one);
       const spy = vi.spyOn(realms, "tickAI");
-      let timer: NodeJS.Timeout | undefined;
-      const timeout = new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error("deadlock: runRealmAiTickOnce did not finish with max=1")), 5_000); });
-      try {
-        expect(await Promise.race([runRealmAiTickOnce(one, realms, 60_000), timeout])).toBe(true);
-      } finally { clearTimeout(timer); }
+      // A deadlock surfaces as this test's own 5 s timeout; no racing timer promise is left pending.
+      expect(await runRealmAiTickOnce(one, realms, 60_000)).toBe(true);
       expect(spy).toHaveBeenCalledTimes(1);
       const ticks = await one.query<{ n: string }>("SELECT COUNT(*)::text n FROM realm_ai_events WHERE event_type='tick'");
       expect(Number(ticks.rows[0].n)).toBeGreaterThan(0);
     } finally {
       await one.end();
     }
-  });
+  }, 5_000);
 
   it("rolls back a failed tick (no partial tick rows) and leaves the lock free", async () => {
     const failing: Pick<RealmStore, "tickAI"> = {
@@ -200,11 +201,12 @@ describe("startRealmAiScheduler stop() fail-closed drain", () => {
     vi.useFakeTimers();
     try {
       const logged: string[] = [];
+      let settle!: () => void;
       const scheduler = startRealmAiScheduler({
         intervalMs: 1000,
         drainTimeoutMs: 200,
         log: (e) => logged.push(e),
-        run: () => new Promise<boolean>(() => undefined),
+        run: () => new Promise<boolean>((resolve) => { settle = () => resolve(false); }),
       });
       await vi.advanceTimersByTimeAsync(1000);
       const stopping = scheduler.stop();
@@ -212,6 +214,8 @@ describe("startRealmAiScheduler stop() fail-closed drain", () => {
       await vi.advanceTimersByTimeAsync(500);
       await assertion;
       expect(logged).toContain("realm_ai_stop_drain_timeout");
+      settle();
+      await vi.advanceTimersByTimeAsync(0);
     } finally {
       vi.useRealTimers();
     }
@@ -281,5 +285,42 @@ describe.skipIf(!url)("runRealmAiTickOnce abort semantics (real Postgres)", () =
     openGate();
     expect(await run).toBe(true);
     expect(await count()).toBe(1);
+  }, 20_000);
+
+  it("COMMIT acknowledgment lost after PostgreSQL committed: durable result is exactly one tick; retry in the window is skipped", async () => {
+    // Deterministic ack-loss injection: the real COMMIT runs to completion on the server, then the caller
+    // observes a connection failure instead of the acknowledgment. The outcome is read via an independent connection.
+    const realm = await pool.query<{ id: string }>("INSERT INTO realms(name,faction_type) VALUES('ack-loss-test','test') RETURNING id");
+    const realmId = realm.rows[0].id;
+    try {
+      await pool.query("DELETE FROM realm_ai_events WHERE event_type='tick'");
+      const ackLossDb = {
+        connect: async () => {
+          const c = await pool.connect();
+          const query = c.query.bind(c) as (...a: unknown[]) => Promise<unknown>;
+          (c as unknown as { query: unknown }).query = async (...a: unknown[]) => {
+            const result = await query(...a);
+            if (a[0] === "COMMIT") throw new Error("Connection terminated unexpectedly (injected ack loss)");
+            return result;
+          };
+          return c;
+        },
+      };
+      const realms = {
+        tickAI: async (c?: pg.PoolClient) => {
+          await c!.query("INSERT INTO realm_ai_events(realm_id,event_type,payload) VALUES($1,'tick','{}'::jsonb)", [realmId]);
+        },
+      };
+      await expect(runRealmAiTickOnce(ackLossDb as never, realms as never, 60_000, undefined, TEST_LOCK_KEY)).rejects.toThrow("injected ack loss");
+      const durable = async (): Promise<number> => Number((await pool.query<{ n: string }>("SELECT COUNT(*)::text n FROM realm_ai_events WHERE event_type='tick' AND realm_id=$1", [realmId])).rows[0]?.n);
+      expect(await durable(), "server committed although the caller never saw the acknowledgment").toBe(1);
+      // Retry after the ambiguous failure: the freshness guard sees the committed tick and skips the window.
+      expect(await runRealmAiTickOnce(pool, realms as never, 60_000, undefined, TEST_LOCK_KEY)).toBe(false);
+      expect(await durable()).toBe(1);
+      const lock = await pool.query<{ n: string }>("SELECT COUNT(*)::text n FROM pg_locks WHERE locktype='advisory' AND objid=$1", [TEST_LOCK_KEY]);
+      expect(Number(lock.rows[0]?.n)).toBe(0);
+    } finally {
+      await pool.query("DELETE FROM realms WHERE id=$1", [realmId]);
+    }
   }, 20_000);
 });
