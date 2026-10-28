@@ -57,3 +57,31 @@ export class MessageBacklogGuard {
     if (this.queued === 0) this.strikes = 0;
   }
 }
+
+// Appends one admitted frame's work to the socket's FIFO chain and returns the
+// new chain tail. The tail can never be rejected: a failure of the handler goes
+// to `report` (the original error, unchanged), and a failure of `report` itself
+// is swallowed (best-effort `onReporterFailure`) so later queued frames still
+// run. The guard slot is released exactly once per frame in every case.
+export function enqueueBacklogWork(
+  queue: Promise<void>,
+  guard: MessageBacklogGuard,
+  work: () => Promise<void>,
+  report: (error: unknown) => void,
+  onReporterFailure?: (error: unknown) => void,
+): Promise<void> {
+  return queue
+    .then(work)
+    .catch((error: unknown) => {
+      try {
+        report(error);
+      } catch (reporterError) {
+        try {
+          onReporterFailure?.(reporterError);
+        } catch {
+          // Reporting the reporter failure is best-effort only.
+        }
+      }
+    })
+    .finally(() => guard.release());
+}
