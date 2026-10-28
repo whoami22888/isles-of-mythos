@@ -114,6 +114,35 @@ export function trustedCodexReceipt(review, sha) {
     /<!--\s*codex-review-receipt:v1\s*-->/.test(review?.body ?? "");
 }
 
+// Codex emits a formal PR review when there are findings, but on no-findings
+// runs it publishes two authenticated issue comments instead: a full-SHA
+// review-state summary and a matching short-SHA v1 receipt. Verify BOTH from
+// the actual Codex GitHub App identity; user-supplied imitations are ignored.
+// This does not authorize missing, pending or finding-bearing reviews.
+export function trustedCodexNoFindingsComment(issueComments, sha) {
+  if (!SHA.test(sha) || !Array.isArray(issueComments)) return false;
+  const botComments = issueComments.filter(c => c?.user?.login === CODEX_REVIEWER);
+  const summaries = botComments.filter(c =>
+    /<!--\\s*codex-pull-request-review-summary\\s*-->/.test(c.body ?? ""));
+  // Require the latest bot-authored state rather than reusing an earlier PASS.
+  const last = summaries.sort((a, b) =>
+    (Date.parse(b.updated_at ?? b.created_at ?? "") || 0) -
+    (Date.parse(a.updated_at ?? a.created_at ?? "") || 0))[0];
+  const match = last?.body?.match(/<!--\\s*codex-review-state:v1\\s+(\\{[^\\r\\n]*\\})\\s*-->/);
+  if (!match) return false;
+  let state;
+  try { state = JSON.parse(match[1]); } catch { return false; }
+  if (state?.code_review?.commit_sha !== sha ||
+      state.code_review.status !== "completed" ||
+      state.code_review.has_any_findings !== false ||
+      state.code_review.has_unresolved_findings !== false) return false;
+  return botComments.some(c => {
+    if (!/<!--\\s*codex-review-receipt:v1\\s*-->/.test(c.body ?? "")) return false;
+    const reviewed = c.body.match(/\\*\\*Reviewed commit:\\*\\*\\s*`([a-f0-9]{12})`/i);
+    return reviewed != null && sha.toLowerCase().startsWith(reviewed[1].toLowerCase());
+  });
+}
+
 export function hasBlockingCodexFinding(comments, sha) {
   return comments.some(c => (c?.original_commit_id ?? c?.commit_id) === sha &&
     c.user?.login === CODEX_REVIEWER &&
@@ -208,9 +237,12 @@ async function main() {
   if (!checks.pass) { reject(checks.reason); return; }
 
   const reviews = await pages("/pulls/" + number + "/reviews");
-  // Dismissed receipts and self-authored imitation text are never eligible.
-  if (!reviews.some(review => trustedCodexReceipt(review, sha))) {
-    reject("No active trusted Codex receipt for final SHA");
+  const issueComments = await pages("/issues/" + number + "/comments");
+  // Require either a real Codex PR review OR the bot's paired full-SHA
+  // completed/no-findings summary and matching receipt. No user imitation.
+  if (!reviews.some(review => trustedCodexReceipt(review, sha)) &&
+      !trustedCodexNoFindingsComment(issueComments, sha)) {
+    reject("No trusted final-SHA Codex review or complete no-findings receipt");
     return;
   }
 
@@ -221,7 +253,6 @@ async function main() {
   }
 
   if (visualRequired(paths)) {
-    const issueComments = await pages("/issues/" + number + "/comments");
     const exact = "VISUAL-ACCEPTED: " + sha;
     if (!issueComments.some(c => c.user?.login?.toLowerCase() === owner.toLowerCase() &&
         c.body?.split(/\r?\n/).some(line => line.trim() === exact))) {
