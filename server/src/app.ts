@@ -1438,7 +1438,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           const authenticatedUserId=userId;
           const response=await runCreatureRequest(authenticatedUserId,message.requestId,"start_breeding|"+JSON.stringify(message),async()=>{
             try {
-              const job=await breeding.start(authenticatedUserId,message.baseId,message.penBuildingId,message.parentAId,message.parentBId,message.durationMs);
+              const job=await breeding.start(authenticatedUserId,message.baseId,message.penBuildingId,message.parentAId,message.parentBId);
               return {type:"breeding_started",requestId:message.requestId,job};
             } catch(error) {
               const code=errorCode(error,"BREEDING_START_FAILED");
@@ -1679,7 +1679,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           send(socket,response);return;
         }
 
-        if (message.type === "list_realms" || message.type === "list_territories" || message.type === "list_realm_fortresses" || message.type === "territory_at" || message.type === "claim_guild_territory" || message.type === "change_realm_reputation" || message.type === "my_realm_reputation" || message.type === "create_trade_route" || message.type === "list_trade_routes") {
+        if (message.type === "list_realms" || message.type === "list_territories" || message.type === "list_realm_fortresses" || message.type === "territory_at" || message.type === "claim_guild_territory" || message.type === "my_realm_reputation" || message.type === "create_trade_route" || message.type === "list_trade_routes") {
           if(!userId){send(socket,{type:"error",code:"AUTH_REQUIRED"});return;}
           const authenticatedUserId=userId;await players.loadOrCreate(authenticatedUserId);
           const response=await runBaseRequest(authenticatedUserId,message.requestId,message.type+"|"+JSON.stringify(message),async()=>{
@@ -1689,7 +1689,6 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
               if(message.type==="list_realm_fortresses")return {type:"fortress_list",requestId:message.requestId,fortresses:await realms.fortresses()};
               if(message.type==="territory_at")return {type:"territory_state",requestId:message.requestId,territory:await realms.territoryAt(message.x,message.y)};
               if(message.type==="claim_guild_territory"){await realms.claimGuildTerritory(authenticatedUserId,message.territoryId,message.guildId);return {type:"realm_operation_ok",requestId:message.requestId};}
-              if(message.type==="change_realm_reputation")return {type:"realm_reputation",requestId:message.requestId,reputation:await realms.reputation(authenticatedUserId,message.realm,message.delta)};
               if(message.type==="my_realm_reputation")return {type:"realm_reputation",requestId:message.requestId,reputation:await realms.myReputation(authenticatedUserId)};
               if(message.type==="create_trade_route"){const route=await realms.createTradeRoute(authenticatedUserId,message.sourceTerritoryId,message.destinationTerritoryId,message.resourceKey,message.quantity,message.travelSeconds,message.guildId,message.realmId);return {type:"trade_route_state",requestId:message.requestId,route};}
               if(message.type==="list_trade_routes")return {type:"trade_route_list",requestId:message.requestId,routes:await realms.routes()};
