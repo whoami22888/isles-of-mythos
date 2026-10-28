@@ -230,23 +230,28 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const pendingCreatureRequests = new Map<string, Promise<ServerMessage>>();
   const pendingCreatureOperations = new Map<string, Promise<void>>();
   const pendingPlayerUnloads = new Map<string, Promise<void>>();
-  // Authentications currently loading state for a user. Early-close cleanup must not evict state under one of them.
+  // Authentications from acceptance until their caller has registered the socket or abandoned it. Early-close
+  // cleanup must not evict state under any of them.
   const authsInFlight = new Map<string, number>();
-  const loadAuthenticatedState = async (authUserId: string) => {
+  const beginAuth = (authUserId: string): (() => void) => {
     authsInFlight.set(authUserId, (authsInFlight.get(authUserId) ?? 0) + 1);
-    try {
-      // Wait for any unload already scheduled for this user so the load never reads state that is being evicted.
-      const pendingUnload = pendingPlayerUnloads.get(authUserId);
-      if (pendingUnload) await pendingUnload;
-      const state = await players.loadOrCreate(authUserId);
-      const ownedCreatures = await creatures.load(authUserId);
-      const base = await bases.load(authUserId);
-      return { state, ownedCreatures, base };
-    } finally {
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
       const remaining = (authsInFlight.get(authUserId) ?? 1) - 1;
       if (remaining <= 0) authsInFlight.delete(authUserId);
       else authsInFlight.set(authUserId, remaining);
-    }
+    };
+  };
+  const loadAuthenticatedState = async (authUserId: string) => {
+    // Wait for any unload already scheduled for this user so the load never reads state that is being evicted.
+    const pendingUnload = pendingPlayerUnloads.get(authUserId);
+    if (pendingUnload) await pendingUnload;
+    const state = await players.loadOrCreate(authUserId);
+    const ownedCreatures = await creatures.load(authUserId);
+    const base = await bases.load(authUserId);
+    return { state, ownedCreatures, base };
   };
   let shuttingDown = false;
   let authenticatedSocketCount = 0;
@@ -850,6 +855,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         }
 
         if (message.type === "auth") {
+          let releaseAuth: () => void = () => undefined;
           try {
             if (userId) {
               send(socket, { type: "error", code: "INVALID_MESSAGE" });
@@ -858,8 +864,10 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             const payload = app.jwt.verify<{ sub: string; username: string }>(message.token);
             if (typeof payload.sub !== "string" || payload.sub.length === 0) throw new Error("invalid_subject");
             const authenticatedUserId = payload.sub;
+            releaseAuth = beginAuth(authenticatedUserId);
             const { state, ownedCreatures, base } = await loadAuthenticatedState(authenticatedUserId);
             if (socket.readyState !== socket.OPEN) {
+              releaseAuth();
               // Closed while authenticating: the close handler saw no userId, so it cannot release anything loaded here.
               // Register nothing (no lease, no socket). Release the loaded state only when no other connection or
               // in-flight authentication for this user could be using it. The cleanup is published in
@@ -906,6 +914,8 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             userId = null;
             send(socket, { type: "error", code: "INVALID_TOKEN" });
             socket.close(1008, "invalid_token");
+          } finally {
+            releaseAuth();
           }
           return;
         }

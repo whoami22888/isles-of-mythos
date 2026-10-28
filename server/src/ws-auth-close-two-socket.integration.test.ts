@@ -96,3 +96,71 @@ describe("two sockets for one account around an early-closed authentication", ()
     }
   });
 });
+
+describe("two sockets finishing authentication together", () => {
+  it("keeps the second socket's state when the first socket closes at the same moment both loads complete", async () => {
+    const db = createDbPool();
+    // Hold the next two profile reads (one per socket) and release them together, so both loads complete in one turn.
+    let holdCount = 0;
+    let heldReads = 0;
+    let releaseHeld: () => void = () => undefined;
+    const heldBoth = new Promise<void>((resolve) => { releaseHeld = () => resolve(); });
+    let bothReached: () => void = () => undefined;
+    const reachedBoth = new Promise<void>((resolve) => { bothReached = resolve; });
+    const originalQuery = db.query.bind(db) as (...args: unknown[]) => Promise<unknown>;
+    (db as unknown as { query: unknown }).query = async (...args: unknown[]) => {
+      const text = typeof args[0] === "string" ? args[0] : "";
+      if (holdCount > 0 && /FROM player_profiles WHERE user_id = \$1/.test(text)) {
+        holdCount -= 1;
+        heldReads += 1;
+        if (heldReads === 2) bothReached();
+        await heldBoth;
+      }
+      return originalQuery(...args);
+    };
+
+    const antiCheat = new AntiCheatService({ store: new MemoryAntiCheatStateStore() });
+    const app = await buildApp({ db, antiCheat });
+    const unique = randomUUID().replace(/-/g, "").slice(0, 20);
+    const sockets: WebSocket[] = [];
+    try {
+      const register = await app.inject({
+        method: "POST",
+        url: "/auth/register",
+        payload: { username: `together_${unique}`, email: `together_${unique}@example.com`, password: "Correct-Horse-Battery-9" },
+      });
+      if (register.statusCode !== 201) throw new Error("REGISTER_" + register.statusCode);
+      const body = JSON.parse(register.body) as { accessToken: string };
+
+      await app.listen({ host: "127.0.0.1", port: 0 });
+      const address = app.server.address();
+      if (address === null || typeof address === "string") throw new Error("TEST_SERVER_NOT_LISTENING");
+      const url = `ws://127.0.0.1:${address.port}/ws`;
+
+      const a = await connect(url);
+      sockets.push(a.socket);
+      await waitForMessage(a.inbox, (m) => m.type === "server_ready", "a_ready");
+      const b = await connect(url);
+      sockets.push(b.socket);
+      await waitForMessage(b.inbox, (m) => m.type === "server_ready", "b_ready");
+
+      holdCount = 2;
+      a.socket.send(JSON.stringify({ type: "auth", token: body.accessToken }));
+      b.socket.send(JSON.stringify({ type: "auth", token: body.accessToken }));
+      await reachedBoth;
+      // A closes while both loads are held; then both loads complete in the same turn.
+      a.socket.close();
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      releaseHeld();
+
+      await waitForMessage(b.inbox, (m) => m.type === "auth_ok", "b_auth");
+      b.socket.send(JSON.stringify({ type: "move", dx: 1, dy: 0, dt: 0.25, sequence: 1 }));
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      expect(b.inbox.some((m) => m.type === "error" && m.code === "AUTH_REQUIRED")).toBe(false);
+    } finally {
+      for (const socket of sockets) socket.close();
+      await app.close();
+      await db.end();
+    }
+  });
+});
