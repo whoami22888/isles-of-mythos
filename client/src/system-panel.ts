@@ -262,7 +262,6 @@ export class SystemPanel {
       { label: "TERRITORY", run: () => { const x = Number(this.prompt("World X")); const y = Number(this.prompt("World Y")); if (Number.isSafeInteger(x) && Number.isSafeInteger(y)) this.request("territory_at", { x, y }); } },
       { label: "CLAIM", run: () => { const territoryId = this.prompt("Territory ID"); const guildId = this.prompt("Guild ID"); if (territoryId && guildId) this.request("claim_guild_territory", { territoryId, guildId }); } },
       { label: "REPUTATION", run: () => { const realm = this.prompt("Realm"); const delta = Number(this.prompt("Reputation delta")); if (realm && Number.isSafeInteger(delta)) this.request("change_realm_reputation", { realm, delta }); } },
-      ask("REALM AI TICK", "tick_realm_ai"),
       { label: "TRADE ROUTE", run: () => {
         const sourceTerritoryId = this.prompt("Source territory ID"); const destinationTerritoryId = this.prompt("Destination territory ID");
         const resourceKey = this.prompt("Resource key"); const quantity = this.prompt("Quantity"); const travelSeconds = Number(this.prompt("Travel seconds"));

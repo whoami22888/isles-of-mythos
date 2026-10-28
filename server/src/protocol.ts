@@ -45,7 +45,6 @@ export type ClientMessage =
   | { type:"my_realm_reputation"; requestId:string }
   | { type:"create_trade_route"; requestId:string; sourceTerritoryId:string; destinationTerritoryId:string; resourceKey:string; quantity:string; travelSeconds:number; guildId:string|null; realmId:string|null }
   | { type:"list_trade_routes"; requestId:string }
-  | { type:"tick_realm_ai"; requestId:string }
   | { type:"list_invasions"; requestId:string; territoryId:string|null }
   | { type:"get_invasion_waves"; requestId:string; invasionId:string }
   | { type:"join_invasion"; requestId:string; invasionId:string; armyId:string; role:InvasionRole }
@@ -306,7 +305,7 @@ export function parseClientMessage(raw:string):ClientMessage|null{
     if(type==="create_guild_battle"){const id=(value as {requestId?:unknown}).requestId,a=(value as {attackerGuildId?:unknown}).attackerGuildId,d=(value as {defenderGuildId?:unknown}).defenderGuildId,t=(value as {targetTerritoryId?:unknown}).targetTerritoryId;return requestId(id)&&typeof a==="string"&&a.length>0&&a.length<=64&&typeof d==="string"&&d.length>0&&d.length<=64&&typeof t==="string"&&t.length>0&&t.length<=64?{type,requestId:id,attackerGuildId:a,defenderGuildId:d,targetTerritoryId:t}:null;}
     if(type==="join_guild_battle"||type==="guild_battle_action"){const id=(value as {requestId?:unknown}).requestId,b=(value as {battleId?:unknown}).battleId,a=(value as {armyId?:unknown}).armyId;return requestId(id)&&typeof b==="string"&&b.length>0&&b.length<=64&&typeof a==="string"&&a.length>0&&a.length<=64?{type,requestId:id,battleId:b,armyId:a}:null;}
     if(type==="engage_endgame_creature"){const id=(value as {requestId?:unknown}).requestId,c=(value as {creatureId?:unknown}).creatureId;return requestId(id)&&typeof c==="string"&&c.length>0&&c.length<=64?{type,requestId:id,creatureId:c}:null;}
-    if(type==="list_realms"||type==="list_territories"||type==="list_realm_fortresses"||type==="my_realm_reputation"||type==="list_trade_routes"||type==="tick_realm_ai"){const id=(value as {requestId?:unknown}).requestId;return requestId(id)?{type,requestId:id}:null;}
+    if(type==="list_realms"||type==="list_territories"||type==="list_realm_fortresses"||type==="my_realm_reputation"||type==="list_trade_routes"){const id=(value as {requestId?:unknown}).requestId;return requestId(id)?{type,requestId:id}:null;}
     if(type==="territory_at"){const id=(value as {requestId?:unknown}).requestId,x=(value as {x?:unknown}).x,y=(value as {y?:unknown}).y;return requestId(id)&&coordinate(x)&&coordinate(y)?{type:"territory_at",requestId:id,x,y}:null;}
     if(type==="claim_guild_territory"){const id=(value as {requestId?:unknown}).requestId,t=(value as {territoryId?:unknown}).territoryId,g=(value as {guildId?:unknown}).guildId;return requestId(id)&&typeof t==="string"&&t.length>0&&t.length<=64&&typeof g==="string"&&g.length>0&&g.length<=64?{type:"claim_guild_territory",requestId:id,territoryId:t,guildId:g}:null;}
     if(type==="change_realm_reputation"){const id=(value as {requestId?:unknown}).requestId,realm=(value as {realm?:unknown}).realm,delta=(value as {delta?:unknown}).delta;return requestId(id)&&idString(realm)&&isSafeInteger(delta)&&Math.abs(delta)<=1000?{type:"change_realm_reputation",requestId:id,realm,delta}:null;}

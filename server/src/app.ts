@@ -1679,7 +1679,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           send(socket,response);return;
         }
 
-        if (message.type === "list_realms" || message.type === "list_territories" || message.type === "list_realm_fortresses" || message.type === "territory_at" || message.type === "claim_guild_territory" || message.type === "change_realm_reputation" || message.type === "my_realm_reputation" || message.type === "create_trade_route" || message.type === "list_trade_routes" || message.type === "tick_realm_ai") {
+        if (message.type === "list_realms" || message.type === "list_territories" || message.type === "list_realm_fortresses" || message.type === "territory_at" || message.type === "claim_guild_territory" || message.type === "change_realm_reputation" || message.type === "my_realm_reputation" || message.type === "create_trade_route" || message.type === "list_trade_routes") {
           if(!userId){send(socket,{type:"error",code:"AUTH_REQUIRED"});return;}
           const authenticatedUserId=userId;await players.loadOrCreate(authenticatedUserId);
           const response=await runBaseRequest(authenticatedUserId,message.requestId,message.type+"|"+JSON.stringify(message),async()=>{
@@ -1693,7 +1693,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
               if(message.type==="my_realm_reputation")return {type:"realm_reputation",requestId:message.requestId,reputation:await realms.myReputation(authenticatedUserId)};
               if(message.type==="create_trade_route"){const route=await realms.createTradeRoute(authenticatedUserId,message.sourceTerritoryId,message.destinationTerritoryId,message.resourceKey,message.quantity,message.travelSeconds,message.guildId,message.realmId);return {type:"trade_route_state",requestId:message.requestId,route};}
               if(message.type==="list_trade_routes")return {type:"trade_route_list",requestId:message.requestId,routes:await realms.routes()};
-              await realms.tickAI();return {type:"realm_operation_ok",requestId:message.requestId};
+              return {type:"error",code:"INVALID_MESSAGE"};
             }catch(error){const code=errorCode(error,"REALM_OPERATION_FAILED");const allowed=["INVALID_TERRITORY_COORDINATES","TERRITORY_NOT_FOUND","INSUFFICIENT_TERRITORY_INFLUENCE","INVALID_REPUTATION_DELTA","REALM_NOT_FOUND","INVALID_TRADE_ROUTE","INVALID_TRADE_ROUTE_ENDPOINTS","GUILD_PERMISSION_DENIED","GUILD_MEMBERSHIP_REQUIRED","PLAYER_NOT_FOUND"];return {type:"error",code:(allowed.includes(code)?code:"INVALID_MESSAGE") as Extract<ServerMessage,{type:"error"}>["code"]};}
           });send(socket,response);return;
         }

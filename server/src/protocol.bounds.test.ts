@@ -315,3 +315,10 @@ describe("id-only social/auction messages are rebuilt, not spread (NET-04 slice 
   });
 });
 
+describe("server-only operations are not client messages (NET-04 slice 2b)", () => {
+  it("tick_realm_ai is rejected by the parser; realm AI is server-scheduled", () => {
+    expect(parse({ type: "tick_realm_ai", requestId: "r1" })).toBeNull();
+  });
+});
+
+
