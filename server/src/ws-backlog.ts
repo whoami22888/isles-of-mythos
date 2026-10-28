@@ -57,3 +57,14 @@ export class MessageBacklogGuard {
     if (this.queued === 0) this.strikes = 0;
   }
 }
+
+/**
+ * Reports a failed message handler without ever throwing. The logger and the socket send are
+ * isolated from each other so a failure in one cannot skip the other or reject the per-socket
+ * FIFO chain (which would silently drop every later frame on that socket).
+ */
+export function reportMessageFailure(error: unknown, log: () => void, notify: () => void): void {
+  void error;
+  try { log(); } catch { /* reporter must never throw */ }
+  try { notify(); } catch { /* reporter must never throw */ }
+}

@@ -4,6 +4,7 @@ import {
   MAX_BACKLOG_OVERFLOW_STRIKES,
   MAX_QUEUED_MESSAGES_PER_SOCKET,
   MessageBacklogGuard,
+  reportMessageFailure,
 } from "./ws-backlog.js";
 
 // MYTHOS-NET-02: invariants of the per-socket backlog guard. These need no
@@ -99,5 +100,36 @@ describe("MessageBacklogGuard", () => {
     expect(() => new MessageBacklogGuard(0, 1)).toThrow("INVALID_MAX_QUEUED");
     expect(() => new MessageBacklogGuard(1.5, 1)).toThrow("INVALID_MAX_QUEUED");
     expect(() => new MessageBacklogGuard(1, 0)).toThrow("INVALID_MAX_STRIKES");
+  });
+});
+
+describe("reportMessageFailure", () => {
+  it("never throws and still notifies when the logger throws", () => {
+    let notified = false;
+    expect(() => reportMessageFailure(new Error("x"), () => { throw new Error("log down"); }, () => { notified = true; })).not.toThrow();
+    expect(notified).toBe(true);
+  });
+
+  it("never throws and still logs when the send throws", () => {
+    let logged = false;
+    expect(() => reportMessageFailure(new Error("x"), () => { logged = true; }, () => { throw new Error("socket gone"); })).not.toThrow();
+    expect(logged).toBe(true);
+  });
+
+  it("keeps a FIFO chain alive when handler, logger and send all throw", async () => {
+    const guard = new MessageBacklogGuard(4, 3);
+    let chain = Promise.resolve();
+    const ran: number[] = [];
+    const enqueue = (n: number, fail: boolean) => {
+      expect(guard.admit()).toBe("accept");
+      chain = chain.then(() => { if (fail) throw new Error("handler"); ran.push(n); })
+        .catch((e) => reportMessageFailure(e, () => { throw new Error("log"); }, () => { throw new Error("send"); }));
+      chain = chain.finally(() => guard.release());
+    };
+    enqueue(1, true);
+    enqueue(2, false);
+    await chain;
+    expect(ran).toEqual([2]);
+    expect(guard.depth).toBe(0);
   });
 });
