@@ -134,14 +134,8 @@ jobs:
           exit 1
       - name: Capture host and PostgreSQL metrics during load
         run: |
-          (
-            while kill -0 "$(cat server.pid)" 2>/dev/null; do
-              printf '%s\n' "--- $(date -Is) ---"
-              ps -p "$(cat server.pid)" -o pid=,pcpu=,pmem=,rss=,etime=
-              PGPASSWORD=postgres psql "$DATABASE_URL" -Atc "SELECT now(), numbackends, xact_commit, xact_rollback, blks_read, blks_hit FROM pg_stat_database WHERE datname='isles_test';"
-              sleep 1
-            done
-          ) > performance-system.log 2>&1 &
+          # Own session/process group, so scripts/stop-sampler.sh can stop every process it started, including psql.
+          setsid bash scripts/sample-metrics.sh > performance-system.log 2>&1 &
           echo $! > performance-sampler.pid
       - name: Self-test persisted-evidence validator
         run: node scripts/validate-performance-report.mjs --self-test
@@ -154,13 +148,9 @@ jobs:
         run: |
           kill "$(cat server.pid)" 2>/dev/null || true
           wait "$(cat server.pid)" 2>/dev/null || true
-          # The metrics sampler exits on its own once the server is gone, but may still be mid-iteration. Wait (bounded)
-          # so performance-system.log is final before the evidence manifest hashes it; otherwise its size changes.
-          if [ -f performance-sampler.pid ]; then
-            sampler="$(cat performance-sampler.pid)"
-            for _ in $(seq 1 30); do kill -0 "$sampler" 2>/dev/null || break; sleep 1; done
-            if kill -0 "$sampler" 2>/dev/null; then kill "$sampler" 2>/dev/null || true; fi
-          fi
+          # Stop the sampler's whole process group and wait until nothing from it remains, so the log is final before
+          # the evidence manifest hashes it. Bounded; fails closed rather than hashing a log that may still change.
+          bash scripts/stop-sampler.sh performance-sampler.pid 30
       - name: Verify acceptance evidence completeness
         if: always()
         shell: bash
