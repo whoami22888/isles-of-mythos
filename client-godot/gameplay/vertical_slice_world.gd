@@ -94,8 +94,16 @@ func _build_scaffold_world() -> void:
 	light.rotation_degrees = Vector3(-55, -25, 0)
 	light.light_energy = 1.2
 	add_child(light)
+	_follow_camera()
+
+const CAMERA_OFFSET := Vector3(0, 28, 24)
+
+# Keep the gameplay camera on the authoritative player so an account restored
+# far from the origin is still on screen. Presentation only; no game state.
+func _follow_camera() -> void:
 	var camera: Camera3D = $Camera
-	camera.look_at_from_position(Vector3(0, 28, 24), Vector3.ZERO)
+	var target := Vector3(_player.x, 0.0, _player.z)
+	camera.look_at_from_position(target + CAMERA_OFFSET, target)
 
 func _material(color: Color) -> StandardMaterial3D:
 	var material := StandardMaterial3D.new()
@@ -172,6 +180,7 @@ func _on_player_state(state: Dictionary) -> void:
 		var world_y = y if y is int or y is float else 0
 		_player = Vector3(float(x), 0.9, float(world_y))
 		$ServerPlayerRepresentation.position = _player
+		_follow_camera()
 		_state.text = "Server player position: (%d, %d)" % [int(_player.x), int(_player.z)]
 		# Follow the authoritative position: request the chunk containing the
 		# player on first state and whenever the player crosses a boundary.

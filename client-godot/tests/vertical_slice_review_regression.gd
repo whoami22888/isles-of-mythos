@@ -52,6 +52,12 @@ func run() -> void:
 	check(stub.chunk_requests.is_empty(), "no hard-coded origin chunk before the server reports a position")
 	world._on_player_state({"x": 100.5, "y": -40.0})
 	check(stub.chunk_requests == [Vector2i(3, -2)], "chunk derived from authoritative position (32-unit chunks), got %s" % [stub.chunk_requests])
+	# Codex P2 on d6accf5: the camera must follow the authoritative player, not stay on the origin.
+	var cam: Camera3D = world.get_node("Camera")
+	var cam_offset: Vector3 = cam.position - world._player
+	check(cam_offset.is_equal_approx(Vector3(0, 27.1, 24)), "camera follows the authoritative player (offset from player), got %s" % [cam_offset])
+	world._on_player_state({"x": 101.0, "y": -41.0})
+	check((cam.position - world._player).is_equal_approx(Vector3(0, 27.1, 24)), "camera keeps following on every player_state")
 	world._on_player_state({"x": 101.0, "y": -41.0})
 	check(stub.chunk_requests.size() == 1, "same chunk is not re-requested on every state")
 	world._on_player_state({"x": 96.0, "y": -33.0})
