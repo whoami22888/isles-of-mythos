@@ -217,3 +217,69 @@ describe("startRealmAiScheduler stop() fail-closed drain", () => {
     }
   });
 });
+
+// Real-PostgreSQL abort semantics. A test-only advisory-lock key keeps these off the production key that
+// other test files contend on, and a private witness table makes the durable outcome observable.
+describe.skipIf(!url)("runRealmAiTickOnce abort semantics (real Postgres)", () => {
+  const TEST_LOCK_KEY = 18_019_001;
+  const witness = `realm_ai_abort_witness_${process.pid}`;
+  let pool: pg.Pool;
+  beforeEach(async () => {
+    pool = new pg.Pool({ connectionString: url });
+    await pool.query(`CREATE TABLE IF NOT EXISTS ${witness}(id serial PRIMARY KEY, note text)`);
+    await pool.query(`TRUNCATE ${witness}`);
+  });
+  afterEach(async () => {
+    await pool.query(`DROP TABLE IF EXISTS ${witness}`);
+    await pool.end();
+  });
+  const count = async (): Promise<number> => Number((await pool.query<{ n: string }>(`SELECT COUNT(*)::text n FROM ${witness}`)).rows[0]?.n);
+  const realmsWriting = (afterInsert: (c: pg.PoolClient) => Promise<void>) => ({
+    tickAI: async (c?: pg.PoolClient) => {
+      await c!.query(`INSERT INTO ${witness}(note) VALUES('tick')`);
+      await afterInsert(c!);
+    },
+  });
+  // Real clocks: the other describes in this file use fake timers only inside their own scope.
+  beforeEach(() => vi.useRealTimers());
+
+  it("abort while the transaction is blocked destroys the connection, settles, and never persists the tick", async () => {
+    const abort = new AbortController();
+    const realms = realmsWriting(async (c) => { await c.query("SELECT pg_sleep(1.5)"); });
+    const run = runRealmAiTickOnce(pool, realms, 1, abort.signal, TEST_LOCK_KEY);
+    await new Promise((r) => setTimeout(r, 300));
+    abort.abort();
+    await expect(run).rejects.toThrow();
+    // The backend finishes its sleep, finds the client gone and rolls back; nothing may ever become durable.
+    for (let i = 0; i < 40; i++) await new Promise((r) => setTimeout(r, 100));
+    expect(await count()).toBe(0);
+    const lock = await pool.query<{ n: string }>("SELECT COUNT(*)::text n FROM pg_locks WHERE locktype='advisory' AND objid=$1", [TEST_LOCK_KEY]);
+    expect(Number(lock.rows[0]?.n)).toBe(0);
+  }, 20_000);
+
+  it("abort while COMMIT is in flight does not destroy the connection: the tick commits exactly once", async () => {
+    const abort = new AbortController();
+    let commitStarted!: () => void;
+    const started = new Promise<void>((r) => { commitStarted = r; });
+    let openGate!: () => void;
+    const gate = new Promise<void>((r) => { openGate = r; });
+    const delayedCommitDb = {
+      connect: async () => {
+        const c = await pool.connect();
+        const query = c.query.bind(c) as (...a: unknown[]) => Promise<unknown>;
+        (c as unknown as { query: unknown }).query = async (...a: unknown[]) => {
+          if (a[0] === "COMMIT") { commitStarted(); await gate; }
+          return query(...a);
+        };
+        return c;
+      },
+    };
+    const realms = realmsWriting(() => Promise.resolve());
+    const run = runRealmAiTickOnce(delayedCommitDb as never, realms, 1, abort.signal, TEST_LOCK_KEY);
+    await started;
+    abort.abort();
+    openGate();
+    expect(await run).toBe(true);
+    expect(await count()).toBe(1);
+  }, 20_000);
+});

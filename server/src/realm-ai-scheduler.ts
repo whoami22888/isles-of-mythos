@@ -29,14 +29,16 @@ export function parseRealmAiIntervalMs(raw: string | undefined): number {
  * COMMIT/ROLLBACK. A tick is skipped when the newest 'tick' event is younger than 90% of the
  * interval, so staggered instances do not double-tick a window. Returns true when a tick ran.
  */
-export async function runRealmAiTickOnce(db: Pool, realms: Pick<RealmStore, "tickAI">, intervalMs: number, signal?: AbortSignal): Promise<boolean> {
+export async function runRealmAiTickOnce(db: Pool, realms: Pick<RealmStore, "tickAI">, intervalMs: number, signal?: AbortSignal, lockKey: number = REALM_AI_LOCK_KEY): Promise<boolean> {
   const client = await db.connect();
   let destroyed = false;
-  // Abort = destroy the connection. The server rolls back an open transaction when its client vanishes,
-  // and no COMMIT can be sent afterwards, so an aborted tick can never persist. Pending queries reject,
-  // which settles this function promptly.
+  // Abort before COMMIT is sent = destroy the connection: the server rolls back the open transaction and no
+  // COMMIT can follow. Once COMMIT has been issued the outcome is decided by PostgreSQL, so abort is ignored
+  // and the acknowledgment is awaited (destroying the socket then would leave the outcome ambiguous).
+  // Retry safety does not depend on this: the freshness guard skips a window that already has a committed tick.
+  let commitSent = false;
   const onAbort = (): void => {
-    if (destroyed) return;
+    if (destroyed || commitSent) return;
     destroyed = true;
     client.release(new Error("realm_ai_tick_aborted"));
   };
@@ -45,7 +47,7 @@ export async function runRealmAiTickOnce(db: Pool, realms: Pick<RealmStore, "tic
   try {
     if (destroyed) throw new Error("realm_ai_tick_aborted");
     await client.query("BEGIN");
-    const got = await client.query<{ locked: boolean }>("SELECT pg_try_advisory_xact_lock($1) AS locked", [REALM_AI_LOCK_KEY]);
+    const got = await client.query<{ locked: boolean }>("SELECT pg_try_advisory_xact_lock($1) AS locked", [lockKey]);
     if (got.rows[0]?.locked !== true) {
       await client.query("ROLLBACK");
       return false;
@@ -59,6 +61,8 @@ export async function runRealmAiTickOnce(db: Pool, realms: Pick<RealmStore, "tic
       return false;
     }
     await realms.tickAI(client);
+    if (destroyed) throw new Error("realm_ai_tick_aborted");
+    commitSent = true;
     await client.query("COMMIT");
     return true;
   } catch (error) {
