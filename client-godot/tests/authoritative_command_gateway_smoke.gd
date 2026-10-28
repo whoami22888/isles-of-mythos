@@ -63,6 +63,29 @@ func run() -> void:
 				break
 		await process_frame
 	check(wire_request.get("requestId") == request_id, "Request ID reaches socket peer")
+	var chat_id: String = gateway.send_request("chat_history", {"channel":"local"})
+	var auction_id: String = gateway.send_request("auction_list")
+	check(chat_id.length() == 32 and auction_id.length() == 32, "Nullable-field requests accepted")
+	var wire_chat: Dictionary = {}
+	var wire_auction: Dictionary = {}
+	for _frame in range(200):
+		peer.poll()
+		while peer.get_available_packet_count() > 0:
+			var wire_packet = JSON.parse_string(peer.get_packet().get_string_from_utf8())
+			if wire_packet is Dictionary and wire_packet.get("type") == "chat_history":
+				wire_chat = wire_packet
+			elif wire_packet is Dictionary and wire_packet.get("type") == "auction_list":
+				wire_auction = wire_packet
+		if not wire_chat.is_empty() and not wire_auction.is_empty():
+			break
+		await process_frame
+	check(wire_chat.has("recipientUserId") and wire_chat["recipientUserId"] == null and wire_chat.has("guildId") and wire_chat["guildId"] == null and wire_chat.has("partyId") and wire_chat["partyId"] == null, "chat_history wire frame carries explicit null fields")
+	for key in ["itemId", "rarity", "category", "minLevel", "maxLevel", "minPrice", "maxPrice"]:
+		check(wire_auction.has(key) and wire_auction[key] == null, "auction_list wire frame carries explicit null %s" % key)
+	gateway._on_protocol_message({"type":"chat_history","requestId":chat_id,"messages":[]})
+	gateway._on_protocol_message({"type":"auction_list","requestId":auction_id,"listings":[]})
+	check(acked == [chat_id, auction_id] and gateway.pending_count() == 1, "Nullable-field requests acknowledged by correlated reply")
+	acked.clear()
 	gateway._on_protocol_message({"type":"guild_state","requestId":"wrong-id","guild":null})
 	check(gateway.pending_count() == 1 and acked.is_empty(), "Wrong ID cannot acknowledge")
 	gateway._on_protocol_message({"type":"client_only_fake_ack","requestId":request_id})

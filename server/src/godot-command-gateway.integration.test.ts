@@ -59,6 +59,15 @@ describe("Godot authoritative command gateway contract", () => {
       socket.send(JSON.stringify({ type: "create_base", requestId: "godot-base-1", name: "Godot Gateway Base", x: 70123, y: -70123 }));
       await expect(waitFor(socket, (message) => message.type === "base_state" && message.requestId === "godot-base-1")).resolves.toMatchObject({ type: "base_state", requestId: "godot-base-1" });
 
+      // Exact frames the Godot gateway serialises (required nullable fields are explicit nulls).
+      socket.send(JSON.stringify({ type: "chat_history", requestId: "godot-chat-1", channel: "local", recipientUserId: null, guildId: null, partyId: null }));
+      await expect(waitFor(socket, (message) => message.type === "chat_history" && message.requestId === "godot-chat-1")).resolves.toMatchObject({ type: "chat_history", requestId: "godot-chat-1" });
+      socket.send(JSON.stringify({ type: "auction_list", requestId: "godot-auction-1", itemId: null, rarity: null, category: null, minLevel: null, maxLevel: null, minPrice: null, maxPrice: null }));
+      await expect(waitFor(socket, (message) => message.type === "auction_list" && message.requestId === "godot-auction-1")).resolves.toMatchObject({ type: "auction_list", requestId: "godot-auction-1" });
+      // Omitting a required nullable field is invalid on the wire, which is why the gateway must serialise nulls.
+      socket.send(JSON.stringify({ type: "chat_history", requestId: "godot-chat-omitted", channel: "local" }));
+      await expect(waitFor(socket, (message) => message.type === "error" && message.code === "INVALID_MESSAGE")).resolves.toMatchObject({ code: "INVALID_MESSAGE" });
+
       socket.send(JSON.stringify({ type: "not_a_server_command", requestId: "godot-invalid-1" }));
       await expect(waitFor(socket, (message) => message.type === "error" && message.code === "INVALID_MESSAGE")).resolves.toMatchObject({ type: "error", code: "INVALID_MESSAGE" });
       socket.send("not-json");
