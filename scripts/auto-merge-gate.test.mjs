@@ -217,3 +217,17 @@ test("auto-merge workflow reacts to bot issue comments and keeps protected-file 
   assert.equal(modifiesProtectedVerification(["scripts/auto-merge-gate.mjs"]), true);
   assert.equal(modifiesProtectedVerification([".github/workflows/verified-codex-auto-merge.yml"]), true);
 });
+
+test("only the latest bot summary counts, so an earlier PASS is not reused", () => {
+  const older = { ...summaryComment(), updated_at: "2026-10-28T13:00:00Z" };
+  const newer = { ...summaryComment({ has_unresolved_findings: true }), updated_at: "2026-10-28T13:30:00Z" };
+  assert.equal(trustedCodexNoFindingsComments([older, newer, receiptComment()], sha), false);
+  const newerPass = { ...summaryComment(), updated_at: "2026-10-28T13:30:00Z" };
+  const olderFail = { ...summaryComment({ has_any_findings: true }), updated_at: "2026-10-28T13:00:00Z" };
+  assert.equal(trustedCodexNoFindingsComments([olderFail, newerPass, receiptComment()], sha), true);
+});
+
+test("real Codex receipts use a 10-character commit prefix", () => {
+  const real = { user: bot, body: "<!-- codex-review-receipt:v1 -->\n\nCodex Review: Didn't find any major issues. More of your lovely PRs please.\n\n**Reviewed commit:** `" + sha.slice(0, 10) + "`\n" };
+  assert.equal(trustedCodexNoFindingsComments([summaryComment(), real], sha), true);
+});

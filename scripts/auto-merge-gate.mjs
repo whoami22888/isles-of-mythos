@@ -134,12 +134,13 @@ export function codexSummaryState(body) {
 export function trustedCodexNoFindingsComments(comments, sha) {
   if (!SHA.test(sha) || !Array.isArray(comments)) return false;
   const lower = sha.toLowerCase();
-  const summary = comments.some(c => {
-    if (!isCodexBotComment(c)) return false;
-    const review = codexSummaryState(c.body)?.code_review;
-    return review?.commit_sha?.toLowerCase() === lower && review.status === "completed" &&
-      review.has_any_findings === false && review.has_unresolved_findings === false;
-  });
+  // Only the latest bot summary counts (it is edited in place per review); an earlier PASS must not be reused.
+  const latest = comments.filter(c => isCodexBotComment(c) && codexSummaryState(c.body))
+    .sort((a, b) => (Date.parse(b.updated_at ?? b.created_at ?? "") || 0) -
+      (Date.parse(a.updated_at ?? a.created_at ?? "") || 0))[0];
+  const review = latest ? codexSummaryState(latest.body)?.code_review : undefined;
+  const summary = review?.commit_sha?.toLowerCase() === lower && review.status === "completed" &&
+    review.has_any_findings === false && review.has_unresolved_findings === false;
   const receipt = comments.some(c => {
     if (!isCodexBotComment(c) || !/<!--\s*codex-review-receipt:v1\s*-->/.test(c.body ?? "")) return false;
     const reviewed = RECEIPT_COMMIT.exec(c.body)?.[1]?.toLowerCase();
