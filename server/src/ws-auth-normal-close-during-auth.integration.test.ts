@@ -109,8 +109,24 @@ describe("normal close of an authenticated socket during another socket's authen
 });
 
 describe("replacement socket lifecycle persists account state", () => {
-  it("persists the replacement socket's moved position after its final normal close and reloads it for a new socket", async () => {
+  it("runs the deferred handoff, then persists the replacement socket's moved position across a final close and reload", async () => {
     const db = createDbPool();
+    // Hold B at its first base read while A is registered, so A's normal close takes the deferred path.
+    let gateArmed = false;
+    let gateReached: () => void = () => undefined;
+    let releaseGate: () => void = () => undefined;
+    const reached = new Promise<void>((resolve) => { gateReached = resolve; });
+    const originalQuery = db.query.bind(db) as (...args: unknown[]) => Promise<unknown>;
+    (db as unknown as { query: unknown }).query = async (...args: unknown[]) => {
+      const text = typeof args[0] === "string" ? args[0] : "";
+      if (gateArmed && /FROM player_bases WHERE owner_user_id=\$1/.test(text)) {
+        gateArmed = false;
+        gateReached();
+        await new Promise<void>((resolve) => { releaseGate = resolve; });
+      }
+      return originalQuery(...args);
+    };
+
     const antiCheat = new AntiCheatService({ store: new MemoryAntiCheatStateStore() });
     const app = await buildApp({ db, antiCheat });
     const unique = randomUUID().replace(/-/g, "").slice(0, 20);
@@ -129,18 +145,28 @@ describe("replacement socket lifecycle persists account state", () => {
       if (address === null || typeof address === "string") throw new Error("TEST_SERVER_NOT_LISTENING");
       const url = `ws://127.0.0.1:${address.port}/ws`;
 
-      // A authenticates, then closes normally; B authenticates for the same account and is registered.
+      // A authenticates and is registered.
       const a = await connect(url);
       sockets.push(a.socket);
       await waitForMessage(a.inbox, (m) => m.type === "server_ready", "a_ready");
       a.socket.send(JSON.stringify({ type: "auth", token: body.accessToken }));
       await waitForMessage(a.inbox, (m) => m.type === "auth_ok", "a_auth");
+
+      // B starts authenticating for the same account and is held in flight while A is still registered.
       const b = await connect(url);
       sockets.push(b.socket);
       await waitForMessage(b.inbox, (m) => m.type === "server_ready", "b_ready");
+      gateArmed = true;
       b.socket.send(JSON.stringify({ type: "auth", token: body.accessToken }));
-      await waitForMessage(b.inbox, (m) => m.type === "auth_ok", "b_auth");
+      await reached;
+
+      // A closes normally during B's authentication: this populates the deferred unload.
       a.socket.close();
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      // Release B: it registers, which must discard the superseded deferred unload.
+      releaseGate();
+      await waitForMessage(b.inbox, (m) => m.type === "auth_ok", "b_auth");
 
       // B moves; the accepted move reports the authoritative position.
       const statesBeforeMove = b.inbox.filter((m) => m.type === "player_state").length;
