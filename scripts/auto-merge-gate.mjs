@@ -136,7 +136,8 @@ export function trustedCodexNoFindingsComments(comments, sha) {
   if (!SHA.test(sha) || !Array.isArray(comments)) return false;
   const lower = sha.toLowerCase();
   // Only the latest bot summary counts (it is edited in place per review); an earlier PASS must not be reused.
-  const latest = comments.filter(c => isCodexBotComment(c) && codexSummaryState(c.body))
+  // Select by marker first, then parse: a newer malformed summary must reject, never fall back to older evidence.
+  const latest = comments.filter(c => isCodexBotComment(c) && SUMMARY_MARKER.test(c.body ?? ""))
     .sort((a, b) => (Date.parse(b.updated_at ?? b.created_at ?? "") || 0) -
       (Date.parse(a.updated_at ?? a.created_at ?? "") || 0))[0];
   const review = latest ? codexSummaryState(latest.body)?.code_review : undefined;

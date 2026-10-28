@@ -296,3 +296,20 @@ test("merge controller wakes for actual Codex issue receipts but not arbitrary P
   assert.match(policy, /github\.event\.comment\.user\.login == github\.repository_owner/);
   assert.match(policy, /VISUAL-ACCEPTED:/);
 });
+
+test("a newer malformed or unparseable Codex summary must not fall back to an older PASS", () => {
+  const older = goodState(sha, {}, "2026-10-28T14:00:00Z");
+  const receipt = goodNoFindingsReceipt();
+  const malformed = [
+    "<!-- codex-review-state:v1 {invalid} -->",
+    "<!-- codex-review-state:v1 -->",
+    "<!-- codex-review-state:v1 null -->",
+  ];
+  for (const body of malformed) {
+    const newer = { user: { login: CODEX_REVIEWER }, updated_at: "2026-10-28T15:00:00Z", body };
+    assert.equal(trustedCodexNoFindingsComment([older, receipt, newer], sha), false, body);
+  }
+  // A newer *valid* summary on the same SHA still wins, and an unmarked newer bot comment is ignored.
+  const unmarked = { user: { login: CODEX_REVIEWER }, updated_at: "2026-10-28T15:00:00Z", body: "thanks!" };
+  assert.equal(trustedCodexNoFindingsComment([older, receipt, unmarked], sha), true);
+});
