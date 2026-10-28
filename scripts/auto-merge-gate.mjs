@@ -21,6 +21,38 @@ const STAGE_SCRIPTS = new Set([
   "scripts/test_stage_polyhaven_coast.py"
 ]);
 
+// Exact path filters of .github/workflows/iom-world-content.yml and iom-coastal-ship-fx.yml. The gate must require
+// a workflow whenever GitHub would have triggered it; tests assert this inventory against the workflow files.
+export const WORLD_CONTENT_PATHS = Object.freeze(new Set([
+  "client-godot/content/world_population.json",
+  "client-godot/scripts/world_content_director.gd",
+  "client-godot/tests/world_content_director_test.gd",
+  "scripts/world_content.py",
+  "scripts/harvest_world_lighting.py",
+  "scripts/test_world_content.py",
+  "scripts/test_harvest_world_lighting.py",
+  ".github/workflows/iom-world-content.yml"
+]));
+export const COASTAL_FX_PATHS = Object.freeze(new Set([
+  "client-godot/scenes/realistic_coastal_fx_slice.tscn",
+  "client-godot/scenes/realistic_coastal_slice.tscn",
+  "client-godot/scripts/coastal_ship_fx_controller.gd",
+  "client-godot/scripts/ship_wake_effect.gd",
+  "client-godot/shaders/ship_wake_foam.gdshader",
+  "client-godot/scripts/ship_bow_spray_effect.gd",
+  "client-godot/shaders/ship_bow_spray.gdshader",
+  "client-godot/scripts/realistic_coastal_slice.gd",
+  "client-godot/tests/coastal_ship_fx_integration_test.gd",
+  "client-godot/tests/render_coastal_fx_sequence.gd",
+  "client-godot/tests/coastal_ocean_integration_test.gd",
+  "client-godot/tests/coastal_shore_heightfield_test.gd",
+  "client-godot/scripts/coastal_shore_heightfield.gd",
+  "client-godot/shaders/coastal_shore_sampler.gdshaderinc",
+  "client-godot/shaders/ocean_surface.gdshader",
+  ".github/workflows/iom-coastal-ship-fx.yml"
+]));
+const COASTAL_FX_PREFIX = "client-godot/assets/external/";
+
 export function changedPaths(files) {
   if (!Array.isArray(files)) throw Error("Invalid changed-file collection");
   return files.flatMap(f => {
@@ -59,6 +91,10 @@ export function applicableChecks(paths) {
     required.add("Godot external art provenance");
   if (paths.some(p => STAGE_SCRIPTS.has(p) || p === ".github/workflows/godot-stage-coast.yml"))
     required.add("Stage Poly Haven coastal PBR candidate");
+  if (paths.some(p => WORLD_CONTENT_PATHS.has(p)))
+    required.add("Isles world content and source harvest");
+  if (paths.some(p => COASTAL_FX_PATHS.has(p) || p.startsWith(COASTAL_FX_PREFIX)))
+    required.add("IOM Coastal Ship FX Integration");
   return [...required];
 }
 
@@ -77,6 +113,46 @@ export function trustedCodexReceipt(review, sha) {
     (review?.state === "COMMENTED" || review?.state === "APPROVED") &&
     /<!--\s*codex-review-receipt:v1\s*-->/.test(review?.body ?? "");
 }
+
+// A Codex review with no findings is published as bot-authored *issue comments* (a summary that is edited in
+// place, plus a receipt), not as a formal PR review object. Both must be exact-SHA and bot-authored.
+// The "[bot]" login suffix is reserved for GitHub Apps; no ordinary account can hold this exact login.
+const isCodexBotComment = c => c?.user?.login === CODEX_REVIEWER;
+const SUMMARY_MARKER = /<!--\s*codex-review-state:v1\s*([\s\S]*?)\s*-->/;
+const RECEIPT_COMMIT = /\*{0,2}Reviewed commit:\*{0,2}\s*`([0-9a-f]{10,40})`/i;
+
+export function codexSummaryState(body) {
+  const match = SUMMARY_MARKER.exec(body ?? "");
+  if (!match) return null;
+  try {
+    // GitHub stores the braces as numeric character references inside the HTML comment.
+    return JSON.parse(match[1].replaceAll("&#123;", "{").replaceAll("&#125;", "}"));
+  } catch {
+    return null;
+  }
+}
+
+export function trustedCodexNoFindingsComments(comments, sha) {
+  if (!SHA.test(sha) || !Array.isArray(comments)) return false;
+  const lower = sha.toLowerCase();
+  // Only the latest bot summary counts (it is edited in place per review); an earlier PASS must not be reused.
+  // Select by marker first, then parse: a newer malformed summary must reject, never fall back to older evidence.
+  const latest = comments.filter(c => isCodexBotComment(c) && SUMMARY_MARKER.test(c.body ?? ""))
+    .sort((a, b) => (Date.parse(b.updated_at ?? b.created_at ?? "") || 0) -
+      (Date.parse(a.updated_at ?? a.created_at ?? "") || 0))[0];
+  const review = latest ? codexSummaryState(latest.body)?.code_review : undefined;
+  const summary = review?.commit_sha?.toLowerCase() === lower && review.status === "completed" &&
+    review.has_any_findings === false && review.has_unresolved_findings === false;
+  const receipt = comments.some(c => {
+    if (!isCodexBotComment(c) || !/<!--\s*codex-review-receipt:v1\s*-->/.test(c.body ?? "")) return false;
+    const reviewed = RECEIPT_COMMIT.exec(c.body)?.[1]?.toLowerCase();
+    return !!reviewed && lower.startsWith(reviewed);
+  });
+  return summary && receipt;
+}
+
+// Singular alias used by the owner-authored receipt tests.
+export const trustedCodexNoFindingsComment = trustedCodexNoFindingsComments;
 
 export function hasBlockingCodexFinding(comments, sha) {
   return comments.some(c => (c?.original_commit_id ?? c?.commit_id) === sha &&
@@ -172,8 +248,11 @@ async function main() {
   if (!checks.pass) { reject(checks.reason); return; }
 
   const reviews = await pages("/pulls/" + number + "/reviews");
-  // Dismissed receipts and self-authored imitation text are never eligible.
-  if (!reviews.some(review => trustedCodexReceipt(review, sha))) {
+  const issueComments = await pages("/issues/" + number + "/comments");
+  // Dismissed receipts and self-authored imitation text are never eligible. Either a formal bot review receipt
+  // or the bot's exact-SHA no-findings summary plus receipt comments must exist for the final SHA.
+  if (!reviews.some(review => trustedCodexReceipt(review, sha)) &&
+      !trustedCodexNoFindingsComments(issueComments, sha)) {
     reject("No active trusted Codex receipt for final SHA");
     return;
   }
@@ -185,7 +264,6 @@ async function main() {
   }
 
   if (visualRequired(paths)) {
-    const issueComments = await pages("/issues/" + number + "/comments");
     const exact = "VISUAL-ACCEPTED: " + sha;
     if (!issueComments.some(c => c.user?.login?.toLowerCase() === owner.toLowerCase() &&
         c.body?.split(/\r?\n/).some(line => line.trim() === exact))) {

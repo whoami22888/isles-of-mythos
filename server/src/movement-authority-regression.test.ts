@@ -67,13 +67,13 @@ describe("P0 movement authority integrated regressions", () => {
     expect(next.accepted).toBe(true);
   });
 
-  it("records repeated anomalies as evidence instead of applying automatic permanent bans", () => {
+  it("records repeated anomalies as evidence instead of applying automatic permanent bans", async () => {
     const antiCheat = new AntiCheatService();
-    const first = antiCheat.observeMovement("evidence-user", {
+    const first = await antiCheat.observeMovement("evidence-user", {
       accepted: false, reason: "RATE_LIMITED", sequenceGap: 0, serverDt: 0,
     }, 40_000);
     expect(first?.type).toBe("MOVEMENT_RATE_LIMIT");
-    expect(antiCheat.suspicionScore("evidence-user", 40_000)).toBeGreaterThan(0);
+    expect(await antiCheat.suspicionScore("evidence-user", 40_000)).toBeGreaterThan(0);
     expect(antiCheat.listRecent("evidence-user")).toHaveLength(1);
   });
   it("rejects non-finite, missing, out-of-range and malformed movement directions", () => {
