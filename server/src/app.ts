@@ -627,7 +627,6 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     if (worldEventTick) clearInterval(worldEventTick);
     if (endgameTick) clearInterval(endgameTick);
     if (territorySeasonTick) clearInterval(territorySeasonTick);
-    await realmAiScheduler?.stop();
     shuttingDown = true;
     if (heartbeat) clearInterval(heartbeat);
     if (survivalTick) clearInterval(survivalTick);
@@ -635,6 +634,8 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     if (navalFireTick) clearInterval(navalFireTick);
     if (persistenceTick) clearInterval(persistenceTick);
     if (combatTick) clearInterval(combatTick);
+    // Drain the in-flight realm AI tick only after every other timer is stopped and shutdown is flagged.
+    await realmAiScheduler?.stop();
     await players.persistAll();
     await creatures.persistAll();
     await bases.processAll();

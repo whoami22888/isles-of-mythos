@@ -5,12 +5,13 @@ import { RealmStore } from "./realm.js";
 
 describe("parseRealmAiIntervalMs", () => {
   it("defaults when unset, empty or invalid", () => {
-    for (const raw of [undefined, "", "  ", "abc", "-5", "1.5", "1e3", "99999999999999999999"]) expect(parseRealmAiIntervalMs(raw), String(raw)).toBe(REALM_AI_DEFAULT_INTERVAL_MS);
+    for (const raw of [undefined, "", "  ", "abc", "-5", "1.5", "1e3", "99999999999999999999", "2147483648", "9007199254740991"]) expect(parseRealmAiIntervalMs(raw), String(raw)).toBe(REALM_AI_DEFAULT_INTERVAL_MS);
   });
   it("0 disables; small values clamp to the minimum; larger pass through", () => {
     expect(parseRealmAiIntervalMs("0")).toBe(0);
     expect(parseRealmAiIntervalMs("1")).toBe(REALM_AI_MIN_INTERVAL_MS);
     expect(parseRealmAiIntervalMs("30000")).toBe(30_000);
+    expect(parseRealmAiIntervalMs("2147483647")).toBe(2_147_483_647);
   });
 });
 

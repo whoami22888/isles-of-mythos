@@ -5,10 +5,12 @@ import type { RealmStore } from "./realm.js";
 export const REALM_AI_LOCK_KEY = 18018;
 export const REALM_AI_DEFAULT_INTERVAL_MS = 60_000;
 export const REALM_AI_MIN_INTERVAL_MS = 5_000;
+/** Node coerces setInterval delays above 2^31-1 ms to 1 ms, so larger values must never reach the timer. */
+export const REALM_AI_MAX_INTERVAL_MS = 2_147_483_647;
 
 /**
  * Parses REALM_AI_TICK_MS. Unset/invalid -> default; "0" -> disabled (0);
- * otherwise clamped to at least REALM_AI_MIN_INTERVAL_MS.
+ * values above REALM_AI_MAX_INTERVAL_MS (setInterval overflow) -> default; otherwise clamped to at least REALM_AI_MIN_INTERVAL_MS.
  */
 export function parseRealmAiIntervalMs(raw: string | undefined): number {
   if (raw === undefined || raw.trim() === "") return REALM_AI_DEFAULT_INTERVAL_MS;
@@ -16,6 +18,7 @@ export function parseRealmAiIntervalMs(raw: string | undefined): number {
   const value = Number(raw.trim());
   if (!Number.isSafeInteger(value)) return REALM_AI_DEFAULT_INTERVAL_MS;
   if (value === 0) return 0;
+  if (value > REALM_AI_MAX_INTERVAL_MS) return REALM_AI_DEFAULT_INTERVAL_MS;
   return Math.max(REALM_AI_MIN_INTERVAL_MS, value);
 }
 
