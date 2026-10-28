@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
   BASE_CHECKS, CODEX_REVIEWER, changedPaths, modifiesProtectedVerification, applicableChecks, visualRequired,
-  trustedCodexReceipt, hasBlockingCodexFinding, requiredRunsPassed, resolveMergeability,
+  trustedCodexReceipt, trustedCodexNoFindingsComment, hasBlockingCodexFinding, requiredRunsPassed, resolveMergeability,
   WORLD_CONTENT_PATHS, COASTAL_FX_PATHS
 } from "./auto-merge-gate.mjs";
 
@@ -176,4 +176,70 @@ test("auto-merge workflow_run list names every gate-required workflow", () => {
   assert.match(policy, /IOM Coastal Ship FX Integration/);
   for (const name of applicableChecks([...WORLD_CONTENT_PATHS, ...COASTAL_FX_PATHS, "client-godot/assets/a.png", "scripts/stage_polyhaven_coast.py"]))
     assert.ok(policy.includes(name), name);
+});
+
+
+const goodState = (head = sha, overrides = {}, updated_at = "2026-10-28T14:00:00Z") => ({
+  user: { login: CODEX_REVIEWER },
+  updated_at,
+  body: [
+    "<!-- codex-pull-request-review-summary -->",
+    "<!-- codex-review-state:v1 " + JSON.stringify({
+      code_review: {
+        commit_sha: head, status: "completed",
+        has_any_findings: false, has_unresolved_findings: false,
+        ...overrides,
+      },
+    }) + " -->",
+  ].join("\n"),
+});
+const goodNoFindingsReceipt = (head = sha) => ({
+  user: { login: CODEX_REVIEWER },
+  body: "<!-- codex-review-receipt:v1 -->\nCodex Review: no major issues.\n**Reviewed commit:** " +
+    String.fromCharCode(96) + head.slice(0, 12) + String.fromCharCode(96),
+});
+
+test("genuine Codex no-findings issue receipt requires TWO bot-authored exact-head records", () => {
+  const pair = [goodState(), goodNoFindingsReceipt()];
+  assert.equal(trustedCodexNoFindingsComment(pair, sha), true);
+  assert.equal(trustedCodexNoFindingsComment([pair[0]], sha), false, "status alone is insufficient");
+  assert.equal(trustedCodexNoFindingsComment([pair[1]], sha), false, "receipt alone is insufficient");
+  assert.equal(trustedCodexNoFindingsComment([], sha), false);
+  assert.equal(trustedCodexNoFindingsComment(pair, "bad-sha"), false);
+  assert.equal(trustedCodexNoFindingsComment({}, sha), false);
+  assert.equal(trustedCodexNoFindingsComment([goodState("b".repeat(40)), pair[1]], sha), false, "other SHA must not pass");
+  assert.equal(trustedCodexNoFindingsComment([pair[0], goodNoFindingsReceipt("b".repeat(40))], sha), false, "old receipt must not pass");
+});
+
+test("Codex pending, finding-bearing, forged and malformed issue comments all fail closed", () => {
+  const receipt = goodNoFindingsReceipt();
+  for (const bad of [
+    goodState(sha, { status: "running" }),
+    goodState(sha, { has_any_findings: true }),
+    goodState(sha, { has_unresolved_findings: true }),
+    goodState(sha, { has_any_findings: null }),
+    goodState(sha, { has_unresolved_findings: null }),
+    { ...goodState(), body: "<!-- codex-review-state:v1 {invalid} -->" },
+    { ...goodState(), body: "Review completed, no findings" },
+    { ...goodState(), user: { login: "whoami22888" } },
+  ]) {
+    assert.equal(trustedCodexNoFindingsComment([bad, receipt], sha), false);
+  }
+  assert.equal(trustedCodexNoFindingsComment([goodState(), {
+    ...receipt, user: { login: "some-fake-reviewer" },
+  }], sha), false, "an owner/attacker cannot impersonate Codex");
+  const priorPass = goodState(sha, {}, "2026-10-28T13:00:00Z");
+  const newerFail = goodState(sha, { status: "running" }, "2026-10-28T14:30:00Z");
+  assert.equal(trustedCodexNoFindingsComment([priorPass, receipt, newerFail], sha), false,
+    "latest bot review state overrides earlier success");
+});
+
+test("merge controller wakes for actual Codex issue receipts but not arbitrary PR comments", () => {
+  const policy = readFileSync(".github/workflows/verified-codex-auto-merge.yml", "utf8");
+  assert.match(policy, /github\.event\.comment\.user\.login == 'chatgpt-codex-connector\[bot\]'/);
+  assert.match(policy, /contains\(github\.event\.comment\.body, 'codex-review-receipt:v1'\)/);
+  assert.match(policy, /contains\(github\.event\.comment\.body, 'codex-review-state:v1'\)/);
+  assert.match(policy, /github\.event\.issue\.pull_request != null/);
+  assert.match(policy, /github\.event\.comment\.user\.login == github\.repository_owner/);
+  assert.match(policy, /VISUAL-ACCEPTED:/);
 });
