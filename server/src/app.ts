@@ -230,6 +230,24 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const pendingCreatureRequests = new Map<string, Promise<ServerMessage>>();
   const pendingCreatureOperations = new Map<string, Promise<void>>();
   const pendingPlayerUnloads = new Map<string, Promise<void>>();
+  // Authentications currently loading state for a user. Early-close cleanup must not evict state under one of them.
+  const authsInFlight = new Map<string, number>();
+  const loadAuthenticatedState = async (authUserId: string) => {
+    authsInFlight.set(authUserId, (authsInFlight.get(authUserId) ?? 0) + 1);
+    try {
+      // Wait for any unload already scheduled for this user so the load never reads state that is being evicted.
+      const pendingUnload = pendingPlayerUnloads.get(authUserId);
+      if (pendingUnload) await pendingUnload;
+      const state = await players.loadOrCreate(authUserId);
+      const ownedCreatures = await creatures.load(authUserId);
+      const base = await bases.load(authUserId);
+      return { state, ownedCreatures, base };
+    } finally {
+      const remaining = (authsInFlight.get(authUserId) ?? 1) - 1;
+      if (remaining <= 0) authsInFlight.delete(authUserId);
+      else authsInFlight.set(authUserId, remaining);
+    }
+  };
   let shuttingDown = false;
   let authenticatedSocketCount = 0;
   const app = Fastify({ logger: false });
@@ -840,18 +858,27 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             const payload = app.jwt.verify<{ sub: string; username: string }>(message.token);
             if (typeof payload.sub !== "string" || payload.sub.length === 0) throw new Error("invalid_subject");
             const authenticatedUserId = payload.sub;
-            const pendingUnload = pendingPlayerUnloads.get(authenticatedUserId);
-            if (pendingUnload) await pendingUnload;
-            const state = await players.loadOrCreate(authenticatedUserId);
-            const ownedCreatures = await creatures.load(authenticatedUserId);
-            const base = await bases.load(authenticatedUserId);
+            const { state, ownedCreatures, base } = await loadAuthenticatedState(authenticatedUserId);
             if (socket.readyState !== socket.OPEN) {
               // Closed while authenticating: the close handler saw no userId, so it cannot release anything loaded here.
-              // Register nothing (no lease, no socket) and release the loaded state unless another live connection uses it.
-              if ((playerConnections.get(authenticatedUserId) ?? 0) === 0 && !userSockets.has(authenticatedUserId)) {
-                await bases.persistAndUnload(authenticatedUserId).catch(() => null);
-                await creatures.unload(authenticatedUserId).catch(() => undefined);
-                await players.unload(authenticatedUserId).catch(() => undefined);
+              // Register nothing (no lease, no socket). Release the loaded state only when no other connection or
+              // in-flight authentication for this user could be using it. The cleanup is published in
+              // pendingPlayerUnloads synchronously after that check, so any later authentication waits for it.
+              if (
+                (playerConnections.get(authenticatedUserId) ?? 0) === 0 &&
+                !userSockets.has(authenticatedUserId) &&
+                !authsInFlight.has(authenticatedUserId) &&
+                !pendingPlayerUnloads.has(authenticatedUserId)
+              ) {
+                const cleanup = (async () => {
+                  await bases.persistAndUnload(authenticatedUserId).catch(() => null);
+                  await creatures.unload(authenticatedUserId).catch(() => undefined);
+                  await players.unload(authenticatedUserId).catch(() => undefined);
+                })();
+                pendingPlayerUnloads.set(authenticatedUserId, cleanup);
+                void cleanup.finally(() => {
+                  if (pendingPlayerUnloads.get(authenticatedUserId) === cleanup) pendingPlayerUnloads.delete(authenticatedUserId);
+                });
               }
               return;
             }
