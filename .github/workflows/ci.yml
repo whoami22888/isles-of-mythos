@@ -132,6 +132,15 @@ jobs:
       - name: Verify exact-SHA Codex integration policy regressions
         run: node --test scripts/auto-merge-gate.test.mjs
 
+      - name: Verify IOM-00 infrastructure guards (vendor lock, workflow matrices, orchestrator)
+        run: |
+          set -euo pipefail
+          node --test scripts/validate_vendor_lock.test.mjs
+          node scripts/validate_vendor_lock.js
+          python3 -m unittest discover -s scripts -p "test_check_workflow_matrices.py"
+          python3 scripts/check_workflow_matrices.py
+          python3 -m unittest discover -s tools -p "test_orchestrator.py"
+
       - name: Install pinned Godot 4.7.2 for the Fastify-Godot end-to-end test
         shell: bash
         env:

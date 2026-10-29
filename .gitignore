@@ -5,3 +5,5 @@ coverage/
 .vite/
 .DS_Store
 client-godot/.godot/
+.project/checkpoint.json
+.project/.checkpoint-*.tmp
