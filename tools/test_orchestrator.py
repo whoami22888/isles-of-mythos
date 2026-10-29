@@ -338,6 +338,17 @@ class WaitAndLeaderExit(Base):
         self.assertEqual(o.resume(wait=True), orch.EXIT_USAGE)
         self.assertEqual(self.calls, [])
 
+    def test_head_change_during_wait_with_override_reruns_every_step(self):
+        clock = self._throttled_with_wait()
+
+        def commit_while_waiting(_seconds):
+            (self.root / "b.txt").write_text("b\n")
+            git(self.root, "add", "b.txt")
+            git(self.root, "commit", "-q", "-m", "during wait")
+        o = self.make(sleep=commit_while_waiting, now=lambda: clock[0])
+        self.assertEqual(o.resume(wait=True, allow_head_change=True), orch.EXIT_OK)
+        self.assertEqual(self.calls, ["s1", "s2", "s3"])      # nothing from the old commit is reused
+
     def test_unchanged_state_after_the_wait_still_resumes(self):
         clock = self._throttled_with_wait()
         self.assertEqual(self.make(sleep=lambda s: None, now=lambda: clock[0]).resume(wait=True), orch.EXIT_OK)
