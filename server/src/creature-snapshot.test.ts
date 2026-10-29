@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildCreatureSnapshotFrames, CREATURE_SNAPSHOT_PAGE_BYTES } from "./creature-snapshot.js";
+import { buildCreatureSnapshotFrames, CREATURE_SNAPSHOT_PAGE_BYTES, CreatureTooLargeError } from "./creature-snapshot.js";
 
 // MYTHOS-NET-05: server->client creature snapshots must be bounded per frame.
 // The 64 KiB maxPayload only bounds client->server frames; before this change the
@@ -89,11 +89,36 @@ describe("creature snapshot framing", () => {
     expect(frames.flatMap((f) => f.creatures)).toHaveLength(1500);
   });
 
-  it("never drops or loops on a single creature larger than the page budget", () => {
+  it("rejects a creature too large for one budgeted frame instead of emitting an oversize frame", () => {
     const owned = [creature(0), creature(1, "x".repeat(70000)), creature(2)];
-    const frames = asFrames(buildCreatureSnapshotFrames(owned, 9, 4096));
-    expect(frames.flatMap((f) => f.creatures.map((c) => c.id))).toEqual(owned.map((c) => c.id));
-    expect(frames.every((f) => f.pageCount === frames.length)).toBe(true);
+    expect(() => buildCreatureSnapshotFrames(owned, 9)).toThrow(CreatureTooLargeError);
+    try {
+      buildCreatureSnapshotFrames(owned, 9);
+    } catch (error) {
+      expect(error).toBeInstanceOf(CreatureTooLargeError);
+      const e = error as CreatureTooLargeError;
+      expect(e.bytes).toBeGreaterThan(e.maxBytes);
+      expect(e.maxBytes).toBeLessThan(CREATURE_SNAPSHOT_PAGE_BYTES);
+      expect(e.message).not.toContain("xxxx"); // never echoes creature data
+    }
+  });
+
+  it("accepts a creature exactly at the maximum and rejects one byte over, with every frame within budget", () => {
+    const probe = (n: number) => creature(0, "x".repeat(n));
+    let lo = 0;
+    let hi = 70000;
+    while (lo < hi) { // largest padding that is still accepted
+      const mid = Math.ceil((lo + hi) / 2);
+      try { buildCreatureSnapshotFrames([probe(mid)], 1); lo = mid; } catch { hi = mid - 1; }
+    }
+    const frames = asFrames(buildCreatureSnapshotFrames([probe(lo)], 1));
+    expect(frames).toHaveLength(1);
+    frames.forEach((frame) => expect(bytes(frame)).toBeLessThanOrEqual(CREATURE_SNAPSHOT_PAGE_BYTES));
+    expect(() => buildCreatureSnapshotFrames([probe(lo + 1)], 1)).toThrow(CreatureTooLargeError);
+    // The boundary also holds beside other creatures and across a page split.
+    const mixed = asFrames(buildCreatureSnapshotFrames([creature(1), probe(lo), creature(2)], 2));
+    mixed.forEach((frame) => expect(bytes(frame)).toBeLessThanOrEqual(CREATURE_SNAPSHOT_PAGE_BYTES));
+    expect(mixed.flatMap((f) => f.creatures)).toHaveLength(3);
   });
 
   it("is deterministic for identical input", () => {

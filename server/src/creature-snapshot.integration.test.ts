@@ -80,6 +80,57 @@ function readSnapshot(socket: WebSocket, cutAfterFrames?: number): Promise<Snaps
   });
 }
 
+describe("creature snapshot with an oversized source row", () => {
+  it("rejects explicitly: no creature frame, no partial snapshot, socket stays usable", async () => {
+    const app = await buildApp();
+    const db = createDbPool();
+    const unique = Date.now();
+    let userId = "";
+    try {
+      const reg = await app.inject({
+        method: "POST",
+        url: "/auth/register",
+        payload: { username: `big_${unique}`, email: `big_${unique}@example.com`, password: "Correct-Horse-Battery-9" },
+      });
+      expect(reg.statusCode).toBe(201);
+      const body = JSON.parse(reg.body) as { accessToken: string; user: { id: string } };
+      userId = body.user.id;
+      // nickname is varchar(32), but ability_ids is an unbounded jsonb array: one corrupt row.
+      await db.query(
+        `INSERT INTO player_creatures (owner_user_id, wild_source_id, species, level, xp, health, max_health, attack, defense, element, ability_ids, tame_progress, ai_mode, x, y)
+         SELECT $1, 'big-' || $2, 'ember-drake', 1, 0, 100, 120, 30, 20, 'fire', (SELECT jsonb_agg('ability-' || g) FROM generate_series(1, 20000) g), 100, 'follow', 0, 0`,
+        [userId, String(unique)],
+      );
+      await app.listen({ host: "127.0.0.1", port: 0 });
+      const address = app.server.address();
+      if (address === null || typeof address === "string") throw new Error("No test address");
+
+      const socket = await openAuthenticated(address.port, body.accessToken);
+      const types: string[] = [];
+      let errorCode = "";
+      await new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error("Timed out waiting for the snapshot rejection")), 15000);
+        socket.on("message", (raw) => {
+          const message: unknown = JSON.parse(rawText(raw));
+          if (!isObj(message)) return;
+          types.push(String(message.type));
+          if (message.type === "error") { errorCode = String(message.code); clearTimeout(timer); resolve(); }
+        });
+      });
+      expect(errorCode).toBe("INTERNAL_SERVER_ERROR");
+      expect(types).toContain("auth_ok");
+      expect(types).not.toContain("creature_party");
+      expect(types).not.toContain("creature_party_page");
+      expect(socket.readyState).toBe(WebSocket.OPEN);
+      socket.close();
+    } finally {
+      await app.close();
+      if (userId) await db.query("DELETE FROM users WHERE id=$1", [userId]);
+      await db.end();
+    }
+  }, 60000);
+});
+
 describe("creature snapshot over a real Fastify WebSocket", () => {
   it("delivers a >1 MiB collection as bounded frames, recovers after a mid-stream cut, and re-pages after a party change", async () => {
     const app = await buildApp();

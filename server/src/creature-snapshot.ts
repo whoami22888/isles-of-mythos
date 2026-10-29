@@ -10,6 +10,8 @@
 //   pages 1..n  -> { type:"creature_party_page", creatures, snapshotId, page, pageCount, total }
 // Pages of one snapshot share `snapshotId`, are sent consecutively on one socket, and
 // `creatures` across pages concatenates (in order) to the complete owned collection.
+// Every frame is within CREATURE_SNAPSHOT_PAGE_BYTES; a creature that cannot fit one frame is
+// rejected (CreatureTooLargeError) instead of being emitted oversize or dropped.
 // Clients reassemble and must discard a partial snapshot on a gap or a lost connection;
 // the server re-sends a fresh, complete snapshot after every authentication.
 
@@ -37,6 +39,18 @@ const ENVELOPE_RESERVE_BYTES = Buffer.byteLength(
   "utf8",
 );
 
+/**
+ * A single creature whose serialized form cannot fit one budgeted frame. Normal rows are a few
+ * hundred bytes (nickname is varchar(32)); only a corrupt `ability_ids` array can reach this.
+ * Carries sizes only, never creature data or identifiers.
+ */
+export class CreatureTooLargeError extends Error {
+  constructor(readonly bytes: number, readonly maxBytes: number, readonly index: number) {
+    super(`creature snapshot item exceeds the per-frame bound (${bytes} > ${maxBytes} bytes)`);
+    this.name = "CreatureTooLargeError";
+  }
+}
+
 export function buildCreatureSnapshotFrames(
   creatures: readonly unknown[],
   snapshotId: number,
@@ -48,17 +62,21 @@ export function buildCreatureSnapshotFrames(
   const pages: unknown[][] = [];
   let current: unknown[] = [];
   let currentBytes = 0;
+  let index = 0;
   for (const creature of creatures) {
     // One serialization per creature; +1 accounts for the separating comma.
     const size = Buffer.byteLength(JSON.stringify(creature), "utf8") + 1;
+    // Every emitted frame must stay within the budget: a creature that cannot fit a frame on its
+    // own is rejected before anything is built, never emitted oversize and never silently dropped.
+    if (size > budget) throw new CreatureTooLargeError(size - 1, budget - 1, index);
     if (current.length > 0 && currentBytes + size > budget) {
       pages.push(current);
       current = [];
       currentBytes = 0;
     }
-    // A creature larger than the whole budget is sent alone rather than dropped.
     current.push(creature);
     currentBytes += size;
+    index += 1;
   }
   pages.push(current); // always at least one page, so an empty collection still yields a frame
 

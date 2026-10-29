@@ -46,7 +46,7 @@ import { RedisAntiCheatStateStore } from "./anti-cheat-store.js";
 import { createMutationTiming, measureMutationStage, runTimedMutation, type MutationTiming, type MutationTimingSnapshot } from "./mutation-timing.js";
 import { runReplayableRequest, type RequestDuplicateOutcome } from "./request-coordinator.js";
 import { BACKLOG_CLOSE_CODE, BACKLOG_CLOSE_REASON, MessageBacklogGuard, reportMessageFailure } from "./ws-backlog.js";
-import { buildCreatureSnapshotFrames } from "./creature-snapshot.js";
+import { buildCreatureSnapshotFrames, CreatureTooLargeError } from "./creature-snapshot.js";
 
 function errorCode(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
@@ -61,7 +61,17 @@ function send(socket: WebSocket, message: ServerMessage): void {
 let creatureSnapshotSequence = 0;
 function sendCreatureSnapshot(socket: WebSocket, ownedCreatures: readonly unknown[]): void {
   creatureSnapshotSequence = (creatureSnapshotSequence + 1) % Number.MAX_SAFE_INTEGER;
-  for (const frame of buildCreatureSnapshotFrames(ownedCreatures, creatureSnapshotSequence)) send(socket, frame);
+  let frames: ReturnType<typeof buildCreatureSnapshotFrames>;
+  try {
+    frames = buildCreatureSnapshotFrames(ownedCreatures, creatureSnapshotSequence);
+  } catch (error) {
+    if (!(error instanceof CreatureTooLargeError)) throw error;
+    // Corrupt source row: explicit rejection, no partial snapshot, no identifiers logged.
+    log("creature_snapshot_rejected", { bytes: error.bytes, maxBytes: error.maxBytes, total: ownedCreatures.length });
+    send(socket, { type: "error", code: "INTERNAL_SERVER_ERROR" });
+    return;
+  }
+  for (const frame of frames) send(socket, frame);
 }
 
 const SLOW_MUTATION_THRESHOLD_MS = 50;
