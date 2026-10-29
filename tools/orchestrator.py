@@ -382,10 +382,14 @@ class Orchestrator:
         if not saved.get("available"):
             return None
         current = git_snapshot(self.root, self._own_path())
-        if current.get("head") != saved.get("head") and not allow_head_change:
-            self.log(f"refusing to resume: HEAD moved {saved.get('head', '')[:8]} -> {current.get('head', '')[:8]}"
-                     " (use --allow-head-change after reviewing)")
-            return EXIT_USAGE
+        if current.get("head") != saved.get("head"):
+            if not allow_head_change:
+                self.log(f"refusing to resume: HEAD moved {saved.get('head', '')[:8]} -> {current.get('head', '')[:8]}"
+                         " (use --allow-head-change after reviewing)")
+                return EXIT_USAGE
+            # Evidence is bound to the exact commit: steps that passed on the old HEAD say nothing about the new one.
+            self.log("HEAD moved since the checkpoint; discarding completed steps and re-running all of them")
+            data["progress"]["completed"] = []
         if current.get("pending_edits") != saved.get("pending_edits"):
             self.log("warning: the set of changed files differs from the checkpoint")
         if current.get("content_sha256") != saved.get("content_sha256"):

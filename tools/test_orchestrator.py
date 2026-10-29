@@ -7,6 +7,7 @@ import sys
 import tempfile
 import time
 import unittest
+from unittest import mock
 
 import orchestrator as orch
 
@@ -244,7 +245,6 @@ class SpecialPathsAndInterrupts(Base):
         self.assertIn("b.txt", snap["pending_edits"])
 
     def test_keyboard_interrupt_terminates_the_step_and_its_children(self):
-        from unittest import mock
         marker = self.root / "marker"
         child = "import pathlib,sys,time; time.sleep(1.5); pathlib.Path(sys.argv[1]).write_text('x')"
         parent = ("import subprocess,sys,time\n"
@@ -370,6 +370,23 @@ class CheckpointSafety(Base):
         self.assertEqual(self.make().resume(), orch.EXIT_USAGE)
         self.assertEqual(self.calls, [])
         self.assertEqual(self.make().resume(allow_head_change=True), orch.EXIT_OK)
+        # GPT review: steps that passed on the old commit are not evidence for the new one
+        self.assertEqual(self.calls, ["s1", "s2", "s3"])
+
+    def test_head_change_override_also_reruns_everything_when_inputs_changed_too(self):
+        self.checkpointed()
+        (self.root / "a.txt").write_text("changed and committed\n")
+        git(self.root, "commit", "-q", "-am", "change a tracked input")
+        (self.root / "new.txt").write_text("and a dirty file\n")
+        self.assertEqual(self.make().resume(allow_head_change=True), orch.EXIT_USAGE)   # content changed as well
+        self.assertEqual(self.calls, [])
+        self.assertEqual(self.make().resume(allow_head_change=True, allow_input_change=True), orch.EXIT_OK)
+        self.assertEqual(self.calls, ["s1", "s2", "s3"])
+
+    def test_unchanged_head_still_reuses_completed_steps(self):
+        self.checkpointed()
+        self.assertEqual(self.make().resume(allow_head_change=True), orch.EXIT_OK)
+        self.assertEqual(self.calls, ["s2", "s3"])
 
     def test_secrets_are_redacted_and_secret_files_never_enter_the_diff(self):
         (self.root / ".env").write_text("API_KEY=supersecretvalue\n")
