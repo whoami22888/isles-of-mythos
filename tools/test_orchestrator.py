@@ -180,6 +180,49 @@ class RunAndResume(Base):
         self.assertEqual(self.make().resume(), orch.EXIT_USAGE)
 
 
+class InputFingerprint(Base):
+    """GPT review: resume must not reuse a passed step after the content of its inputs changed."""
+
+    def throttled(self, edit):
+        edit()                                           # state present when step 1 passes
+        self.make({"s2": orch.RateLimited(0)}).run(self.plan())
+        self.calls.clear()
+
+    def test_changed_tracked_file_content_is_refused(self):
+        self.throttled(lambda: (self.root / "a.txt").write_text("two\n"))
+        (self.root / "a.txt").write_text("three\n")     # same HEAD, same path set, different content
+        self.assertEqual(self.make().resume(), orch.EXIT_USAGE)
+        self.assertEqual(self.calls, [])
+
+    def test_changed_untracked_file_content_is_refused(self):
+        self.throttled(lambda: (self.root / "new.txt").write_text("x\n"))
+        (self.root / "new.txt").write_text("y\n")
+        self.assertEqual(self.make().resume(), orch.EXIT_USAGE)
+        self.assertEqual(self.calls, [])
+
+    def test_unchanged_inputs_still_resume(self):
+        self.throttled(lambda: (self.root / "new.txt").write_text("x\n"))
+        self.assertEqual(self.make().resume(), orch.EXIT_OK)
+        self.assertEqual(self.calls, ["s2", "s3"])
+
+    def test_deliberate_override_reruns_every_step(self):
+        self.throttled(lambda: (self.root / "a.txt").write_text("two\n"))
+        (self.root / "a.txt").write_text("three\n")
+        self.assertEqual(self.make().resume(allow_input_change=True), orch.EXIT_OK)
+        self.assertEqual(self.calls, ["s1", "s2", "s3"])   # nothing passed on the old inputs is reused
+
+    def test_deleted_input_is_detected(self):
+        self.throttled(lambda: (self.root / "new.txt").write_text("x\n"))
+        (self.root / "new.txt").unlink()
+        self.assertEqual(self.make().resume(), orch.EXIT_USAGE)
+
+    def test_fingerprint_covers_bytes_past_the_diff_cap(self):
+        big = "x" * (orch.MAX_DIFF_BYTES + 10)
+        self.throttled(lambda: (self.root / "big.txt").write_text(big + "A"))
+        (self.root / "big.txt").write_text(big + "B")
+        self.assertEqual(self.make().resume(), orch.EXIT_USAGE)
+
+
 class CheckpointSafety(Base):
     def checkpointed(self):
         self.make({"s2": orch.RateLimited(0)}).run(self.plan())
@@ -250,7 +293,8 @@ class Redaction(unittest.TestCase):
                             ("Authorization: Bearer abc.def.ghi", "abc.def.ghi")]:
             out = orch.redact(raw)
             self.assertNotIn(secret, out, raw)
-            self.assertNotIn("Basic", out) if "Basic" in raw else None
+            if "Basic" in raw:
+                self.assertNotIn("Basic", out)
 
     def test_ordinary_text_is_left_alone(self):
         text = "compiling 3 files; token count is not a secret here\nline two"
@@ -301,7 +345,7 @@ class TimeoutKillsDescendants(Base):
                   "subprocess.Popen([sys.executable,'-c',sys.argv[2],sys.argv[1]])\n"
                   "time.sleep(30)\n")
         o = orch.Orchestrator(root=self.root, checkpoint=self.ckpt, sleep=lambda s: None)
-        code, output = o._subprocess_runner({"id": "t", "argv": [sys.executable, "-c", parent, str(marker), child], "timeout": 1})
+        code, _ = o._subprocess_runner({"id": "t", "argv": [sys.executable, "-c", parent, str(marker), child], "timeout": 1})
         self.assertEqual(code, 124)
         time.sleep(2.2)
         self.assertFalse(marker.exists(), "a descendant of the timed-out step kept running")

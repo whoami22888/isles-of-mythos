@@ -169,6 +169,28 @@ def _git(root: pathlib.Path, *args: str) -> tuple[int, str]:
         return 127, ""
 
 
+def _content_fingerprint(root: pathlib.Path, paths: list[str]) -> str:
+    """Digest of the actual bytes of every changed or untracked file (not just its name), so resume can tell that an
+    input changed even when HEAD and the set of paths are identical. Streamed, so it is not capped like the diff."""
+    digest = hashlib.sha256()
+    for rel in sorted(set(paths)):
+        path = root / rel
+        digest.update(rel.encode() + b"\0")
+        try:
+            if path.is_symlink():
+                digest.update(b"link:" + os.readlink(path).encode())
+            elif path.is_file():
+                with path.open("rb") as handle:
+                    for block in iter(lambda: handle.read(1 << 20), b""):
+                        digest.update(block)
+            else:
+                digest.update(b"absent-or-directory")
+        except OSError as error:
+            digest.update(f"unreadable:{error.errno}".encode())
+        digest.update(b"\0")
+    return digest.hexdigest()
+
+
 def git_snapshot(root: pathlib.Path, ignore: str | None = None) -> dict:
     """`ignore` (repo-relative) keeps the checkpoint file and its temp files out of their own change list."""
     rc, head = _git(root, "rev-parse", "HEAD")
@@ -188,7 +210,8 @@ def git_snapshot(root: pathlib.Path, ignore: str | None = None) -> dict:
     if truncated:
         diff = encoded[:MAX_DIFF_BYTES].decode(errors="ignore")
     return {"available": True, "branch": branch.strip(), "head": head.strip(), "pending_edits": sorted(set(pending)),
-            "diff": diff, "diff_truncated": truncated, "diff_sha256": hashlib.sha256(encoded).hexdigest()}
+            "diff": diff, "diff_truncated": truncated, "diff_sha256": hashlib.sha256(encoded).hexdigest(),
+            "content_sha256": _content_fingerprint(root, pending)}
 
 
 def write_atomic(path: pathlib.Path, payload: dict) -> None:
@@ -325,7 +348,7 @@ class Orchestrator:
     def run(self, plan: dict) -> int:
         return self._execute(validate_plan(plan), [])
 
-    def resume(self, wait: bool = True, allow_head_change: bool = False) -> int:
+    def resume(self, wait: bool = True, allow_head_change: bool = False, allow_input_change: bool = False) -> int:
         if not self.checkpoint.exists():
             self.log("no checkpoint to resume")
             return EXIT_USAGE
@@ -343,6 +366,14 @@ class Orchestrator:
                 return EXIT_USAGE
             if current.get("pending_edits") != saved.get("pending_edits"):
                 self.log("warning: the set of changed files differs from the checkpoint")
+            if current.get("content_sha256") != saved.get("content_sha256"):
+                if not allow_input_change:
+                    self.log("refusing to resume: the content of modified or untracked files changed since the "
+                             "checkpoint, so completed steps were validated against different input "
+                             "(use --allow-input-change to re-run every step on the current files)")
+                    return EXIT_USAGE
+                self.log("inputs changed since the checkpoint; discarding completed steps and re-running all of them")
+                data["progress"]["completed"] = []
         not_before = data.get("resume_not_before")
         remaining = max(0.0, not_before - self.now()) if not_before else 0.0
         if remaining > 0:
@@ -363,10 +394,13 @@ def main(argv=None) -> int:
     parser.add_argument("--root", type=pathlib.Path, default=ROOT)
     parser.add_argument("--no-wait", action="store_true", help="do not sleep for Retry-After; exit 75 if too early")
     parser.add_argument("--allow-head-change", action="store_true")
+    parser.add_argument("--allow-input-change", action="store_true",
+                        help="re-run every step if modified/untracked file content changed since the checkpoint")
     args = parser.parse_args(argv)
     orchestrator = Orchestrator(root=args.root, checkpoint=args.checkpoint)
     if args.resume:
-        return orchestrator.resume(wait=not args.no_wait, allow_head_change=args.allow_head_change)
+        return orchestrator.resume(wait=not args.no_wait, allow_head_change=args.allow_head_change,
+                                   allow_input_change=args.allow_input_change)
     try:
         return orchestrator.run(json.loads(args.plan.read_text()))
     except (OSError, ValueError) as error:
