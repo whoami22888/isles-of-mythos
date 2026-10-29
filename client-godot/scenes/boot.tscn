@@ -36,22 +36,22 @@ theme_override_constants/separation = 12
 
 [node name="Title" type="Label" parent="Panel/Margin/Content"]
 layout_mode = 2
+theme_type_variation = &"TitleLabel"
 text = "ISLES OF MYTHOS"
 horizontal_alignment = 1
-theme_override_font_sizes/font_size = 30
 
 [node name="Subtitle" type="Label" parent="Panel/Margin/Content"]
 layout_mode = 2
-text = "Sunken Tides · Android client"
+theme_type_variation = &"SubtitleLabel"
+text = "SUNKEN TIDES"
 horizontal_alignment = 1
-theme_override_font_sizes/font_size = 18
 
 [node name="Status" type="Label" parent="Panel/Margin/Content"]
 layout_mode = 2
 text = "Set up your game connection."
 horizontal_alignment = 1
+theme_type_variation = &"HudChip"
 autowrap_mode = 2
-theme_override_font_sizes/font_size = 17
 
 [node name="Endpoint" type="LineEdit" parent="Panel/Margin/Content"]
 layout_mode = 2
@@ -92,10 +92,12 @@ secret = true
 
 [node name="Connect" type="Button" parent="Panel/Margin/Content"]
 layout_mode = 2
+theme_type_variation = &"HeroButton"
 text = "Player sign in"
 
 [node name="Hint" type="Label" parent="Panel/Margin/Content"]
 layout_mode = 2
+theme_type_variation = &"BodyLabel"
 text = "Accounts are verified by the authoritative game server. Admin access is operator-provisioned."
 horizontal_alignment = 1
 autowrap_mode = 2

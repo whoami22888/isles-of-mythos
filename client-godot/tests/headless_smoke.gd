@@ -35,6 +35,16 @@ func run() -> void:
 	scene._switch_mode("player")
 	check(str(ProjectSettings.get_setting("application/config/default_ws_url", "")) == "", "Client must not advertise Android localhost as a live server")
 	check(scene.get_node("Panel/Margin/Content/Connect").pressed.is_connected(scene._connect_from_form), "Connect must be wired")
+	var theme: Theme = load("res://ui/iom_theme.tres")
+	check(theme != null, "Shared UI theme must load")
+	check(ProjectSettings.get_setting("gui/theme/custom", "") == "res://ui/iom_theme.tres", "Shared UI theme must be the project theme")
+	if theme != null:
+		check(theme.get_color("font_color", "TitleLabel").to_html(false) == "f4e6c8", "Title must use parchment token")
+		check(theme.get_color("font_color", "SubtitleLabel").to_html(false) == "6ed6d1", "Subtitle must use seafoam token")
+		var normal := theme.get_stylebox("normal", "Button") as StyleBoxFlat
+		check(normal != null and normal.bg_color.to_html(false) == "145b63", "Button must use lagoon token")
+		check(theme.get_type_variation_base("HeroButton") == &"Button", "HeroButton must extend Button")
+	check(scene.get_node("Panel/Margin/Content/Title").text == "ISLES OF MYTHOS", "Title must read exactly ISLES OF MYTHOS")
 	var login_endpoint := "ws://127.0.0.1:1/ws"
 	scene.get_node("Panel/Margin/Content/Endpoint").text = login_endpoint
 	scene.get_node("Panel/Margin/Content/Identifier").text = "test-player"
