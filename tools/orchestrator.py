@@ -345,7 +345,23 @@ class Orchestrator:
             "plan": plan, "progress": {"completed": list(completed), "pending": pending},
             "last_output_tail": redact(tail)[-MAX_OUTPUT_TAIL:], "git": git_snapshot(self.root, self._own_path())})
 
+    def _head(self) -> str | None:
+        rc, head = _git(self.root, "rev-parse", "HEAD")
+        return head.strip() if rc == 0 else None
+
+    def _head_moved(self, plan: dict, completed: list[str], baseline: str | None, step_id: str) -> bool:
+        """Steps are evidence for the commit they ran on. If a step moved HEAD, nothing completed so far (nor the step
+        that moved it) can be reused: invalidate all progress and stop so the next run starts from the new commit."""
+        if baseline is None or self._head() == baseline:
+            return False
+        completed.clear()
+        self._save(plan, completed, step_id, "failed",
+                   reason=f"HEAD moved during step {step_id}; completed steps were invalidated")
+        self.log(f"HEAD moved during step {step_id}; discarded all completed steps. Re-run (--resume) on the new commit")
+        return True
+
     def _execute(self, plan: dict, completed: list[str]) -> int:
+        baseline = self._head()
         for step in plan["steps"]:
             if step["id"] in completed:
                 continue
@@ -353,7 +369,11 @@ class Orchestrator:
             try:
                 code, output = self.runner(step)
             except RateLimited as limited:
+                if self._head_moved(plan, completed, baseline, step["id"]):
+                    return EXIT_FAILED
                 return self._rate_limited(plan, completed, step["id"], limited.retry_after, str(limited))
+            if self._head_moved(plan, completed, baseline, step["id"]):
+                return EXIT_FAILED
             if code == 0:
                 completed.append(step["id"])
                 self._save(plan, completed, None, "running")      # crash-safe progress

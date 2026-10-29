@@ -355,6 +355,33 @@ class WaitAndLeaderExit(Base):
         self.assertEqual(self.calls, ["s2", "s3"])
 
 
+class HeadMovesDuringExecution(Base):
+    """Codex P2 on d4825be: steps completed on one commit must not be reused after HEAD moves mid-run."""
+
+    def commit_input(self):
+        (self.root / "a.txt").write_text("changed by a step\n")
+        git(self.root, "commit", "-q", "-am", "step commits")
+
+    def test_head_move_before_a_throttle_invalidates_completed_steps(self):
+        o = self.make({"s2": lambda: (self.commit_input(), orch.RateLimited(0))[1]})
+        self.assertEqual(o.run(self.plan()), orch.EXIT_FAILED)
+        data = json.loads(self.ckpt.read_text())
+        self.assertEqual(data["progress"]["completed"], [])
+        self.calls.clear()
+        self.assertEqual(self.make().resume(), orch.EXIT_OK)          # no override needed: nothing is reused
+        self.assertEqual(self.calls, ["s1", "s2", "s3"])
+
+    def test_head_move_during_a_successful_step_stops_the_run(self):
+        o = self.make({"s2": lambda: (self.commit_input(), (0, "ok"))[1]})
+        self.assertEqual(o.run(self.plan()), orch.EXIT_FAILED)
+        self.assertNotIn("s3", self.calls)
+        self.assertEqual(json.loads(self.ckpt.read_text())["progress"]["completed"], [])
+
+    def test_stable_head_is_unaffected(self):
+        self.assertEqual(self.make().run(self.plan()), orch.EXIT_OK)
+        self.assertEqual(self.calls, ["s1", "s2", "s3"])
+
+
 class CheckpointSafety(Base):
     def checkpointed(self):
         self.make({"s2": orch.RateLimited(0)}).run(self.plan())
