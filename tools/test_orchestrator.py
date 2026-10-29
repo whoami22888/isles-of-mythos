@@ -224,6 +224,43 @@ class InputFingerprint(Base):
         self.assertEqual(self.make().resume(), orch.EXIT_USAGE)
 
 
+class InputsEditedByFailingStep(Base):
+    """Codex P2 on 5434e78: a later step that edits an input and then fails/throttles must not let --resume skip the
+    validations that passed against the original contents."""
+
+    def edit_then(self, outcome):
+        def behave():
+            (self.root / "a.txt").write_text("invalid\n")
+            if isinstance(outcome, Exception):
+                raise outcome
+            return outcome
+        return behave
+
+    def test_throttled_step_that_edited_an_input_blocks_resume(self):
+        self.make({"s2": self.edit_then(orch.RateLimited(0))}).run(self.plan())
+        self.calls.clear()
+        self.assertEqual(self.make().resume(), orch.EXIT_USAGE)
+        self.assertEqual(self.calls, [])
+
+    def test_failed_step_that_edited_an_input_blocks_resume(self):
+        self.make({"s2": self.edit_then((1, "boom"))}).run(self.plan())
+        self.calls.clear()
+        self.assertEqual(self.make().resume(), orch.EXIT_USAGE)
+        self.assertEqual(self.calls, [])
+
+    def test_override_reruns_every_step_on_the_edited_inputs(self):
+        self.make({"s2": self.edit_then(orch.RateLimited(0))}).run(self.plan())
+        self.calls.clear()
+        self.assertEqual(self.make().resume(allow_input_change=True), orch.EXIT_OK)
+        self.assertEqual(self.calls, ["s1", "s2", "s3"])
+
+    def test_throttle_without_edits_still_resumes_from_the_pending_step(self):
+        self.make({"s2": orch.RateLimited(0)}).run(self.plan())
+        self.calls.clear()
+        self.assertEqual(self.make().resume(), orch.EXIT_OK)
+        self.assertEqual(self.calls, ["s2", "s3"])
+
+
 class SpecialPathsAndInterrupts(Base):
     """Codex P2s on 07d9bd2: escaped git paths must still be fingerprinted; Ctrl-C must not orphan a step."""
 
@@ -529,7 +566,11 @@ class TimeoutKillsDescendants(Base):
 
 class RealSubprocess(Base):
     def test_a_real_command_printing_429_triggers_the_checkpoint_and_resume_finishes(self):
-        flag = self.root / "ok.flag"
+        # External retry state, deliberately outside the repo: a file the throttled step created inside the tree would
+        # be an input change and (correctly) block --resume.
+        scratch = tempfile.TemporaryDirectory()
+        self.addCleanup(scratch.cleanup)
+        flag = pathlib.Path(scratch.name) / "ok.flag"
         script = ("import pathlib,sys\nf=pathlib.Path(sys.argv[1])\n"
                   "if not f.exists():\n    f.write_text('x'); print('HTTP 429 Too Many Requests', file=sys.stderr); sys.exit(1)\n")
         plan = {"context": {}, "steps": [

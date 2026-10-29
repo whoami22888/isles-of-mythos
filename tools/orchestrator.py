@@ -335,15 +335,25 @@ class Orchestrator:
         except ValueError:
             return None
 
+    def _inputs_fingerprint(self) -> str | None:
+        snap = git_snapshot(self.root, self._own_path())
+        return snap.get("content_sha256") if snap.get("available") else None
+
     def _save(self, plan, completed, pending, state, reason=None, retry_after=None, tail=""):
         created = self.now()
+        git = git_snapshot(self.root, self._own_path())
+        baseline = getattr(self, "_input_baseline", None)
+        if state in ("failed", "checkpointed") and completed and baseline and git.get("available"):
+            # Completed steps were validated against the inputs as they stood at the last step boundary. If the step
+            # that just failed or was throttled edited them, record the validated baseline so --resume sees the drift.
+            git["content_sha256"] = baseline
         write_atomic(self.checkpoint, {
             "version": CHECKPOINT_VERSION, "state": state, "reason": reason,
             "created_at": datetime.fromtimestamp(created, timezone.utc).isoformat(),
             "retry_after_seconds": retry_after,
             "resume_not_before": (created + retry_after) if retry_after else None,
             "plan": plan, "progress": {"completed": list(completed), "pending": pending},
-            "last_output_tail": redact(tail)[-MAX_OUTPUT_TAIL:], "git": git_snapshot(self.root, self._own_path())})
+            "last_output_tail": redact(tail)[-MAX_OUTPUT_TAIL:], "git": git})
 
     def _head(self) -> str | None:
         rc, head = _git(self.root, "rev-parse", "HEAD")
@@ -362,6 +372,7 @@ class Orchestrator:
 
     def _execute(self, plan: dict, completed: list[str]) -> int:
         baseline = self._head()
+        self._input_baseline = self._inputs_fingerprint()
         for step in plan["steps"]:
             if step["id"] in completed:
                 continue
@@ -376,6 +387,7 @@ class Orchestrator:
                 return EXIT_FAILED
             if code == 0:
                 completed.append(step["id"])
+                self._input_baseline = self._inputs_fingerprint()
                 self._save(plan, completed, None, "running")      # crash-safe progress
                 continue
             throttled, retry_after = detect_rate_limit(code, output)
