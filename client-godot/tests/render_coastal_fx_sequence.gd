@@ -3,7 +3,8 @@ extends SceneTree
 ## This test is not proof of parity against the owner's master footage.
 ## No generated image is suitable for owner-facing display without review.
 
-const FRAME_COUNT := 72
+# 4.0 s at 24 fps: the complete player-visible reveal (CINEMATIC_DURATION).
+const FRAME_COUNT := 96
 var _previous_bytes := PackedByteArray()
 var _changed_frames := 0
 
@@ -28,7 +29,7 @@ func _record() -> void:
     var start_frame := int(OS.get_environment("IOM_FX_START_FRAME")) if OS.has_environment("IOM_FX_START_FRAME") else 0
     var end_frame := int(OS.get_environment("IOM_FX_END_FRAME")) if OS.has_environment("IOM_FX_END_FRAME") else FRAME_COUNT
     if start_frame < 0 or end_frame > FRAME_COUNT or start_frame >= end_frame:
-        _fail("Invalid capture frame range; expected 0 <= start < end <= 72")
+        _fail("Invalid capture frame range; expected 0 <= start < end <= 96")
         return
     var packed: PackedScene = load("res://scenes/realistic_coastal_fx_slice.tscn")
     if packed == null:
@@ -56,6 +57,10 @@ func _record() -> void:
     ocean_material.set_shader_parameter("deterministic_capture", true)
     scene.set_cinematic_view()
     scene.set_process(false)
+    # The wall-clock render bob in _process() would otherwise leak a random
+    # phase into the captured camera poses; pin the base height (deterministic).
+    scene.ship_focal.position.y = scene._ship_base_position.y
+    scene._cache_ship_visual_bounds()
     integration.set_process(false)
     integration.wake.set_process(false)
     integration.bow_spray.set_process(false)
@@ -71,26 +76,30 @@ func _record() -> void:
             var indices: PackedInt32Array = mesh_instance.mesh.surface_get_arrays(surface_index)[Mesh.ARRAY_INDEX]
             scene_triangles += indices.size() / 3
     print("IOM_INTERNAL_SCENE_GEOMETRY mesh_instances=%d triangles=%d" % [mesh_instances, scene_triangles])
-    var camera_start: Vector3 = scene.cinematic_camera.position
-    var waypoint_a := Vector3(-7.0, 4.8, -17.0)
-    var waypoint_b := Vector3(-2.5, 5.2, -21.0)
+    if not is_equal_approx(float(FRAME_COUNT) / scene.CINEMATIC_FPS, scene.CINEMATIC_DURATION):
+        _fail("Capture length must equal the runtime cinematic duration")
+        return
     if not scene.cinematic_camera.current:
         _fail("Cinematic camera not selected")
         return
     var render_start_msec: int = Time.get_ticks_msec()
     for frame_number in range(FRAME_COUNT):
-        var progress := float(frame_number) / float(FRAME_COUNT - 1)
-        if progress < 0.5:
-            var stage := smoothstep(0.0, 1.0, progress * 2.0)
-            scene.cinematic_camera.position = camera_start.lerp(waypoint_a, stage)
-        else:
-            var stage := smoothstep(0.0, 1.0, (progress - 0.5) * 2.0)
-            scene.cinematic_camera.position = waypoint_a.lerp(waypoint_b, stage)
         ocean_material.set_shader_parameter("capture_time_seconds", float(frame_number) / 24.0)
         integration.advance_visual_demo(1.0 / 24.0)
-        if not scene.frame_ship_cinematic(scene.cinematic_camera, scene.cinematic_camera.global_position):
+        # Same shot-path function the runtime reveal uses, at the matching
+        # timestamp, against the live (moving) vessel.
+        if not scene.apply_cinematic_time(scene.cinematic_camera, float(frame_number) / scene.CINEMATIC_FPS):
             _fail("Imported ship has no valid full 3D visual bounds")
             return
+        # Fail closed on any pose that could expose the seabed or terrain edge.
+        var pose: Dictionary = scene.evaluate_cinematic_pose(scene.cinematic_camera.global_position)
+        if not pose["sealed"]:
+            _fail("Frame %d camera not sealed above the ocean: %s" % [frame_number, pose])
+            return
+        if frame_number % 6 == 0:
+            print("IOM_INTERNAL_CAMERA frame=%d y=%.2f clearance=%.2f water_margin=%.1f" % [
+                frame_number, scene.cinematic_camera.global_position.y, pose["clearance"], pose["water_margin"]
+            ])
         # Fail if ANY ship hull, mast, sail, or rigging bound leaves frame.
         # A hull centre in view is explicitly not enough for this gate.
         var bounds: AABB = scene.ship_visual_bounds_world()

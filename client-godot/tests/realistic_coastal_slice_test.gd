@@ -50,7 +50,10 @@ func run() -> void:
 						sail_materials += 1
 						ok = _check(material.albedo_texture != null, "contract line 51") and ok
 						ok = _check(material.albedo_color.get_luminance() > 0.8, "contract line 52") and ok
-						ok = _check(material.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR, "contract line 53") and ok
+						# Opaque + double-sided: alpha scissor with cull disabled
+						# rendered unlit black canvas on the Mobile renderer.
+						ok = _check(material.transparency == BaseMaterial3D.TRANSPARENCY_DISABLED, "contract line 53") and ok
+						ok = _check(material.cull_mode == BaseMaterial3D.CULL_DISABLED, "sails must be double-sided") and ok
 		for child in ship_node.get_children():
 			pending_ship.append(child)
 	ok = _check(sail_materials > 0, "contract line 56") and ok
@@ -75,7 +78,17 @@ func run() -> void:
 				# camera-spanning occluder or a second terrain wall.
 				ok = _check(cliff_bounds.size.x < 50.0 and cliff_bounds.size.z < 35.0, "contract line 76") and ok
 				ok = _check(cliff_bounds.position.z > scene.ship_focal.position.z + 8.0, "contract line 77") and ok
+				# The unbounded source cliff is 461,824 triangles; every cliff
+				# instance must render an admitted LOD within the 90k cap.
+				var cliff_triangles := 0
+				for mesh_node in child.find_children("*", "MeshInstance3D", true, false):
+					cliff_triangles += scene._triangle_count((mesh_node as MeshInstance3D).mesh)
+				ok = _check(cliff_triangles > 0 and cliff_triangles <= 90000, "cliff triangle cap") and ok
 		ok = _check(cliff_count == 3, "contract line 78") and ok
+		# Negative fixture: the unbounded source cliff must violate the same cap,
+		# proving the per-instance check above would catch a skipped LOD.
+		var unbounded := (scene.COASTAL_CLIFF_SCENE.instantiate().find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D).mesh
+		ok = _check(scene._triangle_count(unbounded) > 90000, "negative fixture: unbounded cliff source exceeds the cap") and ok
 		if premium_layer:
 			for child in premium_layer.get_children():
 				if child.scene_file_path.ends_with("island_tree_01_1k.gltf") or child.scene_file_path.ends_with("island_tree_02_1k.gltf"):
@@ -124,6 +137,26 @@ func run() -> void:
 	ok = _check(scene._terrain_height(0.0, 15.0) > scene._terrain_height(0.0, -12.0) + 3.0, "contract line 124") and ok
 	ok = _check(absf(scene._terrain_height(-15.0, -6.0) - scene._terrain_height(15.0, -6.0)) > 0.3, "contract line 125") and ok
 	ok = _check(scene.player_marker.position.y > scene._terrain_height(0.0, 5.5), "contract line 126") and ok
+	# Regression: the terrain was emitted counter-clockwise, so Godot (clockwise
+	# front faces) culled every upward-facing triangle and the beach rendered
+	# behind the ocean. Every triangle must face up: for Godot's clockwise front
+	# winding, (b - a) x (c - a) points DOWN for a surface seen from above.
+	var terrain_arrays := terrain.mesh.surface_get_arrays(0)
+	var terrain_vertices: PackedVector3Array = terrain_arrays[Mesh.ARRAY_VERTEX]
+	var terrain_indices: PackedInt32Array = terrain_arrays[Mesh.ARRAY_INDEX]
+	var upward_triangles := 0
+	for t in range(0, terrain_indices.size(), 3):
+		var a := terrain_vertices[terrain_indices[t]]
+		var b := terrain_vertices[terrain_indices[t + 1]]
+		var c := terrain_vertices[terrain_indices[t + 2]]
+		if (b - a).cross(c - a).y < 0.0:
+			upward_triangles += 1
+	ok = _check(upward_triangles == terrain_indices.size() / 3, "terrain triangles must face up (clockwise front winding)") and ok
+	# The beach must genuinely rise out of the sea with a sloped seabed in
+	# front of it, not a sea-level sheet across the whole bay.
+	ok = _check(scene._terrain_height(12.0, 7.0) > scene.WATER_Y + 0.2, "dry beach above sea level") and ok
+	ok = _check(scene._terrain_height(12.0, -6.0) < scene.WATER_Y - 2.5, "offshore seabed has real depth") and ok
+	ok = _check(scene._terrain_height(1.0, -5.8) < scene.WATER_Y - 1.5, "moored hull has clearance over the seabed") and ok
 	scene.play_cinematic(true)
 	ok = _check(gameplay.current and not scene._cinematic_active, "contract line 128") and ok
 	scene.play_cinematic()

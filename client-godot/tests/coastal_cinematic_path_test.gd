@@ -1,0 +1,158 @@
+extends SceneTree
+## Regression: the cinematic reveal camera must stay above the sea, inside the
+## water plane, and be IDENTICAL between runtime playback and the capture
+## harness at matching timestamps, for the full 4 s / 96 frames, with the
+## vessel moving exactly as in tests/render_coastal_fx_sequence.gd.
+##
+## Root cause this pins (PR #216): _safe_cinematic_position() scaled the raw
+## waypoint offset outward from the ship's (tall) rigging centre. A waypoint
+## below that centre therefore pushed the camera further DOWN as the framing
+## radius grew; once the ship drifted the camera crossed the back-face-culled
+## ocean surface (y ~ -1.35 at frame 71) and exposed the seabed mesh edge.
+
+const SCENE_PATH := "res://scenes/realistic_coastal_fx_slice.tscn"
+const FRAMES := 96
+const STEP := 1.0 / 24.0
+const POSE_EPSILON := 0.001
+
+var _ok := true
+
+
+func _init() -> void:
+	call_deferred("_run")
+
+
+func _check(condition: bool, label: String) -> void:
+	if condition:
+		print("PASS ", label)
+	else:
+		push_error("FAIL " + label)
+		_ok = false
+
+
+func _spawn() -> Node3D:
+	# One SubViewport per instance: only one Camera3D can be `current` per
+	# viewport, so shared-viewport instances would steal each other's camera.
+	var viewport := SubViewport.new()
+	viewport.size = Vector2i(64, 36)
+	root.add_child(viewport)
+	var scene: Node3D = (load(SCENE_PATH) as PackedScene).instantiate()
+	viewport.add_child(scene)
+	await process_frame
+	await process_frame
+	var integration := scene.get_node_or_null("CoastalShipEffects")
+	if integration == null or not integration.components_ready():
+		_check(false, "scene exposes the real ship + FX components")
+		return null
+	# Deterministic: nothing may advance from wall-clock time.
+	scene.set_process(false)
+	# _process() bobs the ship from the wall clock; the setup frames above let
+	# each instance freeze at a different phase. Pin the base height so poses
+	# are a pure function of simulated time.
+	scene.ship_focal.position.y = scene._ship_base_position.y
+	scene._cache_ship_visual_bounds()
+	integration.set_process(false)
+	integration.wake.set_process(false)
+	integration.bow_spray.set_process(false)
+	integration.start_visual_demo()
+	return scene
+
+
+## The pre-fix algorithm, kept ONLY as a negative fixture so this test proves
+## it would have failed on the old code.
+func _legacy_position(scene: Node3D, desired: Vector3) -> Vector3:
+	var bounds: AABB = scene.ship_visual_bounds_world()
+	var centre := bounds.get_center()
+	var away := (desired - centre).normalized()
+	var distance := maxf(0.5, desired.distance_to(centre))
+	var safe_angle := deg_to_rad(scene.cinematic_camera.fov * 0.45)
+	var aim_offset := centre.distance_to(centre.lerp(scene.CINEMATIC_COAST_POINT, scene.CINEMATIC_COAST_BIAS))
+	var needed := (bounds.size.length() * 0.5 + aim_offset) / maxf(0.05, sin(safe_angle))
+	return centre + away * maxf(distance, needed)
+
+
+func _run() -> void:
+	var runtime_scene: Node3D = await _spawn()
+	var capture_scene: Node3D = await _spawn()
+	var legacy_scene: Node3D = await _spawn()
+	if runtime_scene == null or capture_scene == null or legacy_scene == null:
+		quit(1)
+		return
+
+	runtime_scene.play_cinematic()
+	capture_scene.set_cinematic_view()
+	legacy_scene.set_cinematic_view()
+	_check(runtime_scene._cinematic_active and runtime_scene.cinematic_camera.current,
+		"runtime reveal is active on the cinematic camera")
+
+	var min_clearance := INF
+	var min_margin := INF
+	var worst_divergence := 0.0
+	var legacy_unsealed := 0
+	var legacy_min_y := INF
+	var all_sealed := true
+	var still_playing_before_end := true
+	for frame in range(FRAMES):
+		var t := float(frame) / scene_fps(runtime_scene)
+		for s in [runtime_scene, capture_scene, legacy_scene]:
+			s.get_node("CoastalShipEffects").advance_visual_demo(STEP)
+		# Runtime path: advance simulated time exactly as _process() does.
+		if frame > 0:
+			var playing: bool = runtime_scene.advance_cinematic(STEP)
+			if frame < FRAMES - 1 and not playing:
+				still_playing_before_end = false
+		else:
+			runtime_scene.apply_cinematic_time(runtime_scene.cinematic_camera, 0.0)
+		# Capture path: explicit timestamp through the shared function.
+		capture_scene.apply_cinematic_time(capture_scene.cinematic_camera, t)
+		var runtime_pos: Vector3 = runtime_scene.cinematic_camera.global_position
+		var capture_pos: Vector3 = capture_scene.cinematic_camera.global_position
+		worst_divergence = maxf(worst_divergence, runtime_pos.distance_to(capture_pos))
+		var forward_delta: float = (-runtime_scene.cinematic_camera.global_transform.basis.z).distance_to(
+			-capture_scene.cinematic_camera.global_transform.basis.z)
+		worst_divergence = maxf(worst_divergence, forward_delta)
+		var pose: Dictionary = capture_scene.evaluate_cinematic_pose(capture_pos)
+		all_sealed = all_sealed and pose["sealed"]
+		min_clearance = minf(min_clearance, pose["clearance"])
+		min_margin = minf(min_margin, pose["water_margin"])
+		# Legacy fixture: same raw waypoint through the pre-fix algorithm.
+		var legacy_pos := _legacy_position(legacy_scene, legacy_scene.cinematic_raw_position_at(t))
+		legacy_min_y = minf(legacy_min_y, legacy_pos.y)
+		if not legacy_scene.evaluate_cinematic_pose(legacy_pos)["sealed"]:
+			legacy_unsealed += 1
+
+	print("IOM_CAMERA_PATH frames=%d min_clearance=%.2f min_water_margin=%.1f max_runtime_capture_divergence=%.6f legacy_min_y=%.2f legacy_unsealed_frames=%d" % [
+		FRAMES, min_clearance, min_margin, worst_divergence, legacy_min_y, legacy_unsealed])
+	_check(all_sealed, "every one of %d frames is sealed above the ocean" % FRAMES)
+	_check(min_clearance >= runtime_scene.CINEMATIC_MIN_CLEARANCE - POSE_EPSILON,
+		"camera never closer than %.1f m to the sea surface" % runtime_scene.CINEMATIC_MIN_CLEARANCE)
+	_check(worst_divergence <= POSE_EPSILON,
+		"runtime playback and capture poses match at every timestamp")
+	_check(still_playing_before_end, "runtime reveal keeps playing until its 4 s duration")
+	runtime_scene.advance_cinematic(STEP * 2.0)
+	_check(not runtime_scene._cinematic_active and runtime_scene.gameplay_camera.current,
+		"reveal hands back to the gameplay camera when it ends")
+	# Negative fixture: the pre-fix algorithm MUST have been caught.
+	_check(legacy_unsealed > 0 and legacy_min_y < runtime_scene.WATER_Y,
+		"negative fixture: the pre-fix algorithm dips below the sea (%d unsealed frames)" % legacy_unsealed)
+
+	# Pure-validator negatives.
+	_check(not runtime_scene.evaluate_cinematic_pose(Vector3(-16.2, -1.35, -41.6))["sealed"],
+		"submerged pose is rejected")
+	_check(not runtime_scene.evaluate_cinematic_pose(Vector3(0.0, 6.0, 300.0))["sealed"],
+		"pose near/outside the water plane edge is rejected")
+	_check(runtime_scene.evaluate_cinematic_pose(Vector3(0.0, 6.0, -30.0))["sealed"],
+		"a high pose inside the water plane is accepted")
+
+	# Clearance floor holds even when the vessel itself sits low.
+	capture_scene.ship_focal.position.y = -9.0
+	capture_scene._cache_ship_visual_bounds()
+	var low: Vector3 = capture_scene._safe_cinematic_position(capture_scene.cinematic_camera, Vector3(-7.0, -5.0, -17.0))
+	_check(low.y >= capture_scene.WATER_Y + capture_scene.CINEMATIC_MIN_CLEARANCE - POSE_EPSILON,
+		"clearance floor holds for a low ship and a below-sea waypoint (y=%.2f)" % low.y)
+
+	quit(0 if _ok else 1)
+
+
+func scene_fps(scene: Node3D) -> float:
+	return scene.CINEMATIC_FPS
