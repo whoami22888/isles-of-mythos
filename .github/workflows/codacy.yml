@@ -109,11 +109,19 @@ jobs:
       - name: Scan vulnerabilities, secrets and misconfiguration
         run: |
           docker run --rm -v "$PWD:/repo" -w /repo docker.io/aquasec/trivy@sha256:62b1e65e8869bc4b4c6aa4fa2b21595256c7c2f6018a9d9ad61caf87187c1969 fs --scanners vuln,secret,misconfig --format sarif --output /repo/trivy.sarif /repo
+      - name: Validate exact-source Trivy SARIF
+        env:
+          SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          python3 -m unittest discover -s scripts -p test_validate_trivy_sarif.py -v
+          python3 scripts/validate_trivy_sarif.py trivy.sarif "$SOURCE_SHA" trivy-receipt.json
       - name: Retain Trivy SARIF
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
           name: trivy-${{ github.event.pull_request.head.sha || github.sha }}
-          path: trivy.sarif
+          path: |
+            trivy.sarif
+            trivy-receipt.json
           if-no-files-found: error
       - name: Upload Trivy SARIF
         uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4
