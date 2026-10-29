@@ -46,7 +46,8 @@ export class NavalStore {
       await c.query("BEGIN");
       const rows=await c.query<Row>("SELECT "+select+" FROM player_ships WHERE id=ANY($1::uuid[]) ORDER BY id FOR UPDATE",[[shipId,targetShipId]]);
       const attacker=rows.rows.find(x=>x.id===shipId), target=rows.rows.find(x=>x.id===targetShipId);
-      if(!attacker) throw new Error("SHIP_NOT_FOUND");
+      // The commanded ship must belong to the authenticated actor. Same error as an unknown ship so existence is not revealed.
+      if(!attacker || attacker.owner_user_id!==userId) throw new Error("SHIP_NOT_FOUND");
       if(!target || target.owner_user_id===userId) throw new Error("INVALID_NAVAL_TARGET");
       if(attacker.status!=="active") throw new Error("SHIP_NOT_ACTIVE");
       if(target.status!=="active") throw new Error("TARGET_SHIP_NOT_ACTIVE");
@@ -89,7 +90,8 @@ export class NavalStore {
       await c.query("BEGIN");
       const rows=await c.query<Row>("SELECT "+select+" FROM player_ships WHERE id=ANY($1::uuid[]) ORDER BY id FOR UPDATE",[[shipId,targetShipId]]);
       const attacker=rows.rows.find(x=>x.id===shipId),target=rows.rows.find(x=>x.id===targetShipId);
-      if(!attacker) throw new Error("SHIP_NOT_FOUND");
+      // The commanded ship must belong to the authenticated actor. Same error as an unknown ship so existence is not revealed.
+      if(!attacker || attacker.owner_user_id!==userId) throw new Error("SHIP_NOT_FOUND");
       if(!target || target.owner_user_id===userId) throw new Error("INVALID_NAVAL_TARGET");
       if(attacker.status!=="active") throw new Error("SHIP_NOT_ACTIVE");
       if(target.status!=="active") throw new Error("TARGET_SHIP_NOT_ACTIVE");
