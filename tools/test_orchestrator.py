@@ -5,6 +5,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 
 import orchestrator as orch
@@ -57,13 +58,24 @@ class Detection(unittest.TestCase):
         for text in ["AssertionError: boom", "listening on port 14290", "build id 4291 failed", ""]:
             self.assertFalse(orch.detect_rate_limit(1, text)[0], text)
 
+
+    def test_a_bare_429_is_not_throttling(self):
+        for text in ["AssertionError: expected 429, got 200", 'File "x.py", line 429, in <module>', "429", "processed 429 rows",
+                     "assert status == 429"]:
+            self.assertFalse(orch.detect_rate_limit(1, text)[0], text)
+
+    def test_429_with_http_or_status_context_is_throttling(self):
+        for text in ["HTTP/1.1 429", "HTTP 429", "status code 429", "Status: 429", 'status=429', '{"error": {"code": 429}}',
+                     "429 Too Many Requests", "received error code 429 from api"]:
+            self.assertTrue(orch.detect_rate_limit(1, text)[0], text)
+
     def test_success_is_never_a_rate_limit(self):
         self.assertFalse(orch.detect_rate_limit(0, "HTTP 429 mentioned in a log line")[0])
 
     def test_parses_retry_after_seconds_and_caps_it(self):
         self.assertEqual(orch.detect_rate_limit(1, "429 Too Many Requests\nRetry-After: 42"), (True, 42.0))
-        self.assertEqual(orch.detect_rate_limit(1, "429 retry-after=999999")[1], orch.MAX_RETRY_AFTER)
-        self.assertIsNone(orch.detect_rate_limit(1, "429")[1])
+        self.assertEqual(orch.detect_rate_limit(1, "HTTP 429 retry-after=999999")[1], orch.MAX_RETRY_AFTER)
+        self.assertEqual(orch.detect_rate_limit(1, "HTTP 429"), (True, None))
 
 
 class Plan(Base):
@@ -195,6 +207,64 @@ class CheckpointSafety(Base):
         data = json.loads(self.ckpt.read_text())
         self.assertTrue(data["git"]["diff_truncated"])
         self.assertLessEqual(len(data["git"]["diff"].encode()), orch.MAX_DIFF_BYTES)
+
+
+class Redaction(unittest.TestCase):
+    def test_quoted_json_keys_and_values_are_redacted(self):
+        for raw, secret in [('{"api_key": "supersecretvalue"}', "supersecretvalue"),
+                            ("{'token': 'abc123xyz'}", "abc123xyz"),
+                            ('{"password": "has spaces in it"}', "has spaces in it"),
+                            ('{"client_secret":"s3cr3t-value"}', "s3cr3t-value"),
+                            ("GITHUB_TOKEN=ghp_abcdef123456", "ghp_abcdef123456"),
+                            ("AWS_SECRET_ACCESS_KEY: wJalrXUtnFEMI", "wJalrXUtnFEMI"),
+                            ('password = "two words"', "two words")]:
+            out = orch.redact(raw)
+            self.assertNotIn(secret, out, raw)
+            self.assertIn("[REDACTED]", out, raw)
+
+    def test_whole_authorization_values_are_redacted(self):
+        for raw, secret in [("Authorization: Basic dXNlcjpwYXNz", "dXNlcjpwYXNz"),
+                            ("authorization=Token abc.def", "abc.def"),
+                            ('{"Authorization": "Basic dXNlcjpwYXNz"}', "dXNlcjpwYXNz"),
+                            ("Authorization: Bearer abc.def.ghi", "abc.def.ghi")]:
+            out = orch.redact(raw)
+            self.assertNotIn(secret, out, raw)
+            self.assertNotIn("Basic", out) if "Basic" in raw else None
+
+    def test_ordinary_text_is_left_alone(self):
+        text = "compiling 3 files; token count is not a secret here\nline two"
+        self.assertEqual(orch.redact(text), text)
+
+    def test_checkpoint_never_contains_quoted_secrets_in_tail_or_diff(self):
+        d = tempfile.TemporaryDirectory()
+        root = pathlib.Path(d.name)
+        git(root, "init", "-q")
+        (root / "c.json").write_text("{}\n")
+        git(root, "add", "c.json")
+        git(root, "commit", "-q", "-m", "i")
+        (root / "c.json").write_text('{"api_key": "quotedsecretvalue", "password": "a b c d"}\n')
+        ck = root / ".project" / "checkpoint.json"
+        o = orch.Orchestrator(root=root, checkpoint=ck, runner=lambda s: (1, 'HTTP 429\n{"token": "tailsecretvalue"}'),
+                              sleep=lambda s: None)
+        o.run({"steps": [{"id": "x", "argv": ["true"]}]})
+        raw = ck.read_text()
+        for secret in ["quotedsecretvalue", "a b c d", "tailsecretvalue"]:
+            self.assertNotIn(secret, raw)
+        d.cleanup()
+
+
+class TimeoutKillsDescendants(Base):
+    def test_a_timed_out_step_does_not_leave_children_running(self):
+        marker = self.root / "child-ran.flag"
+        child = ("import pathlib,time,sys\ntime.sleep(1.5)\npathlib.Path(sys.argv[1]).write_text('x')\n")
+        parent = ("import subprocess,sys,time\n"
+                  "subprocess.Popen([sys.executable,'-c',sys.argv[2],sys.argv[1]])\n"
+                  "time.sleep(30)\n")
+        o = orch.Orchestrator(root=self.root, checkpoint=self.ckpt, sleep=lambda s: None)
+        code, output = o._subprocess_runner({"id": "t", "argv": [sys.executable, "-c", parent, str(marker), child], "timeout": 1})
+        self.assertEqual(code, 124)
+        time.sleep(2.2)
+        self.assertFalse(marker.exists(), "a descendant of the timed-out step kept running")
 
 
 class RealSubprocess(Base):

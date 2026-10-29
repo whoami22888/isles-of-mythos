@@ -29,6 +29,7 @@ import json
 import os
 import pathlib
 import re
+import signal
 import subprocess
 import sys
 import tempfile
@@ -47,17 +48,23 @@ MAX_CONTEXT_BYTES = 64_000
 DEFAULT_STEP_TIMEOUT = 3_600
 STATES = {"running", "checkpointed", "failed"}
 
-# Deliberately strict: a bare "rate limit" is not enough (this repository has rate-limit *tests* whose failures must
-# not be mistaken for throttling). Only evaluated when a step exits non-zero.
+# Deliberately strict: a bare "rate limit" or a bare number 429 is not enough (this repository has rate-limit *tests*
+# whose failures must not be mistaken for throttling). Only evaluated when a step exits non-zero.
 _RATE_LIMIT = re.compile(
-    r"(?i)(?<![\d.])429(?!\d)|too many requests|rate[ _-]?limit(?:ed|\s+(?:exceeded|reached|hit))|"
-    r"quota[ _]?(?:exceeded|limit exceeded)|resource_exhausted")
+    r"(?i)too many requests|rate[ _-]?limit(?:ed|\s+(?:exceeded|reached|hit))|quota[ _]?(?:exceeded|limit exceeded)|"
+    r"resource_exhausted|"
+    # a 429 only counts with an HTTP/status/code context: `line 429` or `expected 429, got 200` are ordinary failures
+    r"\bhttp(?:/\d(?:\.\d)?)?\s*:?\s*429(?!\d)|\bstatus(?:[ _-]?code)?[\"']?\s*[:=]?\s*429(?!\d)|"
+    r"\bcode[\"']?\s*[:=]?\s*429(?!\d)")
 _RETRY_AFTER = re.compile(r"(?i)retry[-_ ]?after[\"']?\s*[:=]\s*(\d+(?:\.\d+)?)")
+_VALUE = r"(?:\"[^\"\n]*\"|'[^'\n]*'|\S+)"
 _REDACTIONS = [
-    (re.compile(r"(?i)(authorization\s*[:=]\s*)(?:bearer\s+)?\S+"), r"\1[REDACTED]"),
+    # the whole Authorization value (scheme + credentials), quoted or not
+    (re.compile(r"(?i)([\"']?authorization[\"']?\s*[:=]\s*)(?:\"[^\"\n]*\"|'[^'\n]*'|[^\r\n]+)"), r"\1[REDACTED]"),
     (re.compile(r"(?i)\bbearer\s+[A-Za-z0-9._~+/=-]+"), "Bearer [REDACTED]"),
-    (re.compile(r"(?i)((?:api[_-]?key|access[_-]?key|token|secret|client[_-]?secret|password|passwd)\s*[:=]\s*)\S+"),
-     r"\1[REDACTED]"),
+    # key names may be quoted and may carry prefixes/suffixes (GITHUB_TOKEN, "client_secret", AWS_SECRET_ACCESS_KEY)
+    (re.compile(r"(?i)((?<![\w.-])[\"']?[\w.-]{0,40}?(?:api[_-]?key|access[_-]?key|private[_-]?key|token|secret|password|passwd)[\w.-]{0,40}[\"']?"
+                r"\s*[:=]\s*)" + _VALUE), r"\1[REDACTED]"),
 ]
 _DIFF_EXCLUDES = [":(exclude)*.env", ":(exclude)*.env.*", ":(exclude)*.pem", ":(exclude)*.key", ":(exclude)*.p12",
                   ":(exclude)*.keystore", ":(exclude)*secret*", ":(exclude)*credential*"]
@@ -206,14 +213,42 @@ class Orchestrator:
         self.log = log or (lambda message: print(f"[orchestrator] {message}", file=sys.stderr))
 
     def _subprocess_runner(self, step: dict) -> tuple[int, str]:
+        posix = os.name == "posix"
         try:
-            done = subprocess.run(step["argv"], cwd=self.root, capture_output=True, text=True, errors="replace",
-                                  timeout=step.get("timeout", DEFAULT_STEP_TIMEOUT))
-            return done.returncode, (done.stdout or "") + (done.stderr or "")
-        except subprocess.TimeoutExpired:
-            return 124, f"step timed out after {step.get('timeout')}s"
+            proc = subprocess.Popen(step["argv"], cwd=self.root, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                    text=True, errors="replace", start_new_session=posix)
         except OSError as error:
             return 127, f"cannot start command: {error}"
+        try:
+            out, err = proc.communicate(timeout=step.get("timeout", DEFAULT_STEP_TIMEOUT))
+            return proc.returncode, (out or "") + (err or "")
+        except subprocess.TimeoutExpired:
+            self._terminate_tree(proc, posix)
+            return 124, f"step timed out after {step.get('timeout')}s"
+
+    @staticmethod
+    def _terminate_tree(proc: subprocess.Popen, posix: bool) -> None:
+        """Kill the step's whole process group and reap it, so a timed-out step cannot keep running (and keep
+        modifying files) while its checkpoint is already resumable."""
+        if posix:
+            for sig, grace in ((signal.SIGTERM, 3), (signal.SIGKILL, 0)):
+                try:
+                    os.killpg(proc.pid, sig)
+                except ProcessLookupError:
+                    break
+                if grace:
+                    try:
+                        proc.wait(timeout=grace)
+                    except subprocess.TimeoutExpired:
+                        pass
+        else:
+            proc.kill()
+        try:
+            proc.communicate(timeout=10)
+        except subprocess.TimeoutExpired:
+            for stream in (proc.stdout, proc.stderr):
+                if stream:
+                    stream.close()
 
     def _own_path(self) -> str | None:
         try:

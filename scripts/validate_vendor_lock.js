@@ -20,11 +20,27 @@ function sha256File(file) {
   return createHash("sha256").update(readFileSync(file)).digest("hex");
 }
 
-/** Resolve a repo-relative path; returns null when it is absolute, empty or escapes the repository. */
+/**
+ * Resolve a repo-relative path; returns null when it is absolute, empty, escapes the repository, or when any existing
+ * component below the repository root is a symlink (a symlinked parent could point outside the tree while the
+ * lexical path still looks contained).
+ */
 function inside(root, p) {
   if (typeof p !== "string" || p.trim() === "" || isAbsolute(p)) return null;
   const abs = resolve(root, p);
-  return abs === root || abs.startsWith(root + sep) ? abs : null;
+  if (!(abs === root || abs.startsWith(root + sep))) return null;
+  let current = root;
+  for (const part of relative(root, abs).split(sep).filter(Boolean)) {
+    current = join(current, part);
+    let st;
+    try {
+      st = lstatSync(current);
+    } catch {
+      break; // not present yet: the caller reports a missing file
+    }
+    if (st.isSymbolicLink()) return null;
+  }
+  return abs;
 }
 
 function walk(dir, out = []) {
@@ -38,14 +54,18 @@ function walk(dir, out = []) {
   return out;
 }
 
+const READ_FAILED = Symbol("read-failed");
+
 function readJson(file, errors, label) {
   try {
     return JSON.parse(readFileSync(file, "utf8"));
   } catch (error) {
     errors.push(`${label}: cannot read or parse (${error.message})`);
-    return null;
+    return READ_FAILED;
   }
 }
+
+const isPlainObject = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
 
 function validateVendorLock(root = resolve(__dirname, "..")) {
   root = resolve(root);
@@ -53,16 +73,22 @@ function validateVendorLock(root = resolve(__dirname, "..")) {
   const lockFile = join(root, "vendor.lock.json");
   if (!existsSync(lockFile)) return ["vendor.lock.json is missing"];
   const lock = readJson(lockFile, errors, "vendor.lock.json");
-  if (!lock) return errors;
-  if (typeof lock !== "object" || Array.isArray(lock)) return ["vendor.lock.json: top level must be an object"];
+  if (lock === READ_FAILED) return errors;
+  if (!isPlainObject(lock)) return ["vendor.lock.json: top level must be an object"];
   for (const key of Object.keys(lock)) if (!TOP_KEYS.has(key)) errors.push(`vendor.lock.json: unknown key "${key}"`);
   if (typeof lock.version !== "string" || !lock.version) errors.push("vendor.lock.json: version must be a non-empty string");
   if (!Array.isArray(lock.assets)) return [...errors, "vendor.lock.json: assets must be an array"];
 
   const manifestFile = join(root, "client-godot", "assets", "external-assets.json");
-  const manifest = existsSync(manifestFile) ? readJson(manifestFile, errors, "external-assets.json") : null;
+  let manifest = null;
+  if (existsSync(manifestFile)) {
+    manifest = readJson(manifestFile, errors, "external-assets.json");
+    if (manifest !== READ_FAILED && !(isPlainObject(manifest) && Array.isArray(manifest.assets))) {
+      errors.push("external-assets.json: top level must be an object with an assets array");
+    }
+  }
   const manifestByRepoPath = new Map();
-  for (const item of manifest?.assets ?? []) {
+  for (const item of isPlainObject(manifest) && Array.isArray(manifest.assets) ? manifest.assets : []) {
     if (item && typeof item.path === "string") manifestByRepoPath.set(join(EXTERNAL_DIR, item.path), item);
   }
 
@@ -72,7 +98,7 @@ function validateVendorLock(root = resolve(__dirname, "..")) {
     if (!asset || typeof asset !== "object" || Array.isArray(asset)) return errors.push(`${at}: must be an object`);
     for (const key of Object.keys(asset)) if (!ENTRY_KEYS.has(key)) errors.push(`${at}: unknown key "${key}"`);
     const abs = inside(root, asset.path);
-    if (!abs) return errors.push(`${at}: path must be a non-empty repository-relative path`);
+    if (!abs) return errors.push(`${at}: path must be a non-empty repository-relative path with no symlinked component and not outside the repository`);
     if (seen.has(abs)) errors.push(`${at}: duplicate path ${asset.path}`);
     seen.add(abs);
     if (typeof asset.sha256 !== "string" || !HASH.test(asset.sha256)) errors.push(`${at}: sha256 must be 64 lowercase hex characters`);

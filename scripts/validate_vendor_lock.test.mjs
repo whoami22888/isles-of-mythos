@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createRequire } from "node:module";
@@ -90,4 +90,37 @@ test("a third-party file registered only in external-assets.json is accepted", (
   const files = { "client-godot/assets/external/polyhaven/x/x.glb": "x" };
   const manifest = { schema_version: 1, assets: [{ path: "polyhaven/x/x.glb", sha256: sha("x") }] };
   assert.deepEqual(validateVendorLock(repo(files, undefined, manifest)), []);
+});
+
+test("falsy or non-object JSON documents are rejected, never treated as an empty lock (Codex P2)", () => {
+  for (const body of ["null", "false", "0", '""', "[]", "true"]) {
+    const root = mkdtempSync(join(tmpdir(), "vendor-lock-"));
+    writeFileSync(join(root, "vendor.lock.json"), body);
+    const errs = validateVendorLock(root);
+    assert.ok(errs.length > 0, `body ${body} must fail`);
+  }
+});
+test("a malformed external-assets.json fails closed", () => {
+  const root = repo({}, undefined, null);
+  mkdirSync(join(root, "client-godot/assets"), { recursive: true });
+  for (const body of ["null", "0", '{"assets": 3}']) {
+    writeFileSync(join(root, "client-godot/assets/external-assets.json"), body);
+    assert.ok(validateVendorLock(root).length > 0, body);
+  }
+});
+test("a symlinked parent directory cannot smuggle files from outside the repository (Codex P2)", () => {
+  const outside = mkdtempSync(join(tmpdir(), "outside-"));
+  writeFileSync(join(outside, "asset.bin"), "palm");
+  writeFileSync(join(outside, "LICENSE.txt"), "CC0");
+  const root = repo({}, { version: "1.0.0", assets: [entry({ path: "vendor/asset.bin", license_path: "vendor/LICENSE.txt" })] });
+  symlinkSync(outside, join(root, "vendor"));
+  const errs = validateVendorLock(root).join("\n");
+  assert.match(errs, /symlink|outside/i);
+});
+test("a symlinked licence directory is rejected too", () => {
+  const outside = mkdtempSync(join(tmpdir(), "outside-"));
+  writeFileSync(join(outside, "LICENSE.txt"), "CC0");
+  const root = repo({ "vendor/kit/palm.glb": "palm" }, { version: "1.0.0", assets: [entry({ license_path: "lic/LICENSE.txt" })] });
+  symlinkSync(outside, join(root, "lic"));
+  assert.match(validateVendorLock(root).join("\n"), /symlink|outside|license file/i);
 });
