@@ -1910,10 +1910,14 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         combatActivationNextAt.delete(disconnectedUserId);
         for (const [key] of pendingCombatRequests) if (key.startsWith(disconnectedUserId + ":")) pendingCombatRequests.delete(key);
         const scheduleUnload = () => {
-          const pendingMessageWork = messageQueue.catch(() => undefined);
-          const pendingCreatureWork = pendingCreatureOperations.get(disconnectedUserId) ?? Promise.resolve();
-          const pendingBaseWork = bases.persistAndUnload(disconnectedUserId).catch((error) => { log("base_disconnect_persistence_failed",{message:error instanceof Error?error.message:String(error)}); return null; });
-          const unloadPromise = pendingMessageWork.then(() => pendingCreatureWork).then(() => pendingBaseWork).then(
+          // Ordered strictly: queued messages drain first (they may start base or creature work), then the latest
+          // creature work is awaited, then the base is persisted and evicted. Starting the base unload earlier would let
+          // a queued base action run after eviction and reload the base into the cache.
+          const unloadPromise = messageQueue.catch(() => undefined)
+            .then(() => pendingCreatureOperations.get(disconnectedUserId))
+            .then(() => undefined, () => undefined)
+            .then(() => bases.persistAndUnload(disconnectedUserId).catch((error) => { log("base_disconnect_persistence_failed",{message:error instanceof Error?error.message:String(error)}); return null; }))
+            .then(
             () => creatures.unload(disconnectedUserId),
             () => creatures.unload(disconnectedUserId),
           ).then(
