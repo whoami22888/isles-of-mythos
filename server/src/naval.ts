@@ -1,4 +1,5 @@
-import { CREW_START_MORALE, deriveNpcCrewSkill } from "./crew-stats.js";
+import { CREW_START_MORALE, deriveNpcCrewSkill, npcCrewHireFee } from "./crew-stats.js";
+import { runEconomyMutation, subtractGoldDoubloons } from "./economy.js";
 import { CREATURE_STATS } from "./combat.js";
 import type { Pool } from "pg";
 
@@ -28,7 +29,7 @@ export class NavalStore {
 
   async assignNpcCrew(userId:string,shipId:string,npcType:CrewType,role:CrewRole) {
     if(!CREW_TYPES.includes(npcType) || !CREW_ROLES.includes(role)) throw new Error("INVALID_CREW_ASSIGNMENT");
-    const skill=deriveNpcCrewSkill(npcType),morale=CREW_START_MORALE;
+    const fee=npcCrewHireFee(npcType),skill=deriveNpcCrewSkill(npcType),morale=CREW_START_MORALE;
     const c=await this.db.connect();
     try {
       await c.query("BEGIN");
@@ -36,6 +37,7 @@ export class NavalStore {
       if(!ship.rows[0]) throw new Error("SHIP_NOT_FOUND");
       const count=await c.query<{count:string}>("SELECT COUNT(*)::text count FROM ship_crew WHERE ship_id=$1",[shipId]);
       if(Number(count.rows[0]?.count??0)>=ship.rows[0].crew_capacity) throw new Error("SHIP_CREW_CAPACITY_REACHED");
+      await runEconomyMutation(c,userId,d=>({gold:subtractGoldDoubloons(d.gold,fee),inventory:d.inventory,value:undefined}),"ship_npc_crew_hire");
       const row=await c.query<{id:string}>("INSERT INTO ship_crew(ship_id,creature_id,owner_user_id,npc_type,role,skill,morale) VALUES($1,NULL,$2,$3,$4,$5,$6) RETURNING id",[shipId,userId,npcType,role,skill,morale]);
       await c.query("COMMIT");
       return {id:row.rows[0].id,shipId,creatureId:null,npcType,role,skill,morale};

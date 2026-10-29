@@ -23,3 +23,19 @@ export function deriveCreatureCrewSkill(level: number): number {
 export function deriveNpcCrewSkill(npcType: NpcCrewType): number {
   return NPC_CREW_SKILL[npcType];
 }
+
+/**
+ * Owner decision D-07 (2026-10-29, fees revised to 5,000/25,000): NPC crew is a paid Gold Doubloon sink, fail-closed. A daily upkeep system is planned as a follow-up and is not implemented here.
+ * Only pirates and specialists can be hired. Dragons and mermaids are earned through capture,
+ * taming, research and town upgrades, never bought, so they are absent from this table.
+ */
+const NPC_CREW_HIRE_FEE: ReadonlyMap<string, bigint> = new Map<string, bigint>([
+  ["pirate", 5_000n],
+  ["npc_specialist", 25_000n],
+]);
+
+export function npcCrewHireFee(npcType: NpcCrewType): bigint {
+  const fee = NPC_CREW_HIRE_FEE.get(npcType);
+  if (fee === undefined) throw new Error("NPC_CREW_UNAVAILABLE");
+  return fee;
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CREW_START_MORALE, deriveCreatureCrewSkill, deriveNpcCrewSkill } from "./crew-stats.js";
+import { CREW_START_MORALE, deriveCreatureCrewSkill, deriveNpcCrewSkill, npcCrewHireFee, type NpcCrewType } from "./crew-stats.js";
 
 describe("server-derived crew stats", () => {
   it("creature crew skill is the creature level clamped to 1..100", () => {
@@ -21,5 +21,16 @@ describe("server-derived crew stats", () => {
   it("starting morale is a server constant within 0..100", () => {
     expect(CREW_START_MORALE).toBeGreaterThanOrEqual(0);
     expect(CREW_START_MORALE).toBeLessThanOrEqual(100);
+  });
+  it("hiring a pirate costs 5,000 and a specialist 25,000 Gold Doubloons", () => {
+    expect(npcCrewHireFee("pirate")).toBe(5_000n);
+    expect(npcCrewHireFee("npc_specialist")).toBe(25_000n);
+  });
+  it("dragons and mermaids fail closed: they are earned through capture/taming/research, never hired", () => {
+    expect(() => npcCrewHireFee("dragon")).toThrow("NPC_CREW_UNAVAILABLE");
+    expect(() => npcCrewHireFee("mermaid")).toThrow("NPC_CREW_UNAVAILABLE");
+    expect(() => npcCrewHireFee("kraken" as unknown as NpcCrewType)).toThrow("NPC_CREW_UNAVAILABLE");
+    expect(() => npcCrewHireFee("__proto__" as unknown as NpcCrewType)).toThrow("NPC_CREW_UNAVAILABLE");
+    expect(() => npcCrewHireFee("toString" as unknown as NpcCrewType)).toThrow("NPC_CREW_UNAVAILABLE");
   });
 });
