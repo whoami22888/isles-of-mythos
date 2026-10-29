@@ -91,6 +91,48 @@ describe("IOM-04 research HTTP boundary", () => {
     } finally { await app.close(); await db.end(); }
   });
 
+  it("exposes only owned creature training state and derives trainability from server state", async () => {
+    const db = createDbPool();
+    const app = await buildApp({ db });
+    try {
+      const owner = await register(app);
+      const other = await register(app);
+      await app.inject({ method: "GET", url: "/creature-research",
+        headers: { authorization: `Bearer ${owner.accessToken}` } });
+      await app.inject({ method: "GET", url: "/creature-research",
+        headers: { authorization: `Bearer ${other.accessToken}` } });
+      const creature = await db.query<{ id: string }>(
+        `INSERT INTO player_creatures
+          (owner_user_id,wild_source_id,species,level,xp,health,max_health,attack,defense,element,ability_ids,tame_progress,party_slot,ai_mode,x,y)
+         VALUES ($1,$2,'slime',1,0,45,45,18,2,'water','[]'::jsonb,100,NULL,'follow',1,1)
+         RETURNING id`,
+        [owner.user.id, `training-${randomUUID()}`],
+      );
+      await db.query(
+        "INSERT INTO creature_training_progress(creature_id,experience,bond,learned_commands) VALUES($1,120,68,$2::jsonb)",
+        [creature.rows[0].id, JSON.stringify(["follow"])],
+      );
+      await db.query(
+        "INSERT INTO player_creature_skills(user_id,skill_id,experience) VALUES($1,'creature_training',0)",
+        [owner.user.id],
+      );
+
+      const ownerResponse = await app.inject({ method: "GET", url: "/creature-training",
+        headers: { authorization: `Bearer ${owner.accessToken}` } });
+      expect(ownerResponse.statusCode).toBe(200);
+      expect(ownerResponse.json()).toEqual({ creatures: [{
+        id: creature.rows[0].id, species: "slime", nickname: null, level: 1,
+        tameProgress: 100, trainingExperience: 120, bond: 68,
+        learnedCommands: ["follow"], trainingUnlocked: true, trainable: true,
+      }] });
+
+      const otherResponse = await app.inject({ method: "GET", url: "/creature-training",
+        headers: { authorization: `Bearer ${other.accessToken}` } });
+      expect(otherResponse.statusCode).toBe(200);
+      expect(otherResponse.json()).toEqual({ creatures: [] });
+    } finally { await app.close(); await db.end(); }
+  });
+
   it("rejects missing research prerequisites and materials without persisting a failed request", async () => {
     const db = createDbPool();
     const app = await buildApp({ db });

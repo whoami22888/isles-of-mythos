@@ -231,7 +231,7 @@ describe("player trading transactions", () => {
 
   it("records WebSocket inventory-capacity rejections without changing the error", async () => {
     const antiCheat = new AntiCheatService();
-    const observeRejectedAction = vi.spyOn(antiCheat, "observeRejectedAction").mockReturnValue(null);
+    const observeRejectedAction = vi.spyOn(antiCheat, "observeRejectedAction").mockResolvedValue(null);
     const { db, app, fromUserId, fromToken, toUserId } = await createTradePlayers(antiCheat);
     let socket: WebSocket | null = null;
     try {

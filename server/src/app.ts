@@ -42,8 +42,11 @@ import { TerritorySeasonStore } from "./territory-seasons.js";
 import { registerFrontendRoutes } from "./frontend.js";
 import { resolve } from "node:path";
 import { AntiCheatService } from "./anti-cheat.js";
+import { PostgresAntiCheatEvidenceSink } from "./anti-cheat-evidence-store.js";
+import { RedisAntiCheatStateStore } from "./anti-cheat-store.js";
 import { createMutationTiming, measureMutationStage, runTimedMutation, type MutationTiming, type MutationTimingSnapshot } from "./mutation-timing.js";
 import { runReplayableRequest, type RequestDuplicateOutcome } from "./request-coordinator.js";
+import { BACKLOG_CLOSE_CODE, BACKLOG_CLOSE_REASON, MessageBacklogGuard, reportMessageFailure } from "./ws-backlog.js";
 
 function errorCode(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
@@ -100,6 +103,10 @@ export interface BuildAppOptions {
   realmAiTickMs?: number;
   /** Max wait for an in-flight realm AI tick on shutdown before it is aborted (default 10 s, capped at 10 s). */
   realmAiDrainTimeoutMs?: number;
+  /** When set (and no `antiCheat` is injected), detection windows are shared across instances through Redis. */
+  antiCheatRedisUrl?: string;
+  /** When true (and no `antiCheat` is injected), anti-cheat evidence is persisted to PostgreSQL. */
+  persistAntiCheatEvidence?: boolean;
 }
 
 export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyInstance> {
@@ -123,16 +130,30 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const worldEvents = new WorldEventCoordinator(db, (userId) => players.get(userId)?.level);
   const endgame = new EndgameStore(db);
   const territorySeasons = new TerritorySeasonStore(db);
-  const antiCheat = options.antiCheat ?? new AntiCheatService();
-  const logAntiCheatEvidence = (event: ReturnType<AntiCheatService["record"]> | null): void => {
-    if (!event) return;
-    log("anti_cheat_event", {
-      type: event.type,
-      severity: event.severity,
-      timestampMs: event.timestampMs,
-      evidence: event.evidence,
-      suspicion: event.suspicion,
-    });
+  const ownsAntiCheat = options.antiCheat === undefined;
+  const antiCheat = options.antiCheat ?? new AntiCheatService({
+    store: options.antiCheatRedisUrl ? new RedisAntiCheatStateStore({ url: options.antiCheatRedisUrl }) : undefined,
+    sink: options.persistAntiCheatEvidence ? new PostgresAntiCheatEvidenceSink(db) : undefined,
+  });
+  // Anti-cheat observation is diagnostic and never gates a gameplay mutation: hard validity checks run in the
+  // authoritative handlers/transactions. Observations are therefore fire-and-forget so a slow or failed
+  // detection store can neither delay nor change the outcome of an action.
+  const logAntiCheatEvidence = (pending: Promise<Awaited<ReturnType<AntiCheatService["record"]>> | null>): void => {
+    void pending.then(
+      (event) => {
+        if (!event) return;
+        log("anti_cheat_event", {
+          type: event.type,
+          severity: event.severity,
+          timestampMs: event.timestampMs,
+          evidence: event.evidence,
+          suspicion: event.suspicion,
+        });
+      },
+      (error: unknown) => {
+        log("anti_cheat_observe_failed", { message: error instanceof Error ? error.message : String(error) });
+      },
+    );
   };
   const recordInventoryMutationRejection = (userId: string, action: string, reason: string): void => {
     logAntiCheatEvidence(antiCheat.observeRejectedAction(userId, "INVENTORY_MUTATION_REJECTED", { action, reason }));
@@ -645,6 +666,13 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     await creatures.persistAll();
     await bases.processAll();
     for (const socket of sockets) socket.close(1001, "server_shutdown");
+    // Evidence must reach PostgreSQL before the pool it shares is closed.
+    try {
+      if (ownsAntiCheat) await antiCheat.close();
+      else await antiCheat.flush();
+    } catch (error) {
+      log("anti_cheat_shutdown_failed", { message: error instanceof Error ? error.message : String(error) });
+    }
     if (tickUnsettled !== undefined) throw tickUnsettled;
     if (ownsDb) await db.end();
   });
@@ -790,6 +818,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     send(socket, { type: "server_ready", timestamp: Date.now() });
 
     let messageQueue = Promise.resolve();
+    const backlog = new MessageBacklogGuard();
     socket.on("message", (raw) => {
       const now = Date.now();
       if (now - messageWindowStartedAt >= 1_000) {
@@ -799,6 +828,19 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       messageWindowCount += 1;
       if (messageWindowCount > 120) {
         send(socket, { type: "error", code: "RATE_LIMITED" });
+        return;
+      }
+      // Bound unfinished work per socket: slow handlers must not build an
+      // unbounded backlog. Rejected frames never enter the FIFO queue, so
+      // ordering and requestId replay/idempotency are unchanged.
+      const admission = backlog.admit();
+      if (admission !== "accept") {
+        // One small frame per rejected inbound frame; inbound is already capped
+        // at 120/s above, and the socket closes within 32 rejected frames.
+        send(socket, { type: "error", code: "RATE_LIMITED" });
+        if (admission === "close" && socket.readyState === socket.OPEN) {
+          socket.close(BACKLOG_CLOSE_CODE, BACKLOG_CLOSE_REASON);
+        }
         return;
       }
       messageQueue = messageQueue.then(async () => {
@@ -1798,11 +1840,15 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           }
         }
       }).catch((error) => {
-        log("websocket_message_failed", {
-          message: error instanceof Error ? error.message : String(error),
-        });
-        send(socket, { type: "error", code: "INTERNAL_SERVER_ERROR" });
+        reportMessageFailure(
+          error,
+          () => log("websocket_message_failed", { message: error instanceof Error ? error.message : String(error) }),
+          () => send(socket, { type: "error", code: "INTERNAL_SERVER_ERROR" }),
+        );
       });
+      // Depth is released when the frame finishes (success or failure); strikes
+      // reset once the backlog fully drains.
+      messageQueue = messageQueue.finally(() => backlog.release());
     });
 
     socket.on("close", () => {
