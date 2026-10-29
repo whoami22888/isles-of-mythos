@@ -39,6 +39,7 @@ const DECAY_PER_SECOND = 1;
 const MAX_SUSPICION = 100;
 const MAX_EVENTS = 5000;
 const MULTI_SOCKET_THRESHOLD = 4;
+export const SOCKET_LEASE_TTL_MS = 90_000;
 const MULTI_SOCKET_WINDOW_MS = 10_000;
 // Persisted evidence is throttled per user and event type so sustained hostile traffic cannot flood storage.
 // Suppressed occurrences are counted and attached to the next persisted row rather than discarded silently.
@@ -68,12 +69,16 @@ export class AntiCheatService {
   private degradedCount = 0;
   // Handlers start observations without awaiting them; shutdown must wait for them or their evidence is lost.
   private readonly inflight = new Set<Promise<unknown>>();
+  // Socket leases held by this process; refreshed on a timer so they outlive the TTL only while we are alive.
+  private readonly leases = new Map<string, Set<string>>();
+  private heartbeat: NodeJS.Timeout | null = null;
+  private readonly socketOperations = new Map<string, Promise<void>>();
 
   constructor(options: AntiCheatServiceOptions = {}) {
     this.primary = options.store ?? new MemoryAntiCheatStateStore();
     this.sink = options.sink;
     this.onDegraded = options.onDegraded;
-    for (const name of ["record", "observeMovement", "observePosition", "observeRejectedAction", "observeRequestDuplicate", "observeMultiSocket"] as const) {
+    for (const name of ["record", "observeMovement", "observePosition", "observeRejectedAction", "observeRequestDuplicate", "observeMultiSocket", "connectSocket", "disconnectSocket"] as const) {
       const original = this[name].bind(this) as (...args: unknown[]) => Promise<unknown>;
       (this as unknown as Record<typeof name, typeof original>)[name] = (...args) => this.track(original(...args));
     }
@@ -284,6 +289,68 @@ export class AntiCheatService {
     }, nowMs);
   }
 
+  /**
+   * Registers an authenticated socket and evaluates the user's session count across all backend instances.
+   * The lease is refreshed while this process lives and expires on its own if the process dies.
+   */
+  async connectSocket(userId: string, socketId: string, nowMs?: number): Promise<AntiCheatEvidence | null> {
+    const held = this.leases.get(userId) ?? new Set<string>();
+    held.add(socketId);
+    this.leases.set(userId, held);
+    this.startHeartbeat();
+    const count = await this.leaseIfHeld(userId, socketId, nowMs);
+    if (count === null) return null;
+    // The store's count can under-report after an outage (sockets leased before the failure are missing from the
+    // fallback). Live sockets this process holds are a lower bound on the account's total, so use the larger.
+    return this.observeMultiSocket(userId, Math.max(count, held.size), nowMs);
+  }
+
+  async disconnectSocket(userId: string, socketId: string): Promise<void> {
+    const held = this.leases.get(userId);
+    held?.delete(socketId);
+    if (held && held.size === 0) this.leases.delete(userId);
+    // Queued behind any lease write for this socket, so a registration still waiting on the network cannot
+    // land after the release and leave a stale shared lease that other instances would count until the TTL.
+    await this.serializeSocket(userId, socketId, async () => {
+      await this.withStore((store) => store.releaseSocket(userId, socketId));
+      if (this.primary.kind !== "memory") await this.fallback.releaseSocket(userId, socketId);
+    });
+  }
+
+  /** Leases a socket only while this process still holds it; returns null when it was already disconnected. */
+  private leaseIfHeld(userId: string, socketId: string, nowMs?: number): Promise<number | null> {
+    return this.serializeSocket(userId, socketId, async () => {
+      if (!this.leases.get(userId)?.has(socketId)) return null;
+      return this.withStore((store) => store.leaseSocket({ userId, socketId, ttlMs: SOCKET_LEASE_TTL_MS, nowMs }));
+    });
+  }
+
+  /** Runs lease operations for one socket strictly in call order. */
+  private serializeSocket<T>(userId: string, socketId: string, operation: () => Promise<T>): Promise<T> {
+    const key = userId + "\u0000" + socketId;
+    const previous = this.socketOperations.get(key) ?? Promise.resolve();
+    const next = previous.then(operation, operation);
+    const tail = next.then(() => undefined, () => undefined);
+    this.socketOperations.set(key, tail);
+    void tail.then(() => {
+      if (this.socketOperations.get(key) === tail) this.socketOperations.delete(key);
+    });
+    return next;
+  }
+
+  private startHeartbeat(): void {
+    if (this.heartbeat) return;
+    this.heartbeat = setInterval(() => {
+      for (const [userId, sockets] of this.leases) {
+        for (const socketId of sockets) {
+          // Best effort: a failed refresh only lets the lease lapse, which under-counts, never over-counts.
+          void this.track(this.leaseIfHeld(userId, socketId)).catch(() => undefined);
+        }
+      }
+    }, SOCKET_LEASE_TTL_MS / 3);
+    this.heartbeat.unref();
+  }
+
   /** Process-local, bounded diagnostic view. Durable history is read from the evidence table. */
   listRecent(userId?: string, limit = 100): AntiCheatEvidence[] {
     const boundedLimit = Math.max(1, Math.min(1000, Math.floor(limit)));
@@ -309,7 +376,14 @@ export class AntiCheatService {
   }
 
   async close(): Promise<void> {
+    if (this.heartbeat) clearInterval(this.heartbeat);
+    this.heartbeat = null;
     await this.drainInflight();
+    // Release our leases so peers stop counting these sockets immediately instead of waiting for the TTL.
+    for (const [userId, sockets] of this.leases) {
+      for (const socketId of sockets) await this.withStore((store) => store.releaseSocket(userId, socketId)).catch(() => undefined);
+    }
+    this.leases.clear();
     await this.sink?.close();
     await this.primary.close();
     await this.fallback.close();

@@ -138,6 +138,116 @@ describe("shared detection state across backend instances (Redis)", () => {
     }
   });
 
+  it("counts sockets across instances and detects abuse no single instance can see", async () => {
+    const userId = newUser();
+    const a = redisService();
+    const b = redisService();
+    try {
+      // 2 sockets on each of 2 instances: neither instance sees more than 2, the shared lease set sees 4.
+      expect(await a.connectSocket(userId, "a-1")).toBeNull();
+      expect(await a.connectSocket(userId, "a-2")).toBeNull();
+      expect(await b.connectSocket(userId, "b-1")).toBeNull();
+      expect(await b.connectSocket(userId, "b-2")).toMatchObject({ type: "MULTI_SOCKET_ABUSE", evidence: { connectionCount: 4 } });
+    } finally {
+      await a.reset(userId);
+      await a.close();
+      await b.close();
+    }
+  });
+
+  it("stops counting a socket on disconnect and when its instance releases leases on shutdown", async () => {
+    const userId = newUser();
+    const a = redisService();
+    const b = redisService();
+    try {
+      for (const id of ["a-1", "a-2", "a-3"]) await a.connectSocket(userId, id);
+      await a.disconnectSocket(userId, "a-3");
+      await b.connectSocket(userId, "b-1");
+      await b.connectSocket(userId, "b-2");
+    } catch (error) {
+      await a.close();
+      await b.close();
+      throw error;
+    }
+    const probe = new RedisAntiCheatStateStore({ url: REDIS_URL });
+    try {
+      const lease = (socketId: string) => probe.leaseSocket({ userId, socketId, ttlMs: 60_000 });
+      // a-3 was released; a-1, a-2, b-1, b-2 remain -> a fresh probe makes 5.
+      expect(await lease("probe")).toBe(5);
+      await a.close(); // releases a-1 and a-2
+      expect(await lease("probe")).toBe(3); // b-1, b-2, probe
+      await probe.releaseSocket(userId, "probe");
+    } finally {
+      await probe.clearUser(userId);
+      await probe.close();
+      await b.close();
+    }
+  });
+
+  it("leaves no shared lease when a disconnect overtakes a slow registration (real Redis)", async () => {
+    const userId = newUser();
+    class SlowLeaseStore extends RedisAntiCheatStateStore {
+      override async leaseSocket(...args: Parameters<RedisAntiCheatStateStore["leaseSocket"]>): Promise<number> {
+        await new Promise((resolve) => setTimeout(resolve, 150));
+        return super.leaseSocket(...args);
+      }
+    }
+    const a = new AntiCheatService({ store: new SlowLeaseStore({ url: REDIS_URL }) });
+    const probe = new RedisAntiCheatStateStore({ url: REDIS_URL });
+    try {
+      const connecting = a.connectSocket(userId, "slow-1");
+      await new Promise((resolve) => setTimeout(resolve, 20)); // registration is in flight
+      await a.disconnectSocket(userId, "slow-1");
+      await connecting;
+      expect(await probe.leaseSocket({ userId, socketId: "probe", ttlMs: 60_000 })).toBe(1);
+      // Rapid reconnect cycles, then 2+2 across instances still counts exactly the live sockets.
+      const b = redisService();
+      try {
+        for (let i = 0; i < 5; i += 1) {
+          void a.connectSocket(userId, "flap-" + i);
+          await a.disconnectSocket(userId, "flap-" + i);
+        }
+        await a.connectSocket(userId, "a-live");
+        expect(await b.connectSocket(userId, "b-live")).toBeNull();
+        expect(await probe.leaseSocket({ userId, socketId: "probe", ttlMs: 60_000 })).toBe(3);
+      } finally {
+        await b.close();
+      }
+    } finally {
+      await a.reset(userId);
+      await a.close();
+      await probe.clearUser(userId);
+      await probe.close();
+    }
+  });
+
+  it("lets leases of a crashed instance expire instead of counting forever", async () => {
+    const userId = newUser();
+    const store = new RedisAntiCheatStateStore({ url: REDIS_URL });
+    try {
+      for (const id of ["dead-1", "dead-2", "dead-3"]) await store.leaseSocket({ userId, socketId: id, ttlMs: 100, nowMs: 1_000 });
+      // Far past the lease TTL, with no heartbeat refresh: only the new socket counts.
+      expect(await store.leaseSocket({ userId, socketId: "live", ttlMs: 100, nowMs: 5_000 })).toBe(1);
+    } finally {
+      await store.clearUser(userId);
+      await store.close();
+    }
+  });
+
+  it("bounds lease state per user under a reconnect storm", async () => {
+    const userId = newUser();
+    const store = new RedisAntiCheatStateStore({ url: REDIS_URL });
+    try {
+      let count = 0;
+      for (let i = 0; i < 120; i += 1) count = await store.leaseSocket({ userId, socketId: "s" + i, ttlMs: 60_000 });
+      expect(count).toBe(64);
+      expect(await admin.ttl("ac:v1:{" + userId + "}:sockets")).toBeGreaterThan(0);
+    } finally {
+      await store.clearUser(userId);
+      await store.close();
+    }
+  });
+
   it("uses the Redis clock when no time is supplied, so skewed instance clocks agree", async () => {
     const userId = newUser();
     const a = redisService();

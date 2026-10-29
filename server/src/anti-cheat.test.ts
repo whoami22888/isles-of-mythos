@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { AntiCheatService } from "./anti-cheat.js";
+import { MemoryAntiCheatStateStore } from "./anti-cheat-store.js";
 
 describe("anti-cheat evidence service", () => {
   it("records movement rate abuse with evidence and suspicion", async () => {
@@ -166,4 +167,76 @@ describe("anti-cheat evidence service", () => {
     expect(JSON.stringify(event)).not.toContain("socketId");
   });
 
+
+  describe("socket lease lifecycle", () => {
+    // A store whose lease write can be held back, to force a disconnect to overtake an in-flight registration.
+    class GatedStore extends MemoryAntiCheatStateStore {
+      entered: (() => void) | null = null;
+      release: (() => void) | null = null;
+      gate = false;
+      override async leaseSocket(...args: Parameters<MemoryAntiCheatStateStore["leaseSocket"]>): Promise<number> {
+        if (this.gate) {
+          this.gate = false;
+          await new Promise<void>((resolve) => {
+            this.release = resolve;
+            this.entered?.();
+          });
+        }
+        return super.leaseSocket(...args);
+      }
+    }
+
+    it("does not leave a lease behind when disconnect overtakes an in-flight registration", async () => {
+      const store = new GatedStore();
+      const service = new AntiCheatService({ store });
+      const entered = new Promise<void>((resolve) => {
+        store.entered = resolve;
+      });
+      store.gate = true;
+      const connecting = service.connectSocket("u1", "s1", 1_000);
+      await entered; // the lease write is now waiting on the (simulated) network
+      const disconnecting = service.disconnectSocket("u1", "s1");
+      store.release?.();
+      await Promise.all([connecting, disconnecting]);
+      // A fresh probe socket must be the only lease the shared store knows about.
+      expect(await store.leaseSocket({ userId: "u1", socketId: "probe", ttlMs: 60_000, nowMs: 1_100 })).toBe(1);
+      await service.close();
+    });
+
+    it("never registers a socket that was already disconnected before its lease ran", async () => {
+      const store = new GatedStore();
+      const service = new AntiCheatService({ store });
+      const first = service.connectSocket("u1", "s1", 1_000);
+      const second = service.disconnectSocket("u1", "s1");
+      await Promise.all([first, second]);
+      expect(await store.leaseSocket({ userId: "u1", socketId: "probe", ttlMs: 60_000, nowMs: 1_100 })).toBe(1);
+      await service.close();
+    });
+  });
+});
+
+describe("multi-socket detection during a store outage", () => {
+  it("counts sockets this instance already holds when the shared store degrades mid-session", async () => {
+    // Primary accepts the first three lease writes, then fails: only the fourth socket reaches the fallback.
+    class FailAfterStore extends MemoryAntiCheatStateStore {
+      // Reports as a shared (redis) store so the service degrades to its process-local fallback on failure.
+      override readonly kind = "redis" as unknown as "memory";
+      private writes = 0;
+      override async leaseSocket(...args: Parameters<MemoryAntiCheatStateStore["leaseSocket"]>): Promise<number> {
+        this.writes += 1;
+        if (this.writes > 3) throw new Error("redis unavailable");
+        return super.leaseSocket(...args);
+      }
+    }
+    const service = new AntiCheatService({ store: new FailAfterStore() });
+    expect(await service.connectSocket("u1", "s1", 1_000)).toBeNull();
+    expect(await service.connectSocket("u1", "s2", 1_100)).toBeNull();
+    expect(await service.connectSocket("u1", "s3", 1_200)).toBeNull();
+    // Fourth socket: the store is down, so the fallback alone would count 1 and miss the abuse.
+    const event = await service.connectSocket("u1", "s4", 1_300);
+    expect(event).toMatchObject({
+      type: "MULTI_SOCKET_ABUSE",
+      evidence: { connectionCount: 4, threshold: 4 },
+    });
+  });
 });
