@@ -298,6 +298,26 @@ class BoundedOutput(Base):
         self.assertLess(len(out), 1_000_000)                      # 20 MiB were written
         self.assertEqual(orch.detect_rate_limit(rc, out), (True, 7.0))
 
+    def run_chunks(self, chunks, exit_code=1):
+        code = ("import sys,time\n"
+                f"for c in {chunks!r}:\n    sys.stdout.write(c); sys.stdout.flush(); time.sleep(0.3)\n"
+                f"sys.exit({exit_code})\n")
+        o = orch.Orchestrator(root=self.root, checkpoint=self.ckpt, sleep=lambda s: None)
+        rc, out = o._subprocess_runner({"id": "t", "argv": [sys.executable, "-c", code], "timeout": 60})
+        return rc, out
+
+    def test_retry_after_split_across_reads_is_not_truncated(self):
+        rc, out = self.run_chunks(["HTTP 429\nRetry-After: 1", "20\n", "x" * 100_000])
+        self.assertEqual(orch.detect_rate_limit(rc, out), (True, 120.0))
+
+    def test_retry_after_at_end_of_output_is_accepted_on_eof(self):
+        rc, out = self.run_chunks(["HTTP 429\nRetry-After: 45"])
+        self.assertEqual(orch.detect_rate_limit(rc, out), (True, 45.0))
+
+    def test_status_number_split_across_reads_is_not_a_false_429(self):
+        rc, out = self.run_chunks(["HTTP 429", "5 internal build id\n", "y" * 100_000])
+        self.assertEqual(orch.detect_rate_limit(rc, out), (False, None))
+
     def test_ordinary_output_is_returned_whole(self):
         o = orch.Orchestrator(root=self.root, checkpoint=self.ckpt, sleep=lambda s: None)
         rc, out = o._subprocess_runner({"id": "t", "argv": [sys.executable, "-c",

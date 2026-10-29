@@ -112,13 +112,15 @@ class _BoundedCapture:
     def feed(self, data: bytes, final: bool = False) -> None:
         text = self._decoder.decode(data, final)
         window = self._carry + text
+        # A match that touches the end of the window may still be growing ("Retry-After: 1" + "20", "429" + "5"):
+        # keep it in the carry and decide on the next read, or at EOF.
         if self.signal is None:
             match = _RATE_LIMIT.search(window)
-            if match:
+            if match and (final or match.end() < len(window)):
                 self.signal = match.group(0)
         if self.retry is None:
             match = _RETRY_AFTER.search(window)
-            if match:
+            if match and (final or match.end() < len(window)):
                 self.retry = match.group(0)
         self._carry = window[-_SCAN_OVERLAP:]
         self.tail = (self.tail + text)[-self.limit:]
