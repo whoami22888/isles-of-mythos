@@ -294,3 +294,24 @@ describe("NET-04 gap 4: unbounded numerics", () => {
     expect(parse({ type: "sail", requestId: "r1", shipId: "s1", dx: 1, dy: 0, dt: 1 })).not.toBeNull();
   });
 });
+
+describe("id-only social/auction messages are rebuilt, not spread (NET-04 slice 2a)", () => {
+  const cases: Array<[string, string]> = [
+    ["add_friend", "targetUserId"], ["remove_friend", "targetUserId"], ["block_user", "targetUserId"],
+    ["unblock_user", "targetUserId"], ["party_invite", "targetUserId"], ["party_kick", "targetUserId"],
+    ["party_accept", "invitationId"], ["auction_buy_now", "listingId"], ["auction_cancel", "listingId"],
+  ];
+  it.each(cases)("%s drops every field except type, requestId and %s", (type, key) => {
+    const parsed = parse({ type, requestId: "r1", [key]: "abc", userId: "attacker", isAdmin: true, extra: { deep: 1 }, gold: "999" });
+    expect(parsed).toEqual({ type, requestId: "r1", [key]: "abc" });
+    expect(Object.keys(parsed as object).sort()).toEqual(["requestId", key, "type"].sort());
+  });
+  it("does not carry an own __proto__ key through", () => {
+    const raw = '{"type":"add_friend","requestId":"r1","targetUserId":"abc","__proto__":{"polluted":true}}';
+    const parsed = parseClientMessage(raw) as Record<string, unknown> | null;
+    expect(parsed).toEqual({ type: "add_friend", requestId: "r1", targetUserId: "abc" });
+    expect(Object.getPrototypeOf(parsed)).toBe(Object.prototype);
+    expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+  });
+});
+
