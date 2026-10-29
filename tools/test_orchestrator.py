@@ -266,6 +266,40 @@ class SpecialPathsAndInterrupts(Base):
         self.assertFalse(marker.exists(), "the interrupted step's descendant kept running")
 
 
+class SigtermAndRawBytes(Base):
+    """Codex P2s on cac0c75."""
+
+    def test_non_utf8_filename_is_fingerprinted_without_crashing(self):
+        raw = os.fsencode(str(self.root)) + b"/bad\xff.txt"
+        with open(raw, "wb") as handle:
+            handle.write(b"one")
+        first = orch.git_snapshot(self.root)
+        self.assertTrue(first["available"])
+        with open(raw, "wb") as handle:
+            handle.write(b"two")
+        self.assertNotEqual(first["content_sha256"], orch.git_snapshot(self.root)["content_sha256"])
+
+    def test_sigterm_to_the_cli_terminates_the_running_step(self):
+        started, marker = self.root / "started", self.root / "marker"
+        code = ("import pathlib,sys,time; pathlib.Path(sys.argv[1]).write_text('x'); time.sleep(1.5); "
+                "pathlib.Path(sys.argv[2]).write_text('x')")
+        plan = self.root / "plan.json"
+        plan.write_text(json.dumps({"context": {}, "steps": [
+            {"id": "s1", "argv": ["true"]},
+            {"id": "s2", "argv": [sys.executable, "-c", code, str(started), str(marker)], "timeout": 60}]}))
+        script = pathlib.Path(orch.__file__).resolve()
+        proc = subprocess.Popen([sys.executable, str(script), "--plan", str(plan), "--root", str(self.root),
+                                 "--checkpoint", str(self.ckpt)], stderr=subprocess.DEVNULL)
+        deadline = time.time() + 20
+        while not started.exists() and time.time() < deadline:
+            time.sleep(0.05)
+        self.assertTrue(started.exists(), "step never started")
+        proc.send_signal(__import__("signal").SIGTERM)
+        self.assertNotEqual(proc.wait(timeout=20), 0)
+        time.sleep(2.2)
+        self.assertFalse(marker.exists(), "SIGTERM left the step running")
+
+
 class CheckpointSafety(Base):
     def checkpointed(self):
         self.make({"s2": orch.RateLimited(0)}).run(self.plan())

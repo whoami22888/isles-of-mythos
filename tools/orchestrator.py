@@ -169,20 +169,24 @@ def _git(root: pathlib.Path, *args: str, errors: str = "replace") -> tuple[int, 
         return 127, ""
 
 
+def _hash_stream(digest, handle) -> None:
+    while block := handle.read(1 << 20):
+        digest.update(block)
+
+
 def _content_fingerprint(root: pathlib.Path, paths: list[str]) -> str:
     """Digest of the actual bytes of every changed or untracked file (not just its name), so resume can tell that an
     input changed even when HEAD and the set of paths are identical. Streamed, so it is not capped like the diff."""
     digest = hashlib.sha256()
     for rel in sorted(set(paths)):
         path = root / rel
-        digest.update(rel.encode() + b"\0")
+        digest.update(os.fsencode(rel) + b"\0")
         try:
             if path.is_symlink():
-                digest.update(b"link:" + os.readlink(path).encode())
+                digest.update(b"link:" + os.fsencode(os.readlink(path)))
             elif path.is_file():
                 with path.open("rb") as handle:
-                    for block in iter(lambda: handle.read(1 << 20), b""):
-                        digest.update(block)
+                    _hash_stream(digest, handle)
             else:
                 digest.update(b"absent-or-directory")
         except OSError as error:
@@ -413,6 +417,12 @@ def main(argv=None) -> int:
                         help="re-run every step if modified/untracked file content changed since the checkpoint")
     args = parser.parse_args(argv)
     orchestrator = Orchestrator(root=args.root, checkpoint=args.checkpoint)
+    # Python's default SIGTERM action ends the process without unwinding, which would orphan the step's isolated
+    # process group. Turn it into SystemExit so the runner's cleanup (and any `finally`) runs first.
+    if hasattr(signal, "SIGTERM"):
+        def _terminate(signum, _frame):
+            raise SystemExit(128 + signum)
+        signal.signal(signal.SIGTERM, _terminate)
     if args.resume:
         return orchestrator.resume(wait=not args.no_wait, allow_head_change=args.allow_head_change,
                                    allow_input_change=args.allow_input_change)
