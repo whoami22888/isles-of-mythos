@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { runInNewContext } from "node:vm";
 import {
   BASE_CHECKS, CODEX_REVIEWER, changedPaths, modifiesProtectedVerification, applicableChecks, visualRequired,
   trustedCodexReceipt, codexReviewsPassed, hasUndispositionedBlockingCodexReview,
@@ -439,4 +440,32 @@ test("coastal capture rejects missing, failed, pending, skipped and stale workfl
   ]) assert.equal(requiredRunsPassed([bad], [name], sha).pass, false);
   assert.equal(requiredRunsPassed([run(name), { ...run(name), id: 6,
     status: "in_progress", conclusion: null }], [name], sha).pass, false);
+});
+
+
+test("disposition-only owner comments retrigger reconciliation without granting merge approval", () => {
+  const policy = readFileSync(".github/workflows/verified-codex-auto-merge.yml", "utf8");
+  const expression = policy.match(/    if: >-\s*\$\{\{([\s\S]*?)\}\}/)?.[1];
+  assert.ok(expression, "integration job condition must exist");
+  const evaluate = (body, login = "repo-owner", pull_request = {}) => runInNewContext(expression, {
+    github: { event_name: "issue_comment", repository_owner: "repo-owner",
+      event: { issue: { pull_request }, comment: { user: { login }, body } } },
+    contains: (value, fragment) => value.includes(fragment)
+  }, { timeout: 1000 });
+  const old = { id: 97, commit_id: "b".repeat(40), submitted_at: "2026-10-27T01:00:00Z",
+    state: "CHANGES_REQUESTED", user: { login: CODEX_REVIEWER }, body: "P2: repair required" };
+  assert.equal(evaluate(reviewDisposition(old).body), true);
+  assert.equal(evaluate(reviewDisposition(old).body, "attacker"), false);
+  assert.equal(evaluate(reviewDisposition(old).body, "repo-owner", null), false);
+  assert.equal(evaluate("ordinary comment"), false);
+  assert.equal(evaluate("VISUAL-ACCEPTED: " + sha), true);
+  // Trigger admission only schedules evaluation; malformed receipts cannot clear a review.
+  const malformed = "CODEX-REVIEW-DISPOSITION: malformed";
+  assert.equal(evaluate(malformed), true);
+  assert.equal(hasUndispositionedBlockingCodexReview([old], [reviewDisposition(old, "repo-owner", {
+    body: malformed
+  })], "repo-owner"), true);
+  assert.equal(hasUndispositionedBlockingCodexReview([old], [reviewDisposition(old, "repo-owner", {
+    body: "<!-- codex-review-disposition:v1 -->\nCODEX-REVIEW-DISPOSITION: 97 RESOLVED " + sha
+  })], "repo-owner"), true);
 });
