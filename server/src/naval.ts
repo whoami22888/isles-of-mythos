@@ -124,7 +124,7 @@ export class NavalStore {
       const kit=await c.query<{quantity:string}>("SELECT quantity FROM ship_inventory WHERE ship_id=$1 AND item_id='repair_lumber' FOR UPDATE",[shipId]);
       if(Number(kit.rows[0]?.quantity??0)<1) throw new Error("NO_REPAIR_LUMBER");
       const engineers=await c.query<{skill:number}>("SELECT skill FROM ship_crew WHERE ship_id=$1 AND role='engineer'",[shipId]);
-      const amount=Math.min(ship.max_hull-ship.hull,20+stackCrewContributions(engineers.rows.map(x=>x.skill),CREW_BONUS_CAPS.engineerRepair));
+      const amount=Math.min(ship.max_hull-ship.hull,20+Math.floor(stackCrewContributions(engineers.rows.map(x=>x.skill),CREW_BONUS_CAPS.engineerRepair)));
       await c.query("UPDATE ship_inventory SET quantity=quantity-1,updated_at=CURRENT_TIMESTAMP WHERE ship_id=$1 AND item_id='repair_lumber'",[shipId]);
       const updated=await c.query<Row>("UPDATE player_ships SET hull=$2,updated_at=CURRENT_TIMESTAMP WHERE id=$1 RETURNING "+select,[shipId,ship.hull+amount]);
       await c.query("COMMIT");

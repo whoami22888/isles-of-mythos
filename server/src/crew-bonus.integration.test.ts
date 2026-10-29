@@ -90,6 +90,14 @@ describe("crew bonuses have diminishing returns and hard caps (Finding D)", () =
     expect(ship.hull).toBeLessThanOrEqual(1 + 20 + 150); // ...but the bonus is capped
   });
 
+  it("repair: fractional stacked bonuses are rounded down so odd engineer skills still repair (Codex P1)", async () => {
+    await db.query("INSERT INTO ship_crew(ship_id,creature_id,owner_user_id,npc_type,role,skill,morale) VALUES($1,NULL,$2,'pirate','engineer',51,100),($1,NULL,$2,'pirate','engineer',51,100)", [aShip, a]);
+    await db.query("UPDATE player_ships SET hull=1 WHERE id=$1", [aShip]);
+    const ship = await naval.repairShip(a, aShip);   // 51 + 25.5 = 76.5 stacked => floor => 20 + 76
+    expect(ship.hull).toBe(1 + 20 + 76);
+    expect(Number.isInteger(ship.hull)).toBe(true);
+  });
+
   it("fire fighting: many medics cannot extinguish any fire instantly", async () => {
     await crew(aShip, a, "medic", 25);
     await db.query("UPDATE player_ships SET fire_until=NOW()+INTERVAL '600 seconds' WHERE id=$1", [aShip]);
