@@ -10,10 +10,12 @@ extends SceneTree
 #
 # Flow:
 #   1. Connect. The test server cuts this first connection after a few snapshot frames. The
-#      client must receive NO creature_party at all (no partial emission), then "Disconnected".
-#   2. Reconnect (explicit connect_to_server). The server re-sends a fresh snapshot after
-#      authentication; the client must receive exactly ONE complete creature_party with the
-#      expected count, unique ids and order-sensitive SHA-256 of ids, and nothing further.
+#      client must receive NO creature_party at all (no partial emission), then the adapter
+#      reports the lost authenticated session ("Connection lost; retrying…").
+#   2. Automatic reconnect (MYTHOS-NET-01 recovery; NO explicit connect_to_server). The server
+#      re-sends a fresh snapshot after authentication; the adapter must emit `reconnected` and
+#      the client must receive exactly ONE complete creature_party with the expected count,
+#      unique ids and order-sensitive SHA-256 of ids, and nothing further.
 
 const Adapter = preload("res://scripts/websocket_adapter.gd")
 
@@ -24,6 +26,7 @@ var _phase := 1
 var _completes: Array = []
 var _errors: Array = []
 var _disconnected_phase1 := false
+var _reconnected := false
 var _parties_phase1 := 0
 var _settle_until_ms := 0
 var _deadline_ms := 0
@@ -51,6 +54,7 @@ func run() -> void:
 	_adapter.configure(args[0], args[1])
 	_adapter.message_received.connect(_on_message)
 	_adapter.status_changed.connect(_on_status)
+	_adapter.reconnected.connect(func() -> void: _reconnected = true)
 	_deadline_ms = Time.get_ticks_msec() + 90000
 	_adapter.connect_to_server()
 
@@ -63,7 +67,7 @@ func _on_message(message: Dictionary) -> void:
 		_completes.append(message)
 
 func _on_status(status: String) -> void:
-	if status == "Disconnected" and _phase == 1:
+	if status.begins_with("Connection lost") and _phase == 1:
 		_disconnected_phase1 = true
 	elif status.begins_with("Creature sync failed"):
 		_errors.append(status)
@@ -79,7 +83,6 @@ func _process(_delta: float) -> bool:
 			_fail("phase 1 emitted %d creature_party message(s); a cut mid-snapshot must emit none" % _parties_phase1)
 			return false
 		_phase = 2
-		_adapter.connect_to_server()
 		return false
 	if _phase == 2 and not _completes.is_empty():
 		# Keep listening briefly so a duplicate or trailing partial emission is caught.
@@ -111,6 +114,9 @@ func _verify() -> void:
 	var actual_hash: String = "\n".join(ids).sha256_text()
 	if actual_hash != _expected_hash:
 		_fail("id order/content hash mismatch: %s != %s" % [actual_hash, _expected_hash])
+		return
+	if not _reconnected:
+		_fail("snapshot recovered without the adapter reporting an automatic reconnect")
 		return
 	if _completes.size() != 1:
 		_fail("expected exactly one complete snapshot after reconnect, got %d" % _completes.size())
