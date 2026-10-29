@@ -286,6 +286,8 @@ class Orchestrator:
             return 127, f"cannot start command: {error}"
         try:
             out, err = proc.communicate(timeout=step.get("timeout", DEFAULT_STEP_TIMEOUT))
+            if posix:
+                self._kill_group(proc.pid)        # a step must not leave background children mutating files
             return proc.returncode, (out or "") + (err or "")
         except subprocess.TimeoutExpired:
             self._terminate_tree(proc, posix)
@@ -297,20 +299,27 @@ class Orchestrator:
             raise
 
     @staticmethod
-    def _terminate_tree(proc: subprocess.Popen, posix: bool) -> None:
-        """Kill the step's whole process group and reap it, so a timed-out step cannot keep running (and keep
-        modifying files) while its checkpoint is already resumable."""
-        if posix:
-            for sig, grace in ((signal.SIGTERM, 3), (signal.SIGKILL, 0)):
+    def _kill_group(pgid: int, grace: float = 0.3) -> None:
+        """SIGTERM the process group, give it `grace` seconds, then SIGKILL whatever is left. No-op if it is empty."""
+        for sig in (signal.SIGTERM, signal.SIGKILL):
+            try:
+                os.killpg(pgid, sig)
+            except (ProcessLookupError, PermissionError):
+                return
+            deadline = time.monotonic() + (grace if sig == signal.SIGTERM else 0.5)
+            while time.monotonic() < deadline:
                 try:
-                    os.killpg(proc.pid, sig)
-                except ProcessLookupError:
-                    break
-                if grace:
-                    try:
-                        proc.wait(timeout=grace)
-                    except subprocess.TimeoutExpired:
-                        pass
+                    os.killpg(pgid, 0)
+                except (ProcessLookupError, PermissionError):
+                    return
+                time.sleep(0.02)
+
+    @staticmethod
+    def _terminate_tree(proc: subprocess.Popen, posix: bool) -> None:
+        """Kill the step's whole process group and reap it, so a timed-out or interrupted step cannot keep running
+        (and keep modifying files) while its checkpoint is already resumable."""
+        if posix:
+            Orchestrator._kill_group(proc.pid, grace=1.0)
         else:
             proc.kill()
         try:
@@ -367,6 +376,28 @@ class Orchestrator:
     def run(self, plan: dict) -> int:
         return self._execute(validate_plan(plan), [])
 
+    def _check_unchanged(self, saved: dict, data: dict, allow_head_change: bool, allow_input_change: bool):
+        """Refuse (EXIT_USAGE) when HEAD or input content moved since the checkpoint; with the input override, drop the
+        completed steps so everything re-runs on the current files. Returns None when it is safe to continue."""
+        if not saved.get("available"):
+            return None
+        current = git_snapshot(self.root, self._own_path())
+        if current.get("head") != saved.get("head") and not allow_head_change:
+            self.log(f"refusing to resume: HEAD moved {saved.get('head', '')[:8]} -> {current.get('head', '')[:8]}"
+                     " (use --allow-head-change after reviewing)")
+            return EXIT_USAGE
+        if current.get("pending_edits") != saved.get("pending_edits"):
+            self.log("warning: the set of changed files differs from the checkpoint")
+        if current.get("content_sha256") != saved.get("content_sha256"):
+            if not allow_input_change:
+                self.log("refusing to resume: the content of modified or untracked files changed since the "
+                         "checkpoint, so completed steps were validated against different input "
+                         "(use --allow-input-change to re-run every step on the current files)")
+                return EXIT_USAGE
+            self.log("inputs changed since the checkpoint; discarding completed steps and re-running all of them")
+            data["progress"]["completed"] = []
+        return None
+
     def resume(self, wait: bool = True, allow_head_change: bool = False, allow_input_change: bool = False) -> int:
         if not self.checkpoint.exists():
             self.log("no checkpoint to resume")
@@ -377,22 +408,9 @@ class Orchestrator:
             self.log(f"refusing to resume: {error}")
             return EXIT_USAGE
         saved = data.get("git", {})
-        if saved.get("available"):
-            current = git_snapshot(self.root, self._own_path())
-            if current.get("head") != saved.get("head") and not allow_head_change:
-                self.log(f"refusing to resume: HEAD moved {saved.get('head', '')[:8]} -> {current.get('head', '')[:8]}"
-                         " (use --allow-head-change after reviewing)")
-                return EXIT_USAGE
-            if current.get("pending_edits") != saved.get("pending_edits"):
-                self.log("warning: the set of changed files differs from the checkpoint")
-            if current.get("content_sha256") != saved.get("content_sha256"):
-                if not allow_input_change:
-                    self.log("refusing to resume: the content of modified or untracked files changed since the "
-                             "checkpoint, so completed steps were validated against different input "
-                             "(use --allow-input-change to re-run every step on the current files)")
-                    return EXIT_USAGE
-                self.log("inputs changed since the checkpoint; discarding completed steps and re-running all of them")
-                data["progress"]["completed"] = []
+        refusal = self._check_unchanged(saved, data, allow_head_change, allow_input_change)
+        if refusal is not None:
+            return refusal
         not_before = data.get("resume_not_before")
         remaining = max(0.0, not_before - self.now()) if not_before else 0.0
         if remaining > 0:
@@ -401,6 +419,11 @@ class Orchestrator:
                 return EXIT_RATE_LIMITED
             self.log(f"waiting {remaining:.0f}s for Retry-After")
             self.sleep(remaining)
+            # Retry-After can last up to an hour: HEAD and inputs may have changed while we slept, so re-verify
+            # immediately before reusing the completed steps.
+            refusal = self._check_unchanged(saved, data, allow_head_change, allow_input_change)
+            if refusal is not None:
+                return refusal
         return self._execute(data["plan"], list(data["progress"]["completed"]))
 
 

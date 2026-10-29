@@ -300,6 +300,50 @@ class SigtermAndRawBytes(Base):
         self.assertFalse(marker.exists(), "SIGTERM left the step running")
 
 
+class WaitAndLeaderExit(Base):
+    """Codex P2s on ad91d8f."""
+
+    def test_background_child_of_a_finished_step_is_cleaned_up(self):
+        marker = self.root / "marker"
+        child = "import pathlib,sys,time; time.sleep(1.5); pathlib.Path(sys.argv[1]).write_text('x')"
+        leader = ("import subprocess,sys\n"
+                  "subprocess.Popen([sys.executable,'-c',sys.argv[2],sys.argv[1]],"
+                  "stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)\n")
+        o = orch.Orchestrator(root=self.root, checkpoint=self.ckpt, sleep=lambda s: None)
+        code, _ = o._subprocess_runner({"id": "t", "argv": [sys.executable, "-c", leader, str(marker), child], "timeout": 30})
+        self.assertEqual(code, 0)
+        time.sleep(2.2)
+        self.assertFalse(marker.exists(), "a background child outlived its finished step")
+
+    def _throttled_with_wait(self):
+        clock = [1000.0]
+        self.make({"s2": orch.RateLimited(60)}, now=lambda: clock[0]).run(self.plan())
+        self.calls.clear()
+        return clock
+
+    def test_input_change_during_retry_wait_is_refused(self):
+        clock = self._throttled_with_wait()
+        o = self.make(sleep=lambda s: (self.root / "a.txt").write_text("changed while waiting\n"), now=lambda: clock[0])
+        self.assertEqual(o.resume(wait=True), orch.EXIT_USAGE)
+        self.assertEqual(self.calls, [])
+
+    def test_head_change_during_retry_wait_is_refused(self):
+        clock = self._throttled_with_wait()
+
+        def commit_while_waiting(_seconds):
+            (self.root / "b.txt").write_text("b\n")
+            git(self.root, "add", "b.txt")
+            git(self.root, "commit", "-q", "-m", "during wait")
+        o = self.make(sleep=commit_while_waiting, now=lambda: clock[0])
+        self.assertEqual(o.resume(wait=True), orch.EXIT_USAGE)
+        self.assertEqual(self.calls, [])
+
+    def test_unchanged_state_after_the_wait_still_resumes(self):
+        clock = self._throttled_with_wait()
+        self.assertEqual(self.make(sleep=lambda s: None, now=lambda: clock[0]).resume(wait=True), orch.EXIT_OK)
+        self.assertEqual(self.calls, ["s2", "s3"])
+
+
 class CheckpointSafety(Base):
     def checkpointed(self):
         self.make({"s2": orch.RateLimited(0)}).run(self.plan())
