@@ -223,6 +223,49 @@ class InputFingerprint(Base):
         self.assertEqual(self.make().resume(), orch.EXIT_USAGE)
 
 
+class SpecialPathsAndInterrupts(Base):
+    """Codex P2s on 07d9bd2: escaped git paths must still be fingerprinted; Ctrl-C must not orphan a step."""
+
+    def test_non_ascii_and_quoted_names_are_fingerprinted(self):
+        for name in ("caf\u00e9.txt", 'quo"te.txt', "tab\there.txt", "sp ace.txt"):
+            with self.subTest(name=name):
+                (self.root / name).write_text("x\n")
+                self.make({"s2": orch.RateLimited(0)}).run(self.plan())
+                self.calls.clear()
+                (self.root / name).write_text("y\n")
+                self.assertEqual(self.make().resume(), orch.EXIT_USAGE)
+                self.assertEqual(self.calls, [])
+                (self.root / name).unlink()
+                self.ckpt.unlink(missing_ok=True)
+
+    def test_renamed_file_is_tracked_by_its_new_name(self):
+        git(self.root, "mv", "a.txt", "b.txt")
+        snap = orch.git_snapshot(self.root)
+        self.assertIn("b.txt", snap["pending_edits"])
+
+    def test_keyboard_interrupt_terminates_the_step_and_its_children(self):
+        from unittest import mock
+        marker = self.root / "marker"
+        child = "import pathlib,sys,time; time.sleep(1.5); pathlib.Path(sys.argv[1]).write_text('x')"
+        parent = ("import subprocess,sys,time\n"
+                  "subprocess.Popen([sys.executable,'-c',sys.argv[2],sys.argv[1]])\n"
+                  "time.sleep(30)\n")
+        real, fired = subprocess.Popen.communicate, []
+
+        def interrupted(proc, *args, **kwargs):
+            if not fired:
+                fired.append(1)
+                time.sleep(0.3)                      # let the child start
+                raise KeyboardInterrupt
+            return real(proc, *args, **kwargs)
+        o = orch.Orchestrator(root=self.root, checkpoint=self.ckpt, sleep=lambda s: None)
+        with mock.patch.object(subprocess.Popen, "communicate", interrupted):
+            with self.assertRaises(KeyboardInterrupt):
+                o._subprocess_runner({"id": "t", "argv": [sys.executable, "-c", parent, str(marker), child], "timeout": 30})
+        time.sleep(2.2)
+        self.assertFalse(marker.exists(), "the interrupted step's descendant kept running")
+
+
 class CheckpointSafety(Base):
     def checkpointed(self):
         self.make({"s2": orch.RateLimited(0)}).run(self.plan())

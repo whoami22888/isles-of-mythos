@@ -160,9 +160,9 @@ def _canonical(payload: dict) -> bytes:
     return json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
 
 
-def _git(root: pathlib.Path, *args: str) -> tuple[int, str]:
+def _git(root: pathlib.Path, *args: str, errors: str = "replace") -> tuple[int, str]:
     try:
-        done = subprocess.run(["git", *args], cwd=root, capture_output=True, text=True, errors="replace", timeout=60,
+        done = subprocess.run(["git", *args], cwd=root, capture_output=True, text=True, errors=errors, timeout=60,
                               env={**os.environ, "GIT_TERMINAL_PROMPT": "0"})
         return done.returncode, done.stdout
     except (OSError, subprocess.SubprocessError):
@@ -197,11 +197,21 @@ def git_snapshot(root: pathlib.Path, ignore: str | None = None) -> dict:
     if rc != 0:
         return {"available": False}
     _, branch = _git(root, "rev-parse", "--abbrev-ref", "HEAD")
-    _, status = _git(root, "status", "--porcelain=v1", "--untracked-files=all")
+    # -z: NUL-terminated and unquoted, so names with non-ASCII bytes, tabs or quotes are real paths we can hash.
+    # surrogateescape keeps non-UTF-8 names round-trippable to the filesystem.
+    _, status = _git(root, "status", "--porcelain=v1", "-z", "--untracked-files=all", errors="surrogateescape")
     pending = []
-    for line in status.splitlines():
-        path = line[3:].split(" -> ")[-1].strip().strip('"')
-        if path and path != ignore and not pathlib.PurePosixPath(path).name.startswith(".checkpoint-"):
+    entries = status.split("\0")
+    index = 0
+    while index < len(entries):
+        entry = entries[index]
+        index += 1
+        if len(entry) < 4:
+            continue
+        path = entry[3:]
+        if entry[0] in "RC":                      # rename/copy: "XY new" is followed by the old name as its own entry
+            index += 1
+        if path != ignore and not pathlib.PurePosixPath(path).name.startswith(".checkpoint-"):
             pending.append(path)
     _, diff = _git(root, "diff", "HEAD", "--no-color", "--no-ext-diff", "--", ".", *_DIFF_EXCLUDES)
     diff = redact(diff)
@@ -276,6 +286,11 @@ class Orchestrator:
         except subprocess.TimeoutExpired:
             self._terminate_tree(proc, posix)
             return 124, f"step timed out after {step.get('timeout')}s"
+        except BaseException:
+            # Ctrl-C / SIGTERM-driven exit: the step runs in its own session, so it would otherwise outlive us and
+            # keep mutating files while a later --resume starts the same step again.
+            self._terminate_tree(proc, posix)
+            raise
 
     @staticmethod
     def _terminate_tree(proc: subprocess.Popen, posix: bool) -> None:
