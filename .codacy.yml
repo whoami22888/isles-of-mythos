@@ -4,10 +4,6 @@
 # Codacy's .codacy.yml configures tools but cannot enable or disable them.
 # Use supported per-tool path exclusions instead.
 engines:
-  pmd:
-    # This repository has no Java/Apex/Visualforce source files for PMD.
-    exclude_paths:
-      - "**/*"
   metric:
     # Keep metrics for supported languages; skip Godot files the metrics
     # analyzers cannot parse (GDScript and Godot scene/resource formats).
