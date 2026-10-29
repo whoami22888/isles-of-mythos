@@ -290,7 +290,7 @@ describe("NET-04 gap 4: unbounded numerics", () => {
   it("keeps previously valid messages valid", () => {
     expect(parse({ type: "train_army", requestId: "r1", armyId: "a1", unitType: "pirate", quantity: 1000 })).not.toBeNull();
     expect(parse({ type: "train_army", requestId: "r1", armyId: "a1", unitType: "pirate", quantity: 1001 })).toBeNull();
-    expect(parse({ type: "sail", requestId: "r1", shipId: "s1", dx: 1, dy: 0, dt: 1 })).not.toBeNull();
+    expect(parse({ type: "sail", requestId: "r1", shipId: "s1", dx: 1, dy: 0 })).not.toBeNull();
   });
 });
 

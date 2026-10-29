@@ -84,7 +84,7 @@ export type ClientMessage =
   | { type:"list_fleets"; requestId:string }
   | { type:"add_fleet_ship"; requestId:string; fleetId:string; shipId:string }
   | { type:"remove_fleet_ship"; requestId:string; fleetId:string; shipId:string }
-  | { type:"sail"; requestId:string; shipId:string; dx:number; dy:number; dt:number }
+  | { type:"sail"; requestId:string; shipId:string; dx:number; dy:number }
   | { type:"assign_ship_crew"; requestId:string; shipId:string; creatureId:string; role:string }
   | { type:"fire_cannon"; requestId:string; shipId:string; targetShipId:string }
   | { type:"assign_ship_npc_crew"; requestId:string; shipId:string; npcType:"pirate"|"mermaid"|"dragon"|"npc_specialist"; role:string }
@@ -141,7 +141,8 @@ export type ServerMessage =
   | { type:"projectile_spawn"; projectileId:string; ownerUserId:string; targetId:string; x:number; y:number; vx:number; vy:number; expiresAt:number }
   | { type:"combat_result"; requestId:string; targetId:string; damage:number; critical:boolean; killed:boolean; targetHealth:number; status?:string; missed?:boolean }
   | { type:"creature_state"; requestId?:string; creature:unknown }
-  | { type:"creature_party"; creatures:unknown[] }
+  | { type:"creature_party"; creatures:unknown[]; snapshotId:number; page:number; pageCount:number; total:number }
+  | { type:"creature_party_page"; creatures:unknown[]; snapshotId:number; page:number; pageCount:number; total:number }
   | { type:"base_state"; requestId?:string; transactionId?:string; base:unknown }
   | { type:"building_state"; requestId:string; building:unknown }
   | { type:"craft_result"; requestId:string; transactionId:string; recipeId:string; state:PublicPlayerState }
@@ -347,7 +348,7 @@ export function parseClientMessage(raw:string):ClientMessage|null{
     if(type==="create_fleet"){const id=(value as {requestId?:unknown}).requestId,name=(value as {name?:unknown}).name,shipId=(value as {shipId?:unknown}).shipId;return requestId(id)&&typeof name==="string"&&name.length>0&&name.length<=64&&typeof shipId==="string"&&shipId.length>0&&shipId.length<=64?{type:"create_fleet",requestId:id,name,shipId}:null;}
     if(type==="list_fleets"){const id=(value as {requestId?:unknown}).requestId;return requestId(id)?{type:"list_fleets",requestId:id}:null;}
     if(type==="add_fleet_ship"||type==="remove_fleet_ship"){const id=(value as {requestId?:unknown}).requestId,fleetId=(value as {fleetId?:unknown}).fleetId,shipId=(value as {shipId?:unknown}).shipId;return requestId(id)&&typeof fleetId==="string"&&fleetId.length>0&&fleetId.length<=64&&typeof shipId==="string"&&shipId.length>0&&shipId.length<=64?{type,requestId:id,fleetId,shipId}:null;}
-    if(type==="sail"){const id=(value as {requestId?:unknown}).requestId,shipId=(value as {shipId?:unknown}).shipId,dx=(value as {dx?:unknown}).dx,dy=(value as {dy?:unknown}).dy,dt=(value as {dt?:unknown}).dt;return requestId(id)&&typeof shipId==="string"&&shipId.length>0&&shipId.length<=64&&isFiniteNumber(dx)&&isFiniteNumber(dy)&&isFiniteNumber(dt)&&dt>0&&dt<=60&&Math.abs(dx)<=1&&Math.abs(dy)<=1&&(dx!==0||dy!==0)?{type:"sail",requestId:id,shipId,dx,dy,dt}:null;}
+    if(type==="sail"){const id=(value as {requestId?:unknown}).requestId,shipId=(value as {shipId?:unknown}).shipId,dx=(value as {dx?:unknown}).dx,dy=(value as {dy?:unknown}).dy;return requestId(id)&&typeof shipId==="string"&&shipId.length>0&&shipId.length<=64&&isFiniteNumber(dx)&&isFiniteNumber(dy)&&Math.abs(dx)<=1&&Math.abs(dy)<=1&&(dx!==0||dy!==0)?{type:"sail",requestId:id,shipId,dx,dy}:null;}
     if(type==="assign_ship_crew"){const id=(value as {requestId?:unknown}).requestId,shipId=(value as {shipId?:unknown}).shipId,creatureId=(value as {creatureId?:unknown}).creatureId,role=(value as {role?:unknown}).role;return requestId(id)&&idString(shipId)&&idString(creatureId)&&idString(role,32)?{type:"assign_ship_crew",requestId:id,shipId,creatureId,role}:null;}
     if(type==="fire_cannon"){const id=(value as {requestId?:unknown}).requestId,shipId=(value as {shipId?:unknown}).shipId,targetShipId=(value as {targetShipId?:unknown}).targetShipId;return requestId(id)&&idString(shipId)&&idString(targetShipId)?{type:"fire_cannon",requestId:id,shipId,targetShipId}:null;}
     if(type==="assign_ship_npc_crew"){const id=(value as {requestId?:unknown}).requestId,shipId=(value as {shipId?:unknown}).shipId,npcType=(value as {npcType?:unknown}).npcType,role=(value as {role?:unknown}).role;return requestId(id)&&idString(shipId)&&typeof npcType==="string"&&["pirate","mermaid","dragon","npc_specialist"].includes(npcType)&&typeof role==="string"&&role.length>0&&role.length<=32?{type:"assign_ship_npc_crew",requestId:id,shipId,npcType:npcType as "pirate"|"mermaid"|"dragon"|"npc_specialist",role}:null;}

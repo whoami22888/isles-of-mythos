@@ -47,6 +47,7 @@ import { RedisAntiCheatStateStore } from "./anti-cheat-store.js";
 import { createMutationTiming, measureMutationStage, runTimedMutation, type MutationTiming, type MutationTimingSnapshot } from "./mutation-timing.js";
 import { runReplayableRequest, type RequestDuplicateOutcome } from "./request-coordinator.js";
 import { BACKLOG_CLOSE_CODE, BACKLOG_CLOSE_REASON, MessageBacklogGuard, reportMessageFailure } from "./ws-backlog.js";
+import { buildCreatureSnapshotFrames, CreatureTooLargeError } from "./creature-snapshot.js";
 
 function errorCode(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
@@ -54,6 +55,24 @@ function errorCode(error: unknown, fallback: string): string {
 
 function send(socket: WebSocket, message: ServerMessage): void {
   if (socket.readyState === socket.OPEN) socket.send(JSON.stringify(message, (_key, value: unknown) => typeof value === "bigint" ? value.toString() : value));
+}
+
+// MYTHOS-NET-05: creature snapshots are bounded and paginated (see creature-snapshot.ts).
+// Frames are sent synchronously and consecutively so pages of one snapshot never interleave.
+let creatureSnapshotSequence = 0;
+function sendCreatureSnapshot(socket: WebSocket, ownedCreatures: readonly unknown[]): void {
+  creatureSnapshotSequence = (creatureSnapshotSequence + 1) % Number.MAX_SAFE_INTEGER;
+  let frames: ReturnType<typeof buildCreatureSnapshotFrames>;
+  try {
+    frames = buildCreatureSnapshotFrames(ownedCreatures, creatureSnapshotSequence);
+  } catch (error) {
+    if (!(error instanceof CreatureTooLargeError)) throw error;
+    // Corrupt source row: explicit rejection, no partial snapshot, no identifiers logged.
+    log("creature_snapshot_rejected", { bytes: error.bytes, maxBytes: error.maxBytes, total: ownedCreatures.length });
+    send(socket, { type: "error", code: "INTERNAL_SERVER_ERROR" });
+    return;
+  }
+  for (const frame of frames) send(socket, frame);
 }
 
 const SLOW_MUTATION_THRESHOLD_MS = 50;
@@ -888,7 +907,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             setActivePlayers(userSockets.size);
             send(socket, { type: "auth_ok", userId: authenticatedUserId });
             send(socket, { type: "player_state", state: serializePlayerState(state) });
-            send(socket, { type: "creature_party", creatures: ownedCreatures });
+            sendCreatureSnapshot(socket, ownedCreatures);
             if (base) send(socket, { type: "base_state", base });
           } catch {
             userId = null;
@@ -1232,7 +1251,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             }
           });
           send(socket,response);
-          if(response.type==="creature_state")send(socket,{type:"creature_party",creatures:creatures.get(authenticatedUserId)});
+          if(response.type==="creature_state")sendCreatureSnapshot(socket,creatures.get(authenticatedUserId));
           return;
         }
 
@@ -1804,7 +1823,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
               if(message.type==="list_fleets")return {type:"fleet_list",requestId:message.requestId,fleets:await fleets.list(authenticatedUserId)};
               if(message.type==="add_fleet_ship")return {type:"fleet_state",requestId:message.requestId,fleet:await fleets.addShip(authenticatedUserId,message.fleetId,message.shipId)};
               if(message.type==="remove_fleet_ship")return {type:"fleet_state",requestId:message.requestId,fleet:await fleets.removeShip(authenticatedUserId,message.fleetId,message.shipId)};
-              if(message.type==="sail")return {type:"ship_state",requestId:message.requestId,ship:await ships.sail(authenticatedUserId,message.shipId,message.dx,message.dy,message.dt)};
+              if(message.type==="sail")return {type:"ship_state",requestId:message.requestId,ship:await ships.sail(authenticatedUserId,message.shipId,message.dx,message.dy)};
               if(message.type==="assign_ship_crew"){
                 if(!CREW_ROLES.includes(message.role as CrewRole))throw new Error("INVALID_CREW_ASSIGNMENT");
                 return {type:"ship_crew",requestId:message.requestId,crew:await ships.assignCrew(authenticatedUserId,message.shipId,message.creatureId,message.role as CrewRole)};
