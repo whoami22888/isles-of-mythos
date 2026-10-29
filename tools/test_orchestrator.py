@@ -274,6 +274,25 @@ class Redaction(unittest.TestCase):
         d.cleanup()
 
 
+class GameplayIdentifiers(unittest.TestCase):
+    """Codex P1: player/request/inventory identifiers must not be persisted in checkpoint diagnostics."""
+
+    def test_identifiers_are_redacted_in_json_and_key_value_forms(self):
+        for text in ('{"playerId":"private-player-identifier","requestId":"private-request-identifier",'
+                     '"inventoryId":"private-inventory-identifier"}',
+                     "player_id=private-player-identifier request-id: private-request-identifier",
+                     "{'inventory_id': 'private-inventory-identifier'}"):
+            out = orch.redact(text)
+            self.assertNotIn("private-", out, out)
+
+    def test_unrelated_text_is_unchanged(self):
+        text = "step build failed: 3 tests, valid=false, hostId unknown"
+        self.assertEqual(orch.redact(text), text)
+
+    def test_checkpoint_tail_never_contains_identifiers(self):
+        self.assertNotIn("private-", orch.redact("noise " * 50 + '{"playerId":"private-x"}'))
+
+
 class TimeoutKillsDescendants(Base):
     def test_a_timed_out_step_does_not_leave_children_running(self):
         marker = self.root / "child-ran.flag"

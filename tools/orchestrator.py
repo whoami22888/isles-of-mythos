@@ -65,6 +65,9 @@ _REDACTIONS = [
     # key names may be quoted and may carry prefixes/suffixes (GITHUB_TOKEN, "client_secret", AWS_SECRET_ACCESS_KEY)
     (re.compile(r"(?i)((?<![\w.-])[\"']?[\w.-]{0,40}?(?:api[_-]?key|access[_-]?key|private[_-]?key|token|secret|password|passwd)[\w.-]{0,40}[\"']?"
                 r"\s*[:=]\s*)" + _VALUE), r"\1[REDACTED]"),
+    # gameplay identifiers must not reach diagnostics (AGENTS.md privacy rule): playerId, request_id, inventoryId, ...
+    (re.compile(r"(?i)((?<![\w.-])[\"']?[\w.-]{0,40}?(?:player|request|inventory|user|account|session|character|guild|ship)"
+                r"[_-]?id[\w.-]{0,20}[\"']?\s*[:=]\s*)" + _VALUE), r"\1[REDACTED]"),
 ]
 _DIFF_EXCLUDES = [":(exclude)*.env", ":(exclude)*.env.*", ":(exclude)*.pem", ":(exclude)*.key", ":(exclude)*.p12",
                   ":(exclude)*.keystore", ":(exclude)*secret*", ":(exclude)*credential*"]
