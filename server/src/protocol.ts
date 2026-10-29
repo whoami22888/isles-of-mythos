@@ -143,7 +143,8 @@ export type ServerMessage =
   | { type:"projectile_spawn"; projectileId:string; ownerUserId:string; targetId:string; x:number; y:number; vx:number; vy:number; expiresAt:number }
   | { type:"combat_result"; requestId:string; targetId:string; damage:number; critical:boolean; killed:boolean; targetHealth:number; status?:string; missed?:boolean }
   | { type:"creature_state"; requestId?:string; creature:unknown }
-  | { type:"creature_party"; creatures:unknown[] }
+  | { type:"creature_party"; creatures:unknown[]; snapshotId:number; page:number; pageCount:number; total:number }
+  | { type:"creature_party_page"; creatures:unknown[]; snapshotId:number; page:number; pageCount:number; total:number }
   | { type:"base_state"; requestId?:string; transactionId?:string; base:unknown }
   | { type:"building_state"; requestId:string; building:unknown }
   | { type:"craft_result"; requestId:string; transactionId:string; recipeId:string; state:PublicPlayerState }
@@ -369,7 +370,7 @@ export function parseClientMessage(raw:string):ClientMessage|null{
       const key=type==="party_accept"?"invitationId":type==="auction_bid"||type==="auction_buy_now"||type==="auction_cancel"?"listingId":"targetUserId";
       const v=(value as Record<string,unknown>)[key];if(typeof v!=="string"||v.length===0||v.length>128)return null;
       if(type==="auction_bid"){const amount=(value as {amount?:unknown}).amount;return goldString(amount)?{type,requestId:id,listingId:v,amount}:null;}
-      return {...value} as ClientMessage;
+      return ({type,requestId:id,[key]:v}) as ClientMessage;
     }
     if(type==="report_user"){
       const id=(value as {requestId?:unknown}).requestId,target=(value as {targetUserId?:unknown}).targetUserId,reason=(value as {reason?:unknown}).reason,details=(value as {details?:unknown}).details;

@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { getAccessToken } from "./auth.js";
+import { CreatureSnapshotAssembler } from "./creature-snapshot.js";
 import { CHUNK_SIZE, TILE_SIZE, ChunkRenderer } from "./world.js";
 import type { PlayerState } from "./player.js";
 import {
@@ -183,6 +184,7 @@ class WorldScene extends Phaser.Scene {
   private reconnectAttempt = 0;
   private dodgeAccumulator = 0;
   private readonly ownedCreatures = new Map<string, CreatureState>();
+  private readonly creatureSnapshots = new CreatureSnapshotAssembler();
   private readonly pendingCaptureTargets = new Map<string, string>();
   private invasion?: InvasionSummary;
   private invasionWaves: InvasionWave[] = [];
@@ -373,9 +375,18 @@ class WorldScene extends Phaser.Scene {
         this.updateHud();
         return;
       }
-      if (message.type === "creature_party") {
-        this.ownedCreatures.clear();
-        for (const creature of message.creatures) this.ownedCreatures.set(creature.id, creature);
+      if (message.type === "creature_party" || message.type === "creature_party_page") {
+        // Paged snapshots (MYTHOS-NET-05) replace the owned collection only once complete.
+        const snapshot = this.creatureSnapshots.feed(message);
+        if (snapshot.status === "error") {
+          this.statusText?.setText("CREATURE SYNC FAILED - RECONNECTING");
+          socket.close();
+          return;
+        }
+        if (snapshot.status === "complete" && snapshot.message) {
+          this.ownedCreatures.clear();
+          for (const creature of snapshot.message.creatures) this.ownedCreatures.set(creature.id, creature);
+        }
         return;
       }
       if (message.type === "creature_state") {
@@ -416,6 +427,7 @@ class WorldScene extends Phaser.Scene {
     socket.addEventListener("close", () => {
       this.connected = false;
       this.invasionWaves = [];
+      this.creatureSnapshots.reset();
       this.pendingCaptureTargets.clear();
       this.renderInvasionOverlay();
       this.statusText?.setText("WORLD OFFLINE • RECONNECTING...");

@@ -26,9 +26,9 @@ signal reconnect_failed()
 # The tracked chunk subscription was replayed after a reconnect.
 signal resync_requested(chunk_count: int)
 
-# The server caps only client->server frames (64 KiB). Server->client snapshots such
-# as the post-auth creature_party are not capped, so the inbound bound must admit
-# legitimate large snapshots: 1 MiB per packet inside a 2 MiB receive buffer.
+# The server caps only client->server frames (64 KiB). Server->client creature snapshots
+# are now paginated into <=48 KiB frames (MYTHOS-NET-05), but the inbound bound keeps
+# headroom for other large server messages: 1 MiB per packet inside a 2 MiB receive buffer.
 const INBOUND_BUFFER_BYTES := 2097152
 const MAX_PACKET_BYTES := 1048576
 const MAX_PACKETS_PER_FRAME_LIMIT := 256
@@ -53,7 +53,12 @@ var max_reconnect_attempts := 6
 var reconnect_base_delay := 1.0
 var max_reconnect_delay := 30.0
 
+const SnapshotAssembler = preload("res://scripts/creature_snapshot_assembler.gd")
+
 var _socket := WebSocketPeer.new()
+# MYTHOS-NET-05: paginated creature snapshots are reassembled here, so consumers of
+# message_received only ever see ONE complete `creature_party`, never a partial page.
+var _snapshots := SnapshotAssembler.new()
 var _url := ""
 var _token := ""
 var _attempt_active := false
@@ -119,6 +124,7 @@ func _open_connection() -> bool:
 	_socket.inbound_buffer_size = INBOUND_BUFFER_BYTES
 	_attempt_active = false
 	_auth_sent = false
+	_snapshots.reset()
 	if _url.is_empty():
 		status_changed.emit("No server endpoint configured")
 		return false
@@ -180,7 +186,10 @@ func _drain_packets() -> void:
 			continue
 		if parsed.get("type", "") == "auth_ok":
 			_on_authenticated()
-		message_received.emit(parsed)
+		_dispatch(parsed)
+		# A snapshot assembly error closes the socket: stop draining this connection.
+		if _socket.get_ready_state() != WebSocketPeer.STATE_OPEN:
+			break
 
 func _report_invalid(reason: String) -> void:
 	# Every invalid packet is counted. At most MAX_ERROR_SIGNALS_PER_WINDOW
@@ -255,6 +264,8 @@ func _on_authenticated() -> void:
 
 func _handle_closed() -> void:
 	_attempt_active = false
+	# A partial creature snapshot can never be completed after the connection is lost.
+	_snapshots.reset()
 	if _deliberate_close:
 		status_changed.emit("Disconnected")
 		return
@@ -290,6 +301,22 @@ func _schedule_reconnect() -> void:
 
 func _backoff_delay(attempt: int) -> float:
 	return minf(reconnect_base_delay * pow(2.0, attempt - 1), max_reconnect_delay)
+
+func _dispatch(message: Dictionary) -> void:
+	var result: Dictionary = _snapshots.feed(message)
+	match result["status"]:
+		"ignored":
+			message_received.emit(message)
+		"complete":
+			message_received.emit(result["message"])
+		"error":
+			# The server re-sends a fresh complete snapshot after every authentication, so a
+			# broken snapshot is recovered by dropping the connection: an authenticated session
+			# that closes this way is reconnected and resynchronised by the recovery logic above.
+			_socket.close()
+			status_changed.emit("Creature sync failed (%s); reconnect required" % result["reason"])
+		_:
+			pass # "partial": held back until the snapshot is complete
 
 func _is_safe_authenticated_url(url: String) -> bool:
 	var pattern := RegEx.new()
