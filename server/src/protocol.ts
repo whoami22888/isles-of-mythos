@@ -143,7 +143,8 @@ export type ServerMessage =
   | { type:"projectile_spawn"; projectileId:string; ownerUserId:string; targetId:string; x:number; y:number; vx:number; vy:number; expiresAt:number }
   | { type:"combat_result"; requestId:string; targetId:string; damage:number; critical:boolean; killed:boolean; targetHealth:number; status?:string; missed?:boolean }
   | { type:"creature_state"; requestId?:string; creature:unknown }
-  | { type:"creature_party"; creatures:unknown[] }
+  | { type:"creature_party"; creatures:unknown[]; snapshotId:number; page:number; pageCount:number; total:number }
+  | { type:"creature_party_page"; creatures:unknown[]; snapshotId:number; page:number; pageCount:number; total:number }
   | { type:"base_state"; requestId?:string; transactionId?:string; base:unknown }
   | { type:"building_state"; requestId:string; building:unknown }
   | { type:"craft_result"; requestId:string; transactionId:string; recipeId:string; state:PublicPlayerState }
