@@ -1811,7 +1811,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
               if(message.type==="list_fleets")return {type:"fleet_list",requestId:message.requestId,fleets:await fleets.list(authenticatedUserId)};
               if(message.type==="add_fleet_ship")return {type:"fleet_state",requestId:message.requestId,fleet:await fleets.addShip(authenticatedUserId,message.fleetId,message.shipId)};
               if(message.type==="remove_fleet_ship")return {type:"fleet_state",requestId:message.requestId,fleet:await fleets.removeShip(authenticatedUserId,message.fleetId,message.shipId)};
-              if(message.type==="sail")return {type:"ship_state",requestId:message.requestId,ship:await ships.sail(authenticatedUserId,message.shipId,message.dx,message.dy,message.dt)};
+              if(message.type==="sail")return {type:"ship_state",requestId:message.requestId,ship:await ships.sail(authenticatedUserId,message.shipId,message.dx,message.dy)};
               if(message.type==="assign_ship_crew"){
                 if(!CREW_ROLES.includes(message.role as CrewRole))throw new Error("INVALID_CREW_ASSIGNMENT");
                 return {type:"ship_crew",requestId:message.requestId,crew:await ships.assignCrew(authenticatedUserId,message.shipId,message.creatureId,message.role as CrewRole,message.skill,message.morale)};
