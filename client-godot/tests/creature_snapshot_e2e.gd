@@ -1,31 +1,31 @@
 extends SceneTree
 
 # MYTHOS-NET-05: headless Godot client against a REAL Fastify server (driven by
-# server/src/creature-snapshot.godot-e2e.test.ts). Uses the production
-# IslesWebSocketAdapter plus CreatureSnapshotAssembler; no mock transport.
+# server/src/creature-snapshot.godot-e2e.test.ts). No mock transport.
 #
 # Args after `--`: <ws url> <access token> <expected creature count> <sha256 of ids joined by "\n">
 #
+# Uses ONLY the production IslesWebSocketAdapter (which owns snapshot reassembly); the harness
+# never builds an assembler, so this proves what a real consumer of message_received sees.
+#
 # Flow:
-#   1. Connect. The test server cuts this first connection after a few snapshot frames,
-#      so the client must see a PARTIAL snapshot, no complete one, then a disconnect.
+#   1. Connect. The test server cuts this first connection after a few snapshot frames. The
+#      client must receive NO creature_party at all (no partial emission), then "Disconnected".
 #   2. Reconnect (explicit connect_to_server). The server re-sends a fresh snapshot after
-#      authentication; the client must receive the COMPLETE collection (count, uniqueness,
-#      order-sensitive SHA-256 of ids) without any duplicate or missing creature.
+#      authentication; the client must receive exactly ONE complete creature_party with the
+#      expected count, unique ids and order-sensitive SHA-256 of ids, and nothing further.
 
 const Adapter = preload("res://scripts/websocket_adapter.gd")
-const Assembler = preload("res://scripts/creature_snapshot_assembler.gd")
 
 var _adapter
-var _assembler := Assembler.new()
 var _expected_count := 0
 var _expected_hash := ""
 var _phase := 1
-var _partial_frames_phase1 := 0
-var _frames_phase2 := 0
 var _completes: Array = []
 var _errors: Array = []
-var _disconnected_after_partial := false
+var _disconnected_phase1 := false
+var _parties_phase1 := 0
+var _settle_until_ms := 0
 var _deadline_ms := 0
 var _finished := false
 
@@ -55,45 +55,38 @@ func run() -> void:
 	_adapter.connect_to_server()
 
 func _on_message(message: Dictionary) -> void:
-	var result: Dictionary = _assembler.feed(message)
-	match result["status"]:
-		"partial":
-			if _phase == 1:
-				_partial_frames_phase1 += 1
-			else:
-				_frames_phase2 += 1
-		"complete":
-			_frames_phase2 += 1
-			_completes.append(result["message"])
-		"error":
-			_errors.append(result["reason"])
+	if str(message.get("type", "")) != "creature_party":
+		return
+	if _phase == 1:
+		_parties_phase1 += 1
+	else:
+		_completes.append(message)
 
 func _on_status(status: String) -> void:
-	if status == "Disconnected":
-		# A partial snapshot can never complete after the connection is lost.
-		var was_partial: bool = _assembler.is_partial()
-		_assembler.reset()
-		if _phase == 1:
-			_disconnected_after_partial = was_partial
+	if status == "Disconnected" and _phase == 1:
+		_disconnected_phase1 = true
+	elif status.begins_with("Creature sync failed"):
+		_errors.append(status)
 
 func _process(_delta: float) -> bool:
 	if _finished:
 		return false
 	if Time.get_ticks_msec() > _deadline_ms:
-		_fail("timed out (phase %d, partial_frames=%d, completes=%d, errors=%s)" % [_phase, _partial_frames_phase1, _completes.size(), str(_errors)])
+		_fail("timed out (phase %d, phase1_parties=%d, completes=%d, errors=%s)" % [_phase, _parties_phase1, _completes.size(), str(_errors)])
 		return false
-	if _phase == 1 and _disconnected_after_partial:
-		if not _completes.is_empty():
-			_fail("phase 1 produced a complete snapshot; the mid-stream cut did not happen")
-			return false
-		if _partial_frames_phase1 < 1:
-			_fail("phase 1 saw no partial snapshot frames")
+	if _phase == 1 and _disconnected_phase1:
+		if _parties_phase1 != 0:
+			_fail("phase 1 emitted %d creature_party message(s); a cut mid-snapshot must emit none" % _parties_phase1)
 			return false
 		_phase = 2
 		_adapter.connect_to_server()
 		return false
 	if _phase == 2 and not _completes.is_empty():
-		_verify()
+		# Keep listening briefly so a duplicate or trailing partial emission is caught.
+		if _settle_until_ms == 0:
+			_settle_until_ms = Time.get_ticks_msec() + 1500
+		elif Time.get_ticks_msec() >= _settle_until_ms:
+			_verify()
 	return false
 
 func _verify() -> void:
@@ -123,5 +116,5 @@ func _verify() -> void:
 		_fail("expected exactly one complete snapshot after reconnect, got %d" % _completes.size())
 		return
 	_finished = true
-	print("NET05_E2E PASS creatures=%d partial_frames_before_cut=%d frames_after_reconnect=%d" % [creatures.size(), _partial_frames_phase1, _frames_phase2])
+	print("NET05_E2E PASS creatures=%d phase1_parties=%d completes=%d" % [creatures.size(), _parties_phase1, _completes.size()])
 	quit(0)

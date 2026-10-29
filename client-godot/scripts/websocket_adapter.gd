@@ -4,7 +4,12 @@ extends Node
 signal status_changed(status: String)
 signal message_received(message: Dictionary)
 
+const SnapshotAssembler = preload("res://scripts/creature_snapshot_assembler.gd")
+
 var _socket := WebSocketPeer.new()
+# MYTHOS-NET-05: paginated creature snapshots are reassembled here, so consumers of
+# message_received only ever see ONE complete `creature_party`, never a partial page.
+var _snapshots := SnapshotAssembler.new()
 var _url := ""
 var _token := ""
 var _attempt_active := false
@@ -20,6 +25,7 @@ func connect_to_server() -> void:
 	_socket = WebSocketPeer.new()
 	_attempt_active = false
 	_auth_sent = false
+	_snapshots.reset()
 	if _url.is_empty():
 		status_changed.emit("No server endpoint configured")
 		return
@@ -53,10 +59,29 @@ func _process(_delta: float) -> void:
 		while _socket.get_available_packet_count() > 0:
 			var parsed = JSON.parse_string(_socket.get_packet().get_string_from_utf8())
 			if parsed is Dictionary:
-				message_received.emit(parsed)
+				_dispatch(parsed)
+				if _socket.get_ready_state() != WebSocketPeer.STATE_OPEN:
+					break
 	elif state == WebSocketPeer.STATE_CLOSED:
 		_attempt_active = false
+		# A partial snapshot can never be completed after the connection is lost.
+		_snapshots.reset()
 		status_changed.emit("Disconnected" if _auth_sent else "Connection failed; check endpoint and server availability")
+
+func _dispatch(message: Dictionary) -> void:
+	var result: Dictionary = _snapshots.feed(message)
+	match result["status"]:
+		"ignored":
+			message_received.emit(message)
+		"complete":
+			message_received.emit(result["message"])
+		"error":
+			# The server re-sends a fresh complete snapshot after every authentication, so a
+			# broken snapshot is recovered by dropping the connection and reconnecting.
+			_socket.close()
+			status_changed.emit("Creature sync failed (%s); reconnect required" % result["reason"])
+		_:
+			pass # "partial": held back until the snapshot is complete
 
 func _is_safe_authenticated_url(url: String) -> bool:
 	var pattern := RegEx.new()
