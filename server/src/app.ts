@@ -46,6 +46,7 @@ import { RedisAntiCheatStateStore } from "./anti-cheat-store.js";
 import { createMutationTiming, measureMutationStage, runTimedMutation, type MutationTiming, type MutationTimingSnapshot } from "./mutation-timing.js";
 import { runReplayableRequest, type RequestDuplicateOutcome } from "./request-coordinator.js";
 import { BACKLOG_CLOSE_CODE, BACKLOG_CLOSE_REASON, MessageBacklogGuard, reportMessageFailure } from "./ws-backlog.js";
+import { buildCreatureSnapshotFrames } from "./creature-snapshot.js";
 
 function errorCode(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
@@ -53,6 +54,14 @@ function errorCode(error: unknown, fallback: string): string {
 
 function send(socket: WebSocket, message: ServerMessage): void {
   if (socket.readyState === socket.OPEN) socket.send(JSON.stringify(message, (_key, value: unknown) => typeof value === "bigint" ? value.toString() : value));
+}
+
+// MYTHOS-NET-05: creature snapshots are bounded and paginated (see creature-snapshot.ts).
+// Frames are sent synchronously and consecutively so pages of one snapshot never interleave.
+let creatureSnapshotSequence = 0;
+function sendCreatureSnapshot(socket: WebSocket, ownedCreatures: readonly unknown[]): void {
+  creatureSnapshotSequence = (creatureSnapshotSequence + 1) % Number.MAX_SAFE_INTEGER;
+  for (const frame of buildCreatureSnapshotFrames(ownedCreatures, creatureSnapshotSequence)) send(socket, frame);
 }
 
 const SLOW_MUTATION_THRESHOLD_MS = 50;
@@ -875,7 +884,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             setActivePlayers(userSockets.size);
             send(socket, { type: "auth_ok", userId: authenticatedUserId });
             send(socket, { type: "player_state", state: serializePlayerState(state) });
-            send(socket, { type: "creature_party", creatures: ownedCreatures });
+            sendCreatureSnapshot(socket, ownedCreatures);
             if (base) send(socket, { type: "base_state", base });
           } catch {
             userId = null;
@@ -1219,7 +1228,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             }
           });
           send(socket,response);
-          if(response.type==="creature_state")send(socket,{type:"creature_party",creatures:creatures.get(authenticatedUserId)});
+          if(response.type==="creature_state")sendCreatureSnapshot(socket,creatures.get(authenticatedUserId));
           return;
         }
 
