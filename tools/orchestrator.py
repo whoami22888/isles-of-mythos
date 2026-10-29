@@ -101,6 +101,24 @@ def redact(text: str) -> str:
     return text
 
 
+_SECRET_FLAG = re.compile(r"(?i)^--?[\w-]*(?:api[_-]?key|access[_-]?key|token|secret|password|passwd|authorization)[\w-]*$")
+
+
+def _credential_in_text(text: str) -> bool:
+    return redact(text) != text
+
+
+def _credential_in_context(value: object, key: str = "") -> bool:
+    """True when any string leaf of the context looks like a credential, judged by its own key name and content."""
+    if isinstance(value, dict):
+        return any(_credential_in_context(v, str(k)) for k, v in value.items())
+    if isinstance(value, list):
+        return any(_credential_in_context(v, key) for v in value)
+    if isinstance(value, str) and value:
+        return _credential_in_text(json.dumps({key: value})) or _credential_in_text(value)
+    return False
+
+
 def validate_plan(plan: object) -> dict:
     if not isinstance(plan, dict) or not isinstance(plan.get("steps"), list) or not plan["steps"]:
         raise PlanError("plan must be an object with a non-empty 'steps' list")
@@ -109,6 +127,9 @@ def validate_plan(plan: object) -> dict:
     context = plan.get("context", {})
     if not isinstance(context, dict) or len(json.dumps(context)) > MAX_CONTEXT_BYTES:
         raise PlanError("context must be a JSON object under 64 KB")
+    if _credential_in_context(context):
+        raise PlanError("context appears to contain a credential; the plan is persisted in the checkpoint, so pass "
+                        "secrets through the environment of the process that runs the orchestrator instead")
     seen, steps = set(), []
     for step in plan["steps"]:
         if not isinstance(step, dict) or set(step) - {"id", "argv", "timeout"}:
@@ -120,6 +141,10 @@ def validate_plan(plan: object) -> dict:
             raise PlanError(f"duplicate step id: {sid}")
         if (not isinstance(argv, list) or not argv or any(not isinstance(a, str) or not a or len(a) > 4096 for a in argv)):
             raise PlanError(f"step {sid}: argv must be a non-empty list of strings (no shell strings)")
+        if any(_credential_in_text(a) or (i and _SECRET_FLAG.match(argv[i - 1]) and "=" not in argv[i - 1])
+               for i, a in enumerate(argv)):
+            raise PlanError(f"step {sid}: argv appears to contain a credential; the plan is persisted in the "
+                            "checkpoint, so supply secrets through the environment, not command arguments")
         timeout = step.get("timeout", DEFAULT_STEP_TIMEOUT)
         if not isinstance(timeout, int) or isinstance(timeout, bool) or not 1 <= timeout <= 86_400:
             raise PlanError(f"step {sid}: timeout must be an integer 1..86400")

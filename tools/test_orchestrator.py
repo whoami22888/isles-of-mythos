@@ -86,6 +86,27 @@ class Plan(Base):
                 orch.validate_plan(bad)
 
 
+class PlanCredentials(Base):
+    """Codex P2: the plan is serialised into the checkpoint, so credential-bearing plan data must be refused."""
+
+    def _plan(self, argv=None, context=None):
+        return {"context": context or {}, "steps": [{"id": "s1", "argv": argv or ["true"]}]}
+
+    def test_credentials_in_argv_are_rejected(self):
+        for argv in (["curl", "-H", "Authorization: Bearer abc123"], ["tool", "--token", "abc123"],
+                     ["tool", "--api-key=abc123"], ["tool", "password=hunter2"]):
+            with self.assertRaises(orch.PlanError, msg=str(argv)):
+                orch.validate_plan(self._plan(argv=argv))
+
+    def test_credentials_in_context_are_rejected(self):
+        for ctx in ({"api_key": "abc123"}, {"nested": {"client_secret": "x1"}}, {"h": ["Authorization: Bearer zzz"]}):
+            with self.assertRaises(orch.PlanError, msg=str(ctx)):
+                orch.validate_plan(self._plan(context=ctx))
+
+    def test_ordinary_plans_still_validate(self):
+        orch.validate_plan(self._plan(argv=["python3", "-m", "unittest", "--verbose"], context={"ticket": "IOM-00", "tokens_budget": 5}))
+
+
 class RunAndResume(Base):
     def test_runs_all_steps_and_leaves_no_checkpoint(self):
         self.assertEqual(self.make().run(self.plan()), orch.EXIT_OK)
