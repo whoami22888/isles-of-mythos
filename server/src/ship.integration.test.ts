@@ -29,7 +29,7 @@ describe("Gate 9 ships",()=>{
       const ship=await store.create(user,"Sea Wraith","sloop");
       expect(ship.shipClass).toBe("sloop");expect(ship.hull).toBe(SHIP_CLASSES.sloop.hull);
       const inventory=await store.inventory(user,ship.id);expect(inventory.find(i=>i.itemId===CANNONBALL_ITEM)?.quantity).toBe(8);
-      const moved=await store.sail(user,ship.id,1,0,10);expect(moved.x).toBeGreaterThan(0);expect(moved.fuel).toBeLessThan(ship.fuel);
+      await db.query("UPDATE player_ships SET last_sailed_at=now()-interval '10 seconds' WHERE id=$1",[ship.id]);const moved=await store.sail(user,ship.id,1,0);expect(moved.x).toBeGreaterThan(0);expect(moved.fuel).toBeLessThan(ship.fuel);
       const persisted=await store.list(user);expect(persisted[0]?.x).toBe(moved.x);expect(f.baseId).toBeTruthy();
     }finally{await db.end();await app.close();}
   });
