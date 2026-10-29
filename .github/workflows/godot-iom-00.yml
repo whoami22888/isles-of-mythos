@@ -48,7 +48,9 @@ jobs:
           set -euo pipefail
           "$RUNNER_TEMP/godot/godot" --headless --editor --path client-godot --quit --import
           "$RUNNER_TEMP/godot/godot" --headless --path client-godot --script res://tests/headless_smoke.gd
+          "$RUNNER_TEMP/godot/godot" --headless --path client-godot --script res://tests/websocket_adapter_hardening_test.gd
           "$RUNNER_TEMP/godot/godot" --headless --path client-godot --script res://tests/island_preview_smoke.gd
+          "$RUNNER_TEMP/godot/godot" --headless --path client-godot --script res://tests/creature_snapshot_assembler_test.gd
       - name: Verify Android export prerequisites
         shell: bash
         run: |

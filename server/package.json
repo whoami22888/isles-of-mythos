@@ -21,6 +21,7 @@
     "@fastify/websocket": "^11.3.1",
     "argon2": "^0.45.1",
     "fastify": "^5.12.6",
+    "ioredis": "^6.0.0",
     "node-pg-migrate": "^9.0.0",
     "pg": "^8.16.0"
   },
