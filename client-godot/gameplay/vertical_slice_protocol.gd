@@ -11,7 +11,7 @@ signal server_rejected(code: String)
 signal command_outcome_unknown(request_id: String)
 
 const MAX_PENDING := 8
-var _authenticated := false
+## `_authenticated` is owned by the base adapter (it also drives reconnect/resync); this subclass reuses it.
 var _pending: Dictionary = {}
 var _crypto := Crypto.new()
 ## Movement intents carry a strictly increasing sequence. Seeding from the wall

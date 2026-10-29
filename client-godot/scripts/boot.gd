@@ -4,6 +4,10 @@ extends Control
 
 const Adapter = preload("res://scripts/websocket_adapter.gd")
 const AUTH_REQUEST_TIMEOUT_SECONDS := 15.0
+## Below this viewport height (short landscape phones, keyboard up) the sign-in form switches to a compact layout so
+## every control stays on screen at the 44 px minimum touch size.
+const COMPACT_HEIGHT := 640.0
+const TOUCH_MIN_HEIGHT := 44.0
 
 @onready var _status: Label = $Panel/Margin/Content/Status
 @onready var _endpoint: LineEdit = $Panel/Margin/Content/Endpoint
@@ -14,6 +18,9 @@ const AUTH_REQUEST_TIMEOUT_SECONDS := 15.0
 @onready var _player_button: Button = $Panel/Margin/Content/Modes/PlayerLogin
 @onready var _register_button: Button = $Panel/Margin/Content/Modes/RegisterPlayer
 @onready var _admin_button: Button = $Panel/Margin/Content/Modes/AdminLogin
+@onready var _panel: PanelContainer = $Panel
+@onready var _margin: MarginContainer = $Panel/Margin
+@onready var _content: VBoxContainer = $Panel/Margin/Content
 
 var _adapter: Node
 var _http: HTTPRequest
@@ -43,8 +50,39 @@ func _ready() -> void:
         endpoint = str(ProjectSettings.get_setting("application/config/default_ws_url", ""))
     _endpoint.text = endpoint
     _switch_mode("player")
+    get_viewport().size_changed.connect(_apply_responsive_layout)
+    _apply_responsive_layout()
     if endpoint.is_empty():
         _status.text = "Server not configured. Enter the game's WSS address."
+
+func _apply_responsive_layout() -> void:
+    var height := get_viewport().get_visible_rect().size.y
+    var compact := height < COMPACT_HEIGHT
+    _content.add_theme_constant_override("separation", 4 if compact else 12)
+    for side in ["left", "right"]:
+        _margin.add_theme_constant_override("margin_" + side, 16 if compact else 32)
+    for side in ["top", "bottom"]:
+        _margin.add_theme_constant_override("margin_" + side, 8 if compact else 26)
+    # Compact: fill the viewport height (small gap) instead of the fixed 540 px card.
+    var half_height := (height * 0.5 - 6.0) if compact else 270.0
+    _panel.offset_top = -half_height
+    _panel.offset_bottom = half_height
+    var sizes := {"Title": 30, "Subtitle": 14, "Status": 14}
+    for node_name in sizes:
+        var label: Label = _content.get_node(node_name)
+        if compact:
+            label.add_theme_font_size_override("font_size", sizes[node_name])
+        else:
+            label.remove_theme_font_size_override("font_size")
+    var hint: Label = _content.get_node("Hint")
+    if compact:
+        hint.add_theme_font_size_override("font_size", 11)
+    else:
+        hint.remove_theme_font_size_override("font_size")
+    var touch_height := TOUCH_MIN_HEIGHT if compact else 48.0
+    for control: Control in [_endpoint, _identifier, _email, _password, _player_button, _register_button, _admin_button]:
+        control.custom_minimum_size.y = touch_height
+    _connect.custom_minimum_size.y = touch_height if compact else 56.0
 
 func _switch_mode(mode: String) -> void:
     if _busy or not mode in ["player", "register", "admin"]:
