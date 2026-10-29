@@ -145,6 +145,19 @@ describe("durable hire idempotency (Codex P1: replay survives cache loss, restar
     expect(await crewCount(db, shipId)).toBe(1);
   });
 
+  it("concurrent hires with distinct requestIds on one ship do not deadlock (Codex P2): both succeed and both are charged", async () => {
+    const { userId } = await register(app, "dd");
+    const shipId = await withShip(db, userId, 20_000n);
+    for (let round = 0; round < 5; round += 1) {
+      await db.query("UPDATE player_profiles SET gold=20000 WHERE user_id=$1", [userId]);
+      await db.query("DELETE FROM ship_crew WHERE ship_id=$1", [shipId]);
+      const results = await Promise.allSettled([1, 2, 3, 4].map((n) => new NavalStore(db).assignNpcCrew(userId, shipId, "pirate", "gunner", req(`dd-${round}-${n}`))));
+      expect(results.map((r) => (r.status === "rejected" ? (r.reason as Error).message : "ok"))).toEqual(["ok", "ok", "ok", "ok"]);
+      expect(await goldOf(db, userId)).toBe(0n);
+      expect(await crewCount(db, shipId)).toBe(4);
+    }
+  });
+
   it("a failed hire does not burn the requestId: it can be retried once gold arrives", async () => {
     const { userId } = await register(app, "df");
     const shipId = await withShip(db, userId, 10n);

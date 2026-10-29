@@ -44,6 +44,11 @@ export class NavalStore {
     const c=await this.db.connect();
     try {
       await c.query("BEGIN");
+      // Take the economy row lock first. The request insert's foreign key to player_profiles would otherwise take a
+      // KEY SHARE lock that conflicts with runEconomyMutation's FOR UPDATE in a concurrent hire, deadlocking with the
+      // ship lock. Lock order for hires is always: profile -> request row -> ship.
+      const profile=await c.query("SELECT 1 FROM player_profiles WHERE user_id=$1 FOR UPDATE",[userId]);
+      if(!profile.rows[0]) throw new Error("PLAYER_NOT_FOUND");
       if(request && requestKey){
         const claimed=await c.query<{transaction_id:string}>("INSERT INTO ship_cargo_requests(request_key,user_id,fingerprint,response) VALUES($1,$2,$3,'{}'::jsonb) ON CONFLICT(request_key) DO NOTHING RETURNING transaction_id",[requestKey,userId,request.fingerprint]);
         if(!claimed.rows[0]){
