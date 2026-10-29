@@ -26,102 +26,112 @@ permissions:
   contents: read
 
 jobs:
-  codacy-security-scan:
-    permissions:
-      contents: read # for actions/checkout to fetch code
-      security-events: write # for github/codeql-action/upload-sarif to upload SARIF results
-      actions: read # only required for a private repository by github/codeql-action/upload-sarif to get the Action run status
-    name: Codacy Security Scan
+  analyzer:
+    name: Codacy ${{ matrix.tool }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    strategy:
+      fail-fast: false
+      matrix:
+        tool:
+          - agentlinter
+          - bandit
+          - biome
+          - checkov
+          - csslint
+          - eslint-9
+          - hadolint
+          - jacksonlinter
+          - jshint
+          - lizard
+          - markdownlint
+          - opengrep
+          - oxlint
+          - pmd
+          - pmd-7
+          - prospector
+          - pylint
+          - pylintpython3
+          - remark-lint
+          - ruff
+          - spectral
+          - stylelint
+          - tslint
     steps:
-      # Checkout the repository to the GitHub Actions runner
-      - name: Checkout code
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
-          fetch-depth: 0
-
-      # Execute Codacy Analysis CLI and generate a SARIF output with the security issues identified during the analysis
-      - name: Run Codacy Analysis CLI
+      - name: Run explicitly selected Codacy analyzer
         uses: codacy/codacy-analysis-cli-action@d43360362776a6789b47b99ae8973510854e2d3d # CLI 7.10.0
         with:
-          # Root cause (confirmed from codacy-analysis-cli source,
-          # AnalyseExecutor.scala::getToolConfiguration): when a
-          # project-token is set, the CLI fetches the project's remote
-          # Codacy-dashboard tool configuration and that takes precedence
-          # over this repo's local .codacy.yml. A tool only runs if it has
-          # a *local* config file (shouldUseConfigFile) or the *remote*
-          # config carries explicit patterns for it
-          # (shouldUseRemoteConfiguredPatterns); a tool present in the
-          # remote list with neither (observed for Trivy: "no patterns
-          # configured") fails the whole run under fail-if-incomplete, and
-          # the remote list can also include tools (legacy eslint/
-          # eslint-8, PMD, metrics) this repo's .codacy.yml never asked
-          # for. This job never sets `upload: true`, so no Codacy account
-          # or dashboard state is used downstream — the token bought
-          # nothing here except pulling in that remote tool list. Omitting
-          # it makes toolConfigurations absent, so the CLI falls through
-          # to "running with defaults": local .codacy.yml governs tool
-          # selection, and every tool with a usable default configuration
-          # runs normally. See the action's own inline comment below.
-          #
-          # Check https://github.com/codacy/codacy-analysis-cli#project-token
-          # if a project-token is reintroduced for dashboard upload later.
-          verbose: true
-          # Scanner crashes are failures even when a partial SARIF can be generated.
+          tool: ${{ matrix.tool }}
           fail-if-incomplete: true
           output: results.sarif
           format: sarif
-          # Adjust severity of non-security issues
           gh-code-scanning-compat: true
-          # Findings remain visible to GitHub code scanning. This limit does not
-          # suppress scanner execution failures (fail-if-incomplete above).
           max-allowed-issues: 2147483647
-
-      # Codacy emits separate runs per tool invocation without analysis IDs.
-      # Assign IDs in the upload source; preserve every run and the raw report.
-      - name: Identify Codacy SARIF analyses
-        id: sarif-identity
-        if: ${{ always() && hashFiles('results.sarif') != '' }}
+      - name: Validate and split complete SARIF
         run: |
           python3 -m unittest discover -s scripts -p test_codacy_sarif_identity.py -v
           python3 scripts/codacy_sarif_identity.py results.sarif upload-results
-          parts=$(find upload-results -maxdepth 1 -type f -name 'part-*.sarif' | wc -l)
-          test "$parts" -ge 1
-          # upload-sarif combines directories into one submission. Keep the
-          # explicit upload steps below bounded and fail closed if Codacy ever
-          # emits more parts than this workflow can submit independently.
-          test "$parts" -le 2
-
-      # Preserve complete or partial diagnostic evidence even if a tool crashes.
-      - name: Retain SARIF evidence
-        if: ${{ always() && hashFiles('results.sarif') != '' }}
+          test "$(find upload-results -maxdepth 1 -name "part-*.sarif" -type f | wc -l)" -eq 1
+      - name: Retain analyzer SARIF
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
-          name: codacy-sarif-${{ github.event.pull_request.head.sha || github.sha }}
-          path: |
-            results.sarif
-            upload-results/
+          name: codacy-${{ matrix.tool }}-${{ github.event.pull_request.head.sha || github.sha }}
+          path: results.sarif
           if-no-files-found: error
-          retention-days: 30
-
-      # upload-sarif combines a directory into one submission, so upload each
-      # lossless part independently. Never silently omit a part: the identity
-      # step above fails when the bounded upload capacity is exceeded.
-      - name: Upload SARIF results part 1
-        if: ${{ always() && steps.sarif-identity.outcome == 'success' && hashFiles('upload-results/part-01.sarif') != '' }}
+      - name: Upload analyzer SARIF
         uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4
         with:
           sarif_file: upload-results/part-01.sarif
+          category: codacy-${{ matrix.tool }}
           ref: ${{ github.event_name == 'pull_request' && format('refs/pull/{0}/head', github.event.pull_request.number) || github.ref }}
           sha: ${{ github.event.pull_request.head.sha || github.sha }}
-
-      - name: Upload SARIF results part 2
-        if: ${{ always() && steps.sarif-identity.outcome == 'success' && hashFiles('upload-results/part-02.sarif') != '' }}
+  trivy:
+    name: Trivy filesystem security
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Scan vulnerabilities, secrets and misconfiguration
+        run: |
+          docker run --rm -v "$PWD:/repo" -w /repo docker.io/aquasec/trivy@sha256:62b1e65e8869bc4b4c6aa4fa2b21595256c7c2f6018a9d9ad61caf87187c1969 fs --scanners vuln,secret,misconfig --format sarif --output /repo/trivy.sarif /repo
+      - name: Retain Trivy SARIF
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        with:
+          name: trivy-${{ github.event.pull_request.head.sha || github.sha }}
+          path: trivy.sarif
+          if-no-files-found: error
+      - name: Upload Trivy SARIF
         uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4
         with:
-          sarif_file: upload-results/part-02.sarif
+          sarif_file: trivy.sarif
+          category: trivy-filesystem
           ref: ${{ github.event_name == 'pull_request' && format('refs/pull/{0}/head', github.event.pull_request.number) || github.ref }}
           sha: ${{ github.event.pull_request.head.sha || github.sha }}
+  codacy-security-scan:
+    name: Codacy Security Scan
+    if: ${{ always() }}
+    needs: [analyzer, trivy]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every scanner and upload
+        env:
+          ANALYZERS: ${{ needs.analyzer.result }}
+          TRIVY: ${{ needs.trivy.result }}
+        run: |
+          test "$ANALYZERS" = success
+          test "$TRIVY" = success
