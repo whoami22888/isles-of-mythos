@@ -1810,7 +1810,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
                 return {type:"ship_crew",requestId:message.requestId,crew:await ships.assignCrew(authenticatedUserId,message.shipId,message.creatureId,message.role as CrewRole)};
               }
               if(message.type==="assign_ship_npc_crew"){
-                const crew=await naval.assignNpcCrew(authenticatedUserId,message.shipId,message.npcType,message.role as CrewRole);
+                const crew=await naval.assignNpcCrew(authenticatedUserId,message.shipId,message.npcType,message.role as CrewRole,{requestId:message.requestId,fingerprint:"assign_ship_npc_crew|"+message.shipId+"|"+message.npcType+"|"+message.role});
                 await players.reloadEconomy(authenticatedUserId);
                 return {type:"ship_crew",requestId:message.requestId,crew};
               }

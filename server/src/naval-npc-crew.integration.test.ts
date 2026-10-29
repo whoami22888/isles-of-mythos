@@ -107,6 +107,63 @@ describe("paid, fail-closed NPC crew (D-07)", () => {
   });
 });
 
+describe("durable hire idempotency (Codex P1: replay survives cache loss, restart and other instances)", () => {
+  const db = createDbPool();
+  let app: FastifyInstance;
+  beforeAll(async () => { app = await buildApp({ db }); });
+  afterAll(async () => { await app.close(); await db.end(); });
+  const req = (requestId: string, role = "gunner") => ({ requestId, fingerprint: `assign_ship_npc_crew|S|pirate|${role}` });
+
+  it("replaying the same requestId returns the same crew member and charges once", async () => {
+    const { userId } = await register(app, "dr");
+    const shipId = await withShip(db, userId, 20_000n);
+    const naval = new NavalStore(db);
+    const first = await naval.assignNpcCrew(userId, shipId, "pirate", "gunner", req("durable-1"));
+    const second = await new NavalStore(db).assignNpcCrew(userId, shipId, "pirate", "gunner", req("durable-1"));
+    expect(second).toEqual(first);
+    expect(await goldOf(db, userId)).toBe(15_000n);
+    expect(await crewCount(db, shipId)).toBe(1);
+    expect(await hireLedger(db, userId)).toHaveLength(1);
+  });
+
+  it("rejects the same requestId with a different fingerprint and charges nothing more", async () => {
+    const { userId } = await register(app, "dc");
+    const shipId = await withShip(db, userId, 20_000n);
+    const naval = new NavalStore(db);
+    await naval.assignNpcCrew(userId, shipId, "pirate", "gunner", req("durable-2"));
+    await expect(naval.assignNpcCrew(userId, shipId, "pirate", "navigator", req("durable-2", "navigator"))).rejects.toThrow("NPC_CREW_REQUEST_CONFLICT");
+    expect(await goldOf(db, userId)).toBe(15_000n);
+    expect(await crewCount(db, shipId)).toBe(1);
+  });
+
+  it("concurrent duplicates of one requestId (separate store instances) charge exactly once", async () => {
+    const { userId } = await register(app, "dp");
+    const shipId = await withShip(db, userId, 20_000n);
+    const results = await Promise.all([1, 2, 3].map(() => new NavalStore(db).assignNpcCrew(userId, shipId, "pirate", "gunner", req("durable-3"))));
+    expect(new Set(results.map((r) => r.id)).size).toBe(1);
+    expect(await goldOf(db, userId)).toBe(15_000n);
+    expect(await crewCount(db, shipId)).toBe(1);
+  });
+
+  it("a failed hire does not burn the requestId: it can be retried once gold arrives", async () => {
+    const { userId } = await register(app, "df");
+    const shipId = await withShip(db, userId, 10n);
+    const naval = new NavalStore(db);
+    await expect(naval.assignNpcCrew(userId, shipId, "pirate", "gunner", req("durable-4"))).rejects.toThrow("INSUFFICIENT_GOLD");
+    await db.query("UPDATE player_profiles SET gold=6000 WHERE user_id=$1", [userId]);
+    await naval.assignNpcCrew(userId, shipId, "pirate", "gunner", req("durable-4"));
+    expect(await goldOf(db, userId)).toBe(1_000n);
+  });
+
+  it("does not collide with a cargo request that reuses the same requestId", async () => {
+    const { userId } = await register(app, "dx");
+    const shipId = await withShip(db, userId, 20_000n);
+    await db.query("INSERT INTO ship_cargo_requests(request_key,user_id,fingerprint,response) VALUES($1,$2,'cargo','{}'::jsonb)", [userId + ":shared-id", userId]);
+    await new NavalStore(db).assignNpcCrew(userId, shipId, "pirate", "gunner", req("shared-id"));
+    expect(await crewCount(db, shipId)).toBe(1);
+  });
+});
+
 describe("paid NPC crew over the WebSocket: replay, state push and error codes (D-07)", () => {
   const db = createDbPool();
   let app: FastifyInstance;
@@ -174,5 +231,37 @@ describe("paid NPC crew over the WebSocket: replay, state push and error codes (
     ws.send({ type: "assign_ship_npc_crew", requestId: "pirate-poor", shipId, npcType: "pirate", role: "gunner" });
     expect(await ws.next((m) => m.type === "ship_crew" || m.type === "error", "poor")).toMatchObject({ type: "error", code: "INSUFFICIENT_GOLD" });
     expect(await goldOf(db, userId)).toBe(10n);
+  });
+
+  it("a replay arriving at a different server instance (empty in-memory cache) is still served from the database", async () => {
+    const { userId, token } = await register(app, "xi");
+    const shipId = await withShip(db, userId, 20_000n);
+    const db2 = createDbPool();
+    const app2 = await buildApp({ db: db2 });
+    try {
+      await app2.listen({ host: "127.0.0.1", port: 0 });
+      const addr = app2.server.address();
+      if (addr === null || typeof addr === "string") throw new Error("TEST_SERVER_NOT_LISTENING");
+      const hire = { type: "assign_ship_npc_crew", requestId: "xi-1", shipId, npcType: "pirate", role: "gunner" };
+      const ws1 = await connect(token);
+      ws1.send(hire);
+      const a = await ws1.next((m) => m.type === "ship_crew" || m.type === "error", "instance 1");
+      const socket2 = new WebSocket(`ws://127.0.0.1:${addr.port}/ws`);
+      sockets.push(socket2);
+      const seen2: Msg[] = [];
+      socket2.on("message", (raw: Buffer) => seen2.push(JSON.parse(raw.toString()) as Msg));
+      await new Promise<void>((resolve, reject) => { socket2.once("open", () => resolve()); socket2.once("error", reject); });
+      socket2.send(JSON.stringify({ type: "auth", token }));
+      const waitFor = async (type: string): Promise<Msg> => { for (let i = 0; i < 800; i += 1) { const m = seen2.find((x) => x.type === type || x.type === "error"); if (m) return m; await new Promise((r) => setTimeout(r, 10)); } throw new Error("TIMEOUT " + type); };
+      await waitFor("auth_ok");
+      seen2.length = 0;
+      socket2.send(JSON.stringify(hire));
+      const b = await waitFor("ship_crew");
+      expect(a.type).toBe("ship_crew");
+      expect(b.type).toBe("ship_crew");
+      expect((b.crew as { id: string }).id).toBe((a.crew as { id: string }).id);
+      expect(await goldOf(db, userId)).toBe(15_000n);
+      expect(await crewCount(db, shipId)).toBe(1);
+    } finally { await app2.close(); await db2.end(); }
   });
 });
