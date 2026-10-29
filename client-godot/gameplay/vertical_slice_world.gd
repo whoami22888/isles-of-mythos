@@ -75,13 +75,20 @@ func _connect() -> void:
 		_handoff_token if not _handoff_token.is_empty() else _token.text)
 	_client.connect_to_server()
 
+# Scaffold ground edge length: four chunks, so the player's chunk plus a one-chunk margin is always covered
+# once the plane is snapped to the player's chunk centre (see _recenter_ground).
+const GROUND_SIZE := CHUNK_SIZE * 4.0
+var _ground: MeshInstance3D
+
 func _build_scaffold_world() -> void:
-	var ground := MeshInstance3D.new()
+	_ground = MeshInstance3D.new()
+	_ground.name = "ScaffoldGround"
 	var plane := PlaneMesh.new()
-	plane.size = Vector2(64, 64)
-	ground.mesh = plane
-	ground.material_override = _material(Color("#183b3a"))
-	add_child(ground)
+	plane.size = Vector2(GROUND_SIZE, GROUND_SIZE)
+	_ground.mesh = plane
+	_ground.material_override = _material(Color("#183b3a"))
+	add_child(_ground)
+	_recenter_ground()
 	var player := MeshInstance3D.new()
 	var capsule := CapsuleMesh.new()
 	capsule.height = 1.8
@@ -101,9 +108,18 @@ const CAMERA_OFFSET := Vector3(0, 28, 24)
 # Keep the gameplay camera on the authoritative player so an account restored
 # far from the origin is still on screen. Presentation only; no game state.
 func _follow_camera() -> void:
+	_recenter_ground()
 	var camera: Camera3D = $Camera
 	var target := Vector3(_player.x, 0.0, _player.z)
 	camera.look_at_from_position(target + CAMERA_OFFSET, target)
+
+# Snap the scaffold ground to the centre of the player's chunk (not the raw position, so it does not jitter
+# every move). Presentation only; no game state.
+func _recenter_ground() -> void:
+	if _ground == null:
+		return
+	var chunk := _chunk_for_position(_player)
+	_ground.position = Vector3((float(chunk.x) + 0.5) * CHUNK_SIZE, 0.0, (float(chunk.y) + 0.5) * CHUNK_SIZE)
 
 func _material(color: Color) -> StandardMaterial3D:
 	var material := StandardMaterial3D.new()

@@ -49,6 +49,12 @@ jobs:
           "$RUNNER_TEMP/godot/godot" --headless --editor --path client-godot --quit --import
           "$RUNNER_TEMP/godot/godot" --headless --path client-godot --script res://tests/headless_smoke.gd
           "$RUNNER_TEMP/godot/godot" --headless --path client-godot --script res://tests/island_preview_smoke.gd
+          "$RUNNER_TEMP/godot/godot" --headless --path client-godot --script res://tests/vertical_slice_smoke.gd
+          "$RUNNER_TEMP/godot/godot" --headless --path client-godot --script res://tests/vertical_slice_protocol_regression.gd
+          "$RUNNER_TEMP/godot/godot" --headless --path client-godot --script res://tests/vertical_slice_world_regression.gd
+          "$RUNNER_TEMP/godot/godot" --headless --path client-godot --script res://tests/vertical_slice_review_regression.gd
+          "$RUNNER_TEMP/godot/godot" --headless --path client-godot --script res://tests/vertical_slice_ground_coverage_regression.gd
+          "$RUNNER_TEMP/godot/godot" --headless --path client-godot --script res://tests/phone_handoff_regression.gd
       - name: Verify Android export prerequisites
         shell: bash
         run: |
