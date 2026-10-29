@@ -131,7 +131,7 @@ class RunAndResume(Base):
         self.assertNotIn(".project/checkpoint.json", data["git"]["pending_edits"])   # never lists its own file
         self.assertEqual(len(data["git"]["head"]), 40)
         self.assertEqual(stat.S_IMODE(os.stat(self.ckpt).st_mode), 0o600)
-        self.assertEqual([p.name for p in self.ckpt.parent.iterdir()], ["checkpoint.json"])   # no tmp left behind
+        self.assertEqual([p.name for p in self.ckpt.parent.iterdir() if p.suffix == ".tmp"], [])   # no tmp left behind
         self.assertNotIn("s3", self.calls)
 
     def test_other_files_under_project_dir_are_still_reported(self):
@@ -261,6 +261,52 @@ class InputsEditedByFailingStep(Base):
         self.assertEqual(self.calls, ["s2", "s3"])
 
 
+class SingleExecutor(Base):
+    """Codex P2 on 5434e78: a second invocation must not run steps while another executor owns the checkpoint."""
+
+    def test_resume_and_run_are_refused_while_a_plan_is_executing(self):
+        seen = {}
+
+        def intrude():
+            seen["resume"] = self.make().resume(wait=False)
+            seen["run"] = self.make().run(self.plan(ids=("x1",)))
+            return None
+        self.assertEqual(self.make({"s2": intrude}).run(self.plan()), orch.EXIT_OK)
+        self.assertEqual(seen, {"resume": orch.EXIT_USAGE, "run": orch.EXIT_USAGE})
+        self.assertEqual(self.calls, ["s1", "s2", "s3"])           # nothing ran twice, "x1" never ran
+
+    def test_lock_is_released_after_the_run_and_after_a_failure(self):
+        self.assertEqual(self.make({"s2": (1, "boom")}).run(self.plan()), orch.EXIT_FAILED)
+        self.assertEqual(self.make().run(self.plan()), orch.EXIT_OK)
+
+    def test_lock_file_is_not_an_input_change(self):
+        self.make({"s2": orch.RateLimited(0)}).run(self.plan())
+        self.calls.clear()
+        self.assertEqual(self.make().resume(), orch.EXIT_OK)
+        self.assertEqual(self.calls, ["s2", "s3"])
+
+
+class BoundedOutput(Base):
+    def test_huge_output_is_bounded_and_an_early_rate_limit_is_still_detected(self):
+        code = ("import sys\nsys.stderr.write('HTTP 429 Too Many Requests retry-after: 7\\n')\n"
+                "chunk='x'*65536\n"
+                "for _ in range(320):\n    sys.stdout.write(chunk)\n"
+                "sys.exit(1)\n")
+        o = orch.Orchestrator(root=self.root, checkpoint=self.ckpt, sleep=lambda s: None)
+        rc, out = o._subprocess_runner({"id": "t", "argv": [sys.executable, "-c", code], "timeout": 120})
+        self.assertEqual(rc, 1)
+        self.assertLess(len(out), 1_000_000)                      # 20 MiB were written
+        self.assertEqual(orch.detect_rate_limit(rc, out), (True, 7.0))
+
+    def test_ordinary_output_is_returned_whole(self):
+        o = orch.Orchestrator(root=self.root, checkpoint=self.ckpt, sleep=lambda s: None)
+        rc, out = o._subprocess_runner({"id": "t", "argv": [sys.executable, "-c",
+                                        "import sys; print('out'); print('err', file=sys.stderr)"], "timeout": 30})
+        self.assertEqual(rc, 0)
+        self.assertIn("out", out)
+        self.assertIn("err", out)
+
+
 class SpecialPathsAndInterrupts(Base):
     """Codex P2s on 07d9bd2: escaped git paths must still be fingerprinted; Ctrl-C must not orphan a step."""
 
@@ -287,7 +333,7 @@ class SpecialPathsAndInterrupts(Base):
         parent = ("import subprocess,sys,time\n"
                   "subprocess.Popen([sys.executable,'-c',sys.argv[2],sys.argv[1]])\n"
                   "time.sleep(30)\n")
-        real, fired = subprocess.Popen.communicate, []
+        real, fired = subprocess.Popen.wait, []
 
         def interrupted(proc, *args, **kwargs):
             if not fired:
@@ -296,7 +342,7 @@ class SpecialPathsAndInterrupts(Base):
                 raise KeyboardInterrupt
             return real(proc, *args, **kwargs)
         o = orch.Orchestrator(root=self.root, checkpoint=self.ckpt, sleep=lambda s: None)
-        with mock.patch.object(subprocess.Popen, "communicate", interrupted):
+        with mock.patch.object(subprocess.Popen, "wait", interrupted):
             with self.assertRaises(KeyboardInterrupt):
                 o._subprocess_runner({"id": "t", "argv": [sys.executable, "-c", parent, str(marker), child], "timeout": 30})
         time.sleep(2.2)

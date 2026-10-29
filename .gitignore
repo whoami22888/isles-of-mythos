@@ -7,3 +7,4 @@ coverage/
 client-godot/.godot/
 .project/checkpoint.json
 .project/.checkpoint-*.tmp
+.project/.checkpoint-*.lock

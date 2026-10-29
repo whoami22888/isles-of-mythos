@@ -24,6 +24,8 @@ Design notes
 from __future__ import annotations
 
 import argparse
+import codecs
+import contextlib
 import hashlib
 import json
 import os
@@ -33,8 +35,14 @@ import signal
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 from datetime import datetime, timezone
+
+try:
+    import fcntl
+except ImportError:                                         # pragma: no cover (Windows)
+    fcntl = None
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 DEFAULT_CHECKPOINT = ROOT / ".project" / "checkpoint.json"
@@ -43,6 +51,8 @@ EXIT_OK, EXIT_FAILED, EXIT_USAGE, EXIT_RATE_LIMITED = 0, 1, 2, 75
 MAX_RETRY_AFTER = 3600.0
 MAX_DIFF_BYTES = 200_000
 MAX_OUTPUT_TAIL = 4_000
+MAX_CAPTURE = 64 * 1024            # per stream, kept in memory while a step runs
+_SCAN_OVERLAP = 512               # chars kept between chunks so a signal split across reads is still seen
 MAX_STEPS = 1_000
 MAX_CONTEXT_BYTES = 64_000
 DEFAULT_STEP_TIMEOUT = 3_600
@@ -88,6 +98,45 @@ class RateLimited(Exception):
     def __init__(self, retry_after: float | None = None):
         super().__init__("rate limited")
         self.retry_after = retry_after
+
+
+class _BoundedCapture:
+    """Drains one pipe incrementally: keeps only the last MAX_CAPTURE chars, but remembers (separately) the first
+    rate-limit signal and Retry-After it saw, so a step cannot exhaust memory nor push its own 429 out of view."""
+
+    def __init__(self, limit: int = MAX_CAPTURE):
+        self.limit, self.tail, self.signal, self.retry = limit, "", None, None
+        self._carry = ""
+        self._decoder = codecs.getincrementaldecoder("utf-8")(errors="replace")
+
+    def feed(self, data: bytes, final: bool = False) -> None:
+        text = self._decoder.decode(data, final)
+        window = self._carry + text
+        if self.signal is None:
+            match = _RATE_LIMIT.search(window)
+            if match:
+                self.signal = match.group(0)
+        if self.retry is None:
+            match = _RETRY_AFTER.search(window)
+            if match:
+                self.retry = match.group(0)
+        self._carry = window[-_SCAN_OVERLAP:]
+        self.tail = (self.tail + text)[-self.limit:]
+
+    def drain(self, stream) -> None:
+        try:
+            while True:
+                chunk = stream.read1(65536) if hasattr(stream, "read1") else stream.read(65536)
+                if not chunk:
+                    break
+                self.feed(chunk)
+            self.feed(b"", final=True)
+        except (OSError, ValueError):                 # stream closed underneath us after the step was killed
+            pass
+
+    def text(self) -> str:
+        kept = "".join(f"[captured] {item}\n" for item in (self.signal, self.retry) if item and item not in self.tail)
+        return kept + self.tail
 
 
 def detect_rate_limit(returncode: int, output: str) -> tuple[bool, float | None]:
@@ -281,21 +330,36 @@ class Orchestrator:
         posix = os.name == "posix"
         try:
             proc = subprocess.Popen(step["argv"], cwd=self.root, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                    text=True, errors="replace", start_new_session=posix)
+                                    start_new_session=posix)
         except OSError as error:
             return 127, f"cannot start command: {error}"
+        captures = (_BoundedCapture(), _BoundedCapture())
+        readers = [threading.Thread(target=cap.drain, args=(stream,), daemon=True)
+                   for cap, stream in zip(captures, (proc.stdout, proc.stderr))]
+        for reader in readers:
+            reader.start()
+
+        def finish():
+            for reader in readers:
+                reader.join(timeout=5)               # a surviving descendant may still hold the pipe open
+            for stream in (proc.stdout, proc.stderr):
+                with contextlib.suppress(OSError, ValueError):
+                    stream.close()
+            return "".join(cap.text() for cap in captures)
         try:
-            out, err = proc.communicate(timeout=step.get("timeout", DEFAULT_STEP_TIMEOUT))
+            proc.wait(timeout=step.get("timeout", DEFAULT_STEP_TIMEOUT))
             if posix:
                 self._kill_group(proc.pid)        # a step must not leave background children mutating files
-            return proc.returncode, (out or "") + (err or "")
+            return proc.returncode, finish()
         except subprocess.TimeoutExpired:
             self._terminate_tree(proc, posix)
+            finish()
             return 124, f"step timed out after {step.get('timeout')}s"
         except BaseException:
             # Ctrl-C / SIGTERM-driven exit: the step runs in its own session, so it would otherwise outlive us and
             # keep mutating files while a later --resume starts the same step again.
             self._terminate_tree(proc, posix)
+            finish()
             raise
 
     @staticmethod
@@ -322,12 +386,30 @@ class Orchestrator:
             Orchestrator._kill_group(proc.pid, grace=1.0)
         else:
             proc.kill()
+        with contextlib.suppress(subprocess.TimeoutExpired):
+            proc.wait(timeout=10)
+
+    @contextlib.contextmanager
+    def _exclusive(self):
+        """Process-lifetime exclusive lock for a run or resume. Yields False if another live executor owns the
+        checkpoint. flock is released by the OS when the holder dies, so a crash never leaves a stale lock; the file's
+        `.checkpoint-` prefix keeps it out of the input fingerprint."""
+        if fcntl is None:                                   # non-POSIX: no advisory lock available
+            self.log("warning: no file locking on this platform; do not run two orchestrators on one checkpoint")
+            yield True
+            return
+        self.checkpoint.parent.mkdir(parents=True, exist_ok=True)
+        handle = open(self.checkpoint.parent / f".checkpoint-{self.checkpoint.name}.lock", "a")
         try:
-            proc.communicate(timeout=10)
-        except subprocess.TimeoutExpired:
-            for stream in (proc.stdout, proc.stderr):
-                if stream:
-                    stream.close()
+            try:
+                fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except OSError:
+                self.log("refusing to start: another orchestrator is already executing against this checkpoint")
+                yield False
+                return
+            yield True
+        finally:
+            handle.close()                                  # also drops the lock
 
     def _own_path(self) -> str | None:
         try:
@@ -406,7 +488,9 @@ class Orchestrator:
         return EXIT_RATE_LIMITED
 
     def run(self, plan: dict) -> int:
-        return self._execute(validate_plan(plan), [])
+        plan = validate_plan(plan)
+        with self._exclusive() as acquired:
+            return self._execute(plan, []) if acquired else EXIT_USAGE
 
     def _check_unchanged(self, saved: dict, data: dict, allow_head_change: bool, allow_input_change: bool):
         """Refuse (EXIT_USAGE) when HEAD or input content moved since the checkpoint; with the input override, drop the
@@ -435,6 +519,12 @@ class Orchestrator:
         return None
 
     def resume(self, wait: bool = True, allow_head_change: bool = False, allow_input_change: bool = False) -> int:
+        with self._exclusive() as acquired:
+            if not acquired:
+                return EXIT_USAGE
+            return self._resume_locked(wait, allow_head_change, allow_input_change)
+
+    def _resume_locked(self, wait: bool, allow_head_change: bool, allow_input_change: bool) -> int:
         if not self.checkpoint.exists():
             self.log("no checkpoint to resume")
             return EXIT_USAGE
