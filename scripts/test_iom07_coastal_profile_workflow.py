@@ -3,6 +3,7 @@
 import re
 import unittest
 from pathlib import Path
+from typing import Set
 
 
 WORKFLOW = (
@@ -23,7 +24,7 @@ REQUIRED_PULL_REQUEST_PATHS = {
 }
 
 
-def pull_request_paths(workflow_text: str) -> set[str]:
+def pull_request_paths(workflow_text: str) -> Set[str]:
     """Return only path entries nested under the workflow's pull_request key."""
     lines = workflow_text.splitlines()
     try:
@@ -35,7 +36,7 @@ def pull_request_paths(workflow_text: str) -> set[str]:
     except StopIteration:
         return set()
 
-    paths: set[str] = set()
+    paths: Set[str] = set()
     in_paths = False
     for line in lines[section_start + 1 :]:
         indent = len(line) - len(line.lstrip(" "))
