@@ -145,6 +145,25 @@ describe("durable hire idempotency (Codex P1: replay survives cache loss, restar
     expect(await crewCount(db, shipId)).toBe(1);
   });
 
+  it("hire and cargo key namespaces are disjoint even when a cargo requestId mimics the hire prefix (Codex P2)", async () => {
+    const { userId } = await register(app, "dn");
+    const shipId = await withShip(db, userId, 20_000n);
+    // ShipInventoryStore.mutate builds its key as userId + ":" + requestId, so this is exactly what cargo id "npc_hire:abc" stores.
+    await db.query("INSERT INTO ship_cargo_requests(request_key,user_id,fingerprint,response) VALUES($1,$2,'cargo','{}'::jsonb)", [userId + ":npc_hire:abc", userId]);
+    const crew = await new NavalStore(db).assignNpcCrew(userId, shipId, "pirate", "gunner", req("abc"));
+    expect(crew.npcType).toBe("pirate");
+    const replay = await new NavalStore(db).assignNpcCrew(userId, shipId, "pirate", "gunner", req("abc"));
+    expect(replay).toEqual(crew);
+    expect(await goldOf(db, userId)).toBe(15_000n);
+  });
+
+  it("accepts a maximum-length (64 char) requestId within the 128-char key column", async () => {
+    const { userId } = await register(app, "dl");
+    const shipId = await withShip(db, userId, 20_000n);
+    const crew = await new NavalStore(db).assignNpcCrew(userId, shipId, "pirate", "gunner", req("x".repeat(64)));
+    expect(crew.id).toBeTruthy();
+  });
+
   it("concurrent hires with distinct requestIds on one ship do not deadlock (Codex P2): both succeed and both are charged", async () => {
     const { userId } = await register(app, "dd");
     const shipId = await withShip(db, userId, 20_000n);

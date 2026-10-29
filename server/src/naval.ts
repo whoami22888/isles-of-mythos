@@ -33,14 +33,14 @@ export class NavalStore {
    * Hires a paid NPC crew member. When `request` is given (the WebSocket path always gives it), the requestId and
    * fingerprint are recorded in the same transaction as the debit and the crew insert, so a retry after a lost
    * response, restart, other server instance or cache expiry returns the original crew instead of charging again.
-   * Rows live in ship_cargo_requests (generic key/fingerprint/response) under an "npc_hire" key namespace so they
-   * cannot collide with cargo requests; a failed hire rolls the row back, leaving the requestId reusable.
+   * Rows live in ship_cargo_requests (generic key/fingerprint/response) under a key that starts with "npc_hire:" so they
+   * cannot collide with cargo requests (whose keys always start with the user UUID); a failed hire rolls the row back, leaving the requestId reusable.
    */
   async assignNpcCrew(userId:string,shipId:string,npcType:CrewType,role:CrewRole,request?:{requestId:string;fingerprint:string}) {
     if(!CREW_TYPES.includes(npcType) || !CREW_ROLES.includes(role)) throw new Error("INVALID_CREW_ASSIGNMENT");
     if(request && (!request.requestId || request.requestId.length>64)) throw new Error("INVALID_REQUEST_ID");
     const fee=npcCrewHireFee(npcType),skill=deriveNpcCrewSkill(npcType),morale=CREW_START_MORALE;
-    const requestKey=request ? userId+":npc_hire:"+request.requestId : null;
+    const requestKey=request ? "npc_hire:"+userId+":"+request.requestId : null;
     const c=await this.db.connect();
     try {
       await c.query("BEGIN");
