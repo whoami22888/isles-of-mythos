@@ -16,6 +16,7 @@ const SHORE_BAKER := preload("res://scripts/coastal_shore_heightfield.gd")
 const OCEAN_SHADER := preload("res://shaders/ocean_surface.gdshader")
 const SAIL_SHADER := preload("res://shaders/sail_shader.gdshader")
 const ORDER_CROSS_EMBLEM := preload("res://assets/emblems/order_cross_mask.svg")
+const SAIL_EMBLEM_UV := preload("res://scripts/order_cross_uv_mapper.gd")
 const WATER_Y := -0.35
 const GAMEPLAY_CAMERA := Vector3(13.0, 12.0, -14.0)
 const CINEMATIC_START_CAMERA := Vector3(-11.0, 5.5, -18.0)
@@ -329,6 +330,18 @@ func _configure_ship_sails(root: Node) -> void:
 					if material.albedo_texture == null:
 						push_error("Imported sail is missing its alpha-composited atlas")
 						continue
+					# The authored UV0 atlas maps four disconnected sail pieces to
+					# different rectangular regions. Generate separate UV2 panels for
+					# the two full lower sails, leaving furled upper cloth unmarked.
+					var original_mesh := mesh_instance.mesh as ArrayMesh
+					if original_mesh == null or original_mesh.get_surface_count() != 1:
+						push_error("Unexpected imported sail mesh surface layout")
+						continue
+					var mapped: Dictionary = SAIL_EMBLEM_UV.create_mesh(original_mesh, surface_index)
+					if mapped.has("error"):
+						push_error("Order Cross placement blocked: " + str(mapped["error"]))
+						continue
+					mesh_instance.mesh = mapped["mesh"]
 					mesh_instance.set_surface_override_material(surface_index,
 						_make_order_cross_sail_material(material))
 		for child in node.get_children():
