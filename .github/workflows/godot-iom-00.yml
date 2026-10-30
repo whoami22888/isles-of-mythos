@@ -63,11 +63,149 @@ jobs:
           command -v java >/dev/null
           command -v gradle >/dev/null || [ -x "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" ]
       - name: Export signed Android ARM64 debug APK
+        env:
+          IOM_DEBUG_KEYSTORE_B64: ${{ secrets.IOM_ANDROID_DEBUG_KEYSTORE_BASE64 }}
+          IOM_DEBUG_PASSWORD: ${{ secrets.IOM_ANDROID_DEBUG_KEYSTORE_PASSWORD }}
+          IOM_DEBUG_CERT_PIN: ${{ vars.IOM_ANDROID_DEBUG_CERT_SHA256 }}
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/iom-artifacts"
+          # Stable, protected signer prevents silent certificate rotation.
+          if [[ -z "${IOM_DEBUG_KEYSTORE_B64:-}" || -z "${IOM_DEBUG_PASSWORD:-}" || ! "${IOM_DEBUG_CERT_PIN:-}" =~ ^[[:xdigit:]]{64}$ ]]; then
+            echo "::error::Configure Actions secrets IOM_ANDROID_DEBUG_KEYSTORE_BASE64 and IOM_ANDROID_DEBUG_KEYSTORE_PASSWORD, plus Actions variable IOM_ANDROID_DEBUG_CERT_SHA256"
+            exit 1
+          fi
+          umask 077
+          debug_keystore="$RUNNER_TEMP/iom-debug.keystore"
+          if ! printf '%s' "$IOM_DEBUG_KEYSTORE_B64" | base64 --decode > "$debug_keystore"; then
+            echo "::error::Invalid protected debug keystore encoding"
+            exit 1
+          fi
+          test -s "$debug_keystore"
+          if ! keytool -list -keystore "$debug_keystore" -storepass "$IOM_DEBUG_PASSWORD" -alias androiddebugkey > /dev/null 2>&1; then
+            echo "::error::Invalid protected debug keystore, password or alias"
+            exit 1
+          fi
+          cert="$(keytool -list -v -keystore "$debug_keystore" -storepass "$IOM_DEBUG_PASSWORD" -alias androiddebugkey | sed -nE 's/^[[:space:]]*SHA256: ([[:xdigit:]:]+).*/\1/p' | tr -d ':' | tr '[:upper:]' '[:lower:]')"
+          if [[ "${#cert}" -ne 64 || "$cert" != "${IOM_DEBUG_CERT_PIN,,}" ]]; then
+            echo "::error::Debug signer certificate does not match pinned fingerprint"
+            exit 1
+          fi
+          export GODOT_ANDROID_KEYSTORE_DEBUG_PATH="$debug_keystore"
+          export GODOT_ANDROID_KEYSTORE_DEBUG_USER="androiddebugkey"
+          export GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD="$IOM_DEBUG_PASSWORD"
           "$RUNNER_TEMP/godot/godot" --headless --path client-godot --export-debug "Android Debug" "$RUNNER_TEMP/iom-artifacts/isles-of-mythos-debug.apk"
-          sha256sum "$RUNNER_TEMP/iom-artifacts/isles-of-mythos-debug.apk" | tee "$RUNNER_TEMP/iom-artifacts/SHA256SUMS"
+          (cd "$RUNNER_TEMP/iom-artifacts" && sha256sum isles-of-mythos-debug.apk > SHA256SUMS)
+      - name: Validate ARM64 APK structure and provenance
+        env:
+          IOM_DEBUG_CERT_PIN: ${{ vars.IOM_ANDROID_DEBUG_CERT_SHA256 }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          apk="$RUNNER_TEMP/iom-artifacts/isles-of-mythos-debug.apk"
+          test -s "$apk"
+          unzip -t "$apk" > /dev/null
+          entries_file="$RUNNER_TEMP/iom-artifacts/APK_ENTRIES.txt"
+          unzip -Z1 "$apk" > "$entries_file"
+          validate_arm64_entries() {
+            local listing="$1"
+            grep -Fxq 'AndroidManifest.xml' "$listing" || return 1
+            grep -Eq '^lib/arm64-v8a/[^/]+\.so$' "$listing" || return 1
+            if grep -Eq '^lib/(armeabi-v7a|x86|x86_64)/' "$listing"; then
+              return 1
+            fi
+          }
+          validate_arm64_entries "$entries_file" || {
+            echo "::error::APK manifest or ARM64-only library contract failed"
+            exit 1
+          }
+          # Regression: large valid listings must pass; any foreign ABI must fail.
+          listing_test="$(mktemp)"
+          {
+            printf 'AndroidManifest.xml\nlib/arm64-v8a/libgodot_android.so\n'
+            printf 'assets/file-%s.bin\n' {1..5000}
+          } > "$listing_test"
+          validate_arm64_entries "$listing_test" || {
+            echo "::error::Large valid APK listing was rejected"
+            exit 1
+          }
+          printf 'lib/x86/libforeign.so\n' >> "$listing_test"
+          if validate_arm64_entries "$listing_test"; then
+            echo "::error::Mixed-ABI listing was incorrectly accepted"
+            exit 1
+          fi
+          rm -f "$listing_test"
+          {
+            echo "source_sha=${{ github.event.pull_request.head.sha || github.sha }}"
+            echo "godot_version=$("$RUNNER_TEMP/godot/godot" --version)"
+            echo "target_abi=arm64-v8a"
+            echo "export_preset=Android Debug"
+            echo "debug_signing_contract=stable-protected-identity"
+            echo "debug_signer_cert_sha256=${IOM_DEBUG_CERT_PIN,,}"
+            echo "physical_device_update_test=not_verified_by_ci"
+          } > "$RUNNER_TEMP/iom-artifacts/BUILD_PROVENANCE.txt"
+          (cd "$RUNNER_TEMP/iom-artifacts" && sha256sum --check SHA256SUMS)
+      - name: Verify Android package identity and debug signature
+        env:
+          IOM_DEBUG_PASSWORD: ${{ secrets.IOM_ANDROID_DEBUG_KEYSTORE_PASSWORD }}
+          IOM_DEBUG_CERT_PIN: ${{ vars.IOM_ANDROID_DEBUG_CERT_SHA256 }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          apk="$RUNNER_TEMP/iom-artifacts/isles-of-mythos-debug.apk"
+          : "${ANDROID_HOME:=${ANDROID_SDK_ROOT:-}}"
+          test -d "$ANDROID_HOME/build-tools"
+          mapfile -t sdk_versions < <(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d -print | sort -V)
+          test "${#sdk_versions[@]}" -gt 0
+          sdk_tools="${sdk_versions[${#sdk_versions[@]}-1]}"
+          test -x "$sdk_tools/apksigner"
+          test -x "$sdk_tools/aapt2"
+          expected_signer="$(keytool -list -v -keystore "$RUNNER_TEMP/iom-debug.keystore" -storepass "$IOM_DEBUG_PASSWORD" -alias androiddebugkey | sed -nE 's/^[[:space:]]*SHA256: ([[:xdigit:]:]+).*/\1/p' | tr -d ':' | tr '[:upper:]' '[:lower:]')"
+          test "${#expected_signer}" -eq 64
+          test "$expected_signer" = "${IOM_DEBUG_CERT_PIN,,}"
+          parse_signer_digests() {
+            # SDK build-tools <=36 print "Signer #1 certificate ..."; newer
+            # apksigner versions print "V2 Signer: certificate ..." (and V3).
+            sed -nE 's/^(Signer #[0-9]+|V[0-9]+(\.[0-9]+)? Signer):? certificate SHA-256 digest:[[:space:]]*([[:xdigit:]:]+)[[:space:]]*$/\3/p' "$1" | tr -d ':' | tr '[:upper:]' '[:lower:]' | sort -u
+          }
+          # Parser regressions for both supported apksigner output dialects.
+          printf 'Signer #1 certificate SHA-256 digest: %s\n' "$expected_signer" > "$RUNNER_TEMP/iom-cert-legacy.txt"
+          printf 'V2 Signer: certificate SHA-256 digest: %s\n' "$expected_signer" > "$RUNNER_TEMP/iom-cert-v2.txt"
+          test "$(parse_signer_digests "$RUNNER_TEMP/iom-cert-legacy.txt")" = "$expected_signer"
+          test "$(parse_signer_digests "$RUNNER_TEMP/iom-cert-v2.txt")" = "$expected_signer"
+          verify_expected_signer() {
+            local target="$1" receipt="$2" digest
+            local -a digests=()
+            "$sdk_tools/apksigner" verify --verbose --print-certs "$target" > "$receipt" || return 1
+            mapfile -t digests < <(parse_signer_digests "$receipt")
+            test "${#digests[@]}" -eq 1 || return 1
+            digest="${digests[0]}"
+            test "${#digest}" -eq 64 || return 1
+            if grep -Eq '^Signer #([2-9]|[1-9][0-9]+) certificate SHA-256 digest:' "$receipt"; then
+              return 1
+            fi
+            test "$digest" = "$expected_signer"
+          }
+          verify_expected_signer "$apk" "$RUNNER_TEMP/iom-artifacts/APK_SIGNATURE.txt" || {
+            # Certificate digests are public identifiers; print them to classify
+            # an export-key mismatch versus a parser or multi-signer defect.
+            echo "::error::APK signer does not match the debug key supplied to Godot"
+            echo "expected_debug_cert_sha256=$expected_signer"
+            sed -n '/^Signer #[0-9][0-9]* certificate SHA-256 digest:/p' "$RUNNER_TEMP/iom-artifacts/APK_SIGNATURE.txt"
+            exit 1
+          }
+          # Negative regression: valid APK signed with an unrelated key is rejected.
+          alternate_keystore="$RUNNER_TEMP/iom-alternate-debug.keystore"
+          keytool -genkeypair -noprompt -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 3650 -storetype PKCS12 -keystore "$alternate_keystore" -storepass android -keypass android -dname "CN=Unrelated Debug,O=Android,C=US" > /dev/null
+          alternate_apk="$RUNNER_TEMP/iom-alternate-debug.apk"
+          "$sdk_tools/apksigner" sign --ks "$alternate_keystore" --ks-pass pass:android --key-pass pass:android --ks-key-alias androiddebugkey --out "$alternate_apk" "$apk"
+          if verify_expected_signer "$alternate_apk" "$RUNNER_TEMP/iom-alternate-signature.txt"; then
+            echo "::error::An unrelated APK signer was incorrectly accepted"
+            exit 1
+          fi
+          rm -f "$alternate_apk" "$alternate_keystore" "$RUNNER_TEMP/iom-alternate-signature.txt"
+          "$sdk_tools/aapt2" dump packagename "$apk" > "$RUNNER_TEMP/iom-artifacts/APK_PACKAGE.txt"
+          grep -Fxq "com.whoami22888.islesofmythos" "$RUNNER_TEMP/iom-artifacts/APK_PACKAGE.txt"
       - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
         with:
           name: iom-00-android-debug
