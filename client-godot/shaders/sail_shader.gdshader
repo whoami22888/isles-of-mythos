@@ -35,7 +35,11 @@ float channel_value(vec4 texel, int channel) {
 
 void fragment() {
     vec4 base_col = texture(base_sail_tex, UV) * base_tint;
-    float emblem_coverage = texture(order_cross_emblem, UV).a * cross_color.a;
+    // UV2 is derived per connected sail panel, not from the authored UV0
+    // texture atlas. Inset the emblem so all four arms remain readable.
+    // Furled components use sentinel (-1,-1), which samples a clear edge.
+    vec2 emblem_uv = (UV2 - vec2(0.5)) * 1.25 + vec2(0.5);
+    float emblem_coverage = texture(order_cross_emblem, emblem_uv).a * cross_color.a;
     ALBEDO = mix(base_col.rgb, cross_color.rgb, emblem_coverage);
     ALPHA = base_col.a;
     ALPHA_SCISSOR_THRESHOLD = alpha_scissor_threshold;
