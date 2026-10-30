@@ -502,8 +502,14 @@ class Orchestrator:
             if self._head_moved(plan, completed, baseline, step["id"]):
                 return EXIT_FAILED
             if code == 0:
+                fingerprint = self._inputs_fingerprint()
+                if completed and fingerprint is not None and self._input_baseline not in (None, fingerprint):
+                    # Earlier steps validated the inputs as they were before this step rewrote them. Keep only this
+                    # step: a later --resume re-runs those validations against the new contents.
+                    self.log(f"step {step['id']} changed the inputs; earlier completed steps were invalidated")
+                    completed.clear()
                 completed.append(step["id"])
-                self._input_baseline = self._inputs_fingerprint()
+                self._input_baseline = fingerprint
                 self._save(plan, completed, None, "running")      # crash-safe progress
                 continue
             throttled, retry_after = detect_rate_limit(code, output)

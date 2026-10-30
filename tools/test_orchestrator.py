@@ -361,6 +361,41 @@ class BoundedOutput(Base):
         self.assertIn("err", out)
 
 
+class SuccessfulStepEditsInputs(Base):
+    """Codex P2 on 9c6eef0: a step that edits inputs and *succeeds* must still invalidate earlier validations."""
+
+    def ids(self):
+        return self.plan(ids=("validate", "edit", "remote"))
+
+    def edit_ok(self):
+        (self.root / "a.txt").write_text("invalid\n")
+        return (0, "ok")
+
+    def test_validation_before_a_successful_edit_is_rerun_on_resume(self):
+        self.make({"edit": self.edit_ok, "remote": orch.RateLimited(0)}).run(self.ids())
+        self.calls.clear()
+        self.assertEqual(self.make().resume(), orch.EXIT_OK)
+        self.assertEqual(self.calls, ["validate", "remote"])      # validate ran on contents it never saw; edit is kept
+
+    def test_the_editing_step_itself_is_not_repeated(self):
+        self.make({"edit": self.edit_ok, "remote": (1, "boom")}).run(self.ids())
+        self.calls.clear()
+        self.make().resume()
+        self.assertNotIn("edit", self.calls)
+
+    def test_an_edit_by_the_first_step_invalidates_nothing(self):
+        self.make({"validate": self.edit_ok, "edit": orch.RateLimited(0)}).run(self.ids())
+        self.calls.clear()
+        self.assertEqual(self.make().resume(), orch.EXIT_OK)
+        self.assertEqual(self.calls, ["edit", "remote"])
+
+    def test_steps_that_change_nothing_keep_their_progress(self):
+        self.make({"remote": orch.RateLimited(0)}).run(self.ids())
+        self.calls.clear()
+        self.assertEqual(self.make().resume(), orch.EXIT_OK)
+        self.assertEqual(self.calls, ["remote"])
+
+
 class SpecialPathsAndInterrupts(Base):
     """Codex P2s on 07d9bd2: escaped git paths must still be fingerprinted; Ctrl-C must not orphan a step."""
 
