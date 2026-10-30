@@ -438,6 +438,43 @@ class SuccessPathRevalidation(Base):
         self.assertIn("inputs", json.loads(self.ckpt.read_text())["reason"])
 
 
+class StreamBoundaryAndChurnBudget(Base):
+    """Codex P2s on e9ac717."""
+
+    def test_stdout_without_a_trailing_newline_cannot_hide_a_stderr_429(self):
+        code = ("import sys\nsys.stdout.write('progress'); sys.stdout.flush()\n"
+                "sys.stderr.write('HTTP 429\\nRetry-After: 120\\n'); sys.exit(1)\n")
+        o = orch.Orchestrator(root=self.root, checkpoint=self.ckpt, sleep=lambda s: None)
+        rc, out = o._subprocess_runner({"id": "t", "argv": [sys.executable, "-c", code], "timeout": 30})
+        self.assertEqual(orch.detect_rate_limit(rc, out), (True, 120.0))
+
+    def test_many_independent_edits_complete_without_a_manual_resume(self):
+        names = ["e1", "e2", "e3", "e4", "e5", "e6"]
+
+        def writer(name):
+            def behave():
+                (self.root / f"{name}.txt").write_text("fixed\n")        # idempotent: same bytes every time
+                return (0, "ok")
+            return behave
+        code = self.make({n: writer(n) for n in names}).run(self.plan(ids=("validate", *names)))
+        self.assertEqual(code, orch.EXIT_OK)
+        self.assertFalse(self.ckpt.exists())
+        # The last step that changed anything is the first (and only content-changing) run of the final edit; the
+        # validation must have run again after it. Later re-runs of earlier edits write identical bytes.
+        self.assertGreater(max(i for i, c in enumerate(self.calls) if c == "validate"), self.calls.index("e6"))
+
+    def test_a_flapping_step_still_fails_closed(self):
+        shared = []
+
+        def flap():
+            shared.append(1)
+            (self.root / "a.txt").write_text(f"v{len(shared)}\n")
+            return (0, "ok")
+        code = self.make({"edit": flap, "remote": flap}).run(self.plan(ids=("validate", "edit", "remote")))
+        self.assertEqual(code, orch.EXIT_FAILED)
+        self.assertIn("inputs", json.loads(self.ckpt.read_text())["reason"])
+
+
 class SpecialPathsAndInterrupts(Base):
     """Codex P2s on 07d9bd2: escaped git paths must still be fingerprinted; Ctrl-C must not orphan a step."""
 

@@ -55,7 +55,7 @@ MAX_OUTPUT_TAIL = 4_000
 MAX_CAPTURE = 64 * 1024            # per stream, kept in memory while a step runs
 _SCAN_OVERLAP = 512               # chars kept between chunks so a signal split across reads is still seen
 MAX_STEPS = 1_000
-MAX_REPLAYS = 3                   # re-validation passes after a step rewrites inputs, before failing closed
+MAX_REPLAYS = 3                   # slack, on top of the plan length, for how often one step may re-run after input changes
 MAX_CONTEXT_BYTES = 64_000
 DEFAULT_STEP_TIMEOUT = 3_600
 STATES = {"running", "checkpointed", "failed"}
@@ -380,7 +380,7 @@ class Orchestrator:
             for stream in (proc.stdout, proc.stderr):
                 with contextlib.suppress(OSError, ValueError):
                     stream.close()
-            return "".join(cap.text() for cap in captures)
+            return "\n".join(text for text in (cap.text() for cap in captures) if text)   # never fuse the streams
         try:
             proc.wait(timeout=step.get("timeout", DEFAULT_STEP_TIMEOUT))
             if posix:
@@ -490,12 +490,22 @@ class Orchestrator:
     def _execute(self, plan: dict, completed: list[str]) -> int:
         baseline = self._head()
         self._input_baseline = self._inputs_fingerprint()
-        replays = 0
+        # Each mutating step can invalidate every step before it, so in a legitimate plan a step re-runs at most once
+        # per later mutating step. More than that means steps keep rewriting each other's inputs: fail closed.
+        budget = len(plan["steps"]) + MAX_REPLAYS
+        runs: dict[str, int] = {}
         while True:
             invalidated = False
             for step in plan["steps"]:
                 if step["id"] in completed:
                     continue
+                runs[step["id"]] = runs.get(step["id"], 0) + 1
+                if runs[step["id"]] > budget:
+                    self._save(plan, completed, step["id"], "failed",
+                               reason=f"inputs kept changing: step {step['id']} would run more than {budget} times; "
+                                      "steps rewrite each other's inputs")
+                    self.log("inputs never settled; refusing to report success")
+                    return EXIT_FAILED
                 self.log(f"step {step['id']}")
                 try:
                     code, output = self.runner(step)
@@ -528,13 +538,6 @@ class Orchestrator:
                 return EXIT_FAILED
             if not invalidated:
                 break
-            replays += 1
-            if replays > MAX_REPLAYS:
-                self._save(plan, completed, None, "failed",
-                           reason=f"inputs kept changing after {MAX_REPLAYS} re-validation passes; steps rewrite "
-                                  "each other's inputs")
-                self.log("inputs never settled; refusing to report success")
-                return EXIT_FAILED
         self.checkpoint.unlink(missing_ok=True)
         self.log("all steps complete")
         return EXIT_OK
