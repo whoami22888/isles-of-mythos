@@ -61,11 +61,15 @@ static func generate(arrays: Array) -> Dictionary:
 			bounds[label] = {
 				"min": vertices[vertex_index],
 				"max": vertices[vertex_index],
+				"uv_min": atlas_uv[vertex_index],
+				"uv_max": atlas_uv[vertex_index],
 				"triangles": 0
 			}
 		var b: Dictionary = bounds[label]
 		b["min"] = (b["min"] as Vector3).min(vertices[vertex_index])
 		b["max"] = (b["max"] as Vector3).max(vertices[vertex_index])
+		b["uv_min"] = (b["uv_min"] as Vector2).min(atlas_uv[vertex_index])
+		b["uv_max"] = (b["uv_max"] as Vector2).max(atlas_uv[vertex_index])
 	for t in range(0, indices.size(), 3):
 		bounds[_root_of(parent, indices[t])]["triangles"] += 1
 
@@ -91,12 +95,16 @@ static func generate(arrays: Array) -> Dictionary:
 		if not decorated.has(label):
 			continue
 		var b: Dictionary = decorated[label]
-		var minimum: Vector3 = b["min"]
-		var extent: Vector3 = b["max"] - minimum
-		var v: Vector3 = vertices[vertex_index]
-		var horizontal := (v.z - minimum.z) / extent.z if extent.z >= extent.x else (v.x - minimum.x) / extent.x
-		var vertical := (v.y - minimum.y) / extent.y
-		uv2[vertex_index] = Vector2(clampf(horizontal, 0.0, 1.0), clampf(vertical, 0.0, 1.0))
+		# The source atlas gives each disconnected cloth panel its own
+		# non-overlapping UV island. Normalize THAT island, not a world-space
+		# axis: curved sail cloth would otherwise shear and clip the cross.
+		var minimum: Vector2 = b["uv_min"]
+		var extent: Vector2 = b["uv_max"] - minimum
+		if extent.x <= 0.00001 or extent.y <= 0.00001:
+			return {"error": "Degenerate imported sail UV island"}
+		var local_uv: Vector2 = atlas_uv[vertex_index] - minimum
+		uv2[vertex_index] = Vector2(clampf(local_uv.x / extent.x, 0.0, 1.0),
+			clampf(local_uv.y / extent.y, 0.0, 1.0))
 	return {
 		"uv2": uv2,
 		"components": bounds.size(),
