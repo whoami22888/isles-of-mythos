@@ -261,6 +261,40 @@ class InputsEditedByFailingStep(Base):
         self.assertEqual(self.calls, ["s2", "s3"])
 
 
+class GitInvocationHardening(Base):
+    """Scanner threads #9697/#9698: `git` must not be resolved through a repo-controlled PATH entry, and ambient GIT_*
+    variables must not redirect it."""
+
+    def test_git_is_an_absolute_path_with_an_allowlisted_environment(self):
+        seen = {}
+
+        def fake_run(argv, **kwargs):
+            seen["argv"], seen["env"] = argv, kwargs["env"]
+            return subprocess.CompletedProcess(argv, 0, stdout="x\n", stderr="")
+        hostile = {"GIT_DIR": "/elsewhere", "GIT_WORK_TREE": "/elsewhere", "GIT_INDEX_FILE": "/elsewhere/i",
+                   "GIT_EXTERNAL_DIFF": "/bin/false", "GIT_CONFIG_COUNT": "1", "SECRET_TOKEN": "s3cret"}
+        with mock.patch.dict(os.environ, hostile), mock.patch.object(orch.subprocess, "run", fake_run):
+            self.assertEqual(orch._git(self.root, "status"), (0, "x\n"))
+        self.assertTrue(os.path.isabs(seen["argv"][0]), seen["argv"])
+        self.assertEqual(seen["env"].get("GIT_TERMINAL_PROMPT"), "0")
+        for name in hostile:
+            self.assertNotIn(name, seen["env"])
+
+    def test_a_git_planted_inside_the_repository_is_never_executed(self):
+        marker = self.root / "planted-ran"
+        planted = self.root / "git"
+        planted.write_text(f"#!/bin/sh\ntouch {marker}\nexit 0\n")
+        planted.chmod(0o755)
+        with mock.patch.dict(os.environ, {"PATH": f"{self.root}{os.pathsep}{os.environ['PATH']}"}):
+            code, _ = orch._git(self.root, "rev-parse", "HEAD")
+        self.assertFalse(marker.exists(), "a repo-local git binary was executed")
+        self.assertEqual(code, 0)                       # the real git, found later on PATH, still works
+
+    def test_missing_git_fails_closed(self):
+        with mock.patch.dict(os.environ, {"PATH": str(self.root)}):
+            self.assertEqual(orch._git(self.root, "status")[0], 127)
+
+
 class SingleExecutor(Base):
     """Codex P2 on 5434e78: a second invocation must not run steps while another executor owns the checkpoint."""
 

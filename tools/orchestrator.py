@@ -31,6 +31,7 @@ import json
 import os
 import pathlib
 import re
+import shutil
 import signal
 import subprocess
 import sys
@@ -211,10 +212,41 @@ def _canonical(payload: dict) -> bytes:
     return json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
 
 
-def _git(root: pathlib.Path, *args: str, errors: str = "replace") -> tuple[int, str]:
+# Variables git (or its helpers) legitimately need. Everything else is dropped so ambient GIT_DIR / GIT_WORK_TREE /
+# GIT_INDEX_FILE / GIT_EXTERNAL_DIFF / GIT_CONFIG_* cannot redirect or script the snapshot, and secrets never reach it.
+_GIT_ENV_ALLOW = ("PATH", "HOME", "USERPROFILE", "TMPDIR", "TEMP", "TMP", "SYSTEMROOT", "LANG", "LC_ALL", "LC_CTYPE")
+
+
+def _resolve_git(root: pathlib.Path) -> str | None:
+    """Absolute path of `git`, searching only PATH entries that are absolute and outside the repository, so a `git`
+    planted in the working tree (or reached through a relative PATH entry such as ".") is never executed."""
     try:
-        done = subprocess.run(["git", *args], cwd=root, capture_output=True, text=True, errors=errors, timeout=60,
-                              env={**os.environ, "GIT_TERMINAL_PROMPT": "0"})
+        repo = root.resolve()
+    except OSError:
+        return None
+    safe = []
+    for entry in os.environ.get("PATH", "").split(os.pathsep):
+        if not entry or not os.path.isabs(entry):
+            continue
+        try:
+            resolved = pathlib.Path(entry).resolve()
+        except OSError:
+            continue
+        if resolved == repo or repo in resolved.parents:
+            continue
+        safe.append(entry)
+    found = shutil.which("git", path=os.pathsep.join(safe))
+    return found if found and os.path.isabs(found) else None
+
+
+def _git(root: pathlib.Path, *args: str, errors: str = "replace") -> tuple[int, str]:
+    git = _resolve_git(root)
+    if git is None:
+        return 127, ""
+    env = {name: os.environ[name] for name in _GIT_ENV_ALLOW if name in os.environ}
+    env["GIT_TERMINAL_PROMPT"] = "0"
+    try:
+        done = subprocess.run([git, *args], cwd=root, capture_output=True, text=True, errors=errors, timeout=60, env=env)
         return done.returncode, done.stdout
     except (OSError, subprocess.SubprocessError):
         return 127, ""
