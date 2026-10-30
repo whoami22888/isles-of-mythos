@@ -1,6 +1,7 @@
 import json
 import os
 import pathlib
+import shutil
 import stat
 import subprocess
 import sys
@@ -289,6 +290,56 @@ class GitInvocationHardening(Base):
             code, _ = orch._git(self.root, "rev-parse", "HEAD")
         self.assertFalse(marker.exists(), "a repo-local git binary was executed")
         self.assertEqual(code, 0)                       # the real git, found later on PATH, still works
+
+    def external_dir(self):
+        scratch = tempfile.TemporaryDirectory()
+        self.addCleanup(scratch.cleanup)
+        return pathlib.Path(scratch.name)
+
+    def planted_script(self):
+        marker = self.root / "symlink-planted-ran"
+        planted = self.root / "evil-git"
+        planted.write_text(f"#!/bin/sh\ntouch {marker}\nexit 0\n")
+        planted.chmod(0o755)
+        return planted, marker
+
+    def test_an_outside_symlink_to_a_repo_local_git_is_never_executed(self):
+        planted, marker = self.planted_script()
+        outside = self.external_dir()
+        (outside / "git").symlink_to(planted)
+        with mock.patch.dict(os.environ, {"PATH": f"{outside}{os.pathsep}{os.environ['PATH']}"}):
+            code, _ = orch._git(self.root, "rev-parse", "HEAD")
+        self.assertFalse(marker.exists(), "a symlink into the repository was executed as git")
+        self.assertEqual(code, 0)                          # the real git later on PATH is used instead
+
+    def test_a_symlink_into_the_repo_with_no_other_git_fails_closed(self):
+        planted, marker = self.planted_script()
+        outside = self.external_dir()
+        (outside / "git").symlink_to(planted)
+        with mock.patch.dict(os.environ, {"PATH": str(outside)}):
+            self.assertEqual(orch._git(self.root, "status")[0], 127)
+        self.assertFalse(marker.exists())
+
+    def test_a_symlink_to_a_trusted_external_git_still_works(self):
+        real = shutil.which("git")
+        outside = self.external_dir()
+        (outside / "git").symlink_to(real)
+        with mock.patch.dict(os.environ, {"PATH": str(outside)}):
+            self.assertEqual(orch._git(self.root, "rev-parse", "HEAD")[0], 0)
+
+    def test_git_receives_only_sanitized_path_entries(self):
+        seen = {}
+
+        def fake_run(argv, **kwargs):
+            seen["env"] = kwargs["env"]
+            return subprocess.CompletedProcess(argv, 0, stdout="", stderr="")
+        with mock.patch.dict(os.environ, {"PATH": f"{self.root}{os.pathsep}.{os.pathsep}{os.environ['PATH']}"}), \
+                mock.patch.object(orch.subprocess, "run", fake_run):
+            orch._git(self.root, "status")
+        entries = seen["env"]["PATH"].split(os.pathsep)
+        self.assertNotIn(str(self.root), entries)
+        self.assertNotIn(".", entries)
+        self.assertTrue(all(os.path.isabs(e) for e in entries))
 
     def test_missing_git_fails_closed(self):
         with mock.patch.dict(os.environ, {"PATH": str(self.root)}):

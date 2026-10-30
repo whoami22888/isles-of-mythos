@@ -218,13 +218,8 @@ def _canonical(payload: dict) -> bytes:
 _GIT_ENV_ALLOW = ("PATH", "HOME", "USERPROFILE", "TMPDIR", "TEMP", "TMP", "SYSTEMROOT", "LANG", "LC_ALL", "LC_CTYPE")
 
 
-def _resolve_git(root: pathlib.Path) -> str | None:
-    """Absolute path of `git`, searching only PATH entries that are absolute and outside the repository, so a `git`
-    planted in the working tree (or reached through a relative PATH entry such as ".") is never executed."""
-    try:
-        repo = root.resolve()
-    except OSError:
-        return None
+def _safe_path_entries(repo: pathlib.Path) -> list[str]:
+    """PATH entries that are absolute and do not resolve into the repository."""
     safe = []
     for entry in os.environ.get("PATH", "").split(os.pathsep):
         if not entry or not os.path.isabs(entry):
@@ -236,15 +231,38 @@ def _resolve_git(root: pathlib.Path) -> str | None:
         if resolved == repo or repo in resolved.parents:
             continue
         safe.append(entry)
-    found = shutil.which("git", path=os.pathsep.join(safe))
-    return found if found and os.path.isabs(found) else None
+    return safe
+
+
+def _resolve_git(root: pathlib.Path, entries: list[str] | None = None) -> str | None:
+    """Absolute, fully resolved path of the first `git` on PATH whose final target lives outside the repository.
+    Each candidate is resolved through every symlink before it is trusted, so a `git` link in an otherwise trusted
+    directory that points into the working tree is skipped. Fails closed (None) if nothing qualifies."""
+    try:
+        repo = root.resolve()
+    except OSError:
+        return None
+    for entry in _safe_path_entries(repo) if entries is None else entries:
+        found = shutil.which("git", path=entry)
+        if not found:
+            continue
+        try:
+            real = pathlib.Path(found).resolve(strict=True)
+        except OSError:
+            continue
+        if real == repo or repo in real.parents or not real.is_file() or not os.access(real, os.X_OK):
+            continue
+        return str(real)
+    return None
 
 
 def _git(root: pathlib.Path, *args: str, errors: str = "replace") -> tuple[int, str]:
-    git = _resolve_git(root)
+    entries = _safe_path_entries(root.resolve())
+    git = _resolve_git(root, entries)
     if git is None:
         return 127, ""
     env = {name: os.environ[name] for name in _GIT_ENV_ALLOW if name in os.environ}
+    env["PATH"] = os.pathsep.join(entries)               # git's own helpers must not be found via the repository
     env["GIT_TERMINAL_PROMPT"] = "0"
     try:
         done = subprocess.run([git, *args], cwd=root, capture_output=True, text=True, errors=errors, timeout=60, env=env)
