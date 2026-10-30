@@ -426,7 +426,91 @@ These messages require an authenticated user (otherwise `AUTH_REQUIRED`) and use
 | `join_invasion` | `AUTH_REQUIRED` before dispatch; success `invasion_operation_ok`; other error codes require service-level verification. [app.ts L1785](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/app.ts#L1785) | Client-supplied invasionId, armyId and role; verify ownership, eligibility and atomic participation. |
 | `invasion_action` | `AUTH_REQUIRED` before dispatch; success `invasion_state`; other error codes require service-level verification. [app.ts L1778](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/app.ts#L1778) | Client-supplied action/waveId; verify server-timed action budget, wave state, replay and concurrency. |
 
-**Progress:** 82/123 unique client messages now have source-linked handler response/error/authority analysis (55 previous + 27 new); 41 remain. Two previously documented realm-authority messages were rechecked but not duplicated. All 123 parser mappings are unchanged. P1 realm authority defects persist on pinned main; draft #221 owns their repair. This document does not prove runtime correctness.
+**Progress:** 123/123 unique client messages now have source-linked handler response/error/authority analysis (55 initial + 27 season/endgame/realm/event/invasion + 41 transport/base/breeding/naval/social/party/auction). No duplicate handler rows. All 123 parser mappings remain intact. **Static source inventory only; not proof of runtime authorization, error-code reachability, persistence or transaction safety.** All 123 parser mappings are unchanged. P1 realm authority defects persist on pinned main; draft #221 owns their repair. This document does not prove runtime correctness.
+
+
+## Transport/world chunks handler pass (2 messages)
+
+`ping` is unauthenticated and returns `pong`; `subscribe_chunks` requires authentication and streams one `world_chunk` per requested coordinate, without `runBaseRequest`. Source: [app.ts L850–1847](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/app.ts#L850-L1847). This is source analysis, not runtime/database/security acceptance.
+
+| Message | Handler success/error evidence | Authorization and data-safety gaps |
+| --- | --- | --- |
+| `ping` | No auth required; success `pong`; service errors require focused tests. [app.ts L860](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/app.ts#L860) | Check unauthenticated rate admission and amplification. |
+| `subscribe_chunks` | `AUTH_REQUIRED` before dispatch; success `world_chunk`; service errors require focused tests. [app.ts L1835](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/app.ts#L1835) | Verify chunk count, per-frame 65,536-byte cap, visibility, bounded work and backpressure. |
+
+## Base workforce and breeding handler pass (3 messages)
+
+Base writes use `runBaseRequest` and a group error allowlist; breeding list uses `runCreatureRequest`. Source: [app.ts L1290–1512](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/app.ts#L1290-L1512). This is source analysis, not runtime/database/security acceptance.
+
+| Message | Handler success/error evidence | Authorization and data-safety gaps |
+| --- | --- | --- |
+| `assign_worker` | `AUTH_REQUIRED` before dispatch; success `base_state`; service errors require focused tests. [app.ts L1290](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/app.ts#L1290) | Validate worker task, creature taming/ownership, building authority and single assignment. |
+| `set_work_priorities` | `AUTH_REQUIRED` before dispatch; success `base_state`; service errors require focused tests. [app.ts L1290](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/app.ts#L1290) | Verify priority-object bounds, role authorization and atomic persistence. |
+| `list_breeding` | `AUTH_REQUIRED` before dispatch; success `breeding_jobs`; service errors require focused tests. [app.ts L1507](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/app.ts#L1507) | Verify owner-scoped job disclosure and bounded result size. |
+
+## Ships/fleets/naval combat handler pass (15 messages)
+
+Authenticated `runBaseRequest` group; shared catch allowlists ship/fleet/naval codes and otherwise maps to `INVALID_MESSAGE`. Source: [app.ts L1797–1833](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/app.ts#L1797-L1833). This is source analysis, not runtime/database/security acceptance.
+
+| Message | Handler success/error evidence | Authorization and data-safety gaps |
+| --- | --- | --- |
+| `create_ship` | `AUTH_REQUIRED` before dispatch; success `ship_state`; service errors require focused tests. [app.ts L1797](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/app.ts#L1797) | Check ship class, shipyard prerequisites, atomic resource debit and replay. |
+| `list_ships` | `AUTH_REQUIRED` before dispatch; success `ship_list`; service errors require focused tests. [app.ts L1797](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/app.ts#L1797) | Verify owner-scoped list and response size. |
+| `ship_inventory` | `AUTH_REQUIRED` before dispatch; success `ship_inventory`; service errors require focused tests. [app.ts L1797](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/app.ts#L1797) | Verify ship ownership and inventory disclosure. |
+| `ship_cargo` | `AUTH_REQUIRED` before dispatch; success `ship_inventory`; service errors require focused tests. [app.ts L1797](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/app.ts#L1797) | Returns transactionId; verify inventory debit, capacity, idempotency and rollback. |
+| `create_fleet` | `AUTH_REQUIRED` before dispatch; success `fleet_state`; service errors require focused tests. [app.ts L1797](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/app.ts#L1797) | Verify ship ownership, commander eligibility and unique membership. |
+| `list_fleets` | `AUTH_REQUIRED` before dispatch; success `fleet_list`; service errors require focused tests. [app.ts L1797](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/app.ts#L1797) | Verify owner-scoped list and response size. |
+| `add_fleet_ship` | `AUTH_REQUIRED` before dispatch; success `fleet_state`; service errors require focused tests. [app.ts L1797](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/app.ts#L1797) | Verify ownership, single-fleet invariant and concurrency. |
+| `remove_fleet_ship` | `AUTH_REQUIRED` before dispatch; success `fleet_state`; service errors require focused tests. [app.ts L1797](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/app.ts#L1797) | Verify fleet authority and commander/last-ship constraints. |
+| `sail` | `AUTH_REQUIRED` before dispatch; success `ship_state`; service errors require focused tests. [app.ts L1797](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/app.ts#L1797) | Client dx/dy; server must normalize heading and derive elapsed time, fuel and coordinates. |
+| `fire_cannon` | `AUTH_REQUIRED` before dispatch; success `naval_combat_result`; service errors require focused tests. [app.ts L1797](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/app.ts#L1797) | Fallback action; verify target range, arc, cooldown, ammo, replay and authoritative damage. |
+| `assign_ship_npc_crew` | `AUTH_REQUIRED` before dispatch; success `ship_crew`; service errors require focused tests. [app.ts L1797](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/app.ts#L1797) | Pinned main accepts client skill/morale; draft #221 owns server-derived stats and atomic paid hire. |
+| `board_ship` | `AUTH_REQUIRED` before dispatch; success `naval_combat_result`; service errors require focused tests. [app.ts L1797](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/app.ts#L1797) | Verify attacker/target ownership, range, state and combat replay. |
+| `repair_ship` | `AUTH_REQUIRED` before dispatch; success `ship_state`; service errors require focused tests. [app.ts L1797](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/app.ts#L1797) | Verify owner, lumber debit, full-health rejection and rollback. |
+| `retreat_ship` | `AUTH_REQUIRED` before dispatch; success `ship_state`; service errors require focused tests. [app.ts L1797](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/app.ts#L1797) | Verify server-timed retreat and cooldown. |
+| `fight_ship_fire` | `AUTH_REQUIRED` before dispatch; success `ship_state`; service errors require focused tests. [app.ts L1797](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/app.ts#L1797) | Verify owner, fire precondition and authoritative extinguishing. |
+
+## Friends/moderation/chat history handler pass (8 messages)
+
+Authenticated social `runBaseRequest` group; shared catch forwards allowlisted social/party/auction errors or `INVALID_MESSAGE`. Source: [app.ts L1545–1665](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/app.ts#L1545-L1665). This is source analysis, not runtime/database/security acceptance.
+
+| Message | Handler success/error evidence | Authorization and data-safety gaps |
+| --- | --- | --- |
+| `list_friends` | `AUTH_REQUIRED` before dispatch; success `friends_list`; service errors require focused tests. [app.ts L1545](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/app.ts#L1545) | Verify private owner-scoped list and bounded results. |
+| `add_friend` | `AUTH_REQUIRED` before dispatch; success `friends_list`; service errors require focused tests. [app.ts L1545](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/app.ts#L1545) | Verify target validation, blocks, duplicates and pushed updates. |
+| `remove_friend` | `AUTH_REQUIRED` before dispatch; success `social_operation_ok`; service errors require focused tests. [app.ts L1545](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/app.ts#L1545) | Verify relationship ownership and idempotency. |
+| `block_user` | `AUTH_REQUIRED` before dispatch; success `social_operation_ok`; service errors require focused tests. [app.ts L1545](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/app.ts#L1545) | Verify target validation and cross-channel block enforcement. |
+| `unblock_user` | `AUTH_REQUIRED` before dispatch; success `social_operation_ok`; service errors require focused tests. [app.ts L1545](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/app.ts#L1545) | Verify target validation and block removal consistency. |
+| `list_blocks` | `AUTH_REQUIRED` before dispatch; success `blocks_list`; service errors require focused tests. [app.ts L1545](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/app.ts#L1545) | Verify private owner-scoped list and bounded results. |
+| `report_user` | `AUTH_REQUIRED` before dispatch; success `social_reported`; service errors require focused tests. [app.ts L1545](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/app.ts#L1545) | Verify reason/details bounds, abuse rate limiting and privacy. |
+| `chat_history` | `AUTH_REQUIRED` before dispatch; success `chat_history`; service errors require focused tests. [app.ts L1546](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/app.ts#L1546) | Client channel/target/guild/party context; verify membership, blocks, pagination and privacy. |
+
+## Parties handler pass (7 messages)
+
+Authenticated social wrapper and shared allowlisted errors; service membership and leader-role checks need tests. Source: [app.ts L1545–1665](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/app.ts#L1545-L1665). This is source analysis, not runtime/database/security acceptance.
+
+| Message | Handler success/error evidence | Authorization and data-safety gaps |
+| --- | --- | --- |
+| `create_party` | `AUTH_REQUIRED` before dispatch; success `party_state`; service errors require focused tests. [app.ts L1546](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/app.ts#L1546) | Verify one-party-per-user and concurrent creation. |
+| `get_party` | `AUTH_REQUIRED` before dispatch; success `party_state`; service errors require focused tests. [app.ts L1546](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/app.ts#L1546) | Verify member-scoped disclosure. |
+| `party_invitations` | `AUTH_REQUIRED` before dispatch; success `party_invitations`; service errors require focused tests. [app.ts L1546](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/app.ts#L1546) | Verify recipient ownership and bounds. |
+| `party_invite` | `AUTH_REQUIRED` before dispatch; success `party_operation_ok`; service errors require focused tests. [app.ts L1547](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/app.ts#L1547) | Verify leader permission, capacity, blocks and duplicate invites. |
+| `party_accept` | `AUTH_REQUIRED` before dispatch; success `party_state`; service errors require focused tests. [app.ts L1547](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/app.ts#L1547) | Verify invitation ownership/expiry, atomic membership and push. |
+| `party_leave` | `AUTH_REQUIRED` before dispatch; success `party_operation_ok`; service errors require focused tests. [app.ts L1547](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/app.ts#L1547) | Verify leader transfer/disband and atomic removal. |
+| `party_kick` | `AUTH_REQUIRED` before dispatch; success `party_operation_ok`; service errors require focused tests. [app.ts L1547](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/app.ts#L1547) | Verify leader authority, target protections and concurrency. |
+
+## Auctions/economy handler pass (6 messages)
+
+Authenticated social wrapper; group catch includes auction/inventory/gold codes, not proof of per-message reachability. Source: [app.ts L1545–1665](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/app.ts#L1545-L1665). This is source analysis, not runtime/database/security acceptance.
+
+| Message | Handler success/error evidence | Authorization and data-safety gaps |
+| --- | --- | --- |
+| `auction_list` | `AUTH_REQUIRED` before dispatch; success `auction_list`; service errors require focused tests. [app.ts L1548](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/app.ts#L1548) | Client price/level/item filters; verify bounds, pagination and query cost. |
+| `auction_create` | `AUTH_REQUIRED` before dispatch; success `auction_state`; service errors require focused tests. [app.ts L1548](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/app.ts#L1548) | Service receives requestId; verify escrow debit, listing rules, replay and rollback. |
+| `auction_bid` | `AUTH_REQUIRED` before dispatch; success `auction_state`; service errors require focused tests. [app.ts L1548](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/app.ts#L1548) | Verify atomic bid reservation, outbid refund, concurrency and replay. |
+| `auction_buy_now` | `AUTH_REQUIRED` before dispatch; success `auction_state`; service errors require focused tests. [app.ts L1548](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/app.ts#L1548) | Verify self-buy rejection, single winner, item transfer, ledger and rollback. |
+| `auction_cancel` | `AUTH_REQUIRED` before dispatch; success `auction_operation_ok`; service errors require focused tests. [app.ts L1548](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/app.ts#L1548) | Verify owner-only cancel, existing bids, escrow return and idempotency. |
+| `auction_history` | `AUTH_REQUIRED` before dispatch; success `auction_history`; service errors require focused tests. [app.ts L1548](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/app.ts#L1548) | Verify private owner-scoped history, bounds and ordering. |
 
 ## Review/acceptance notes
 
