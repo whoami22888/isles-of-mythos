@@ -1,0 +1,53 @@
+# ISLES OF MYTHOS: SUNKEN TIDES — VISUAL REFERENCE SPECIFICATION
+
+PURPOSE
+Create a consistent premium stylized-realistic 3D pirate-fantasy visual reference set for the game art team. These are AI concept/reference images, NOT gameplay captures, importable PBR source maps, or proof of Godot visual acceptance.
+
+CRITICAL RULES
+- Do not depict flat-colour, palette-only, greybox, primitive, low-detail, or visibly low-poly final artwork.
+- Reuse the SAME detailed ship hull, distinctive rigging, exact sail shapes, coast/cliff silhouette, islands, lighting vector, color grading, and weather in every shot.
+- Every final image must visibly include the exact watermark "AI Visual Reference Material", positioned outside the key content.
+- Do not falsely label images as Godot 4.7.2 captures or Android performance evidence.
+
+SHIP AND MATERIALS
+- Detailed wooden galleon: PBR planking, carved trim, visible rails, rigging, cannon mouths, layered cream sails with bold RED Order Cross emblem (not plain stripes).
+- Readable from gameplay scale; clear waterline silhouette and no clipping of spars or sails.
+- Cloth cutouts, normal relief, AO, moderate roughness; saturated but physically plausible tropical lighting.
+
+COAST, WATER AND SETTLEMENT
+- Curving sandy coves and irregular layered damp rock cliffs, dense natural-scale tropical canopy, varied palms and undergrowth, timber docks, huts, towers, waterfall and distant volcanic haze.
+- Turquoise, seabed-visible shallows transition continuously into dark blue depth with physical shoreline foam, near-shore eddies, animated-looking wave highlights, bow spray and vessel wake.
+- No periodic colour bands, disconnected white rings, flat water, repetitive vegetation, plain cliff walls or sparse terrain.
+
+CAMERA
+- Shot 5 gameplay-reference target: vertical FOV exactly 58.0 degrees; camera downward pitch exactly -38.0 degrees.
+- These numeric settings are a target for the later Godot camera; a generative still cannot prove numeric camera settings.
+- Cinematic shots may use distinct lenses and compositions while keeping geometry/material identity consistent.
+- Separate hull, water, shoreline and background visually; avoid rigging clipping and unreadable silhouettes.
+
+TEN REQUIRED REFERENCE OUTPUTS
+1. Wide elevated island-and-bay vista, showing ship, coast, settlement, vegetation, volcano.
+2. Low ship-to-shore approach showing credible size and depth.
+3. Close hull, timber, cannon, deck and rigging detail.
+4. Elevated lagoon and waterfall reveal, with translucent shallows.
+5. Gameplay-camera coastal view, 58.0° FOV target, -38.0° pitch target.
+6. Shoreline sand/rock/wet-cliff/seabed/foam transition close-up.
+7. Moving ship with coherent bow spray, wake and wave interaction.
+8. Cannon discharge with believable recoil, muzzle flash, smoke and water impact.
+9. Title reveal: "ISLES OF MYTHOS" with optional subtitle "SUNKEN TIDES".
+10. A 1280×720 storyboard sheet of a 10-second/24-FPS plan, with time-coded beats. This sheet is NOT an actual 240-frame video.
+
+REUSABLE LOOK-DEV REFERENCES
+- Separate clean transparent visual cutout references of ship, foliage, cliff/rock, dock and settlement modules.
+- Look-development references for albedo, normal, roughness, AO and foam/spray opacity, clearly labeled non-production AI concepts.
+- Production textures and GLBs require verified real source, licence, geometry, UV/normal integrity, content hash and Android/Godot checks before admission.
+
+OUTPUT PRIORITY
+1. Visual fidelity relative to owner's SHA-pinned master video
+2. Cross-frame character/ship/world consistency
+3. Gameplay readability
+4. Reusable reference clarity
+5. Physically coherent stylized materials
+
+ART ACCEPTANCE
+The actual Godot 4.7.2 Mobile-renderer scene and captured sequential frames must be compared with the owner's pinned video (SHA-256 713cd6e90c6f7d589a06eb3bd4b9b2d5ebeb9c0ff711b5de527a68460dfbcb05). AI concept images cannot satisfy the mandatory in-engine PNG, moving MP4, provenance, exact-SHA or physical-device gates.
