@@ -1,7 +1,6 @@
 name: Sail UV atlas diagnostic
 on:
-  push:
-    branches: [feat/iom-order-cross-sail-reference-20261030]
+  pull_request:
     paths:
       - 'client-godot/tests/sail_uv_island_diagnostic.gd'
       - '.github/workflows/sail-uv-diagnostic.yml'
@@ -14,7 +13,7 @@ jobs:
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
       - name: Download verified Godot 4.7.2
         shell: bash
