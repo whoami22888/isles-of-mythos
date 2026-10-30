@@ -1,0 +1,156 @@
+# Client WebSocket message and bounds matrix (NET-03)
+
+**Source snapshot:** `0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba` (main, 2026-10-31 AEDT). **Owner:** ChatGPT Plus, docs-only NET-03 work item from the Claude/GPT Notion task board. **Status:** source-derived protocol reference; NOT a runtime test, CI result, server audit, or authorization to merge. Any parser change requires regeneration and review against its own exact SHA.
+
+This table inventories **all 123** discriminated `ClientMessage` variants in [`server/src/protocol.ts`](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts). Each field signature comes from the TypeScript union; the last column links to the **runtime `parseClientMessage` branch** that must be checked for the actual field-level validation. Types are not runtime guards. Grouped parser branches may validate fields on subsequent lines; read the entire branch, not just its first line.
+
+## Common runtime limits and errors
+
+| Boundary | Verified source contract |
+| --- | --- |
+| WebSocket inbound frame | `websocketMaxPayloadBytes: 64 * 1024` (65,536 bytes) in [`server/src/config.ts#L73`](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/config.ts#L73); Fastify WebSocket `maxPayload` uses this value in [`server/src/app.ts#L432-L439`](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/app.ts#L432-L439). |
+| Inbound rate | More than 120 messages per socket per one-second window returns `RATE_LIMITED` in [`server/src/app.ts#L830-L850`](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/app.ts#L830-L850). Additional backlog admission applies. |
+| Invalid message | `parseClientMessage` returns `null`; the WebSocket handler emits `INVALID_MESSAGE` in [`server/src/app.ts#L854-L860`](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/app.ts#L854-L860). Domain-specific errors are separate and cannot be inferred from parser success. |
+| `requestId` | Nonempty string, maximum 64 characters. [Validator](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L240-L249). |
+| `idString(v,max=64)` | Nonempty string, default maximum 64 characters; callers may override. [Validator](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L240-L249). |
+| `coordinate` | Safe integer, absolute value at most 1,000,000 by default. [Validator](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L240-L249). |
+| `finiteCoordinate` | Finite number, absolute value at most 1,000,000 by default. [Validator](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L240-L249). |
+| `goldString` | Canonical nonnegative decimal string, length at most 19, value at most 9,223,372,036,854,775,807. `positiveAmountString` additionally excludes zero. [Validator](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L240-L249). |
+| `boundedJsonRecord` | JSON-serialised record at most 4,096 UTF-8 bytes; maximum depth 5, nodes 256, keys per object 32, array items 64, string length 256, key length 64; prototype-related keys rejected. [Validator](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L246-L260). |
+| Client response | `ServerMessage` is a distinct union in the same file; this document covers client **inbound** messages only. |
+
+## Complete client message inventory
+
+| Type | Declared fields (excluding `type`) | Runtime parser guard |
+| --- | --- | --- |
+| `ping` | `(none)` | [L260](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L260) |
+| `auth` | `token:string` | [L261](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L261) |
+| `subscribe_chunks` | `requestId:string; chunks:ChunkCoordinate[]` | [L262](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L262) |
+| `gather_resource` | `requestId:string; resourceId:string` | [L290](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L290) |
+| `move` | `dx:number; dy:number; sequence:number` | [L268](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L268) |
+| `select_hotbar` | `slot:number` | [L269](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L269) |
+| `attack` | `requestId:string; targetId:string; facingX:number; facingY:number` | [L360](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L360) |
+| `dodge` | `facingX:number; facingY:number` | [L270](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L270) |
+| `block` | `active:boolean` | [L271](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L271) |
+| `capture` | `requestId:string; targetId:string` | [L274](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L274) |
+| `tame` | `requestId:string; creatureId:string` | [L276](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L276) |
+| `set_creature_party` | `requestId:string; creatureId:string; slot:number\|null` | [L277](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L277) |
+| `set_creature_ai` | `requestId:string; creatureId:string; mode:"follow"\|"assist"\|"stay"` | [L272](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L272) |
+| `create_base` | `requestId:string; name:string; x:number; y:number` | [L282](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L282) |
+| `build` | `requestId:string; buildingType:string; level:number; gridX:number; gridY:number` | [L280](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L280) |
+| `upgrade_building` | `requestId:string; buildingId:string` | [L285](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L285) |
+| `storage` | `requestId:string; changes:Record<string,number>` | [L286](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L286) |
+| `set_base_permission` | `requestId:string; targetUserId:string; permission:string; enabled:boolean` | [L287](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L287) |
+| `assign_worker` | `requestId:string; creatureId:string; buildingId:string; task:string` | [L288](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L288) |
+| `set_work_priorities` | `requestId:string; priorities:string[]` | [L289](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L289) |
+| `craft` | `requestId:string; recipeId:string` | [L291](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L291) |
+| `shop_purchase` | `requestId:string; itemId:string; quantity:number` | [L292](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L292) |
+| `trade` | `requestId:string; toUserId:string; gold:string; items:Array<{itemId:string;quantity:number}>` | [L293](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L293) |
+| `start_breeding` | `requestId:string; baseId:string; penBuildingId:string; parentAId:string; parentBId:string; durationMs?:number` | [L300](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L300) |
+| `list_breeding` | `requestId:string` | [L301](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L301) |
+| `create_guild` | `requestId:string; name:string; tag:string` | [L318](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L318) |
+| `get_guild` | `requestId:string` | [L319](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L319) |
+| `list_guild_invitations` | `requestId:string` | [L320](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L320) |
+| `list_realms` | `requestId:string` | [L310](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L310) |
+| `list_territories` | `requestId:string` | [L310](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L310) |
+| `list_realm_fortresses` | `requestId:string` | [L310](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L310) |
+| `territory_at` | `requestId:string; x:number; y:number` | [L311](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L311) |
+| `claim_guild_territory` | `requestId:string; territoryId:string; guildId:string` | [L312](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L312) |
+| `change_realm_reputation` | `requestId:string; realm:string; delta:number` | [L313](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L313) |
+| `my_realm_reputation` | `requestId:string` | [L310](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L310) |
+| `create_trade_route` | `requestId:string; sourceTerritoryId:string; destinationTerritoryId:string; resourceKey:string; quantity:string; travelSeconds:number; guildId:string\|null; realmId:string\|null` | [L314](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L314) |
+| `list_trade_routes` | `requestId:string` | [L310](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L310) |
+| `tick_realm_ai` | `requestId:string` | [L310](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L310) |
+| `list_invasions` | `requestId:string; territoryId:string\|null` | [L315](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L315) |
+| `get_invasion_waves` | `requestId:string; invasionId:string` | [L315](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L315) |
+| `join_invasion` | `requestId:string; invasionId:string; armyId:string; role:InvasionRole` | [L316](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L316) |
+| `invasion_action` | `requestId:string; invasionId:string; action:"attack"\|"reinforce"\|"retreat"; waveId:string\|null` | [L317](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L317) |
+| `invite_guild_member` | `requestId:string; guildId:string; targetUserId:string` | [L321](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L321) |
+| `accept_guild_invite` | `requestId:string; invitationId:string` | [L322](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L322) |
+| `decline_guild_invite` | `requestId:string; invitationId:string` | [L322](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L322) |
+| `leave_guild` | `requestId:string; guildId:string` | [L323](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L323) |
+| `remove_guild_member` | `requestId:string; guildId:string; targetUserId:string` | [L324](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L324) |
+| `set_guild_rank` | `requestId:string; guildId:string; targetUserId:string; rank:string` | [L325](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L325) |
+| `set_guild_permission` | `requestId:string; guildId:string; rank:string; permission:string; enabled:boolean` | [L326](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L326) |
+| `guild_bank` | `requestId:string; guildId:string` | [L327](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L327) |
+| `guild_bank_deposit` | `requestId:string; guildId:string; itemId:string; quantity:number; gold:string` | [L328](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L328) |
+| `guild_bank_withdraw` | `requestId:string; guildId:string; itemId:string; quantity:number; gold:string` | [L328](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L328) |
+| `build_guild_infrastructure` | `requestId:string; guildId:string; structureType:string` | [L329](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L329) |
+| `create_army` | `requestId:string; name:string` | [L331](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L331) |
+| `list_armies` | `requestId:string` | [L332](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L332) |
+| `train_army` | `requestId:string; armyId:string; unitType:string; quantity:number` | [L333](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L333) |
+| `garrison_army` | `requestId:string; armyId:string; baseId:string` | [L334](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L334) |
+| `add_army_creature` | `requestId:string; armyId:string; creatureId:string` | [L335](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L335) |
+| `set_army_assignment` | `requestId:string; armyId:string; assignment:string` | [L336](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L336) |
+| `set_army_formation` | `requestId:string; armyId:string; name:string; formationType:string; layout:Record<string,unknown>` | [L337](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L337) |
+| `nominate_commander` | `requestId:string; guildId:string; targetUserId:string` | [L338](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L338) |
+| `assign_army_commander` | `requestId:string; armyId:string; commanderUserId:string` | [L339](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L339) |
+| `issue_army_order` | `requestId:string; armyId:string; battleId:string\|null; orderType:string; targetUnitId:string\|null; targetX:number\|null; targetY:number\|null; payload:Record<string,unknown>` | [L340](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L340) |
+| `create_army_battle` | `requestId:string; attackerArmyId:string; defenderArmyId:string\|null; targetX:number; targetY:number` | [L341](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L341) |
+| `deploy_battle_unit` | `requestId:string; battleId:string; unitId:string; formationSlot:number` | [L342](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L342) |
+| `execute_battle_turn` | `requestId:string; battleId:string` | [L344](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L344) |
+| `get_army_battle` | `requestId:string; battleId:string` | [L344](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L344) |
+| `army_tactical_action` | `requestId:string; battleId:string; unitId:string; actionType:"ability"\|"retreat"\|"fire_cannon"\|"deploy_trap"\|"reinforce"; targetUnitId:string\|null` | [L343](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L343) |
+| `build_defense` | `requestId:string; baseId:string; structureType:string; gridX:number; gridY:number` | [L345](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L345) |
+| `list_defenses` | `requestId:string; baseId:string` | [L346](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L346) |
+| `create_ship` | `requestId:string; name:string; shipClass:string` | [L347](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L347) |
+| `list_ships` | `requestId:string` | [L348](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L348) |
+| `ship_inventory` | `requestId:string; shipId:string` | [L349](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L349) |
+| `ship_cargo` | `requestId:string; shipId:string; itemId:string; quantity:number` | [L350](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L350) |
+| `create_fleet` | `requestId:string; name:string; shipId:string` | [L351](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L351) |
+| `list_fleets` | `requestId:string` | [L352](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L352) |
+| `add_fleet_ship` | `requestId:string; fleetId:string; shipId:string` | [L353](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L353) |
+| `remove_fleet_ship` | `requestId:string; fleetId:string; shipId:string` | [L353](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L353) |
+| `sail` | `requestId:string; shipId:string; dx:number; dy:number` | [L354](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L354) |
+| `assign_ship_crew` | `requestId:string; shipId:string; creatureId:string; role:string; skill:number; morale:number` | [L355](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L355) |
+| `fire_cannon` | `requestId:string; shipId:string; targetShipId:string` | [L356](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L356) |
+| `assign_ship_npc_crew` | `requestId:string; shipId:string; npcType:"pirate"\|"mermaid"\|"dragon"\|"npc_specialist"; role:string; skill:number; morale:number` | [L357](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L357) |
+| `board_ship` | `requestId:string; shipId:string; targetShipId:string` | [L358](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L358) |
+| `repair_ship` | `requestId:string; shipId:string` | [L359](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L359) |
+| `retreat_ship` | `requestId:string; shipId:string` | [L359](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L359) |
+| `fight_ship_fire` | `requestId:string; shipId:string` | [L359](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L359) |
+| `list_friends` | `requestId:string` | [L365](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L365) |
+| `add_friend` | `requestId:string; targetUserId:string` | [L368](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L368) |
+| `remove_friend` | `requestId:string; targetUserId:string` | [L368](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L368) |
+| `block_user` | `requestId:string; targetUserId:string` | [L368](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L368) |
+| `unblock_user` | `requestId:string; targetUserId:string` | [L368](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L368) |
+| `list_blocks` | `requestId:string` | [L365](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L365) |
+| `report_user` | `requestId:string; targetUserId:string; reason:string; details:string` | [L375](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L375) |
+| `chat_send` | `requestId:string; channel:"local"\|"region"\|"party"\|"guild"\|"trade"\|"global"\|"system"\|"whisper"; body:string; recipientUserId:string\|null; guildId:string\|null; partyId:string\|null` | [L379](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L379) |
+| `chat_history` | `requestId:string; channel:"local"\|"region"\|"party"\|"guild"\|"trade"\|"global"\|"system"\|"whisper"; recipientUserId:string\|null; guildId:string\|null; partyId:string\|null` | [L385](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L385) |
+| `create_party` | `requestId:string` | [L365](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L365) |
+| `get_party` | `requestId:string` | [L365](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L365) |
+| `party_invitations` | `requestId:string` | [L365](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L365) |
+| `party_invite` | `requestId:string; targetUserId:string` | [L368](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L368) |
+| `party_accept` | `requestId:string; invitationId:string` | [L370](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L370) |
+| `party_leave` | `requestId:string` | [L365](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L365) |
+| `party_kick` | `requestId:string; targetUserId:string` | [L368](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L368) |
+| `auction_list` | `requestId:string; itemId:string\|null; rarity?:AuctionRarity\|null; category?:AuctionCategory\|null; minLevel?:number\|null; maxLevel?:number\|null; minPrice:string\|null; maxPrice:string\|null` | [L399](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L399) |
+| `auction_create` | `requestId:string; itemId:string; quantity:number; startPrice:string; buyNowPrice:string\|null; durationMs:number` | [L405](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L405) |
+| `auction_bid` | `requestId:string; listingId:string; amount:string` | [L372](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L372) |
+| `auction_buy_now` | `requestId:string; listingId:string` | [L370](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L370) |
+| `auction_cancel` | `requestId:string; listingId:string` | [L370](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L370) |
+| `auction_history` | `requestId:string` | [L365](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L365) |
+| `list_world_events` | `requestId:string` | [L395](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L395) |
+| `world_event_contribute` | `requestId:string; eventId:string` | [L396](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L396) |
+| `world_event_reward` | `requestId:string; eventId:string` | [L391](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L391) |
+| `list_realm_wars` | `requestId:string` | [L303](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L303) |
+| `create_realm_war` | `requestId:string; attackerRealmId:string; defenderRealmId:string; targetTerritoryId:string` | [L304](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L304) |
+| `join_realm_war` | `requestId:string; warId:string; guildId:string; realmId:string` | [L305](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L305) |
+| `realm_war_action` | `requestId:string; warId:string; guildId:string; armyId:string` | [L306](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L306) |
+| `list_guild_battles` | `requestId:string` | [L303](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L303) |
+| `create_guild_battle` | `requestId:string; attackerGuildId:string; defenderGuildId:string; targetTerritoryId:string` | [L307](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L307) |
+| `join_guild_battle` | `requestId:string; battleId:string; armyId:string` | [L308](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L308) |
+| `guild_battle_action` | `requestId:string; battleId:string; armyId:string` | [L308](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L308) |
+| `list_endgame_creatures` | `requestId:string` | [L303](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L303) |
+| `engage_endgame_creature` | `requestId:string; creatureId:string` | [L309](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L309) |
+| `list_mythic_content` | `requestId:string` | [L303](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L303) |
+| `list_territory_season` | `requestId:string` | [L302](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L302) |
+
+## Review/acceptance notes
+
+1. **All 123 declared client message types have at least one matching runtime parser branch in this snapshot.** This is a static source cross-reference, not proof that every field is correctly bounded or that a handler is safe.
+2. For each change to a message, inspect its linked branch for exact numeric/string/array limits and any helper validator calls; test boundary values, extra keys, nulls, nonfinite numbers, large UTF-8 payloads and malformed JSON. Keep the global 65,536-byte cap and per-socket rate/backlog admission.
+3. **Potential missing bounds:** This index cannot certify absence of unbounded nested data or handler-level resource amplification. Any `Record<...>`, `unknown`, `Array<...>` or optional field must be manually reviewed against the runtime guard and downstream Fastify/DB handler; `boundedJsonRecord` is not automatically applied to every record field.
+4. Client authorization, request replay, 20 Hz simulation, transaction idempotency, 150 ms p95 / 300 ms p99 performance, and the Godot 65,536-byte receive cap remain separate gates. This document changes none of them.
+5. **No parser or server code is modified by NET-03.** Revalidate this inventory after any future `ClientMessage`/parser change. Do not use it as a substitute for exact-head CI, security, performance or Codex review.
