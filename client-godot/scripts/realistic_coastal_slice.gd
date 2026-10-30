@@ -39,6 +39,19 @@ const CINEMATIC_FPS := 24.0
 # three-quarter view (owner concept frames) rather than a waterline crawl.
 const CINEMATIC_MIN_CLEARANCE := 3.0
 const CINEMATIC_MIN_ELEVATION_DEG := 12.0
+# Shot A (COASTAL ESTABLISHING) lock from the production controller's contract
+# on PR #216 (not yet traceable to a written owner document): vertical FOV and
+# camera pitch are fixed; only yaw/push-in drift. The composition targets come
+# from the owner's Shot A frame: ship centred ~28.5% across / 70% down, ~28%
+# of the frame wide, island behind it.
+const SHOT_A_FOV := 58.0
+const SHOT_A_PITCH_DEG := -38.0
+const SHOT_A_SHIP_CENTRE := Vector2(0.285, 0.70)
+const SHOT_A_SHIP_WIDTH_FRACTION := 0.28
+const SHOT_A_PUSH_IN := 0.05   # extra ship width fraction gained over the reveal
+const SHOT_A_YAW_DRIFT_DEG := 7.0
+const SHOT_A_ASPECT := 1280.0 / 720.0
+const SHOT_A_MARGIN_PX := 36.0
 const WATER_HALF_EXTENT := Vector2(320.0, 240.0)
 const CINEMATIC_WATER_MARGIN := 40.0
 
@@ -128,9 +141,15 @@ func _terrain_height(px: float, pz: float) -> float:
 		+ 0.24 * cos(px * 0.71 - pz * 0.23))
 	var high_shelf := smoothstep(13.0, 20.0, pz) * (0.30 * sin(px * 0.52 - pz * 0.17))
 	ridge += cliff_shelf + high_shelf
-	var side_mask := 1.0 - smoothstep(25.0, 34.0, absf(px))
-	var back_mask := 1.0 - smoothstep(19.0, 28.0, pz)
-	var island := side_mask * back_mask
+	# Smooth elliptical falloff instead of a rectangular mask: the old 9 m fade
+	# dropped +8 m land to the -8.35 m seabed as a near-vertical box edge that
+	# read as a cut slab from any elevated camera. The radii make r == 1 land on
+	# the terrain footprint edge (|x| = 36, z = +29) so the seabed is fully deep
+	# exactly where the ocean shader's baked heightfield ends.
+	var rz := 24.0 if pz < 10.0 else 19.0
+	var r := sqrt(pow(px / 36.0, 2.0) + pow((pz - 10.0) / rz, 2.0))
+	var island := 1.0 - smoothstep(0.55, 0.97, r)
+	var seabed := WATER_Y - 8.0
 	var height := beach * (1.45 + ridge * 0.12)
 	height += bluff * (5.4 + ridge * 1.35)
 	height += smoothstep(11.0, 20.0, pz) * 2.0
@@ -139,7 +158,7 @@ func _terrain_height(px: float, pz: float) -> float:
 	# shallows near the beach, then a turquoise-to-navy slope offshore.
 	var offshore := smoothstep(0.5, -19.0, shore_t)
 	var land := WATER_Y - 0.25 + height - offshore * 7.5
-	return lerpf(WATER_Y - 8.0, land, island)
+	return lerpf(seabed, land, island)
 
 
 func _build_coastal_terrain() -> void:
@@ -712,8 +731,74 @@ static func _sine_in_out(x: float) -> float:
 
 ## Single source of truth for the reveal pose: runtime playback and the
 ## capture harness both call this with the same `t`, against the live ship.
+## Shot A: FOV and pitch are locked; the camera is SOLVED so the vessel lands
+## at the authored screen position and size (frustum-fit alone cannot enforce
+## composition). Yaw drifts and the shot pushes in slowly over the reveal.
 func apply_cinematic_time(camera: Camera3D, t: float) -> bool:
-	return frame_ship_cinematic(camera, cinematic_raw_position_at(t))
+	if camera == null or not _ship_bounds_ready:
+		return false
+	var pose := shot_a_pose_at(t)
+	if pose.is_empty():
+		return false
+	camera.fov = SHOT_A_FOV
+	camera.global_transform = pose["transform"]
+	return true
+
+
+## Pure function of time and the live ship bounds. Returns {} when unavailable.
+func shot_a_pose_at(t: float) -> Dictionary:
+	var bounds := ship_visual_bounds_world()
+	if bounds.size.length_squared() < 0.00001:
+		return {}
+	var progress := _sine_in_out(clampf(t / CINEMATIC_DURATION, 0.0, 1.0))
+	var centre := bounds.get_center()
+	var towards_coast := Vector2(CINEMATIC_COAST_POINT.x - centre.x, CINEMATIC_COAST_POINT.z - centre.z)
+	if towards_coast.length_squared() < 0.0001:
+		towards_coast = Vector2(0.0, 1.0)
+	var yaw := atan2(towards_coast.x, towards_coast.y) + deg_to_rad(SHOT_A_YAW_DRIFT_DEG) * (progress - 0.5)
+	var pitch := deg_to_rad(SHOT_A_PITCH_DEG)
+	var forward := Vector3(sin(yaw) * cos(pitch), sin(pitch), cos(yaw) * cos(pitch))
+	var basis := Basis.looking_at(forward, Vector3.UP)
+	var target_width := SHOT_A_SHIP_WIDTH_FRACTION + SHOT_A_PUSH_IN * progress
+	var depth := 40.0
+	var origin := Vector3.ZERO
+	for _i in range(24):
+		origin = _shot_a_origin(centre, basis, depth)
+		var rect := shot_a_ship_rect(Transform3D(basis, origin), bounds)
+		var width_now := rect.size.x
+		if width_now <= 0.0001:
+			return {}
+		if absf(width_now - target_width) < 0.0005:
+			break
+		depth *= width_now / target_width
+	return {"transform": Transform3D(basis, origin), "depth": depth, "ship_rect": shot_a_ship_rect(Transform3D(basis, origin), bounds)}
+
+
+## Camera origin that puts `centre` at SHOT_A_SHIP_CENTRE, `depth` m in front.
+func _shot_a_origin(centre: Vector3, basis: Basis, depth: float) -> Vector3:
+	var half_h := tan(deg_to_rad(SHOT_A_FOV) * 0.5)
+	var cam_x := (SHOT_A_SHIP_CENTRE.x * 2.0 - 1.0) * half_h * SHOT_A_ASPECT * depth
+	var cam_y := (1.0 - SHOT_A_SHIP_CENTRE.y * 2.0) * half_h * depth
+	return centre - basis * Vector3(cam_x, cam_y, -depth)
+
+
+## Normalised (0..1, y down) bounding rect of the ship AABB under Shot A optics.
+static func shot_a_ship_rect(camera_transform: Transform3D, bounds: AABB, fov_deg: float = SHOT_A_FOV, aspect: float = SHOT_A_ASPECT) -> Rect2:
+	var half_h := tan(deg_to_rad(fov_deg) * 0.5)
+	var lo := Vector2(INF, INF)
+	var hi := Vector2(-INF, -INF)
+	var inverse := camera_transform.affine_inverse()
+	for i in range(8):
+		var corner := bounds.position + Vector3(
+			bounds.size.x if i & 1 else 0.0, bounds.size.y if i & 2 else 0.0, bounds.size.z if i & 4 else 0.0)
+		var local: Vector3 = inverse * corner
+		if local.z >= -0.01:
+			return Rect2()   # behind / on the camera plane
+		var nx := 0.5 + 0.5 * (local.x / (-local.z)) / (half_h * aspect)
+		var ny := 0.5 - 0.5 * (local.y / (-local.z)) / half_h
+		lo = lo.min(Vector2(nx, ny))
+		hi = hi.max(Vector2(nx, ny))
+	return Rect2(lo, hi - lo)
 
 
 ## Pure validator for a cinematic camera pose; no scene state required.
