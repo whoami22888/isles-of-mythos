@@ -31,9 +31,10 @@ func run() -> void:
 		if child.name == "PlayerSpawnMarker":
 			spawn_marker_count += 1
 	ok = _check(spawn_marker_count == 1 and scene.player_marker != null, "contract line 33") and ok
-	# Imported sails must retain their authored RGBA atlas and mobile-safe
-	# alpha-mask material; a missing/black material is a visible ship failure.
+	# Imported RGBA sail cutouts must remain double-sided and carry real
+	# atlas/detail textures even when an emblem ShaderMaterial is applied.
 	var sail_materials := 0
+	var emblem_materials := 0
 	var pending_ship: Array[Node] = [scene.ship_focal]
 	while not pending_ship.is_empty():
 		var ship_node: Node = pending_ship.pop_back()
@@ -41,19 +42,34 @@ func run() -> void:
 			var mesh_instance := ship_node as MeshInstance3D
 			if mesh_instance.mesh:
 				for surface_index in range(mesh_instance.mesh.get_surface_count()):
-					var material := mesh_instance.get_active_material(surface_index) as BaseMaterial3D
+					var material: Material = mesh_instance.get_active_material(surface_index)
 					if material == null:
 						continue
 					var material_name := str(material.resource_name).to_lower()
 					var node_name := str(mesh_instance.name).to_lower()
 					if material_name.contains("sail") or node_name.contains("sail"):
 						sail_materials += 1
-						ok = _check(material.albedo_texture != null, "contract line 51") and ok
-						ok = _check(material.albedo_color.get_luminance() > 0.8, "contract line 52") and ok
-						ok = _check(material.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR, "contract line 53") and ok
+						ok = _check(material is BaseMaterial3D or material is ShaderMaterial, "sail material class") and ok
+						if material is BaseMaterial3D:
+							var base := material as BaseMaterial3D
+							ok = _check(base.albedo_texture != null, "sail atlas") and ok
+							ok = _check(base.albedo_color.get_luminance() > 0.8, "sail luminance") and ok
+							ok = _check(base.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR, "sail cutout") and ok
+							ok = _check(base.cull_mode == BaseMaterial3D.CULL_DISABLED, "sail culling") and ok
+						elif material is ShaderMaterial:
+							var composed := material as ShaderMaterial
+							emblem_materials += 1
+							ok = _check(composed.shader != null, "sail shader resource") and ok
+							if composed.shader != null:
+								ok = _check(composed.shader.resource_path == "res://shaders/sail_shader.gdshader", "order cross shader identity") and ok
+							ok = _check(mesh_instance.get_surface_override_material(surface_index) == composed, "sail shader override") and ok
+							ok = _check(composed.get_shader_parameter("base_sail_tex") != null, "sail RGBA atlas retained") and ok
+							ok = _check(composed.get_shader_parameter("order_cross_emblem") != null, "order cross mask loaded") and ok
+							ok = _check(float(composed.get_shader_parameter("alpha_scissor_threshold")) > 0.0, "sail cutout threshold") and ok
 		for child in ship_node.get_children():
 			pending_ship.append(child)
-	ok = _check(sail_materials > 0, "contract line 56") and ok
+	ok = _check(sail_materials > 0, "sail surfaces detected") and ok
+	ok = _check(emblem_materials > 0 and emblem_materials == sail_materials, "all sail surfaces composited") and ok
 	# The premium content layer must contain real varied tropical geometry; a
 	# shader-only or palette-only replacement cannot satisfy the coastal brief.
 	var premium_layer := scene.get_node_or_null("VerifiedTropicalContentLayer")
