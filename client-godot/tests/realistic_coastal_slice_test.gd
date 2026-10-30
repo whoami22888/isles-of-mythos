@@ -33,6 +33,16 @@ func run() -> void:
 	ok = _check(spawn_marker_count == 1 and scene.player_marker != null, "contract line 33") and ok
 	# Imported RGBA sail cutouts must remain double-sided and carry real
 	# atlas/detail textures even when an emblem ShaderMaterial is applied.
+	var source_ship := load("res://assets/external/polyhaven/dutch_ship_medium/dutch_ship_medium_1k.gltf").instantiate()
+	var raw_sail := source_ship.find_child("dutch_ship_medium_sails", true, false) as MeshInstance3D
+	ok = _check(raw_sail != null, "source imported sail mesh exists") and ok
+	var raw_uv0 := PackedVector2Array()
+	var raw_indices := PackedInt32Array()
+	if raw_sail != null and raw_sail.mesh != null:
+		var raw_arrays: Array = raw_sail.mesh.surface_get_arrays(0)
+		raw_uv0 = raw_arrays[Mesh.ARRAY_TEX_UV]
+		raw_indices = raw_arrays[Mesh.ARRAY_INDEX]
+	source_ship.free()
 	var sail_materials := 0
 	var emblem_materials := 0
 	var pending_ship: Array[Node] = [scene.ship_focal]
@@ -66,6 +76,28 @@ func run() -> void:
 							ok = _check(composed.get_shader_parameter("base_sail_tex") != null, "sail RGBA atlas retained") and ok
 							ok = _check(composed.get_shader_parameter("order_cross_emblem") != null, "order cross mask loaded") and ok
 							ok = _check(float(composed.get_shader_parameter("alpha_scissor_threshold")) > 0.0, "sail cutout threshold") and ok
+							var decorated_arrays: Array = mesh_instance.mesh.surface_get_arrays(surface_index)
+							var original_uv: PackedVector2Array = decorated_arrays[Mesh.ARRAY_TEX_UV]
+							var emblem_uv: PackedVector2Array = decorated_arrays[Mesh.ARRAY_TEX_UV2]
+							var positions: PackedVector3Array = decorated_arrays[Mesh.ARRAY_VERTEX]
+							var triangles: PackedInt32Array = decorated_arrays[Mesh.ARRAY_INDEX]
+							ok = _check(original_uv == raw_uv0, "sail atlas UV0 unchanged") and ok
+							ok = _check(triangles == raw_indices, "sail triangle topology unchanged") and ok
+							ok = _check(emblem_uv.size() == positions.size(), "emblem UV2 per sail vertex") and ok
+							var mapped_vertices := 0
+							var furled_vertices := 0
+							if emblem_uv.size() == positions.size():
+								for vertex_index in range(positions.size()):
+									var position: Vector3 = positions[vertex_index]
+									var overlay: Vector2 = emblem_uv[vertex_index]
+									if position.y > 14.0:
+										furled_vertices += 1
+										ok = _check(overlay.x < 0.0 and overlay.y < 0.0, "upper furled cloth left unmarked") and ok
+									elif position.y < 9.0:
+										mapped_vertices += 1
+										ok = _check(overlay.x >= 0.0 and overlay.x <= 1.0 and overlay.y >= 0.0 and overlay.y <= 1.0, "broad sail UV2 within individual panel") and ok
+							ok = _check(mapped_vertices >= 1000, "two broad sail panels mapped") and ok
+							ok = _check(furled_vertices >= 2000, "both furled components excluded") and ok
 		for child in ship_node.get_children():
 			pending_ship.append(child)
 	ok = _check(sail_materials > 0, "sail surfaces detected") and ok
