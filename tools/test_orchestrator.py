@@ -373,9 +373,10 @@ class SuccessfulStepEditsInputs(Base):
 
     def test_validation_before_a_successful_edit_is_rerun_on_resume(self):
         self.make({"edit": self.edit_ok, "remote": orch.RateLimited(0)}).run(self.ids())
+        self.assertEqual(self.calls, ["validate", "edit", "validate", "remote"])   # re-validated before the 429
         self.calls.clear()
         self.assertEqual(self.make().resume(), orch.EXIT_OK)
-        self.assertEqual(self.calls, ["validate", "remote"])      # validate ran on contents it never saw; edit is kept
+        self.assertEqual(self.calls, ["remote"])                  # both validate (on the final inputs) and edit are kept
 
     def test_the_editing_step_itself_is_not_repeated(self):
         self.make({"edit": self.edit_ok, "remote": (1, "boom")}).run(self.ids())
@@ -394,6 +395,47 @@ class SuccessfulStepEditsInputs(Base):
         self.calls.clear()
         self.assertEqual(self.make().resume(), orch.EXIT_OK)
         self.assertEqual(self.calls, ["remote"])
+
+
+class SuccessPathRevalidation(Base):
+    """GPT review on 8d46332: with no 429 at all, a plan must not report success while an earlier validation has not
+    passed on the final inputs."""
+
+    def ids(self):
+        return self.plan(ids=("validate", "edit", "remote"))
+
+    def edit_once(self, count):
+        def behave():
+            count.append(1)
+            (self.root / "a.txt").write_text(f"edit-{len(count)}\n")
+            return (0, "ok")
+        return behave
+
+    def test_validation_reruns_on_the_final_inputs_before_success(self):
+        self.assertEqual(self.make({"edit": self.edit_once([])}).run(self.ids()), orch.EXIT_OK)
+        self.assertEqual(self.calls, ["validate", "edit", "validate", "remote"])    # validate ran after the edit
+        self.assertFalse(self.ckpt.exists())
+
+    def test_a_validation_that_itself_keeps_changing_inputs_fails_closed(self):
+        flapping = []
+        behaviour = {"validate": self.edit_once(flapping)}            # every validate rewrites the file
+        code = self.make(behaviour).run(self.plan(ids=("validate", "remote")))
+        self.assertEqual(code, orch.EXIT_OK)                          # a first-step mutation invalidates nothing
+
+    def test_a_late_mutation_triggers_exactly_one_revalidation(self):
+        count = []
+        code = self.make({"remote": self.edit_once(count)}).run(self.plan(ids=("validate", "remote")))
+        self.assertEqual(code, orch.EXIT_OK)
+        self.assertEqual(self.calls, ["validate", "remote", "validate"])   # re-run on the final inputs, remote kept
+        self.assertEqual(len(count), 1)
+
+    def test_replays_that_never_settle_fail_with_a_checkpoint(self):
+        shared = []                                               # one counter, so every call writes new content
+        behaviour = {"edit": self.edit_once(shared), "remote": self.edit_once(shared)}
+        code = self.make(behaviour).run(self.ids())
+        self.assertEqual(code, orch.EXIT_FAILED)
+        self.assertTrue(self.ckpt.exists())
+        self.assertIn("inputs", json.loads(self.ckpt.read_text())["reason"])
 
 
 class SpecialPathsAndInterrupts(Base):

@@ -55,6 +55,7 @@ MAX_OUTPUT_TAIL = 4_000
 MAX_CAPTURE = 64 * 1024            # per stream, kept in memory while a step runs
 _SCAN_OVERLAP = 512               # chars kept between chunks so a signal split across reads is still seen
 MAX_STEPS = 1_000
+MAX_REPLAYS = 3                   # re-validation passes after a step rewrites inputs, before failing closed
 MAX_CONTEXT_BYTES = 64_000
 DEFAULT_STEP_TIMEOUT = 3_600
 STATES = {"running", "checkpointed", "failed"}
@@ -489,35 +490,51 @@ class Orchestrator:
     def _execute(self, plan: dict, completed: list[str]) -> int:
         baseline = self._head()
         self._input_baseline = self._inputs_fingerprint()
-        for step in plan["steps"]:
-            if step["id"] in completed:
-                continue
-            self.log(f"step {step['id']}")
-            try:
-                code, output = self.runner(step)
-            except RateLimited as limited:
+        replays = 0
+        while True:
+            invalidated = False
+            for step in plan["steps"]:
+                if step["id"] in completed:
+                    continue
+                self.log(f"step {step['id']}")
+                try:
+                    code, output = self.runner(step)
+                except RateLimited as limited:
+                    if self._head_moved(plan, completed, baseline, step["id"]):
+                        return EXIT_FAILED
+                    return self._rate_limited(plan, completed, step["id"], limited.retry_after, str(limited))
                 if self._head_moved(plan, completed, baseline, step["id"]):
                     return EXIT_FAILED
-                return self._rate_limited(plan, completed, step["id"], limited.retry_after, str(limited))
-            if self._head_moved(plan, completed, baseline, step["id"]):
+                if code == 0:
+                    fingerprint = self._inputs_fingerprint()
+                    drifted = bool(completed) and fingerprint is not None and self._input_baseline not in (None, fingerprint)
+                    if drifted:
+                        # Earlier steps validated the inputs as they were before this step rewrote them. Keep only
+                        # this step and start the pass again, so those validations re-run on the final contents.
+                        self.log(f"step {step['id']} changed the inputs; earlier completed steps were invalidated")
+                        completed.clear()
+                    completed.append(step["id"])
+                    self._input_baseline = fingerprint
+                    self._save(plan, completed, None, "running")      # crash-safe progress
+                    if drifted:
+                        invalidated = True
+                        break
+                    continue
+                throttled, retry_after = detect_rate_limit(code, output)
+                if throttled:
+                    return self._rate_limited(plan, completed, step["id"], retry_after, output)
+                self._save(plan, completed, step["id"], "failed", reason=f"step {step['id']} exited {code}", tail=output)
+                self.log(f"step {step['id']} failed (exit {code}); checkpoint kept for diagnosis")
                 return EXIT_FAILED
-            if code == 0:
-                fingerprint = self._inputs_fingerprint()
-                if completed and fingerprint is not None and self._input_baseline not in (None, fingerprint):
-                    # Earlier steps validated the inputs as they were before this step rewrote them. Keep only this
-                    # step: a later --resume re-runs those validations against the new contents.
-                    self.log(f"step {step['id']} changed the inputs; earlier completed steps were invalidated")
-                    completed.clear()
-                completed.append(step["id"])
-                self._input_baseline = fingerprint
-                self._save(plan, completed, None, "running")      # crash-safe progress
-                continue
-            throttled, retry_after = detect_rate_limit(code, output)
-            if throttled:
-                return self._rate_limited(plan, completed, step["id"], retry_after, output)
-            self._save(plan, completed, step["id"], "failed", reason=f"step {step['id']} exited {code}", tail=output)
-            self.log(f"step {step['id']} failed (exit {code}); checkpoint kept for diagnosis")
-            return EXIT_FAILED
+            if not invalidated:
+                break
+            replays += 1
+            if replays > MAX_REPLAYS:
+                self._save(plan, completed, None, "failed",
+                           reason=f"inputs kept changing after {MAX_REPLAYS} re-validation passes; steps rewrite "
+                                  "each other's inputs")
+                self.log("inputs never settled; refusing to report success")
+                return EXIT_FAILED
         self.checkpoint.unlink(missing_ok=True)
         self.log("all steps complete")
         return EXIT_OK
