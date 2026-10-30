@@ -176,7 +176,7 @@ This is a **source-checked priority subset**, not yet a complete per-message lim
 | `tick_realm_ai` | `requestId` only ([L310](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L310)) | **P1 authority gap:** any authenticated socket can invoke `realms.tickAI()` via [app.ts L1737–1751](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/app.ts#L1737-L1751); request replay deduplication is not a scheduler permission |
 | `chat_send` with `channel: "system"` | Parser accepts the channel as part of `isChatChannel` ([L252](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/protocol.ts#L252)) | **Handler rejects** system-channel sends with `INVALID_CHAT_CHANNEL` ([app.ts social handler](https://github.com/whoami22888/isles-of-mythos/blob/0a6c79fe10a3fe61210fe44a88a5bfc2696d6eba/server/src/app.ts)); do not classify this as a confirmed system-message spoof |
 
-**Coverage remaining:** This subset documents 22 high-impact message types/groups; the other inventory rows still require explicit per-message field bounds and handler-error mapping before NET-03 acceptance. Do not treat this section as a completed 123/123 validation matrix or an executed security test.
+**Coverage remaining:** This subset documents 22 priority rows covering 23 distinct message types (the guild-bank deposit/withdraw row covers two); the remaining 100 inventory rows still require explicit per-message field bounds and handler-error mapping before NET-03 acceptance. Do not treat this section as a completed 123/123 validation matrix or an executed security test.
 
 ## Review/acceptance notes
 
