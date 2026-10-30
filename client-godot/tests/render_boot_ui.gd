@@ -3,7 +3,9 @@ extends SceneTree
 ## Fail closed on clipped/overlapping controls, missing focus, blank frames or secrets.
 
 const SIZES: Array[Vector2i] = [Vector2i(1280, 720), Vector2i(960, 540), Vector2i(800, 480)]
-const NAMES: Array[String] = ["Title", "Subtitle", "Status", "Endpoint", "Token", "Connect", "Hint"]
+## Controls visible in the default (player sign-in) state, in on-screen order. Email is registration-only and checked separately.
+const NAMES: Array[String] = ["Title", "Subtitle", "Status", "Endpoint", "Modes", "Identifier", "Password", "Connect", "Hint"]
+const TOUCH_TARGETS: Array[String] = ["Endpoint", "Identifier", "Password", "Connect", "Modes/PlayerLogin", "Modes/RegisterPlayer", "Modes/AdminLogin"]
 
 func _init() -> void:
 	call_deferred("_run")
@@ -77,14 +79,22 @@ func _verify_layout(scene: Control, expected: Vector2i) -> bool:
 			_fail("Boot control too small at %s: %s=%s" % [expected, name, bounds])
 			return false
 		previous_bottom = bounds.end.y
-	for name in ["Endpoint", "Token", "Connect"]:
+	for name in TOUCH_TARGETS:
 		var touch: Control = scene.get_node("Panel/Margin/Content/" + name)
 		if touch.get_global_rect().size.y < 44.0:
 			_fail("Boot interactive target below 44 px at %s: %s" % [expected, name])
 			return false
-	var token: LineEdit = scene.get_node("Panel/Margin/Content/Token")
-	if not token.secret or not token.text.is_empty():
-		_fail("Boot capture would expose an unmasked or populated token")
+	var password: LineEdit = scene.get_node("Panel/Margin/Content/Password")
+	if not password.secret or not password.text.is_empty():
+		_fail("Boot capture would expose an unmasked or populated password")
+		return false
+	var identifier: LineEdit = scene.get_node("Panel/Margin/Content/Identifier")
+	if not identifier.text.is_empty():
+		_fail("Boot capture would expose a populated account identifier")
+		return false
+	var email: LineEdit = scene.get_node("Panel/Margin/Content/Email")
+	if email.visible or not email.text.is_empty():
+		_fail("Registration email field must be hidden and empty in the default sign-in state")
 		return false
 	var title: Label = scene.get_node("Panel/Margin/Content/Title")
 	if title.text != "ISLES OF MYTHOS":
