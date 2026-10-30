@@ -33,7 +33,7 @@ func run() -> void:
 	ok = _check(spawn_marker_count == 1 and scene.player_marker != null, "contract line 33") and ok
 	# Imported RGBA sail cutouts must remain double-sided and carry real
 	# atlas/detail textures even when an emblem ShaderMaterial is applied.
-	var source_ship := load("res://assets/external/polyhaven/dutch_ship_medium/dutch_ship_medium_1k.gltf").instantiate()
+	var source_ship: Node3D = load("res://assets/external/polyhaven/dutch_ship_medium/dutch_ship_medium_1k.gltf").instantiate()
 	var raw_sail := source_ship.find_child("dutch_ship_medium_sails", true, false) as MeshInstance3D
 	ok = _check(raw_sail != null, "source imported sail mesh exists") and ok
 	var raw_uv0 := PackedVector2Array()
