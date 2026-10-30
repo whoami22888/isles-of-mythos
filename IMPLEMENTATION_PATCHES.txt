@@ -32,7 +32,6 @@ GODOT VERIFICATION CHECKLIST
 [ ] Inspect current branch SHA, downstream callers and imported ship material properties.
 [ ] Verify shader import/compilation and actual cross alpha coverage on the correct sails.
 [ ] python3 scripts/validate_godot_assets.py
-[ ] python3 scripts/validate_vendor_lock.js  # use node, not Python; see command below
 [ ] node scripts/validate_vendor_lock.js
 [ ] cd client-godot && godot --headless --rendering-method mobile --path . --script res://tests/realistic_coastal_slice_test.gd
 [ ] cd client-godot && godot --headless --rendering-method mobile --path . --script res://tests/sail_pixel_mask_test.gd
