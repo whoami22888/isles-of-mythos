@@ -827,6 +827,8 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     sockets.add(socket);
     setWebSocketConnections(sockets.size);
     let userId: string | null = null;
+    let authRejected = false;
+    let rejectedAuthCloseTimer: NodeJS.Timeout | null = null;
     let messageWindowStartedAt = Date.now();
     let messageWindowCount = 0;
     let authDeadline: NodeJS.Timeout | null = setTimeout(() => {
@@ -863,6 +865,9 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         return;
       }
       messageQueue = messageQueue.then(async () => {
+        // Once credentials have been rejected, ignore already queued or later
+        // frames while the rejection response is delivered before the close.
+        if (authRejected) return;
         const message = parseClientMessage(rawMessageToString(raw));
 
         if (!message) {
@@ -911,8 +916,15 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             if (base) send(socket, { type: "base_state", base });
           } catch {
             userId = null;
+            authRejected = true;
             send(socket, { type: "error", code: "INVALID_TOKEN" });
-            socket.close(1008, "invalid_token");
+            // Godot's WebSocketPeer discards data frames received in the same
+            // poll as a close frame. Give the error frame a short delivery
+            // window, then close with the same non-retryable policy code.
+            rejectedAuthCloseTimer = setTimeout(() => {
+              rejectedAuthCloseTimer = null;
+              if (socket.readyState === socket.OPEN) socket.close(1008, "invalid_token");
+            }, 100);
           }
           return;
         }
@@ -1880,6 +1892,10 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     });
 
     socket.on("close", () => {
+      if (rejectedAuthCloseTimer) {
+        clearTimeout(rejectedAuthCloseTimer);
+        rejectedAuthCloseTimer = null;
+      }
       if (authDeadline) {
         clearTimeout(authDeadline);
         authDeadline = null;

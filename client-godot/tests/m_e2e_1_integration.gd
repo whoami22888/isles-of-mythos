@@ -83,26 +83,27 @@ func run() -> void:
 	quit(1 if failures > 0 else 0)
 
 
-# A forged token must be refused: the server closes with 1008 and the client must
-# report a rejection, never auth_ok, and never schedule a reconnect. The server's
-# INVALID_TOKEN text is not asserted: Godot's WebSocketPeer drops a data frame that
-# arrives in the same read as the close, so the client cannot rely on that text.
+# A forged token must deliver the actionable INVALID_TOKEN error before the server
+# closes with 1008. It must never authenticate or schedule a reconnect.
 func _check_rejected_token(ws_url: String) -> void:
 	var client = PROTOCOL_SCRIPT.new()
 	root.add_child(client)
-	var seen := {"rejected": false, "auth_ok": false, "reconnects": 0}
+	var seen := {"rejected": false, "error_code": "", "auth_ok": false, "reconnects": 0}
 	client.status_changed.connect(func(status: String) -> void:
 		if status.contains("rejected the session"):
 			seen["rejected"] = true)
 	client.message_received.connect(func(message: Dictionary) -> void:
 		if message.get("type") == "auth_ok":
-			seen["auth_ok"] = true)
+			seen["auth_ok"] = true
+		elif message.get("type") == "error":
+			seen["error_code"] = str(message.get("code", "")))
 	client.reconnect_scheduled.connect(func(_attempt: int, _delay: float) -> void:
 		seen["reconnects"] += 1)
 	client.configure(ws_url, "forged.token.value")
 	client.connect_to_server()
-	var refused := await _wait_until(func() -> bool: return seen["rejected"])
+	var refused := await _wait_until(func() -> bool: return seen["rejected"] and not str(seen["error_code"]).is_empty())
 	check(refused, "Forged token must be reported as a server rejection (close 1008)")
+	check(seen["error_code"] == "INVALID_TOKEN", "Forged token must deliver the INVALID_TOKEN server error")
 	check(not seen["auth_ok"], "Forged token must never receive auth_ok")
 	await create_timer(0.5).timeout
 	check(seen["reconnects"] == 0, "Server rejection must not schedule a reconnect")
