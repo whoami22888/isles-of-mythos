@@ -1,5 +1,7 @@
 extends SceneTree
 
+const HD_WRAPPER := preload("res://scripts/sail_emblem_hd_wrapper.gd")
+
 func _init() -> void:
 	call_deferred("run")
 
@@ -76,6 +78,9 @@ func run() -> void:
 							ok = _check(composed.get_shader_parameter("base_sail_tex") != null, "sail RGBA atlas retained") and ok
 							ok = _check(composed.get_shader_parameter("order_cross_emblem") != null, "order cross mask loaded") and ok
 							ok = _check(float(composed.get_shader_parameter("alpha_scissor_threshold")) > 0.0, "sail cutout threshold") and ok
+							ok = _check(bool(composed.get_shader_parameter("use_vector_cross")), "HD analytic Order Cross enabled") and ok
+							ok = _check(float(composed.get_shader_parameter("emblem_scale")) >= 1.0, "HD emblem remains inset") and ok
+							ok = _check(float(composed.get_shader_parameter("fabric_weave_strength")) >= 0.0, "HD fabric microdetail configured") and ok
 							var decorated_arrays: Array = mesh_instance.mesh.surface_get_arrays(surface_index)
 							var original_uv: PackedVector2Array = decorated_arrays[Mesh.ARRAY_TEX_UV]
 							var emblem_uv: PackedVector2Array = decorated_arrays[Mesh.ARRAY_TEX_UV2]
@@ -102,6 +107,21 @@ func run() -> void:
 			pending_ship.append(child)
 	ok = _check(sail_materials > 0, "sail surfaces detected") and ok
 	ok = _check(emblem_materials > 0 and emblem_materials == sail_materials, "all sail surfaces composited") and ok
+	# Existing UV2 must not be regenerated over its own emissive/lightmap field.
+	# A second wrapper call fails closed, preserving the validated sail mesh.
+	var old_ship_mesh: Mesh = null
+	for mesh_node in scene.ship_focal.find_children("*", "MeshInstance3D", true, false):
+		if str(mesh_node.name).to_lower().contains("sail"):
+			old_ship_mesh = mesh_node.mesh
+			break
+	var duplicate_wrap: Dictionary = HD_WRAPPER.apply(scene.ship_focal, 4, 2)
+	ok = _check(duplicate_wrap.has("error"), "HD wrapper refuses already mapped UV2") and ok
+	var post_ship_mesh: Mesh = null
+	for mesh_node in scene.ship_focal.find_children("*", "MeshInstance3D", true, false):
+		if str(mesh_node.name).to_lower().contains("sail"):
+			post_ship_mesh = mesh_node.mesh
+			break
+	ok = _check(old_ship_mesh == post_ship_mesh, "HD wrapper fail closed without mutating installed sail") and ok
 	# The premium content layer must contain real varied tropical geometry; a
 	# shader-only or palette-only replacement cannot satisfy the coastal brief.
 	var premium_layer := scene.get_node_or_null("VerifiedTropicalContentLayer")
