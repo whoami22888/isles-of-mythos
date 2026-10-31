@@ -20,10 +20,11 @@ describe("Gate 13 invasion persistence",()=>{
    await db.query("INSERT INTO base_buildings(base_id,type,level,grid_x,grid_y,active) VALUES($1,'barracks',1,1,0,true)",[base.id]);
    const army=await db.query<{id:string}>("INSERT INTO armies(owner_user_id,name) VALUES($1,'Invasion Guard') RETURNING id",[user]);
    await db.query("INSERT INTO army_units(army_id,unit_type,category,quantity,health,max_health,attack,defense,range,speed,ability_ids) VALUES($1,'pirate_infantry','infantry',1000,100000,100000,1000,1000,1,3,'[]'::jsonb)",[army.rows[0].id]);
-   const db2=createDbPool();try{
+   const db2=createDbPool();let invasionId:string|undefined;try{
     const invasionStore=new InvasionStore(db2);
     const territory=(await db2.query<{id:string}>("SELECT id FROM territories WHERE name='Sunken Coast'")).rows[0];expect(territory).toBeTruthy();
     const invasion=await invasionStore.create(user,territory.id,"npc_realm",5000);
+    invasionId=invasion.id;
     expect(invasion.phase).toBe("WARNING");
     await invasionStore.join(user,invasion.id,army.rows[0].id,"tank");
     const participant=await db2.query<{role:string}>("SELECT role FROM invasion_participants WHERE invasion_id=$1 AND user_id=$2",[invasion.id,user]);
@@ -59,7 +60,12 @@ describe("Gate 13 invasion persistence",()=>{
     expect(inventory.rows[0]?.inventory["resource.wood"]).toBeGreaterThan(0);
     expect(inventory.rows[0]?.inventory["resource.steel"]).toBeGreaterThan(0);
     expect(inventory.rows[0]?.inventory["treasure.map.high-tier"]).toBeGreaterThan(0);
-   }finally{await db2.end();}
+   }finally{
+    // Remove this run's invasion (cascades to waves, participants, rewards, consequences) so reruns
+    // against the same database do not trip INVASION_ALREADY_ACTIVE on the shared territory.
+    if(invasionId)await db2.query("DELETE FROM invasions WHERE id=$1",[invasionId]);
+    await db2.end();
+  }
   }finally{await db.end();if(app.server.listening)await app.close();}
  });
 });
