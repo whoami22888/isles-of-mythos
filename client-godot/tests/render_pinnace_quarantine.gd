@@ -64,7 +64,7 @@ func _run() -> void:
 	# similar cove footprint; actual capture determines framing quality.
 	replacement.scale = Vector3.ONE * 0.55
 	scene.add_child(replacement)
-	var result: Dictionary = WRAPPER.apply(replacement, 8, 5)
+	var result: Dictionary = WRAPPER.apply(replacement, 8, 5, 0.76)
 	if result.has("error"):
 		_fail("Pinnace HD Order Cross wrapper: " + str(result["error"]))
 		return
