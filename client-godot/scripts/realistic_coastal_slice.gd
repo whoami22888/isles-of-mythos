@@ -14,9 +14,7 @@ const COAST_ROUGHNESS := preload("res://assets/external/polyhaven/coast_sand_roc
 const COAST_AO := preload("res://assets/external/polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_ao_1k.jpg")
 const SHORE_BAKER := preload("res://scripts/coastal_shore_heightfield.gd")
 const OCEAN_SHADER := preload("res://shaders/ocean_surface.gdshader")
-const SAIL_SHADER := preload("res://shaders/sail_shader.gdshader")
-const ORDER_CROSS_EMBLEM := preload("res://assets/emblems/order_cross_mask.svg")
-const SAIL_EMBLEM_UV := preload("res://scripts/order_cross_uv_mapper.gd")
+const SAIL_HD_WRAPPER := preload("res://scripts/sail_emblem_hd_wrapper.gd")
 const WATER_Y := -0.35
 const GAMEPLAY_CAMERA := Vector3(13.0, 12.0, -14.0)
 const CINEMATIC_START_CAMERA := Vector3(-11.0, 5.5, -18.0)
@@ -313,72 +311,12 @@ func _build_premium_landmarks() -> void:
 	add_child(player_marker)
 
 func _configure_ship_sails(root: Node) -> void:
-	# Keep original authenticated GLTF data untouched. Compose the emblem
-	# only on identified sail surfaces and retain their alpha/PBR textures.
-	for node in root.get_children():
-		if node is MeshInstance3D:
-			var mesh_instance := node as MeshInstance3D
-			if mesh_instance.mesh:
-				for surface_index in range(mesh_instance.mesh.get_surface_count()):
-					var material := mesh_instance.get_active_material(surface_index) as BaseMaterial3D
-					if material == null:
-						continue
-					var material_name := str(material.resource_name).to_lower()
-					var node_name := str(mesh_instance.name).to_lower()
-					if not material_name.contains("sail") and not node_name.contains("sail"):
-						continue
-					if material.albedo_texture == null:
-						push_error("Imported sail is missing its alpha-composited atlas")
-						continue
-					# The authored UV0 atlas maps four disconnected sail pieces to
-					# different rectangular regions. Generate separate UV2 panels for
-					# the two full lower sails, leaving furled upper cloth unmarked.
-					var original_mesh := mesh_instance.mesh as ArrayMesh
-					if original_mesh == null or original_mesh.get_surface_count() != 1:
-						push_error("Unexpected imported sail mesh surface layout")
-						continue
-					var mapped: Dictionary = SAIL_EMBLEM_UV.create_mesh(original_mesh, surface_index)
-					if mapped.has("error"):
-						push_error("Order Cross placement blocked: " + str(mapped["error"]))
-						continue
-					mesh_instance.mesh = mapped["mesh"]
-					mesh_instance.set_surface_override_material(surface_index,
-						_make_order_cross_sail_material(material))
-		for child in node.get_children():
-			_configure_ship_sails(child)
-
-
-func _make_order_cross_sail_material(source: BaseMaterial3D) -> ShaderMaterial:
-	# Rebind the source's authored surface maps; never flatten the existing
-	# roughness, AO or normal data just to overlay heraldry.
-	var sail := ShaderMaterial.new()
-	sail.resource_name = "OrderCrossSail"
-	sail.shader = SAIL_SHADER
-	sail.set_shader_parameter("base_sail_tex", source.albedo_texture)
-	sail.set_shader_parameter("order_cross_emblem", ORDER_CROSS_EMBLEM)
-	sail.set_shader_parameter("base_tint", Color.WHITE)
-	sail.set_shader_parameter("cross_color", Color(0.8, 0.1, 0.1, 1.0))
-	sail.set_shader_parameter("alpha_scissor_threshold",
-		maxf(0.01, source.alpha_scissor_threshold))
-	sail.set_shader_parameter("sail_roughness", source.roughness)
-	sail.set_shader_parameter("sail_metallic", source.metallic)
-	if source.normal_enabled and source.normal_texture != null:
-		sail.set_shader_parameter("has_normal_map", true)
-		sail.set_shader_parameter("sail_normal_tex", source.normal_texture)
-		sail.set_shader_parameter("sail_normal_depth", source.normal_scale)
-	if source.roughness_texture != null:
-		sail.set_shader_parameter("has_roughness_map", true)
-		sail.set_shader_parameter("sail_roughness_tex", source.roughness_texture)
-		sail.set_shader_parameter("roughness_channel", int(source.roughness_texture_channel))
-	if source.metallic_texture != null:
-		sail.set_shader_parameter("has_metallic_map", true)
-		sail.set_shader_parameter("sail_metallic_tex", source.metallic_texture)
-		sail.set_shader_parameter("metallic_channel", int(source.metallic_texture_channel))
-	if source.ao_enabled and source.ao_texture != null:
-		sail.set_shader_parameter("has_ao_map", true)
-		sail.set_shader_parameter("sail_ao_tex", source.ao_texture)
-		sail.set_shader_parameter("ao_channel", int(source.ao_texture_channel))
-	return sail
+	# One atomic wrapper preserves every imported UV0 atlas and PBR map.
+	# The existing Dutch medium asset has exactly four disconnected cloth
+	# components; only its two wide lower panels receive the Order Cross.
+	var result: Dictionary = SAIL_HD_WRAPPER.apply(root, 4, 2)
+	if result.has("error"):
+		push_error("Order Cross sail wrapper blocked: " + str(result["error"]))
 
 func _reduce_surface_triangles(source: ArrayMesh, surface_index: int, _max_triangles: int) -> Array:
 	# A triangle budget cannot justify punching holes in an authored surface.
