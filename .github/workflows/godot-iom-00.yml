@@ -1,10 +1,8 @@
 name: IOM-00 Godot client
 
 on:
+  # Every pull request builds and uploads a debug APK (IOM-00), not only client-godot changes.
   pull_request:
-    paths:
-      - "client-godot/**"
-      - ".github/workflows/godot-iom-00.yml"
   workflow_dispatch:
 
 permissions:
@@ -48,7 +46,15 @@ jobs:
           set -euo pipefail
           "$RUNNER_TEMP/godot/godot" --headless --editor --path client-godot --quit --import
           "$RUNNER_TEMP/godot/godot" --headless --path client-godot --script res://tests/headless_smoke.gd
+          "$RUNNER_TEMP/godot/godot" --headless --path client-godot --script res://tests/websocket_adapter_hardening_test.gd
           "$RUNNER_TEMP/godot/godot" --headless --path client-godot --script res://tests/island_preview_smoke.gd
+          "$RUNNER_TEMP/godot/godot" --headless --path client-godot --script res://tests/vertical_slice_smoke.gd
+          "$RUNNER_TEMP/godot/godot" --headless --path client-godot --script res://tests/vertical_slice_protocol_regression.gd
+          "$RUNNER_TEMP/godot/godot" --headless --path client-godot --script res://tests/vertical_slice_world_regression.gd
+          "$RUNNER_TEMP/godot/godot" --headless --path client-godot --script res://tests/vertical_slice_review_regression.gd
+          "$RUNNER_TEMP/godot/godot" --headless --path client-godot --script res://tests/vertical_slice_ground_coverage_regression.gd
+          "$RUNNER_TEMP/godot/godot" --headless --path client-godot --script res://tests/phone_handoff_regression.gd
+          "$RUNNER_TEMP/godot/godot" --headless --path client-godot --script res://tests/creature_snapshot_assembler_test.gd
       - name: Verify Android export prerequisites
         shell: bash
         run: |
@@ -66,8 +72,20 @@ jobs:
           mkdir -p "$RUNNER_TEMP/iom-artifacts"
           "$RUNNER_TEMP/godot/godot" --headless --path client-godot --export-debug "Android Debug" "$RUNNER_TEMP/iom-artifacts/isles-of-mythos-debug.apk"
           sha256sum "$RUNNER_TEMP/iom-artifacts/isles-of-mythos-debug.apk" | tee "$RUNNER_TEMP/iom-artifacts/SHA256SUMS"
+      - name: Verify the APK carries a valid signature
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${ANDROID_HOME:=${ANDROID_SDK_ROOT:-}}"
+          apksigner="$(ls -1 "$ANDROID_HOME"/build-tools/*/apksigner 2>/dev/null | sort -V | tail -n 1 || true)"
+          if [ -z "$apksigner" ] || [ ! -x "$apksigner" ]; then
+            echo "::error::apksigner is unavailable; the APK cannot be described as signed."
+            exit 1
+          fi
+          "$apksigner" verify --verbose "$RUNNER_TEMP/iom-artifacts/isles-of-mythos-debug.apk" | tee "$RUNNER_TEMP/iom-artifacts/APKSIGNER.txt"
       - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
         with:
           name: iom-00-android-debug
           path: ${{ runner.temp }}/iom-artifacts
           if-no-files-found: error
+          retention-days: 14

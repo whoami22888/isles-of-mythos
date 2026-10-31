@@ -1,3 +1,5 @@
+import { parseRealmAiIntervalMs } from "./realm-ai-scheduler.js";
+
 const DEFAULT_PORT = 3000;
 const DEFAULT_CORS_ORIGIN = "http://localhost:5173";
 const DEFAULT_DATABASE_POOL_MAX = 50;
@@ -36,6 +38,19 @@ function parseCorsOrigin(value: string | undefined, environment: "development" |
   return DEFAULT_CORS_ORIGIN;
 }
 
+function parseAdminUserIds(value: string | undefined): ReadonlySet<string> {
+  const ids = new Set<string>();
+  for (const raw of (value ?? "").split(",")) {
+    const id = raw.trim().toLowerCase();
+    if (!id) continue;
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(id)) {
+      throw new Error("ADMIN_USER_IDS must contain only comma-separated UUIDs");
+    }
+    ids.add(id);
+  }
+  return ids;
+}
+
 const environment = parseEnvironment(process.env.ENVIRONMENT);
 
 const databaseUrl = process.env.DATABASE_URL?.trim() ?? "";
@@ -54,8 +69,10 @@ export const config = {
   environment,
   databaseUrl: databaseUrl || "postgres://postgres:postgres@localhost:5432/isles",
   redisUrl: process.env.REDIS_URL ?? "redis://localhost:6379",
+  realmAiTickMs: parseRealmAiIntervalMs(process.env.REALM_AI_TICK_MS),
   jwtSecret: jwtSecret || "development-only-secret-change-me",
   corsOrigin: parseCorsOrigin(process.env.CORS_ORIGIN, environment),
   databasePoolMax: parseDatabasePoolMax(process.env.DB_POOL_MAX),
   websocketMaxPayloadBytes: 64 * 1024,
+  adminUserIds: parseAdminUserIds(process.env.ADMIN_USER_IDS),
 } as const;

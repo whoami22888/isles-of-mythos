@@ -81,7 +81,31 @@ export async function gatherResource(
       throw new Error("RESOURCE_NODE_MISMATCH");
     }
     if (stored.depleted_until && new Date(stored.depleted_until).getTime() > Date.now()) {
-      throw new Error("RESOURCE_DEPLETED");
+      // A retry of a request that is still in flight misses the first ledger lookup (the winner has not
+      // committed yet), then waits on the node lock and finds the node depleted by that very request.
+      // Re-read the ledger now (READ COMMITTED sees the winner's commit) so the retry replays instead of failing.
+      const settled = await client.query<{
+        fingerprint: string;
+        transaction_id: string;
+        node_id: string;
+        item_id: string;
+        quantity: number;
+        respawns_at: string;
+      }>(
+        "SELECT fingerprint,transaction_id,node_id,item_id,quantity,respawns_at FROM resource_gather_requests WHERE user_id=$1 AND request_id=$2 FOR UPDATE",
+        [userId, requestId],
+      );
+      const prior = settled.rows[0];
+      if (!prior) throw new Error("RESOURCE_DEPLETED");
+      if (prior.fingerprint !== fingerprint) throw new Error("RESOURCE_REQUEST_CONFLICT");
+      await measureMutationStage(timing, "commitMs", () => client.query("COMMIT"));
+      return {
+        transactionId: prior.transaction_id,
+        nodeId: prior.node_id,
+        itemId: prior.item_id,
+        quantity: prior.quantity,
+        respawnsAt: new Date(prior.respawns_at).toISOString(),
+      };
     }
 
     const requestInsert = await client.query<{ request_id: string; transaction_id: string }>(

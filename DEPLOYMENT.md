@@ -10,6 +10,7 @@ Required production variables:
 - POSTGRES_PASSWORD
 - DATABASE_URL
 - JWT_SECRET
+- ADMIN_USER_IDS (optional; comma-separated admin UUIDs, empty by default)
 - CORS_ORIGIN
 - PUBLIC_DOMAIN
 - ACME_EMAIL

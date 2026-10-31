@@ -1,0 +1,38 @@
+{
+  "schema": "isles-godot-feature-coverage-v1",
+  "status": "NON_PRODUCTION_VERTICAL_SLICE",
+  "exact_source_main": "ad2362e55a2a96010cfdee1ff603dc2accc61357",
+  "playable_slice": {
+    "name": "authenticated_world_resource_gather",
+    "scene": "client-godot/gameplay/vertical_slice.tscn",
+    "protocol": ["auth", "player_state", "subscribe_chunks", "gather_resource", "resource_gathered"],
+    "disposition": "DEVELOPER_LAUNCH_ONLY_PENDING_REAL_DB_ANDROID_AND_EXACT_SHA_GATES",
+    "default_user_facing_scene": false,
+    "developer_launch": "godot --path client-godot res://gameplay/vertical_slice.tscn",
+    "authority": "Fastify/PostgreSQL",
+    "local_state_minting": false
+  },
+  "coverage": {
+    "characters": "MISSING",
+    "monsters_dragons_mounts": "MISSING",
+    "ships_fleets": "MISSING",
+    "villages_buildings": "MISSING",
+    "armies": "MISSING",
+    "battles": "MISSING",
+    "harvesting": "PARTIAL__RESOURCE_GATHER_ONLY",
+    "territory": "MISSING",
+    "touch_camera": "PARTIAL__TOUCH_COMMAND_INPUT_ONLY",
+    "server_visible_rts_selection_minimap": "MISSING",
+    "persistent_state_reflection": "PARTIAL__RESOURCE_ACK_STATE_ONLY",
+    "android_arm64_apk": "NOT_VERIFIED",
+    "galaxy_s23_ultra_metrics": "MISSING"
+  },
+  "visual_evidence": {
+    "procedural_scaffold": true,
+    "premium_graphics_claim": false,
+    "godot_png_sha256": null,
+    "godot_mp4_sha256": null,
+    "license_receipts": "NO_EXTERNAL_ASSETS",
+    "owner_reference_comparison": "NOT_RUN"
+  }
+}

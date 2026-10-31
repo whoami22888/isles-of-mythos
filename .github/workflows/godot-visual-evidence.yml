@@ -68,6 +68,26 @@ jobs:
             exit 1
           fi
           (cd "$RUNNER_TEMP/visual-evidence" && sha256sum *.png > SHA256SUMS)
+      - name: Capture actual boot UI and verify mobile viewport layout/focus
+        shell: bash
+        run: |
+          set -euo pipefail
+          IOM_BOOT_UI_OUTPUT_DIR="$RUNNER_TEMP/visual-evidence" xvfb-run -a -s "-screen 0 1280x720x24" "$RUNNER_TEMP/godot" --path client-godot --rendering-method mobile --script res://tests/render_boot_ui.gd
+          for name in boot-1280x720.png boot-960x540.png boot-800x480.png boot-focused-1280x720.png; do
+            test -s "$RUNNER_TEMP/visual-evidence/$name"
+            file "$RUNNER_TEMP/visual-evidence/$name"
+          done
+          (cd "$RUNNER_TEMP/visual-evidence" && sha256sum boot-*.png > BOOT-UI-SHA256SUMS && sha256sum sculpted-terrain-preview.png island-preview.png coastal-cinematic.png > SHA256SUMS)
+      - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
+        with:
+          name: godot-boot-ui-visual-evidence
+          path: |
+            ${{ runner.temp }}/visual-evidence/boot-1280x720.png
+            ${{ runner.temp }}/visual-evidence/boot-960x540.png
+            ${{ runner.temp }}/visual-evidence/boot-800x480.png
+            ${{ runner.temp }}/visual-evidence/boot-focused-1280x720.png
+            ${{ runner.temp }}/visual-evidence/BOOT-UI-SHA256SUMS
+          if-no-files-found: error
       - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
         with:
           name: godot-rendered-sculpted-terrain

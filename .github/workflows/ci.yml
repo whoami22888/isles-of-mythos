@@ -24,6 +24,7 @@ jobs:
       ENVIRONMENT: test
       DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/isles_test
       JWT_SECRET: test-only-jwt-secret-not-for-production
+      REDIS_URL: redis://127.0.0.1:6379
     services:
       postgres:
         image: cgr.dev/chainguard/postgres@sha256:0926ac7262a2c1963179eb939cd5d610e1be3ecca90b4b5cad8db8df16fab87e
@@ -97,6 +98,31 @@ jobs:
           ACME_EMAIL: ci@example.invalid
         run: docker compose config -q
 
+      - name: Start Redis for anti-cheat shared-state tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Digest-pinned multi-arch image. Bound to runner loopback only; protected-mode is disabled because the
+          # container sees the docker bridge gateway as the client address. No persistence is needed for tests.
+          docker run --detach --name isles-ci-redis --publish 127.0.0.1:6379:6379 \
+            cgr.dev/chainguard/redis@sha256:3f3fc328656462296b9d4cb04848780a3d0ddb0ad5d86482cda882735217d899 \
+            --protected-mode no --save "" --appendonly no
+          for attempt in $(seq 1 30); do
+            if exec 3<>/dev/tcp/127.0.0.1/6379 2>/dev/null; then
+              printf 'PING\r\n' >&3
+              reply="$(timeout 2 head -c 7 <&3 || true)"
+              exec 3<&- 3>&-
+              if [ "${reply%$'\r'}" = "+PONG" ] || [[ "$reply" == +PONG* ]]; then
+                echo "Redis ready after ${attempt} attempt(s)"
+                exit 0
+              fi
+            fi
+            sleep 1
+          done
+          docker logs isles-ci-redis || true
+          echo "Redis did not become ready" >&2
+          exit 1
+
       - name: Run cross-instance combat cooldown regression
         run: npm run test -w server -- src/index.test.ts -t "enforces one authoritative projectile cooldown across server instances"
 
@@ -106,7 +132,34 @@ jobs:
       - name: Verify exact-SHA Codex integration policy regressions
         run: node --test scripts/auto-merge-gate.test.mjs
 
-      - run: npm run test
+      - name: Verify IOM-00 infrastructure guards (vendor lock, workflow matrices, orchestrator)
+        run: |
+          set -euo pipefail
+          node --test scripts/validate_vendor_lock.test.mjs
+          node scripts/validate_vendor_lock.js
+          python3 -m unittest discover -s scripts -p "test_check_workflow_matrices.py"
+          python3 scripts/check_workflow_matrices.py
+          python3 -m unittest discover -s tools -p "test_orchestrator.py"
+
+      - name: Install pinned Godot 4.7.2 for the Fastify-Godot end-to-end test
+        shell: bash
+        env:
+          GODOT_SHA256: cadd3204e728a35d3f13adb7fd0d7902636b79f6b95c40c265eb73b6c35329e4
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/godot"
+          curl --fail --location --retry 3 -o "$RUNNER_TEMP/godot/godot.zip" "https://github.com/godotengine/godot/releases/download/4.7.2-stable/Godot_v4.7.2-stable_linux.x86_64.zip"
+          echo "$GODOT_SHA256  $RUNNER_TEMP/godot/godot.zip" | sha256sum --check
+          unzip -q "$RUNNER_TEMP/godot/godot.zip" -d "$RUNNER_TEMP/godot/bin"
+          install "$RUNNER_TEMP/godot/bin/Godot_v4.7.2-stable_linux.x86_64" "$RUNNER_TEMP/godot/godot"
+          "$RUNNER_TEMP/godot/godot" --version | grep -F "4.7.2.stable"
+          "$RUNNER_TEMP/godot/godot" --headless --editor --path client-godot --quit --import
+          echo "GODOT_BIN=$RUNNER_TEMP/godot/godot" >> "$GITHUB_ENV"
+
+      - name: Run server tests (Godot end-to-end is mandatory, never skipped)
+        env:
+          REQUIRE_GODOT_E2E: "1"
+        run: npm run test
       - run: npm run build
 
       - name: Build production Docker image

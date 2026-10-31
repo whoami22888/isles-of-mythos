@@ -7,7 +7,14 @@ func _initialize() -> void:
         push_error("Terrain script unavailable")
         quit(1)
         return
+    # The terrain is an unparented Node3D (an Object, not RefCounted): it must be freed explicitly on every
+    # path, otherwise Godot reports leaked ObjectDB instances and resources at exit.
     var terrain: Node3D = script.new()
+    var ok := _check(terrain)
+    terrain.free()
+    quit(0 if ok else 1)
+
+func _check(terrain: Node3D) -> bool:
     var mesh: ArrayMesh = terrain.build_mesh()
     var arrays := mesh.surface_get_arrays(0)
     var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
@@ -18,8 +25,7 @@ func _initialize() -> void:
     var expected_indices: int = 3 * terrain.radial_segments * (2 * terrain.ring_segments - 1)
     if vertices.size() != expected_vertices or indices.size() != expected_indices or colors.size() != expected_vertices:
         push_error("Unexpected terrain topology")
-        quit(1)
-        return
+        return false
     for i in range(0, indices.size(), 3):
         var a := vertices[indices[i]]
         var b := vertices[indices[i + 1]]
@@ -27,29 +33,23 @@ func _initialize() -> void:
         var face: Vector3 = (b - a).cross(c - a)
         if face.length_squared() < 0.00000001:
             push_error("Degenerate triangle at %d" % i)
-            quit(1)
-            return
+            return false
         if face.y >= -0.00000001:
             push_error("Triangle has incorrect Godot front-face winding at %d" % i)
-            quit(1)
-            return
+            return false
     if absf(terrain.terrain_height(0.0, 0.0) - terrain.terrain_height(0.0, PI)) > 0.0001:
         push_error("Central terrain height depends on angle")
-        quit(1)
-        return
+        return false
     if terrain.terrain_height(0.55, 0.0) <= terrain.terrain_height(0.8, 0.0) + 1.0:
         push_error("Cliff rise is missing")
-        quit(1)
-        return
+        return false
     for normal in normals:
         if not normal.is_finite() or normal.y <= 0.0:
             push_error("Invalid or downward-facing terrain normal")
-            quit(1)
-            return
+            return false
     var second: ArrayMesh = terrain.build_mesh()
     if second.surface_get_arrays(0)[Mesh.ARRAY_VERTEX] != vertices:
         push_error("Terrain geometry is not deterministic")
-        quit(1)
-        return
+        return false
     print("PASS sculpted terrain topology, winding, normals and determinism")
-    quit(0)
+    return true

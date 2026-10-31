@@ -47,6 +47,8 @@ services:
     environment:
       ENVIRONMENT: production
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      # Shared anti-cheat detection state; without this every instance would fall back to process-local state.
+      REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       CORS_ORIGIN: ${CORS_ORIGIN:?CORS_ORIGIN is required}
     depends_on:
@@ -68,6 +70,7 @@ services:
       CORS_ORIGIN: ${CORS_ORIGIN:?CORS_ORIGIN is required}
       SERVER_HOST: 0.0.0.0
       SERVER_PORT: 3000
+      ADMIN_USER_IDS: ${ADMIN_USER_IDS:-}
     depends_on:
       migrate:
         condition: service_completed_successfully

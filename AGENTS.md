@@ -9,6 +9,10 @@ This file is a navigation layer. The linked project documents remain authoritati
 3. `CONTRIBUTING.md` and `TESTING.md` (scope, test order, and anti-loop rules).
 4. `.project/AUTONOMOUS-BUILD-STATE.md`, the separate Notion Commercial Production Control Centre (Build Instructions, Harvest Parts, Progress and Audit), the legacy Master Project Index for its frozen decisions, and live GitHub state. Follow the commercial Godot architecture; do not substitute historical engine plans.
 
+The canonical evidence-backed repair protocol is maintained in
+`.project/AUTONOMOUS-BUILD-STATE.md`. Read and apply that section for every
+authorised repair; this navigation file does not mechanically enforce it.
+
 Gates 1–16 remain frozen. Step 5 remains blocked until the current independent Step 2 audit, migration deployment-history evidence for migrations 029 and 036, capture-probability/local-save reconciliation, and required owner authorization are all recorded; no generic or historical review substitutes for these prerequisites.
 
 ## Before a change

@@ -74,7 +74,8 @@ export type ServerMessage =
   | ProjectileSpawnMessage
   | CombatResultMessage
   | { type: "creature_state"; requestId?: string; creature: CreatureState }
-  | { type: "creature_party"; creatures: CreatureState[] }
+  | { type: "creature_party"; creatures: CreatureState[]; snapshotId?: number; page?: number; pageCount?: number; total?: number }
+  | { type: "creature_party_page"; creatures: CreatureState[]; snapshotId: number; page: number; pageCount: number; total: number }
   | { type: "craft_result"; requestId: string; transactionId: string; recipeId: string; state: PlayerState }
   | { type: "shop_purchase_result"; requestId: string; transactionId: string; itemId: string; quantity: number; totalGold: string; state: PlayerState }
   | { type: "trade_result"; requestId: string; transactionId: string; from: EconomySnapshot; to: EconomySnapshot }
@@ -190,6 +191,13 @@ function isArmySummary(value: unknown): value is ArmySummary {
     typeof value.status === "string";
 }
 
+function snapshotPaging(value: Record<string, unknown>): { snapshotId: number; page: number; pageCount: number; total: number } | null {
+  const count = (v: unknown): v is number => typeof v === "number" && Number.isSafeInteger(v) && v >= 0;
+  const { snapshotId, page, pageCount, total } = value;
+  return count(snapshotId) && count(page) && count(pageCount) && count(total) && pageCount >= 1 && page < pageCount
+    ? { snapshotId, page, pageCount, total } : null;
+}
+
 export function parseServerMessage(value: unknown): ServerMessage | null {
   if (!isRecord(value) || typeof value.type !== "string") return null;
   switch (value.type) {
@@ -218,8 +226,19 @@ export function parseServerMessage(value: unknown): ServerMessage | null {
       return isCreatureState(value.creature)
         ? { type:"creature_state", ...(typeof value.requestId === "string" ? { requestId:value.requestId } : {}), creature:value.creature }
         : null;
-    case "creature_party":
-      return Array.isArray(value.creatures) && value.creatures.every(isCreatureState) ? { type:"creature_party", creatures:value.creatures } : null;
+    case "creature_party": {
+      if (!Array.isArray(value.creatures) || !value.creatures.every(isCreatureState)) return null;
+      // Paging metadata (MYTHOS-NET-05) is optional so a legacy single-frame snapshot still parses.
+      const paged = value.snapshotId !== undefined || value.page !== undefined || value.pageCount !== undefined || value.total !== undefined;
+      if (!paged) return { type:"creature_party", creatures:value.creatures };
+      const meta = snapshotPaging(value);
+      return meta ? { type:"creature_party", creatures:value.creatures, ...meta } : null;
+    }
+    case "creature_party_page": {
+      if (!Array.isArray(value.creatures) || !value.creatures.every(isCreatureState)) return null;
+      const meta = snapshotPaging(value);
+      return meta ? { type:"creature_party_page", creatures:value.creatures, ...meta } : null;
+    }
     case "craft_result":
       return typeof value.requestId === "string" && typeof value.transactionId === "string" && typeof value.recipeId === "string" && isPlayerState(value.state)
         ? { type:"craft_result", requestId:value.requestId, transactionId:value.transactionId, recipeId:value.recipeId, state:value.state } : null;
