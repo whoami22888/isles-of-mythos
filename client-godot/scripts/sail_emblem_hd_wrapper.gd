@@ -8,7 +8,7 @@ const CROSS_TEXTURE := preload("res://assets/emblems/order_cross_mask.svg")
 const UV_MAPPER := preload("res://scripts/order_cross_uv_mapper.gd")
 
 
-static func _shader_for_source(source: BaseMaterial3D) -> ShaderMaterial:
+static func _shader_for_source(source: BaseMaterial3D, linen_grade_strength: float) -> ShaderMaterial:
 	var cloth := ShaderMaterial.new()
 	cloth.resource_name = "OrderCrossSail"
 	cloth.shader = SAIL_SHADER
@@ -20,6 +20,7 @@ static func _shader_for_source(source: BaseMaterial3D) -> ShaderMaterial:
 	cloth.set_shader_parameter("use_vector_cross", true)
 	cloth.set_shader_parameter("emblem_scale", 1.25)
 	cloth.set_shader_parameter("fabric_weave_strength", 0.02)
+	cloth.set_shader_parameter("linen_grade_strength", linen_grade_strength)
 	cloth.set_shader_parameter("alpha_scissor_threshold",
 		maxf(0.01, source.alpha_scissor_threshold))
 	cloth.set_shader_parameter("sail_roughness", source.roughness)
@@ -44,10 +45,10 @@ static func _shader_for_source(source: BaseMaterial3D) -> ShaderMaterial:
 
 
 static func apply(ship_root: Node, expected_components: int = 4,
-		expected_panels: int = 2) -> Dictionary:
+		expected_panels: int = 2, linen_grade_strength: float = 0.0) -> Dictionary:
 	# Prepare all replacements before mutation; unexpected source UV islands
 	# never leave a partially decorated ship.
-	if ship_root == null or expected_components < 1 or expected_panels < 1:
+	if ship_root == null or expected_components < 1 or expected_panels < 1 or linen_grade_strength < 0.0 or linen_grade_strength > 1.0:
 		return {"error": "Invalid sail root/profile"}
 	var work: Array = []
 	var queue: Array[Node] = [ship_root]
@@ -74,7 +75,7 @@ static func apply(ship_root: Node, expected_components: int = 4,
 					if mapping.has("error"):
 						return {"error": mapping["error"]}
 					work.append({"node": mesh_instance, "mesh": mapping["mesh"],
-						"material": _shader_for_source(source)})
+						"material": _shader_for_source(source, linen_grade_strength)})
 		for child in node.get_children():
 			queue.append(child)
 	if work.size() != 1:
