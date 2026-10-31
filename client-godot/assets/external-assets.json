@@ -788,7 +788,21 @@
       "generation_note": "Authored in Blender 4.3.2 headless with deterministic decimation and embedded admitted PBR maps; not a source download.",
       "upstream_source_sha256": "2e6bb1f77965b314208b309ac89b94b8148c6a08ee6c9808cd71455e5475602d",
       "authoring_tool": "Blender 4.3.2",
-      "godot_validation": "PENDING_GODOT_4.7.2_MOBILE"
+      "godot_validation": "PENDING_GODOT_4.7.2_MOBILE",
+      "generated_import_outputs": [
+        {
+          "path": "generated/coastal_cliff_blender/coastal_cliff_lod1_coastal_cliff_01_nor_gl_1k.jpg",
+          "sha256": "afbe8c2f9ff62dd616f776c074b996d2d275eef982a40aee1f28f4f3b3a3cf0e"
+        },
+        {
+          "path": "generated/coastal_cliff_blender/coastal_cliff_lod1_coastal_cliff_01_diff_1k.jpg",
+          "sha256": "6c9626fdb5550ba260b195638c8c89053faedc22005f4ca94d3be5df72ae525a"
+        },
+        {
+          "path": "generated/coastal_cliff_blender/coastal_cliff_lod1_coastal_cliff_01_arm_1k.jpg",
+          "sha256": "7f287d0b44a3162b5e360fe45ccc8b6009c189d21bd33c1094060eef613c6fa6"
+        }
+      ]
     },
     {
       "id": "generated-coastal-cliff-b18b43fe4e03",
@@ -805,7 +819,21 @@
       "generation_note": "Authored in Blender 4.3.2 headless with deterministic decimation and embedded admitted PBR maps; not a source download.",
       "upstream_source_sha256": "2e6bb1f77965b314208b309ac89b94b8148c6a08ee6c9808cd71455e5475602d",
       "authoring_tool": "Blender 4.3.2",
-      "godot_validation": "PENDING_GODOT_4.7.2_MOBILE"
+      "godot_validation": "PENDING_GODOT_4.7.2_MOBILE",
+      "generated_import_outputs": [
+        {
+          "path": "generated/coastal_cliff_blender/coastal_cliff_lod2_coastal_cliff_01_nor_gl_1k.jpg",
+          "sha256": "afbe8c2f9ff62dd616f776c074b996d2d275eef982a40aee1f28f4f3b3a3cf0e"
+        },
+        {
+          "path": "generated/coastal_cliff_blender/coastal_cliff_lod2_coastal_cliff_01_diff_1k.jpg",
+          "sha256": "6c9626fdb5550ba260b195638c8c89053faedc22005f4ca94d3be5df72ae525a"
+        },
+        {
+          "path": "generated/coastal_cliff_blender/coastal_cliff_lod2_coastal_cliff_01_arm_1k.jpg",
+          "sha256": "7f287d0b44a3162b5e360fe45ccc8b6009c189d21bd33c1094060eef613c6fa6"
+        }
+      ]
     },
     {
       "id": "generated-coastal-cliff-4df1344af6fd",

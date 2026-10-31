@@ -88,6 +88,8 @@ func _run() -> void:
 	var min_clearance := INF
 	var min_margin := INF
 	var worst_divergence := 0.0
+	var maximum_turn_radians := 0.0
+	var previous_forward := Vector3.ZERO
 	var legacy_unsealed := 0
 	var legacy_min_y := INF
 	var all_sealed := true
@@ -116,6 +118,11 @@ func _run() -> void:
 		var forward_delta: float = (-runtime_scene.cinematic_camera.global_transform.basis.z).distance_to(
 			-capture_scene.cinematic_camera.global_transform.basis.z)
 		worst_divergence = maxf(worst_divergence, forward_delta)
+		var forward: Vector3 = -capture_scene.cinematic_camera.global_transform.basis.z
+		if frame > 0:
+			maximum_turn_radians = maxf(maximum_turn_radians,
+				acos(clampf(previous_forward.dot(forward), -1.0, 1.0)))
+		previous_forward = forward
 		var pose: Dictionary = capture_scene.evaluate_cinematic_pose(capture_pos)
 		all_sealed = all_sealed and pose["sealed"]
 		min_clearance = minf(min_clearance, pose["clearance"])
@@ -136,13 +143,15 @@ func _run() -> void:
 		if not legacy_scene.evaluate_cinematic_pose(legacy_pos)["sealed"]:
 			legacy_unsealed += 1
 
-	print("IOM_CAMERA_PATH frames=%d min_clearance=%.2f min_water_margin=%.1f max_runtime_capture_divergence=%.6f legacy_min_y=%.2f legacy_unsealed_frames=%d" % [
-		FRAMES, min_clearance, min_margin, worst_divergence, legacy_min_y, legacy_unsealed])
+	print("IOM_CAMERA_PATH frames=%d min_clearance=%.2f min_water_margin=%.1f max_runtime_capture_divergence=%.6f max_turn_degrees=%.3f legacy_min_y=%.2f legacy_unsealed_frames=%d" % [
+		FRAMES, min_clearance, min_margin, worst_divergence, rad_to_deg(maximum_turn_radians), legacy_min_y, legacy_unsealed])
 	_check(all_sealed, "every one of %d frames is sealed above the ocean" % FRAMES)
 	_check(min_clearance >= runtime_scene.CINEMATIC_MIN_CLEARANCE - POSE_EPSILON,
 		"camera never closer than %.1f m to the sea surface" % runtime_scene.CINEMATIC_MIN_CLEARANCE)
 	_check(worst_divergence <= POSE_EPSILON,
 		"runtime playback and capture poses match at every timestamp")
+	_check(maximum_turn_radians < deg_to_rad(8.0),
+		"camera and ocean horizon orientation remain continuous between frames")
 	print("IOM_SHIP_SCREEN_FRACTION wide=%.3f/%.3f approach24=%.3f/%.3f approach48=%.3f/%.3f detail71=%.3f/%.3f" % [
 		wide_ship_screen_fraction.x, wide_ship_screen_fraction.y,
 		early_approach_ship_screen_fraction.x, early_approach_ship_screen_fraction.y,
@@ -182,6 +191,10 @@ func _run() -> void:
 	var low: Vector3 = capture_scene._safe_cinematic_position(capture_scene.cinematic_camera, Vector3(-7.0, -5.0, -17.0))
 	_check(low.y >= capture_scene.WATER_Y + capture_scene.CINEMATIC_MIN_CLEARANCE - POSE_EPSILON,
 		"clearance floor holds for a low ship and a below-sea waypoint (y=%.2f)" % low.y)
+	for s in [runtime_scene, capture_scene, legacy_scene]:
+		s.get_parent().free()
+	await process_frame
+	await process_frame
 
 	quit(0 if _ok else 1)
 

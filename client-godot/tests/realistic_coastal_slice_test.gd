@@ -49,7 +49,12 @@ func run() -> void:
 					if material_name.contains("sail") or node_name.contains("sail"):
 						sail_materials += 1
 						ok = _check(material.albedo_texture != null, "contract line 51") and ok
-						ok = _check(material.albedo_color.get_luminance() > 0.8, "contract line 52") and ok
+						if material.albedo_texture != null:
+							ok = _check(material.albedo_texture.get_width() >= 1024 and material.albedo_texture.get_height() >= 1024,
+								"sail weave must retain the admitted 1024px CC0 atlas") and ok
+						ok = _check(material.albedo_color.get_luminance() > 1.0, "Mobile sail texture needs a bright warm lift") and ok
+						ok = _check(material.shading_mode == BaseMaterial3D.SHADING_MODE_UNSHADED,
+							"sails stay readable under the Mobile Vulkan backlight") and ok
 						# Opaque + double-sided: alpha scissor with cull disabled
 						# rendered unlit black canvas on the Mobile renderer.
 						ok = _check(material.transparency == BaseMaterial3D.TRANSPARENCY_DISABLED, "contract line 53") and ok
@@ -70,6 +75,7 @@ func run() -> void:
 		ok = _check(premium_paths.any(func(path): return path.ends_with("island_tree_01_1k.gltf")), "contract line 67") and ok
 		ok = _check(premium_paths.any(func(path): return path.ends_with("island_tree_02_1k.gltf")), "contract line 68") and ok
 		var cliff_count := 0
+		var total_cliff_triangles := 0
 		for child in premium_layer.get_children():
 			if child.scene_file_path.ends_with("coastal_cliff_01_1k.gltf"):
 				cliff_count += 1
@@ -83,8 +89,13 @@ func run() -> void:
 				var cliff_triangles := 0
 				for mesh_node in child.find_children("*", "MeshInstance3D", true, false):
 					cliff_triangles += scene._triangle_count((mesh_node as MeshInstance3D).mesh)
-				ok = _check(cliff_triangles > 0 and cliff_triangles <= 90000, "cliff triangle cap") and ok
+				var expected_cap := 90000 if is_equal_approx(child.position.x, 21.0) else 60000
+				total_cliff_triangles += cliff_triangles
+				ok = _check(cliff_triangles > 0 and cliff_triangles <= expected_cap,
+					"cliff at x=%.1f uses requested %d triangle LOD cap" % [child.position.x, expected_cap]) and ok
 		ok = _check(cliff_count == 3, "contract line 78") and ok
+		ok = _check(total_cliff_triangles <= 210000,
+			"three cliffs remain within the combined per-instance LOD budgets") and ok
 		# Negative fixture: the unbounded source cliff must violate the same cap,
 		# proving the per-instance check above would catch a skipped LOD.
 		var unbounded_cliff: Node3D = scene.COASTAL_CLIFF_SCENE.instantiate()
@@ -95,6 +106,9 @@ func run() -> void:
 			var unbounded_mesh_instance := unbounded_mesh_nodes[0] as MeshInstance3D
 			ok = _check(scene._triangle_count(unbounded_mesh_instance.mesh) > 90000,
 				"negative fixture: unbounded cliff source exceeds the cap") and ok
+			scene._apply_cliff_lod(unbounded_cliff, 1, false)
+			ok = _check(not unbounded_cliff.visible,
+				"negative fixture: no cliff LOD fit fails closed instead of rendering the unbounded source") and ok
 		# This detached imported scene owns ObjectDB instances and RenderingServer
 		# RIDs. Free it explicitly; otherwise a successful regression exits with
 		# leaked GLTF nodes, materials, meshes and renderer allocations.

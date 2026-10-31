@@ -100,6 +100,27 @@ class AssetValidatorTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Unregistered"):
             validator.validate()
 
+    def test_hash_pinned_generated_import_output(self):
+        """Godot extraction output is admitted only when pinned to its source GLB."""
+        (self.assets / "terrain.glb").write_bytes(self.sample)
+        extracted = b"embedded texture bytes"
+        (self.assets / "terrain.jpg").write_bytes(extracted)
+        entry = dict(self.entry)
+        entry["generated_import_outputs"] = [{
+            "path": "terrain.jpg", "sha256": hashlib.sha256(extracted).hexdigest()
+        }]
+        self.write([entry])
+        self.assertEqual(validator.validate(), 0)
+        (self.assets / "terrain.jpg").write_bytes(b"tampered")
+        with self.assertRaisesRegex(ValueError, "hash mismatch"):
+            validator.validate()
+
+    def test_godot_import_metadata_is_not_an_asset_payload(self):
+        """Godot-generated importer sidecars do not replace asset hash checks."""
+        self.write([])
+        (self.assets / "terrain.glb.import").write_text("[remap]\\n", encoding="utf-8")
+        self.assertEqual(validator.validate(), 0)
+
     def test_path_traversal_rejected(self):
         """Regression: path traversal rejected."""
         self.entry["path"] = "../outside.glb"

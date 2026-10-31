@@ -29,7 +29,7 @@ const CINEMATIC_LOOK_TARGET := Vector3(1.0, 2.2, 1.0)
 # engine capture harness (tests/render_coastal_fx_sequence.gd). Raw waypoints
 # are *desired* camera positions; _safe_cinematic_position() turns each into a
 # pose that frames the whole vessel above the sea.
-const CINEMATIC_WAYPOINT_A := Vector3(-7.0, 4.8, -17.0)
+const CINEMATIC_WAYPOINT_A := Vector3(12.0, 5.0, -18.0)
 const CINEMATIC_WAYPOINT_B := Vector3(-2.5, 5.2, -21.0)
 const CINEMATIC_DURATION := 4.0
 const CINEMATIC_FPS := 24.0
@@ -386,20 +386,16 @@ func _configure_ship_sails(root: Node) -> void:
 					if not material_name.contains("sail") and not node_name.contains("sail"):
 						continue
 					var corrected := material.duplicate() as BaseMaterial3D
-					corrected.albedo_color = Color.WHITE
-					# Alpha scissor combined with double-sided culling rendered the
-					# canvas near-black under the Mobile Vulkan renderer (the lit
-					# path returned no light or sky ambient; unshaded and opaque
-					# both rendered correctly). The atlas cuts out only 0.35% of
-					# texels, so opaque double-sided cloth keeps the silhouette.
+					# The admitted 1024px CC0 canvas atlas is deliberately weathered
+					# mid-grey. Mobile Vulkan's backlit PBR path still made those
+					# cloth surfaces near-black in the verified capture. Keep the
+					# texture detail, but use a warm, texture-preserving unshaded
+					# presentation so sail weave remains readable against backlight.
+					corrected.albedo_color = Color(1.8, 1.7, 1.55, 1.0)
 					corrected.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
 					corrected.cull_mode = BaseMaterial3D.CULL_DISABLED
-					corrected.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
-					# Canvas is translucent: the cinematic sun sits behind the
-					# vessel, so without transmitted light the camera only saw
-					# the shadowed back faces and the sails rendered near-black.
-					corrected.backlight_enabled = true
-					corrected.backlight = Color(0.78, 0.70, 0.56)
+					corrected.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+					corrected.backlight_enabled = false
 					mesh_instance.set_surface_override_material(surface_index, corrected)
 		for child in node.get_children():
 			_configure_ship_sails(child)
@@ -422,7 +418,7 @@ func _apply_landmark_lod(asset: Node3D, max_triangles: int) -> void:
 # Replaces the 461k-triangle source cliff with the highest-detail admitted LOD
 # whose real triangle count fits the cap. If none fits, the cliff is hidden
 # rather than rendered at full source detail, so the budget can never be bypassed.
-func _apply_cliff_lod(asset: Node3D, max_triangles: int) -> void:
+func _apply_cliff_lod(asset: Node3D, max_triangles: int, report_failure := true) -> void:
 	var originals := asset.find_children("*", "MeshInstance3D", true, false)
 	if originals.size() != 1:
 		push_error("Unexpected cliff mesh hierarchy")
@@ -444,7 +440,8 @@ func _apply_cliff_lod(asset: Node3D, max_triangles: int) -> void:
 		authored.free()
 		if fits:
 			return
-	push_error("No admitted cliff LOD fits triangle cap %d" % max_triangles)
+	if report_failure:
+		push_error("No admitted cliff LOD fits triangle cap %d" % max_triangles)
 	asset.visible = false
 
 func _triangle_count(mesh: Mesh) -> int:
@@ -546,6 +543,92 @@ func restore_sail_pixel_mask(state: Array) -> void:
 			node.set_surface_override_material(entry["surface"], entry["material"])
 		elif node is GeometryInstance3D:
 			node.visible = entry["visible"]
+
+
+func prepare_ship_pixel_mask() -> Array:
+	# Capture true, occlusion-aware hull and sail coverage for the current shot.
+	# The rest of the scene still writes depth, so terrain and rigging can hide
+	# ship pixels exactly as they do in the normal render. This avoids treating
+	# empty space inside the imported ship's large AABB as visible occupancy.
+	var state: Array = []
+	var hull_mask := StandardMaterial3D.new()
+	hull_mask.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	hull_mask.albedo_color = Color(1.0, 0.0, 0.0, 1.0)
+	hull_mask.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var sail_mask := StandardMaterial3D.new()
+	sail_mask.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	sail_mask.albedo_color = Color(0.0, 1.0, 0.0, 1.0)
+	sail_mask.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var depth_material := ShaderMaterial.new()
+	var depth_shader := Shader.new()
+	depth_shader.code = "shader_type spatial; render_mode unshaded, depth_draw_opaque, cull_disabled; void fragment() { ALBEDO = vec3(0.0); }"
+	depth_material.shader = depth_shader
+	var pending: Array[Node] = [self]
+	while not pending.is_empty():
+		var node: Node = pending.pop_back()
+		if node is MeshInstance3D:
+			var mesh_instance := node as MeshInstance3D
+			if mesh_instance.mesh:
+				var in_ship := _is_inside_ship(mesh_instance)
+				for surface_index in range(mesh_instance.mesh.get_surface_count()):
+					var previous := mesh_instance.get_surface_override_material(surface_index)
+					state.append({"node": mesh_instance, "surface": surface_index, "material": previous})
+					var target_material: Material = depth_material
+					if in_ship:
+						if _is_sail_surface(mesh_instance, surface_index):
+							target_material = sail_mask
+						elif _is_hull_surface(mesh_instance, surface_index):
+							target_material = hull_mask
+					mesh_instance.set_surface_override_material(surface_index, target_material)
+		elif node is GeometryInstance3D:
+			state.append({"node": node, "visible": node.visible})
+			node.visible = false
+		for child in node.get_children():
+			pending.append(child)
+	return state
+
+
+func _is_inside_ship(node: Node) -> bool:
+	var current := node.get_parent()
+	while current != null:
+		if current == ship_focal:
+			return true
+		current = current.get_parent()
+	return false
+
+
+func _is_hull_surface(mesh_instance: MeshInstance3D, surface_index: int) -> bool:
+	var material := mesh_instance.get_active_material(surface_index) as BaseMaterial3D
+	var material_name := str(material.resource_name).to_lower() if material else ""
+	return material_name.contains("hull") or str(mesh_instance.name).to_lower().contains("hull")
+
+
+func restore_ship_pixel_mask(state: Array) -> void:
+	for entry in state:
+		var node: Node = entry["node"]
+		if node is MeshInstance3D:
+			node.set_surface_override_material(entry["surface"], entry["material"])
+		elif node is GeometryInstance3D:
+			node.visible = entry["visible"]
+
+
+static func evaluate_ship_pixel_mask(mask: Image) -> Dictionary:
+	var hull_pixels := 0
+	var sail_pixels := 0
+	for y in range(mask.get_height()):
+		for x in range(mask.get_width()):
+			var pixel := mask.get_pixel(x, y)
+			if pixel.r > 0.75 and pixel.g < 0.25 and pixel.b < 0.25:
+				hull_pixels += 1
+			elif pixel.g > 0.75 and pixel.r < 0.25 and pixel.b < 0.25:
+				sail_pixels += 1
+	var total := hull_pixels + sail_pixels
+	var image_pixels := maxi(1, mask.get_width() * mask.get_height())
+	return {"hull_pixels": hull_pixels, "sail_pixels": sail_pixels,
+		"ship_pixels": total,
+		"hull_fraction": float(hull_pixels) / image_pixels,
+		"sail_fraction": float(sail_pixels) / image_pixels,
+		"ship_fraction": float(total) / image_pixels}
 
 static func evaluate_sail_pixel_mask(image: Image, mask: Image) -> Dictionary:
 	# Only magenta pixels from the object-only pass are eligible. This handles
@@ -658,21 +741,23 @@ func ship_visual_bounds_world() -> AABB:
 	return AABB(lower, upper - lower)
 
 
-func frame_ship_cinematic(camera: Camera3D, desired_position: Vector3) -> bool:
+func frame_ship_cinematic(camera: Camera3D, desired_position: Vector3,
+		framing_fov := CINEMATIC_FOV_WIDE, framing_margin := 0.05) -> bool:
 	if camera == null or not _ship_bounds_ready:
 		return false
-	var safe_position := _safe_cinematic_position(camera, desired_position)
+	# Solve containment against the exact lens used by this shot. Solving at the
+	# wide lens and narrowing afterward clipped real ship geometry on approach.
+	camera.fov = framing_fov
+	var safe_position := _safe_cinematic_position(camera, desired_position, framing_margin)
 	if safe_position == Vector3(INF, INF, INF):
 		return false
 	camera.global_position = safe_position
-	# Direct render-capture callers also get the locked Shot A lens; the timed
-	# sequence overrides this below for its approach and detail beats.
-	camera.fov = CINEMATIC_FOV_WIDE
 	var centre := ship_visual_bounds_world().get_center()
-	camera.look_at(centre.lerp(CINEMATIC_COAST_POINT, CINEMATIC_COAST_BIAS))
+	camera.look_at(_cinematic_look_target(centre))
 	return true
 
-func _safe_cinematic_position(camera: Camera3D, desired_position: Vector3) -> Vector3:
+func _safe_cinematic_position(camera: Camera3D, desired_position: Vector3,
+		framing_margin := 0.04) -> Vector3:
 	if camera == null or not _ship_bounds_ready:
 		return Vector3(INF, INF, INF)
 	var bounds := ship_visual_bounds_world()
@@ -683,31 +768,75 @@ func _safe_cinematic_position(camera: Camera3D, desired_position: Vector3) -> Ve
 	if offset.length_squared() < 0.00001:
 		offset = Vector3(-0.6, 0.3, -0.7)
 	var distance := maxf(0.5, offset.length())
-	var safe_radius := bounds.size.length() * 0.5
-	# Keep world-space clearance independent of the animated lens. Otherwise the
-	# framing solver backs away as the FOV narrows and cancels the intended push.
-	var safe_angle := deg_to_rad(CINEMATIC_FOV_WIDE * 0.45)
-	# Conservatively enclose the ship's *entire* AABB in a vertical frustum;
-	# no hull-only target can silently clip the sails or mast tips.
-	# The camera aims slightly toward the coast, so the ship sits off-centre;
-	# enclose that aim offset too or the far mast/hull can leave the frame.
-	var aim_offset := centre.distance_to(centre.lerp(CINEMATIC_COAST_POINT, CINEMATIC_COAST_BIAS))
-	var needed := (safe_radius + aim_offset) / maxf(0.05, sin(safe_angle))
-	var radius := maxf(distance, needed)
-	# Work in (azimuth, elevation) about the ship centre. The previous code
-	# scaled the raw offset outward, so a waypoint below the (tall) rigging
-	# centre pushed the camera further DOWN as the framing radius grew; with
-	# the ship moving it ended under the sea surface.
 	var horizontal := Vector2(offset.x, offset.z)
 	if horizontal.length_squared() < 0.00001:
 		horizontal = Vector2(-0.6, -0.7)
 	horizontal = horizontal.normalized()
 	var elevation := maxf(asin(clampf(offset.y / distance, -1.0, 1.0)),
 		deg_to_rad(CINEMATIC_MIN_ELEVATION_DEG))
-	var min_camera_y := WATER_Y + CINEMATIC_MIN_CLEARANCE
-	elevation = maxf(elevation, asin(clampf((min_camera_y - centre.y) / radius, -1.0, 1.0)))
+	# The former sphere fit used half the diagonal of the ship-wide merged AABB.
+	# It treated empty space between sails, rigging and hull as occupied, forcing
+	# every shot far away. Solve the actual wide-lens frustum against all eight
+	# existing ship AABB corners. Containment remains strict while the camera
+	# stops retreating to fit empty volume.
+	var look_target := _cinematic_look_target(centre)
+	var candidate := _cinematic_candidate_position(centre, horizontal, elevation, distance)
+	if _camera_frustum_contains_ship(camera, candidate, look_target, bounds, framing_margin):
+		return candidate
+	var low := distance
+	var high := distance
+	while high < 4096.0:
+		high *= 2.0
+		candidate = _cinematic_candidate_position(centre, horizontal, elevation, high)
+		if _camera_frustum_contains_ship(camera, candidate, look_target, bounds, framing_margin):
+			break
+	if high >= 4096.0 and not _camera_frustum_contains_ship(camera, candidate, look_target, bounds, framing_margin):
+		return Vector3(INF, INF, INF)
+	for _iteration in range(28):
+		var mid := (low + high) * 0.5
+		candidate = _cinematic_candidate_position(centre, horizontal, elevation, mid)
+		if _camera_frustum_contains_ship(camera, candidate, look_target, bounds, framing_margin):
+			high = mid
+		else:
+			low = mid
+	return _cinematic_candidate_position(centre, horizontal, elevation, high)
+
+
+func _cinematic_look_target(centre: Vector3) -> Vector3:
+	return centre.lerp(CINEMATIC_COAST_POINT, CINEMATIC_COAST_BIAS)
+
+
+func _cinematic_candidate_position(centre: Vector3, horizontal: Vector2,
+		base_elevation: float, radius: float) -> Vector3:
+	var minimum_y := WATER_Y + CINEMATIC_MIN_CLEARANCE
+	var elevation := maxf(base_elevation,
+		asin(clampf((minimum_y - centre.y) / maxf(radius, 0.001), -1.0, 1.0)))
 	return centre + Vector3(horizontal.x * cos(elevation), sin(elevation),
 		horizontal.y * cos(elevation)) * radius
+
+
+func _camera_frustum_contains_ship(camera: Camera3D, camera_position: Vector3,
+		look_target: Vector3, bounds: AABB, framing_margin: float) -> bool:
+	if camera == null or camera.get_viewport() == null:
+		return false
+	camera.global_position = camera_position
+	camera.look_at(look_target)
+	var viewport_size: Vector2 = camera.get_viewport().get_visible_rect().size
+	var margin := clampf(framing_margin, 0.02, 0.25)
+	for corner in range(8):
+		var point := bounds.position + Vector3(
+			bounds.size.x if corner & 1 else 0.0,
+			bounds.size.y if corner & 2 else 0.0,
+			bounds.size.z if corner & 4 else 0.0
+		)
+		if camera.is_position_behind(point):
+			return false
+		var projected: Vector2 = camera.unproject_position(point)
+		if projected.x <= viewport_size.x * margin or projected.x >= viewport_size.x * (1.0 - margin):
+			return false
+		if projected.y <= viewport_size.y * margin or projected.y >= viewport_size.y * (1.0 - margin):
+			return false
+	return true
 
 
 ## Raw (pre-framing) desired camera position at cinematic time `t` seconds.
@@ -726,9 +855,16 @@ static func _sine_in_out(x: float) -> float:
 ## Single source of truth for the reveal pose: runtime playback and the
 ## capture harness both call this with the same `t`, against the live ship.
 func apply_cinematic_time(camera: Camera3D, t: float) -> bool:
-	if not frame_ship_cinematic(camera, cinematic_raw_position_at(t)):
-		return false
 	var progress := clampf(t / CINEMATIC_DURATION, 0.0, 1.0)
+	var shot_fov := cinematic_fov_at(progress)
+	var framing_margin := cinematic_margin_at(progress)
+	if not frame_ship_cinematic(camera, cinematic_raw_position_at(t), shot_fov, framing_margin):
+		return false
+	camera.fov = shot_fov
+	return true
+
+
+func cinematic_fov_at(progress: float) -> float:
 	var shot_fov: float
 	if progress <= 0.25:
 		shot_fov = lerpf(CINEMATIC_FOV_WIDE, CINEMATIC_FOV_APPROACH,
@@ -739,8 +875,18 @@ func apply_cinematic_time(camera: Camera3D, t: float) -> bool:
 	else:
 		shot_fov = lerpf(CINEMATIC_FOV_LATE_APPROACH, CINEMATIC_FOV_DETAIL,
 			_sine_in_out((progress - 0.5) / 0.5))
-	camera.fov = shot_fov
-	return true
+	return shot_fov
+
+
+func cinematic_margin_at(progress: float) -> float:
+	# Wide establishes the harbour with breathing room. The approach and detail
+	# beats progressively consume that margin, while the same full AABB corners
+	# remain inside the frame at every timestamp.
+	if progress <= 0.25:
+		return lerpf(0.15, 0.08, _sine_in_out(progress / 0.25))
+	if progress <= 0.5:
+		return lerpf(0.08, 0.06, _sine_in_out((progress - 0.25) / 0.25))
+	return lerpf(0.06, 0.05, _sine_in_out((progress - 0.5) / 0.5))
 
 
 ## Pure validator for a cinematic camera pose; no scene state required.

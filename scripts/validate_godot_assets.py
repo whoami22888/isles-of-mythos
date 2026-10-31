@@ -109,12 +109,24 @@ def validate() -> int:
         validate_metadata(index, item, seen_ids, seen_paths)
         registered.add(validate_path(index, item, root))
     # Generated outputs are verified in-place, and must have fully recorded
-    # source dependencies. They are never downloaded as if upstream provided
-    # a binary with the derived SHA-256.
+    # source dependencies. Godot may materialize these files during import;
+    # their pinned bytes are admitted only as derivatives of an asset above.
     for entry in data["assets"]:
         for source in entry.get("generated_from", []):
             if source not in seen_paths:
                 fail(f"Generated asset dependency is absent: {source}")
+        outputs = entry.get("generated_import_outputs", [])
+        if not isinstance(outputs, list):
+            fail(f"Generated importer outputs must be a list: {entry['path']}")
+        for output in outputs:
+            if (not isinstance(output, dict) or not isinstance(output.get("path"), str)
+                    or not HASH.fullmatch(str(output.get("sha256", "")))):
+                fail(f"Invalid generated importer output metadata: {entry['path']}")
+            output_path = ASSETS / output["path"]
+            if output_path.is_symlink():
+                fail(f"Symlinked generated importer output: {output['path']}")
+            if output_path.exists():
+                registered.add(validate_path(index, output, root))
     if ASSETS.exists():
         actual = set()
         for candidate in ASSETS.rglob("*"):
@@ -122,6 +134,12 @@ def validate() -> int:
             # to an approved file would otherwise collapse into its digest.
             if candidate.is_symlink():
                 fail("Symlinked file(s) under client-godot/assets/external")
+            # Godot writes importer settings beside source art as *.import.
+            # These are generated build metadata (also gitignored), not asset
+            # payloads; validate the source bytes and reject every other
+            # unregistered file below.
+            if candidate.name.endswith(".import"):
+                continue
             if candidate.is_file():
                 actual.add(candidate.resolve())
         if actual != registered:

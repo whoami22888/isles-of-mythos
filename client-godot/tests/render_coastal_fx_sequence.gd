@@ -156,6 +156,48 @@ func _record() -> void:
         if current_bytes.size() != 1280 * 720 * 4:
             _fail("Invalid RGBA8 capture byte count at frame %d" % frame_number)
             return
+        var composite_hash := HashingContext.new()
+        composite_hash.start(HashingContext.HASH_SHA256)
+        composite_hash.update(current_bytes)
+        var composite_sha256 := composite_hash.finish().hex_encode()
+        # Measure actual depth-tested hull and sail pixels at the wide,
+        # approach, later-approach and detail beats. The viewport image itself
+        # is rendered by Godot Mobile; imported AABB projections are retained as
+        # a separate containment check and are not used as occupancy evidence.
+        if frame_number in [0, 24, 48, 71]:
+            var mask_state: Array = scene.prepare_ship_pixel_mask()
+            await process_frame
+            await RenderingServer.frame_post_draw
+            var mask_image: Image = root.get_viewport().get_texture().get_image()
+            if mask_image == null or mask_image.is_empty() or mask_image.get_width() != 1280 or mask_image.get_height() != 720:
+                scene.restore_ship_pixel_mask(mask_state)
+                _fail("Missing rendered ship occupancy mask at frame %d" % frame_number)
+                return
+            var occupancy: Dictionary = scene.evaluate_ship_pixel_mask(mask_image)
+            scene.restore_ship_pixel_mask(mask_state)
+            await process_frame
+            await RenderingServer.frame_post_draw
+            occupancy["frame"] = frame_number
+            occupancy["time_seconds"] = float(frame_number) / scene.CINEMATIC_FPS
+            occupancy["composite_frame_sha256"] = composite_sha256
+            var mask_hash := HashingContext.new()
+            mask_hash.start(HashingContext.HASH_SHA256)
+            mask_hash.update(mask_image.get_data())
+            occupancy["mask_frame_sha256"] = mask_hash.finish().hex_encode()
+            var occupancy_path := "%s/ship-occupancy-frame-%04d.json" % [directory, frame_number]
+            var occupancy_file := FileAccess.open(occupancy_path, FileAccess.WRITE)
+            if occupancy_file == null:
+                _fail("Unable to write rendered ship occupancy at frame %d" % frame_number)
+                return
+            occupancy_file.store_string(JSON.stringify(occupancy) + "\n")
+            occupancy_file.close()
+            print("IOM_RENDERED_SHIP_OCCUPANCY frame=%d hull_px=%d sail_px=%d hull_fraction=%.6f sail_fraction=%.6f ship_fraction=%.6f" % [
+                frame_number, occupancy["hull_pixels"], occupancy["sail_pixels"],
+                occupancy["hull_fraction"], occupancy["sail_fraction"], occupancy["ship_fraction"]
+            ])
+            if occupancy["hull_pixels"] <= 0 or occupancy["sail_pixels"] <= 0:
+                _fail("Rendered hull or sails are absent at cinematic frame %d" % frame_number)
+                return
         if frame_number > start_frame and current_bytes != _previous_bytes:
             _changed_frames += 1
         _previous_bytes = current_bytes

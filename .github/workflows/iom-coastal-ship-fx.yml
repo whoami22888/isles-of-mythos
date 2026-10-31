@@ -146,15 +146,20 @@ jobs:
           done
           test "$(find ordered-frames -maxdepth 1 -name 'frame_*.rgba' | wc -l)" -eq 96
           python3 -m unittest discover -s scripts/tests -p "test_capture_continuity.py" -v
+          python3 -m unittest scripts.tests.test_ship_occupancy -v
           python3 scripts/check_capture_continuity.py ordered-frames --frames 96 --width 1280 --height 720 --segment-size 24 > evidence/CONTINUITY.json
+          python3 scripts/check_ship_occupancy.py frames > evidence/SHIP_OCCUPANCY.json
           sudo apt-get update -qq
           sudo apt-get install -y -qq ffmpeg
           mkdir -p evidence
           ffmpeg -hide_banner -loglevel error -nostdin -y -f image2 -start_number 0 -framerate 24 -c:v rawvideo -pixel_format rgba -video_size 1280x720 -i ordered-frames/frame_%04d.rgba -frames:v 96 -c:v libx264 -preset veryfast -crf 23 -pix_fmt yuv420p -movflags +faststart evidence/ship-wake-cinematic.mp4
           test "$(ffprobe -v error -select_streams v:0 -show_entries stream=nb_frames -of default=noprint_wrappers=1:nokey=1 evidence/ship-wake-cinematic.mp4)" -eq 96
+          # Keep the full reveal and the locked three-second Shot A sequence.
+          ffmpeg -hide_banner -loglevel error -nostdin -y -f image2 -start_number 0 -framerate 24 -c:v rawvideo -pixel_format rgba -video_size 1280x720 -i ordered-frames/frame_%04d.rgba -frames:v 72 -c:v libx264 -preset veryfast -crf 23 -pix_fmt yuv420p -movflags +faststart evidence/shot-a-72f.mp4
+          test "$(ffprobe -v error -select_streams v:0 -show_entries stream=nb_frames -of default=noprint_wrappers=1:nokey=1 evidence/shot-a-72f.mp4)" -eq 72
           (cd ordered-frames && sha256sum frame_*.rgba > ../evidence/FRAME_SHA256SUMS)
-          (cd evidence && sha256sum ship-wake-cinematic.mp4 > SHA256SUMS)
-          printf 'commit=%s\\nengine=Godot 4.7.2\\nrender=Mobile Vulkan llvmpipe software\\nframes=96\\nresolution=1280x720\\nfps=24\\nvisual_parity=NOT VERIFIED\\n' "${{ github.event.pull_request.head.sha || github.sha }}" > evidence/EVIDENCE.txt
+          (cd evidence && sha256sum ship-wake-cinematic.mp4 shot-a-72f.mp4 > SHA256SUMS)
+          printf 'commit=%s\nengine=Godot 4.7.2\nrender=Mobile Vulkan llvmpipe software\nframes=96\nshot_a_frames=72\nresolution=1280x720\nfps=24\nvisual_parity=NOT VERIFIED\n' "${{ github.event.pull_request.head.sha || github.sha }}" > evidence/EVIDENCE.txt
       - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
         with:
           name: internal-coastal-ship-fx-engine-evidence
