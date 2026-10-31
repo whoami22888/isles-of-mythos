@@ -13,6 +13,7 @@ uniform bool use_vector_cross = true;
 uniform float emblem_scale : hint_range(0.6, 2.0) = 1.25;
 uniform float fabric_weave_strength : hint_range(0.0, 0.06) = 0.02;
 uniform float dye_roughness_boost : hint_range(0.0, 0.2) = 0.035;
+uniform float linen_grade_strength : hint_range(0.0, 1.0) = 0.0;
 
 uniform float sail_roughness : hint_range(0.0, 1.0) = 0.85;
 uniform float sail_metallic : hint_range(0.0, 1.0) = 0.0;
@@ -87,9 +88,16 @@ void fragment() {
         }
     }
     coverage *= cross_color.a;
-    // Dyed fabric retains a small amount of underlying diffuse variation.
-    vec3 pigment = mix(cross_color.rgb, cross_color.rgb * source_col.rgb, 0.15);
-    ALBEDO = mix(source_col.rgb, pigment, coverage);
+    // Optional linen look-dev on source PBR diffuse: adjust the cloth dye
+    // without flattening the authored normal/roughness/AO or alpha atlas.
+    // Default is 0: existing admitted ship material is unchanged.
+    float textile_luma = dot(source_col.rgb, vec3(0.2126, 0.7152, 0.0722));
+    float textile_shade = 0.78 + 0.22 * smoothstep(0.05, 0.9, textile_luma);
+    vec3 graded_linen = vec3(0.91, 0.84, 0.71) * textile_shade;
+    vec3 cloth_color = mix(source_col.rgb, graded_linen, linen_grade_strength);
+    // Dyed fabric retains diffuse weave/age variation below the heraldry.
+    vec3 pigment = mix(cross_color.rgb, cross_color.rgb * cloth_color, 0.15);
+    ALBEDO = mix(cloth_color, pigment, coverage);
     ALPHA = source_col.a;
     ALPHA_SCISSOR_THRESHOLD = alpha_scissor_threshold;
 
