@@ -17,6 +17,7 @@ import urllib.parse
 import urllib.request
 
 ASSET_IDS = ("dutch_ship_large_01", "dutch_ship_large_02", "ship_pinnace")
+SHA256_MANIFEST = pathlib.Path(__file__).resolve().parents[1] / "docs/graphics/polyhaven-qualified-ship-sha256.json"
 API_HOST = "api.polyhaven.com"
 DATA_HOST = "dl.polyhaven.org"
 MAX_GTLF_BYTES = 256_000
@@ -52,14 +53,23 @@ def _read(url: str, host: str, limit: int) -> bytes:
 
 
 def _download(item: dict, host: str, limit: int) -> tuple[bytes, dict]:
+    # The publisher supplies catalogue MD5 for compatibility, but that is
+    # insufficient as a security provenance pin. Accept only full source
+    # files listed in our independently measured SHA-256 quarantine lock.
+    pinset = json.loads(SHA256_MANIFEST.read_text(encoding="utf-8"))
+    if pinset.get("schema_version") != 1 or pinset.get("license") != "CC0-1.0":
+        raise ValueError("Unrecognized ship SHA-256 lock")
+    basename = pathlib.PurePosixPath(urllib.parse.urlsplit(item["url"]).path).name
+    accepted = pinset["files"].get(basename)
+    if not accepted or len(accepted) != 64:
+        raise ValueError("Unpinned publisher ship file: " + basename)
     data = _read(item["url"], host, limit)
-    md5 = hashlib.md5(data, usedforsecurity=False).hexdigest()
-    if md5 != item["md5"]:
-        raise ValueError("Publisher MD5 mismatch for " + item["url"])
+    digest = hashlib.sha256(data).hexdigest()
+    if digest != accepted:
+        raise ValueError("Independent SHA-256 mismatch for " + item["url"])
     if int(item["size"]) != len(data):
         raise ValueError("Publisher size mismatch for " + item["url"])
-    return data, {"url": item["url"], "size": len(data), "md5": md5,
-                  "sha256": hashlib.sha256(data).hexdigest()}
+    return data, {"url": item["url"], "size": len(data), "sha256": digest}
 
 
 def _accessor(doc: dict, blob: bytes, index: int) -> list:
