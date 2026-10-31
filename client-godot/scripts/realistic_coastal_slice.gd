@@ -33,6 +33,12 @@ const CINEMATIC_WAYPOINT_A := Vector3(-7.0, 4.8, -17.0)
 const CINEMATIC_WAYPOINT_B := Vector3(-2.5, 5.2, -21.0)
 const CINEMATIC_DURATION := 4.0
 const CINEMATIC_FPS := 24.0
+# The reveal starts as an establishing shot and deliberately pushes into the
+# vessel. The final beat is a rigging/hull detail, so it may crop the mast.
+const CINEMATIC_FOV_WIDE := 75.0
+const CINEMATIC_FOV_APPROACH := 59.0
+const CINEMATIC_FOV_LATE_APPROACH := 50.0
+const CINEMATIC_FOV_DETAIL := 38.0
 # Minimum camera height above the sea surface. The ocean surface is back-face
 # culled, so a camera at or below it exposes the finite seabed mesh and its
 # straight edge. Also keep a floor on elevation so the shot stays an elevated
@@ -673,7 +679,9 @@ func _safe_cinematic_position(camera: Camera3D, desired_position: Vector3) -> Ve
 		offset = Vector3(-0.6, 0.3, -0.7)
 	var distance := maxf(0.5, offset.length())
 	var safe_radius := bounds.size.length() * 0.5
-	var safe_angle := deg_to_rad(camera.fov * 0.45)
+	# Keep world-space clearance independent of the animated lens. Otherwise the
+	# framing solver backs away as the FOV narrows and cancels the intended push.
+	var safe_angle := deg_to_rad(CINEMATIC_FOV_WIDE * 0.45)
 	# Conservatively enclose the ship's *entire* AABB in a vertical frustum;
 	# no hull-only target can silently clip the sails or mast tips.
 	# The camera aims slightly toward the coast, so the ship sits off-centre;
@@ -713,7 +721,21 @@ static func _sine_in_out(x: float) -> float:
 ## Single source of truth for the reveal pose: runtime playback and the
 ## capture harness both call this with the same `t`, against the live ship.
 func apply_cinematic_time(camera: Camera3D, t: float) -> bool:
-	return frame_ship_cinematic(camera, cinematic_raw_position_at(t))
+	if not frame_ship_cinematic(camera, cinematic_raw_position_at(t)):
+		return false
+	var progress := clampf(t / CINEMATIC_DURATION, 0.0, 1.0)
+	var shot_fov: float
+	if progress <= 0.25:
+		shot_fov = lerpf(CINEMATIC_FOV_WIDE, CINEMATIC_FOV_APPROACH,
+			_sine_in_out(progress / 0.25))
+	elif progress <= 0.5:
+		shot_fov = lerpf(CINEMATIC_FOV_APPROACH, CINEMATIC_FOV_LATE_APPROACH,
+			_sine_in_out((progress - 0.25) / 0.25))
+	else:
+		shot_fov = lerpf(CINEMATIC_FOV_LATE_APPROACH, CINEMATIC_FOV_DETAIL,
+			_sine_in_out((progress - 0.5) / 0.5))
+	camera.fov = shot_fov
+	return true
 
 
 ## Pure validator for a cinematic camera pose; no scene state required.
