@@ -23,7 +23,9 @@ static func _join(parent: Array[int], first: int, second: int) -> void:
 		parent[b] = a
 
 
-static func generate(arrays: Array) -> Dictionary:
+static func generate(arrays: Array, expected_components: int = 4, expected_panels: int = 2) -> Dictionary:
+	if expected_components < 1 or expected_panels < 1 or expected_panels > expected_components:
+		return {"error": "Invalid admitted sail component profile"}
 	if arrays.size() != Mesh.ARRAY_MAX:
 		return {"error": "Malformed sail surface arrays"}
 	if not arrays[Mesh.ARRAY_VERTEX] is PackedVector3Array:
@@ -82,9 +84,9 @@ static func generate(arrays: Array) -> Dictionary:
 			decorated[label] = b
 	# Fail closed if the upstream asset layout changes. Do not paint the
 	# entire texture atlas or rigging as a fallback.
-	if bounds.size() != 4 or decorated.size() != 2:
-		return {"error": "Unexpected imported Dutch sail layout: %d components, %d usable panels" % [
-			bounds.size(), decorated.size()
+	if bounds.size() != expected_components or decorated.size() != expected_panels:
+		return {"error": "Unexpected sail layout: %d components, %d usable panels (expected %d/%d)" % [
+			bounds.size(), decorated.size(), expected_components, expected_panels
 		]}
 
 	var uv2 := PackedVector2Array()
@@ -114,7 +116,7 @@ static func generate(arrays: Array) -> Dictionary:
 	}
 
 
-static func create_mesh(source: ArrayMesh, surface_index: int) -> Dictionary:
+static func create_mesh(source: ArrayMesh, surface_index: int, expected_components: int = 4, expected_panels: int = 2) -> Dictionary:
 	if source == null or surface_index < 0 or surface_index >= source.get_surface_count():
 		return {"error": "Invalid imported sail mesh"}
 	if source.get_blend_shape_count() != 0:
@@ -123,7 +125,7 @@ static func create_mesh(source: ArrayMesh, surface_index: int) -> Dictionary:
 	for surface in range(source.get_surface_count()):
 		var arrays: Array = source.surface_get_arrays(surface)
 		if surface == surface_index:
-			var mapping := generate(arrays)
+			var mapping := generate(arrays, expected_components, expected_panels)
 			if mapping.has("error"):
 				return mapping
 			arrays[Mesh.ARRAY_TEX_UV2] = mapping["uv2"]
@@ -131,4 +133,4 @@ static func create_mesh(source: ArrayMesh, surface_index: int) -> Dictionary:
 		output.surface_set_material(surface, source.surface_get_material(surface))
 		output.surface_set_name(surface, source.surface_get_name(surface))
 	output.resource_name = "DutchShip_OrderCrossUV2"
-	return {"mesh": output, "decorated_panels": 2}
+	return {"mesh": output, "decorated_panels": expected_panels}
