@@ -63,9 +63,11 @@ jobs:
         run: |
           set -euo pipefail
           dir="$RUNNER_TEMP/pinnace-review"
-          ffmpeg -hide_banner -loglevel error -y \
+          # rawvideo demuxer consumes a byte stream, not an image-sequence
+          # pattern. Zero-padded frame names sort in exact 0..71 order.
+          cat "$dir"/frame_*.rgba | ffmpeg -hide_banner -loglevel error -y \
             -f rawvideo -pixel_format rgba -video_size 1280x720 -framerate 24 \
-            -i "$dir/frame_%03d.rgba" -frames:v 72 \
+            -i pipe:0 -frames:v 72 \
             -c:v libx264 -preset fast -crf 18 -pix_fmt yuv420p \
             -movflags +faststart "$dir/pinnace-hd-sails-engine-preview.mp4"
           frames="$(ffprobe -v error -count_frames -select_streams v:0 -show_entries stream=nb_read_frames -of default=nokey=1:noprint_wrappers=1 "$dir/pinnace-hd-sails-engine-preview.mp4")"
