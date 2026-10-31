@@ -841,6 +841,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     let messageQueue = Promise.resolve();
     const backlog = new MessageBacklogGuard();
     socket.on("message", (raw) => {
+      if (authRejected) return;
       const now = Date.now();
       if (now - messageWindowStartedAt >= 1_000) {
         messageWindowStartedAt = now;
