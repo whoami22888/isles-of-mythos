@@ -96,6 +96,7 @@ func _run() -> void:
 	var early_approach_ship_screen_fraction := Vector2.ZERO
 	var late_approach_ship_screen_fraction := Vector2.ZERO
 	var detail_ship_screen_fraction := Vector2.ZERO
+	var shot_a_fov := 0.0
 	for frame in range(FRAMES):
 		var t := float(frame) / scene_fps(runtime_scene)
 		for s in [runtime_scene, capture_scene, legacy_scene]:
@@ -122,6 +123,7 @@ func _run() -> void:
 		var ship_screen_fraction := _projected_ship_screen_fraction(capture_scene)
 		if frame == 0:
 			wide_ship_screen_fraction = ship_screen_fraction
+			shot_a_fov = capture_scene.cinematic_camera.fov
 		elif frame == FRAMES / 4:
 			early_approach_ship_screen_fraction = ship_screen_fraction
 		elif frame == FRAMES / 2:
@@ -148,6 +150,8 @@ func _run() -> void:
 		detail_ship_screen_fraction.x, detail_ship_screen_fraction.y])
 	_check(wide_ship_screen_fraction.y >= 0.18,
 		"wide establishing shot gives the ship readable screen height")
+	_check(is_equal_approx(shot_a_fov, runtime_scene.CINEMATIC_FOV_WIDE),
+		"Shot A uses the owner's 58 degree field of view")
 	_check(early_approach_ship_screen_fraction.y > wide_ship_screen_fraction.y,
 		"approach shot grows the ship on screen")
 	_check(late_approach_ship_screen_fraction.y >= early_approach_ship_screen_fraction.y,

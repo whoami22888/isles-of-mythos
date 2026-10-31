@@ -663,6 +663,9 @@ func frame_ship_cinematic(camera: Camera3D, desired_position: Vector3) -> bool:
 	if safe_position == Vector3(INF, INF, INF):
 		return false
 	camera.global_position = safe_position
+	# Direct render-capture callers also get the locked Shot A lens; the timed
+	# sequence overrides this below for its approach and detail beats.
+	camera.fov = CINEMATIC_FOV_WIDE
 	var centre := ship_visual_bounds_world().get_center()
 	camera.look_at(centre.lerp(CINEMATIC_COAST_POINT, CINEMATIC_COAST_BIAS))
 	return true
