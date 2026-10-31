@@ -156,6 +156,29 @@ jobs:
           "$RUNNER_TEMP/godot/godot" --headless --editor --path client-godot --quit --import
           echo "GODOT_BIN=$RUNNER_TEMP/godot/godot" >> "$GITHUB_ENV"
 
+      - name: Run M-E2E-1 headless Godot integration against the live server
+        shell: bash
+        env:
+          ENVIRONMENT: test
+          SERVER_HOST: 127.0.0.1
+          SERVER_PORT: "3100"
+          IOM_E2E_HTTP_BASE: http://127.0.0.1:3100
+          IOM_E2E_WS_URL: ws://127.0.0.1:3100/ws
+        run: |
+          set -euo pipefail
+          # Run the server in its own session so teardown reaches the tsx child process too.
+          setsid npm run dev -w server > "$RUNNER_TEMP/m-e2e-1-server.log" 2>&1 &
+          server_pid=$!
+          trap 'kill -- -"$server_pid" 2>/dev/null || true' EXIT
+          for _ in $(seq 1 60); do
+            curl -sf -o /dev/null "$IOM_E2E_HTTP_BASE/health" && break
+            sleep 1
+          done
+          curl -sf -o /dev/null "$IOM_E2E_HTTP_BASE/health"
+          "$GODOT_BIN" --headless --path client-godot --script res://tests/m_e2e_1_integration.gd
+          "$GODOT_BIN" --headless --path client-godot --script res://tests/m_e2e_1_integration.gd -- --internal-gameplay-handoff
+          "$GODOT_BIN" --headless --path client-godot --script res://tests/phone_handoff_regression.gd
+
       - name: Run server tests (Godot end-to-end is mandatory, never skipped)
         env:
           REQUIRE_GODOT_E2E: "1"
