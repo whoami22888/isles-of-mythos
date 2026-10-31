@@ -38,6 +38,19 @@ function parseCorsOrigin(value: string | undefined, environment: "development" |
   return DEFAULT_CORS_ORIGIN;
 }
 
+function parseAdminUserIds(value: string | undefined): ReadonlySet<string> {
+  const ids = new Set<string>();
+  for (const raw of (value ?? "").split(",")) {
+    const id = raw.trim().toLowerCase();
+    if (!id) continue;
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(id)) {
+      throw new Error("ADMIN_USER_IDS must contain only comma-separated UUIDs");
+    }
+    ids.add(id);
+  }
+  return ids;
+}
+
 const environment = parseEnvironment(process.env.ENVIRONMENT);
 
 const databaseUrl = process.env.DATABASE_URL?.trim() ?? "";
@@ -61,4 +74,5 @@ export const config = {
   corsOrigin: parseCorsOrigin(process.env.CORS_ORIGIN, environment),
   databasePoolMax: parseDatabasePoolMax(process.env.DB_POOL_MAX),
   websocketMaxPayloadBytes: 64 * 1024,
+  adminUserIds: parseAdminUserIds(process.env.ADMIN_USER_IDS),
 } as const;

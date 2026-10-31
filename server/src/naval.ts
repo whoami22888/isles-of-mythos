@@ -1,6 +1,7 @@
 import { CREW_START_MORALE, deriveNpcCrewSkill, npcCrewHireFee } from "./crew-stats.js";
 import { runEconomyMutation, subtractGoldDoubloons } from "./economy.js";
 import { CREATURE_STATS } from "./combat.js";
+import { CREW_BONUS_CAPS, stackCrewContributions } from "./crew-bonus.js";
 import type { Pool } from "pg";
 
 interface NpcCrewResult{id:string;shipId:string;creatureId:null;npcType:CrewType;role:CrewRole;skill:number;morale:number}
@@ -80,7 +81,8 @@ export class NavalStore {
       await c.query("BEGIN");
       const rows=await c.query<Row>("SELECT "+select+" FROM player_ships WHERE id=ANY($1::uuid[]) ORDER BY id FOR UPDATE",[[shipId,targetShipId]]);
       const attacker=rows.rows.find(x=>x.id===shipId), target=rows.rows.find(x=>x.id===targetShipId);
-      if(!attacker) throw new Error("SHIP_NOT_FOUND");
+      // The commanded ship must belong to the authenticated actor. Same error as an unknown ship so existence is not revealed.
+      if(!attacker || attacker.owner_user_id!==userId) throw new Error("SHIP_NOT_FOUND");
       if(!target || target.owner_user_id===userId) throw new Error("INVALID_NAVAL_TARGET");
       if(attacker.status!=="active") throw new Error("SHIP_NOT_ACTIVE");
       if(target.status!=="active") throw new Error("TARGET_SHIP_NOT_ACTIVE");
@@ -102,8 +104,8 @@ export class NavalStore {
       if(Number(ammo.rows[0]?.quantity??0)<1) throw new Error("NO_CANNON_AMMO");
       const gunner=crew.rows.filter(x=>x.role==="gunner");
       const captain=crew.rows.filter(x=>x.role==="captain");
-      const bonus=gunner.reduce((sum,x)=>sum+x.skill*(x.morale/100),0);
-      const abilityBonus=crew.rows.reduce((sum,x)=>sum+(x.species ? (CREATURE_STATS[x.species]?.ability?.damage ?? 0) : 0),0);
+      const bonus=stackCrewContributions(gunner.map(x=>x.skill*(x.morale/100)),CREW_BONUS_CAPS.gunner);
+      const abilityBonus=stackCrewContributions(crew.rows.map(x=>x.species ? (CREATURE_STATS[x.species]?.ability?.damage ?? 0) : 0),CREW_BONUS_CAPS.creatureAbility);
       const commandMultiplier=Math.min(1.2,1+captain.reduce((sum,x)=>sum+x.morale,0)/1000);
       const damage=Math.max(1,Math.round((attacker.cannon_count+Math.floor(bonus/10)+abilityBonus)*commandMultiplier)-target.armor);
       const hull=Math.max(0,target.hull-damage);
@@ -123,16 +125,17 @@ export class NavalStore {
       await c.query("BEGIN");
       const rows=await c.query<Row>("SELECT "+select+" FROM player_ships WHERE id=ANY($1::uuid[]) ORDER BY id FOR UPDATE",[[shipId,targetShipId]]);
       const attacker=rows.rows.find(x=>x.id===shipId),target=rows.rows.find(x=>x.id===targetShipId);
-      if(!attacker) throw new Error("SHIP_NOT_FOUND");
+      // The commanded ship must belong to the authenticated actor. Same error as an unknown ship so existence is not revealed.
+      if(!attacker || attacker.owner_user_id!==userId) throw new Error("SHIP_NOT_FOUND");
       if(!target || target.owner_user_id===userId) throw new Error("INVALID_NAVAL_TARGET");
       if(attacker.status!=="active") throw new Error("SHIP_NOT_ACTIVE");
       if(target.status!=="active") throw new Error("TARGET_SHIP_NOT_ACTIVE");
       if(Math.hypot(attacker.x-target.x,attacker.y-target.y)>30) throw new Error("BOARDING_OUT_OF_RANGE");
       const ac=await c.query<{skill:number;morale:number}>("SELECT skill,morale FROM ship_crew WHERE ship_id=$1 AND role IN ('boarding_specialist','captain')",[shipId]);
       const dc=await c.query<{skill:number;morale:number}>("SELECT skill,morale FROM ship_crew WHERE ship_id=$1",[targetShipId]);
-      const attackPower=ac.rows.reduce((s,x)=>s+x.skill+x.morale/10,0);
+      const attackPower=stackCrewContributions(ac.rows.map(x=>x.skill+x.morale/10),CREW_BONUS_CAPS.boardingPower);
       if(attackPower<=0) throw new Error("INVALID_CREW_ASSIGNMENT");
-      const defendPower=dc.rows.reduce((s,x)=>s+x.skill+x.morale/10,0);
+      const defendPower=stackCrewContributions(dc.rows.map(x=>x.skill+x.morale/10),CREW_BONUS_CAPS.boardingPower);
       const damage=Math.max(1,Math.round(attackPower-Math.max(1,defendPower)/2));
       const captured=attackPower>defendPower*1.5;
       const hull=Math.max(1,target.hull-damage);
@@ -155,7 +158,7 @@ export class NavalStore {
       const kit=await c.query<{quantity:string}>("SELECT quantity FROM ship_inventory WHERE ship_id=$1 AND item_id='repair_lumber' FOR UPDATE",[shipId]);
       if(Number(kit.rows[0]?.quantity??0)<1) throw new Error("NO_REPAIR_LUMBER");
       const engineers=await c.query<{skill:number}>("SELECT skill FROM ship_crew WHERE ship_id=$1 AND role='engineer'",[shipId]);
-      const amount=Math.min(ship.max_hull-ship.hull,20+engineers.rows.reduce((s,x)=>s+x.skill,0));
+      const amount=Math.min(ship.max_hull-ship.hull,20+Math.floor(stackCrewContributions(engineers.rows.map(x=>x.skill),CREW_BONUS_CAPS.engineerRepair)));
       await c.query("UPDATE ship_inventory SET quantity=quantity-1,updated_at=CURRENT_TIMESTAMP WHERE ship_id=$1 AND item_id='repair_lumber'",[shipId]);
       const updated=await c.query<Row>("UPDATE player_ships SET hull=$2,updated_at=CURRENT_TIMESTAMP WHERE id=$1 RETURNING "+select,[shipId,ship.hull+amount]);
       await c.query("COMMIT");
@@ -185,7 +188,7 @@ export class NavalStore {
       if(!ship) throw new Error("SHIP_NOT_FOUND");
       if(!ship.fire_until || ship.fire_until.getTime()<=Date.now()) throw new Error("SHIP_NOT_ON_FIRE");
       const medic=await c.query<{skill:number}>("SELECT skill FROM ship_crew WHERE ship_id=$1 AND role='medic'",[shipId]);
-      const reduction=5+medic.rows.reduce((s,x)=>s+x.skill,0);
+      const reduction=5+stackCrewContributions(medic.rows.map(x=>x.skill),CREW_BONUS_CAPS.medicFire);
       const until=new Date(Math.max(Date.now(),ship.fire_until.getTime()-reduction*1000));
       const updated=await c.query<Row>("UPDATE player_ships SET fire_until=$2,updated_at=CURRENT_TIMESTAMP WHERE id=$1 RETURNING "+select,[shipId,until]);
       await c.query("COMMIT");

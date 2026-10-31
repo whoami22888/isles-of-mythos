@@ -50,14 +50,23 @@ function invalidCredentials(reply: FastifyReply) {
 async function signAccessToken(
   reply: FastifyReply,
   user: Pick<UserRow, "id" | "username">,
+  role: "player" | "admin" = "player",
 ): Promise<string> {
   return reply.jwtSign(
-    { sub: user.id, username: user.username },
+    { sub: user.id, username: user.username, role },
     { expiresIn: "15m" },
   );
 }
 
-export async function registerAuthRoutes(app: FastifyInstance, db: Pool): Promise<void> {
+export async function registerAuthRoutes(
+  app: FastifyInstance,
+  db: Pool,
+  options: { adminUserIds?: ReadonlySet<string> } = {},
+): Promise<void> {
+  const adminUserIds = options.adminUserIds ?? config.adminUserIds;
+  // Admin membership is provisioned server-side, bound to immutable user UUIDs.
+  // Player registration and client JWT claims NEVER grant administrator status.
+  const isAdministrator = (id: string): boolean => adminUserIds.has(id.toLowerCase());
   await app.register(import("@fastify/jwt"), {
     secret: config.jwtSecret,
     sign: {
@@ -179,6 +188,69 @@ export async function registerAuthRoutes(app: FastifyInstance, db: Pool): Promis
 
       const accessToken = await signAccessToken(reply, user);
       return { accessToken, user: { id: user.id, username: user.username, email: user.email } };
+    },
+  );
+
+  // Administrative login is deliberately separate from player login.
+  // The same Argon2 password is verified, but only an operator-provisioned
+  // immutable UUID can receive an admin-scoped token.
+  app.post<{ Body: LoginBody }>(
+    "/auth/admin/login",
+    {
+      config: { rateLimit: { max: 5, timeWindow: "1 minute" } },
+      schema: {
+        tags: ["authentication"],
+        body: {
+          type: "object",
+          additionalProperties: false,
+          required: ["identifier", "password"],
+          properties: {
+            identifier: { type: "string", minLength: 3, maxLength: 254 },
+            password: { type: "string", minLength: 1, maxLength: 128 },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const identifier = request.body.identifier.trim().toLowerCase();
+      const result = await db.query<UserRow>(
+        "SELECT id, username, email, password_hash FROM users WHERE username = $1 OR email = $1 LIMIT 1",
+        [identifier],
+      );
+      const user = result.rows[0];
+      if (!user || !(await argon2.verify(user.password_hash, request.body.password)) || !isAdministrator(user.id)) {
+        return invalidCredentials(reply);
+      }
+      const accessToken = await signAccessToken(reply, user, "admin");
+      return { accessToken, role: "admin", user: { id: user.id, username: user.username, email: user.email } };
+    },
+  );
+
+  app.get(
+    "/auth/admin/me",
+    {
+      schema: {
+        tags: ["authentication"],
+        security: [{ bearerAuth: [] }],
+      },
+    },
+    async (request: FastifyRequest, reply) => {
+      try {
+        await request.jwtVerify();
+      } catch {
+        return invalidCredentials(reply);
+      }
+      // Re-check membership against operator configuration on EVERY privileged
+      // request; trusting a role claim alone would make revocation ineffective.
+      if ((request.user as { role?: string }).role !== "admin" || !isAdministrator(request.user.sub)) {
+        return invalidCredentials(reply);
+      }
+      const result = await db.query<Pick<UserRow, "id" | "username" | "email">>(
+        "SELECT id, username, email FROM users WHERE id = $1 LIMIT 1",
+        [request.user.sub],
+      );
+      if (!result.rows[0]) return invalidCredentials(reply);
+      return { role: "admin", user: result.rows[0] };
     },
   );
 
