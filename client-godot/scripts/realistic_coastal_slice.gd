@@ -14,6 +14,7 @@ const COAST_ROUGHNESS := preload("res://assets/external/polyhaven/coast_sand_roc
 const COAST_AO := preload("res://assets/external/polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_ao_1k.jpg")
 const SHORE_BAKER := preload("res://scripts/coastal_shore_heightfield.gd")
 const OCEAN_SHADER := preload("res://shaders/ocean_surface.gdshader")
+const SAIL_HD_WRAPPER := preload("res://scripts/sail_emblem_hd_wrapper.gd")
 const WATER_Y := -0.35
 const GAMEPLAY_CAMERA := Vector3(13.0, 12.0, -14.0)
 const CINEMATIC_START_CAMERA := Vector3(-11.0, 5.5, -18.0)
@@ -310,31 +311,12 @@ func _build_premium_landmarks() -> void:
 	add_child(player_marker)
 
 func _configure_ship_sails(root: Node) -> void:
-	# The imported ship's sail material uses an alpha-mask RGBA atlas.  Keep
-	# its authored PBR textures, but make the renderer contract explicit so
-	# mobile import settings cannot turn the cloth into a black/transparent
-	# surface.  Materials are duplicated per instance; the source GLTF stays
-	# untouched and its provenance remains intact.
-	for node in root.get_children():
-		if node is MeshInstance3D:
-			var mesh_instance := node as MeshInstance3D
-			if mesh_instance.mesh:
-				for surface_index in range(mesh_instance.mesh.get_surface_count()):
-					var material := mesh_instance.get_active_material(surface_index) as BaseMaterial3D
-					if material == null:
-						continue
-					var material_name := str(material.resource_name).to_lower()
-					var node_name := str(mesh_instance.name).to_lower()
-					if not material_name.contains("sail") and not node_name.contains("sail"):
-						continue
-					var corrected := material.duplicate() as BaseMaterial3D
-					corrected.albedo_color = Color.WHITE
-					corrected.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
-					corrected.cull_mode = BaseMaterial3D.CULL_DISABLED
-					corrected.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
-					mesh_instance.set_surface_override_material(surface_index, corrected)
-		for child in node.get_children():
-			_configure_ship_sails(child)
+	# One atomic wrapper preserves every imported UV0 atlas and PBR map.
+	# The existing Dutch medium asset has exactly four disconnected cloth
+	# components; only its two wide lower panels receive the Order Cross.
+	var result: Dictionary = SAIL_HD_WRAPPER.apply(root, 4, 2)
+	if result.has("error"):
+		push_error("Order Cross sail wrapper blocked: " + str(result["error"]))
 
 func _reduce_surface_triangles(source: ArrayMesh, surface_index: int, _max_triangles: int) -> Array:
 	# A triangle budget cannot justify punching holes in an authored surface.
@@ -393,7 +375,7 @@ func visual_bounds_world(asset: Node3D) -> AABB:
 	return AABB(lowest, highest - lowest)
 
 func _is_sail_surface(mesh_instance: MeshInstance3D, surface_index: int) -> bool:
-	var material := mesh_instance.get_active_material(surface_index) as BaseMaterial3D
+	var material: Material = mesh_instance.get_active_material(surface_index)
 	var material_name := str(material.resource_name).to_lower() if material else ""
 	return material_name.contains("sail") or str(mesh_instance.name).to_lower().contains("sail")
 
