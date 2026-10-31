@@ -92,6 +92,10 @@ func _run() -> void:
 	var legacy_min_y := INF
 	var all_sealed := true
 	var still_playing_before_end := true
+	var wide_ship_screen_fraction := Vector2.ZERO
+	var early_approach_ship_screen_fraction := Vector2.ZERO
+	var late_approach_ship_screen_fraction := Vector2.ZERO
+	var detail_ship_screen_fraction := Vector2.ZERO
 	for frame in range(FRAMES):
 		var t := float(frame) / scene_fps(runtime_scene)
 		for s in [runtime_scene, capture_scene, legacy_scene]:
@@ -115,6 +119,15 @@ func _run() -> void:
 		all_sealed = all_sealed and pose["sealed"]
 		min_clearance = minf(min_clearance, pose["clearance"])
 		min_margin = minf(min_margin, pose["water_margin"])
+		var ship_screen_fraction := _projected_ship_screen_fraction(capture_scene)
+		if frame == 0:
+			wide_ship_screen_fraction = ship_screen_fraction
+		elif frame == FRAMES / 4:
+			early_approach_ship_screen_fraction = ship_screen_fraction
+		elif frame == FRAMES / 2:
+			late_approach_ship_screen_fraction = ship_screen_fraction
+		elif frame == 71:
+			detail_ship_screen_fraction = ship_screen_fraction
 		# Legacy fixture: same raw waypoint through the pre-fix algorithm.
 		var legacy_pos := _legacy_position(legacy_scene, legacy_scene.cinematic_raw_position_at(t))
 		legacy_min_y = minf(legacy_min_y, legacy_pos.y)
@@ -128,6 +141,21 @@ func _run() -> void:
 		"camera never closer than %.1f m to the sea surface" % runtime_scene.CINEMATIC_MIN_CLEARANCE)
 	_check(worst_divergence <= POSE_EPSILON,
 		"runtime playback and capture poses match at every timestamp")
+	print("IOM_SHIP_SCREEN_FRACTION wide=%.3f/%.3f approach24=%.3f/%.3f approach48=%.3f/%.3f detail71=%.3f/%.3f" % [
+		wide_ship_screen_fraction.x, wide_ship_screen_fraction.y,
+		early_approach_ship_screen_fraction.x, early_approach_ship_screen_fraction.y,
+		late_approach_ship_screen_fraction.x, late_approach_ship_screen_fraction.y,
+		detail_ship_screen_fraction.x, detail_ship_screen_fraction.y])
+	_check(wide_ship_screen_fraction.y >= 0.18,
+		"wide establishing shot gives the ship readable screen height")
+	_check(early_approach_ship_screen_fraction.y > wide_ship_screen_fraction.y,
+		"approach shot grows the ship on screen")
+	_check(late_approach_ship_screen_fraction.y >= early_approach_ship_screen_fraction.y,
+		"later approach continues or holds the ship's screen-space growth")
+	_check(detail_ship_screen_fraction.y > late_approach_ship_screen_fraction.y,
+		"close detail shot continues the ship's screen-space growth")
+	_check(detail_ship_screen_fraction.y >= 0.32,
+		"close detail shot reserves at least 32% of screen height for the ship")
 	_check(still_playing_before_end, "runtime reveal keeps playing until its 4 s duration")
 	runtime_scene.advance_cinematic(STEP * 2.0)
 	_check(not runtime_scene._cinematic_active and runtime_scene.gameplay_camera.current,
@@ -156,3 +184,22 @@ func _run() -> void:
 
 func scene_fps(scene: Node3D) -> float:
 	return scene.CINEMATIC_FPS
+
+
+func _projected_ship_screen_fraction(scene: Node3D) -> Vector2:
+	var camera: Camera3D = scene.cinematic_camera
+	var bounds: AABB = scene.ship_visual_bounds_world()
+	var screen_min := Vector2(INF, INF)
+	var screen_max := Vector2(-INF, -INF)
+	for corner in range(8):
+		var world_point := bounds.position + Vector3(
+			bounds.size.x if corner & 1 else 0.0,
+			bounds.size.y if corner & 2 else 0.0,
+			bounds.size.z if corner & 4 else 0.0
+		)
+		var screen_point: Vector2 = camera.unproject_position(world_point)
+		screen_min = screen_min.min(screen_point)
+		screen_max = screen_max.max(screen_point)
+	var viewport_size := camera.get_viewport().get_visible_rect().size
+	return Vector2((screen_max.x - screen_min.x) / viewport_size.x,
+		(screen_max.y - screen_min.y) / viewport_size.y)

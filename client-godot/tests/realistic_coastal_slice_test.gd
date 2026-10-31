@@ -87,8 +87,18 @@ func run() -> void:
 		ok = _check(cliff_count == 3, "contract line 78") and ok
 		# Negative fixture: the unbounded source cliff must violate the same cap,
 		# proving the per-instance check above would catch a skipped LOD.
-		var unbounded := (scene.COASTAL_CLIFF_SCENE.instantiate().find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D).mesh
-		ok = _check(scene._triangle_count(unbounded) > 90000, "negative fixture: unbounded cliff source exceeds the cap") and ok
+		var unbounded_cliff: Node3D = scene.COASTAL_CLIFF_SCENE.instantiate()
+		var unbounded_mesh_nodes: Array[Node] = unbounded_cliff.find_children("*", "MeshInstance3D", true, false)
+		if unbounded_mesh_nodes.is_empty():
+			ok = _check(false, "negative fixture loads the source cliff mesh") and ok
+		else:
+			var unbounded_mesh_instance := unbounded_mesh_nodes[0] as MeshInstance3D
+			ok = _check(scene._triangle_count(unbounded_mesh_instance.mesh) > 90000,
+				"negative fixture: unbounded cliff source exceeds the cap") and ok
+		# This detached imported scene owns ObjectDB instances and RenderingServer
+		# RIDs. Free it explicitly; otherwise a successful regression exits with
+		# leaked GLTF nodes, materials, meshes and renderer allocations.
+		unbounded_cliff.free()
 		if premium_layer:
 			for child in premium_layer.get_children():
 				if child.scene_file_path.ends_with("island_tree_01_1k.gltf") or child.scene_file_path.ends_with("island_tree_02_1k.gltf"):
@@ -184,6 +194,11 @@ func run() -> void:
 	if not ok:
 		push_error("Realistic coastal slice contract failed")
 	print("Realistic coastal slice test: %s" % ("PASS" if ok else "FAIL"))
+	# Flush scene-owned rendering resources before quitting so leak diagnostics
+	# report the test result rather than teardown noise from the fixture.
+	scene.free()
+	await process_frame
+	await process_frame
 	quit(0 if ok else 1)
 
 func _check(condition: bool, label: String) -> bool:

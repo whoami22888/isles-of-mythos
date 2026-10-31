@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
   BASE_CHECKS, CODEX_REVIEWER, changedPaths, modifiesProtectedVerification, applicableChecks, visualRequired,
-  trustedCodexReceipt, hasBlockingCodexFinding, requiredRunsPassed, resolveMergeability
+  trustedCodexReceipt, trustedCodexNoFindingsComment, hasBlockingCodexFinding, requiredRunsPassed, resolveMergeability,
+  WORLD_CONTENT_PATHS, COASTAL_FX_PATHS, trustedCodexNoFindingsComments, codexSummaryState
 } from "./auto-merge-gate.mjs";
 
 const sha = "a".repeat(40);
@@ -138,4 +139,177 @@ test("unknown mergeability never spins forever, real conflicts never retry", asy
   }, async () => { throw Error("Conflicts must not trigger retries"); });
   assert.equal(calls, 1);
   assert.equal(conflicting.mergeable, false);
+});
+
+// Reads the real workflow files so the gate inventory cannot drift from the path filters GitHub actually uses.
+function workflowPaths(file) {
+  const text = readFileSync(".github/workflows/" + file, "utf8");
+  const block = text.match(/pull_request:\s*\n\s*paths:\s*\n((?:\s*-\s*"[^"]+"\s*\n)+)/);
+  assert.ok(block, "pull_request paths not found in " + file);
+  return [...block[1].matchAll(/"([^"]+)"/g)].map(m => m[1]);
+}
+
+test("world-content and coastal-FX workflows are required whenever their path filters fire", () => {
+  const world = workflowPaths("iom-world-content.yml");
+  assert.deepEqual([...WORLD_CONTENT_PATHS].sort(), [...world].sort());
+  for (const p of world) assert.ok(applicableChecks([p]).includes("Isles world content and source harvest"), p);
+  const coastal = workflowPaths("iom-coastal-ship-fx.yml");
+  const exact = coastal.filter(p => !p.includes("*"));
+  assert.deepEqual([...COASTAL_FX_PATHS].sort(), [...exact].sort());
+  for (const p of exact) assert.ok(applicableChecks([p]).includes("IOM Coastal Ship FX Integration"), p);
+  assert.ok(coastal.includes("client-godot/assets/external/**"));
+  assert.ok(applicableChecks(["client-godot/assets/external/x/y.glb"]).includes("IOM Coastal Ship FX Integration"));
+  assert.ok(!applicableChecks(["server/src/health.ts"]).includes("IOM Coastal Ship FX Integration"));
+  assert.ok(!applicableChecks(["client-godot/scripts/unrelated.gd"]).includes("Isles world content and source harvest"));
+});
+
+test("renamed or deleted workflow-triggering files still require their workflows", () => {
+  const renamed = changedPaths([{ filename: "docs/old.md", previous_filename: "scripts/world_content.py", status: "renamed" }]);
+  assert.ok(applicableChecks(renamed).includes("Isles world content and source harvest"));
+  const removed = changedPaths([{ filename: "client-godot/scripts/ship_wake_effect.gd", status: "removed" }]);
+  assert.ok(applicableChecks(removed).includes("IOM Coastal Ship FX Integration"));
+});
+
+test("auto-merge workflow_run list names every gate-required workflow", () => {
+  const policy = readFileSync(".github/workflows/verified-codex-auto-merge.yml", "utf8");
+  assert.match(policy, /Isles world content and source harvest/);
+  assert.match(policy, /IOM Coastal Ship FX Integration/);
+  for (const name of applicableChecks([...WORLD_CONTENT_PATHS, ...COASTAL_FX_PATHS, "client-godot/assets/a.png", "scripts/stage_polyhaven_coast.py"]))
+    assert.ok(policy.includes(name), name);
+});
+
+// Genuine no-findings Codex reviews arrive as bot-authored issue comments, not formal review objects.
+const bot = { login: CODEX_REVIEWER, type: "Bot" };
+const state = (overrides = {}, commit = sha) => "<!-- codex-pull-request-review-summary -->\n<!-- codex-review-state:v1 " +
+  JSON.stringify({ code_review: { commit_sha: commit, has_any_findings: false, has_unresolved_findings: false,
+    status: "completed", ...overrides }, security_review: { commit_sha: null } })
+    .replaceAll("{", "&#123;").replaceAll("}", "&#125;") + " -->\n## Codex Review Summary";
+const summaryComment = (overrides, commit) => ({ user: bot, body: state(overrides, commit) });
+const receiptComment = (short = sha.slice(0, 10)) => ({ user: bot,
+  body: "<!-- codex-review-receipt:v1 -->\n\nCodex Review: Didn't find any major issues.\n\n**Reviewed commit:** `" + short + "`" });
+
+test("exact-SHA no-findings bot summary plus bot receipt comments are accepted", () => {
+  assert.equal(trustedCodexNoFindingsComments([summaryComment(), receiptComment()], sha), true);
+  assert.equal(trustedCodexNoFindingsComments([summaryComment(), receiptComment(sha)], sha), true);
+  assert.deepEqual(codexSummaryState(state()).code_review.status, "completed");
+});
+
+test("no-findings comment evidence fails closed on any deviation", () => {
+  const ok = [summaryComment(), receiptComment()];
+  assert.equal(trustedCodexNoFindingsComments([summaryComment()], sha), false, "summary alone");
+  assert.equal(trustedCodexNoFindingsComments([receiptComment()], sha), false, "receipt alone");
+  for (const overrides of [{ has_any_findings: true }, { has_unresolved_findings: true },
+    { status: "running" }, { has_any_findings: null }, { has_unresolved_findings: undefined }])
+    assert.equal(trustedCodexNoFindingsComments([summaryComment(overrides), receiptComment()], sha), false, JSON.stringify(overrides));
+  assert.equal(trustedCodexNoFindingsComments([summaryComment({}, "b".repeat(40)), receiptComment()], sha), false, "other SHA summary");
+  assert.equal(trustedCodexNoFindingsComments([summaryComment(), receiptComment("b".repeat(10))], sha), false, "other SHA receipt");
+  assert.equal(trustedCodexNoFindingsComments([summaryComment(), receiptComment("aaaaaaaaa")], sha), false, "short prefix");
+  for (const user of [{ login: "attacker-codex", type: "Bot" }, { login: "whoami22888", type: "User" }, null])
+    assert.equal(trustedCodexNoFindingsComments([{ ...summaryComment(), user }, { ...receiptComment(), user }], sha), false, JSON.stringify(user));
+  assert.equal(trustedCodexNoFindingsComments([{ user: bot, body: "<!-- codex-review-state:v1 not json -->" }, receiptComment()], sha), false, "malformed");
+  assert.equal(trustedCodexNoFindingsComments(ok, "not-a-sha"), false);
+  assert.equal(trustedCodexNoFindingsComments(null, sha), false);
+});
+
+test("auto-merge workflow reacts to bot issue comments and keeps protected-file refusal", () => {
+  const policy = readFileSync(".github/workflows/verified-codex-auto-merge.yml", "utf8");
+  assert.match(policy, /github\.event\.comment\.user\.login == 'chatgpt-codex-connector\[bot\]'/);
+  assert.equal(modifiesProtectedVerification(["scripts/auto-merge-gate.mjs"]), true);
+  assert.equal(modifiesProtectedVerification([".github/workflows/verified-codex-auto-merge.yml"]), true);
+});
+
+test("only the latest bot summary counts, so an earlier PASS is not reused", () => {
+  const older = { ...summaryComment(), updated_at: "2026-10-28T13:00:00Z" };
+  const newer = { ...summaryComment({ has_unresolved_findings: true }), updated_at: "2026-10-28T13:30:00Z" };
+  assert.equal(trustedCodexNoFindingsComments([older, newer, receiptComment()], sha), false);
+  const newerPass = { ...summaryComment(), updated_at: "2026-10-28T13:30:00Z" };
+  const olderFail = { ...summaryComment({ has_any_findings: true }), updated_at: "2026-10-28T13:00:00Z" };
+  assert.equal(trustedCodexNoFindingsComments([olderFail, newerPass, receiptComment()], sha), true);
+});
+
+test("real Codex receipts use a 10-character commit prefix", () => {
+  const real = { user: bot, body: "<!-- codex-review-receipt:v1 -->\n\nCodex Review: Didn't find any major issues. More of your lovely PRs please.\n\n**Reviewed commit:** `" + sha.slice(0, 10) + "`\n" };
+  assert.equal(trustedCodexNoFindingsComments([summaryComment(), real], sha), true);
+});
+
+const goodState = (head = sha, overrides = {}, updated_at = "2026-10-28T14:00:00Z") => ({
+  user: { login: CODEX_REVIEWER },
+  updated_at,
+  body: [
+    "<!-- codex-pull-request-review-summary -->",
+    "<!-- codex-review-state:v1 " + JSON.stringify({
+      code_review: {
+        commit_sha: head, status: "completed",
+        has_any_findings: false, has_unresolved_findings: false,
+        ...overrides,
+      },
+    }) + " -->",
+  ].join("\n"),
+});
+const goodNoFindingsReceipt = (head = sha) => ({
+  user: { login: CODEX_REVIEWER },
+  body: "<!-- codex-review-receipt:v1 -->\nCodex Review: no major issues.\n**Reviewed commit:** " +
+    String.fromCharCode(96) + head.slice(0, 12) + String.fromCharCode(96),
+});
+
+test("genuine Codex no-findings issue receipt requires TWO bot-authored exact-head records", () => {
+  const pair = [goodState(), goodNoFindingsReceipt()];
+  assert.equal(trustedCodexNoFindingsComment(pair, sha), true);
+  assert.equal(trustedCodexNoFindingsComment([pair[0]], sha), false, "status alone is insufficient");
+  assert.equal(trustedCodexNoFindingsComment([pair[1]], sha), false, "receipt alone is insufficient");
+  assert.equal(trustedCodexNoFindingsComment([], sha), false);
+  assert.equal(trustedCodexNoFindingsComment(pair, "bad-sha"), false);
+  assert.equal(trustedCodexNoFindingsComment({}, sha), false);
+  assert.equal(trustedCodexNoFindingsComment([goodState("b".repeat(40)), pair[1]], sha), false, "other SHA must not pass");
+  assert.equal(trustedCodexNoFindingsComment([pair[0], goodNoFindingsReceipt("b".repeat(40))], sha), false, "old receipt must not pass");
+});
+
+test("Codex pending, finding-bearing, forged and malformed issue comments all fail closed", () => {
+  const receipt = goodNoFindingsReceipt();
+  for (const bad of [
+    goodState(sha, { status: "running" }),
+    goodState(sha, { has_any_findings: true }),
+    goodState(sha, { has_unresolved_findings: true }),
+    goodState(sha, { has_any_findings: null }),
+    goodState(sha, { has_unresolved_findings: null }),
+    { ...goodState(), body: "<!-- codex-review-state:v1 {invalid} -->" },
+    { ...goodState(), body: "Review completed, no findings" },
+    { ...goodState(), user: { login: "whoami22888" } },
+  ]) {
+    assert.equal(trustedCodexNoFindingsComment([bad, receipt], sha), false);
+  }
+  assert.equal(trustedCodexNoFindingsComment([goodState(), {
+    ...receipt, user: { login: "some-fake-reviewer" },
+  }], sha), false, "an owner/attacker cannot impersonate Codex");
+  const priorPass = goodState(sha, {}, "2026-10-28T13:00:00Z");
+  const newerFail = goodState(sha, { status: "running" }, "2026-10-28T14:30:00Z");
+  assert.equal(trustedCodexNoFindingsComment([priorPass, receipt, newerFail], sha), false,
+    "latest bot review state overrides earlier success");
+});
+
+test("merge controller wakes for actual Codex issue receipts but not arbitrary PR comments", () => {
+  const policy = readFileSync(".github/workflows/verified-codex-auto-merge.yml", "utf8");
+  assert.match(policy, /github\.event\.comment\.user\.login == 'chatgpt-codex-connector\[bot\]'/);
+  assert.match(policy, /contains\(github\.event\.comment\.body, 'codex-review-receipt:v1'\)/);
+  assert.match(policy, /contains\(github\.event\.comment\.body, 'codex-review-state:v1'\)/);
+  assert.match(policy, /github\.event\.issue\.pull_request != null/);
+  assert.match(policy, /github\.event\.comment\.user\.login == github\.repository_owner/);
+  assert.match(policy, /VISUAL-ACCEPTED:/);
+});
+
+test("a newer malformed or unparseable Codex summary must not fall back to an older PASS", () => {
+  const older = goodState(sha, {}, "2026-10-28T14:00:00Z");
+  const receipt = goodNoFindingsReceipt();
+  const malformed = [
+    "<!-- codex-review-state:v1 {invalid} -->",
+    "<!-- codex-review-state:v1 -->",
+    "<!-- codex-review-state:v1 null -->",
+  ];
+  for (const body of malformed) {
+    const newer = { user: { login: CODEX_REVIEWER }, updated_at: "2026-10-28T15:00:00Z", body };
+    assert.equal(trustedCodexNoFindingsComment([older, receipt, newer], sha), false, body);
+  }
+  // A newer *valid* summary on the same SHA still wins, and an unmarked newer bot comment is ignored.
+  const unmarked = { user: { login: CODEX_REVIEWER }, updated_at: "2026-10-28T15:00:00Z", body: "thanks!" };
+  assert.equal(trustedCodexNoFindingsComment([older, receipt, unmarked], sha), true);
 });

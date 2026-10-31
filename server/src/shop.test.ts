@@ -163,7 +163,7 @@ describe("shop catalogue", () => {
 
   it("records HTTP inventory-capacity rejections without changing the response", async () => {
     const antiCheat = new AntiCheatService();
-    const observeRejectedAction = vi.spyOn(antiCheat, "observeRejectedAction").mockReturnValue(null);
+    const observeRejectedAction = vi.spyOn(antiCheat, "observeRejectedAction").mockResolvedValue(null);
     const { db, app, userId, token } = await createShopPlayer(antiCheat);
     try {
       await db.query("UPDATE player_profiles SET gold=$2, inventory=$3::jsonb WHERE user_id=$1", [

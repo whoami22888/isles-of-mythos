@@ -5,10 +5,12 @@ declare module "@fastify/jwt" {
     payload: {
       sub: string;
       username: string;
+      role?: "player" | "admin";
     };
     user: {
       sub: string;
       username: string;
+      role?: "player" | "admin";
     };
   }
 }

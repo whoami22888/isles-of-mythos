@@ -5,6 +5,7 @@ import {buildApp} from "./app.js";
 import {createDbPool} from "./db.js";
 import {BaseStore} from "./base.js";
 import {ShipStore,SHIP_CLASSES,CANNONBALL_ITEM} from "./ship.js";
+import { CREW_START_MORALE } from "./crew-stats.js";
 import {NavalStore} from "./naval.js";
 
 async function register(app:FastifyInstance,tag:string):Promise<string>{
@@ -29,7 +30,7 @@ describe("Gate 9 ships",()=>{
       const ship=await store.create(user,"Sea Wraith","sloop");
       expect(ship.shipClass).toBe("sloop");expect(ship.hull).toBe(SHIP_CLASSES.sloop.hull);
       const inventory=await store.inventory(user,ship.id);expect(inventory.find(i=>i.itemId===CANNONBALL_ITEM)?.quantity).toBe(8);
-      const moved=await store.sail(user,ship.id,1,0,10);expect(moved.x).toBeGreaterThan(0);expect(moved.fuel).toBeLessThan(ship.fuel);
+      await db.query("UPDATE player_ships SET last_sailed_at=now()-interval '10 seconds' WHERE id=$1",[ship.id]);const moved=await store.sail(user,ship.id,1,0);expect(moved.x).toBeGreaterThan(0);expect(moved.fuel).toBeLessThan(ship.fuel);
       const persisted=await store.list(user);expect(persisted[0]?.x).toBe(moved.x);expect(f.baseId).toBeTruthy();
     }finally{await db.end();await app.close();}
   });
@@ -41,7 +42,7 @@ describe("Gate 9 ships",()=>{
       const attacker=await attackerStore.create(attackerUser,"Black Tide","sloop");
       const defender=await defenderStore.create(defenderUser,"Red Wake","raft");
       const creature=await db.query<{id:string}>(`INSERT INTO player_creatures(owner_user_id,wild_source_id,species,level,xp,health,max_health,attack,defense,element,ability_ids,tame_progress,party_slot,ai_mode,x,y,genetics,generation) VALUES($1,$2,'boar',1,0,70,70,10,5,'earth','[]'::jsonb,100,NULL,'follow',0,0,'{}'::jsonb,0) RETURNING id`,[attackerUser,"ship-crew-"+Date.now()]);
-      const crew=await attackerStore.assignCrew(attackerUser,attacker.id,creature.rows[0].id,"gunner",50,100);expect(crew.role).toBe("gunner");
+      const crew=await attackerStore.assignCrew(attackerUser,attacker.id,creature.rows[0].id,"gunner");expect(crew.role).toBe("gunner");expect(crew.skill).toBe(1);expect(crew.morale).toBe(CREW_START_MORALE);
       const result=await naval.fireCannon(attackerUser,attacker.id,defender.id);expect(result.damage).toBeGreaterThan(0);expect(result.target.hull).toBeLessThan(defender.hull);
       await expect(naval.fireCannon(attackerUser,attacker.id,defender.id)).rejects.toThrow("CANNON_COOLDOWN");
     }finally{await db.end();await app.close();}
