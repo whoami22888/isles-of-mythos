@@ -182,12 +182,17 @@ func _check_authoritative_move(session: Dictionary) -> void:
 # not schedule a reconnect.
 func _check_clean_teardown(session: Dictionary) -> void:
 	var client = session["client"]
-	var reconnects := {"scheduled": 0}
+	var reconnects := {"scheduled": 0, "disconnected": false}
 	client.reconnect_scheduled.connect(func(_attempt: int, _delay: float) -> void:
 		reconnects["scheduled"] += 1)
+	# "Disconnected" is emitted only from _handle_closed, once the socket has reached CLOSED.
+	client.status_changed.connect(func(status: String) -> void:
+		if status == "Disconnected":
+			reconnects["disconnected"] = true)
 	client.disconnect_from_server()
-	var closed := await _wait_until(func() -> bool: return not client.is_authenticated())
-	check(closed, "Deliberate disconnect must clear authentication")
+	var closed := await _wait_until(func() -> bool: return reconnects["disconnected"])
+	check(closed, "Deliberate disconnect must complete the socket close (status Disconnected)")
+	check(not client.is_authenticated(), "Deliberate disconnect must clear authentication")
 	await create_timer(0.5).timeout
 	check(reconnects["scheduled"] == 0, "Deliberate disconnect must not schedule a reconnect")
 	client.queue_free()
