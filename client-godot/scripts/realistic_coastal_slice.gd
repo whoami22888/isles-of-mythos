@@ -45,7 +45,7 @@ const CINEMATIC_FOV_DETAIL := 38.0
 # three-quarter view (owner concept frames) rather than a waterline crawl.
 const CINEMATIC_MIN_CLEARANCE := 3.0
 const CINEMATIC_MIN_ELEVATION_DEG := 12.0
-const WATER_HALF_EXTENT := Vector2(320.0, 240.0)
+const WATER_HALF_EXTENT := Vector2(1024.0, 1024.0)
 const CINEMATIC_WATER_MARGIN := 40.0
 
 var gameplay_camera: Camera3D
@@ -93,7 +93,7 @@ func _build_environment() -> void:
 	environment.glow_intensity = 0.35
 	environment.glow_hdr_threshold = 1.2
 	# Aerial perspective: distance haze toward the horizon colour. It also
-	# fades the edge of the single 640 x 480 m ocean plane, which an elevated
+	# fades the edge of the single 2048 x 2048 m ocean plane, which a low-angle
 	# camera otherwise sees as a grey band. Depth fog is Mobile-supported.
 	environment.fog_enabled = true
 	environment.fog_mode = Environment.FOG_MODE_DEPTH
@@ -222,10 +222,12 @@ func _build_water() -> void:
 	# ONE contiguous seascape avoids cross-material seams and expensive
 	# overlapping fragment passes. Only the central ~180x140m displaces;
 	# distant water retains animated per-pixel micro-normals without tessellation.
-	# 160x120 subdivisions cap vertex shader work even across the full horizon.
-	plane.size = Vector2(640.0, 480.0)
-	plane.subdivide_width = 160
-	plane.subdivide_depth = 120
+	# 256x256 subdivisions keep the distant grid at ~8 m while the shader's
+	# near-coast wave envelope and per-pixel normals provide the visible detail.
+	# The enlarged horizon pushes the finite mesh edge out of the cinematic view.
+	plane.size = WATER_HALF_EXTENT * 2.0
+	plane.subdivide_width = 256
+	plane.subdivide_depth = 256
 	water.mesh = plane
 	water.position.y = WATER_Y - 0.18
 	water.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF

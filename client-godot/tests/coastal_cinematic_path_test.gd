@@ -171,7 +171,7 @@ func _run() -> void:
 	# Pure-validator negatives.
 	_check(not runtime_scene.evaluate_cinematic_pose(Vector3(-16.2, -1.35, -41.6))["sealed"],
 		"submerged pose is rejected")
-	_check(not runtime_scene.evaluate_cinematic_pose(Vector3(0.0, 6.0, 300.0))["sealed"],
+	_check(not runtime_scene.evaluate_cinematic_pose(Vector3(0.0, 6.0, 1100.0))["sealed"],
 		"pose near/outside the water plane edge is rejected")
 	_check(runtime_scene.evaluate_cinematic_pose(Vector3(0.0, 6.0, -30.0))["sealed"],
 		"a high pose inside the water plane is accepted")
