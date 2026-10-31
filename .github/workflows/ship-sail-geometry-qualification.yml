@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - 'scripts/qualify_polyhaven_ship_geometry.py'
+      - 'scripts/test_qualify_polyhaven_ship_geometry.py'
+      - 'docs/graphics/polyhaven-qualified-ship-sha256.json'
       - '.github/workflows/ship-sail-geometry-qualification.yml'
   workflow_dispatch:
 permissions:
@@ -21,6 +23,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/ship-qualification"
+          python3 -m unittest discover -s scripts -p 'test_qualify_polyhaven_ship_geometry.py' -v
           python3 scripts/qualify_polyhaven_ship_geometry.py \
             --output "$RUNNER_TEMP/ship-qualification/ship-sail-geometry-report.json"
           python3 -m json.tool "$RUNNER_TEMP/ship-qualification/ship-sail-geometry-report.json" >/dev/null
