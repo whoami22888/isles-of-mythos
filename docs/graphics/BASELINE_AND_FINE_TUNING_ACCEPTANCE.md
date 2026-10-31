@@ -37,7 +37,7 @@ Status: reference-only evaluation contract. This document does not change gamepl
 
 ## Candidate review record template
 
-- Baseline commit SHA and screenshot SHA-256:
+- Baseline commit SHA and per-file baseline screenshot SHA-256 (`filename → SHA-256` for each screenshot listed above; no unlabeled or shared digest):
 - Candidate PR and exact head SHA:
 - Scenario/camera/viewport/seed:
 - Godot version, device and rendering mode:
