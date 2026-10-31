@@ -35,9 +35,9 @@ const CINEMATIC_DURATION := 4.0
 const CINEMATIC_FPS := 24.0
 # The reveal starts as an establishing shot and deliberately pushes into the
 # vessel. The final beat is a rigging/hull detail, so it may crop the mast.
-const CINEMATIC_FOV_WIDE := 75.0
-const CINEMATIC_FOV_APPROACH := 59.0
-const CINEMATIC_FOV_LATE_APPROACH := 50.0
+const CINEMATIC_FOV_WIDE := 58.0
+const CINEMATIC_FOV_APPROACH := 50.0
+const CINEMATIC_FOV_LATE_APPROACH := 44.0
 const CINEMATIC_FOV_DETAIL := 38.0
 # Minimum camera height above the sea surface. The ocean surface is back-face
 # culled, so a camera at or below it exposes the finite seabed mesh and its
