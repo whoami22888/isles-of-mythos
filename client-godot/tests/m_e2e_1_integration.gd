@@ -90,7 +90,10 @@ func run() -> void:
 func _check_rejected_token(ws_url: String) -> void:
 	var client = PROTOCOL_SCRIPT.new()
 	root.add_child(client)
-	var seen := {"rejected": false, "auth_ok": false, "reconnects": 0}
+	var seen := {"rejected": false, "auth_ok": false, "reconnects": 0, "failure": ""}
+	check(client.has_signal("auth_failed"), "Adapter must expose auth_failed(reason) for close 1008")
+	client.auth_failed.connect(func(reason: String) -> void:
+		seen["failure"] = reason)
 	client.status_changed.connect(func(status: String) -> void:
 		if status.contains("rejected the session"):
 			seen["rejected"] = true)
@@ -104,6 +107,7 @@ func _check_rejected_token(ws_url: String) -> void:
 	var refused := await _wait_until(func() -> bool: return seen["rejected"])
 	check(refused, "Forged token must be reported as a server rejection (close 1008)")
 	check(not seen["auth_ok"], "Forged token must never receive auth_ok")
+	check(seen["failure"] == "INVALID_TOKEN", "Close 1008 with invalid_token must map to auth_failed(\"INVALID_TOKEN\") (got \"%s\")" % seen["failure"])
 	await create_timer(0.5).timeout
 	check(seen["reconnects"] == 0, "Server rejection must not schedule a reconnect")
 	client.queue_free()
