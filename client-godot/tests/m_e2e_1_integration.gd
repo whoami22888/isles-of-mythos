@@ -180,11 +180,18 @@ func _check_authoritative_move(session: Dictionary) -> void:
 func _check_clean_teardown(session: Dictionary) -> void:
 	var client = session["client"]
 	var reconnects := {"scheduled": 0}
+	var disconnected := {"value": false}
+	var was_active: bool = client._attempt_active
+	client.status_changed.connect(func(status: String) -> void:
+		if status == "Disconnected":
+			disconnected["value"] = true)
 	client.reconnect_scheduled.connect(func(_attempt: int, _delay: float) -> void:
 		reconnects["scheduled"] += 1)
 	client.disconnect_from_server()
-	var closed := await _wait_until(func() -> bool: return not client.is_authenticated())
-	check(closed, "Deliberate disconnect must clear authentication")
+	var closed := await _wait_until(func() -> bool:
+		return disconnected["value"] and not client.is_authenticated())
+	check(was_active, "Teardown assertion requires an established active socket")
+	check(closed, "Deliberate disconnect must finish closing the socket and clear authentication")
 	await create_timer(0.5).timeout
 	check(reconnects["scheduled"] == 0, "Deliberate disconnect must not schedule a reconnect")
 	client.queue_free()
