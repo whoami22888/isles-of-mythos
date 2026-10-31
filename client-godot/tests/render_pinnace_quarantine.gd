@@ -3,7 +3,7 @@ extends SceneTree
 ## The original accepted game scene and its asset manifest stay unchanged.
 const WRAPPER := preload("res://scripts/sail_emblem_hd_wrapper.gd")
 const COAST := preload("res://scenes/realistic_coastal_slice.tscn")
-const PINNACE := preload("res://assets/quarantine/ship_pinnace/ship_pinnace_1k.gltf")
+const PINNACE_PATH := "res://assets/quarantine/ship_pinnace/ship_pinnace_1k.gltf"
 
 const WIDTH := 1280
 const HEIGHT := 720
@@ -50,7 +50,13 @@ func _run() -> void:
 	if old_ship == null:
 		_fail("Current coastal scene has no authoritative focal ship")
 		return
-	var replacement: Node3D = PINNACE.instantiate()
+	# Dynamic load prevents unrelated clean checkouts from parsing a
+	# non-committed candidate as a mandatory production dependency.
+	var source_scene: PackedScene = load(PINNACE_PATH) as PackedScene
+	if source_scene == null:
+		_fail("Quarantined Pinnace was not staged; production import remains untouched")
+		return
+	var replacement: Node3D = source_scene.instantiate()
 	replacement.name = "HarbourShipFocalPoint"
 	replacement.position = old_ship.position
 	replacement.rotation_degrees = old_ship.rotation_degrees
