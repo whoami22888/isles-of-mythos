@@ -17,6 +17,9 @@ static func _shader_for_source(source: BaseMaterial3D) -> ShaderMaterial:
 	# The imported atlas is brightened to cream without altering the PBR maps.
 	cloth.set_shader_parameter("base_tint", Color.WHITE)
 	cloth.set_shader_parameter("cross_color", Color(0.8, 0.1, 0.1, 1.0))
+	cloth.set_shader_parameter("use_vector_cross", true)
+	cloth.set_shader_parameter("emblem_scale", 1.25)
+	cloth.set_shader_parameter("fabric_weave_strength", 0.02)
 	cloth.set_shader_parameter("alpha_scissor_threshold",
 		maxf(0.01, source.alpha_scissor_threshold))
 	cloth.set_shader_parameter("sail_roughness", source.roughness)
