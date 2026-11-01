@@ -10,6 +10,7 @@ func _init() -> void:
 
 func _audit() -> void:
 	var report := {}
+	var ship_motion_verified := false
 	for scene_path in SCENES:
 		var packed := load(scene_path) as PackedScene
 		if packed == null:
@@ -49,7 +50,18 @@ func _audit() -> void:
 			for child in node.get_children():
 				pending.append(child)
 		report[scene_path] = meshes
+		if scene_path.ends_with("realistic_coastal_fx_slice.tscn"):
+			var fx := scene.get_node_or_null("CoastalShipEffects")
+			if fx != null and fx.components_ready():
+				var vessel := fx.vessel as Node3D
+				var start := vessel.position
+				fx.start_visual_demo()
+				fx.advance_visual_demo(0.1)
+				ship_motion_verified = vessel.position.distance_to(start) > 0.01
+				fx.stop_visual_demo()
+				ship_motion_verified = ship_motion_verified and vessel.position.distance_to(start) < 0.001
 		scene.queue_free()
 		await process_frame
+	report["__ship_motion_verified__"] = ship_motion_verified
 	print("RUNTIME_GRAPHICS_JSON=" + JSON.stringify(report))
 	quit(0)

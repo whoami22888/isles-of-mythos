@@ -86,13 +86,19 @@ func run() -> void:
 		if premium_layer:
 			for child in premium_layer.get_children():
 				if child.scene_file_path.ends_with("island_tree_01_1k.gltf") or child.scene_file_path.ends_with("island_tree_02_1k.gltf"):
-					var foliage_mesh := child.get_child(0).mesh as ArrayMesh
+					var foliage_node := child.get_child(0) as MeshInstance3D
+					var foliage_mesh := foliage_node.mesh as ArrayMesh
 					ok = _check(foliage_mesh != null and foliage_mesh.get_surface_count() == 3, "contract line 83") and ok
 					var foliage_triangles := 0
+					var leaf_alpha_verified := false
 					for surface_index in range(foliage_mesh.get_surface_count()):
 						var indices: PackedInt32Array = foliage_mesh.surface_get_arrays(surface_index)[Mesh.ARRAY_INDEX]
 						foliage_triangles += indices.size() / 3
-					ok = _check(foliage_triangles <= 72000, "contract line 88") and ok
+						var material := foliage_node.get_active_material(surface_index) as BaseMaterial3D
+						if material != null and str(material.resource_name).contains("leaves") and material.albedo_texture != null:
+							leaf_alpha_verified = material.albedo_texture.get_image().detect_alpha() != Image.ALPHA_NONE
+					ok = _check(foliage_triangles > 0 and foliage_triangles < 15000, "distant foliage LOD budget") and ok
+					ok = _check(leaf_alpha_verified, "distant foliage has real albedo alpha") and ok
 	# Every visible imported landmark keeps its authored materials while using
 	# a deterministic triangle cap. This guards the capture watchdog regression
 	# without allowing a bare placeholder or an unbounded source mesh back in.

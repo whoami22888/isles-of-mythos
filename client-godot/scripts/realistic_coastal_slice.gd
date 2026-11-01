@@ -7,6 +7,7 @@ const SHIP_SCENE := preload("res://assets/external/polyhaven/dutch_ship_medium/d
 const COASTAL_CLIFF_SCENE := preload("res://assets/external/polyhaven/coastal_cliff_01/coastal_cliff_01_1k.gltf")
 const TROPICAL_TREE_SCENE := preload("res://assets/external/polyhaven/island_tree_01/island_tree_01_1k.gltf")
 const TROPICAL_TREE_ALT_SCENE := preload("res://assets/external/polyhaven/island_tree_02/island_tree_02_1k.gltf")
+const ISLAND_LEAVES_RGBA := preload("res://assets/external/generated/foliage/island_tree_leaves_rgba_1k.png")
 const MOSS_ROCK_SCENE := preload("res://assets/external/polyhaven/rock_moss_set_01/rock_moss_set_01_1k.gltf")
 const COAST_DIFFUSE := preload("res://assets/external/polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_diff_1k.jpg")
 const COAST_NORMAL := preload("res://assets/external/polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_nor_gl_1k.jpg")
@@ -14,6 +15,10 @@ const COAST_ROUGHNESS := preload("res://assets/external/polyhaven/coast_sand_roc
 const COAST_AO := preload("res://assets/external/polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_ao_1k.jpg")
 const SHORE_BAKER := preload("res://scripts/coastal_shore_heightfield.gd")
 const OCEAN_SHADER := preload("res://shaders/ocean_surface.gdshader")
+
+@export var coastal_cliff_lod2_scene: PackedScene
+@export var tropical_tree_lod2_scene: PackedScene
+@export var tropical_tree_alt_lod2_scene: PackedScene
 const WATER_Y := -0.35
 const GAMEPLAY_CAMERA := Vector3(13.0, 12.0, -14.0)
 const CINEMATIC_START_CAMERA := Vector3(-11.0, 5.5, -18.0)
@@ -343,11 +348,11 @@ func _reduce_surface_triangles(source: ArrayMesh, surface_index: int, _max_trian
 	return source.surface_get_arrays(surface_index)
 
 func _apply_far_foliage_lod(asset: Node3D, _max_total_triangles: int = 72000) -> void:
-	_preserve_authored_mesh(asset)
+	_preserve_authored_mesh(asset, true)
 
 func _apply_landmark_lod(asset: Node3D, _max_triangles: int) -> void:
 	if asset.scene_file_path.get_file() == "coastal_cliff_01_1k.gltf":
-		var packed := load("res://assets/external/generated/coastal_cliff_blender/coastal_cliff_lod2.glb") as PackedScene
+		var packed := coastal_cliff_lod2_scene
 		if packed == null:
 			push_error("Missing admitted coastal cliff LOD2")
 			return
@@ -365,11 +370,17 @@ func _apply_landmark_lod(asset: Node3D, _max_triangles: int) -> void:
 		return
 	_preserve_authored_mesh(asset)
 
-func _preserve_authored_mesh(asset: Node3D) -> void:
+func _preserve_authored_mesh(asset: Node3D, distant: bool = false) -> void:
 	var asset_name := asset.scene_file_path.get_file().trim_suffix("_1k.gltf")
 	if asset_name not in ["tree_small_02", "island_tree_01", "island_tree_02", "coast_rocks_05"]:
 		return
-	var packed := load("res://assets/external/generated/bounded_lods/" + asset_name + ".glb") as PackedScene
+	var packed: PackedScene
+	if distant and asset_name == "island_tree_01":
+		packed = tropical_tree_lod2_scene
+	elif distant and asset_name == "island_tree_02":
+		packed = tropical_tree_alt_lod2_scene
+	else:
+		packed = load("res://assets/external/generated/bounded_lods/" + asset_name + ".glb") as PackedScene
 	if packed == null:
 		push_error("Missing admitted bounded LOD: " + asset_name)
 		return
@@ -384,6 +395,15 @@ func _preserve_authored_mesh(asset: Node3D) -> void:
 	# mesh, including material regions, UVs, normals and tangent arrays.
 	originals[0].mesh = replacements[0].mesh
 	originals[0].lod_bias = 1.5
+	if asset_name in ["island_tree_01", "island_tree_02"]:
+		for surface_index in range(originals[0].mesh.get_surface_count()):
+			var material := originals[0].get_active_material(surface_index) as StandardMaterial3D
+			if material == null or not str(material.resource_name).to_lower().contains("leaves"):
+				continue
+			var foliage := material.duplicate() as StandardMaterial3D
+			foliage.albedo_texture = ISLAND_LEAVES_RGBA
+			foliage.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+			originals[0].set_surface_override_material(surface_index, foliage)
 	authored.free()
 
 func visual_bounds_world(asset: Node3D) -> AABB:
