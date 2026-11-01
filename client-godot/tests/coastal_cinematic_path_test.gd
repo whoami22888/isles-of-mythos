@@ -236,6 +236,8 @@ func _ship_aabb_inside_frame(scene: Node3D, margin: float, frame: int) -> bool:
 	var camera: Camera3D = scene.cinematic_camera
 	var bounds: AABB = scene.ship_visual_bounds_world()
 	var viewport_size := camera.get_viewport().get_visible_rect().size
+	var minimum := Vector2(INF, INF)
+	var maximum := Vector2(-INF, -INF)
 	for corner in range(8):
 		var point := bounds.position + Vector3(
 			bounds.size.x if corner & 1 else 0.0,
@@ -245,10 +247,15 @@ func _ship_aabb_inside_frame(scene: Node3D, margin: float, frame: int) -> bool:
 		if camera.is_position_behind(point):
 			return false
 		var pixel: Vector2 = camera.unproject_position(point)
+		minimum = minimum.min(pixel)
+		maximum = maximum.max(pixel)
 		if pixel.x <= viewport_size.x * margin or pixel.x >= viewport_size.x * (1.0 - margin):
 			print("IOM_FRAME_EDGE frame=%d corner=%d axis=x pixel=%.3f margin=%.3f viewport=%.0f" % [frame, corner, pixel.x, margin, viewport_size.x])
 			return false
 		if pixel.y <= viewport_size.y * margin or pixel.y >= viewport_size.y * (1.0 - margin):
 			print("IOM_FRAME_EDGE frame=%d corner=%d axis=y pixel=%.3f margin=%.3f viewport=%.0f" % [frame, corner, pixel.y, margin, viewport_size.y])
 			return false
+	if frame in [48, 65, 71, 95]:
+		print("IOM_FRAME_BOUNDS frame=%d min=(%.3f,%.3f) max=(%.3f,%.3f) viewport=(%.0f,%.0f)" % [
+			frame, minimum.x, minimum.y, maximum.x, maximum.y, viewport_size.x, viewport_size.y])
 	return true
