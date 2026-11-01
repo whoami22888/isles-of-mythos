@@ -1,6 +1,10 @@
+import hashlib
+import json
+import tempfile
 import unittest
+from pathlib import Path
 
-from scripts.check_ship_occupancy import FRAMES, PIXEL_COUNT, validate_samples
+from scripts.check_ship_occupancy import FRAMES, PIXEL_COUNT, read_samples, validate_samples
 
 
 def sample(frame, hull, sails, total):
@@ -14,6 +18,7 @@ def sample(frame, hull, sails, total):
         "sail_fraction": sails / PIXEL_COUNT,
         "composite_frame_sha256": "a" * 64,
         "mask_frame_sha256": "b" * 64,
+        "mask_frame_file": f"ship-mask-frame-{frame:04d}.rgba",
     }
 
 
@@ -48,6 +53,46 @@ class ShipOccupancyTests(unittest.TestCase):
         samples = self.valid_samples()
         samples[48]["sail_fraction"] = samples[24]["sail_fraction"]
         self.assertTrue(any("Sail coverage" in error for error in validate_samples(samples)))
+
+    def test_raw_rendered_masks_reproduce_recorded_pixel_counts(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            manifests = {}
+            for frame in FRAMES:
+                directory = root / f"internal-coastal-frames-{frame // 24}"
+                directory.mkdir(exist_ok=True)
+                hull = 3000 + frame
+                sails = 5000 + frame
+                total = hull + sails
+                mask = bytearray(b"\0\0\0\xff" * PIXEL_COUNT)
+                for pixel in range(hull):
+                    mask[pixel * 4:pixel * 4 + 4] = b"\xff\0\0\xff"
+                for pixel in range(hull, total):
+                    mask[pixel * 4:pixel * 4 + 4] = b"\0\xff\0\xff"
+                mask_path = directory / f"ship-mask-frame-{frame:04d}.rgba"
+                mask_path.write_bytes(mask)
+                frame_path = directory / f"frame_{frame:04d}.rgba"
+                frame_bytes = bytes([frame]) * (PIXEL_COUNT * 4)
+                frame_path.write_bytes(frame_bytes)
+                item = sample(frame, hull, sails, total)
+                item["composite_frame_sha256"] = hashlib.sha256(frame_bytes).hexdigest()
+                item["mask_frame_sha256"] = hashlib.sha256(mask).hexdigest()
+                sample_path = directory / f"ship-occupancy-frame-{frame:04d}.json"
+                sample_bytes = (json.dumps(item) + "\n").encode()
+                sample_path.write_bytes(sample_bytes)
+                entries = manifests.setdefault(directory, [])
+                entries.extend([
+                    (frame_path.name, hashlib.sha256(frame_bytes).hexdigest()),
+                    (mask_path.name, hashlib.sha256(mask).hexdigest()),
+                    (sample_path.name, hashlib.sha256(sample_bytes).hexdigest()),
+                ])
+
+            for directory, entries in manifests.items():
+                manifest = "".join(f"{digest}  {name}\n" for name, digest in entries)
+                (directory / "SHA256SUMS").write_text(manifest, encoding="utf-8")
+
+            samples, _ = read_samples(root)
+            self.assertEqual(validate_samples(samples), [])
 
     def test_requires_all_four_camera_beats(self):
         samples = self.valid_samples()

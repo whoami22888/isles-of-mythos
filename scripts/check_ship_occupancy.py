@@ -39,6 +39,8 @@ def read_samples(root: Path) -> tuple[dict[int, dict], dict[int, str]]:
             raise ValueError(f"Frame {frame} occupancy JSON does not match its worker SHA256SUMS")
         if manifest.get(mask_path.name) != hashlib.sha256(mask_bytes).hexdigest():
             raise ValueError(f"Frame {frame} rendered mask does not match its worker SHA256SUMS")
+        if sample.get("mask_frame_file") != mask_path.name:
+            raise ValueError(f"Frame {frame} occupancy does not name its rendered mask")
         if sample.get("composite_frame_sha256") != digest:
             raise ValueError(f"Frame {frame} occupancy is not bound to its composite frame")
         if len(mask_bytes) != PIXEL_COUNT * 4:
