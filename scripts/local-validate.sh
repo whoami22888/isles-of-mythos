@@ -20,7 +20,7 @@ fi
 
 # 3. Enforce Godot 4.7.2 version match
 ENGINE_VERSION="$("$GODOT" --version 2>&1 || true)"
-if [[ "$ENGINE_VERSION" != *"4.7.2"* ]]; then
+if ! grep -Eq '^4\.7\.2\.stable\.official\.[0-9a-f]+$' <<< "$ENGINE_VERSION"; then
     echo "FATAL: Incompatible Godot version '$ENGINE_VERSION'. Required: 4.7.2" >&2
     exit 1
 fi

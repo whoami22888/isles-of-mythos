@@ -129,21 +129,23 @@ def validate() -> int:
                 if candidate.resolve() in registered:
                     actual.add(candidate.resolve())
                     continue
-                if candidate.suffix in GODOT_SIDECARS or candidate.name.startswith("."):
+                if candidate.suffix in GODOT_SIDECARS:
                     continue
                 # Godot extracts the coastal cliff's authored textures beside
                 # each derived LOD. Admit only byte-identical copies of the
                 # exact manifested upstream texture, never arbitrary JPGs.
                 relative = candidate.relative_to(ASSETS).as_posix()
                 match = re.fullmatch(
-                    r"generated/coastal_cliff_blender/coastal_cliff_lod[12]_(coastal_cliff_01_[^/]+\.jpg)",
+                    r"generated/coastal_cliff_blender/coastal_cliff_lod[12]_"
+                    r"(coastal_cliff_01_[^/]+\.jpg)",
                     relative,
                 )
                 if match:
                     source = registered_by_path.get(
                         f"polyhaven/coastal_cliff_01/textures/{match.group(1)}"
                     )
-                    if source and hashlib.sha256(candidate.read_bytes()).hexdigest() == source["sha256"]:
+                    if (source and hashlib.sha256(candidate.read_bytes()).hexdigest()
+                            == source["sha256"]):
                         continue
                 actual.add(candidate.resolve())
         if actual != registered:
