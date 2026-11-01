@@ -894,9 +894,9 @@ func cinematic_margin_at(progress: float) -> float:
 		return lerpf(0.15, 0.08, _sine_in_out(progress / 0.25))
 	if progress <= 0.5:
 		return lerpf(0.08, 0.06, _sine_in_out((progress - 0.25) / 0.25))
-	# The detail shot uses the full 2% solver floor to keep growing the visible
-	# subject while retaining explicit clearance from every viewport edge.
-	return lerpf(0.06, 0.02, _sine_in_out((progress - 0.5) / 0.5))
+	# The capture checks a 5% safe edge at every rendered pixel. Keep a small
+	# solver tolerance above that edge through the detail push-in.
+	return lerpf(0.06, 0.055, _sine_in_out((progress - 0.5) / 0.5))
 
 
 func cinematic_coast_bias_at(progress: float) -> float:
