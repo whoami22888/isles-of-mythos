@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
+import shutil
 import struct
+import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -199,7 +202,71 @@ def _inspect_gltf(root: Path, rel: str) -> list[Finding]:
     return issues
 
 
-def audit(root: Path) -> tuple[list[Finding], int]:
+def inspect_scene_nodes_runtime(scene_path: str, meshes: list[dict]) -> list[Finding]:
+    """Audit mesh surfaces and materials observed in an instantiated Godot scene."""
+    issues: list[Finding] = []
+    seen: set[tuple[str, str]] = set()
+    for mesh in meshes:
+        node = mesh["node"]
+        surfaces = mesh["surfaces"]
+        triangles = sum(surface["triangles"] for surface in surfaces)
+        if triangles > TRIANGLE_REVIEW_LIMIT:
+            key = ("HEAVY_LOD0", node.rsplit("/", 1)[-1])
+            if key not in seen:
+                issues.append(Finding("HEAVY_LOD0", scene_path,
+                    f"{node}: {triangles:,} instantiated triangles; mobile profiling required"))
+                seen.add(key)
+        for surface in surfaces:
+            material = surface["material"]
+            if "lea" in material.lower() and surface["transparency"] > 0 and not surface["albedo_alpha"]:
+                key = ("FOLIAGE_ALPHA", material)
+                if key not in seen:
+                    issues.append(Finding("FOLIAGE_ALPHA", scene_path,
+                        f"{node}: {material} uses transparency without actual albedo alpha ({surface['texture']})"))
+                    seen.add(key)
+    return issues
+
+
+def _runtime_report(root: Path, godot_bin: str) -> dict:
+    """Instantiate production scenes with the selected Godot binary; reject incomplete output."""
+    executable = shutil.which(godot_bin)
+    if not executable:
+        raise ValueError(f"Godot binary unavailable: {godot_bin}")
+    version = subprocess.run([executable, "--version"], capture_output=True, text=True,
+                             timeout=10, check=False)
+    if version.returncode or not re.match(r"^4\.7\.2\.stable(?:\.|$)", version.stdout.strip()):
+        raise ValueError(f"Godot 4.7.2-stable required, got: {version.stdout.strip()}")
+    result = subprocess.run([executable, "--headless", "--rendering-method", "mobile",
+                             "--path", str(root), "--script", "res://tests/audit_runtime_graphics.gd"],
+                            capture_output=True, text=True, timeout=120, check=False)
+    if result.returncode:
+        raise ValueError(f"Godot runtime probe failed ({result.returncode}): {(result.stdout + result.stderr)[-2000:]}")
+    if re.search(r"(?m)^(?:SCRIPT ERROR:|ERROR:|RUNTIME_GRAPHICS_FAIL:)", result.stdout + result.stderr):
+        raise ValueError(f"Godot runtime probe logged an error: {(result.stdout + result.stderr)[-2000:]}")
+    markers = [line.removeprefix("RUNTIME_GRAPHICS_JSON=") for line in result.stdout.splitlines()
+               if line.startswith("RUNTIME_GRAPHICS_JSON=")]
+    if len(markers) != 1:
+        raise ValueError("Godot runtime probe produced no unique report")
+    report = json.loads(markers[0])
+    if not isinstance(report, dict) or not report:
+        raise ValueError("Godot runtime probe report is empty")
+    required = {"res://scenes/realistic_coastal_slice.tscn",
+                "res://scenes/realistic_coastal_fx_slice.tscn"}
+    if not required.issubset(report):
+        raise ValueError("Godot runtime probe omitted a production coastal scene")
+    for scene, meshes in report.items():
+        if not isinstance(scene, str) or not scene.startswith("res://scenes/") or not isinstance(meshes, list) or not meshes:
+            raise ValueError("Invalid runtime scene report")
+        for mesh in meshes:
+            if not isinstance(mesh, dict) or not isinstance(mesh.get("node"), str) or not isinstance(mesh.get("surfaces"), list):
+                raise ValueError("Invalid runtime mesh report")
+            for surface in mesh["surfaces"]:
+                if not isinstance(surface, dict) or not isinstance(surface.get("triangles"), (int, float)) or surface["triangles"] < 0 or not isinstance(surface.get("material"), str) or not isinstance(surface.get("transparency"), int) or not isinstance(surface.get("albedo_alpha"), bool) or not isinstance(surface.get("texture"), str):
+                    raise ValueError("Invalid runtime surface report")
+    return report
+
+
+def audit(root: Path, runtime_report: dict | None = None) -> tuple[list[Finding], int]:
     """Return source-observable blockers and candidate count; never claim parity."""
     issues: list[Finding] = []
     project = root / "project.godot"
@@ -236,11 +303,11 @@ def audit(root: Path) -> tuple[list[Finding], int]:
             if not all(x in part for x in ("albedo_texture", "normal_texture", "roughness_texture")):
                 issues.append(Finding("FLAT_TERRAIN", path.name,
                     "Final terrain material lacks albedo/normal/roughness texture assignments"))
-        if "QuadMesh.new()" in script and "foam" in script.lower():
+        if re.search(r'foam[^\n]*QuadMesh\.new\(\)|QuadMesh\.new\(\)[^\n]*foam', script, re.I):
             issues.append(Finding("FLAT_FOAM", path.name,
                 "Shoreline foam uses unanimated quad strips; not reference-quality surf"))
         if "shallow" in combined and "deep" in combined and "UV.y" in combined and not re.search(
-            r'depth_texture|DEPTH_TEXTURE|depth_sample|hint_depth_texture', combined, re.I
+            r'depth_texture|DEPTH_TEXTURE|depth_sample|hint_depth_texture|shore_terrain_height', combined, re.I
         ):
             issues.append(Finding("FAKE_WATER_DEPTH", path.name,
                 "Water-depth colour is derived only from mesh UV instead of scene depth"))
@@ -248,7 +315,7 @@ def audit(root: Path) -> tuple[list[Finding], int]:
             issues.append(Finding("STATIC_WATER", path.name,
                 "Water has no observable wave animation/displacement"))
         if "SHIP_SCENE" in script and not re.search(
-            r'AnimationPlayer|AnimationTree|_animate_ship|ship_motion|ship_velocity|ship\.position\s*[+\-]=', script
+            r'AnimationPlayer|AnimationTree|_animate_ship|ship_motion|ship_velocity|ship\.position\s*[+\-]=|advance_visual_demo', script
         ):
             issues.append(Finding("STATIC_SHIP", path.name,
                 "Ship placed but no ship movement/animation implementation observed"))
@@ -256,8 +323,12 @@ def audit(root: Path) -> tuple[list[Finding], int]:
             if not _resource_paths(combined) and not re.search(r'albedo_texture\s*=', script):
                 issues.append(Finding("MISSING_PBR_ASSETS", path.name,
                     "No imported GLTF or PBR texture assignments in coastal slice"))
-        for asset in sorted(_resource_paths(combined)):
-            issues.extend(_inspect_gltf(root, asset))
+        scene_key = "res://" + path.relative_to(root).as_posix()
+        if runtime_report is not None and scene_key in runtime_report:
+            issues.extend(inspect_scene_nodes_runtime(scene_key, runtime_report[scene_key]))
+        else:
+            for asset in sorted(_resource_paths(combined)):
+                issues.extend(_inspect_gltf(root, asset))
     capture = root / "tests/render_capture.gd"
     if count and capture.is_file():
         try:
@@ -280,15 +351,23 @@ def audit(root: Path) -> tuple[list[Finding], int]:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--client", type=Path, default=Path("client-godot"))
+    parser.add_argument("--godot-bin", default=os.environ.get("GODOT_BIN", "godot"))
     args = parser.parse_args()
-    issues, candidates = audit(args.client)
+    runtime = None
+    if (args.client / "tests/audit_runtime_graphics.gd").is_file():
+        try:
+            runtime = _runtime_report(args.client, args.godot_bin)
+        except (ValueError, OSError, subprocess.TimeoutExpired, json.JSONDecodeError) as exc:
+            print(f"::error::RUNTIME_PROBE: {exc}")
+            return 1
+    issues, candidates = audit(args.client, runtime)
     print(f"Candidate scenes scanned: {candidates}")
     for item in issues:
         print(f"::{'warning' if item.severity == 'review' else 'error'}::{item}")
     if not candidates:
         print("No production graphics candidate exists: visual milestone NOT VERIFIED")
     else:
-        print("Static source audit does NOT certify artistic reference parity or mobile FPS")
+        print("Structural/runtime audit does NOT certify artistic reference parity or mobile FPS")
     print(f"Structural findings: {len(issues)}")
     return int(any(item.severity == "error" for item in issues))
 
