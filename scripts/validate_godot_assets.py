@@ -18,6 +18,7 @@ REQUIRED = {
     "license", "license_url", "attribution",
 }
 LICENSES = {"CC0-1.0", "CC-BY-4.0", "CC-BY-SA-4.0", "MIT", "Apache-2.0", "OFL-1.1"}
+GODOT_SIDECARS = {".import", ".uid"}
 
 
 def fail(message: str) -> None:
@@ -105,9 +106,11 @@ def validate() -> int:
         fail("Symlinked external assets root")
     root = ASSETS.resolve()
     registered = set()
+    registered_by_path = {}
     for index, item in enumerate(data["assets"]):
         validate_metadata(index, item, seen_ids, seen_paths)
         registered.add(validate_path(index, item, root))
+        registered_by_path[item["path"]] = item
     # Generated outputs are verified in-place, and must have fully recorded
     # source dependencies. They are never downloaded as if upstream provided
     # a binary with the derived SHA-256.
@@ -123,6 +126,27 @@ def validate() -> int:
             if candidate.is_symlink():
                 fail("Symlinked file(s) under client-godot/assets/external")
             if candidate.is_file():
+                if candidate.resolve() in registered:
+                    actual.add(candidate.resolve())
+                    continue
+                if candidate.suffix in GODOT_SIDECARS:
+                    continue
+                # Godot extracts the coastal cliff's authored textures beside
+                # each derived LOD. Admit only byte-identical copies of the
+                # exact manifested upstream texture, never arbitrary JPGs.
+                relative = candidate.relative_to(ASSETS).as_posix()
+                match = re.fullmatch(
+                    r"generated/coastal_cliff_blender/coastal_cliff_lod[12]_"
+                    r"(coastal_cliff_01_[^/]+\.jpg)",
+                    relative,
+                )
+                if match:
+                    source = registered_by_path.get(
+                        f"polyhaven/coastal_cliff_01/textures/{match.group(1)}"
+                    )
+                    if (source and hashlib.sha256(candidate.read_bytes()).hexdigest()
+                            == source["sha256"]):
+                        continue
                 actual.add(candidate.resolve())
         if actual != registered:
             fail("Unregistered file(s) under client-godot/assets/external")
