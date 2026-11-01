@@ -57,6 +57,12 @@ def read_samples(root: Path) -> tuple[dict[int, dict], dict[int, str]]:
         )
         if hull_pixels != sample.get("hull_pixels") or sail_pixels != sample.get("sail_pixels"):
             raise ValueError(f"Rendered hull/sail pixel counts do not match the raw mask at frame {frame}")
+        if sample.get("ship_pixels") != hull_pixels + sail_pixels:
+            raise ValueError(f"Frame {frame} ship total does not match rendered hull and sail mask")
+        if not isinstance(sample.get("ship_fraction"), (int, float)) or abs(
+            float(sample["ship_fraction"]) - (hull_pixels + sail_pixels) / PIXEL_COUNT
+        ) > 1.0 / PIXEL_COUNT:
+            raise ValueError(f"Frame {frame} ship fraction does not match rendered mask")
         samples[frame] = sample
         frame_hashes[frame] = digest
     return samples, frame_hashes
@@ -82,6 +88,9 @@ def validate_samples(samples: dict[int, dict]) -> list[str]:
                 continue
             if abs(float(fraction) - count / PIXEL_COUNT) > 1.0 / PIXEL_COUNT:
                 errors.append(f"Pixel fraction does not match {count_key} at frame {frame}")
+        if isinstance(sample.get("hull_pixels"), int) and isinstance(sample.get("sail_pixels"), int):
+            if sample.get("ship_pixels") != sample["hull_pixels"] + sample["sail_pixels"]:
+                errors.append(f"Ship pixel total does not equal hull plus sails at frame {frame}")
         for digest_key in ("composite_frame_sha256", "mask_frame_sha256"):
             digest = sample.get(digest_key)
             if not isinstance(digest, str) or len(digest) != 64 or any(c not in "0123456789abcdef" for c in digest):
