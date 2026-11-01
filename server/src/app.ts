@@ -32,6 +32,7 @@ import { ShipInventoryStore } from "./ship-inventory.js";
 import { GuildStore } from "./guild.js";
 import { ArmyStore } from "./army.js";
 import { RealmStore } from "./realm.js";
+import { runRealmAiTickOnce, startRealmAiScheduler, type RealmAiScheduler } from "./realm-ai-scheduler.js";
 import { InvasionStore } from "./invasion.js";
 import { SocialStore } from "./social.js";
 import { AuctionStore } from "./auction.js";
@@ -117,6 +118,10 @@ export interface BuildAppOptions {
   db?: Pool;
   clientDistDir?: string;
   antiCheat?: AntiCheatService;
+  /** Realm AI tick interval in ms; 0 disables. Defaults to config.realmAiTickMs (REALM_AI_TICK_MS). */
+  realmAiTickMs?: number;
+  /** Max wait for an in-flight realm AI tick on shutdown before it is aborted (default 10 s, capped at 10 s). */
+  realmAiDrainTimeoutMs?: number;
   /** When set (and no `antiCheat` is injected), detection windows are shared across instances through Redis. */
   antiCheatRedisUrl?: string;
   /** When true (and no `antiCheat` is injected), anti-cheat evidence is persisted to PostgreSQL. */
@@ -444,6 +449,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   let auctionTick: ReturnType<typeof setInterval> | undefined;
   let endgameTick: ReturnType<typeof setInterval> | undefined;
   let territorySeasonTick: ReturnType<typeof setInterval> | undefined;
+  let realmAiScheduler: RealmAiScheduler | undefined;
   let worldEventTick: ReturnType<typeof setInterval> | undefined;
   let combatTick: ReturnType<typeof setInterval> | undefined;
   let persistenceTick: ReturnType<typeof setInterval> | undefined;
@@ -485,6 +491,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   worldEventTick.unref();
   endgameTick.unref();
   territorySeasonTick.unref();
+  { const realmAiIntervalMs = options.realmAiTickMs ?? config.realmAiTickMs; realmAiScheduler = startRealmAiScheduler({ intervalMs: realmAiIntervalMs, run: (signal) => runRealmAiTickOnce(db, realms, realmAiIntervalMs, signal), log, drainTimeoutMs: options.realmAiDrainTimeoutMs }); }
   survivalTick.unref();
 
   combatTick = setInterval(() => {
@@ -669,6 +676,11 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     if (navalFireTick) clearInterval(navalFireTick);
     if (persistenceTick) clearInterval(persistenceTick);
     if (combatTick) clearInterval(combatTick);
+    // Drain the in-flight realm AI tick only after every other timer is stopped and shutdown is flagged.
+    // Fail closed: if the tick cannot be proven settled (even after abort), still persist and close sockets,
+    // but never tear down the pool under a live transaction, and surface the failure to the caller.
+    let tickUnsettled: Error | undefined;
+    try { await realmAiScheduler?.stop(); } catch (error) { tickUnsettled = error instanceof Error ? error : new Error(String(error)); }
     await players.persistAll();
     await creatures.persistAll();
     await bases.processAll();
@@ -680,6 +692,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     } catch (error) {
       log("anti_cheat_shutdown_failed", { message: error instanceof Error ? error.message : String(error) });
     }
+    if (tickUnsettled !== undefined) throw tickUnsettled;
     if (ownsDb) await db.end();
   });
 
@@ -1493,7 +1506,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           const authenticatedUserId=userId;
           const response=await runCreatureRequest(authenticatedUserId,message.requestId,"start_breeding|"+JSON.stringify(message),async()=>{
             try {
-              const job=await breeding.start(authenticatedUserId,message.baseId,message.penBuildingId,message.parentAId,message.parentBId,message.durationMs);
+              const job=await breeding.start(authenticatedUserId,message.baseId,message.penBuildingId,message.parentAId,message.parentBId);
               return {type:"breeding_started",requestId:message.requestId,job};
             } catch(error) {
               const code=errorCode(error,"BREEDING_START_FAILED");
@@ -1734,7 +1747,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           send(socket,response);return;
         }
 
-        if (message.type === "list_realms" || message.type === "list_territories" || message.type === "list_realm_fortresses" || message.type === "territory_at" || message.type === "claim_guild_territory" || message.type === "change_realm_reputation" || message.type === "my_realm_reputation" || message.type === "create_trade_route" || message.type === "list_trade_routes" || message.type === "tick_realm_ai") {
+        if (message.type === "list_realms" || message.type === "list_territories" || message.type === "list_realm_fortresses" || message.type === "territory_at" || message.type === "claim_guild_territory" || message.type === "my_realm_reputation" || message.type === "create_trade_route" || message.type === "list_trade_routes") {
           if(!userId){send(socket,{type:"error",code:"AUTH_REQUIRED"});return;}
           const authenticatedUserId=userId;await players.loadOrCreate(authenticatedUserId);
           const response=await runBaseRequest(authenticatedUserId,message.requestId,message.type+"|"+JSON.stringify(message),async()=>{
@@ -1744,11 +1757,10 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
               if(message.type==="list_realm_fortresses")return {type:"fortress_list",requestId:message.requestId,fortresses:await realms.fortresses()};
               if(message.type==="territory_at")return {type:"territory_state",requestId:message.requestId,territory:await realms.territoryAt(message.x,message.y)};
               if(message.type==="claim_guild_territory"){await realms.claimGuildTerritory(authenticatedUserId,message.territoryId,message.guildId);return {type:"realm_operation_ok",requestId:message.requestId};}
-              if(message.type==="change_realm_reputation")return {type:"realm_reputation",requestId:message.requestId,reputation:await realms.reputation(authenticatedUserId,message.realm,message.delta)};
               if(message.type==="my_realm_reputation")return {type:"realm_reputation",requestId:message.requestId,reputation:await realms.myReputation(authenticatedUserId)};
               if(message.type==="create_trade_route"){const route=await realms.createTradeRoute(authenticatedUserId,message.sourceTerritoryId,message.destinationTerritoryId,message.resourceKey,message.quantity,message.travelSeconds,message.guildId,message.realmId);return {type:"trade_route_state",requestId:message.requestId,route};}
               if(message.type==="list_trade_routes")return {type:"trade_route_list",requestId:message.requestId,routes:await realms.routes()};
-              await realms.tickAI();return {type:"realm_operation_ok",requestId:message.requestId};
+              return {type:"error",code:"INVALID_MESSAGE"};
             }catch(error){const code=errorCode(error,"REALM_OPERATION_FAILED");const allowed=["INVALID_TERRITORY_COORDINATES","TERRITORY_NOT_FOUND","INSUFFICIENT_TERRITORY_INFLUENCE","INVALID_REPUTATION_DELTA","REALM_NOT_FOUND","INVALID_TRADE_ROUTE","INVALID_TRADE_ROUTE_ENDPOINTS","GUILD_PERMISSION_DENIED","GUILD_MEMBERSHIP_REQUIRED","PLAYER_NOT_FOUND"];return {type:"error",code:(allowed.includes(code)?code:"INVALID_MESSAGE") as Extract<ServerMessage,{type:"error"}>["code"]};}
           });send(socket,response);return;
         }
@@ -1814,9 +1826,13 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
               if(message.type==="sail")return {type:"ship_state",requestId:message.requestId,ship:await ships.sail(authenticatedUserId,message.shipId,message.dx,message.dy)};
               if(message.type==="assign_ship_crew"){
                 if(!CREW_ROLES.includes(message.role as CrewRole))throw new Error("INVALID_CREW_ASSIGNMENT");
-                return {type:"ship_crew",requestId:message.requestId,crew:await ships.assignCrew(authenticatedUserId,message.shipId,message.creatureId,message.role as CrewRole,message.skill,message.morale)};
+                return {type:"ship_crew",requestId:message.requestId,crew:await ships.assignCrew(authenticatedUserId,message.shipId,message.creatureId,message.role as CrewRole)};
               }
-              if(message.type==="assign_ship_npc_crew")return {type:"ship_crew",requestId:message.requestId,crew:await naval.assignNpcCrew(authenticatedUserId,message.shipId,message.npcType,message.role as CrewRole,message.skill,message.morale)};
+              if(message.type==="assign_ship_npc_crew"){
+                const crew=await naval.assignNpcCrew(authenticatedUserId,message.shipId,message.npcType,message.role as CrewRole,{requestId:message.requestId,fingerprint:"assign_ship_npc_crew|"+message.shipId+"|"+message.npcType+"|"+message.role});
+                await players.reloadEconomy(authenticatedUserId);
+                return {type:"ship_crew",requestId:message.requestId,crew};
+              }
               if(message.type==="board_ship")return {type:"naval_combat_result",requestId:message.requestId,...await naval.boardShip(authenticatedUserId,message.shipId,message.targetShipId)};
               if(message.type==="repair_ship")return {type:"ship_state",requestId:message.requestId,ship:await naval.repairShip(authenticatedUserId,message.shipId)};
               if(message.type==="retreat_ship")return {type:"ship_state",requestId:message.requestId,ship:await naval.retreatShip(authenticatedUserId,message.shipId)};
@@ -1825,11 +1841,16 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
               return {type:"naval_combat_result",requestId:message.requestId,...result};
             }catch(error){
               const code=errorCode(error,"SHIP_OPERATION_FAILED");
-              const allowed=["BASE_NOT_FOUND","INVALID_SHIP_CLASS","SHIPYARD_REQUIRED","INSUFFICIENT_SHIPYARD_RESOURCES","INVALID_SAIL_INPUT","SHIP_NOT_FOUND","SHIP_NOT_ACTIVE","INSUFFICIENT_SHIP_FUEL","INVALID_SHIP_CARGO","INSUFFICIENT_SHIP_CARGO","SHIP_CARGO_CAPACITY_EXCEEDED","SHIP_CARGO_REQUEST_CONFLICT","INVALID_REQUEST_ID","FLEET_NOT_FOUND","SHIP_ALREADY_IN_FLEET","SHIP_NOT_IN_FLEET","FLEET_COMMANDER_REQUIRED","INVALID_CREW_ASSIGNMENT","SHIP_CREW_CAPACITY_REACHED","CREW_CREATURE_NOT_FOUND","CREW_CREATURE_NOT_TAMED","CREW_CREATURE_IN_PARTY","CREW_ALREADY_ASSIGNED","INVALID_NAVAL_TARGET","TARGET_SHIP_NOT_ACTIVE","NAVAL_TARGET_OUT_OF_RANGE","CANNON_COOLDOWN","NO_CANNON_AMMO","CANNON_OUTSIDE_ARC","SHIP_RETREATING","TARGET_SHIP_RETREATING","BOARDING_OUT_OF_RANGE","SHIP_FULL_HEALTH","NO_REPAIR_LUMBER","SHIP_NOT_ON_FIRE","INVALID_WIND"];
+              const allowed=["BASE_NOT_FOUND","INVALID_SHIP_CLASS","SHIPYARD_REQUIRED","INSUFFICIENT_SHIPYARD_RESOURCES","INVALID_SAIL_INPUT","SHIP_NOT_FOUND","SHIP_NOT_ACTIVE","INSUFFICIENT_SHIP_FUEL","INVALID_SHIP_CARGO","INSUFFICIENT_SHIP_CARGO","SHIP_CARGO_CAPACITY_EXCEEDED","SHIP_CARGO_REQUEST_CONFLICT","INVALID_REQUEST_ID","FLEET_NOT_FOUND","SHIP_ALREADY_IN_FLEET","SHIP_NOT_IN_FLEET","FLEET_COMMANDER_REQUIRED","INVALID_CREW_ASSIGNMENT","NPC_CREW_UNAVAILABLE","INSUFFICIENT_GOLD","PLAYER_NOT_FOUND","SHIP_CREW_CAPACITY_REACHED","CREW_CREATURE_NOT_FOUND","CREW_CREATURE_NOT_TAMED","CREW_CREATURE_IN_PARTY","CREW_ALREADY_ASSIGNED","INVALID_NAVAL_TARGET","TARGET_SHIP_NOT_ACTIVE","NAVAL_TARGET_OUT_OF_RANGE","CANNON_COOLDOWN","NO_CANNON_AMMO","CANNON_OUTSIDE_ARC","SHIP_RETREATING","TARGET_SHIP_RETREATING","BOARDING_OUT_OF_RANGE","SHIP_FULL_HEALTH","NO_REPAIR_LUMBER","SHIP_NOT_ON_FIRE","INVALID_WIND"];
               return {type:"error",code:(allowed.includes(code)?code:"INVALID_MESSAGE") as Extract<ServerMessage,{type:"error"}>["code"]};
             }
           });
-          send(socket,response);return;
+          send(socket,response);
+          if(message.type==="assign_ship_npc_crew"&&response.type==="ship_crew"){
+            const state=players.get(authenticatedUserId);
+            if(state)for(const playerSocket of userSockets.get(authenticatedUserId)??[])send(playerSocket,{type:"player_state",state:serializePlayerState(state)});
+          }
+          return;
         }
 
         if (message.type === "subscribe_chunks") {

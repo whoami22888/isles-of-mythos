@@ -132,6 +132,15 @@ jobs:
       - name: Verify exact-SHA Codex integration policy regressions
         run: node --test scripts/auto-merge-gate.test.mjs
 
+      - name: Verify IOM-00 infrastructure guards (vendor lock, workflow matrices, orchestrator)
+        run: |
+          set -euo pipefail
+          node --test scripts/validate_vendor_lock.test.mjs
+          node scripts/validate_vendor_lock.js
+          python3 -m unittest discover -s scripts -p "test_check_workflow_matrices.py"
+          python3 scripts/check_workflow_matrices.py
+          python3 -m unittest discover -s tools -p "test_orchestrator.py"
+
       - name: Install pinned Godot 4.7.2 for the Fastify-Godot end-to-end test
         shell: bash
         env:
@@ -146,6 +155,29 @@ jobs:
           "$RUNNER_TEMP/godot/godot" --version | grep -F "4.7.2.stable"
           "$RUNNER_TEMP/godot/godot" --headless --editor --path client-godot --quit --import
           echo "GODOT_BIN=$RUNNER_TEMP/godot/godot" >> "$GITHUB_ENV"
+
+      - name: Run M-E2E-1 headless Godot integration against the live server
+        shell: bash
+        env:
+          ENVIRONMENT: test
+          SERVER_HOST: 127.0.0.1
+          SERVER_PORT: "3100"
+          IOM_E2E_HTTP_BASE: http://127.0.0.1:3100
+          IOM_E2E_WS_URL: ws://127.0.0.1:3100/ws
+        run: |
+          set -euo pipefail
+          # Run the server in its own session so teardown reaches the tsx child process too.
+          setsid npm run dev -w server > "$RUNNER_TEMP/m-e2e-1-server.log" 2>&1 &
+          server_pid=$!
+          trap 'kill -- -"$server_pid" 2>/dev/null || true' EXIT
+          for _ in $(seq 1 60); do
+            curl -sf -o /dev/null "$IOM_E2E_HTTP_BASE/health" && break
+            sleep 1
+          done
+          curl -sf -o /dev/null "$IOM_E2E_HTTP_BASE/health"
+          "$GODOT_BIN" --headless --path client-godot --script res://tests/m_e2e_1_integration.gd
+          "$GODOT_BIN" --headless --path client-godot --script res://tests/m_e2e_1_integration.gd -- --internal-gameplay-handoff
+          "$GODOT_BIN" --headless --path client-godot --script res://tests/phone_handoff_regression.gd
 
       - name: Run server tests (Godot end-to-end is mandatory, never skipped)
         env:

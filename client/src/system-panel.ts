@@ -248,7 +248,7 @@ export class SystemPanel {
       { label: "CREATE SHIP", run: () => { const name = this.prompt("Ship name"); const shipClass = this.prompt("Ship class"); if (name && shipClass) this.request("create_ship", { name, shipClass }); } },
       { label: "SHIP INVENTORY", run: () => { if (this.selectedShipId) this.request("ship_inventory", { shipId: this.selectedShipId }); } },
       { label: "CARGO", run: () => { const itemId = this.prompt("Item ID"); const quantity = Number(this.prompt("Quantity")); if (this.selectedShipId && itemId && Number.isSafeInteger(quantity)) this.request("ship_cargo", { shipId: this.selectedShipId, itemId, quantity }); } },
-      { label: "CREW", run: () => { const creatureId = this.prompt("Creature ID"); const role = this.prompt("Crew role"); const skill = Number(this.prompt("Skill")); const morale = Number(this.prompt("Morale")); if (this.selectedShipId && creatureId && role && Number.isSafeInteger(skill) && Number.isSafeInteger(morale)) this.request("assign_ship_crew", { shipId: this.selectedShipId, creatureId, role, skill, morale }); } },
+      { label: "CREW", run: () => { const creatureId = this.prompt("Creature ID"); const role = this.prompt("Crew role"); if (this.selectedShipId && creatureId && role) this.request("assign_ship_crew", { shipId: this.selectedShipId, creatureId, role }); } },
       { label: "SAIL", run: () => { const dx = Number(this.prompt("Direction X")); const dy = Number(this.prompt("Direction Y")); if (this.selectedShipId && Number.isFinite(dx) && Number.isFinite(dy)) this.request("sail", { shipId: this.selectedShipId, dx, dy }); } },
       { label: "REPAIR", run: () => { if (this.selectedShipId) this.request("repair_ship", { shipId: this.selectedShipId }); } },
       { label: "CANNON", run: () => { const targetShipId = this.prompt("Target ship ID"); if (this.selectedShipId && targetShipId) this.request("fire_cannon", { shipId: this.selectedShipId, targetShipId }); } },
@@ -261,8 +261,6 @@ export class SystemPanel {
       ask("ROUTES", "list_trade_routes"), ask("REPUTATION", "my_realm_reputation"), ask("SEASON", "list_territory_season"),
       { label: "TERRITORY", run: () => { const x = Number(this.prompt("World X")); const y = Number(this.prompt("World Y")); if (Number.isSafeInteger(x) && Number.isSafeInteger(y)) this.request("territory_at", { x, y }); } },
       { label: "CLAIM", run: () => { const territoryId = this.prompt("Territory ID"); const guildId = this.prompt("Guild ID"); if (territoryId && guildId) this.request("claim_guild_territory", { territoryId, guildId }); } },
-      { label: "REPUTATION", run: () => { const realm = this.prompt("Realm"); const delta = Number(this.prompt("Reputation delta")); if (realm && Number.isSafeInteger(delta)) this.request("change_realm_reputation", { realm, delta }); } },
-      ask("REALM AI TICK", "tick_realm_ai"),
       { label: "TRADE ROUTE", run: () => {
         const sourceTerritoryId = this.prompt("Source territory ID"); const destinationTerritoryId = this.prompt("Destination territory ID");
         const resourceKey = this.prompt("Resource key"); const quantity = this.prompt("Quantity"); const travelSeconds = Number(this.prompt("Travel seconds"));
