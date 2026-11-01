@@ -284,7 +284,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		var camera: Camera3D = $Camera
 		if camera.has_method("consume_tap") and camera.call("consume_tap", event.index):
 			_gather_nearest()
-	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT and event.device != InputEvent.DEVICE_ID_EMULATION:
+		# Godot synthesizes mouse events from real touches; do not gather on press.
 		_gather_nearest()
 
 func _on_ack(_request_id: String, message: Dictionary) -> void:
