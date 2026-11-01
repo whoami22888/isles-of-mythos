@@ -36,11 +36,11 @@ func _run() -> void:
 			pending.append(child)
 	var image := root.get_viewport().get_texture().get_image()
 	var rendered := image != null and not image.is_empty()
-	scene.free()
-	await process_frame
 	if shader_surfaces < 2 or not rendered:
 		push_error("Expected compiled coastal terrain/ocean shaders and a rendered Mobile frame (surfaces=%d, rendered=%s)" % [shader_surfaces, rendered])
+		scene.queue_free()
 		quit(1)
 		return
 	print("Coastal Mobile shader compile/render: %d shader surfaces rendered" % shader_surfaces)
+	scene.queue_free()
 	quit(0)
