@@ -24,6 +24,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   integrate:
@@ -115,11 +116,24 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
-        with:
-          pattern: internal-coastal-frames-*
-          path: frames
-          merge-multiple: false
+      - name: Download latest artifact for each render partition
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for segment in 0 1 2; do
+            name="internal-coastal-frames-$segment"
+            artifact_id="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --paginate \
+              --jq ".artifacts[] | select(.name == \"$name\" and .expired == false) | [.created_at, .id] | @tsv" \
+              | sort -r | sed -n '1p' | cut -f 2)"
+            test -n "$artifact_id"
+            mkdir -p "frames/$name"
+            gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact_id/zip" \
+              > "$RUNNER_TEMP/$name.zip"
+            unzip -q "$RUNNER_TEMP/$name.zip" -d "frames/$name"
+            echo "Selected $name artifact $artifact_id"
+          done
       - name: Verify original worker manifests and assemble in exact frame order
         shell: bash
         run: |
@@ -141,7 +155,7 @@ jobs:
           done
           test "$(find ordered-frames -maxdepth 1 -name 'frame_*.rgba' | wc -l)" -eq 72
           python3 -m unittest discover -s scripts/tests -p "test_capture_continuity.py" -v
-          python3 scripts/check_capture_continuity.py ordered-frames --frames 72 --width 1280 --height 720 --segment-size 24 > evidence/CONTINUITY.json
+          python3 scripts/check_capture_continuity.py ordered-frames --frames 72 --width 1280 --height 720 --segment-size 24 --lighting-roi 830,330,1190,470 --max-luma-jump 5 > evidence/CONTINUITY.json
           sudo apt-get update -qq
           sudo apt-get install -y -qq ffmpeg
           mkdir -p evidence

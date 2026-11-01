@@ -30,6 +30,20 @@ class CaptureContinuityTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "boundary discontinuity"):
                 MODULE.verify(Path(folder), frames=6, width=8, height=8, segment_size=2)
 
+    def test_lighting_seam_rejected_even_when_global_delta_is_small(self):
+        with tempfile.TemporaryDirectory() as folder:
+            self.write_frames(folder, [20, 21, 29, 30, 31, 32])
+            with self.assertRaisesRegex(ValueError, "lighting discontinuity"):
+                MODULE.verify(Path(folder), frames=6, width=8, height=8,
+                              segment_size=2, lighting_roi=(0, 0, 8, 8), max_luma_jump=5.0)
+
+    def test_stable_lighting_boundary_passes(self):
+        with tempfile.TemporaryDirectory() as folder:
+            self.write_frames(folder, [20, 21, 22, 23, 24, 25])
+            result = MODULE.verify(Path(folder), frames=6, width=8, height=8,
+                                   segment_size=2, lighting_roi=(0, 0, 8, 8))
+            self.assertEqual(result['lighting_boundaries']['1->2'], 1.0)
+
     def test_missing_frame_rejected(self):
         with tempfile.TemporaryDirectory() as folder:
             self.write_frames(folder, [20, 21, 22, 23, 24])
