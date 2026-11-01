@@ -5,6 +5,7 @@ Use this register alongside [the mandatory premium graphics standard](ART_DIRECT
 | Candidate / source | Category | Reviewer | Licence and rendered evidence | Visual rubric (35/25/20/10/10) | Technical checks | Decision and reason | Exact SHA |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | No candidates yet | — | — | — | Not scored | Not tested | No production art approved | — |
+| Kenney Nature Kit / proposed `tropical_palm_tree_01.glb` | Palm candidate | GPT/Codex graphics integration | Kenney Nature Kit official CC0 listing: https://kenney.nl/assets/nature-kit ; proposed exact GLB URL/hash unverified; no in-engine reference capture | Not scored | No exact source bytes, SHA-256, Android or Godot renderer evidence | **NOT ADMITTED**: do not invent a GLB or insert `PENDING_LOCAL_CALCULATION`; the flat, low-poly kit is not proven suitable for premium foreground foliage. Reassess only with an exact licensed model, digest and approved visual reference comparison. | Pending exact-head branch |
 
 Record rejected assets and reasons to avoid repeating unsuitable selections. Visual scores are proposed review evaluations, not measured facts; licensing, Godot import, device performance, exact-SHA CI and independent review are separate pass/fail gates.
 # Realistic coastal restart (2026-10-17)

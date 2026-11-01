@@ -1,0 +1,42 @@
+# ISLES OF MYTHOS — GODOT 4.7.2 IMPLEMENTATION PATCHES
+
+Working repository paths use client-godot/ (not root res://).
+Branch: feat/iom-order-cross-sail-reference-20261030. This is NON-PRODUCTION visual integration pending engine render and visual approval.
+
+PATCH 1 — EXTERNAL ASSET MANIFEST (BLOCKED BY PROVENANCE)
+Real file: client-godot/assets/external-assets.json
+Do NOT add the proposed placeholder {"sha256":"PENDING_LOCAL_CALCULATION"}. The actual schema requires id, path, sha256, source_url, download_url, license, license_url and attribution. SHA-256 must be computed against actual checked-in GLB bytes; approved fetch origins and licences must pass scripts/validate_godot_assets.py and vendor.lock.json. The named Kenney GLB has not been verified; Kenney Nature Kit's source page says CC0 but the kit is low-poly/flat-colour and has not qualified for premium foreground visuals.
+Status: deferred; do not fabricate an asset, checksum or licence receipt.
+
+PATCH 2 — ORDER CROSS VECTOR
+File: client-godot/assets/emblems/order_cross_mask.svg
+A valid inline SVG with xmlns="http://www.w3.org/2000/svg", transparent background and white cross coverage. The project imports it as a texture via Godot resource loading.
+Status: committed on this graphics work branch.
+
+PATCH 3 — COASTAL SLICE REGRESSION
+File: client-godot/tests/realistic_coastal_slice_test.gd
+Inspect actual scene/material overrides rather than replacing an unrelated line number. The test continues to require real imported sail atlas, non-null material, double-sided alpha-cutout behavior, at least one detected sail, and now requires all sail surfaces to be bound to the specific Order Cross shader/mask.
+Status: regression authored; exact-final-head Godot check required.
+
+PATCH 4 — ORDER CROSS SPATIAL SHADER + INTEGRATION
+Files:
+- client-godot/shaders/sail_shader.gdshader
+- client-godot/scripts/realistic_coastal_slice.gd
+- client-godot/scripts/order_cross_uv_mapper.gd
+The imported glTF has four disconnected sail mesh components. Two are narrow upper/furled pieces; two are broad lower panels. Normalize the original UV0 bounds separately for each broad component into a new UV2 overlay channel, leaving upper components unmarked. The Order Cross shader samples its alpha through UV2, while the original UV0 still drives the admitted RGBA cutout atlas, normals, roughness, metallic and AO. Retain ALPHA_SCISSOR_THRESHOLD, two-sided cloth, original indices and UV0. The importer glTF and pinned asset manifest remain unchanged.
+Status: two-panel mapping and runtime regression committed; true final-head Godot PNG/MP4 and visual sign-off required.
+
+CAMERA CONTRACT
+RENDER_PROMPT.txt defines a gameplay-reference camera target of 58.0° FOV / -38.0° downward pitch. Do not change the currently shipping/candidate gameplay camera in an unreviewed materials patch; its rigging visibility and full bounds must be proved with a real Godot capture before changing camera pose.
+
+GODOT VERIFICATION CHECKLIST
+[ ] Inspect current branch SHA, downstream callers and imported ship material properties.
+[ ] Verify shader import/compilation, unchanged UV0/indices, two independent UV2 panel bounds, furled exclusion and rendered red-pixel coverage.
+[ ] python3 scripts/validate_godot_assets.py
+[ ] node scripts/validate_vendor_lock.js
+[ ] cd client-godot && godot --headless --rendering-method mobile --path . --script res://tests/realistic_coastal_slice_test.gd
+[ ] cd client-godot && godot --headless --rendering-method mobile --path . --script res://tests/sail_pixel_mask_test.gd
+[ ] Produce genuine Godot 4.7.2 PNGs and moving MP4 for animated ship/water, compare against approved video, inspect Android ARM64 perf.
+[ ] Obtain final-head CI/security/performance and formal AI review before attempting a graphics merge.
+
+Do not treat visual reference images, generated cutouts, static tests, or a green CI as evidence of quality parity.

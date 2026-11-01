@@ -79,6 +79,24 @@ func _capture_scene(scene_path: String, camera_name: String, output: String, cin
 			push_error("Rendered sail pixel contract failed: %s" % sail_stats)
 			scene.queue_free()
 			return false
+		# A bound ShaderMaterial alone previously passed while the actual red
+		# heraldic marks were unreadable/off the cloth. Count real red pixels
+		# only inside the independently rendered sail silhouette, not terrain
+		# or water. This is a visibility smoke guard, not visual-quality parity.
+		var emblem_pixels := 0
+		for y in range(screenshot.get_height()):
+			for x in range(screenshot.get_width()):
+				var sail_pixel: Color = sail_mask.get_pixel(x, y)
+				if sail_pixel.r < 0.75 or sail_pixel.g > 0.25 or sail_pixel.b < 0.75:
+					continue
+				var cloth_pixel: Color = screenshot.get_pixel(x, y)
+				if cloth_pixel.r > 0.25 and cloth_pixel.r > cloth_pixel.g * 1.45 and cloth_pixel.r > cloth_pixel.b * 1.3:
+					emblem_pixels += 1
+		print("Godot Order Cross sail pixels: %d (sail mask: %d)" % [emblem_pixels, sail_stats["mask_pixels"]])
+		if emblem_pixels < 100:
+			push_error("Red Order Cross not visibly rendered on the imported sails")
+			scene.queue_free()
+			return false
 	var error: Error = screenshot.save_png(output)
 	if error != OK:
 		push_error("Could not write rendered capture: %d" % error)

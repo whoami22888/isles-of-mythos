@@ -1,0 +1,101 @@
+name: Quarantine Pinnace HD Sail Render
+on:
+  pull_request:
+    paths:
+      - 'scripts/stage_qualified_pinnace_quarantine.py'
+      - 'scripts/qualify_polyhaven_ship_geometry.py'
+      - 'client-godot/scripts/sail_emblem_hd_wrapper.gd'
+      - 'client-godot/scripts/order_cross_uv_mapper.gd'
+      - 'client-godot/shaders/sail_shader.gdshader'
+      - 'client-godot/tests/render_pinnace_quarantine.gd'
+      - '.github/workflows/quarantine-pinnace-hd-render.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  candidate-preview:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 17
+    steps:
+      - name: Checkout exact PR source SHA
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Verify CC0 upstream and composite alpha in quarantine
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m venv "$RUNNER_TEMP/sail-venv"
+          "$RUNNER_TEMP/sail-venv/bin/python" -m pip install --disable-pip-version-check --no-cache-dir Pillow==11.3.0
+          "$RUNNER_TEMP/sail-venv/bin/python" scripts/stage_qualified_pinnace_quarantine.py
+          test -s client-godot/assets/quarantine/ship_pinnace/QUARANTINE_RECEIPT.json
+          test -s client-godot/assets/quarantine/ship_pinnace/textures/ship_pinnace_sails_rgba_1k.png
+      - name: Install checksum-pinned Godot and software Vulkan for real engine capture
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq xvfb mesa-vulkan-drivers ffmpeg
+          curl --fail --location --retry 3 -o "$RUNNER_TEMP/godot.zip" "https://github.com/godotengine/godot/releases/download/4.7.2-stable/Godot_v4.7.2-stable_linux.x86_64.zip"
+          echo "cadd3204e728a35d3f13adb7fd0d7902636b79f6b95c40c265eb73b6c35329e4  $RUNNER_TEMP/godot.zip" | sha256sum --check
+          unzip -q "$RUNNER_TEMP/godot.zip" -d "$RUNNER_TEMP"
+          install "$RUNNER_TEMP/Godot_v4.7.2-stable_linux.x86_64" "$RUNNER_TEMP/godot"
+          "$RUNNER_TEMP/godot" --version | grep -F 4.7.2.stable
+      - name: Import quarantine model with alpha-composited admitted source maps
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout --signal=TERM --kill-after=10s 180s "$RUNNER_TEMP/godot" --headless --path client-godot --editor --quit --import
+      - name: Render 72 genuine Godot Mobile frames, plus close and gameplay PNGs
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/pinnace-review"
+          export IOM_PINNACE_OUTPUT_DIR="$RUNNER_TEMP/pinnace-review"
+          timeout --signal=TERM --kill-after=10s 490s xvfb-run -a -s "-screen 0 1280x720x24" "$RUNNER_TEMP/godot" --path client-godot --rendering-method mobile --script res://tests/render_pinnace_quarantine.gd
+          test "$(find "$IOM_PINNACE_OUTPUT_DIR" -maxdepth 1 -name 'frame_*.rgba' | wc -l)" -eq 72
+          test -s "$IOM_PINNACE_OUTPUT_DIR/pinnace-cinematic.png"
+          test -s "$IOM_PINNACE_OUTPUT_DIR/pinnace-sail-close.png"
+          test -s "$IOM_PINNACE_OUTPUT_DIR/pinnace-gameplay.png"
+      - name: Encode and checksum only real frame evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          dir="$RUNNER_TEMP/pinnace-review"
+          # rawvideo demuxer consumes a byte stream, not an image-sequence
+          # pattern. Zero-padded frame names sort in exact 0..71 order.
+          cat "$dir"/frame_*.rgba | ffmpeg -hide_banner -loglevel error -y \
+            -f rawvideo -pixel_format rgba -video_size 1280x720 -framerate 24 \
+            -i pipe:0 -frames:v 72 \
+            -c:v libx264 -preset fast -crf 18 -pix_fmt yuv420p \
+            -movflags +faststart "$dir/pinnace-hd-sails-engine-preview.mp4"
+          frames="$(ffprobe -v error -count_frames -select_streams v:0 -show_entries stream=nb_read_frames -of default=nokey=1:noprint_wrappers=1 "$dir/pinnace-hd-sails-engine-preview.mp4")"
+          test "$frames" -eq 72
+          python3 - "$dir" <<'PY'
+          import hashlib
+          from pathlib import Path
+          import sys
+          directory = Path(sys.argv[1])
+          frames = sorted(directory.glob('frame_*.rgba'))
+          assert len(frames) == 72
+          hashes = [hashlib.sha256(frame.read_bytes()).hexdigest() for frame in frames]
+          assert len(set(hashes)) >= 68, "Captured frames are repeated/static"
+          with (directory / 'SHA256SUMS').open('w') as f:
+              for path in sorted(directory.glob('*.png')) + sorted(directory.glob('*.mp4')):
+                  f.write(f"{hashlib.sha256(path.read_bytes()).hexdigest()}  {path.name}\n")
+          print(f"Verified {len(frames)} actual frames; distinct={len(set(hashes))}")
+          PY
+          cp client-godot/assets/quarantine/ship_pinnace/QUARANTINE_RECEIPT.json "$dir/QUARANTINE_RECEIPT.json"
+      - name: Retain review-only Godot renders with provenance receipts
+        if: always()
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
+        with:
+          name: quarantine-pinnace-hd-engine-evidence
+          path: |
+            ${{ runner.temp }}/pinnace-review/*.png
+            ${{ runner.temp }}/pinnace-review/*.mp4
+            ${{ runner.temp }}/pinnace-review/SHA256SUMS
+            ${{ runner.temp }}/pinnace-review/QUARANTINE_RECEIPT.json
+          retention-days: 7
+          if-no-files-found: warn
