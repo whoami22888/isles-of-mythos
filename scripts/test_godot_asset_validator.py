@@ -78,6 +78,26 @@ class AssetValidatorTests(unittest.TestCase):
         self.write([self.entry])
         self.assertEqual(validator.validate(), 0)
 
+    def test_godot_sidecars_are_not_source_assets(self):
+        """Godot import metadata must not fail source provenance scans."""
+        (self.assets / "terrain.glb").write_bytes(self.sample)
+        (self.assets / "terrain.glb.import").write_text("generated")
+        (self.assets / "terrain.glb.uid").write_text("generated")
+        self.write([self.entry])
+        self.assertEqual(validator.validate(), 0)
+        self.assertEqual(validator.validate(post_import=True), 0)
+
+    def test_post_import_rejects_modified_registered_texture(self):
+        """Imported texture inputs must retain their manifest digest."""
+        texture = self.assets / "texture.png"
+        texture.write_bytes(self.sample)
+        entry = {**self.entry, "path": "texture.png", "sha256": hashlib.sha256(self.sample).hexdigest()}
+        self.write([entry])
+        self.assertEqual(validator.validate(post_import=True), 0)
+        texture.write_bytes(b"modified texture")
+        with self.assertRaisesRegex(ValueError, "hash mismatch"):
+            validator.validate(post_import=True)
+
     def test_hash_mismatch_rejected(self):
         """Regression: hash mismatch rejected."""
         (self.assets / "terrain.glb").write_bytes(b"tampered")

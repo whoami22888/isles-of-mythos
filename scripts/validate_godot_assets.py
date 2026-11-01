@@ -12,6 +12,8 @@ from fetch_verified_godot_assets import validate_origin
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "client-godot" / "assets" / "external-assets.json"
 ASSETS = ROOT / "client-godot" / "assets" / "external"
+GODOT_SIDECARS = {".import", ".uid"}
+TEXTURE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".ktx", ".ktx2"}
 HASH = re.compile(r"^[0-9a-f]{64}$")
 REQUIRED = {
     "id", "path", "sha256", "source_url", "download_url",
@@ -94,8 +96,8 @@ def validate_path(index, item, root):
     return path
 
 
-def validate() -> int:
-    """Validate approved manifest entries against filesystem and digest evidence."""
+def validate(post_import: bool = False) -> int:
+    """Validate source provenance and, after import, all registered texture bytes."""
     data = json.loads(MANIFEST.read_text(encoding="utf-8"))
     if (not isinstance(data, dict) or data.get("schema_version") != 1
             or not isinstance(data.get("assets"), list)):
@@ -108,6 +110,12 @@ def validate() -> int:
     for index, item in enumerate(data["assets"]):
         validate_metadata(index, item, seen_ids, seen_paths)
         registered.add(validate_path(index, item, root))
+    if post_import:
+        # Imported source textures are still the redistributable inputs. Godot's
+        # generated cache and sidecars are not provenance records for their bytes.
+        for index, item in enumerate(data["assets"]):
+            if pathlib.PurePosixPath(item["path"]).suffix.lower() in TEXTURE_EXTENSIONS:
+                validate_path(index, item, root)
     # Generated outputs are verified in-place, and must have fully recorded
     # source dependencies. They are never downloaded as if upstream provided
     # a binary with the derived SHA-256.
@@ -123,6 +131,8 @@ def validate() -> int:
             if candidate.is_symlink():
                 fail("Symlinked file(s) under client-godot/assets/external")
             if candidate.is_file():
+                if candidate.suffix.lower() in GODOT_SIDECARS:
+                    continue
                 actual.add(candidate.resolve())
         if actual != registered:
             fail("Unregistered file(s) under client-godot/assets/external")
@@ -132,7 +142,9 @@ def validate() -> int:
 
 if __name__ == "__main__":
     try:
-        sys.exit(validate())
+        if len(sys.argv) > 2 or (len(sys.argv) == 2 and sys.argv[1] != "--post-import"):
+            fail("Usage: validate_godot_assets.py [--post-import]")
+        sys.exit(validate(post_import="--post-import" in sys.argv))
     except (ValueError, OSError, json.JSONDecodeError) as exc:
         print(f"Asset provenance validation FAIL: {exc}", file=sys.stderr)
         sys.exit(1)
