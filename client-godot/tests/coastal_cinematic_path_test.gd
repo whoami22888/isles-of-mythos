@@ -126,8 +126,10 @@ func _run() -> void:
 		previous_forward = forward
 		var pose: Dictionary = capture_scene.evaluate_cinematic_pose(capture_pos)
 		all_sealed = all_sealed and pose["sealed"]
+		# Match the renderer capture's 36 px safe edge even when the shot's
+		# occupancy solver spends its full 2% margin to grow the visible ship.
 		all_ship_bounds_inside_frame = all_ship_bounds_inside_frame and _ship_aabb_inside_frame(
-			capture_scene, capture_scene.cinematic_margin_at(float(frame) / FRAMES))
+			capture_scene, maxf(capture_scene.cinematic_margin_at(float(frame) / FRAMES), 0.05))
 		min_clearance = minf(min_clearance, pose["clearance"])
 		min_margin = minf(min_margin, pose["water_margin"])
 		var ship_screen_fraction := _projected_ship_screen_fraction(capture_scene)

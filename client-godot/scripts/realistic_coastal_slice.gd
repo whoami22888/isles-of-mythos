@@ -804,7 +804,13 @@ func _safe_cinematic_position(camera: Camera3D, desired_position: Vector3,
 
 
 func _cinematic_look_target(centre: Vector3, coast_bias := CINEMATIC_COAST_BIAS) -> Vector3:
-	return centre.lerp(CINEMATIC_COAST_POINT, coast_bias)
+	# Keep the vessel's lower projected corners inside the capture-safe frame as
+	# the harbour composition recentres on the ship. Aim slightly below its
+	# bounds centre so the ship sits higher in frame without increasing camera
+	# radius and shrinking the rendered hull/sails.
+	var target := centre.lerp(CINEMATIC_COAST_POINT, coast_bias)
+	target.y -= 0.18 * (1.0 - coast_bias)
+	return target
 
 
 func _cinematic_candidate_position(centre: Vector3, horizontal: Vector2,
