@@ -47,9 +47,11 @@ func _focus_point() -> Vector3:
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch:
-		_handle_touch(event)
+		if event.device != InputEvent.DEVICE_ID_EMULATION:
+			_handle_touch(event)
 	elif event is InputEventScreenDrag:
-		_handle_drag(event)
+		if event.device != InputEvent.DEVICE_ID_EMULATION:
+			_handle_drag(event)
 
 
 func _handle_touch(event: InputEventScreenTouch) -> void:
@@ -103,7 +105,10 @@ func _handle_drag(event: InputEventScreenDrag) -> void:
 func _ordered_touch_points() -> Array[Vector2]:
 	var indices := touch_points.keys()
 	indices.sort()
-	return [touch_points[indices[0]], touch_points[indices[1]]]
+	var points: Array[Vector2] = []
+	points.append(touch_points[indices[0]])
+	points.append(touch_points[indices[1]])
+	return points
 
 
 func _reset_pinch_baseline() -> void:
