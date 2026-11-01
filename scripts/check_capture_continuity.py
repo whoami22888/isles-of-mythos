@@ -2,6 +2,7 @@
 """Conservative boundary continuity screen; never visual acceptance."""
 import argparse
 import json
+import math
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -40,6 +41,7 @@ class CaptureSpec:
         valid_roi = (
             0 <= left < right <= self.width
             and 0 <= top < bottom <= self.height
+            and math.isfinite(self.max_luma_jump)
             and self.max_luma_jump > 0
         )
         if not valid_roi:

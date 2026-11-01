@@ -1,8 +1,12 @@
 """Focused fail-closed tests for the non-visual Godot capture boundary screen."""
 import importlib.util
+import contextlib
+import io
 from pathlib import Path
+import sys
 import tempfile
 import unittest
+from unittest import mock
 
 SOURCE = Path(__file__).resolve().parents[1] / "check_capture_continuity.py"
 SPEC = importlib.util.spec_from_file_location("check_capture_continuity", SOURCE)
@@ -78,6 +82,25 @@ class CaptureContinuityTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             with self.assertRaisesRegex(ValueError, "invalid lighting ROI"):
                 MODULE.verify(self.spec(folder, lighting_roi=(0, 0, 9, 8)))
+
+    def test_nonfinite_lighting_threshold_rejected(self):
+        with tempfile.TemporaryDirectory() as folder:
+            with self.assertRaisesRegex(ValueError, "invalid lighting ROI"):
+                MODULE.verify(self.spec(
+                    folder, lighting_roi=(0, 0, 8, 8), max_luma_jump=float("inf")
+                ))
+
+    def test_cli_rejects_infinite_lighting_threshold(self):
+        with tempfile.TemporaryDirectory() as folder:
+            arguments = [
+                str(SOURCE), folder, "--frames", "6", "--width", "8",
+                "--height", "8", "--segment-size", "2",
+                "--lighting-roi", "0,0,8,8", "--max-luma-jump", "inf",
+            ]
+            stderr = io.StringIO()
+            with mock.patch.object(sys, "argv", arguments), contextlib.redirect_stderr(stderr):
+                self.assertEqual(1, MODULE.main())
+            self.assertIn("invalid lighting ROI", stderr.getvalue())
 
 
 if __name__ == "__main__":

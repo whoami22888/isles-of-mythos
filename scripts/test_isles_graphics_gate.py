@@ -197,8 +197,12 @@ class GraphicsGateTest(unittest.TestCase):
                 {'node': 'Ship', 'surfaces': [surface]}],
         }
         self.assertIs(report, gate._validate_runtime_report(report))
-        for field, bad_value in [('triangles', True), ('transparency', True),
-                                 ('albedo_alpha', 1), ('texture', None)]:
+        bad_values = [
+            ('triangles', True), ('triangles', float('nan')),
+            ('triangles', float('inf')), ('transparency', True),
+            ('albedo_alpha', 1), ('texture', None),
+        ]
+        for field, bad_value in bad_values:
             with self.subTest(field=field):
                 original = surface[field]
                 surface[field] = bad_value
