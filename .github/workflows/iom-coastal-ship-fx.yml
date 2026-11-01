@@ -52,6 +52,11 @@ jobs:
         run: |
           set -euo pipefail
           timeout --signal=TERM --kill-after=10s 180s "$RUNNER_TEMP/godot" --headless --path client-godot --editor --quit --import
+      - name: Verify pinned generated importer outputs after Godot import
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/validate_godot_assets.py --post-import
       - name: Install Mobile shader test display and Vulkan driver
         run: |
           sudo apt-get update -qq
@@ -112,6 +117,11 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq xvfb mesa-vulkan-drivers
           timeout --signal=TERM --kill-after=10s 180s "$RUNNER_TEMP/godot" --headless --path client-godot --editor --quit --import
+      - name: Verify pinned generated importer outputs after Godot import
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/validate_godot_assets.py --post-import
       - name: Render exact frame partition
         shell: bash
         env:
