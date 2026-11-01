@@ -346,6 +346,23 @@ func _apply_far_foliage_lod(asset: Node3D, _max_total_triangles: int = 72000) ->
 	_preserve_authored_mesh(asset)
 
 func _apply_landmark_lod(asset: Node3D, _max_triangles: int) -> void:
+	if asset.scene_file_path.get_file() == "coastal_cliff_01_1k.gltf":
+		var packed := load("res://assets/external/generated/coastal_cliff_blender/coastal_cliff_lod2.glb") as PackedScene
+		if packed == null:
+			push_error("Missing admitted coastal cliff LOD2")
+			return
+		var authored := packed.instantiate()
+		var originals := asset.find_children("*", "MeshInstance3D", true, false)
+		var replacements := authored.find_children("*", "MeshInstance3D", true, false)
+		if originals.size() != 1 or replacements.size() != 1:
+			push_error("Unexpected coastal cliff LOD mesh hierarchy")
+			authored.free()
+			return
+		# Retain the source scene transform and identity while using the pinned,
+		# 46k-triangle mesh and its authored PBR material surfaces at runtime.
+		originals[0].mesh = replacements[0].mesh
+		authored.free()
+		return
 	_preserve_authored_mesh(asset)
 
 func _preserve_authored_mesh(asset: Node3D) -> void:

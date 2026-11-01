@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import struct
 import unittest
 from pathlib import Path
@@ -41,6 +42,12 @@ class BlenderCoastalPackageTests(unittest.TestCase):
         self.assertTrue(BLEND_SOURCE.is_file())
         self.assertEqual(metadata["outputs"]["blend"], hashlib.sha256(BLEND_SOURCE.read_bytes()).hexdigest())
         for path in PACKAGE.iterdir():
+            # Godot extracts these embedded GLB textures and creates sidecars
+            # during import. They are cache outputs, not vendored source files.
+            if path.suffix in {".import", ".uid"} or re.fullmatch(
+                r"coastal_cliff_lod[12]_coastal_cliff_01_(?:arm|diff|nor_gl)_1k\.jpg", path.name
+            ):
+                continue
             rel = path.relative_to(ROOT / "client-godot/assets/external").as_posix()
             if rel not in manifest:
                 self.fail(f"generated package file missing from provenance manifest: {rel}")

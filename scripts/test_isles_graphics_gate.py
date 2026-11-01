@@ -161,5 +161,29 @@ class GraphicsGateTest(unittest.TestCase):
         self.assertIn('::warning::FLAT_FOAM', output.getvalue())
         self.assertIn('does NOT certify', output.getvalue())
 
+    def test_runtime_material_and_geometry_are_checked_instead_of_source_model(self):
+        self.glb('tree.glb', {'asset': {'version': '2.0'}, 'materials': [
+            {'name': 'Leaves', 'alphaMode': 'MASK', 'pbrMetallicRoughness': {'baseColorTexture': {'index': 0}}}],
+            'textures': [{'source': 0}], 'images': [{'mimeType': 'image/jpeg'}]})
+        self.scene('assets/tree.glb')
+        report = {'res://scenes/ship_view.tscn': [{
+            'node': 'Tree/Leaves', 'surfaces': [{'triangles': 12000, 'material': 'Leaves',
+            'transparency': 4, 'albedo_alpha': True, 'texture': 'res://assets/packed/leaves.png'}]}]}
+        findings, _ = gate.audit(self.root, report)
+        self.assertNotIn('FOLIAGE_ALPHA', {item.code for item in findings})
+        report['res://scenes/ship_view.tscn'][0]['surfaces'][0]['albedo_alpha'] = False
+        report['res://scenes/ship_view.tscn'][0]['surfaces'][0]['triangles'] = 400000
+        codes = {item.code for item in gate.audit(self.root, report)[0]}
+        self.assertIn('FOLIAGE_ALPHA', codes)
+        self.assertIn('HEAVY_LOD0', codes)
+
+    def test_heightfield_water_is_not_misclassified_as_uv_only_depth(self):
+        (self.root / 'scripts').mkdir()
+        (self.root / 'scripts/water.gd').write_text(
+            'var shallow = true\nvar deep = true\nvar uv = "UV.y"\nvar height = "shore_terrain_height"')
+        (self.root / 'scenes/ship_view.tscn').write_text(
+            '[ext_resource type="Script" path="res://scripts/water.gd" id="1"]')
+        self.assertNotIn('FAKE_WATER_DEPTH', self.codes())
+
 if __name__ == '__main__':
     unittest.main()

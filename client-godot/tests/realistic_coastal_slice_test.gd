@@ -70,6 +70,13 @@ func run() -> void:
 		for child in premium_layer.get_children():
 			if child.scene_file_path.ends_with("coastal_cliff_01_1k.gltf"):
 				cliff_count += 1
+				var cliff_mesh := child.get_child(0) as MeshInstance3D
+				var cliff_triangles := 0
+				if cliff_mesh != null and cliff_mesh.mesh != null:
+					for surface_index in range(cliff_mesh.mesh.get_surface_count()):
+						var indices: PackedInt32Array = cliff_mesh.mesh.surface_get_arrays(surface_index)[Mesh.ARRAY_INDEX]
+						cliff_triangles += indices.size() / 3
+				ok = _check(cliff_triangles > 0 and cliff_triangles <= 60000, "cliff runtime LOD budget") and ok
 				var cliff_bounds: AABB = scene.visual_bounds_world(child)
 				# Imported cliff bounds must remain a background landmark, not a
 				# camera-spanning occluder or a second terrain wall.
