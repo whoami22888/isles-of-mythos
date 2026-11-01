@@ -177,6 +177,11 @@ func _record() -> void:
             scene.restore_ship_pixel_mask(mask_state)
             await process_frame
             await RenderingServer.frame_post_draw
+			# Mobile may expose the rendered mask as RGB8 even though the
+			# composite capture is normalized to RGBA8. Store a canonical raw
+			# layout so the independent pixel verifier can reproduce every count.
+			if mask_image.get_format() != Image.FORMAT_RGBA8:
+				mask_image.convert(Image.FORMAT_RGBA8)
             occupancy["frame"] = frame_number
             occupancy["time_seconds"] = float(frame_number) / scene.CINEMATIC_FPS
             occupancy["composite_frame_sha256"] = composite_sha256
