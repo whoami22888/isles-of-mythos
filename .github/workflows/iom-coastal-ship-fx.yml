@@ -13,7 +13,6 @@ on:
       - "client-godot/scripts/realistic_coastal_slice.gd"
       - "client-godot/tests/coastal_ship_fx_integration_test.gd"
       - "client-godot/tests/coastal_ship_controls_test.gd"
-      - "client-godot/tests/coastal_shader_compile_test.gd"
       - "client-godot/tests/coastal_cinematic_path_test.gd"
       - "client-godot/tests/realistic_coastal_slice_test.gd"
       - "client-godot/tests/render_coastal_fx_sequence.gd"
@@ -71,7 +70,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          timeout --signal=TERM --kill-after=10s 180s xvfb-run -a -s "-screen 0 1280x720x24" "$RUNNER_TEMP/godot" --path client-godot --rendering-method mobile --script res://tests/coastal_shader_compile_test.gd
+          mkdir -p "$RUNNER_TEMP/coastal-mobile-shader-smoke"
+          IOM_FX_FRAMES_DIR="$RUNNER_TEMP/coastal-mobile-shader-smoke" \
+          IOM_FX_START_FRAME=0 IOM_FX_END_FRAME=2 \
+          timeout --signal=TERM --kill-after=10s 180s xvfb-run -a -s "-screen 0 1280x720x24" "$RUNNER_TEMP/godot" --path client-godot --rendering-method mobile --script res://tests/render_coastal_fx_sequence.gd
+          test "$(find "$RUNNER_TEMP/coastal-mobile-shader-smoke" -maxdepth 1 -name 'frame_*.rgba' | wc -l)" -eq 2
       - name: 4. Verify ship movement, cancel skip and reduced-motion controls
         shell: bash
         run: |

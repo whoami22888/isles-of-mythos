@@ -43,7 +43,6 @@ export const COASTAL_FX_PATHS = Object.freeze(new Set([
   "client-godot/shaders/ship_bow_spray.gdshader",
   "client-godot/scripts/realistic_coastal_slice.gd",
   "client-godot/tests/coastal_cinematic_path_test.gd",
-  "client-godot/tests/coastal_shader_compile_test.gd",
   "client-godot/tests/coastal_ship_controls_test.gd",
   "client-godot/tests/realistic_coastal_slice_test.gd",
   "client-godot/tests/coastal_ship_fx_integration_test.gd",
