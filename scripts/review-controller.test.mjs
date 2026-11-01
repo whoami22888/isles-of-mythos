@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import { eventKey, normalizeEvent, shouldProcess, repairPermission, mergeEligibility } from "./review-controller.mjs";
 
 const sha = "a".repeat(40);
@@ -60,20 +60,11 @@ test("stale AI and visual approvals fail closed", () => {
   assert.equal(mergeEligibility({ ...args, visualAcceptanceSha: undefined }).eligible, false);
 });
 
-test("unverified repair fails closed with read-only worker credentials", () => {
-  const workflow = readFileSync(".github/workflows/automated-repair-dispatch.yml", "utf8");
+test("credentialed repair is absent until an isolated broker exists", () => {
   const controller = readFileSync(".github/workflows/automated-review-repair.yml", "utf8");
-  assert.match(workflow, /Credentialed repair is disabled/);
-  assert.doesNotMatch(workflow, /OPENAI_API_KEY|GITHUB_TOKEN|--full-auto|codex exec/);
-  assert.doesNotMatch(workflow, /contents: write|pull-requests: write/);
-  assert.match(workflow, /contents: read/);
-  assert.match(workflow, /pull-requests: read/);
-  assert.match(workflow, /same-repository PR head/);
-  assert.match(workflow, /p\.repo !== repo \|\| p\.owner !== owner/);
-  assert.match(controller, /Dispatch exact-SHA repair workflow/);
-  assert.match(controller, /false &&/);
-  assert.match(controller, /actions: write/);
-  assert.match(controller, /Bot-authored review events cannot dispatch repair/);
-  assert.match(controller, /github\.event\.review\.state == 'approved'/);
-  assert.doesNotMatch(workflow, /CODEX_REPAIR_TOKEN|LIM_API_KEY/);
+  assert.doesNotMatch(controller, /dispatch-repair:/);
+  assert.doesNotMatch(controller, /gh workflow run/);
+  assert.doesNotMatch(controller, /actions: write/);
+  assert.doesNotMatch(controller, /OPENAI_API_KEY|CODEX_REPAIR_TOKEN|codex exec|--full-auto/);
+  assert.equal(existsSync(".github/workflows/automated-repair-dispatch.yml"), false);
 });
