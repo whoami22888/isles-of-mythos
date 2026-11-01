@@ -5,6 +5,11 @@ coverage/
 .vite/
 .DS_Store
 client-godot/.godot/
+# Godot regenerates these on import; never commit them
+*.import
+
+# Python bytecode
+__pycache__/
 .project/checkpoint.json
 .project/.checkpoint-*.tmp
 .project/.checkpoint-*.lock

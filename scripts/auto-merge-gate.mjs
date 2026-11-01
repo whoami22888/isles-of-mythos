@@ -42,6 +42,9 @@ export const COASTAL_FX_PATHS = Object.freeze(new Set([
   "client-godot/scripts/ship_bow_spray_effect.gd",
   "client-godot/shaders/ship_bow_spray.gdshader",
   "client-godot/scripts/realistic_coastal_slice.gd",
+  "client-godot/tests/coastal_cinematic_path_test.gd",
+  "client-godot/tests/coastal_ship_controls_test.gd",
+  "client-godot/tests/realistic_coastal_slice_test.gd",
   "client-godot/tests/coastal_ship_fx_integration_test.gd",
   "client-godot/tests/render_coastal_fx_sequence.gd",
   "client-godot/tests/coastal_ocean_integration_test.gd",
@@ -49,6 +52,7 @@ export const COASTAL_FX_PATHS = Object.freeze(new Set([
   "client-godot/scripts/coastal_shore_heightfield.gd",
   "client-godot/shaders/coastal_shore_sampler.gdshaderinc",
   "client-godot/shaders/ocean_surface.gdshader",
+  "scripts/auto-merge-gate.mjs",
   ".github/workflows/iom-coastal-ship-fx.yml"
 ]));
 const COASTAL_FX_PREFIX = "client-godot/assets/external/";

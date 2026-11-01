@@ -14,17 +14,46 @@ const COAST_ROUGHNESS := preload("res://assets/external/polyhaven/coast_sand_roc
 const COAST_AO := preload("res://assets/external/polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_ao_1k.jpg")
 const SHORE_BAKER := preload("res://scripts/coastal_shore_heightfield.gd")
 const OCEAN_SHADER := preload("res://shaders/ocean_surface.gdshader")
+const BEACH_TERRAIN_SHADER := preload("res://shaders/coastal_beach_terrain.gdshader")
 const WATER_Y := -0.35
 const GAMEPLAY_CAMERA := Vector3(13.0, 12.0, -14.0)
-const CINEMATIC_START_CAMERA := Vector3(-11.0, 5.5, -18.0)
+# Elevated three-quarter view across the cove (owner concept frames): coast
+# and settlement on the left, ship right of centre, open sea behind it.
+const CINEMATIC_START_CAMERA := Vector3(3.0, 13.0, -36.0)
+# Fraction of the way from the ship centre toward the coast that the camera
+# aims; keeps the full-ship safe-frame contract while composing off-centre.
+const CINEMATIC_COAST_BIAS := 0.22
+const CINEMATIC_COAST_POINT := Vector3(4.0, 2.0, 10.0)
 const CINEMATIC_LOOK_TARGET := Vector3(1.0, 2.2, 1.0)
+# One deterministic shot path shared by the player-visible reveal and the
+# engine capture harness (tests/render_coastal_fx_sequence.gd). Raw waypoints
+# are *desired* camera positions; _safe_cinematic_position() turns each into a
+# pose that frames the whole vessel above the sea.
+const CINEMATIC_WAYPOINT_A := Vector3(3.0, 5.0, -24.0)
+const CINEMATIC_WAYPOINT_B := Vector3(3.0, 5.2, -17.0)
+const CINEMATIC_DURATION := 4.0
+const CINEMATIC_FPS := 24.0
+# The reveal starts as an establishing shot and deliberately pushes into the
+# vessel. The final beat is a rigging/hull detail, so it may crop the mast.
+const CINEMATIC_FOV_WIDE := 58.0
+const CINEMATIC_FOV_APPROACH := 50.0
+const CINEMATIC_FOV_LATE_APPROACH := 44.0
+const CINEMATIC_FOV_DETAIL := 38.0
+# Minimum camera height above the sea surface. The ocean surface is back-face
+# culled, so a camera at or below it exposes the finite seabed mesh and its
+# straight edge. Also keep a floor on elevation so the shot stays an elevated
+# three-quarter view (owner concept frames) rather than a waterline crawl.
+const CINEMATIC_MIN_CLEARANCE := 3.0
+const CINEMATIC_MIN_ELEVATION_DEG := 12.0
+const WATER_HALF_EXTENT := Vector2(480.0, 360.0)
+const CINEMATIC_WATER_MARGIN := 40.0
 
 var gameplay_camera: Camera3D
 var cinematic_camera: Camera3D
 var player_marker: Node3D
 var ship_focal: Node3D
 var _ship_base_position := Vector3.ZERO
-var _cinematic_tween: Tween
+var _cinematic_time := 0.0
 var _cinematic_active := false
 var _reduced_motion := false
 var _shore_binding: Dictionary = {}
@@ -47,15 +76,33 @@ func _build_environment() -> void:
 	var sky_material := ProceduralSkyMaterial.new()
 	sky_material.sky_top_color = Color("#2d78b7")
 	sky_material.sky_horizon_color = Color("#b7e6ee")
-	sky_material.ground_bottom_color = Color("#1b3d53")
-	sky_material.ground_horizon_color = Color("#83b6bd")
+	# Below-horizon sky shows past the far edge of the ocean plane from an
+	# elevated camera; match it to the sea haze so no grey band appears.
+	sky_material.ground_bottom_color = Color("#2f6f96")
+	sky_material.ground_horizon_color = Color("#bfe3ee")
 	sky_material.sun_angle_max = 12.0
 	sky.sky_material = sky_material
 	environment.sky = sky
-	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	environment.ambient_light_color = Color("#b6d6df")
-	environment.ambient_light_energy = 0.38
+	# Sky-sourced ambient keeps shadowed faces tinted by the tropical sky
+	# rather than a flat grey fill; Filmic holds sunlit sand and canvas without
+	# clipping. Glow is Mobile-supported and kept below the sun highlight.
+	environment.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
+	environment.ambient_light_energy = 0.75
 	environment.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	environment.glow_enabled = true
+	environment.glow_intensity = 0.35
+	environment.glow_hdr_threshold = 1.2
+	# Aerial perspective: distance haze toward the horizon colour. It also
+	# fades the edge of the single 960 x 720 m ocean plane, which a low-angle
+	# camera otherwise sees as a grey band. Depth fog is Mobile-supported.
+	environment.fog_enabled = true
+	environment.fog_mode = Environment.FOG_MODE_DEPTH
+	environment.fog_light_color = Color("#bfe3ee")
+	environment.fog_depth_begin = 70.0
+	environment.fog_depth_end = 215.0
+	environment.fog_depth_curve = 1.6
+	environment.fog_density = 1.0
+	environment.fog_sky_affect = 0.0
 	world.environment = environment
 	add_child(world)
 	var sun := DirectionalLight3D.new()
@@ -64,36 +111,41 @@ func _build_environment() -> void:
 	sun.light_color = Color("#fff0cf")
 	sun.light_energy = 0.95
 	sun.shadow_enabled = true
+	sun.directional_shadow_max_distance = 90.0
 	add_child(sun)
 
 func _terrain_height(px: float, pz: float) -> float:
-	# Irregular cove waterline and broad uplift, with layered beach, bluff
-	# and inland ridges. The same height function grounds decorative meshes.
-	var waterline := -7.1 + sin(px * 0.19) * 1.3 + sin(px * 0.53) * 0.6
+	# Irregular cove waterline with a real underwater shelf, a gently sloped
+	# sand beach (~1:8), then bluff and inland ridges. The same height
+	# function grounds decorative meshes and feeds the ocean heightfield.
+	var waterline := 2.0 + sin(px * 0.19) * 1.3 + sin(px * 0.53) * 0.6
 	waterline += cos(px * 0.095) * 1.2
-	var beach := smoothstep(waterline - 2.4, waterline + 3.8, pz)
-	var bluff := smoothstep(1.4, 12.5, pz)
+	var shore_t := pz - waterline
+	# Wide, low beach shelf instead of the previous 6 m ramp that met the
+	# water with no visible sand.
+	var beach := smoothstep(-5.0, 9.0, shore_t)
+	var bluff := smoothstep(waterline + 6.5, waterline + 15.0, pz)
 	var ridge := sin(px * 0.21 + pz * 0.08) * 1.25
 	ridge += cos(px * 0.46 - pz * 0.19) * 0.48
 	ridge += sin(px * 0.91 + pz * 0.63) * 0.15
-	# Add two irregular cliff shelves so the playable coast reads as layered
-	# rock and beach rather than a single smooth mound. The terms are bounded
-	# by the authored island mask and remain deterministic at capture time.
-	var cliff_shelf := smoothstep(3.0, 9.0, pz) * (0.42 * sin(px * 0.37 + pz * 0.11)
+	# Irregular cliff shelves keep the inland coast layered rather than a
+	# single smooth mound; bounded and deterministic at capture time.
+	var cliff_shelf := smoothstep(waterline + 5.0, waterline + 11.0, pz) * (0.42 * sin(px * 0.37 + pz * 0.11)
 		+ 0.24 * cos(px * 0.71 - pz * 0.23))
-	var high_shelf := smoothstep(10.0, 18.0, pz) * (0.30 * sin(px * 0.52 - pz * 0.17))
+	var high_shelf := smoothstep(13.0, 20.0, pz) * (0.30 * sin(px * 0.52 - pz * 0.17))
 	ridge += cliff_shelf + high_shelf
 	var side_mask := 1.0 - smoothstep(25.0, 34.0, absf(px))
 	var back_mask := 1.0 - smoothstep(19.0, 28.0, pz)
 	var island := side_mask * back_mask
-	# Give the playable cove a readable beach-to-cliff profile from the
-	# gameplay camera.  The previous low relief read as a single mound even
-	# with the admitted PBR surface; these bounded shelves create a layered
-	# tropical coast without adding runtime geometry or allocations.
-	var height := beach * (1.85 + ridge * 0.28)
-	height += bluff * (5.6 + ridge * 1.35)
-	height += smoothstep(8.0, 18.0, pz) * 2.0
-	return WATER_Y - 0.75 + island * (height + 0.75)
+	var height := beach * (1.45 + ridge * 0.12)
+	height += bluff * (5.4 + ridge * 1.35)
+	height += smoothstep(11.0, 20.0, pz) * 2.0
+	# The seabed previously sat at sea level across the whole bay, so the
+	# ocean read uniformly "shallow". Drop it into a believable shelf: sand
+	# shallows near the beach, then a turquoise-to-navy slope offshore.
+	var offshore := smoothstep(0.5, -19.0, shore_t)
+	var land := WATER_Y - 0.25 + height - offshore * 7.5
+	return lerpf(WATER_Y - 8.0, land, island)
 
 
 func _build_coastal_terrain() -> void:
@@ -127,7 +179,7 @@ func _build_coastal_terrain() -> void:
 	for z in range(rows - 1):
 		for x in range(columns - 1):
 			var i := z * columns + x
-			indices.append_array([i, i + columns, i + 1, i + 1, i + columns, i + columns + 1])
+			indices.append_array([i, i + 1, i + columns, i + 1, i + columns + 1, i + columns])
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = vertices
@@ -140,24 +192,20 @@ func _build_coastal_terrain() -> void:
 	var terrain := MeshInstance3D.new()
 	terrain.name = "IrregularCoastalTerrain"
 	terrain.mesh = mesh
-	var material := _terrain_material()
-	material.vertex_color_use_as_albedo = true
-	terrain.material_override = material
+	terrain.material_override = _terrain_material()
 	add_child(terrain)
 
 
-func _terrain_material() -> StandardMaterial3D:
-	var material := StandardMaterial3D.new()
-	material.albedo_color = Color("#c9a77b")
-	material.albedo_texture = COAST_DIFFUSE
-	material.normal_enabled = true
-	material.normal_texture = COAST_NORMAL
-	material.roughness_texture = COAST_ROUGHNESS
-	material.roughness_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED
-	material.ao_enabled = true
-	material.ao_texture = COAST_AO
-	material.roughness = 0.88
-	material.metallic = 0.0
+func _terrain_material() -> ShaderMaterial:
+	# Height/slope-layered beach: wet sand, dry sand, rock and vegetated soil,
+	# all from the admitted coast_sand_rocks_02 PBR maps.
+	var material := ShaderMaterial.new()
+	material.shader = BEACH_TERRAIN_SHADER
+	material.set_shader_parameter("rock_albedo", COAST_DIFFUSE)
+	material.set_shader_parameter("rock_normal", COAST_NORMAL)
+	material.set_shader_parameter("rock_roughness", COAST_ROUGHNESS)
+	material.set_shader_parameter("rock_ao", COAST_AO)
+	material.set_shader_parameter("sea_level", WATER_Y)
 	return material
 
 func _build_water() -> void:
@@ -174,8 +222,10 @@ func _build_water() -> void:
 	# ONE contiguous seascape avoids cross-material seams and expensive
 	# overlapping fragment passes. Only the central ~180x140m displaces;
 	# distant water retains animated per-pixel micro-normals without tessellation.
-	# 160x120 subdivisions cap vertex shader work even across the full horizon.
-	plane.size = Vector2(640.0, 480.0)
+	# Keep the validated 160x120 subdivision budget. The 960x720 m surface pushes
+	# its edge farther out without adding vertices; per-pixel normals retain
+	# small-scale detail across the far field.
+	plane.size = WATER_HALF_EXTENT * 2.0
 	plane.subdivide_width = 160
 	plane.subdivide_depth = 120
 	water.mesh = plane
@@ -278,8 +328,8 @@ func _build_premium_landmarks() -> void:
 		[Vector3(21.0, 0.0, 18.0), 0.24, COASTAL_CLIFF_SCENE],
 		# Smaller side anchors complete the cove silhouette without crossing
 		# the ship camera corridor or adding a new asset family.
-		[Vector3(-24.0, 0.0, 16.0), 0.18, COASTAL_CLIFF_SCENE],
-		[Vector3(25.0, 0.0, 14.0), 0.18, COASTAL_CLIFF_SCENE],
+		[Vector3(-8.5, 0.0, 16.5), 0.18, COASTAL_CLIFF_SCENE],
+		[Vector3(9.5, 0.0, 16.0), 0.18, COASTAL_CLIFF_SCENE],
 		[Vector3(-11.5, 0.0, 10.0), 1.1, TROPICAL_TREE_SCENE],
 		[Vector3(11.0, 0.0, 12.0), 1.0, TROPICAL_TREE_ALT_SCENE],
 		[Vector3(-3.5, 0.0, 16.5), 0.85, TROPICAL_TREE_ALT_SCENE],
@@ -300,7 +350,15 @@ func _build_premium_landmarks() -> void:
 			# terrain remains the high-detail playable surface.
 			_apply_landmark_lod(imported, 60000 if entry[0].x != 21.0 else 90000)
 		premium_layer.add_child(imported)
-		_ground_asset_on_terrain(imported, 0.08)
+		if entry[2] == COASTAL_CLIFF_SCENE:
+			# The source is an overhanging cliff-edge slab: grounding its
+			# lowest vertex left most of it hanging in the air as a dark plank
+			# along the ridge. Seat it so only the weathered crest emerges from
+			# the slope as a rock outcrop.
+			var cliff_height := visual_bounds_world(imported).size.y
+			_ground_asset_on_terrain(imported, cliff_height * 0.9)
+		else:
+			_ground_asset_on_terrain(imported, 0.08)
 		_configure_mobile_visibility(imported, 105.0, false)
 	# Spawn state belongs to scene construction, not recursive material
 	# traversal. Keeping this here guarantees one authoritative marker.
@@ -328,10 +386,16 @@ func _configure_ship_sails(root: Node) -> void:
 					if not material_name.contains("sail") and not node_name.contains("sail"):
 						continue
 					var corrected := material.duplicate() as BaseMaterial3D
-					corrected.albedo_color = Color.WHITE
-					corrected.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+					# The admitted 1024px CC0 canvas atlas is deliberately weathered
+					# mid-grey. Mobile Vulkan's backlit PBR path still made those
+					# cloth surfaces near-black in the verified capture. Keep the
+					# texture detail, but use a warm, texture-preserving unshaded
+					# presentation so sail weave remains readable against backlight.
+					corrected.albedo_color = Color(1.8, 1.7, 1.55, 1.0)
+					corrected.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
 					corrected.cull_mode = BaseMaterial3D.CULL_DISABLED
-					corrected.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
+					corrected.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+					corrected.backlight_enabled = false
 					mesh_instance.set_surface_override_material(surface_index, corrected)
 		for child in node.get_children():
 			_configure_ship_sails(child)
@@ -345,8 +409,51 @@ func _reduce_surface_triangles(source: ArrayMesh, surface_index: int, _max_trian
 func _apply_far_foliage_lod(asset: Node3D, _max_total_triangles: int = 72000) -> void:
 	_preserve_authored_mesh(asset)
 
-func _apply_landmark_lod(asset: Node3D, _max_triangles: int) -> void:
+func _apply_landmark_lod(asset: Node3D, max_triangles: int) -> void:
+	if asset.scene_file_path.get_file() == "coastal_cliff_01_1k.gltf":
+		_apply_cliff_lod(asset, max_triangles)
+		return
 	_preserve_authored_mesh(asset)
+
+# Replaces the 461k-triangle source cliff with the highest-detail admitted LOD
+# whose real triangle count fits the cap. If none fits, the cliff is hidden
+# rather than rendered at full source detail, so the budget can never be bypassed.
+func _apply_cliff_lod(asset: Node3D, max_triangles: int, report_failure := true) -> void:
+	var originals := asset.find_children("*", "MeshInstance3D", true, false)
+	if originals.size() != 1:
+		push_error("Unexpected cliff mesh hierarchy")
+		asset.visible = false
+		return
+	for path in [
+		"res://assets/external/generated/coastal_cliff_blender/coastal_cliff_lod1.glb",
+		"res://assets/external/generated/coastal_cliff_blender/coastal_cliff_lod2.glb"
+	]:
+		var packed := load(path) as PackedScene
+		if packed == null:
+			continue
+		var authored := packed.instantiate()
+		var replacements := authored.find_children("*", "MeshInstance3D", true, false)
+		var fits := replacements.size() == 1 and _triangle_count(replacements[0].mesh) <= max_triangles
+		if fits:
+			originals[0].mesh = replacements[0].mesh
+			originals[0].lod_bias = 1.5
+		authored.free()
+		if fits:
+			return
+	if report_failure:
+		push_error("No admitted cliff LOD fits triangle cap %d" % max_triangles)
+	asset.visible = false
+
+func _triangle_count(mesh: Mesh) -> int:
+	var total := 0
+	for surface in range(mesh.get_surface_count()):
+		var arrays := mesh.surface_get_arrays(surface)
+		var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+		if indices.is_empty():
+			total += (arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array).size() / 3
+		else:
+			total += indices.size() / 3
+	return total
 
 func _preserve_authored_mesh(asset: Node3D) -> void:
 	var asset_name := asset.scene_file_path.get_file().trim_suffix("_1k.gltf")
@@ -436,6 +543,92 @@ func restore_sail_pixel_mask(state: Array) -> void:
 			node.set_surface_override_material(entry["surface"], entry["material"])
 		elif node is GeometryInstance3D:
 			node.visible = entry["visible"]
+
+
+func prepare_ship_pixel_mask() -> Array:
+	# Capture true, occlusion-aware hull and sail coverage for the current shot.
+	# The rest of the scene still writes depth, so terrain and rigging can hide
+	# ship pixels exactly as they do in the normal render. This avoids treating
+	# empty space inside the imported ship's large AABB as visible occupancy.
+	var state: Array = []
+	var hull_mask := StandardMaterial3D.new()
+	hull_mask.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	hull_mask.albedo_color = Color(1.0, 0.0, 0.0, 1.0)
+	hull_mask.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var sail_mask := StandardMaterial3D.new()
+	sail_mask.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	sail_mask.albedo_color = Color(0.0, 1.0, 0.0, 1.0)
+	sail_mask.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var depth_material := ShaderMaterial.new()
+	var depth_shader := Shader.new()
+	depth_shader.code = "shader_type spatial; render_mode unshaded, depth_draw_opaque, cull_disabled; void fragment() { ALBEDO = vec3(0.0); }"
+	depth_material.shader = depth_shader
+	var pending: Array[Node] = [self]
+	while not pending.is_empty():
+		var node: Node = pending.pop_back()
+		if node is MeshInstance3D:
+			var mesh_instance := node as MeshInstance3D
+			if mesh_instance.mesh:
+				var in_ship := _is_inside_ship(mesh_instance)
+				for surface_index in range(mesh_instance.mesh.get_surface_count()):
+					var previous := mesh_instance.get_surface_override_material(surface_index)
+					state.append({"node": mesh_instance, "surface": surface_index, "material": previous})
+					var target_material: Material = depth_material
+					if in_ship:
+						if _is_sail_surface(mesh_instance, surface_index):
+							target_material = sail_mask
+						elif _is_hull_surface(mesh_instance, surface_index):
+							target_material = hull_mask
+					mesh_instance.set_surface_override_material(surface_index, target_material)
+		elif node is GeometryInstance3D:
+			state.append({"node": node, "visible": node.visible})
+			node.visible = false
+		for child in node.get_children():
+			pending.append(child)
+	return state
+
+
+func _is_inside_ship(node: Node) -> bool:
+	var current := node.get_parent()
+	while current != null:
+		if current == ship_focal:
+			return true
+		current = current.get_parent()
+	return false
+
+
+func _is_hull_surface(mesh_instance: MeshInstance3D, surface_index: int) -> bool:
+	var material := mesh_instance.get_active_material(surface_index) as BaseMaterial3D
+	var material_name := str(material.resource_name).to_lower() if material else ""
+	return material_name.contains("hull") or str(mesh_instance.name).to_lower().contains("hull")
+
+
+func restore_ship_pixel_mask(state: Array) -> void:
+	for entry in state:
+		var node: Node = entry["node"]
+		if node is MeshInstance3D:
+			node.set_surface_override_material(entry["surface"], entry["material"])
+		elif node is GeometryInstance3D:
+			node.visible = entry["visible"]
+
+
+static func evaluate_ship_pixel_mask(mask: Image) -> Dictionary:
+	var hull_pixels := 0
+	var sail_pixels := 0
+	for y in range(mask.get_height()):
+		for x in range(mask.get_width()):
+			var pixel := mask.get_pixel(x, y)
+			if pixel.r > 0.75 and pixel.g < 0.25 and pixel.b < 0.25:
+				hull_pixels += 1
+			elif pixel.g > 0.75 and pixel.r < 0.25 and pixel.b < 0.25:
+				sail_pixels += 1
+	var total := hull_pixels + sail_pixels
+	var image_pixels := maxi(1, mask.get_width() * mask.get_height())
+	return {"hull_pixels": hull_pixels, "sail_pixels": sail_pixels,
+		"ship_pixels": total,
+		"hull_fraction": float(hull_pixels) / image_pixels,
+		"sail_fraction": float(sail_pixels) / image_pixels,
+		"ship_fraction": float(total) / image_pixels}
 
 static func evaluate_sail_pixel_mask(image: Image, mask: Image) -> Dictionary:
 	# Only magenta pixels from the object-only pass are eligible. This handles
@@ -548,33 +741,188 @@ func ship_visual_bounds_world() -> AABB:
 	return AABB(lower, upper - lower)
 
 
-func frame_ship_cinematic(camera: Camera3D, desired_position: Vector3) -> bool:
+func frame_ship_cinematic(camera: Camera3D, desired_position: Vector3,
+		framing_fov := CINEMATIC_FOV_WIDE, framing_margin := 0.05,
+		coast_bias := CINEMATIC_COAST_BIAS) -> bool:
 	if camera == null or not _ship_bounds_ready:
 		return false
-	var safe_position := _safe_cinematic_position(camera, desired_position)
+	# Solve containment against the exact lens used by this shot. Solving at the
+	# wide lens and narrowing afterward clipped real ship geometry on approach.
+	camera.fov = framing_fov
+	var safe_position := _safe_cinematic_position(camera, desired_position, framing_margin, coast_bias)
 	if safe_position == Vector3(INF, INF, INF):
 		return false
 	camera.global_position = safe_position
-	camera.look_at(ship_visual_bounds_world().get_center())
+	var centre := ship_visual_bounds_world().get_center()
+	camera.look_at(_cinematic_look_target(centre, coast_bias))
 	return true
 
-func _safe_cinematic_position(camera: Camera3D, desired_position: Vector3) -> Vector3:
+func _safe_cinematic_position(camera: Camera3D, desired_position: Vector3,
+		framing_margin := 0.04, coast_bias := CINEMATIC_COAST_BIAS) -> Vector3:
 	if camera == null or not _ship_bounds_ready:
 		return Vector3(INF, INF, INF)
 	var bounds := ship_visual_bounds_world()
 	if bounds.size.length_squared() < 0.00001:
 		return Vector3(INF, INF, INF)
 	var centre := bounds.get_center()
-	var away := (desired_position - centre).normalized()
-	if away.length_squared() < 0.00001:
-		away = Vector3(-0.6, 0.3, -0.7).normalized()
-	var distance := maxf(0.5, desired_position.distance_to(centre))
-	var safe_radius := bounds.size.length() * 0.5
-	var safe_angle := deg_to_rad(camera.fov * 0.45)
-	# Conservatively enclose the ship's *entire* AABB in a vertical frustum;
-	# no hull-only target can silently clip the sails or mast tips.
-	var needed := safe_radius / maxf(0.05, sin(safe_angle))
-	return centre + away * maxf(distance, needed)
+	var offset := desired_position - centre
+	if offset.length_squared() < 0.00001:
+		offset = Vector3(-0.6, 0.3, -0.7)
+	var distance := maxf(0.5, offset.length())
+	var horizontal := Vector2(offset.x, offset.z)
+	if horizontal.length_squared() < 0.00001:
+		horizontal = Vector2(-0.6, -0.7)
+	horizontal = horizontal.normalized()
+	var elevation := maxf(asin(clampf(offset.y / distance, -1.0, 1.0)),
+		deg_to_rad(CINEMATIC_MIN_ELEVATION_DEG))
+	# The former sphere fit used half the diagonal of the ship-wide merged AABB.
+	# It treated empty space between sails, rigging and hull as occupied, forcing
+	# every shot far away. Solve the actual wide-lens frustum against all eight
+	# existing ship AABB corners. Containment remains strict while the camera
+	# stops retreating to fit empty volume.
+	var look_target := _cinematic_look_target(centre, coast_bias)
+	var candidate := _cinematic_candidate_position(centre, horizontal, elevation, distance)
+	if _camera_frustum_contains_ship(camera, candidate, look_target, bounds, framing_margin):
+		return candidate
+	var low := distance
+	var high := distance
+	while high < 4096.0:
+		high *= 2.0
+		candidate = _cinematic_candidate_position(centre, horizontal, elevation, high)
+		if _camera_frustum_contains_ship(camera, candidate, look_target, bounds, framing_margin):
+			break
+	if high >= 4096.0 and not _camera_frustum_contains_ship(camera, candidate, look_target, bounds, framing_margin):
+		return Vector3(INF, INF, INF)
+	for _iteration in range(28):
+		var mid := (low + high) * 0.5
+		candidate = _cinematic_candidate_position(centre, horizontal, elevation, mid)
+		if _camera_frustum_contains_ship(camera, candidate, look_target, bounds, framing_margin):
+			high = mid
+		else:
+			low = mid
+	return _cinematic_candidate_position(centre, horizontal, elevation, high)
+
+
+func _cinematic_look_target(centre: Vector3, coast_bias := CINEMATIC_COAST_BIAS) -> Vector3:
+	# Keep the vessel's lower projected corners inside the capture-safe frame as
+	# the harbour composition recentres on the ship. Aim slightly below its
+	# bounds centre so the ship sits higher in frame without increasing camera
+	# radius and shrinking the rendered hull/sails.
+	var target := centre.lerp(CINEMATIC_COAST_POINT, coast_bias)
+	target.y -= 0.85 * (1.0 - coast_bias)
+	return target
+
+
+func _cinematic_candidate_position(centre: Vector3, horizontal: Vector2,
+		base_elevation: float, radius: float) -> Vector3:
+	var minimum_y := WATER_Y + CINEMATIC_MIN_CLEARANCE
+	var elevation := maxf(base_elevation,
+		asin(clampf((minimum_y - centre.y) / maxf(radius, 0.001), -1.0, 1.0)))
+	return centre + Vector3(horizontal.x * cos(elevation), sin(elevation),
+		horizontal.y * cos(elevation)) * radius
+
+
+func _camera_frustum_contains_ship(camera: Camera3D, camera_position: Vector3,
+		look_target: Vector3, bounds: AABB, framing_margin: float) -> bool:
+	if camera == null or camera.get_viewport() == null:
+		return false
+	camera.global_position = camera_position
+	camera.look_at(look_target)
+	var viewport_size: Vector2 = camera.get_viewport().get_visible_rect().size
+	var margin := clampf(framing_margin, 0.02, 0.25)
+	for corner in range(8):
+		var point := bounds.position + Vector3(
+			bounds.size.x if corner & 1 else 0.0,
+			bounds.size.y if corner & 2 else 0.0,
+			bounds.size.z if corner & 4 else 0.0
+		)
+		if camera.is_position_behind(point):
+			return false
+		var projected: Vector2 = camera.unproject_position(point)
+		if projected.x <= viewport_size.x * margin or projected.x >= viewport_size.x * (1.0 - margin):
+			return false
+		if projected.y <= viewport_size.y * margin or projected.y >= viewport_size.y * (1.0 - margin):
+			return false
+	return true
+
+
+## Raw (pre-framing) desired camera position at cinematic time `t` seconds.
+## Same easing as the former tween (Tween.TRANS_SINE / EASE_IN_OUT).
+func cinematic_raw_position_at(t: float) -> Vector3:
+	var progress := clampf(t / CINEMATIC_DURATION, 0.0, 1.0)
+	if progress < 0.5:
+		return CINEMATIC_START_CAMERA.lerp(CINEMATIC_WAYPOINT_A, _sine_in_out(progress * 2.0))
+	return CINEMATIC_WAYPOINT_A.lerp(CINEMATIC_WAYPOINT_B, _sine_in_out((progress - 0.5) * 2.0))
+
+
+static func _sine_in_out(x: float) -> float:
+	return 0.5 - 0.5 * cos(PI * clampf(x, 0.0, 1.0))
+
+
+## Single source of truth for the reveal pose: runtime playback and the
+## capture harness both call this with the same `t`, against the live ship.
+func apply_cinematic_time(camera: Camera3D, t: float) -> bool:
+	var progress := clampf(t / CINEMATIC_DURATION, 0.0, 1.0)
+	var shot_fov := cinematic_fov_at(progress)
+	var framing_margin := cinematic_margin_at(progress)
+	var coast_bias := cinematic_coast_bias_at(progress)
+	if not frame_ship_cinematic(camera, cinematic_raw_position_at(t), shot_fov, framing_margin, coast_bias):
+		return false
+	camera.fov = shot_fov
+	return true
+
+
+func cinematic_fov_at(progress: float) -> float:
+	var shot_fov: float
+	if progress <= 0.25:
+		shot_fov = lerpf(CINEMATIC_FOV_WIDE, CINEMATIC_FOV_APPROACH,
+			_sine_in_out(progress / 0.25))
+	elif progress <= 0.5:
+		shot_fov = lerpf(CINEMATIC_FOV_APPROACH, CINEMATIC_FOV_LATE_APPROACH,
+			_sine_in_out((progress - 0.25) / 0.25))
+	else:
+		shot_fov = lerpf(CINEMATIC_FOV_LATE_APPROACH, CINEMATIC_FOV_DETAIL,
+			_sine_in_out((progress - 0.5) / 0.5))
+	return shot_fov
+
+
+func cinematic_margin_at(progress: float) -> float:
+	# Wide establishes the harbour with breathing room. The approach and detail
+	# beats progressively consume that margin, while the same full AABB corners
+	# remain inside the frame at every timestamp.
+	if progress <= 0.25:
+		return lerpf(0.15, 0.08, _sine_in_out(progress / 0.25))
+	if progress <= 0.5:
+		return lerpf(0.08, 0.06, _sine_in_out((progress - 0.25) / 0.25))
+	# The capture checks a 5% safe edge at every rendered pixel. Keep a small
+	# solver tolerance above that edge through the detail push-in.
+	return lerpf(0.06, 0.055, _sine_in_out((progress - 0.5) / 0.5))
+
+
+func cinematic_coast_bias_at(progress: float) -> float:
+	# Keep the harbour in the wide and approach compositions, then smoothly
+	# recenter the ship for the detail beat. This increases rendered hull/sail
+	# coverage without changing the full-AABB containment rule.
+	if progress <= 0.5:
+		return CINEMATIC_COAST_BIAS
+	return lerpf(CINEMATIC_COAST_BIAS, 0.0, _sine_in_out((progress - 0.5) / 0.5))
+
+
+## Pure validator for a cinematic camera pose; no scene state required.
+## `sealed` means the opaque ocean surface fully covers every downward view:
+## the camera is above the sea by the clearance floor and well inside the
+## water plane, so neither the seabed nor the finite terrain edge can show.
+static func evaluate_cinematic_pose(camera_position: Vector3) -> Dictionary:
+	var clearance := camera_position.y - WATER_Y
+	var inside_x := WATER_HALF_EXTENT.x - CINEMATIC_WATER_MARGIN - absf(camera_position.x)
+	var inside_z := WATER_HALF_EXTENT.y - CINEMATIC_WATER_MARGIN - absf(camera_position.z)
+	return {
+		"clearance": clearance,
+		"water_margin": minf(inside_x, inside_z),
+		"above_sea": clearance >= CINEMATIC_MIN_CLEARANCE - 0.001,
+		"inside_water": inside_x >= 0.0 and inside_z >= 0.0,
+		"sealed": clearance >= CINEMATIC_MIN_CLEARANCE - 0.001 and inside_x >= 0.0 and inside_z >= 0.0,
+	}
 
 
 func _build_cameras() -> void:
@@ -594,8 +942,6 @@ func _build_cameras() -> void:
 
 func set_gameplay_view() -> void:
 	_cinematic_active = false
-	if _cinematic_tween:
-		_cinematic_tween.kill()
 	if gameplay_camera:
 		gameplay_camera.current = true
 
@@ -606,34 +952,36 @@ func set_cinematic_view() -> void:
 func play_cinematic(reduced_motion := false) -> void:
 	_reduced_motion = reduced_motion
 	_cinematic_active = true
-	if _cinematic_tween:
-		_cinematic_tween.kill()
+	_cinematic_time = 0.0
 	set_cinematic_view()
 	# Every reveal starts from its authored establishing pose, including replay.
-	cinematic_camera.position = CINEMATIC_START_CAMERA
-	frame_ship_cinematic(cinematic_camera, cinematic_camera.global_position)
+	apply_cinematic_time(cinematic_camera, 0.0)
 	if _reduced_motion:
 		set_gameplay_view()
-		return
-	_cinematic_tween = create_tween()
-	# Stay seaward of the moving visual ship so the vessel and island remain
-	# in a coherent foreground/midground/background composition.
-	var waypoint_a := _safe_cinematic_position(cinematic_camera, Vector3(-7.0, 4.8, -17.0))
-	var waypoint_b := _safe_cinematic_position(cinematic_camera, Vector3(-2.5, 5.2, -21.0))
-	_cinematic_tween.tween_property(cinematic_camera, "global_position", waypoint_a, 2.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	_cinematic_tween.tween_property(cinematic_camera, "global_position", waypoint_b, 2.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	_cinematic_tween.finished.connect(set_gameplay_view)
 
 func skip_cinematic() -> void:
 	set_gameplay_view()
 
-func _process(_delta: float) -> void:
+## Advance the reveal by `delta` seconds of *simulated* time and return true
+## while it is still playing. _process() drives this at runtime; tests drive it
+## with fixed steps so runtime and capture are provably the same path.
+func advance_cinematic(delta: float) -> bool:
+	if not _cinematic_active or cinematic_camera == null or not cinematic_camera.current:
+		return false
+	_cinematic_time += delta
+	apply_cinematic_time(cinematic_camera, _cinematic_time)
+	if _cinematic_time >= CINEMATIC_DURATION:
+		set_gameplay_view()
+		return false
+	return true
+
+func _process(delta: float) -> void:
 	if ship_focal:
 		# Preserve navigation XZ; only render-bob the Y channel. Overwriting
 		# XZ here previously defeated any genuine vessel movement/VFX sampling.
 		ship_focal.position.y = _ship_base_position.y + sin(Time.get_ticks_msec() * 0.0012) * 0.035
 	if _cinematic_active and cinematic_camera and cinematic_camera.current:
 		# Follow the moving ship; fixed island look-at pushed the ship fully offscreen.
-		frame_ship_cinematic(cinematic_camera, cinematic_camera.global_position)
+		advance_cinematic(delta)
 	if _cinematic_active and (Input.is_action_just_pressed("ui_accept") or Input.is_action_just_pressed("ui_cancel")):
 		skip_cinematic()

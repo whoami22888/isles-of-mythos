@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Fail-closed provenance and integrity checks for imported third-party Godot art."""
+import argparse
 import hashlib
 import json
 import pathlib
@@ -94,7 +95,7 @@ def validate_path(index, item, root):
     return path
 
 
-def validate() -> int:
+def validate(strict_post_import: bool = False) -> int:
     """Validate approved manifest entries against filesystem and digest evidence."""
     data = json.loads(MANIFEST.read_text(encoding="utf-8"))
     if (not isinstance(data, dict) or data.get("schema_version") != 1
@@ -109,12 +110,25 @@ def validate() -> int:
         validate_metadata(index, item, seen_ids, seen_paths)
         registered.add(validate_path(index, item, root))
     # Generated outputs are verified in-place, and must have fully recorded
-    # source dependencies. They are never downloaded as if upstream provided
-    # a binary with the derived SHA-256.
+    # source dependencies. Godot may materialize these files during import;
+    # their pinned bytes are admitted only as derivatives of an asset above.
     for entry in data["assets"]:
         for source in entry.get("generated_from", []):
             if source not in seen_paths:
                 fail(f"Generated asset dependency is absent: {source}")
+        outputs = entry.get("generated_import_outputs", [])
+        if not isinstance(outputs, list):
+            fail(f"Generated importer outputs must be a list: {entry['path']}")
+        for output in outputs:
+            if (not isinstance(output, dict) or not isinstance(output.get("path"), str)
+                    or not HASH.fullmatch(str(output.get("sha256", "")))):
+                fail(f"Invalid generated importer output metadata: {entry['path']}")
+            relative = pathlib.PurePosixPath(output["path"])
+            if relative.is_absolute() or ".." in relative.parts or "\\" in output["path"]:
+                fail(f"Unsafe generated importer output path: {output['path']}")
+            output_path = ASSETS / output["path"]
+            if strict_post_import or output_path.exists() or output_path.is_symlink():
+                registered.add(validate_path(index, output, root))
     if ASSETS.exists():
         actual = set()
         for candidate in ASSETS.rglob("*"):
@@ -122,6 +136,12 @@ def validate() -> int:
             # to an approved file would otherwise collapse into its digest.
             if candidate.is_symlink():
                 fail("Symlinked file(s) under client-godot/assets/external")
+            # Godot writes importer settings beside source art as *.import.
+            # These are generated build metadata (also gitignored), not asset
+            # payloads; validate the source bytes and reject every other
+            # unregistered file below.
+            if candidate.suffix.lower() in {".import", ".uid"}:
+                continue
             if candidate.is_file():
                 actual.add(candidate.resolve())
         if actual != registered:
@@ -132,7 +152,10 @@ def validate() -> int:
 
 if __name__ == "__main__":
     try:
-        sys.exit(validate())
+        parser = argparse.ArgumentParser(description=__doc__)
+        parser.add_argument("--post-import", action="store_true", help="Require all declared generated importer outputs")
+        args = parser.parse_args()
+        sys.exit(validate(strict_post_import=args.post_import))
     except (ValueError, OSError, json.JSONDecodeError) as exc:
         print(f"Asset provenance validation FAIL: {exc}", file=sys.stderr)
         sys.exit(1)
