@@ -809,7 +809,7 @@ func _cinematic_look_target(centre: Vector3, coast_bias := CINEMATIC_COAST_BIAS)
 	# bounds centre so the ship sits higher in frame without increasing camera
 	# radius and shrinking the rendered hull/sails.
 	var target := centre.lerp(CINEMATIC_COAST_POINT, coast_bias)
-	target.y -= 0.45 * (1.0 - coast_bias)
+	target.y -= 0.85 * (1.0 - coast_bias)
 	return target
 
 
