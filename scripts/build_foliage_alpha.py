@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import hashlib
+import importlib
 from pathlib import Path
 
-from PIL import Image
+Image = importlib.import_module("PIL.Image")
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "client-godot/assets/external/polyhaven/island_tree_01/textures/island_tree_01_leaves_diff_1k.jpg"
