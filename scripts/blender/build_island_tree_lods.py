@@ -1,9 +1,10 @@
 """Export reproducible far-scatter island-tree LOD2 GLBs from admitted meshes."""
 import argparse
+import importlib
 import sys
 from pathlib import Path
 
-import bpy
+bpy = importlib.import_module("bpy")
 
 
 def main() -> None:
