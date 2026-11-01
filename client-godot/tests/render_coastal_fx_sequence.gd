@@ -128,6 +128,13 @@ func _record() -> void:
                 _fail("Partition boundary lost deterministic ocean time")
             if integration.wake.get_sample_count() < 2:
                 _fail("Partition boundary lost CPU wake history")
+        if frame_number == start_frame:
+            # The camera preroll is CPU-only. Give Mobile Vulkan several real
+            # draw fences at its final pose before keeping the first frame;
+            # otherwise one llvmpipe worker can retain an unlit shadow state.
+            for _warmup in range(3):
+                await process_frame
+                await RenderingServer.frame_post_draw
         var fence_start_msec := Time.get_ticks_msec()
         print("IOM_INTERNAL_CAPTURE_BEGIN frame=%d state_ms=%d" % [
             frame_number, Time.get_ticks_msec() - render_start_msec
@@ -151,6 +158,20 @@ func _record() -> void:
             _changed_frames += 1
         _previous_bytes = current_bytes
         if frame_number == start_frame:
+            # Static land at this camera angle is a stable lighting probe.
+            # A dark worker measured 82-85 luma here; lit runs measure 94+.
+            # Fail that worker before it uploads a visually invalid segment.
+            var land_luma := 0.0
+            var land_samples := 0
+            for y in range(330, 470, 4):
+                for x in range(830, 1190, 4):
+                    var land_pixel := pixels.get_pixel(x, y)
+                    land_luma += (54.0 * land_pixel.r + 183.0 * land_pixel.g + 19.0 * land_pixel.b) / 256.0
+                    land_samples += 1
+            land_luma = land_luma * 255.0 / float(land_samples)
+            if land_luma < 90.0:
+                _fail("Underlit Mobile renderer at partition start %d: land luma %.2f" % [frame_number, land_luma])
+                return
             var basis: Color = pixels.get_pixel(0, 0)
             var variation := 0
             for pixel in [Vector2i(320, 180), Vector2i(640, 360), Vector2i(960, 540)]:
