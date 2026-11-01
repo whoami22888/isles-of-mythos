@@ -111,7 +111,10 @@ func _follow_camera() -> void:
 	_recenter_ground()
 	var camera: Camera3D = $Camera
 	var target := Vector3(_player.x, 0.0, _player.z)
-	camera.look_at_from_position(target + CAMERA_OFFSET, target)
+	if camera.has_method("apply_server_anchor"):
+		camera.call("apply_server_anchor", target, CAMERA_OFFSET)
+	else:
+		camera.look_at_from_position(target + CAMERA_OFFSET, target)
 
 # Snap the scaffold ground to the centre of the player's chunk (not the raw position, so it does not jitter
 # every move). Presentation only; no game state.
@@ -276,8 +279,11 @@ func _send_gather(nearest_id: String) -> void:
 	_status.text = "Awaiting server gather ACK (%s)" % request_id if not request_id.is_empty() else "Command window unavailable"
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventScreenTouch and event.pressed:
-		_gather_nearest()
+	# Only a completed, unmoved tap may gather: the camera owns touch gestures.
+	if event is InputEventScreenTouch and not event.pressed:
+		var camera: Camera3D = $Camera
+		if camera.has_method("consume_tap") and camera.call("consume_tap", event.index):
+			_gather_nearest()
 	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		_gather_nearest()
 
