@@ -1,0 +1,20 @@
+---
+# Codacy tool scoping for Isles of Mythos.
+#
+# Codacy's .codacy.yml configures tools but cannot enable or disable them.
+# Use supported per-tool path exclusions instead.
+engines:
+  metric:
+    # Keep metrics for supported languages; skip Godot files the metrics
+    # analyzers cannot parse (GDScript and Godot scene/resource formats).
+    exclude_paths:
+      - "**/*.gd"
+      - "**/*.tscn"
+      - "**/*.tres"
+exclude_paths:
+  - "**/node_modules/**"
+  - "**/dist/**"
+  - "**/coverage/**"
+  - "**/.vite/**"
+  - "**/build/**"
+  - "client-godot/addons/**"
