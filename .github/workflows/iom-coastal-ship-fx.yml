@@ -24,6 +24,7 @@ on:
       - "client-godot/shaders/ocean_surface.gdshader"
       - "client-godot/assets/external/**"
       - ".github/workflows/iom-coastal-ship-fx.yml"
+      - "scripts/auto-merge-gate.mjs"
   workflow_dispatch:
 
 permissions:
