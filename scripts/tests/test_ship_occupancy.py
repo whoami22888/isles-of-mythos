@@ -34,6 +34,17 @@ class ShipOccupancyTests(unittest.TestCase):
     def test_accepts_bound_increasing_hull_and_sail_coverage(self):
         self.assertEqual(validate_samples(self.valid_samples()), [])
 
+    def test_rejects_tampered_ship_total_with_matching_fraction(self):
+        samples = self.valid_samples()
+        samples[24]["ship_pixels"] += 100
+        samples[24]["ship_fraction"] = samples[24]["ship_pixels"] / PIXEL_COUNT
+        self.assertTrue(any("Ship pixel total" in error for error in validate_samples(samples)))
+
+    def test_rejects_tampered_ship_fraction_with_unchanged_counts(self):
+        samples = self.valid_samples()
+        samples[24]["ship_fraction"] += 0.01
+        self.assertTrue(any("Pixel fraction" in error for error in validate_samples(samples)))
+
     def test_rejects_missing_sails(self):
         samples = self.valid_samples()
         samples[24]["sail_pixels"] = 0
