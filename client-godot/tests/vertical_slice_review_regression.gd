@@ -138,6 +138,12 @@ func run() -> void:
 	release.position = press.position
 	cam.call("_input", release)
 	check(not cam.call("consume_tap", 3), "touch on HUD cannot trigger a gather")
+	var synthesized_mouse := InputEventMouseButton.new()
+	synthesized_mouse.button_index = MOUSE_BUTTON_LEFT
+	synthesized_mouse.pressed = true
+	synthesized_mouse.device = InputEvent.DEVICE_ID_EMULATION
+	world._unhandled_input(synthesized_mouse)
+	check(not world._approaching, "emulated mouse press from touchscreen cannot gather")
 
 	world.queue_free()
 	await process_frame
