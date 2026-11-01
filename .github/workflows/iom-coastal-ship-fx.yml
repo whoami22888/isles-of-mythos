@@ -22,6 +22,9 @@ on:
       - "client-godot/shaders/coastal_shore_sampler.gdshaderinc"
       - "client-godot/shaders/ocean_surface.gdshader"
       - "client-godot/assets/external/**"
+      - "client-godot/assets/external-assets.json"
+      - "scripts/validate_godot_assets.py"
+      - "scripts/test_godot_asset_validator.py"
       - ".github/workflows/iom-coastal-ship-fx.yml"
       - "scripts/auto-merge-gate.mjs"
   workflow_dispatch:
@@ -47,6 +50,11 @@ jobs:
           echo "cadd3204e728a35d3f13adb7fd0d7902636b79f6b95c40c265eb73b6c35329e4  $RUNNER_TEMP/godot.zip" | sha256sum --check
           unzip -q "$RUNNER_TEMP/godot.zip" -d "$RUNNER_TEMP"
           install "$RUNNER_TEMP/Godot_v4.7.2-stable_linux.x86_64" "$RUNNER_TEMP/godot"
+      - name: Validate source asset provenance before Godot import
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/validate_godot_assets.py
       - name: Import assets exactly once before runtime test
         shell: bash
         run: |
@@ -106,6 +114,11 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
+      - name: Validate source asset provenance before capture import
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/validate_godot_assets.py
       - name: Install pinned Godot and renderer tools
         shell: bash
         run: |
