@@ -72,9 +72,9 @@ jobs:
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/coastal-mobile-shader-smoke"
           IOM_FX_FRAMES_DIR="$RUNNER_TEMP/coastal-mobile-shader-smoke" \
-          IOM_FX_START_FRAME=0 IOM_FX_END_FRAME=4 \
+          IOM_FX_START_FRAME=0 IOM_FX_END_FRAME=12 \
           timeout --signal=TERM --kill-after=10s 180s xvfb-run -a -s "-screen 0 1280x720x24" "$RUNNER_TEMP/godot" --path client-godot --rendering-method mobile --script res://tests/render_coastal_fx_sequence.gd
-          test "$(find "$RUNNER_TEMP/coastal-mobile-shader-smoke" -maxdepth 1 -name 'frame_*.rgba' | wc -l)" -eq 4
+          test "$(find "$RUNNER_TEMP/coastal-mobile-shader-smoke" -maxdepth 1 -name 'frame_*.rgba' | wc -l)" -eq 12
       - name: 4. Verify ship movement, cancel skip and reduced-motion controls
         shell: bash
         run: |
