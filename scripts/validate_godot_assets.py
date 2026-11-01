@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Fail-closed provenance and integrity checks for imported third-party Godot art."""
+import argparse
 import hashlib
 import json
 import pathlib
@@ -94,7 +95,7 @@ def validate_path(index, item, root):
     return path
 
 
-def validate() -> int:
+def validate(strict_post_import: bool = False) -> int:
     """Validate approved manifest entries against filesystem and digest evidence."""
     data = json.loads(MANIFEST.read_text(encoding="utf-8"))
     if (not isinstance(data, dict) or data.get("schema_version") != 1
@@ -122,10 +123,11 @@ def validate() -> int:
             if (not isinstance(output, dict) or not isinstance(output.get("path"), str)
                     or not HASH.fullmatch(str(output.get("sha256", "")))):
                 fail(f"Invalid generated importer output metadata: {entry['path']}")
+            relative = pathlib.PurePosixPath(output["path"])
+            if relative.is_absolute() or ".." in relative.parts or "\\" in output["path"]:
+                fail(f"Unsafe generated importer output path: {output['path']}")
             output_path = ASSETS / output["path"]
-            if output_path.is_symlink():
-                fail(f"Symlinked generated importer output: {output['path']}")
-            if output_path.exists():
+            if strict_post_import or output_path.exists() or output_path.is_symlink():
                 registered.add(validate_path(index, output, root))
     if ASSETS.exists():
         actual = set()
@@ -138,7 +140,7 @@ def validate() -> int:
             # These are generated build metadata (also gitignored), not asset
             # payloads; validate the source bytes and reject every other
             # unregistered file below.
-            if candidate.name.endswith(".import"):
+            if candidate.suffix.lower() in {".import", ".uid"}:
                 continue
             if candidate.is_file():
                 actual.add(candidate.resolve())
@@ -150,7 +152,10 @@ def validate() -> int:
 
 if __name__ == "__main__":
     try:
-        sys.exit(validate())
+        parser = argparse.ArgumentParser(description=__doc__)
+        parser.add_argument("--post-import", action="store_true", help="Require all declared generated importer outputs")
+        args = parser.parse_args()
+        sys.exit(validate(strict_post_import=args.post_import))
     except (ValueError, OSError, json.JSONDecodeError) as exc:
         print(f"Asset provenance validation FAIL: {exc}", file=sys.stderr)
         sys.exit(1)
