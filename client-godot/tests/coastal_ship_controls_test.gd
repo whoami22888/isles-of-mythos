@@ -47,7 +47,7 @@ func _run() -> void:
 	controller.stop_visual_demo()
 	var restored := vessel.position.distance_to(anchor) < 0.001
 	scene.play_cinematic(true)
-	var reduced_motion := not scene._cinematic_active and scene.gameplay_camera.current
+	var reduced_motion: bool = not scene._cinematic_active and scene.gameplay_camera.current
 	scene.free()
 	await process_frame
 	if not moved or not restored or not reduced_motion:
