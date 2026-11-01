@@ -27,6 +27,9 @@ fi
 
 echo "Using Godot executable: $GODOT ($ENGINE_VERSION)"
 
+# Validate manifested source bytes before Godot writes import products.
+python3 scripts/validate_godot_assets.py
+
 # 4. Target ONLY Godot import cache (NO DESTRUCTIVE git clean)
 echo "Clearing Godot import cache..."
 rm -rf client-godot/.godot client-godot/.import
