@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import re
 import shutil
@@ -341,7 +342,7 @@ def _valid_runtime_surface(surface: Any) -> bool:
     triangles = surface.get("triangles")
     if not isinstance(triangles, (int, float)) or isinstance(triangles, bool):
         return False
-    if triangles < 0:
+    if not math.isfinite(triangles) or triangles < 0:
         return False
     transparency = surface.get("transparency")
     if not isinstance(transparency, int) or isinstance(transparency, bool):
