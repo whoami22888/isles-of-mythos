@@ -180,10 +180,19 @@ func _record() -> void:
             occupancy["frame"] = frame_number
             occupancy["time_seconds"] = float(frame_number) / scene.CINEMATIC_FPS
             occupancy["composite_frame_sha256"] = composite_sha256
+            var mask_bytes := mask_image.get_data()
             var mask_hash := HashingContext.new()
             mask_hash.start(HashingContext.HASH_SHA256)
-            mask_hash.update(mask_image.get_data())
+            mask_hash.update(mask_bytes)
             occupancy["mask_frame_sha256"] = mask_hash.finish().hex_encode()
+            var mask_path := "%s/ship-mask-frame-%04d.rgba" % [directory, frame_number]
+            var mask_file := FileAccess.open(mask_path, FileAccess.WRITE)
+            if mask_file == null:
+                _fail("Unable to write rendered ship mask at frame %d" % frame_number)
+                return
+            mask_file.store_buffer(mask_bytes)
+            mask_file.close()
+            occupancy["mask_frame_file"] = "ship-mask-frame-%04d.rgba" % frame_number
             var occupancy_path := "%s/ship-occupancy-frame-%04d.json" % [directory, frame_number]
             var occupancy_file := FileAccess.open(occupancy_path, FileAccess.WRITE)
             if occupancy_file == null:

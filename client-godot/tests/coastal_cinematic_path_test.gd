@@ -90,6 +90,7 @@ func _run() -> void:
 	var worst_divergence := 0.0
 	var maximum_turn_radians := 0.0
 	var previous_forward := Vector3.ZERO
+	var all_ship_bounds_inside_frame := true
 	var legacy_unsealed := 0
 	var legacy_min_y := INF
 	var all_sealed := true
@@ -125,6 +126,8 @@ func _run() -> void:
 		previous_forward = forward
 		var pose: Dictionary = capture_scene.evaluate_cinematic_pose(capture_pos)
 		all_sealed = all_sealed and pose["sealed"]
+		all_ship_bounds_inside_frame = all_ship_bounds_inside_frame and _ship_aabb_inside_frame(
+			capture_scene, capture_scene.cinematic_margin_at(float(frame) / FRAMES))
 		min_clearance = minf(min_clearance, pose["clearance"])
 		min_margin = minf(min_margin, pose["water_margin"])
 		var ship_screen_fraction := _projected_ship_screen_fraction(capture_scene)
@@ -150,6 +153,8 @@ func _run() -> void:
 		"camera never closer than %.1f m to the sea surface" % runtime_scene.CINEMATIC_MIN_CLEARANCE)
 	_check(worst_divergence <= POSE_EPSILON,
 		"runtime playback and capture poses match at every timestamp")
+	_check(all_ship_bounds_inside_frame,
+		"all ship AABB corners stay within the frame at every cinematic timestamp")
 	_check(maximum_turn_radians < deg_to_rad(8.0),
 		"camera and ocean horizon orientation remain continuous between frames")
 	print("IOM_SHIP_SCREEN_FRACTION wide=%.3f/%.3f approach24=%.3f/%.3f approach48=%.3f/%.3f detail71=%.3f/%.3f" % [
@@ -169,6 +174,9 @@ func _run() -> void:
 		"close detail shot continues the ship's screen-space growth")
 	_check(detail_ship_screen_fraction.y >= 0.32,
 		"close detail shot reserves at least 32% of screen height for the ship")
+	_check(is_equal_approx(capture_scene.cinematic_coast_bias_at(0.5), capture_scene.CINEMATIC_COAST_BIAS)
+		and is_zero_approx(capture_scene.cinematic_coast_bias_at(1.0)),
+		"detail beat recentres the camera on the ship after the harbour approach")
 	_check(still_playing_before_end, "runtime reveal keeps playing until its 4 s duration")
 	runtime_scene.advance_cinematic(STEP * 2.0)
 	_check(not runtime_scene._cinematic_active and runtime_scene.gameplay_camera.current,
@@ -220,3 +228,23 @@ func _projected_ship_screen_fraction(scene: Node3D) -> Vector2:
 	var viewport_size := camera.get_viewport().get_visible_rect().size
 	return Vector2((screen_max.x - screen_min.x) / viewport_size.x,
 		(screen_max.y - screen_min.y) / viewport_size.y)
+
+
+func _ship_aabb_inside_frame(scene: Node3D, margin: float) -> bool:
+	var camera: Camera3D = scene.cinematic_camera
+	var bounds: AABB = scene.ship_visual_bounds_world()
+	var viewport_size := camera.get_viewport().get_visible_rect().size
+	for corner in range(8):
+		var point := bounds.position + Vector3(
+			bounds.size.x if corner & 1 else 0.0,
+			bounds.size.y if corner & 2 else 0.0,
+			bounds.size.z if corner & 4 else 0.0
+		)
+		if camera.is_position_behind(point):
+			return false
+		var pixel: Vector2 = camera.unproject_position(point)
+		if pixel.x <= viewport_size.x * margin or pixel.x >= viewport_size.x * (1.0 - margin):
+			return false
+		if pixel.y <= viewport_size.y * margin or pixel.y >= viewport_size.y * (1.0 - margin):
+			return false
+	return true

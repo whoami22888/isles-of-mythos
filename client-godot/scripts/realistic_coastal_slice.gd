@@ -19,7 +19,7 @@ const WATER_Y := -0.35
 const GAMEPLAY_CAMERA := Vector3(13.0, 12.0, -14.0)
 # Elevated three-quarter view across the cove (owner concept frames): coast
 # and settlement on the left, ship right of centre, open sea behind it.
-const CINEMATIC_START_CAMERA := Vector3(21.0, 13.0, -17.0)
+const CINEMATIC_START_CAMERA := Vector3(3.0, 13.0, -36.0)
 # Fraction of the way from the ship centre toward the coast that the camera
 # aims; keeps the full-ship safe-frame contract while composing off-centre.
 const CINEMATIC_COAST_BIAS := 0.22
@@ -29,8 +29,8 @@ const CINEMATIC_LOOK_TARGET := Vector3(1.0, 2.2, 1.0)
 # engine capture harness (tests/render_coastal_fx_sequence.gd). Raw waypoints
 # are *desired* camera positions; _safe_cinematic_position() turns each into a
 # pose that frames the whole vessel above the sea.
-const CINEMATIC_WAYPOINT_A := Vector3(12.0, 5.0, -18.0)
-const CINEMATIC_WAYPOINT_B := Vector3(-2.5, 5.2, -21.0)
+const CINEMATIC_WAYPOINT_A := Vector3(3.0, 5.0, -24.0)
+const CINEMATIC_WAYPOINT_B := Vector3(3.0, 5.2, -17.0)
 const CINEMATIC_DURATION := 4.0
 const CINEMATIC_FPS := 24.0
 # The reveal starts as an establishing shot and deliberately pushes into the
@@ -742,22 +742,23 @@ func ship_visual_bounds_world() -> AABB:
 
 
 func frame_ship_cinematic(camera: Camera3D, desired_position: Vector3,
-		framing_fov := CINEMATIC_FOV_WIDE, framing_margin := 0.05) -> bool:
+		framing_fov := CINEMATIC_FOV_WIDE, framing_margin := 0.05,
+		coast_bias := CINEMATIC_COAST_BIAS) -> bool:
 	if camera == null or not _ship_bounds_ready:
 		return false
 	# Solve containment against the exact lens used by this shot. Solving at the
 	# wide lens and narrowing afterward clipped real ship geometry on approach.
 	camera.fov = framing_fov
-	var safe_position := _safe_cinematic_position(camera, desired_position, framing_margin)
+	var safe_position := _safe_cinematic_position(camera, desired_position, framing_margin, coast_bias)
 	if safe_position == Vector3(INF, INF, INF):
 		return false
 	camera.global_position = safe_position
 	var centre := ship_visual_bounds_world().get_center()
-	camera.look_at(_cinematic_look_target(centre))
+	camera.look_at(_cinematic_look_target(centre, coast_bias))
 	return true
 
 func _safe_cinematic_position(camera: Camera3D, desired_position: Vector3,
-		framing_margin := 0.04) -> Vector3:
+		framing_margin := 0.04, coast_bias := CINEMATIC_COAST_BIAS) -> Vector3:
 	if camera == null or not _ship_bounds_ready:
 		return Vector3(INF, INF, INF)
 	var bounds := ship_visual_bounds_world()
@@ -779,7 +780,7 @@ func _safe_cinematic_position(camera: Camera3D, desired_position: Vector3,
 	# every shot far away. Solve the actual wide-lens frustum against all eight
 	# existing ship AABB corners. Containment remains strict while the camera
 	# stops retreating to fit empty volume.
-	var look_target := _cinematic_look_target(centre)
+	var look_target := _cinematic_look_target(centre, coast_bias)
 	var candidate := _cinematic_candidate_position(centre, horizontal, elevation, distance)
 	if _camera_frustum_contains_ship(camera, candidate, look_target, bounds, framing_margin):
 		return candidate
@@ -802,8 +803,8 @@ func _safe_cinematic_position(camera: Camera3D, desired_position: Vector3,
 	return _cinematic_candidate_position(centre, horizontal, elevation, high)
 
 
-func _cinematic_look_target(centre: Vector3) -> Vector3:
-	return centre.lerp(CINEMATIC_COAST_POINT, CINEMATIC_COAST_BIAS)
+func _cinematic_look_target(centre: Vector3, coast_bias := CINEMATIC_COAST_BIAS) -> Vector3:
+	return centre.lerp(CINEMATIC_COAST_POINT, coast_bias)
 
 
 func _cinematic_candidate_position(centre: Vector3, horizontal: Vector2,
@@ -858,7 +859,8 @@ func apply_cinematic_time(camera: Camera3D, t: float) -> bool:
 	var progress := clampf(t / CINEMATIC_DURATION, 0.0, 1.0)
 	var shot_fov := cinematic_fov_at(progress)
 	var framing_margin := cinematic_margin_at(progress)
-	if not frame_ship_cinematic(camera, cinematic_raw_position_at(t), shot_fov, framing_margin):
+	var coast_bias := cinematic_coast_bias_at(progress)
+	if not frame_ship_cinematic(camera, cinematic_raw_position_at(t), shot_fov, framing_margin, coast_bias):
 		return false
 	camera.fov = shot_fov
 	return true
@@ -887,6 +889,15 @@ func cinematic_margin_at(progress: float) -> float:
 	if progress <= 0.5:
 		return lerpf(0.08, 0.06, _sine_in_out((progress - 0.25) / 0.25))
 	return lerpf(0.06, 0.05, _sine_in_out((progress - 0.5) / 0.5))
+
+
+func cinematic_coast_bias_at(progress: float) -> float:
+	# Keep the harbour in the wide and approach compositions, then smoothly
+	# recenter the ship for the detail beat. This increases rendered hull/sail
+	# coverage without changing the full-AABB containment rule.
+	if progress <= 0.5:
+		return CINEMATIC_COAST_BIAS
+	return lerpf(CINEMATIC_COAST_BIAS, 0.0, _sine_in_out((progress - 0.5) / 0.5))
 
 
 ## Pure validator for a cinematic camera pose; no scene state required.

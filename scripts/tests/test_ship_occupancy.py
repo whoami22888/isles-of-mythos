@@ -39,6 +39,16 @@ class ShipOccupancyTests(unittest.TestCase):
         samples[71]["ship_fraction"] = samples[48]["ship_fraction"]
         self.assertTrue(any("Detail shot" in error for error in validate_samples(samples)))
 
+    def test_rejects_a_late_approach_that_shrinks(self):
+        samples = self.valid_samples()
+        samples[48]["ship_fraction"] = samples[24]["ship_fraction"]
+        self.assertTrue(any("Late approach" in error for error in validate_samples(samples)))
+
+    def test_requires_hull_and_sail_growth_at_each_shot_beat(self):
+        samples = self.valid_samples()
+        samples[48]["sail_fraction"] = samples[24]["sail_fraction"]
+        self.assertTrue(any("Sail coverage" in error for error in validate_samples(samples)))
+
     def test_requires_all_four_camera_beats(self):
         samples = self.valid_samples()
         samples.pop(48)
