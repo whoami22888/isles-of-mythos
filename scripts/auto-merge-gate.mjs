@@ -53,6 +53,7 @@ export const COASTAL_FX_PATHS = Object.freeze(new Set([
   "client-godot/scripts/coastal_shore_heightfield.gd",
   "client-godot/shaders/coastal_shore_sampler.gdshaderinc",
   "client-godot/shaders/ocean_surface.gdshader",
+  "scripts/auto-merge-gate.mjs",
   ".github/workflows/iom-coastal-ship-fx.yml"
 ]));
 const COASTAL_FX_PREFIX = "client-godot/assets/external/";
