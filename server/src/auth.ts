@@ -1,3 +1,4 @@
+import { createHmac, timingSafeEqual } from "node:crypto";
 import argon2 from "argon2";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { Pool } from "pg";
@@ -58,6 +59,38 @@ async function signAccessToken(
   );
 }
 
+const REFRESH_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+
+function signRefreshToken(user: Pick<UserRow, "id" | "username">): string {
+  const body = Buffer.from(JSON.stringify({
+    sub: user.id,
+    username: user.username,
+    exp: Date.now() + REFRESH_TTL_MS,
+    use: "refresh",
+  }), "utf8").toString("base64url");
+  const sig = createHmac("sha256", config.jwtSecret + ":refresh").update(body).digest("base64url");
+  return body + "." + sig;
+}
+
+function verifyRefreshToken(token: string): { sub: string; username: string } | null {
+  const parts = token.split(".");
+  if (parts.length !== 2 || !parts[0] || !parts[1]) return null;
+  const expected = createHmac("sha256", config.jwtSecret + ":refresh").update(parts[0]).digest("base64url");
+  const actual = Buffer.from(parts[1]);
+  const wanted = Buffer.from(expected);
+  if (actual.length !== wanted.length || !timingSafeEqual(actual, wanted)) return null;
+  try {
+    const payload = JSON.parse(Buffer.from(parts[0], "base64url").toString("utf8")) as {
+      sub?: unknown; username?: unknown; exp?: unknown; use?: unknown;
+    };
+    if (payload.use !== "refresh" || typeof payload.sub !== "string" || payload.sub.length === 0) return null;
+    if (typeof payload.username !== "string" || typeof payload.exp !== "number" || payload.exp <= Date.now()) return null;
+    return { sub: payload.sub, username: payload.username };
+  } catch {
+    return null;
+  }
+}
+
 export async function registerAuthRoutes(
   app: FastifyInstance,
   db: Pool,
@@ -96,6 +129,7 @@ export async function registerAuthRoutes(
             required: ["accessToken", "user"],
             properties: {
               accessToken: { type: "string" },
+              refreshToken: { type: "string" },
               user: {
                 type: "object",
                 required: ["id", "username", "email"],
@@ -138,8 +172,9 @@ export async function registerAuthRoutes(
 
         const user = result.rows[0];
         const accessToken = await signAccessToken(reply, user);
+        const refreshToken = signRefreshToken(user);
 
-        return reply.code(201).send({ accessToken, user });
+        return reply.code(201).send({ accessToken, refreshToken, user });
       } catch (error) {
         if (isUniqueViolation(error)) {
           return reply.code(409).send({
@@ -187,7 +222,36 @@ export async function registerAuthRoutes(
       }
 
       const accessToken = await signAccessToken(reply, user);
-      return { accessToken, user: { id: user.id, username: user.username, email: user.email } };
+      const refreshToken = signRefreshToken(user);
+      return { accessToken, refreshToken, user: { id: user.id, username: user.username, email: user.email } };
+    },
+  );
+
+  app.post<{ Body: { refreshToken: string } }>(
+    "/auth/refresh",
+    {
+      config: { rateLimit: { max: 20, timeWindow: "1 minute" } },
+      schema: {
+        tags: ["authentication"],
+        body: {
+          type: "object",
+          additionalProperties: false,
+          required: ["refreshToken"],
+          properties: { refreshToken: { type: "string", minLength: 20, maxLength: 4096 } },
+        },
+      },
+    },
+    async (request, reply) => {
+      const verified = verifyRefreshToken(request.body.refreshToken);
+      if (!verified) return invalidCredentials(reply);
+      const result = await db.query<Pick<UserRow, "id" | "username" | "email">>(
+        "SELECT id, username, email FROM users WHERE id = $1 LIMIT 1",
+        [verified.sub],
+      );
+      const user = result.rows[0];
+      if (!user) return invalidCredentials(reply);
+      const accessToken = await signAccessToken(reply, user);
+      return { accessToken, refreshToken: signRefreshToken(user), user: { id: user.id, username: user.username, email: user.email } };
     },
   );
 
