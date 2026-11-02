@@ -62,7 +62,7 @@ describe("P0 movement authority integrated regressions", () => {
     expect(afterRollover.accepted).toBe(true);
     authority.reset(userId);
     const newSession = authority.evaluate(userId, { dx: 1, dy: 0, sequence: 0 }, 32_000);
-    expect(newSession.accepted).toBe(false);
+    expect(newSession).toMatchObject({ accepted: true, serverDt: 0 });
     const next = authority.evaluate(userId, { dx: 1, dy: 0, sequence: 1 }, 32_050);
     expect(next.accepted).toBe(true);
   });

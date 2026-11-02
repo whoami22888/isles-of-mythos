@@ -6,11 +6,14 @@ declare module "@fastify/jwt" {
       sub: string;
       username: string;
       role?: "player" | "admin";
+      typ?: "access" | "refresh";
+      jti?: string;
     };
     user: {
       sub: string;
       username: string;
       role?: "player" | "admin";
+      typ?: "access" | "refresh";
     };
   }
 }

@@ -140,7 +140,9 @@ export class MovementAuthority {
       ? 0
       : clamp((nowMs - previousTime) / 1_000, 0, MOVEMENT_MAX_SERVER_DT_SECONDS);
     return {
-      accepted: serverDt > 0,
+      // A valid intent inside the same millisecond has no elapsed time. Acknowledge
+      // it with zero displacement instead of INVALID_MESSAGE; it cannot add speed.
+      accepted: true,
       serverDt,
       sequenceGap: previousSequence === undefined ? 0 : Math.max(0, input.sequence - previousSequence - 1),
     };

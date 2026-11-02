@@ -1,4 +1,5 @@
 import argon2 from "argon2";
+import { randomUUID } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { Pool } from "pg";
 import { config } from "./config.js";
@@ -47,15 +48,36 @@ function invalidCredentials(reply: FastifyReply) {
   });
 }
 
+const ACCESS_TOKEN_TTL = "15m";
+const REFRESH_TOKEN_TTL = "7d";
+
 async function signAccessToken(
   reply: FastifyReply,
   user: Pick<UserRow, "id" | "username">,
   role: "player" | "admin" = "player",
 ): Promise<string> {
   return reply.jwtSign(
-    { sub: user.id, username: user.username, role },
-    { expiresIn: "15m" },
+    { sub: user.id, username: user.username, role, typ: "access" },
+    { expiresIn: ACCESS_TOKEN_TTL },
   );
+}
+
+async function signPlayerRefreshToken(
+  reply: FastifyReply,
+  user: Pick<UserRow, "id" | "username">,
+): Promise<string> {
+  return reply.jwtSign(
+    { sub: user.id, username: user.username, role: "player", typ: "refresh", jti: randomUUID() },
+    { expiresIn: REFRESH_TOKEN_TTL },
+  );
+}
+
+/** Gameplay sockets accept player access tokens only. Admin and refresh JWTs are not sessions. */
+export function isGameplayAccessToken(payload: { role?: unknown; typ?: unknown }): boolean {
+  if (payload.role === "admin" || payload.typ === "refresh") return false;
+  if (payload.role !== undefined && payload.role !== "player") return false;
+  if (payload.typ !== undefined && payload.typ !== "access") return false;
+  return true;
 }
 
 export async function registerAuthRoutes(
@@ -138,8 +160,9 @@ export async function registerAuthRoutes(
 
         const user = result.rows[0];
         const accessToken = await signAccessToken(reply, user);
+        const refreshToken = await signPlayerRefreshToken(reply, user);
 
-        return reply.code(201).send({ accessToken, user });
+        return reply.code(201).send({ accessToken, refreshToken, user });
       } catch (error) {
         if (isUniqueViolation(error)) {
           return reply.code(409).send({
@@ -187,7 +210,8 @@ export async function registerAuthRoutes(
       }
 
       const accessToken = await signAccessToken(reply, user);
-      return { accessToken, user: { id: user.id, username: user.username, email: user.email } };
+      const refreshToken = await signPlayerRefreshToken(reply, user);
+      return { accessToken, refreshToken, user: { id: user.id, username: user.username, email: user.email } };
     },
   );
 
@@ -223,6 +247,42 @@ export async function registerAuthRoutes(
       }
       const accessToken = await signAccessToken(reply, user, "admin");
       return { accessToken, role: "admin", user: { id: user.id, username: user.username, email: user.email } };
+    },
+  );
+
+  app.post<{ Body: { refreshToken: string } }>(
+    "/auth/refresh",
+    {
+      config: { rateLimit: { max: 30, timeWindow: "1 minute" } },
+      schema: {
+        tags: ["authentication"],
+        body: {
+          type: "object",
+          additionalProperties: false,
+          required: ["refreshToken"],
+          properties: { refreshToken: { type: "string", minLength: 1, maxLength: 4096 } },
+        },
+      },
+    },
+    async (request, reply) => {
+      let payload: { sub?: string; role?: string; typ?: string };
+      try {
+        payload = app.jwt.verify(request.body.refreshToken);
+      } catch {
+        return invalidCredentials(reply);
+      }
+      if (payload.typ !== "refresh" || payload.role !== "player" || typeof payload.sub !== "string" || payload.sub.length === 0) {
+        return invalidCredentials(reply);
+      }
+      const result = await db.query<Pick<UserRow, "id" | "username" | "email">>(
+        "SELECT id, username, email FROM users WHERE id = $1",
+        [payload.sub],
+      );
+      const user = result.rows[0];
+      if (!user) return invalidCredentials(reply);
+      const accessToken = await signAccessToken(reply, user, "player");
+      const refreshToken = await signPlayerRefreshToken(reply, user);
+      return { accessToken, refreshToken };
     },
   );
 

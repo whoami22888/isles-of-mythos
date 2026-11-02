@@ -28,10 +28,24 @@ func run() -> void:
 	default_boot._adapter.configure("ws://127.0.0.1:9/ws", "test-session")
 	default_boot._adapter._attempt_active = true
 	default_boot._adapter._auth_sent = true
-	ProjectSettings.set_setting("application/config/internal_gameplay_handoff", false)
+	ProjectSettings.set_setting("application/config/internal_gameplay_handoff", true)
 	default_boot._on_message({"type": "auth_ok", "userId": "test-user"})
-	check(current_scene == null, "Default phone boot must not launch internal scaffold")
+	await process_frame
+	check(current_scene != null and current_scene.has_method("begin_authenticated_session"), "Default phone boot must enter the gameplay world")
+	if current_scene != null:
+		current_scene.queue_free()
 	default_boot.queue_free()
+	await process_frame
+	current_scene = null
+	var held = load("res://scenes/boot.tscn").instantiate()
+	root.add_child(held)
+	held._adapter.configure("ws://127.0.0.1:9/ws", "test-session")
+	held._adapter._attempt_active = true
+	held._adapter._auth_sent = true
+	ProjectSettings.set_setting("application/config/internal_gameplay_handoff", false)
+	held._on_message({"type": "auth_ok", "userId": "test-user"})
+	check(current_scene == null or not current_scene.has_method("begin_authenticated_session"), "Explicit handoff disable must stay on the login screen")
+	held.queue_free()
 	await process_frame
 	var boot = load("res://scenes/boot.tscn").instantiate()
 	root.add_child(boot)

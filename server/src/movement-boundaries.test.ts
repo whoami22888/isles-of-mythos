@@ -45,7 +45,7 @@ describe("movement boundary acceptance for issue 120", () => {
     }
     authority.reset("player");
     expect(authority.evaluate("player", { dx: 1, dy: 0, sequence: 0 }, 5_000))
-      .toMatchObject({ accepted: false, serverDt: 0, sequenceGap: 0 });
+      .toMatchObject({ accepted: true, serverDt: 0, sequenceGap: 0 });
     authority.prime("player", 6_000);
     expect(authority.evaluate("player", { dx: 1, dy: 0, sequence: 0 }, 6_050))
       .toMatchObject({ accepted: true, serverDt: 0.05, sequenceGap: 0 });
