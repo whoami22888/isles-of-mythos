@@ -30,11 +30,12 @@ func run() -> void:
 	default_boot._adapter._auth_sent = true
 	ProjectSettings.set_setting("application/config/internal_gameplay_handoff", true)
 	default_boot._on_message({"type": "auth_ok", "userId": "test-user"})
-	await process_frame
 	check(current_scene != null and current_scene.has_method("begin_authenticated_session"), "Default phone boot must enter the gameplay world")
-	if current_scene != null:
-		current_scene.queue_free()
-	default_boot.queue_free()
+	# The handoff frees the boot scene itself. Do not free it again.
+	var entered = current_scene
+	await process_frame
+	if is_instance_valid(entered):
+		entered.queue_free()
 	await process_frame
 	current_scene = null
 	var held = load("res://scenes/boot.tscn").instantiate()
