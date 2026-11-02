@@ -72,6 +72,79 @@ func run() -> void:
 	world._on_world_chunk("c", {"x": 2, "y": -1, "resources": [{"id": "wood:1", "x": 1, "y": 1}]})
 	world._on_world_chunk("c", {"x": 9, "y": 9, "resources": []})
 	check(world._markers.has("wood:1"), "snapshot for a different chunk is ignored")
+	# Mobile touch controller: pan survives subsequent server position updates.
+	var initial_camera_position: Vector3 = cam.global_position
+	var press := InputEventScreenTouch.new()
+	press.index = 0
+	press.pressed = true
+	press.position = Vector2(700, 450)
+	cam.call("_input", press)
+	var drag := InputEventScreenDrag.new()
+	drag.index = 0
+	drag.position = Vector2(760, 450)
+	drag.relative = Vector2(60, 0)
+	cam.call("_input", drag)
+	check(cam.global_position.distance_to(initial_camera_position) > 0.1, "single-finger gesture pans camera")
+	var release := InputEventScreenTouch.new()
+	release.index = 0
+	release.pressed = false
+	release.position = drag.position
+	cam.call("_input", release)
+	check(not cam.call("consume_tap", 0), "drag cannot count as gathering tap")
+	var relative_before: Vector3 = cam.global_position - world._player
+	world._on_player_state({"x": 97.0, "y": -35.0})
+	check((cam.global_position - world._player).is_equal_approx(relative_before), "server updates preserve the camera's manual pan offset")
+
+	# Pinch and twist are independent gestures; the player stays the anchor.
+	press.position = Vector2(700, 450)
+	cam.call("_input", press)
+	var second := InputEventScreenTouch.new()
+	second.index = 1
+	second.pressed = true
+	second.position = Vector2(800, 450)
+	cam.call("_input", second)
+	var height_before: float = cam.global_position.y
+	drag.index = 1
+	drag.position = Vector2(850, 450)
+	drag.relative = Vector2(50, 0)
+	cam.call("_input", drag)
+	check(cam.global_position.y < height_before, "spreading fingers zooms camera in")
+	var orbit_before: Vector3 = cam.global_position
+	drag.position = Vector2(850, 500)
+	drag.relative = Vector2(0, 50)
+	cam.call("_input", drag)
+	check(absf(cam.global_position.x - orbit_before.x) > 0.1 or absf(cam.global_position.z - orbit_before.z) > 0.1, "two-finger twist changes camera yaw")
+	release.index = 1
+	release.position = drag.position
+	cam.call("_input", release)
+	release.index = 0
+	release.position = press.position
+	cam.call("_input", release)
+	check(not cam.call("consume_tap", 0), "multitouch release cannot trigger gathering")
+
+	# Genuine stationary tap is registered once; touch over the GUI is ignored.
+	press.index = 2
+	press.position = Vector2(700, 450)
+	cam.call("_input", press)
+	release.index = 2
+	release.position = press.position
+	cam.call("_input", release)
+	check(cam.call("consume_tap", 2), "single tap is accepted")
+	check(not cam.call("consume_tap", 2), "single tap cannot be consumed twice")
+	press.index = 3
+	press.position = Vector2(30, 30)
+	cam.call("_input", press)
+	release.index = 3
+	release.position = press.position
+	cam.call("_input", release)
+	check(not cam.call("consume_tap", 3), "touch on HUD cannot trigger a gather")
+	var synthesized_mouse := InputEventMouseButton.new()
+	synthesized_mouse.button_index = MOUSE_BUTTON_LEFT
+	synthesized_mouse.pressed = true
+	synthesized_mouse.device = InputEvent.DEVICE_ID_EMULATION
+	world._unhandled_input(synthesized_mouse)
+	check(not world._approaching, "emulated mouse press from touchscreen cannot gather")
+
 	world.queue_free()
 	await process_frame
 
