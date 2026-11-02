@@ -109,8 +109,11 @@ export function validateReport(report) {
     Number.isFinite(metrics.averageTickMs) && metrics.averageTickMs >= 0, "Missing server tick evidence");
   need(Number.isFinite(metrics?.tickMeasurementWindowSeconds) && metrics.tickMeasurementWindowSeconds > 0,
     "Missing positive server tick measurement window");
-  need(Number.isFinite(metrics?.tickRateHz) && metrics.tickRateHz >= 20,
-    "Server tick rate must be at least the approved 20 Hz");
+  // 20 Hz is the locked simulation cadence, not a floor. The previous >= 20 check
+  // accepted the measured ~30.026 Hz combat timer (33 ms). Keep a 19–22 Hz jitter
+  // band in sync with server/src/simulation-cadence.ts; do not widen it to 30 Hz.
+  need(Number.isFinite(metrics?.tickRateHz) && metrics.tickRateHz >= 19 && metrics.tickRateHz <= 22,
+    "Server tick rate must be the locked 20 Hz simulation (19–22 Hz). A ~30 Hz timer is not the contract");
   need(Number.isFinite(metrics.tickP95Ms) && metrics.tickP95Ms >= 0 && metrics.tickP95Ms <= 40,
     "Server tick p95 must be <= 40ms");
   need(Number.isFinite(metrics.tickP99Ms) && metrics.tickP99Ms >= 0 && metrics.tickP99Ms <= 50,
@@ -201,8 +204,20 @@ if (process.argv[2] === "--self-test") {
   delete missingTickRate.serverMetrics.tickRateHz;
   assert.throws(() => validateReport(missingTickRate), /20 Hz/);
   const slowTickRate = structuredClone(report);
-  slowTickRate.serverMetrics.tickRateHz = 19.99;
+  slowTickRate.serverMetrics.tickRateHz = 18.99;
   assert.throws(() => validateReport(slowTickRate), /20 Hz/);
+  const fastTickRate = structuredClone(report);
+  fastTickRate.serverMetrics.tickRateHz = 30.026603186457024;
+  assert.throws(() => validateReport(fastTickRate), /20 Hz/);
+  const aboveBand = structuredClone(report);
+  aboveBand.serverMetrics.tickRateHz = 22.01;
+  assert.throws(() => validateReport(aboveBand), /20 Hz/);
+  const jitterLow = structuredClone(report);
+  jitterLow.serverMetrics.tickRateHz = 19;
+  assert.equal(validateReport(jitterLow), true);
+  const jitterHigh = structuredClone(report);
+  jitterHigh.serverMetrics.tickRateHz = 22;
+  assert.equal(validateReport(jitterHigh), true);
   const missingTickWindow = structuredClone(report);
   missingTickWindow.serverMetrics.tickMeasurementWindowSeconds = 0;
   assert.throws(() => validateReport(missingTickWindow), /measurement window/);

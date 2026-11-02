@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest";
 import type { Pool } from "pg";
-import { PLAYER_MAX_HEALTH, PLAYER_MAX_HUNGER, PLAYER_MAX_OXYGEN, PLAYER_BASE_DEFENSE, STARTING_FLINTLOCK_AMMO, MOVEMENT_MAX_PACKETS_PER_SECOND, MovementAuthority, PlayerStore, applyAuthoritativePlayerInput, applyPlayerInput, createDefaultPlayer, meleeHitbox, playerHitbox } from "./player.js";
+import { PLAYER_MAX_HEALTH, PLAYER_MAX_HUNGER, PLAYER_MAX_OXYGEN, PLAYER_BASE_DEFENSE, PLAYER_LAND_SPEED, PLAYER_WATER_SPEED, STARTING_FLINTLOCK_AMMO, MOVEMENT_MAX_PACKETS_PER_SECOND, MovementAuthority, PlayerStore, applyAuthoritativePlayerInput, applyPlayerInput, createDefaultPlayer, meleeHitbox, playerHitbox } from "./player.js";
 import { TileKind, tileAtWorld } from "./world.js";
+
+function findGrassTile(): { x: number; y: number } {
+  for (let y = -80; y <= 80; y += 1) {
+    for (let x = -80; x <= 80; x += 1) {
+      if (tileAtWorld(x, y) === TileKind.Grass) return { x, y };
+    }
+  }
+  throw new Error("NO_GRASS_TILE");
+}
 
 describe("player survival and movement", () => {
   it("creates a valid default player state", () => {
@@ -20,6 +29,69 @@ describe("player survival and movement", () => {
     expect(player.y).toBeGreaterThan(0);
     expect(player.x).toBeCloseTo(player.y, 6);
     expect(player.hunger).toBeLessThan(PLAYER_MAX_HUNGER);
+  });
+
+  it("rejects diagonal and forged-speed movement above the server tile speed", () => {
+    const grass = findGrassTile();
+    const origin = { x: grass.x + 0.5, y: grass.y + 0.5 };
+    const cardinal = createDefaultPlayer("cardinal-speed");
+    const diagonal = createDefaultPlayer("diagonal-speed");
+    const forged = createDefaultPlayer("forged-speed");
+    const corrupt = createDefaultPlayer("corrupt-speed");
+    for (const player of [cardinal, diagonal, forged, corrupt]) {
+      player.x = origin.x;
+      player.y = origin.y;
+    }
+    const dt = 0.1;
+    applyAuthoritativePlayerInput(cardinal, { dx: 1, dy: 0, sequence: 1 }, dt);
+    applyAuthoritativePlayerInput(diagonal, { dx: 1, dy: 1, sequence: 1 }, dt);
+    applyAuthoritativePlayerInput(forged, { dx: 1, dy: 1, sequence: 1, speedMultiplier: 100 }, dt);
+    applyAuthoritativePlayerInput(corrupt, { dx: 1, dy: 0, sequence: 1, speedMultiplier: Number.NaN }, Number.NaN);
+    const nonFiniteMultiplier = createDefaultPlayer("nan-multiplier");
+    nonFiniteMultiplier.x = origin.x;
+    nonFiniteMultiplier.y = origin.y;
+    applyAuthoritativePlayerInput(nonFiniteMultiplier, { dx: 1, dy: 0, sequence: 1, speedMultiplier: Number.NaN }, dt);
+    const cardinalDistance = Math.hypot(cardinal.x - origin.x, cardinal.y - origin.y);
+    const diagonalDistance = Math.hypot(diagonal.x - origin.x, diagonal.y - origin.y);
+    const forgedDistance = Math.hypot(forged.x - origin.x, forged.y - origin.y);
+    expect(cardinalDistance).toBeCloseTo(PLAYER_LAND_SPEED * dt, 6);
+    expect(diagonalDistance).toBeCloseTo(cardinalDistance, 6);
+    expect(forgedDistance).toBeCloseTo(cardinalDistance, 6);
+    expect(diagonalDistance).toBeLessThan(cardinalDistance * Math.SQRT2 - 0.05);
+    expect(Math.hypot(nonFiniteMultiplier.x - origin.x, nonFiniteMultiplier.y - origin.y)).toBeCloseTo(cardinalDistance, 6);
+    expect(corrupt.x).toBeCloseTo(origin.x, 8);
+    expect(corrupt.y).toBeCloseTo(origin.y, 8);
+    expect(Number.isFinite(corrupt.x) && Number.isFinite(corrupt.y)).toBe(true);
+
+    const swimmer = createDefaultPlayer("water-speed");
+    const waterDiagonal = createDefaultPlayer("water-diagonal");
+    applyAuthoritativePlayerInput(swimmer, { dx: 0, dy: 1, sequence: 1 }, dt);
+    applyAuthoritativePlayerInput(waterDiagonal, { dx: -1, dy: -1, sequence: 1 }, dt);
+    expect(Math.hypot(swimmer.x, swimmer.y)).toBeCloseTo(PLAYER_WATER_SPEED * dt, 6);
+    expect(Math.hypot(waterDiagonal.x, waterDiagonal.y)).toBeCloseTo(PLAYER_WATER_SPEED * dt, 6);
+  });
+
+  it("bounds a packet burst to elapsed server time, not packet count", () => {
+    const grass = findGrassTile();
+    const player = createDefaultPlayer("burst-speed");
+    player.x = grass.x + 0.5;
+    player.y = grass.y + 0.5;
+    const authority = new MovementAuthority();
+    const started = 10_000;
+    authority.prime("burst-speed", started);
+    let acceptedDt = 0;
+    for (let sequence = 0; sequence < MOVEMENT_MAX_PACKETS_PER_SECOND; sequence += 1) {
+      const decision = authority.evaluate("burst-speed", { dx: 1, dy: 1, sequence }, started + sequence);
+      if (decision.accepted) {
+        acceptedDt += decision.serverDt;
+        applyAuthoritativePlayerInput(player, { dx: 1, dy: 1, sequence, speedMultiplier: 50 }, decision.serverDt);
+      }
+    }
+    const elapsed = (MOVEMENT_MAX_PACKETS_PER_SECOND - 1) / 1_000;
+    const distance = Math.hypot(player.x - (grass.x + 0.5), player.y - (grass.y + 0.5));
+    expect(acceptedDt).toBeLessThanOrEqual(elapsed + 1e-9);
+    expect(distance).toBeCloseTo(PLAYER_LAND_SPEED * elapsed, 5);
+    expect(distance).toBeLessThanOrEqual(PLAYER_LAND_SPEED * elapsed + 1e-6);
   });
   it("applies bounded oxygen decay while standing on a coral reef", () => {
     const player = createDefaultPlayer("reef-oxygen");

@@ -3,11 +3,13 @@ import {
   recordHttpRequest,
   recordTick,
   renderPrometheusMetrics,
+  resetTickRateWindowForTests,
   setActivePlayers,
   setDatabaseUp,
   setWebSocketAuthenticated,
   setWebSocketConnections,
 } from "./metrics.js";
+import { authoritativeTickRateAccepted } from "./simulation-cadence.js";
 
 function metricValue(metrics: string, name: string): number {
   const match = new RegExp("^" + name + " ([0-9.eE+-]+)$", "m").exec(metrics);
@@ -59,30 +61,50 @@ describe("metrics", () => {
 });
 
 describe("server tick-rate metrics", () => {
-  it("reports measured cadence and detects a sub-20-Hz window", () => {
+  it("accepts a 50 ms window and rejects the old 33 ms and a stalled window", () => {
+    resetTickRateWindowForTests();
     let now = process.hrtime.bigint();
     const clock = vi.spyOn(process.hrtime, "bigint").mockImplementation(() => now);
     try {
+      recordTick(1);
+      for (let tick = 0; tick < 20; tick += 1) {
+        now += 50_000_000n;
+        recordTick(1);
+      }
+
+      const onCadence = renderPrometheusMetrics();
+      const onCadenceHz = metricValue(onCadence, "isles_tick_rate_hz");
+      expect(onCadenceHz).toBeCloseTo(20, 6);
+      expect(authoritativeTickRateAccepted(onCadenceHz)).toBe(true);
+      expect(metricValue(onCadence, "isles_tick_rate_window_seconds")).toBeGreaterThanOrEqual(1);
+
+      resetTickRateWindowForTests();
+      now = process.hrtime.bigint();
       recordTick(1);
       for (let tick = 0; tick < 31; tick += 1) {
         now += 33_000_000n;
         recordTick(1);
       }
+      const tooFast = metricValue(renderPrometheusMetrics(), "isles_tick_rate_hz");
+      expect(tooFast).toBeGreaterThan(29);
+      expect(authoritativeTickRateAccepted(tooFast)).toBe(false);
 
-      const onCadence = renderPrometheusMetrics();
-      expect(metricValue(onCadence, "isles_tick_rate_hz")).toBeGreaterThanOrEqual(20);
-      expect(metricValue(onCadence, "isles_tick_rate_window_seconds")).toBeGreaterThanOrEqual(1);
-
+      resetTickRateWindowForTests();
+      now = process.hrtime.bigint();
+      recordTick(1);
       for (let tick = 0; tick < 5; tick += 1) {
         now += 250_000_000n;
         recordTick(1);
       }
 
       const belowCadence = renderPrometheusMetrics();
-      expect(metricValue(belowCadence, "isles_tick_rate_hz")).toBeLessThan(20);
+      const belowHz = metricValue(belowCadence, "isles_tick_rate_hz");
+      expect(belowHz).toBeLessThan(19);
+      expect(authoritativeTickRateAccepted(belowHz)).toBe(false);
       expect(metricValue(belowCadence, "isles_tick_rate_window_seconds")).toBeGreaterThanOrEqual(1);
     } finally {
       clock.mockRestore();
+      resetTickRateWindowForTests();
     }
   });
 });

@@ -74,13 +74,15 @@ export function applyPlayerInput(state: PlayerState, input: PlayerInput): Player
 
 
 function applyPlayerSimulation(state: PlayerState, dx: number, dy: number, dt: number, speedMultiplier = 1): PlayerState {
-  const safeDt = clamp(dt, 0, MOVEMENT_MAX_SERVER_DT_SECONDS);
+  const safeDt = Number.isFinite(dt) ? clamp(dt, 0, MOVEMENT_MAX_SERVER_DT_SECONDS) : 0;
   const safeDx = Number.isFinite(dx) ? dx : 0;
   const safeDy = Number.isFinite(dy) ? dy : 0;
   const length = Math.hypot(safeDx, safeDy);
   if (length > 0 && safeDt > 0) {
     const nx = safeDx / length, ny = safeDy / length;
-    const multiplier = clamp(speedMultiplier, 0, 1);
+    // Client speed is not an input. A non-finite multiplier must not NaN the
+    // position or escape the server speed cap; ignore it and use full server speed.
+    const multiplier = Number.isFinite(speedMultiplier) ? clamp(speedMultiplier, 0, 1) : 1;
     const tile = tileAtWorld(Math.floor(state.x), Math.floor(state.y));
     const inWater = tile === TileKind.Ocean || tile === TileKind.Shallow || tile === TileKind.Reef;
     const speed = inWater ? PLAYER_WATER_SPEED : PLAYER_LAND_SPEED;
