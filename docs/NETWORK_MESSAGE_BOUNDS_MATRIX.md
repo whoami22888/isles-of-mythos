@@ -6,6 +6,12 @@ The consolidated table inventories **all 121** discriminated `ClientMessage` var
 
 **Reconciliation (2026-10-31):** Merged PR #221 removed the player-callable `tick_realm_ai` and `change_realm_reputation` message variants and client-controlled breeding duration/crew stats. This document now indexes 121 current inbound message types. The authoritative realm scheduler, paid NPC hiring, service-level authorization, transaction safety, deployment and final-head CI remain independent verification gates.
 
+## Current-main protocol drift (2026-11-03; integration pending)
+
+**Read-only comparison against main `c60c2efdefc264c2f6525ea1954b4624a4f48cf9`:** the 121 inbound `ClientMessage` type names are unchanged from the pinned 2026-10-31 snapshot, but the `sail` parser contract has tightened. The current parser now calls [`unitSailHeading` at protocol.ts L352](https://github.com/whoami22888/isles-of-mythos/blob/c60c2efdefc264c2f6525ea1954b4624a4f48cf9/server/src/protocol.ts#L352), which rejects headings with Euclidean length below `1e-6`, in addition to nonfinite/out-of-range components ([sail-heading.ts L1-L20](https://github.com/whoami22888/isles-of-mythos/blob/c60c2efdefc264c2f6525ea1954b4624a4f48cf9/server/src/sail-heading.ts#L1-L20)). Therefore the older `sail` rows below are accurate **only for the historical pinned snapshot**, not the present main parser. The current `ServerMessage` `error` variant also adds optional `requestId` ([protocol.ts L208](https://github.com/whoami22888/isles-of-mythos/blob/c60c2efdefc264c2f6525ea1954b4624a4f48cf9/server/src/protocol.ts#L208)); this is an outbound shape change, not an added inbound message type.
+
+**Acceptance impact:** retain the historical source-linked matrix as a snapshot; before calling this document current-main authoritative or merging, regenerate/remap the complete parser/handler evidence against the integration SHA, include `sail` boundary tests for `0`, sub-`1e-6` and valid unit headings, and rerun exact-final-HEAD checks and independent review. This note is static source inspection only; no runtime tests or new-head checks are claimed.
+
 ## Common runtime limits and errors
 
 | Boundary | Verified source contract |
