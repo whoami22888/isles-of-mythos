@@ -6,8 +6,9 @@ import { buildApp } from "./app.js";
 import { createDbPool } from "./db.js";
 import { BaseStore } from "./base.js";
 import { PlayerStore } from "./player.js";
-import { ShipStore, SHIP_CLASSES } from "./ship.js";
+import { ShipStore, SHIP_CLASSES, MAX_SAIL_SECONDS } from "./ship.js";
 import { parseClientMessage } from "./protocol.js";
+import { unitSailHeading } from "./sail-heading.js";
 
 // Option A (owner, 2026-10-29): the server owns sailing time. The client sends a heading only; elapsed time is the
 // server clock since the ship's last sail, capped at 60 s. Nothing the client sends can lengthen a move.
@@ -32,6 +33,13 @@ async function sloop(db: Pool, userId: string): Promise<string> {
   await db.query("UPDATE player_ships SET x=0,y=0 WHERE id=$1", [ship.id]);
   return ship.id;
 }
+async function anotherSloop(db: Pool, userId: string): Promise<string> {
+  await db.query("INSERT INTO base_storage(base_id,resource_key,quantity) SELECT id,'wood',5000 FROM player_bases WHERE owner_user_id=$1 ON CONFLICT (base_id,resource_key) DO UPDATE SET quantity=EXCLUDED.quantity", [userId]);
+  await db.query("INSERT INTO base_storage(base_id,resource_key,quantity) SELECT id,'steel',5000 FROM player_bases WHERE owner_user_id=$1 ON CONFLICT (base_id,resource_key) DO UPDATE SET quantity=EXCLUDED.quantity", [userId]);
+  const ship = await new ShipStore(db).create(userId, "Timed Sloop", "sloop");
+  await db.query("UPDATE player_ships SET x=0,y=0 WHERE id=$1", [ship.id]);
+  return ship.id;
+}
 const backdate = (db: Pool, shipId: string, seconds: number): Promise<unknown> =>
   db.query("UPDATE player_ships SET last_sailed_at = now() - make_interval(secs => $2) WHERE id=$1", [shipId, seconds]);
 const lastSailed = async (db: Pool, shipId: string): Promise<number> =>
@@ -51,6 +59,17 @@ describe("protocol: the sail message carries heading only", () => {
     expect(parseClientMessage(JSON.stringify({ type: "sail", requestId: "r", shipId: "s", dx: 0, dy: 0 }))).toBeNull();
     expect(parseClientMessage(JSON.stringify({ type: "sail", requestId: "r", shipId: "s", dx: 2, dy: 0 }))).toBeNull();
     expect(parseClientMessage(JSON.stringify({ type: "sail", requestId: "r", shipId: "s", dx: Number.NaN, dy: 1 }))).toBeNull();
+    expect(parseClientMessage(JSON.stringify({ type: "sail", requestId: "r", shipId: "s", dx: 1e-8, dy: 0 }))).toBeNull();
+    expect(parseClientMessage(JSON.stringify({ type: "sail", requestId: "r", shipId: "s", dx: 1e-8, dy: 1e-8 }))).toBeNull();
+  });
+
+  it("accepts a diagonal heading and keeps the components for the authoritative store to normalize", () => {
+    expect(parseClientMessage(JSON.stringify({ type: "sail", requestId: "r", shipId: "s", dx: 1, dy: 1 }))).toEqual({
+      type: "sail", requestId: "r", shipId: "s", dx: 1, dy: 1,
+    });
+    expect(parseClientMessage(JSON.stringify({ type: "sail", requestId: "r", shipId: "s", dx: -1, dy: 1 }))).toEqual({
+      type: "sail", requestId: "r", shipId: "s", dx: -1, dy: 1,
+    });
   });
 });
 
@@ -110,6 +129,47 @@ describe("server-timed sailing (store)", () => {
     await Promise.all([store.sail(userId, shipId, 1, 0), store.sail(userId, shipId, 1, 0), store.sail(userId, shipId, 1, 0)]);
     const { rows } = await db.query<{ x: number }>("SELECT x FROM player_ships WHERE id=$1", [shipId]);
     expect(rows[0].x).toBeLessThanOrEqual(SLOOP_SPEED * 32 * WIND_MAX);
+  });
+
+  it("a diagonal heading cannot outrun a unit heading or buy extra distance per fuel", async () => {
+    const { userId } = await register(app, "diag");
+    const wind = await db.query<{ wind_x: number; wind_y: number }>("SELECT wind_x, wind_y FROM naval_world_state WHERE id=1");
+    const wx = Number(wind.rows[0]?.wind_x ?? 0);
+    const wy = Number(wind.rows[0]?.wind_y ?? 0);
+    const store = new ShipStore(db);
+    const headings: Array<[number, number]> = [[1, 0], [0, 1], [1, 1], [-1, -1], [1, -1], [0.2, -0.2]];
+    let firstShip = true;
+    for (const [dx, dy] of headings) {
+      const shipId = firstShip ? await sloop(db, userId) : await anotherSloop(db, userId);
+      firstShip = false;
+      await backdate(db, shipId, MAX_SAIL_SECONDS * 2);
+      const before = await db.query<{ fuel: number }>("SELECT fuel FROM player_ships WHERE id=$1", [shipId]);
+      const moved = await store.sail(userId, shipId, dx, dy);
+      const heading = unitSailHeading(dx, dy);
+      if (!heading) throw new Error("EXPECTED_HEADING");
+      const windLength = Math.hypot(wx, wy);
+      const alignment = windLength === 0 ? 0 : (heading.x * wx + heading.y * wy) / windLength;
+      const windMultiplier = Math.max(0, Math.min(1.5, 1 + alignment * 0.5));
+      const expected = SLOOP_SPEED * MAX_SAIL_SECONDS * windMultiplier;
+      const travelled = Math.hypot(moved.x, moved.y);
+      const unnormalized = Math.hypot(dx * expected, dy * expected);
+      expect(travelled).toBeCloseTo(expected, 4);
+      expect(travelled).toBeLessThanOrEqual(expected + 1e-6);
+      if (Math.hypot(dx, dy) > 1.01) expect(unnormalized).toBeGreaterThan(travelled * 1.2);
+      const fuelCost = Math.max(1, Math.ceil(travelled / SHIP_CLASSES.sloop.sail - 1e-9));
+      expect(before.rows[0].fuel - moved.fuel).toBe(fuelCost);
+      expect(moved.heading).toBeCloseTo(Math.atan2(heading.y, heading.x), 6);
+    }
+  });
+
+  it("rejects a tiny heading in the store without moving the ship or spending fuel", async () => {
+    const { userId } = await register(app, "tiny");
+    const shipId = await sloop(db, userId);
+    await backdate(db, shipId, 30);
+    const before = await db.query<{ fuel: number; x: number; y: number }>("SELECT fuel, x, y FROM player_ships WHERE id=$1", [shipId]);
+    await expect(new ShipStore(db).sail(userId, shipId, 1e-8, 0)).rejects.toThrow("INVALID_SAIL_INPUT");
+    const after = await db.query<{ fuel: number; x: number; y: number }>("SELECT fuel, x, y FROM player_ships WHERE id=$1", [shipId]);
+    expect(after.rows[0]).toEqual(before.rows[0]);
   });
 
   it("a failed sail (no fuel) does not consume the elapsed time", async () => {

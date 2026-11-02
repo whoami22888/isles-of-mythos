@@ -8,6 +8,7 @@ import type { WebSocket } from "ws";
 import type { Pool } from "pg";
 import { config } from "./config.js";
 import { recordHttpRequest, recordTick, renderPrometheusMetrics, setActivePlayers, setDatabaseUp, setWebSocketAuthenticated, setWebSocketConnections } from "./metrics.js";
+import { AUTHORITATIVE_SIMULATION_TICK_MS, nextAuthoritativeTickDelayMs } from "./simulation-cadence.js";
 import { createDbPool } from "./db.js";
 import { registerAuthRoutes } from "./auth.js";
 import { registerCreatureResearchRoutes } from "./creature-research-routes.js";
@@ -451,9 +452,11 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   let territorySeasonTick: ReturnType<typeof setInterval> | undefined;
   let realmAiScheduler: RealmAiScheduler | undefined;
   let worldEventTick: ReturnType<typeof setInterval> | undefined;
-  let combatTick: ReturnType<typeof setInterval> | undefined;
+  let simulationTimer: ReturnType<typeof setTimeout> | undefined;
   let persistenceTick: ReturnType<typeof setInterval> | undefined;
-  const COMBAT_TICK_INTERVAL_MS = 33; // ~30 Hz, within the authoritative 30–60 Hz combat range.
+  let nextSimulationDeadlineNs = 0n;
+  // Worker step speed is defined against this legacy 250 ms baseline and scaled
+  // by the 50 ms authoritative step, so units per second stay the same.
   const BASE_SIMULATION_TICK_MS = 250;
 
   app.addHook("onListen", () => {
@@ -494,10 +497,10 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   { const realmAiIntervalMs = options.realmAiTickMs ?? config.realmAiTickMs; realmAiScheduler = startRealmAiScheduler({ intervalMs: realmAiIntervalMs, run: (signal) => runRealmAiTickOnce(db, realms, realmAiIntervalMs, signal), log, drainTimeoutMs: options.realmAiDrainTimeoutMs }); }
   survivalTick.unref();
 
-  combatTick = setInterval(() => {
+  const runAuthoritativeSimulationTick = (): void => {
     const tickStartedAt = process.hrtime.bigint();
     const now = Date.now();
-    tickPlayerStatuses(COMBAT_TICK_INTERVAL_MS);
+    tickPlayerStatuses(AUTHORITATIVE_SIMULATION_TICK_MS);
 
     if (capturedWorldCreaturesLoaded) {
     for (const [connectedUserId, nextActivationAt] of combatActivationNextAt) {
@@ -538,7 +541,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         for (const socket of userSockets.get(projectile.ownerUserId) ?? []) send(socket, missedResult);
         continue;
       }
-      const outcome = advanceProjectile(projectile, target, COMBAT_TICK_INTERVAL_MS / 1000, now);
+      const outcome = advanceProjectile(projectile, target, AUTHORITATIVE_SIMULATION_TICK_MS / 1000, now);
       if (outcome === "flying") continue;
       projectiles.delete(projectileId);
       pendingCombatRequests.delete(replayKey);
@@ -566,7 +569,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       }
     }
     for (const [targetId, target] of combatTargets) {
-      tickStatuses(target, COMBAT_TICK_INTERVAL_MS);
+      tickStatuses(target, AUTHORITATIVE_SIMULATION_TICK_MS);
       if (target.health <= 0) {
         target.aiState = "dead";
         combatTargets.delete(targetId);
@@ -575,7 +578,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     }
     for (const connectedUserId of userSockets.keys()) {
       const player = players.get(connectedUserId);
-      if (player) creatures.tickAi(connectedUserId, player, COMBAT_TICK_INTERVAL_MS);
+      if (player) creatures.tickAi(connectedUserId, player, AUTHORITATIVE_SIMULATION_TICK_MS);
       const base = bases.get(connectedUserId);
       if (!base) continue;
       for (const worker of base.workers) {
@@ -586,7 +589,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         const dx = waypoint.x - creature.x;
         const dy = waypoint.y - creature.y;
         const distance = Math.hypot(dx, dy);
-        const step = Math.min(distance, 0.375 * (COMBAT_TICK_INTERVAL_MS / BASE_SIMULATION_TICK_MS));
+        const step = Math.min(distance, 0.375 * (AUTHORITATIVE_SIMULATION_TICK_MS / BASE_SIMULATION_TICK_MS));
         if (step > 0) {
           creatures.moveWorker(
             connectedUserId,
@@ -602,13 +605,13 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       return state && state.health > 0 ? [{ userId, x: state.x, y: state.y }] : [];
     });
     for (const target of combatTargets.values()) {
-      const ai = tickCreatureAi(target, candidates, now, COMBAT_TICK_INTERVAL_MS);
+      const ai = tickCreatureAi(target, candidates, now, AUTHORITATIVE_SIMULATION_TICK_MS);
       const userId = ai.targetUserId;
       if (!userId || target.health <= 0) continue;
       const targetPlayer = players.get(userId);
       if (!targetPlayer || targetPlayer.health <= 0) continue;
       if (ai.state === "chase") {
-        const step = target.speed * (COMBAT_TICK_INTERVAL_MS / 1000);
+        const step = target.speed * (AUTHORITATIVE_SIMULATION_TICK_MS / 1000);
         target.x += ai.moveX * step;
         target.y += ai.moveY * step;
       }
@@ -649,8 +652,20 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     for (const [cooldownUserId, until] of dodgeCooldowns) if (until <= now) dodgeCooldowns.delete(cooldownUserId);
     for (const [userId, until] of invulnerableUntil) if (until <= now) invulnerableUntil.delete(userId);
     recordTick(Number(process.hrtime.bigint() - tickStartedAt) / 1e6);
-  }, COMBAT_TICK_INTERVAL_MS);
-  combatTick.unref();
+  };
+
+  const scheduleAuthoritativeSimulation = (): void => {
+    if (shuttingDown) return;
+    const step = nextAuthoritativeTickDelayMs(process.hrtime.bigint(), nextSimulationDeadlineNs);
+    nextSimulationDeadlineNs = step.deadlineNs;
+    simulationTimer = setTimeout(() => {
+      if (shuttingDown) return;
+      runAuthoritativeSimulationTick();
+      scheduleAuthoritativeSimulation();
+    }, step.delayMs);
+    simulationTimer.unref();
+  };
+  scheduleAuthoritativeSimulation();
 
   persistenceTick = setInterval(() => {
     void Promise.all([players.persistDirty(), creatures.persistDirty(), bases.processAll()]).catch((error) => {
@@ -675,7 +690,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     if (breedingTick) clearInterval(breedingTick);
     if (navalFireTick) clearInterval(navalFireTick);
     if (persistenceTick) clearInterval(persistenceTick);
-    if (combatTick) clearInterval(combatTick);
+    if (simulationTimer) clearTimeout(simulationTimer);
     // Drain the in-flight realm AI tick only after every other timer is stopped and shutdown is flagged.
     // Fail closed: if the tick cannot be proven settled (even after abort), still persist and close sockets,
     // but never tear down the pool under a live transaction, and surface the failure to the caller.
