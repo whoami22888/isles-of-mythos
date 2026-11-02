@@ -78,6 +78,22 @@ func _ready() -> void:
 		_connect()
 	else:
 		_status.text = "Enter a JWT token; this slice has no local authority"
+	_death = Label.new()
+	_death.name = "DeathBanner"
+	_death.text = "You died - respawning"
+	_death.visible = false
+	_death.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_death.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_death.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	_death.offset_left = -280.0
+	_death.offset_top = 28.0
+	_death.offset_right = 280.0
+	_death.offset_bottom = 84.0
+	_death.add_theme_font_size_override("font_size", 28)
+	_death.add_theme_color_override("font_color", Color("#fff1d0"))
+	_death.add_theme_color_override("font_shadow_color", Color(0.15, 0.05, 0.02, 0.85))
+	_death.add_theme_constant_override("shadow_outline_size", 6)
+	$Interface.add_child(_death)
 
 func _connect() -> void:
 	_client.configure(_handoff_endpoint if not _handoff_token.is_empty() else _endpoint.text,
@@ -88,6 +104,8 @@ func _connect() -> void:
 # once the plane is snapped to the player's chunk centre (see _recenter_ground).
 const GROUND_SIZE := CHUNK_SIZE * 4.0
 var _ground: MeshInstance3D
+var _coastal: Node3D
+var _death: Label
 
 func _build_scaffold_world() -> void:
 	_ground = MeshInstance3D.new()
@@ -98,6 +116,11 @@ func _build_scaffold_world() -> void:
 	_ground.material_override = _material(Color("#183b3a"))
 	add_child(_ground)
 	_recenter_ground()
+	if not _handoff_token.is_empty():
+		_mount_coastal_world()
+		if _coastal:
+			_ground.visible = false
+			_recenter_ground()
 	var player := MeshInstance3D.new()
 	var capsule := CapsuleMesh.new()
 	capsule.height = 1.8
@@ -106,11 +129,31 @@ func _build_scaffold_world() -> void:
 	player.material_override = _material(Color("#d9a441"))
 	player.name = "ServerPlayerRepresentation"
 	add_child(player)
-	var light := DirectionalLight3D.new()
-	light.rotation_degrees = Vector3(-55, -25, 0)
-	light.light_energy = 1.2
-	add_child(light)
+	if _coastal == null:
+		var light := DirectionalLight3D.new()
+		light.rotation_degrees = Vector3(-55, -25, 0)
+		light.light_energy = 1.2
+		add_child(light)
+	var camera := $Camera as Camera3D
+	camera.current = true
 	_follow_camera()
+
+func _mount_coastal_world() -> void:
+	var packed: PackedScene = load("res://scenes/realistic_coastal_slice.tscn")
+	if packed == null:
+		return
+	_coastal = packed.instantiate()
+	_coastal.name = "CoastalWorld"
+	add_child(_coastal)
+	var gameplay = _coastal.get("gameplay_camera")
+	if gameplay is Camera3D:
+		(gameplay as Camera3D).current = false
+	var cinematic = _coastal.get("cinematic_camera")
+	if cinematic is Camera3D:
+		(cinematic as Camera3D).current = false
+	for node in _coastal.find_children("*", "DirectionalLight3D", true, false):
+		if node is DirectionalLight3D:
+			(node as DirectionalLight3D).shadow_enabled = false
 
 const CAMERA_OFFSET := Vector3(0, 28, 24)
 
@@ -129,6 +172,8 @@ func _recenter_ground() -> void:
 		return
 	var chunk := _chunk_for_position(_player)
 	_ground.position = Vector3((float(chunk.x) + 0.5) * CHUNK_SIZE, 0.0, (float(chunk.y) + 0.5) * CHUNK_SIZE)
+	if _coastal:
+		_coastal.position = _ground.position
 
 func _material(color: Color) -> StandardMaterial3D:
 	var material := StandardMaterial3D.new()
@@ -214,6 +259,9 @@ func _on_player_state(state: Dictionary) -> void:
 		_player = Vector3(float(x), 0.9, float(world_y))
 		$ServerPlayerRepresentation.position = _player
 		_follow_camera()
+		var health = state.get("health", 1)
+		if _death:
+			_death.visible = (health is int or health is float) and float(health) <= 0.0
 		_state.text = "Server player position: (%d, %d)" % [int(_player.x), int(_player.z)]
 		# Follow the authoritative position: request the chunk containing the
 		# player on first state and whenever the player crosses a boundary.
@@ -430,6 +478,9 @@ func _on_ack(_request_id: String, message: Dictionary) -> void:
 			_state.text = "Authoritative inventory state received"
 
 func _on_rejection(code: String) -> void:
+	if code == "PLAYER_DEAD" and _death:
+		_death.visible = true
+		_death.text = "You died - respawning"
 	_status.text = "Server rejected command: %s" % code
 
 func _on_outcome_unknown(request_id: String) -> void:

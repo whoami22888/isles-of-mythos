@@ -55,6 +55,7 @@ autowrap_mode = 2
 
 [node name="Endpoint" type="LineEdit" parent="Panel/Margin/Content"]
 layout_mode = 2
+text = "wss://isles-of-mythos.onrender.com/ws"
 placeholder_text = "Game server URL (wss://host/ws)"
 
 [node name="Modes" type="HBoxContainer" parent="Panel/Margin/Content"]
@@ -104,3 +105,25 @@ theme_type_variation = &"BodyLabel"
 text = "Accounts are verified by the authoritative game server. Admin access is operator-provisioned."
 horizontal_alignment = 1
 autowrap_mode = 2
+
+[node name="Remember" type="HBoxContainer" parent="Panel/Margin/Content"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="RememberMe" type="CheckButton" parent="Panel/Margin/Content/Remember"]
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 44)
+text = "Remember me"
+
+[node name="RememberPassword" type="CheckButton" parent="Panel/Margin/Content/Remember"]
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 44)
+text = "Remember password"
+
+[node name="SignOut" type="Button" parent="Panel/Margin/Content/Remember"]
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 44)
+text = "Sign out"

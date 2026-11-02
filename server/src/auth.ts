@@ -1,5 +1,5 @@
-import argon2 from "argon2";
 import { randomUUID } from "node:crypto";
+import argon2 from "argon2";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { Pool } from "pg";
 import { config } from "./config.js";
@@ -118,6 +118,7 @@ export async function registerAuthRoutes(
             required: ["accessToken", "user"],
             properties: {
               accessToken: { type: "string" },
+              refreshToken: { type: "string" },
               user: {
                 type: "object",
                 required: ["id", "username", "email"],
