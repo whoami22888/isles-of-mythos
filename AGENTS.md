@@ -2,6 +2,13 @@
 
 This file is a navigation layer. The linked project documents remain authoritative; do not copy their historical verification records into new claims.
 
+## Product identity and master engineering brief
+
+Read [`docs/MASTER_AI_DEVELOPMENT_SPECIFICATION.md`](docs/MASTER_AI_DEVELOPMENT_SPECIFICATION.md) as the product-level brief for active game development. **Isles of Mythos: Sunken Tides is primarily a mobile-first, persistent 3D strategy MMORPG** with settlements, territory warfare, armies, research, harvesting, guilds, creatures, ships and naval gameplay; piracy is one component, not the whole genre. References elsewhere to a pirate-survival game describe a subset or historical direction and must not override this product identity.
+
+**Architecture lock:** Godot 4.7.2 Mobile Renderer and GDScript for the Android ARM64 3D client; server-authoritative Node.js/Fastify with the existing authenticated network contract, PostgreSQL, Redis and approved 20 Hz target. Older Phaser/TypeScript client prototypes are not permission to replace Godot. Maintain existing exact-SHA quality, PBR/art, real-render, Android, gameplay, security and protected-release gates. The master brief states intended capabilities, not proof of implementation or acceptance.
+
+
 ## Read before editing
 
 1. `full-game-prompt.PDF` (requirements source when available in the task context).
