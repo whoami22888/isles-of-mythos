@@ -8,10 +8,10 @@ extends SceneTree
 ## Exit codes: 0 = all checks passed, 1 = a check failed, 2 = NOT VERIFIED
 ## (endpoints absent). A missing server never counts as a pass.
 ##
-## Production boots keep application/config/internal_gameplay_handoff = false.
-## Passing the user argument --internal-gameplay-handoff enables the scaffold
-## handoff for this test instance only, to prove that path too. The default
-## is asserted, not assumed.
+## Production boots set application/config/internal_gameplay_handoff = true so
+## login enters the gameplay world. This suite overrides that for the protocol
+## checks unless --internal-gameplay-handoff is passed. The project default is
+## asserted, not assumed.
 
 const PROTOCOL_SCRIPT := preload("res://gameplay/vertical_slice_protocol.gd")
 const WORLD_SCENE := "res://gameplay/vertical_slice.tscn"
@@ -66,8 +66,8 @@ func run() -> void:
 
 	var handoff_override := "--internal-gameplay-handoff" in OS.get_cmdline_user_args()
 	if not handoff_override:
-		check(not bool(ProjectSettings.get_setting(HANDOFF_SETTING, false)),
-			"Production default must keep internal_gameplay_handoff false")
+		check(bool(ProjectSettings.get_setting(HANDOFF_SETTING, true)),
+			"Production default must enter gameplay after login")
 	ProjectSettings.set_setting(HANDOFF_SETTING, handoff_override)
 
 	await _check_rejected_token(ws_url)
