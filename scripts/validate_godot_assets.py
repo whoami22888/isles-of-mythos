@@ -147,6 +147,21 @@ def validate() -> int:
                     if (source and hashlib.sha256(candidate.read_bytes()).hexdigest()
                             == source["sha256"]):
                         continue
+                # Godot also extracts the two self-contained tree LOD2 GLBs.
+                # Accept only exact copies of their already manifested source
+                # textures; a changed or additional file remains unregistered.
+                tree_match = re.fullmatch(
+                    r"generated/foliage/(island_tree_0[12])_lod2_\1_(.+\.(?:jpg|png))",
+                    relative,
+                )
+                if tree_match:
+                    tree, texture = tree_match.groups()
+                    source = registered_by_path.get(
+                        f"generated/bounded_lods/{tree}_{tree}_{texture}"
+                    )
+                    if (source and hashlib.sha256(candidate.read_bytes()).hexdigest()
+                            == source["sha256"]):
+                        continue
                 actual.add(candidate.resolve())
         if actual != registered:
             fail("Unregistered file(s) under client-godot/assets/external")

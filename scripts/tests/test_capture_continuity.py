@@ -1,8 +1,12 @@
 """Focused fail-closed tests for the non-visual Godot capture boundary screen."""
 import importlib.util
+import contextlib
+import io
 from pathlib import Path
+import sys
 import tempfile
 import unittest
+from unittest import mock
 
 SOURCE = Path(__file__).resolve().parents[1] / "check_capture_continuity.py"
 SPEC = importlib.util.spec_from_file_location("check_capture_continuity", SOURCE)
@@ -17,10 +21,22 @@ class CaptureContinuityTests(unittest.TestCase):
                 bytes((value, value, value, 255)) * (width * height)
             )
 
+    @staticmethod
+    def spec(folder, frames=6, **overrides):
+        values = {
+            "folder": Path(folder),
+            "frames": frames,
+            "width": 8,
+            "height": 8,
+            "segment_size": 2,
+        }
+        values.update(overrides)
+        return MODULE.CaptureSpec(**values)
+
     def test_unbroken_capture_passes_screening_only(self):
         with tempfile.TemporaryDirectory() as folder:
             self.write_frames(folder, [20, 21, 22, 23, 24, 25])
-            result = MODULE.verify(Path(folder), frames=6, width=8, height=8, segment_size=2)
+            result = MODULE.verify(self.spec(folder))
             self.assertEqual(result["result"], "PASS_SCREENING_NOT_VISUAL_ACCEPTANCE")
             self.assertEqual(set(result["boundaries"]), {"1->2", "3->4"})
 
@@ -28,25 +44,63 @@ class CaptureContinuityTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             self.write_frames(folder, [20, 21, 230, 231, 232, 233])
             with self.assertRaisesRegex(ValueError, "boundary discontinuity"):
-                MODULE.verify(Path(folder), frames=6, width=8, height=8, segment_size=2)
+                MODULE.verify(self.spec(folder))
+
+    def test_lighting_seam_rejected_even_when_global_delta_is_small(self):
+        with tempfile.TemporaryDirectory() as folder:
+            self.write_frames(folder, [20, 21, 29, 30, 31, 32])
+            with self.assertRaisesRegex(ValueError, "lighting discontinuity"):
+                MODULE.verify(self.spec(
+                    folder, lighting_roi=(0, 0, 8, 8), max_luma_jump=5.0
+                ))
+
+    def test_stable_lighting_boundary_passes(self):
+        with tempfile.TemporaryDirectory() as folder:
+            self.write_frames(folder, [20, 21, 22, 23, 24, 25])
+            result = MODULE.verify(self.spec(folder, lighting_roi=(0, 0, 8, 8)))
+            self.assertEqual(result['lighting_boundaries']['1->2'], 1.0)
 
     def test_missing_frame_rejected(self):
         with tempfile.TemporaryDirectory() as folder:
             self.write_frames(folder, [20, 21, 22, 23, 24])
             with self.assertRaisesRegex(ValueError, "missing or malformed frame 5"):
-                MODULE.verify(Path(folder), frames=6, width=8, height=8, segment_size=2)
+                MODULE.verify(self.spec(folder))
 
     def test_corrupted_frame_size_rejected(self):
         with tempfile.TemporaryDirectory() as folder:
             self.write_frames(folder, [20, 21, 22, 23, 24, 25])
             (Path(folder) / "frame_0003.rgba").write_bytes(b"bad")
             with self.assertRaisesRegex(ValueError, "missing or malformed frame 3"):
-                MODULE.verify(Path(folder), frames=6, width=8, height=8, segment_size=2)
+                MODULE.verify(self.spec(folder))
 
     def test_invalid_geometry_rejected(self):
         with tempfile.TemporaryDirectory() as folder:
             with self.assertRaisesRegex(ValueError, "invalid capture geometry"):
-                MODULE.verify(Path(folder), frames=5, width=8, height=8, segment_size=2)
+                MODULE.verify(self.spec(folder, frames=5))
+
+    def test_invalid_lighting_roi_rejected(self):
+        with tempfile.TemporaryDirectory() as folder:
+            with self.assertRaisesRegex(ValueError, "invalid lighting ROI"):
+                MODULE.verify(self.spec(folder, lighting_roi=(0, 0, 9, 8)))
+
+    def test_nonfinite_lighting_threshold_rejected(self):
+        with tempfile.TemporaryDirectory() as folder:
+            with self.assertRaisesRegex(ValueError, "invalid lighting ROI"):
+                MODULE.verify(self.spec(
+                    folder, lighting_roi=(0, 0, 8, 8), max_luma_jump=float("inf")
+                ))
+
+    def test_cli_rejects_infinite_lighting_threshold(self):
+        with tempfile.TemporaryDirectory() as folder:
+            arguments = [
+                str(SOURCE), folder, "--frames", "6", "--width", "8",
+                "--height", "8", "--segment-size", "2",
+                "--lighting-roi", "0,0,8,8", "--max-luma-jump", "inf",
+            ]
+            stderr = io.StringIO()
+            with mock.patch.object(sys, "argv", arguments), contextlib.redirect_stderr(stderr):
+                self.assertEqual(1, MODULE.main())
+            self.assertIn("invalid lighting ROI", stderr.getvalue())
 
 
 if __name__ == "__main__":
