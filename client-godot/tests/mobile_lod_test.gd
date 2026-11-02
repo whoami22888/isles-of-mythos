@@ -90,6 +90,8 @@ func _run_tests() -> void:
         push_error("_ready must select low mesh exclusively at 30m before first frame")
 
     camera.position = Vector3(5.0, 0.0, 0.0)
+    # process_frame fires before Node._process; two signals ensure one update.
+    await process_frame
     await process_frame
     if not near_mesh.visible or far_mesh.visible:
         failures += 1
