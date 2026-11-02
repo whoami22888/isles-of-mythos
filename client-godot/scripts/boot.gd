@@ -2,7 +2,7 @@ extends Control
 ## Native player registration, player login, and isolated admin login.
 ## The backend issues JWTs. Never store passwords or require users to paste JWTs.
 
-const Adapter = preload("res://scripts/websocket_adapter.gd")
+const Adapter = preload("res://scripts/network/authoritative_command_gateway.gd")
 const AUTH_REQUEST_TIMEOUT_SECONDS := 15.0
 ## Below this viewport height (short landscape phones, keyboard up) the sign-in form switches to a compact layout so
 ## every control stays on screen at the 44 px minimum touch size.
