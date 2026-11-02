@@ -24,6 +24,7 @@ const TOUCH_MIN_HEIGHT := 44.0
 
 var _adapter: Node
 var _http: HTTPRequest
+var _refresh_token := ""
 var _mode := "player"
 var _busy := false
 var _pending_auth_endpoint := ""
@@ -33,6 +34,7 @@ func _ready() -> void:
     add_child(_adapter)
     _adapter.status_changed.connect(_on_status_changed)
     _adapter.message_received.connect(_on_message)
+    _adapter.auth_failed.connect(_on_auth_failed)
     _http = HTTPRequest.new()
     # Credentials must never be forwarded to a different origin by a 3xx.
     _http.max_redirects = 0
@@ -183,6 +185,8 @@ func _on_auth_completed(result: int, response_code: int, _headers: PackedStringA
     if not (token is String) or token.is_empty():
         _status.text = "Server returned no valid player session."
         return
+    var refresh = decoded.get("refreshToken", "")
+    _refresh_token = refresh if refresh is String else ""
 
     if _mode == "admin":
         if decoded.get("role", "") != "admin":
@@ -206,8 +210,14 @@ func _on_status_changed(status: String) -> void:
 func _on_message(message: Dictionary) -> void:
     if message.get("type", "") == "auth_ok":
         _status.text = "Ready · player authenticated by server"
-        if ProjectSettings.get_setting("application/config/internal_gameplay_handoff", false):
+        if bool(ProjectSettings.get_setting("application/config/internal_gameplay_handoff", true)):
             _launch_internal_gameplay(message)
+
+func show_signed_out(reason: String) -> void:
+    _status.text = "Session ended (%s). Sign in again." % reason
+
+func _on_auth_failed(reason: String) -> void:
+    _status.text = "Sign-in rejected (%s). Sign in again." % reason
 
 func _launch_internal_gameplay(message: Dictionary) -> void:
     var user_id = message.get("userId")
@@ -216,7 +226,7 @@ func _launch_internal_gameplay(message: Dictionary) -> void:
     if _adapter._url.is_empty() or _adapter._token.is_empty():
         return
     var gameplay = load("res://gameplay/vertical_slice.tscn").instantiate()
-    gameplay.begin_authenticated_session(_adapter._url, _adapter._token)
+    gameplay.begin_authenticated_session(_adapter._url, _adapter._token, _refresh_token)
     get_tree().root.add_child(gameplay)
     get_tree().current_scene = gameplay
     queue_free()

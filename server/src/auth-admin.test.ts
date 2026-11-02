@@ -3,7 +3,7 @@ import argon2 from "argon2";
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import type { Pool } from "pg";
-import { registerAuthRoutes } from "./auth.js";
+import { isGameplayAccessToken, registerAuthRoutes } from "./auth.js";
 
 const ADMIN_ID = "e3057a50-9771-41ca-ac06-f2445ea77111";
 const PLAYER_ID = "fc461aaf-9fe0-4f94-b090-0a6d72441711";
@@ -95,6 +95,31 @@ describe("scoped player registration and admin authentication", () => {
       const adminMe = await app.inject({ method: "GET", url: "/auth/admin/me", headers: { authorization: "Bearer " + adminToken } });
       expect(adminMe.statusCode).toBe(200);
       expect(adminMe.json()).toMatchObject({ role: "admin", user: { id: ADMIN_ID } });
+    } finally { await app.close(); }
+  });
+
+  it("refreshes a player session and rejects admin or access tokens", async () => {
+    const app = await fixture();
+    try {
+      const login = await app.inject({ method: "POST", url: "/auth/login", payload: { identifier: "normal_player", password: PASSWORD } });
+      expect(login.statusCode).toBe(200);
+      const session = login.json<{ accessToken: string; refreshToken: string }>();
+      expect(session.refreshToken).toBeTruthy();
+      const refreshed = await app.inject({ method: "POST", url: "/auth/refresh", payload: { refreshToken: session.refreshToken } });
+      expect(refreshed.statusCode).toBe(200);
+      const next = refreshed.json<{ accessToken: string; refreshToken: string }>();
+      expect(next.accessToken).toBeTruthy();
+      expect(next.refreshToken).not.toBe(session.refreshToken);
+      const accessAsRefresh = await app.inject({ method: "POST", url: "/auth/refresh", payload: { refreshToken: session.accessToken } });
+      expect(accessAsRefresh.statusCode).toBe(401);
+      const admin = await app.inject({ method: "POST", url: "/auth/admin/login", payload: { identifier: "approved_operator", password: PASSWORD } });
+      expect(admin.json()).not.toHaveProperty("refreshToken");
+      const adminAsRefresh = await app.inject({ method: "POST", url: "/auth/refresh", payload: { refreshToken: admin.json<{ accessToken: string }>().accessToken } });
+      expect(adminAsRefresh.statusCode).toBe(401);
+      expect(isGameplayAccessToken({ role: "player", typ: "access" })).toBe(true);
+      expect(isGameplayAccessToken({ role: "admin", typ: "access" })).toBe(false);
+      expect(isGameplayAccessToken({ role: "player", typ: "refresh" })).toBe(false);
+      expect(isGameplayAccessToken({})).toBe(true);
     } finally { await app.close(); }
   });
 

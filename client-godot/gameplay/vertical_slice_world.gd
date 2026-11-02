@@ -12,11 +12,16 @@ var _token: LineEdit
 var _connect_button: Button
 var _handoff_endpoint := ""
 var _handoff_token := ""
+var _refresh_token := ""
+var _refreshing := false
+var _refresh_http: HTTPRequest
 # Mirrors server CHUNK_SIZE (server/src/world.ts); display/request hint only.
 const CHUNK_SIZE := 32.0
 # Server gather range is 2.5 units (server/src/app.ts); stop short of it. The
 # server still validates every gather, this only decides when to send intent.
 const GATHER_APPROACH_DISTANCE := 2.0
+const TAP_RESOURCE_RADIUS := 1.5
+const MOVE_ARRIVE_DISTANCE := 0.35
 const MOVE_INTERVAL_SECONDS := 0.08
 # Chunk snapshots are not pushed, so re-read the authoritative chunk on a
 # bounded schedule (respawns are 45-90 s) with at most one request in flight.
@@ -27,11 +32,14 @@ var _chunk_in_flight := ""
 var _refresh_clock := 0.0
 var _approaching := false
 var _approach_target := ""
+var _move_to_point := false
+var _move_point := Vector2.ZERO
 var _move_clock := 0.0
 
-func begin_authenticated_session(endpoint: String, token: String) -> void:
+func begin_authenticated_session(endpoint: String, token: String, refresh_token: String = "") -> void:
 	_handoff_endpoint = endpoint
 	_handoff_token = token
+	_refresh_token = refresh_token
 
 func _ready() -> void:
 	_status = $Interface/Panel/Margin/Content/Status
@@ -52,6 +60,7 @@ func _ready() -> void:
 	_client.command_acknowledged.connect(_on_ack)
 	_client.server_rejected.connect(_on_rejection)
 	_client.command_outcome_unknown.connect(_on_outcome_unknown)
+	_client.auth_failed.connect(_on_auth_failed)
 	var endpoint := OS.get_environment("IOM_WS_URL")
 	if endpoint.is_empty():
 		endpoint = ProjectSettings.get_setting("application/config/default_ws_url", "ws://127.0.0.1:3000/ws")
@@ -169,6 +178,7 @@ func _process(delta: float) -> void:
 func _stop_approach() -> void:
 	_approaching = false
 	_approach_target = ""
+	_move_to_point = false
 
 ## One step of "walk to the target, then gather". Movement is only the existing
 ## server `move` intent; the server computes the position and the client keeps
@@ -176,16 +186,23 @@ func _stop_approach() -> void:
 func _approach_step() -> void:
 	if not _approaching:
 		return
-	if not _client.is_authenticated() or not _markers.has(_approach_target):
+	if not _client.is_authenticated() or (not _move_to_point and not _markers.has(_approach_target)):
 		_stop_approach()
 		return
-	var marker: Node3D = _markers[_approach_target]
-	var offset := Vector2(marker.position.x - _player.x, marker.position.z - _player.z)
-	if offset.length() <= GATHER_APPROACH_DISTANCE:
-		var target := _approach_target
-		_stop_approach()
-		_send_gather(target)
-		return
+	var offset: Vector2
+	if _move_to_point:
+		offset = Vector2(_move_point.x - _player.x, _move_point.y - _player.z)
+		if offset.length() <= MOVE_ARRIVE_DISTANCE:
+			_stop_approach()
+			return
+	else:
+		var marker: Node3D = _markers[_approach_target]
+		offset = Vector2(marker.position.x - _player.x, marker.position.z - _player.z)
+		if offset.length() <= GATHER_APPROACH_DISTANCE:
+			var target := _approach_target
+			_stop_approach()
+			_send_gather(target)
+			return
 	var direction := offset.normalized()
 	_client.request_move(direction.x, direction.y)
 
@@ -247,6 +264,136 @@ func _create_resource_marker(resource_id: String) -> MeshInstance3D:
 	_markers[resource_id] = marker
 	return marker
 
+func _intent_for_ground(x: float, z: float) -> String:
+	var resource_id := _resource_near(Vector2(x, z), TAP_RESOURCE_RADIUS)
+	if resource_id != "":
+		_begin_resource_approach(resource_id)
+		return "gather"
+	_begin_free_move(Vector2(x, z))
+	return "move"
+
+func _resource_near(xz: Vector2, radius: float) -> String:
+	var best := ""
+	var best_distance := radius
+	for resource_id in _markers:
+		var marker: Node3D = _markers[resource_id]
+		var distance := Vector2(marker.position.x, marker.position.z).distance_to(xz)
+		if distance <= best_distance:
+			best_distance = distance
+			best = resource_id
+	return best
+
+func _begin_free_move(xz: Vector2) -> void:
+	if not _client.is_authenticated():
+		_status.text = "Authenticate before issuing a server command"
+		return
+	_approaching = true
+	_approach_target = ""
+	_move_to_point = true
+	_move_point = xz
+	_move_clock = MOVE_INTERVAL_SECONDS
+	_status.text = "Moving; server validates position"
+
+func _begin_resource_approach(resource_id: String) -> void:
+	if not _client.is_authenticated():
+		_status.text = "Authenticate before issuing a server command"
+		return
+	if not _markers.has(resource_id):
+		return
+	var marker_position: Vector3 = _markers[resource_id].position
+	if Vector2(marker_position.x - _player.x, marker_position.z - _player.z).length() > GATHER_APPROACH_DISTANCE:
+		_approaching = true
+		_move_to_point = false
+		_approach_target = resource_id
+		_move_clock = MOVE_INTERVAL_SECONDS
+		_status.text = "Moving toward resource; server validates position"
+		return
+	_send_gather(resource_id)
+
+func _ground_point(screen: Vector2) -> Variant:
+	var camera: Camera3D = $Camera
+	var origin := camera.project_ray_origin(screen)
+	var normal := camera.project_ray_normal(screen)
+	if absf(normal.y) < 0.0001:
+		return null
+	var distance := -origin.y / normal.y
+	if distance < 0.0:
+		return null
+	return origin + normal * distance
+
+func _handle_tap(screen: Vector2) -> void:
+	var point: Variant = _ground_point(screen)
+	if point == null:
+		return
+	var world: Vector3 = point
+	_intent_for_ground(world.x, world.z)
+
+func _http_base(endpoint: String) -> String:
+	if not _client._is_safe_authenticated_url(endpoint) or not endpoint.ends_with("/ws"):
+		return ""
+	if endpoint.begins_with("wss://"):
+		return "https://" + endpoint.substr(6).trim_suffix("/ws")
+	if endpoint.begins_with("ws://"):
+		return "http://" + endpoint.substr(5).trim_suffix("/ws")
+	return ""
+
+func _on_auth_failed(reason: String) -> void:
+	if _refreshing:
+		return
+	if reason == "INVALID_TOKEN" and not _refresh_token.is_empty():
+		_refreshing = true
+		_status.text = "Session expired. Refreshing…"
+		_request_refresh()
+		return
+	_return_to_login(reason)
+
+func _request_refresh() -> void:
+	var base := _http_base(_handoff_endpoint)
+	if base.is_empty():
+		_return_to_login("INVALID_TOKEN")
+		return
+	if _refresh_http == null:
+		_refresh_http = HTTPRequest.new()
+		_refresh_http.timeout = 15.0
+		_refresh_http.max_redirects = 0
+		add_child(_refresh_http)
+		_refresh_http.request_completed.connect(_on_refresh_completed)
+	var error := _refresh_http.request(
+		base + "/auth/refresh",
+		PackedStringArray(["Content-Type: application/json", "Accept: application/json"]),
+		HTTPClient.METHOD_POST,
+		JSON.stringify({"refreshToken": _refresh_token}))
+	if error != OK:
+		_return_to_login("INVALID_TOKEN")
+
+func _on_refresh_completed(result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
+	_refreshing = false
+	var decoded = JSON.parse_string(body.get_string_from_utf8())
+	if result != HTTPRequest.RESULT_SUCCESS or response_code < 200 or response_code >= 300 or not (decoded is Dictionary):
+		_return_to_login("INVALID_TOKEN")
+		return
+	var access = decoded.get("accessToken", "")
+	var refresh = decoded.get("refreshToken", "")
+	if not (access is String) or access.is_empty() or not (refresh is String) or refresh.is_empty():
+		_return_to_login("INVALID_TOKEN")
+		return
+	_handoff_token = access
+	_refresh_token = refresh
+	_token.text = ""
+	_client.configure(_handoff_endpoint, access)
+	_client.connect_to_server()
+	_status.text = "Session refreshed. Reconnecting…"
+
+func _return_to_login(reason: String) -> void:
+	_refreshing = false
+	_stop_approach()
+	var boot = load("res://scenes/boot.tscn").instantiate()
+	get_tree().root.add_child(boot)
+	get_tree().current_scene = boot
+	if boot.has_method("show_signed_out"):
+		boot.show_signed_out(reason)
+	queue_free()
+
 func _gather_nearest() -> void:
 	if _markers.is_empty():
 		_status.text = "No server-visible resource in this chunk"
@@ -259,17 +406,7 @@ func _gather_nearest() -> void:
 		if distance < nearest_distance:
 			nearest_distance = distance
 			nearest_id = resource_id
-	if not _client.is_authenticated():
-		_status.text = "Authenticate before issuing a server command"
-		return
-	var marker_position: Vector3 = _markers[nearest_id].position
-	if Vector2(marker_position.x - _player.x, marker_position.z - _player.z).length() > GATHER_APPROACH_DISTANCE:
-		_approaching = true
-		_approach_target = nearest_id
-		_move_clock = MOVE_INTERVAL_SECONDS
-		_status.text = "Moving toward resource; server validates position"
-		return
-	_send_gather(nearest_id)
+	_begin_resource_approach(nearest_id)
 
 func _send_gather(nearest_id: String) -> void:
 	var request_id: String = _client.request_gather(nearest_id)
@@ -277,9 +414,9 @@ func _send_gather(nearest_id: String) -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch and event.pressed:
-		_gather_nearest()
-	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		_gather_nearest()
+		_handle_tap(event.position)
+	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT and event.device != -1:
+		_handle_tap(event.position)
 
 func _on_ack(_request_id: String, message: Dictionary) -> void:
 	if message.get("type") == "resource_gathered":
