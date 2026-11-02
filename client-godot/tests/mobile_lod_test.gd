@@ -1,16 +1,16 @@
 extends SceneTree
-## Deterministic enter/exit and invalid-boundary regression for the pure
-## switching logic in scripts/mobile_lod.gd. No scene/camera required:
-## MobileLod.next_detail_state is a static pure function.
-
+## Pure hysteresis tests plus real scene-tree lifecycle regressions.
 const MobileLod := preload("res://scripts/mobile_lod.gd")
 
 
 func _init() -> void:
+    call_deferred("_run_tests")
+
+
+func _run_tests() -> void:
     var failures := 0
 
-    # Normal enter/exit with a healthy hysteresis band (switch=45, hyst=5):
-    # exits high detail only past 50, re-enters only once back under 40.
+    # Preserve normal 45/5 hysteresis and exact-boundary behavior.
     var high := true
     high = MobileLod.next_detail_state(high, 10.0, 45.0, 5.0)
     if high != true:
@@ -29,29 +29,26 @@ func _init() -> void:
         failures += 1
         push_error("Must re-enter high detail once under switch_distance - hysteresis")
 
-    # Invalid-boundary case from the reported defect: hysteresis >=
-    # switch_distance (switch=10, hysteresis=15) must still let the
-    # controller recover high detail when the camera returns to 0.0,
-    # instead of permanently stranding it in low detail.
-    var stranded := false
+    # Previously permitted 10/15 configuration stranded low detail until
+    # exact 0m. The bounded band must restore high at positive 5m and 1m.
+    var stranded := true
     stranded = MobileLod.next_detail_state(stranded, 30.0, 10.0, 15.0)
     if stranded != false:
         failures += 1
-        push_error(
-            "Must switch to low detail past switch_distance + hysteresis "
-            + "even when hysteresis >= switch_distance"
-        )
-    stranded = MobileLod.next_detail_state(stranded, 0.0, 10.0, 15.0)
+        push_error("Invalid 10/15 band must still enter low detail at 30m")
+    stranded = MobileLod.next_detail_state(stranded, 5.0, 10.0, 15.0)
     if stranded != true:
         failures += 1
-        push_error(
-            "Camera returning to distance 0.0 must restore high detail "
-            + "even when hysteresis >= switch_distance (regression for the "
-            + "unreachable negative-threshold defect)"
-        )
+        push_error("Invalid 10/15 band must restore high detail at 5m")
+    stranded = MobileLod.next_detail_state(false, 1.0, 10.0, 15.0)
+    if stranded != true:
+        failures += 1
+        push_error("Invalid 10/15 band must restore high detail at 1m")
+    stranded = MobileLod.next_detail_state(false, 0.0, 10.0, 15.0)
+    if stranded != true:
+        failures += 1
+        push_error("Invalid 10/15 band must restore high detail at 0m")
 
-    # Zero hysteresis is a degenerate but legal configuration; the
-    # boundary itself must be reachable in both directions.
     var zero_band := true
     zero_band = MobileLod.next_detail_state(zero_band, 20.0, 20.0, 0.0)
     if zero_band != true:
@@ -64,10 +61,63 @@ func _init() -> void:
     zero_band = MobileLod.next_detail_state(zero_band, 20.0, 20.0, 0.0)
     if zero_band != true:
         failures += 1
-        push_error(
-            "Returning to exactly switch_distance with zero hysteresis "
-            + "must restore high detail"
-        )
+        push_error("Returning to exactly switch_distance with zero hysteresis must restore high detail")
 
-    print("Mobile LOD enter/exit and invalid-boundary regression: %d failures" % failures)
+    # Scene lifecycle: both children start visible. _ready must select
+    # exactly one immediately, before any _process or rendered frame.
+    var lod := MobileLod.new()
+    lod.name = "LOD"
+    lod.high_detail_path = NodePath("High")
+    lod.low_detail_path = NodePath("Low")
+    lod.camera_path = NodePath("Camera")
+    lod.switch_distance = 10.0
+    lod.hysteresis = 15.0
+    var near_mesh := MeshInstance3D.new()
+    near_mesh.name = "High"
+    near_mesh.visible = true
+    var far_mesh := MeshInstance3D.new()
+    far_mesh.name = "Low"
+    far_mesh.visible = true
+    var camera := Camera3D.new()
+    camera.name = "Camera"
+    camera.position = Vector3(30.0, 0.0, 0.0)
+    lod.add_child(near_mesh)
+    lod.add_child(far_mesh)
+    lod.add_child(camera)
+    root.add_child(lod)
+    if near_mesh.visible or not far_mesh.visible:
+        failures += 1
+        push_error("_ready must select low mesh exclusively at 30m before first frame")
+
+    camera.position = Vector3(5.0, 0.0, 0.0)
+    await process_frame
+    if not near_mesh.visible or far_mesh.visible:
+        failures += 1
+        push_error("Scene must recover high mesh exclusively at positive 5m")
+    lod.queue_free()
+    await process_frame
+
+    # Missing camera must fail closed to one high-detail mesh and stop
+    # processing rather than leaving both default-visible meshes active.
+    var missing_camera := MobileLod.new()
+    missing_camera.name = "MissingCameraLOD"
+    missing_camera.high_detail_path = NodePath("High")
+    missing_camera.low_detail_path = NodePath("Low")
+    missing_camera.camera_path = NodePath("MissingCamera")
+    var safe_high := MeshInstance3D.new()
+    safe_high.name = "High"
+    safe_high.visible = true
+    var safe_low := MeshInstance3D.new()
+    safe_low.name = "Low"
+    safe_low.visible = true
+    missing_camera.add_child(safe_high)
+    missing_camera.add_child(safe_low)
+    root.add_child(missing_camera)
+    if not safe_high.visible or safe_low.visible or missing_camera.is_processing():
+        failures += 1
+        push_error("Missing camera must leave only high mesh visible and disable processing")
+    missing_camera.queue_free()
+    await process_frame
+
+    print("Mobile LOD pure + scene lifecycle regression: %d failures" % failures)
     quit(1 if failures else 0)
