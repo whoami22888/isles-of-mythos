@@ -205,7 +205,7 @@ export type ServerMessage =
   | { type:"endgame_creature_state"; requestId:string; creature:EndgameCreatureSummary }
   | { type:"mythic_content_list"; requestId:string; content:MythicContentSummary[] }
   | { type:"territory_season_state"; requestId:string; season:TerritorySeasonSummary|null; standings:TerritorySeasonStanding[] }
-  | { type:"error"; code:
+  | { type:"error"; requestId?: string; code:
       | "INVALID_MESSAGE"|"UNSUPPORTED_MESSAGE"|"INVALID_REQUEST_ID"|"AUTH_REQUIRED"|"INVALID_TOKEN"|"INTERNAL_SERVER_ERROR"|"COMBAT_COOLDOWN"|"OUT_OF_RANGE"|"NO_STAMINA"|"NO_AMMO"|"COMBAT_IN_PROGRESS"|"PLAYER_DEAD"|"PLAYER_STUNNED"|"RATE_LIMITED"
       | "RESOURCE_NOT_FOUND"|"RESOURCE_DEPLETED"|"RESOURCE_OUT_OF_RANGE"|"RESOURCE_REQUEST_CONFLICT"|"RESOURCE_NODE_MISMATCH"|"RESOURCE_NODE_UPDATE_FAILED"
       | "CREATURE_TOO_HEALTHY"|"NO_CAPTURE_ORB"|"CREATURE_ALREADY_CAPTURED"|"CREATURE_NOT_FOUND"|"NO_CREATURE_FEED"|"CREATURE_NOT_TAMED"|"INVALID_PARTY_SLOT"
