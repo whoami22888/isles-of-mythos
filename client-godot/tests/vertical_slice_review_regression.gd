@@ -145,5 +145,19 @@ func run() -> void:
 	world.queue_free()
 	await process_frame
 
+	# A ground tap away from resources walks. A tap on a resource still gathers.
+	made = await _make()
+	world = made[0]
+	stub = made[1]
+	world._on_player_state({"x": 0.0, "y": 0.0})
+	world._on_world_chunk("c", {"x": 0, "y": 0, "resources": [{"id": "wood:tap", "x": 8, "y": 0}]})
+	check(world._intent_for_ground(3.0, 4.0) == "move", "empty ground is a free move")
+	world._approach_step()
+	check(stub.moves.size() == 1 and stub.gathers.is_empty(), "free move sends a move intent and does not gather")
+	check(world._intent_for_ground(8.0, 0.0) == "gather", "a tap on a resource gathers")
+	check(world._approaching, "an out-of-range resource tap walks to it first")
+	world.queue_free()
+	await process_frame
+
 	print("Vertical slice review regression: %s failures" % failures)
 	quit(1 if failures else 0)

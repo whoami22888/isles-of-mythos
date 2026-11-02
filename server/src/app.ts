@@ -10,7 +10,7 @@ import { config } from "./config.js";
 import { recordHttpRequest, recordTick, renderPrometheusMetrics, setActivePlayers, setDatabaseUp, setWebSocketAuthenticated, setWebSocketConnections } from "./metrics.js";
 import { AUTHORITATIVE_SIMULATION_TICK_MS, nextAuthoritativeTickDelayMs } from "./simulation-cadence.js";
 import { createDbPool } from "./db.js";
-import { registerAuthRoutes } from "./auth.js";
+import { isGameplayAccessToken, registerAuthRoutes } from "./auth.js";
 import { registerCreatureResearchRoutes } from "./creature-research-routes.js";
 import { log } from "./logger.js";
 import { parseClientMessage, type ServerMessage } from "./protocol.js";
@@ -896,8 +896,10 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
               send(socket, { type: "error", code: "INVALID_MESSAGE" });
               return;
             }
-            const payload = app.jwt.verify<{ sub: string; username: string }>(message.token);
-            if (typeof payload.sub !== "string" || payload.sub.length === 0) throw new Error("invalid_subject");
+            const payload = app.jwt.verify<{ sub: string; username: string; role?: string; typ?: string }>(message.token);
+            if (typeof payload.sub !== "string" || payload.sub.length === 0 || !isGameplayAccessToken(payload)) {
+              throw new Error("invalid_subject");
+            }
             const authenticatedUserId = payload.sub;
             const pendingUnload = pendingPlayerUnloads.get(authenticatedUserId);
             if (pendingUnload) await pendingUnload;

@@ -5,6 +5,7 @@ config_version=5
 config/name="Isles of Mythos"
 run/main_scene="res://scenes/boot.tscn"
 config/default_ws_url=""
+config/internal_gameplay_handoff=true
 
 [display]
 window/size/viewport_width=1280

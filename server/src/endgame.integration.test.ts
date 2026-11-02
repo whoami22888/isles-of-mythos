@@ -18,8 +18,9 @@ async function setup(db=createDbPool()){
     return user;
   };
   const a=await createUser("g16_a");const b=await createUser("g16_b");
-  const ga=(await db.query<{id:string}>("INSERT INTO guilds(name,tag,leader_user_id,level) VALUES($1,$2,$3,5) RETURNING id",["G16A_"+Date.now(),"G6A"+String(Date.now()).slice(-3),a])).rows[0].id;
-  const gb=(await db.query<{id:string}>("INSERT INTO guilds(name,tag,leader_user_id,level) VALUES($1,$2,$3,5) RETURNING id",["G16B_"+Date.now(),"G6B"+String(Date.now()).slice(-3),b])).rows[0].id;
+  const tag=randomUUID().replace(/-/g,"").slice(0,8).toUpperCase();
+  const ga=(await db.query<{id:string}>("INSERT INTO guilds(name,tag,leader_user_id,level) VALUES($1,$2,$3,5) RETURNING id",["G16A_"+tag,"A"+tag.slice(0,7),a])).rows[0].id;
+  const gb=(await db.query<{id:string}>("INSERT INTO guilds(name,tag,leader_user_id,level) VALUES($1,$2,$3,5) RETURNING id",["G16B_"+tag,"B"+tag.slice(1,8),b])).rows[0].id;
   await db.query("INSERT INTO guild_members(guild_id,user_id,rank) VALUES($1,$2,'master'),($3,$4,'master')",[ga,a,gb,b]);
   const armyA=(await db.query<{id:string}>("INSERT INTO armies(owner_user_id,name,assignment,status) VALUES($1,'Gate16 A','realm_warfare','ready') RETURNING id",[a])).rows[0].id;
   const armyB=(await db.query<{id:string}>("INSERT INTO armies(owner_user_id,name,assignment,status) VALUES($1,'Gate16 B','realm_warfare','ready') RETURNING id",[b])).rows[0].id;
