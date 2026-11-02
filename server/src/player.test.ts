@@ -118,10 +118,21 @@ describe("player survival and movement", () => {
     const player = createDefaultPlayer("speedhack");
     const first = authority.evaluate("speedhack", { dx: 1, dy: 0, sequence: 0 }, 1_000);
     const second = authority.evaluate("speedhack", { dx: 1, dy: 0, sequence: 1 }, 1_050);
-    expect(first.accepted).toBe(false);
+    expect(first).toMatchObject({ accepted: true, serverDt: 0 });
     expect(second.serverDt).toBeCloseTo(0.05, 6);
     applyAuthoritativePlayerInput(player, { dx: 1, dy: 0, sequence: 1 }, second.serverDt);
     expect(player.x).toBeCloseTo(0.125, 6);
+  });
+  it("acknowledges a same-millisecond move without granting distance", () => {
+    const authority = new MovementAuthority();
+    const player = createDefaultPlayer("same-ms");
+    authority.prime("same-ms", 1_000);
+    const first = authority.evaluate("same-ms", { dx: 1, dy: 0, sequence: 0 }, 1_000);
+    const second = authority.evaluate("same-ms", { dx: 1, dy: 0, sequence: 1 }, 1_000);
+    expect(first).toMatchObject({ accepted: true, serverDt: 0 });
+    expect(second).toMatchObject({ accepted: true, serverDt: 0 });
+    applyAuthoritativePlayerInput(player, { dx: 1, dy: 0, sequence: 1 }, second.serverDt);
+    expect(player.x).toBe(0);
   });
   it("caps delayed packets to one authoritative movement budget", () => {
     const authority = new MovementAuthority();

@@ -105,4 +105,37 @@ describe("Godot authoritative command gateway contract", () => {
       await db.end();
     }
   });
+
+  it("rejects admin and refresh JWTs on the gameplay socket", async () => {
+    const db = createDbPool();
+    const app = await buildApp({ db, realmAiTickMs: 0 });
+    let socket: WebSocket | undefined;
+    try {
+      await app.listen({ host: "127.0.0.1", port: 0 });
+      const address = app.server.address();
+      if (address === null || typeof address === "string") throw new Error("GODOT_GATEWAY_SERVER_NOT_LISTENING");
+      const connect = async (): Promise<WebSocket> => {
+        const ws = new WebSocket(`ws://127.0.0.1:${address.port}/ws`);
+        await waitFor(ws, (message) => message.type === "server_ready");
+        return ws;
+      };
+      socket = await connect();
+      socket.send(JSON.stringify({
+        type: "auth",
+        token: app.jwt.sign({ sub: "11111111-1111-4111-8111-111111111111", username: "op", role: "admin", typ: "access" }),
+      }));
+      await expect(waitFor(socket, (message) => message.type === "error")).resolves.toMatchObject({ type: "error", code: "INVALID_TOKEN" });
+      socket.close();
+      socket = await connect();
+      socket.send(JSON.stringify({
+        type: "auth",
+        token: app.jwt.sign({ sub: "11111111-1111-4111-8111-111111111111", username: "op", role: "player", typ: "refresh" }),
+      }));
+      await expect(waitFor(socket, (message) => message.type === "error")).resolves.toMatchObject({ type: "error", code: "INVALID_TOKEN" });
+    } finally {
+      socket?.close();
+      await app.close();
+      await db.end();
+    }
+  });
 });
