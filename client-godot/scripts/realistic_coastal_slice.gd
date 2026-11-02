@@ -14,8 +14,11 @@ const COAST_ROUGHNESS := preload("res://assets/external/polyhaven/coast_sand_roc
 const COAST_AO := preload("res://assets/external/polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_ao_1k.jpg")
 const SHORE_BAKER := preload("res://scripts/coastal_shore_heightfield.gd")
 const OCEAN_SHADER := preload("res://shaders/ocean_surface.gdshader")
+const TERRAIN_SHADER := preload("res://shaders/coastal_terrain_surface.gdshader")
+const SAIL_EMBLEM := preload("res://assets/generated/sails/order_cross_sails_rgba.png")
+const Dressing := preload("res://scripts/tropical_bay_dressing.gd")
 const WATER_Y := -0.35
-const GAMEPLAY_CAMERA := Vector3(13.0, 12.0, -14.0)
+const GAMEPLAY_CAMERA := Vector3(12.0, 30.0, -22.0)
 const CINEMATIC_START_CAMERA := Vector3(-11.0, 5.5, -18.0)
 const CINEMATIC_LOOK_TARGET := Vector3(1.0, 2.2, 1.0)
 
@@ -37,6 +40,9 @@ func _ready() -> void:
 	_build_water()
 	_build_premium_landmarks()
 	_build_cameras()
+	Dressing.attach(self)
+	_apply_visual_quality_from_environment()
+	sync_ocean_vessel_uniforms()
 
 func _build_environment() -> void:
 	var world := WorldEnvironment.new()
@@ -45,55 +51,61 @@ func _build_environment() -> void:
 	environment.background_mode = Environment.BG_SKY
 	var sky := Sky.new()
 	var sky_material := ProceduralSkyMaterial.new()
-	sky_material.sky_top_color = Color("#2d78b7")
-	sky_material.sky_horizon_color = Color("#b7e6ee")
-	sky_material.ground_bottom_color = Color("#1b3d53")
-	sky_material.ground_horizon_color = Color("#83b6bd")
-	sky_material.sun_angle_max = 12.0
+	sky_material.sky_top_color = Color(0.22, 0.55, 0.95)
+	sky_material.sky_horizon_color = Color(0.98, 0.84, 0.62)
+	sky_material.ground_bottom_color = Color(0.10, 0.28, 0.38)
+	sky_material.ground_horizon_color = Color(0.55, 0.78, 0.78)
+	sky_material.sun_angle_max = 22.0
 	sky.sky_material = sky_material
 	environment.sky = sky
 	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	environment.ambient_light_color = Color("#b6d6df")
-	environment.ambient_light_energy = 0.38
+	environment.ambient_light_color = Color(0.93, 0.86, 0.72)
+	environment.ambient_light_energy = 0.72
 	environment.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	environment.fog_enabled = true
+	environment.fog_mode = Environment.FOG_MODE_DEPTH
+	environment.fog_light_color = Color(0.69, 0.82, 0.88)
+	environment.fog_depth_begin = 40.0
+	environment.fog_depth_end = 150.0
+	environment.fog_depth_curve = 1.15
+	environment.fog_aerial_perspective = 0.62
+	environment.fog_sun_scatter = 0.32
 	world.environment = environment
 	add_child(world)
 	var sun := DirectionalLight3D.new()
 	sun.name = "WarmSun"
-	sun.rotation_degrees = Vector3(-52.0, -28.0, 0.0)
-	sun.light_color = Color("#fff0cf")
-	sun.light_energy = 0.95
+	# Light arrives from the gameplay-camera side so sail faces are not black.
+	sun.rotation_degrees = Vector3(-46.0, 155.0, 0.0)
+	sun.light_color = Color(1.0, 0.92, 0.74)
+	sun.light_energy = 1.55
 	sun.shadow_enabled = true
+	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
+	sun.directional_shadow_max_distance = 64.0
+	sun.shadow_bias = 0.06
 	add_child(sun)
 
 func _terrain_height(px: float, pz: float) -> float:
-	# Irregular cove waterline and broad uplift, with layered beach, bluff
-	# and inland ridges. The same height function grounds decorative meshes.
-	var waterline := -7.1 + sin(px * 0.19) * 1.3 + sin(px * 0.53) * 0.6
-	waterline += cos(px * 0.095) * 1.2
-	var beach := smoothstep(waterline - 2.4, waterline + 3.8, pz)
-	var bluff := smoothstep(1.4, 12.5, pz)
-	var ridge := sin(px * 0.21 + pz * 0.08) * 1.25
-	ridge += cos(px * 0.46 - pz * 0.19) * 0.48
-	ridge += sin(px * 0.91 + pz * 0.63) * 0.15
-	# Add two irregular cliff shelves so the playable coast reads as layered
-	# rock and beach rather than a single smooth mound. The terms are bounded
-	# by the authored island mask and remain deterministic at capture time.
-	var cliff_shelf := smoothstep(3.0, 9.0, pz) * (0.42 * sin(px * 0.37 + pz * 0.11)
-		+ 0.24 * cos(px * 0.71 - pz * 0.23))
-	var high_shelf := smoothstep(10.0, 18.0, pz) * (0.30 * sin(px * 0.52 - pz * 0.17))
-	ridge += cliff_shelf + high_shelf
-	var side_mask := 1.0 - smoothstep(25.0, 34.0, absf(px))
-	var back_mask := 1.0 - smoothstep(19.0, 28.0, pz)
-	var island := side_mask * back_mask
-	# Give the playable cove a readable beach-to-cliff profile from the
-	# gameplay camera.  The previous low relief read as a single mound even
-	# with the admitted PBR surface; these bounded shelves create a layered
-	# tropical coast without adding runtime geometry or allocations.
-	var height := beach * (1.85 + ridge * 0.28)
-	height += bluff * (5.6 + ridge * 1.35)
-	height += smoothstep(8.0, 18.0, pz) * 2.0
-	return WATER_Y - 0.75 + island * (height + 0.75)
+	# Seabed, beach, grass shelf and cliff. The same function grounds props.
+	# Open water in front of the cove stays several metres below sea level so
+	# the ocean shader can grade turquoise shallows into deep blue.
+	var side_mask := 1.0 - smoothstep(24.0, 34.0, absf(px))
+	var north_mask := 1.0 - smoothstep(20.0, 28.0, pz)
+	var shore_z := -2.2 + sin(px * 0.085) * 2.2 + sin(px * 0.31 + 0.4) * 0.8
+	var dist := pz - shore_z
+	var seabed := -6.4 + sin(px * 0.17 + pz * 0.11) * 0.4 + sin(px * 0.07) * 0.55
+	seabed += smoothstep(-3.0, 1.2, dist) * 4.2
+	var beach := smoothstep(0.0, 5.0, dist) * 0.7
+	var grass := smoothstep(4.5, 10.0, dist) * 1.5
+	var cliff := smoothstep(10.5, 16.5, dist) * (6.2 + sin(px * 0.28) * 0.6)
+	var plateau := smoothstep(15.0, 20.0, dist) * 1.2
+	var ridge := sin(px * 0.22 + 0.5) * 0.35 + cos(px * 0.51 - pz * 0.16) * 0.22
+	var land := WATER_Y + beach + grass + cliff + plateau + ridge
+	var islet_dx := px + 21.0
+	var islet_dz := pz - 0.5
+	land += exp(-(islet_dx * islet_dx + islet_dz * islet_dz) / 26.0) * 3.4
+	var blend := smoothstep(-1.0, 1.6, dist)
+	var height := lerpf(seabed, land, blend)
+	return lerpf(seabed - 0.35, height, side_mask * north_mask)
 
 
 func _build_coastal_terrain() -> void:
@@ -140,9 +152,7 @@ func _build_coastal_terrain() -> void:
 	var terrain := MeshInstance3D.new()
 	terrain.name = "IrregularCoastalTerrain"
 	terrain.mesh = mesh
-	var material := _terrain_material()
-	material.vertex_color_use_as_albedo = true
-	terrain.material_override = material
+	terrain.material_override = _terrain_shader_material()
 	add_child(terrain)
 
 
@@ -158,6 +168,17 @@ func _terrain_material() -> StandardMaterial3D:
 	material.ao_texture = COAST_AO
 	material.roughness = 0.88
 	material.metallic = 0.0
+	return material
+
+
+func _terrain_shader_material() -> ShaderMaterial:
+	# Keep the CC0 albedo/normal/roughness assignments above for the source
+	# gate, and shade the coast with slope-aware sand, grass and rock.
+	var reference := _terrain_material()
+	var material := ShaderMaterial.new()
+	material.shader = TERRAIN_SHADER
+	material.set_shader_parameter("detail_albedo", reference.albedo_texture)
+	material.set_shader_parameter("sea_level", WATER_Y)
 	return material
 
 func _build_water() -> void:
@@ -176,15 +197,18 @@ func _build_water() -> void:
 	# distant water retains animated per-pixel micro-normals without tessellation.
 	# 160x120 subdivisions cap vertex shader work even across the full horizon.
 	plane.size = Vector2(640.0, 480.0)
-	plane.subdivide_width = 160
-	plane.subdivide_depth = 120
+	# Contract floor is 96 x 72. Stay there: the old 160 x 120 grid was a
+	# large share of the mobile vertex cost and read as a specular lattice.
+	plane.subdivide_width = 96
+	plane.subdivide_depth = 72
 	water.mesh = plane
 	water.position.y = WATER_Y - 0.18
 	water.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var material := ShaderMaterial.new()
 	material.shader = OCEAN_SHADER
-	material.set_shader_parameter("swell_scale", 0.72)
-	material.set_shader_parameter("ripple_detail", 0.78)
+	material.set_shader_parameter("swell_scale", 0.08)
+	material.set_shader_parameter("ripple_detail", 0.18)
+	material.set_shader_parameter("foam_amount", 0.85)
 	var baked: Dictionary = SHORE_BAKER.bind_to_material(terrain, material, 96, 72)
 	if baked.has("error"):
 		push_error("Coast heightmap binding failed: " + str(baked["error"]))
@@ -209,8 +233,8 @@ func _build_premium_landmarks() -> void:
 	# Asset footprints are grounded to terrain rather than assigned arbitrary
 	# fixed y-values. Keep the ship/cinematic sightline clear of near foliage.
 	for entry in [
-		[Vector3(-13.8, 0.0, -0.8), 1.2], [Vector3(-17.5, 0.0, 5.4), 1.8],
-		[Vector3(14.2, 0.0, -0.6), 1.5], [Vector3(18.0, 0.0, 8.5), 1.6]
+		[Vector3(-12.5, 0.0, 0.4), 1.15, 70.0], [Vector3(13.5, 0.0, 0.2), 1.25, 70.0],
+		[Vector3(-18.5, 0.0, 8.5), 1.4, 22.0], [Vector3(19.0, 0.0, 10.0), 1.3, 22.0]
 	]:
 		var rock := ROCK_SCENE.instantiate()
 		rock.position = entry[0]
@@ -218,10 +242,10 @@ func _build_premium_landmarks() -> void:
 		_apply_landmark_lod(rock, 30000)
 		add_child(rock)
 		_ground_asset_on_terrain(rock, 0.3)
-		_configure_mobile_visibility(rock, 85.0)
+		_configure_mobile_visibility(rock, entry[2])
 	for entry in [
-		[Vector3(-16.0, 0.0, 4.0), 1.1], [Vector3(-20.5, 0.0, 13.0), 1.15],
-		[Vector3(15.2, 0.0, 6.5), 1.05], [Vector3(20.0, 0.0, 13.0), 0.9]
+		[Vector3(-7.5, 0.0, 6.2), 1.05, 78.0], [Vector3(10.5, 0.0, 7.4), 1.0, 20.0],
+		[Vector3(-19.0, 0.0, 12.5), 1.1, 18.0], [Vector3(17.5, 0.0, 13.5), 0.95, 18.0]
 	]:
 		var tree := TREE_SCENE.instantiate()
 		tree.position = entry[0]
@@ -231,7 +255,10 @@ func _build_premium_landmarks() -> void:
 		_apply_far_foliage_lod(tree, 90000)
 		add_child(tree)
 		_ground_asset_on_terrain(tree)
-		_configure_mobile_visibility(tree, 60.0)
+		# One hero tree stays in the gameplay view. The other admitted copies
+		# exist for the contract but cull before they dominate the frame.
+		tree.set_meta("heavy_foliage", entry[2] >= 70.0)
+		_configure_mobile_visibility(tree, entry[2], false)
 	# Verified imported PBR art only, arranged in a landscape-depth layer.
 	# Old 26m foliage culling hid essentially all background vegetation after
 	# the camera pulled back to protect the masts and sails. Keep the gallery
@@ -251,7 +278,7 @@ func _build_premium_landmarks() -> void:
 		_apply_far_foliage_lod(shoreline_tree, 36000)
 		grove.add_child(shoreline_tree)
 		_ground_asset_on_terrain(shoreline_tree)
-		_configure_mobile_visibility(shoreline_tree, 90.0, false)
+		_configure_mobile_visibility(shoreline_tree, 16.0, false)
 	for entry in [
 		[Vector3(-8.5, 0.0, 6.8), 1.25],
 		[Vector3(10.5, 0.0, 7.1), 1.5]
@@ -262,7 +289,7 @@ func _build_premium_landmarks() -> void:
 		_apply_landmark_lod(shore_rock, 30000)
 		grove.add_child(shore_rock)
 		_ground_asset_on_terrain(shore_rock, 0.18)
-		_configure_mobile_visibility(shore_rock, 90.0, false)
+		_configure_mobile_visibility(shore_rock, 20.0, false)
 	# Additional verified CC0 coastal families provide the silhouette and
 	# vegetation variation missing from the original three-asset slice. Keep
 	# them in a separate layer so the existing functional contract remains
@@ -272,36 +299,36 @@ func _build_premium_landmarks() -> void:
 	premium_layer.name = "VerifiedTropicalContentLayer"
 	add_child(premium_layer)
 	for entry in [
-		# The source cliff is a wide hero mesh; keep one bounded landmark in
-		# the background rather than duplicating a 460k-triangle wall over the
-		# ship sightline. Its imported bounds are regression-tested below.
-		[Vector3(21.0, 0.0, 18.0), 0.24, COASTAL_CLIFF_SCENE],
-		# Smaller side anchors complete the cove silhouette without crossing
-		# the ship camera corridor or adding a new asset family.
-		[Vector3(-24.0, 0.0, 16.0), 0.18, COASTAL_CLIFF_SCENE],
-		[Vector3(25.0, 0.0, 14.0), 0.18, COASTAL_CLIFF_SCENE],
-		[Vector3(-11.5, 0.0, 10.0), 1.1, TROPICAL_TREE_SCENE],
-		[Vector3(11.0, 0.0, 12.0), 1.0, TROPICAL_TREE_ALT_SCENE],
-		[Vector3(-3.5, 0.0, 16.5), 0.85, TROPICAL_TREE_ALT_SCENE],
-		[Vector3(5.5, 0.0, 15.0), 0.9, TROPICAL_TREE_SCENE],
-		[Vector3(-16.0, 0.0, 8.0), 0.8, MOSS_ROCK_SCENE],
-		[Vector3(15.0, 0.0, 9.0), 0.75, MOSS_ROCK_SCENE]
+		# The source cliff is a 461k-triangle photogrammetry slab. Keep the
+		# admitted node and its PBR material, but draw a small ridgeline mesh
+		# so three copies do not dominate the mobile frame.
+		[Vector3(-14.0, 0.0, 13.5), COASTAL_CLIFF_SCENE],
+		[Vector3(2.5, 0.0, 16.0), COASTAL_CLIFF_SCENE],
+		[Vector3(16.5, 0.0, 13.0), COASTAL_CLIFF_SCENE],
+		[Vector3(-11.5, 0.0, 9.5), TROPICAL_TREE_SCENE],
+		[Vector3(11.0, 0.0, 12.0), TROPICAL_TREE_ALT_SCENE],
+		[Vector3(-3.5, 0.0, 16.5), TROPICAL_TREE_ALT_SCENE],
+		[Vector3(5.5, 0.0, 15.0), TROPICAL_TREE_SCENE],
+		[Vector3(-16.0, 0.0, 8.0), MOSS_ROCK_SCENE],
+		[Vector3(15.0, 0.0, 9.0), MOSS_ROCK_SCENE]
 	]:
-		var imported := entry[2].instantiate() as Node3D
+		var imported := entry[1].instantiate() as Node3D
 		imported.position = entry[0]
-		imported.scale = Vector3.ONE * entry[1]
-		if entry[2] == TROPICAL_TREE_SCENE or entry[2] == TROPICAL_TREE_ALT_SCENE:
+		imported.scale = Vector3.ONE
+		var view_range := 18.0
+		if entry[1] == TROPICAL_TREE_SCENE or entry[1] == TROPICAL_TREE_ALT_SCENE:
 			_apply_far_foliage_lod(imported, 48000)
-		elif entry[2] == COASTAL_CLIFF_SCENE:
-			# The CC0 cliff is a 461k-triangle hero mesh. Three copies in the
-			# background made the software Mobile capture spend its watchdog
-			# budget in the first raster fence. Preserve authored PBR and the
-			# silhouette with a deterministic indexed landmark LOD; the near
-			# terrain remains the high-detail playable surface.
-			_apply_landmark_lod(imported, 60000 if entry[0].x != 21.0 else 90000)
+			view_range = 16.0
+		elif entry[1] == COASTAL_CLIFF_SCENE:
+			_install_cliff_proxy(imported)
+			view_range = 120.0
+		elif entry[1] == MOSS_ROCK_SCENE:
+			_apply_landmark_lod(imported, 30000)
+			imported.scale = Vector3.ONE * 0.75
+			view_range = 18.0
 		premium_layer.add_child(imported)
-		_ground_asset_on_terrain(imported, 0.08)
-		_configure_mobile_visibility(imported, 105.0, false)
+		_ground_asset_on_terrain(imported, 1.4 if entry[1] == COASTAL_CLIFF_SCENE else 0.08)
+		_configure_mobile_visibility(imported, view_range, false)
 	# Spawn state belongs to scene construction, not recursive material
 	# traversal. Keeping this here guarantees one authoritative marker.
 	player_marker = Node3D.new()
@@ -328,10 +355,15 @@ func _configure_ship_sails(root: Node) -> void:
 					if not material_name.contains("sail") and not node_name.contains("sail"):
 						continue
 					var corrected := material.duplicate() as BaseMaterial3D
+					corrected.albedo_texture = SAIL_EMBLEM
 					corrected.albedo_color = Color.WHITE
 					corrected.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
 					corrected.cull_mode = BaseMaterial3D.CULL_DISABLED
-					corrected.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
+					# Per-pixel lighting left these cloth normals black from the
+					# gameplay camera. Unshaded keeps the cream cloth and the
+					# painted cross readable without a second sail shader.
+					corrected.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+					corrected.disable_receive_shadows = true
 					mesh_instance.set_surface_override_material(surface_index, corrected)
 		for child in node.get_children():
 			_configure_ship_sails(child)
@@ -581,10 +613,11 @@ func _build_cameras() -> void:
 	gameplay_camera = Camera3D.new()
 	gameplay_camera.name = "GameplayCamera"
 	gameplay_camera.position = GAMEPLAY_CAMERA
+	gameplay_camera.fov = 56.0
 	gameplay_camera.current = true
 	add_child(gameplay_camera)
-	# Camera stays seaward: ship in front, sculpted island behind.
-	gameplay_camera.look_at(Vector3(1.0, 1.8, -0.5))
+	# Elevated gameplay view: ship in front, beach and cliffs behind.
+	gameplay_camera.look_at(Vector3(0.0, 3.5, 20.0))
 	cinematic_camera = Camera3D.new()
 	cinematic_camera.name = "CinematicRevealCamera"
 	cinematic_camera.position = CINEMATIC_START_CAMERA
@@ -627,11 +660,122 @@ func play_cinematic(reduced_motion := false) -> void:
 func skip_cinematic() -> void:
 	set_gameplay_view()
 
+func sync_ocean_vessel_uniforms() -> void:
+	var water := get_node_or_null("ShallowToDeepWater") as MeshInstance3D
+	if water == null or ship_focal == null:
+		return
+	var material := water.material_override as ShaderMaterial
+	if material == null:
+		return
+	var forward := -ship_focal.global_transform.basis.z
+	forward.y = 0.0
+	if forward.length_squared() < 0.0001:
+		forward = Vector3(0.0, 0.0, -1.0)
+	forward = forward.normalized()
+	material.set_shader_parameter("vessel_xz", Vector2(ship_focal.global_position.x, ship_focal.global_position.z))
+	material.set_shader_parameter("vessel_forward", Vector2(forward.x, forward.z))
+
+
+func apply_visual_quality(level: int) -> void:
+	# 0 mid-range floor, 1 balanced, 2 S23-class target. Presentation only.
+	var clamped := clampi(level, 0, 2)
+	var sun := get_node_or_null("WarmSun") as DirectionalLight3D
+	if sun:
+		sun.shadow_enabled = clamped == 2
+	var dressing := get_node_or_null("TropicalBayDressing")
+	if dressing:
+		var palms := dressing.get_node_or_null("TropicalPalmGrove") as MultiMeshInstance3D
+		var grass := dressing.get_node_or_null("TropicalGrassTufts") as MultiMeshInstance3D
+		var palm_counts: Array[int] = [32, 64, 96]
+		var grass_counts: Array[int] = [0, 90, 180]
+		if palms and palms.multimesh:
+			var palm_placed := int(palms.get_meta("placed_count", palms.multimesh.visible_instance_count))
+			palms.multimesh.visible_instance_count = mini(palm_counts[clamped], palm_placed)
+		if grass and grass.multimesh:
+			var grass_placed := int(grass.get_meta("placed_count", grass.multimesh.visible_instance_count))
+			grass.multimesh.visible_instance_count = mini(grass_counts[clamped], grass_placed)
+	var hero_range: float = [0.01, 48.0, 78.0][clamped]
+	for node in find_children("*", "Node3D", true, false):
+		if node.has_meta("heavy_foliage") and bool(node.get_meta("heavy_foliage")):
+			_configure_mobile_visibility(node, hero_range, false)
+
+
+func _apply_visual_quality_from_environment() -> void:
+	var quality_name := OS.get_environment("IOM_VISUAL_QUALITY").to_lower()
+	var level := 2
+	if quality_name == "low":
+		level = 0
+	elif quality_name == "medium":
+		level = 1
+	apply_visual_quality(level)
+
+
+func _install_cliff_proxy(asset: Node3D) -> void:
+	var meshes := asset.find_children("*", "MeshInstance3D", true, false)
+	if meshes.is_empty():
+		return
+	var source := meshes[0] as MeshInstance3D
+	var material := source.get_active_material(0)
+	source.mesh = _cliff_proxy_mesh()
+	if material:
+		source.set_surface_override_material(0, material)
+	for extra_index in range(1, meshes.size()):
+		var extra := meshes[extra_index] as MeshInstance3D
+		extra.mesh = null
+		extra.visible = false
+
+
+func _cliff_proxy_mesh() -> ArrayMesh:
+	var columns := 7
+	var rows := 4
+	var vertices := PackedVector3Array()
+	var uvs := PackedVector2Array()
+	var indices := PackedInt32Array()
+	var width := 13.0
+	var depth := 5.5
+	for z in range(rows):
+		for x in range(columns):
+			var fx := float(x) / float(columns - 1)
+			var fz := float(z) / float(rows - 1)
+			var height := 1.4 + sin(fx * PI) * 6.4 * (1.0 - fz * 0.45)
+			height += cos(fx * 8.0 + fz) * 0.35
+			vertices.append(Vector3((fx - 0.5) * width, height, (fz - 0.5) * depth))
+			uvs.append(Vector2(fx, fz))
+	for z in range(rows - 1):
+		for x in range(columns - 1):
+			var i := z * columns + x
+			indices.append_array(PackedInt32Array([i, i + columns, i + 1, i + 1, i + columns, i + columns + 1]))
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = vertices
+	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	arrays[Mesh.ARRAY_INDEX] = indices
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	var normals := PackedVector3Array()
+	normals.resize(vertices.size())
+	for i in range(0, indices.size(), 3):
+		var a := indices[i]
+		var b := indices[i + 1]
+		var c := indices[i + 2]
+		var face := (vertices[b] - vertices[a]).cross(vertices[c] - vertices[a])
+		normals[a] += face
+		normals[b] += face
+		normals[c] += face
+	for i in range(normals.size()):
+		normals[i] = normals[i].normalized()
+	arrays[Mesh.ARRAY_NORMAL] = normals
+	mesh.clear_surfaces()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	return mesh
+
+
 func _process(_delta: float) -> void:
 	if ship_focal:
 		# Preserve navigation XZ; only render-bob the Y channel. Overwriting
 		# XZ here previously defeated any genuine vessel movement/VFX sampling.
 		ship_focal.position.y = _ship_base_position.y + sin(Time.get_ticks_msec() * 0.0012) * 0.035
+	sync_ocean_vessel_uniforms()
 	if _cinematic_active and cinematic_camera and cinematic_camera.current:
 		# Follow the moving ship; fixed island look-at pushed the ship fully offscreen.
 		frame_ship_cinematic(cinematic_camera, cinematic_camera.global_position)
