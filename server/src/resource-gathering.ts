@@ -1,4 +1,6 @@
 import { measureMutationStage, type MutationTiming } from "./mutation-timing.js";
+import { randomUUID } from "node:crypto";
+import { performance } from "node:perf_hooks";
 import type { Pool } from "pg";
 import { applyInventoryDelta, runEconomyMutation } from "./economy.js";
 import type { ResourceNode } from "./world.js";
@@ -33,6 +35,24 @@ export async function gatherResource(
   if (!reward) throw new Error("RESOURCE_NOT_FOUND");
 
   const client = await measureMutationStage(timing, "poolAcquireMs", () => db.connect());
+  if (timing) {
+    // node-postgres receives this PID during connection startup; avoid a
+    // diagnostic query on the measured mutation's critical path.
+    const backendPid = (client as typeof client & { processID?: number | null }).processID;
+    timing.diagnostic = { traceId: randomUUID(), backendPid: Number.isInteger(backendPid) ? backendPid as number : -1 };
+  }
+  const commit = async (): Promise<void> => {
+    const before = timing?.diagnostic ? performance.eventLoopUtilization() : undefined;
+    try {
+      await measureMutationStage(timing, "commitMs", () => client.query("COMMIT"));
+    } finally {
+      if (timing?.diagnostic && before) {
+        const delta = performance.eventLoopUtilization(before);
+        timing.diagnostic.commitEventLoopActiveMs = delta.active;
+        timing.diagnostic.commitEventLoopIdleMs = delta.idle;
+      }
+    }
+  };
   let rollbackFailure: Error | undefined;
   try {
     await measureMutationStage(timing, "beginMs", () => client.query("BEGIN"));
@@ -51,7 +71,7 @@ export async function gatherResource(
     if (existing.rows[0]) {
       const row = existing.rows[0];
       if (row.fingerprint !== fingerprint) throw new Error("RESOURCE_REQUEST_CONFLICT");
-      await measureMutationStage(timing, "commitMs", () => client.query("COMMIT"));
+      await commit();
       return {
         transactionId: row.transaction_id,
         nodeId: row.node_id,
@@ -127,7 +147,7 @@ export async function gatherResource(
       const row = retry.rows[0];
       if (!row) throw new Error("RESOURCE_REQUEST_CONFLICT");
       if (row.fingerprint !== fingerprint) throw new Error("RESOURCE_REQUEST_CONFLICT");
-      await measureMutationStage(timing, "commitMs", () => client.query("COMMIT"));
+      await commit();
       return {
         transactionId: row.transaction_id,
         nodeId: row.node_id,
@@ -155,7 +175,7 @@ export async function gatherResource(
       [userId, requestId, respawnsAt],
     );
 
-    await measureMutationStage(timing, "commitMs", () => client.query("COMMIT"));
+    await commit();
     return {
       transactionId: requestInsert.rows[0]?.transaction_id ?? (()=>{throw new Error("RESOURCE_TRANSACTION_ID_MISSING");})(),
       nodeId: node.id,
