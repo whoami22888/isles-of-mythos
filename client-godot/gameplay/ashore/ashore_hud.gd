@@ -120,18 +120,19 @@ func _build_widgets() -> void:
 			bar.offset_top = -54
 		add_child(bar)
 		_bars.append(bar)
-	_line = _label(34)
+	_line = _label(26)
 	_line.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	_line.offset_top = 62
-	_line.offset_bottom = 108
-	_line.offset_left = -420
-	_line.offset_right = 420
+	_line.offset_top = 14
+	_line.offset_bottom = 50
+	_line.offset_left = -260
+	_line.offset_right = 260
+	_line.add_theme_stylebox_override("normal", _pill(Color(0.03, 0.08, 0.12, 0.55), Color(0.98, 0.82, 0.45, 0.0)))
 	_line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	add_child(_line)
-	_hint = _label(22)
+	_hint = _label(20)
 	_hint.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	_hint.offset_top = 108
-	_hint.offset_bottom = 140
+	_hint.offset_top = 54
+	_hint.offset_bottom = 80
 	_hint.offset_left = -460
 	_hint.offset_right = 460
 	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -139,11 +140,11 @@ func _build_widgets() -> void:
 	add_child(_hint)
 	_warm = ColorRect.new()
 	_warm.color = Color(0.05, 0.1, 0.16, 0.7)
-	_warm.set_anchors_preset(Control.PRESET_TOP_WIDE)
-	_warm.offset_left = 24
-	_warm.offset_right = -24
-	_warm.offset_top = 146
-	_warm.offset_bottom = 172
+	_warm.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	_warm.offset_left = 18
+	_warm.offset_right = 198
+	_warm.offset_top = 64
+	_warm.offset_bottom = 76
 	_warm.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_warm)
 	_warm_fill = ColorRect.new()
@@ -156,11 +157,11 @@ func _build_widgets() -> void:
 	_warm.add_child(_warm_fill)
 	_hunger = ColorRect.new()
 	_hunger.color = Color(0.08, 0.12, 0.08, 0.65)
-	_hunger.set_anchors_preset(Control.PRESET_TOP_WIDE)
-	_hunger.offset_left = 24
-	_hunger.offset_right = -24
-	_hunger.offset_top = 176
-	_hunger.offset_bottom = 192
+	_hunger.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	_hunger.offset_left = 18
+	_hunger.offset_right = 198
+	_hunger.offset_top = 80
+	_hunger.offset_bottom = 90
 	_hunger.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_hunger)
 	_hunger_fill = ColorRect.new()
@@ -172,23 +173,27 @@ func _build_widgets() -> void:
 	_hunger_fill.offset_left = 2
 	_hunger.add_child(_hunger_fill)
 	_counts = HBoxContainer.new()
-	_counts.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	_counts.offset_top = 198
-	_counts.offset_bottom = 242
-	_counts.offset_left = -520
-	_counts.offset_right = 520
-	_counts.alignment = BoxContainer.ALIGNMENT_CENTER
-	_counts.add_theme_constant_override("separation", 14)
+	_counts.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_counts.offset_top = 14
+	_counts.offset_bottom = 46
+	_counts.offset_left = -620
+	_counts.offset_right = -14
+	_counts.alignment = BoxContainer.ALIGNMENT_END
+	_counts.add_theme_constant_override("separation", 6)
 	add_child(_counts)
 	for kind in ["planks", "rope", "cloth", "wood", "food", "meat", "flint", "fish", "cooked"]:
-		var lab := _label(24)
+		var lab := _label(20)
 		lab.text = "0"
+		lab.custom_minimum_size = Vector2(52, 30)
+		lab.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		lab.add_theme_stylebox_override("normal", _pill(Color(0.03, 0.08, 0.12, 0.6), _icon_color(kind)))
+		lab.visible = false
 		_counts.add_child(lab)
 		_count_labels[kind] = lab
 	_health = _label(26)
 	_health.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	_health.offset_top = 246
-	_health.offset_bottom = 280
+	_health.offset_top = 84
+	_health.offset_bottom = 114
 	_health.offset_left = -200
 	_health.offset_right = 200
 	_health.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -240,9 +245,9 @@ func _build_widgets() -> void:
 	_research_toggle.pressed.connect(_emit_research_toggle)
 	add_child(_research_toggle)
 	_pet_chip = _button("Pet", 20)
-	_pet_chip.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
-	_pet_chip.offset_left = 200
-	_pet_chip.offset_right = 420
+	_pet_chip.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	_pet_chip.offset_left = -400
+	_pet_chip.offset_right = -226
 	_pet_chip.offset_top = -120
 	_pet_chip.offset_bottom = -36
 	_pet_chip.visible = false
@@ -344,7 +349,7 @@ func _build_widgets() -> void:
 func _apply_meters() -> void:
 	var warmth := clampf(float(_state.get("warmth", 0.0)) / 100.0, 0.0, 1.0)
 	var hunger := clampf(float(_state.get("hunger", 0.0)) / 100.0, 0.0, 1.0)
-	var width := maxf(get_viewport().get_visible_rect().size.x - 54.0, 80.0)
+	var width := 174.0
 	_warm_fill.offset_right = 3.0 + width * warmth
 	_warm_fill.color = Color(0.32, 0.58, 0.95).lerp(Color(0.96, 0.42, 0.12), warmth)
 	_hunger_fill.offset_right = 2.0 + width * hunger
@@ -359,7 +364,9 @@ func _apply_counts() -> void:
 	var counts: Dictionary = _state.get("counts", {})
 	for kind in _count_labels.keys():
 		var label: Label = _count_labels[kind]
-		label.text = "%s %d" % [_icon_word(kind), int(counts.get(kind, 0))]
+		var n := int(counts.get(kind, 0))
+		label.text = "%s %d" % [_short(kind), n]
+		label.visible = n > 0
 
 
 func _apply_buttons() -> void:
@@ -574,6 +581,58 @@ func _icon_word(kind: String) -> String:
 	return kind
 
 
+func _over_button(at: Vector2) -> bool:
+	for child in get_children():
+		if child is Control and (child as Control).is_visible_in_tree():
+			var c := child as Control
+			if (c is Button or c is PanelContainer) and c.get_global_rect().has_point(at):
+				return true
+	return false
+
+
+func _pill(bg: Color, edge: Color) -> StyleBoxFlat:
+	var box := StyleBoxFlat.new()
+	box.bg_color = bg
+	box.set_corner_radius_all(14)
+	box.border_width_left = 12
+	box.border_color = edge
+	box.content_margin_left = 18
+	box.content_margin_right = 10
+	box.content_margin_top = 2
+	box.content_margin_bottom = 2
+	return box
+
+
+func _icon_color(kind: String) -> Color:
+	match kind:
+		"rope":
+			return Color(0.78, 0.6, 0.32)
+		"cloth":
+			return Color(0.9, 0.3, 0.34)
+		"wood":
+			return Color(0.55, 0.33, 0.16)
+		"food":
+			return Color(0.95, 0.28, 0.2)
+		"meat":
+			return Color(0.78, 0.24, 0.26)
+		"flint":
+			return Color(0.55, 0.6, 0.66)
+		"fish":
+			return Color(0.25, 0.72, 0.8)
+		"cooked":
+			return Color(0.92, 0.55, 0.18)
+	return Color(0.86, 0.67, 0.32)
+
+
+func _short(kind: String) -> String:
+	match kind:
+		"planks":
+			return "Plank"
+		"cooked":
+			return "Meal"
+	return _icon_word(kind)
+
+
 func _count_anchor() -> Vector2:
 	if _counts:
 		return _counts.global_position + _counts.size * 0.5
@@ -584,7 +643,7 @@ func _input(event: InputEvent) -> void:
 	var rect := get_viewport().get_visible_rect().size
 	var in_joy := false
 	if event is InputEventScreenTouch or event is InputEventScreenDrag or event is InputEventMouseButton or event is InputEventMouseMotion:
-		in_joy = event.position.x < rect.x * 0.42 and event.position.y > rect.y * 0.42
+		in_joy = event.position.x < rect.x * 0.42 and event.position.y > rect.y * 0.42 and not _over_button(event.position)
 	if event is InputEventScreenTouch:
 		if event.pressed and in_joy and _joy_id < 0:
 			_joy_id = event.index
