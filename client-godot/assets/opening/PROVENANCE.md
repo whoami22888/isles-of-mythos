@@ -45,3 +45,5 @@ Extracted into `client-godot/assets/opening/kenney/`: cannon, cannon-ball, barre
 | `audio/swing.ogg` | `b726014de7fa3e6d47c3146582744b5270471100ace0fd4b87a8afb9baba9173` | artisticdude, [Swishes sound pack](https://opengameart.org/content/swishes-sound-pack), `swishes/swish-7.wav`. Archive SHA-256 `7980215241b739a787dcf26f660ce510bb237900968789395a86911619795693` |
 
 The title cannon and shanty are documented in `client-godot/assets/TITLE_SCREEN_PROVENANCE.md`. `soft_round.png` is an original radial particle sprite generated for this scene, not a third-party texture.
+
+Washed-ashore recordings are registered in `client-godot/assets/ashore/PROVENANCE.md`.
