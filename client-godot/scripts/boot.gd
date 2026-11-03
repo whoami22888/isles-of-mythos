@@ -15,7 +15,7 @@ const TOUCH_MIN_HEIGHT := 44.0
 const INTRO_VIDEO := "res://assets/video/intro_cinematic.ogv"
 const TITLE_VIDEO := "res://assets/video/title_loop.ogv"
 const BOOM_AUDIO := "res://assets/audio/cannon_boom.wav"
-const BED_AUDIO := "res://assets/audio/shanty_bed.wav"
+const BED_AUDIO := "res://assets/audio/shanty_bed.ogg"
 const DISPLAY_FONT := "res://assets/fonts/PirataOne-Regular.ttf"
 const UI_FONT := "res://assets/fonts/IMFeENrm28P.ttf"
 const SESSION_PATH := "user://iom_login_session.cfg"
@@ -526,6 +526,12 @@ func _flat_box(fill: Color, border: Color, width: int) -> StyleBoxFlat:
 
 func _looping_stream(path: String) -> AudioStream:
     var loaded = load(path)
+    if loaded is AudioStreamOggVorbis:
+        var music := (loaded as AudioStreamOggVorbis).duplicate() as AudioStreamOggVorbis
+        if music == null:
+            return loaded
+        music.loop = true
+        return music
     if not (loaded is AudioStreamWAV):
         return null
     var loop := (loaded as AudioStreamWAV).duplicate() as AudioStreamWAV
@@ -1339,8 +1345,17 @@ func _launch_internal_gameplay(message: Dictionary) -> void:
     if _adapter._url.is_empty() or _adapter._token.is_empty():
         return
     _release_title_media()
-    var gameplay = load("res://gameplay/vertical_slice.tscn").instantiate()
+    var scene_path := "res://gameplay/vertical_slice.tscn"
+    if not _opening_battle_done():
+        scene_path = "res://gameplay/opening_battle.tscn"
+    var gameplay = load(scene_path).instantiate()
     gameplay.begin_authenticated_session(_adapter._url, _adapter._token, _refresh_token)
     get_tree().root.add_child(gameplay)
     get_tree().current_scene = gameplay
     queue_free()
+
+func _opening_battle_done() -> bool:
+    var cfg := ConfigFile.new()
+    if cfg.load("user://opening_battle.cfg") != OK:
+        return false
+    return bool(cfg.get_value("opening", "completed", false))
