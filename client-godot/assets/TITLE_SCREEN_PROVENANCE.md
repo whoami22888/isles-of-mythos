@@ -28,13 +28,11 @@ Both clips were attached by the project owner for this title screen. They are AI
 
 License text is committed beside each font. OFL-1.1 allows commercial embedding. The reserved names were not changed. Pirata One is the carved title and the "TAP TO SET SAIL" prompt. IM Fell English is the login-panel text so account fields stay readable.
 
-## Original audio (CC0-1.0)
+## Recorded audio (CC0-1.0)
 
-No Kenney, OpenGameArt, or Sonniss file was downloaded for this screen. The hit and the music bed were synthesized by `client-godot/assets/audio/synthesize_title_audio.py` and are dedicated to the public domain under [CC0-1.0](https://creativecommons.org/publicdomain/zero/1.0/).
+The earlier synthesised hit and hornpipe were removed. Both title cues are now real recordings, loudness-normalised so the decoded peak stays below 0 dBFS. Playback is unchanged: Godot's Master bus at or below 0 dB, the title loop's own Vorbis track stays muted, and the on-screen Sound control silences the intro, the hit, and the bed without muting the later gameplay scene.
 
-| File | Role | SHA-256 |
-| --- | --- | --- |
-| `client-godot/assets/audio/cannon_boom.wav` | Layered cannon hit: falling sine thump, sub sine, a 28 ms second layer, low-passed noise, a short crack, and a tail. 44.1 kHz mono, 1.75 s | `2c9e23e2515a89340da4aad7eb1cfbf5ccf39deb4f6c631abe7a6ace4f5935d5` |
-| `client-godot/assets/audio/shanty_bed.wav` | 8-bar D-dorian hornpipe at 120 BPM (melody, harmony, bass, kick, snare, hat), looped. 22.05 kHz mono, 16 s | `cba1066c35a01cfc88c55e2d97885c3d28869ba9b7e3907b58af5d3930b43aea` |
-
-Playback uses Godot's Master bus at or below 0 dB so the phone media volume still applies. The title loop's own Vorbis track stays muted. The on-screen Sound control silences the intro, the hit, and the bed without muting the later gameplay scene.
+| File | Role | Source | SHA-256 of the bytes in this tree |
+| --- | --- | --- | --- |
+| `client-godot/assets/audio/cannon_boom.wav` | Cannon hit, 44.1 kHz mono 16-bit PCM, 1.80 s, peak −1.51 dBFS | rubberduck, [25 CC0 bang / firework SFX](https://opengameart.org/content/25-cc0-bang-firework-sfx), file `cannon_02.ogg`. Recorded cannon/firework bangs. [CC0-1.0](https://creativecommons.org/publicdomain/zero/1.0/). Archive SHA-256 `c0c9ecc11e2dc0d190f0cced755569858234b8528286bc83becb6314c663407f` | `d37c88e99bda1ab8a3aad9b966999c6728d52c7aa99504e61fe4c8473b5c072f` |
+| `client-godot/assets/audio/shanty_bed.ogg` | Looping sea-shanty bed, 68.1 s, stereo Vorbis, hotter channel peak −1.29 dBFS | Thimras, [A sailor's chant](https://opengameart.org/content/a-sailors-chant), `oga_jam_menu_music_loopable.ogg`. Harpsichord, flute and voice. [CC0-1.0](https://creativecommons.org/publicdomain/zero/1.0/). Source file SHA-256 `f830d37ad4c15a31282dd792c050c36e16b97251d9a3b0150e8be645d75a1cc7` | `8c36f0e960031315e16df9e6fec1b2a3f36de8b448fb9bc2b3875bc9df0ccfdd` |
