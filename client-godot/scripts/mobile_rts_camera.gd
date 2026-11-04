@@ -13,6 +13,8 @@ extends Camera3D
 const TAP_SLOP_PIXELS := 16.0
 
 var touch_points: Dictionary = {}
+# Every physical contact, including HUD contacts that never become gestures.
+var _active_contacts: Dictionary = {}
 var _tap_starts: Dictionary = {}
 var _completed_taps: Dictionary = {}
 var _last_pinch_distance := 0.0
@@ -58,27 +60,46 @@ func _handle_touch(event: InputEventScreenTouch) -> void:
 	var index := event.index
 	if event.pressed:
 		_completed_taps.erase(index)
+		_active_contacts[index] = true
+		if _active_contacts.size() > 1:
+			# Any second physical contact (world or HUD) cancels all pending taps.
+			_tap_starts.clear()
 		if touch_points.size() >= 2 or _is_over_ui(event.position):
 			return
 		touch_points[index] = event.position
 		if touch_points.size() == 1:
-			_tap_starts[index] = event.position
+			if _active_contacts.size() == 1:
+				_tap_starts[index] = event.position
 		else:
-			# Two-finger gestures must never count as gather taps.
 			_tap_starts.clear()
 			_reset_pinch_baseline()
 		return
 
+	_active_contacts.erase(index)
 	if not touch_points.has(index):
 		return
 	var started_as_tap := _tap_starts.has(index)
 	var within_slop := started_as_tap and event.position.distance_to(_tap_starts[index]) <= TAP_SLOP_PIXELS
 	touch_points.erase(index)
 	_tap_starts.erase(index)
-	if within_slop and touch_points.is_empty():
+	if within_slop and touch_points.is_empty() and _active_contacts.is_empty():
 		_completed_taps[index] = true
 	if touch_points.size() < 2:
 		_last_pinch_distance = 0.0
+
+
+func _notification(what: int) -> void:
+	# Lost focus / app pause: the OS may never deliver the releases.
+	if what == NOTIFICATION_APPLICATION_FOCUS_OUT or what == NOTIFICATION_APPLICATION_PAUSED:
+		reset_touch_state()
+
+
+func reset_touch_state() -> void:
+	_active_contacts.clear()
+	touch_points.clear()
+	_tap_starts.clear()
+	_completed_taps.clear()
+	_last_pinch_distance = 0.0
 
 
 func _handle_drag(event: InputEventScreenDrag) -> void:

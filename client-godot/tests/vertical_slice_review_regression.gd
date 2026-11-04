@@ -43,6 +43,22 @@ func _make() -> Array:
 	world._client = stub
 	return [world, stub]
 
+func _touch(world, index: int, pressed: bool, pos: Vector2) -> void:
+	var e := InputEventScreenTouch.new()
+	e.index = index
+	e.pressed = pressed
+	e.position = pos
+	world.get_node("Camera").call("_input", e)
+	world._unhandled_input(e)
+
+func _drag(world, index: int, pos: Vector2, rel: Vector2) -> void:
+	var e := InputEventScreenDrag.new()
+	e.index = index
+	e.position = pos
+	e.relative = rel
+	world.get_node("Camera").call("_input", e)
+	world._unhandled_input(e)
+
 func run() -> void:
 	# Finding 2: request the chunk that contains the authoritative player.
 	var made = await _make()
@@ -145,6 +161,54 @@ func run() -> void:
 	world._unhandled_input(synthesized_mouse)
 	check(not world._approaching, "emulated mouse press from touchscreen cannot gather")
 
+	world.queue_free()
+	await process_frame
+
+	# PR #250 review: end-to-end touch dispatch through the real world handler.
+	made = await _make()
+	world = made[0]
+	stub = made[1]
+	world._on_player_state({"x": 5.0, "y": 5.0})
+	world._on_world_chunk("c", {"x": 0, "y": 0, "resources": [{"id": "wood:e2e", "x": 5, "y": 5}]})
+	var w := Vector2(700, 450)
+	var hud := Vector2(30, 30)
+	_touch(world, 0, true, w)
+	_touch(world, 0, false, w)
+	check(stub.gathers == ["wood:e2e"], "stationary world tap issues exactly one gather intent, got %s" % [stub.gathers])
+	world._unhandled_input(InputEventScreenTouch.new())
+	check(stub.gathers.size() == 1, "repeated release cannot double-submit")
+	_touch(world, 1, true, w)
+	_drag(world, 1, w + Vector2(80, 0), Vector2(80, 0))
+	_touch(world, 1, false, w + Vector2(80, 0))
+	_touch(world, 2, true, w)
+	_touch(world, 3, true, w + Vector2(100, 0))
+	_drag(world, 3, w + Vector2(160, 40), Vector2(60, 40))
+	_touch(world, 3, false, w + Vector2(160, 40))
+	_touch(world, 2, false, w)
+	_touch(world, 4, true, hud)
+	_touch(world, 4, false, hud)
+	# Mixed HUD/world contacts, both orders, and world release while HUD held.
+	_touch(world, 5, true, w)
+	_touch(world, 6, true, hud)
+	_touch(world, 5, false, w)
+	_touch(world, 6, false, hud)
+	_touch(world, 7, true, hud)
+	_touch(world, 8, true, w)
+	_touch(world, 8, false, w)
+	_touch(world, 7, false, hud)
+	_touch(world, 9, true, w)
+	_touch(world, 10, true, hud)
+	_touch(world, 10, false, hud)
+	_touch(world, 9, false, w)
+	check(stub.gathers.size() == 1 and not world._approaching and stub.moves.is_empty(), "drag, pinch, HUD and mixed HUD/world touches issue no intents, got %s" % [stub.gathers])
+	# Interrupted session: a pending press must not survive focus loss.
+	_touch(world, 11, true, w)
+	world.get_node("Camera").reset_touch_state()
+	_touch(world, 11, false, w)
+	check(stub.gathers.size() == 1, "touch state reset on focus loss drops the pending tap")
+	_touch(world, 12, true, w)
+	_touch(world, 12, false, w)
+	check(stub.gathers.size() == 2, "normal tap works again after mixed gestures")
 	world.queue_free()
 	await process_frame
 
