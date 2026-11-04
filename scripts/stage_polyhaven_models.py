@@ -8,8 +8,11 @@ restricted to the official Poly Haven download host and verified by SHA-256.
 from __future__ import annotations
 
 import hashlib
+import io
 import json
 import os
+import secrets
+import stat
 from pathlib import Path, PurePosixPath
 import sys
 from urllib.parse import urlparse
@@ -17,7 +20,7 @@ from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "docs/graphics/polyhaven-model-candidates.json"
-OUTPUT = Path(os.environ.get("IOM_STAGE_DIR", "asset-staging/models")).resolve()
+OUTPUT = Path(os.environ.get("IOM_STAGE_DIR", "asset-staging/models")).absolute()
 MAX_BYTES = 128 * 1024 * 1024
 HOSTS = {"dl.polyhaven.org"}
 UA = "IslesOfMythos-CI/1.0 (Godot4.7.2-AssetPipeline)"
@@ -41,36 +44,91 @@ OPENER = build_opener(ApprovedRedirects())
 
 
 def validate_path(path: str) -> Path:
+    if not isinstance(path, str) or not path or "\\" in path:
+        raise ValueError("Unsafe staged model path")
     rel = PurePosixPath(path)
-    if rel.is_absolute() or ".." in rel.parts or "\\" in path:
+    if rel.is_absolute() or ".." in rel.parts or rel.name in ("", ".", ".."):
         raise ValueError("Unsafe staged model path")
     return OUTPUT / rel
 
 
-def download(entry: dict) -> dict:
-    target = validate_path(entry["path"])
-    approved_url(entry["download_url"])
-    expected = entry["sha256"]
-    if len(expected) != 64 or any(c not in "0123456789abcdef" for c in expected):
+def _stage_stream(path: str, source, expected: str | None = None) -> tuple[str, int]:
+    """Verify a temporary download before atomic publication inside staging.
+
+    Directory descriptors and O_NOFOLLOW reject parent and final-file symlinks,
+    including attempts to redirect writes outside IOM_STAGE_DIR.
+    """
+    validate_path(path)
+    if expected is not None and (not isinstance(expected, str) or len(expected) != 64
+                                 or any(c not in "0123456789abcdef" for c in expected)):
         raise ValueError("Invalid SHA-256 in model manifest")
-    target.parent.mkdir(parents=True, exist_ok=True)
-    request = Request(entry["download_url"], headers={"User-Agent": UA, "Accept": "*/*"})
-    digest = hashlib.sha256()
-    size = 0
-    with OPENER.open(request, timeout=45) as response:
-        approved_url(response.url)
-        with target.open("wb") as output:
-            while chunk := response.read(65536):
+    rel = PurePosixPath(path)
+    directory_flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+    directory = os.open(OUTPUT, directory_flags)
+    temp_name = None
+    created = False
+    try:
+        for part in rel.parts[:-1]:
+            try:
+                os.mkdir(part, dir_fd=directory)
+            except FileExistsError:
+                pass
+            child = os.open(part, directory_flags, dir_fd=directory)
+            os.close(directory)
+            directory = child
+        try:
+            existing = os.stat(rel.name, dir_fd=directory, follow_symlinks=False)
+        except FileNotFoundError:
+            existing = None
+        if existing is not None and not stat.S_ISREG(existing.st_mode):
+            raise ValueError("Staged model destination must be a regular file")
+        temp_name = f".{rel.name}.{secrets.token_hex(12)}.tmp"
+        fd = os.open(temp_name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                     0o600, dir_fd=directory)
+        created = True
+        digest = hashlib.sha256()
+        size = 0
+        with os.fdopen(fd, "wb") as output:
+            while chunk := source.read(65536):
                 size += len(chunk)
                 if size > MAX_BYTES:
                     raise ValueError("Staged model file exceeds byte limit")
                 digest.update(chunk)
                 output.write(chunk)
-    actual = digest.hexdigest()
-    if actual != expected:
-        target.unlink(missing_ok=True)
-        raise ValueError(f"SHA-256 mismatch for {entry['path']}: {actual}")
-    return {"path": entry["path"], "sha256": actual, "bytes": size}
+            output.flush()
+            os.fsync(output.fileno())
+        actual = digest.hexdigest()
+        if expected is not None and actual != expected:
+            raise ValueError(f"SHA-256 mismatch for {path}: {actual}")
+        try:
+            existing = os.stat(rel.name, dir_fd=directory, follow_symlinks=False)
+        except FileNotFoundError:
+            existing = None
+        if existing is not None and not stat.S_ISREG(existing.st_mode):
+            raise ValueError("Staged model destination must be a regular file")
+        os.replace(temp_name, rel.name, src_dir_fd=directory, dst_dir_fd=directory)
+        created = False
+        os.fsync(directory)
+        return actual, size
+    finally:
+        if created:
+            os.unlink(temp_name, dir_fd=directory)
+        os.close(directory)
+
+
+def download(entry: dict) -> dict:
+    path = entry["path"]
+    validate_path(path)
+    approved_url(entry["download_url"])
+    expected = entry["sha256"]
+    if not isinstance(expected, str) or len(expected) != 64 or any(
+            c not in "0123456789abcdef" for c in expected):
+        raise ValueError("Invalid SHA-256 in model manifest")
+    request = Request(entry["download_url"], headers={"User-Agent": UA, "Accept": "*/*"})
+    with OPENER.open(request, timeout=45) as response:
+        approved_url(response.url)
+        actual, size = _stage_stream(path, response, expected)
+    return {"path": path, "sha256": actual, "bytes": size}
 
 
 def main() -> int:
@@ -85,7 +143,7 @@ def main() -> int:
     receipt = {"status": "candidate-not-approved", "source": payload["source"],
                "license": payload["license"], "license_url": payload["license_url"],
                "files": staged}
-    (OUTPUT / "receipt.json").write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
+    _stage_stream("receipt.json", io.BytesIO((json.dumps(receipt, indent=2) + "\n").encode()))
     print(f"Staged {len(staged)} model-closure files for visual/import review")
     return 0
 
