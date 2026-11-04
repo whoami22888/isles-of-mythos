@@ -362,16 +362,14 @@ static func _distant_islands() -> MeshInstance3D:
 ## Irregular island: noisy coastline, ridged slopes, beach shelf and a
 ## submerged skirt so the ocean shader meets real geometry at sea level.
 ## Every face is clockwise from above (Godot front face) by construction.
-static func landmass_mesh(radius_x: float, radius_z: float, peak: float, seed: float, crater: float) -> ArrayMesh:
-	const RINGS := 10
-	const SECTORS := 30
+static func landmass_mesh(radius_x: float, radius_z: float, peak: float, seed: float, crater: float, rings: int = 10, sectors: int = 30) -> ArrayMesh:
 	const SEA := -0.35
 	var vertices := PackedVector3Array()
 	vertices.append(Vector3(0.0, SEA + peak * (1.0 - crater), 0.0))
-	for ring in range(1, RINGS + 1):
-		var r := float(ring) / float(RINGS) * 1.2
-		for sector in range(SECTORS):
-			var angle := TAU * float(sector) / float(SECTORS)
+	for ring in range(1, rings + 1):
+		var r := float(ring) / float(rings) * 1.2
+		for sector in range(sectors):
+			var angle := TAU * float(sector) / float(sectors)
 			var coast := 1.0 + 0.16 * sin(angle * 3.0 + seed) + 0.09 * sin(angle * 7.0 + seed * 2.3) + 0.05 * sin(angle * 13.0 + seed * 0.7)
 			var t := r / coast
 			var body := pow(clampf(1.0 - t, 0.0, 1.0), 1.7)
@@ -383,13 +381,13 @@ static func landmass_mesh(radius_x: float, radius_z: float, peak: float, seed: f
 			height -= 2.2 * smoothstep(1.0, 1.15, t)
 			vertices.append(Vector3(cos(angle) * r * radius_x, SEA + height, sin(angle) * r * radius_z))
 	var indices := PackedInt32Array()
-	for sector in range(SECTORS):
-		_add_upward_triangle(vertices, indices, 0, 1 + sector, 1 + (sector + 1) % SECTORS)
-	for ring in range(RINGS - 1):
-		var inner := 1 + ring * SECTORS
-		var outer := inner + SECTORS
-		for sector in range(SECTORS):
-			var next := (sector + 1) % SECTORS
+	for sector in range(sectors):
+		_add_upward_triangle(vertices, indices, 0, 1 + sector, 1 + (sector + 1) % sectors)
+	for ring in range(rings - 1):
+		var inner := 1 + ring * sectors
+		var outer := inner + sectors
+		for sector in range(sectors):
+			var next := (sector + 1) % sectors
 			_add_upward_triangle(vertices, indices, inner + sector, outer + sector, outer + next)
 			_add_upward_triangle(vertices, indices, inner + sector, outer + next, inner + next)
 	var normals := PackedVector3Array()

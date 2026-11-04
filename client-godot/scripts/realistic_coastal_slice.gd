@@ -719,59 +719,16 @@ func _install_cliff_proxy(asset: Node3D) -> void:
 		return
 	var source := meshes[0] as MeshInstance3D
 	var material := source.get_active_material(0)
-	source.mesh = _cliff_proxy_mesh()
+	# A closed, grounded rock ridge keeps the admitted PBR cliff material at
+	# mobile cost. The former open arch sheet read as floating ribbons.
+	source.mesh = Dressing.landmass_mesh(6.5, 2.75, 5.8, asset.position.x * 0.37, 0.0, 5, 16)
+	source.transform = Transform3D.IDENTITY
 	if material:
 		source.set_surface_override_material(0, material)
 	for extra_index in range(1, meshes.size()):
 		var extra := meshes[extra_index] as MeshInstance3D
 		extra.mesh = null
 		extra.visible = false
-
-
-func _cliff_proxy_mesh() -> ArrayMesh:
-	var columns := 7
-	var rows := 4
-	var vertices := PackedVector3Array()
-	var uvs := PackedVector2Array()
-	var indices := PackedInt32Array()
-	var width := 13.0
-	var depth := 5.5
-	for z in range(rows):
-		for x in range(columns):
-			var fx := float(x) / float(columns - 1)
-			var fz := float(z) / float(rows - 1)
-			var height := 1.4 + sin(fx * PI) * 6.4 * (1.0 - fz * 0.45)
-			height += cos(fx * 8.0 + fz) * 0.35
-			vertices.append(Vector3((fx - 0.5) * width, height, (fz - 0.5) * depth))
-			uvs.append(Vector2(fx, fz))
-	for z in range(rows - 1):
-		for x in range(columns - 1):
-			var i := z * columns + x
-			indices.append_array(PackedInt32Array([i, i + 1, i + columns, i + 1, i + columns + 1, i + columns]))
-	var arrays := []
-	arrays.resize(Mesh.ARRAY_MAX)
-	arrays[Mesh.ARRAY_VERTEX] = vertices
-	arrays[Mesh.ARRAY_TEX_UV] = uvs
-	arrays[Mesh.ARRAY_INDEX] = indices
-	var mesh := ArrayMesh.new()
-	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	var normals := PackedVector3Array()
-	normals.resize(vertices.size())
-	for i in range(0, indices.size(), 3):
-		var a := indices[i]
-		var b := indices[i + 1]
-		var c := indices[i + 2]
-		# Clockwise front faces: (c - a) x (b - a) is the outward normal.
-		var face := (vertices[c] - vertices[a]).cross(vertices[b] - vertices[a])
-		normals[a] += face
-		normals[b] += face
-		normals[c] += face
-	for i in range(normals.size()):
-		normals[i] = normals[i].normalized()
-	arrays[Mesh.ARRAY_NORMAL] = normals
-	mesh.clear_surfaces()
-	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	return mesh
 
 
 func _process(_delta: float) -> void:
