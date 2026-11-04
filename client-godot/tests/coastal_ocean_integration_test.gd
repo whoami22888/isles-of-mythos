@@ -13,6 +13,14 @@ func _init() -> void:
     call_deferred("run")
 
 func run() -> void:
+    # Pin the viewport to the project's 1280x720 window contract
+    # (project.godot window/size). Headless runs otherwise report a
+    # different visible rect, so the safe-frame projection would be
+    # measured against the wrong frame. Assertions are unchanged.
+    root.content_scale_size = Vector2i(1280, 720)
+    root.content_scale_mode = Window.CONTENT_SCALE_MODE_CANVAS_ITEMS
+    root.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_EXPAND
+    root.size = Vector2i(1280, 720)
     var packed: PackedScene = load("res://scenes/realistic_coastal_fx_slice.tscn")
     if packed == null:
         push_error("Realistic coast+ship FX scene cannot load")
