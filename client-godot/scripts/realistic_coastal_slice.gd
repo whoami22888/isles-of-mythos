@@ -139,7 +139,10 @@ func _build_coastal_terrain() -> void:
 	for z in range(rows - 1):
 		for x in range(columns - 1):
 			var i := z * columns + x
-			indices.append_array([i, i + columns, i + 1, i + 1, i + columns, i + columns + 1])
+			# Godot front faces are clockwise seen from the normal side. The
+			# old order was counter-clockwise from above, so cull_back removed
+			# the whole land surface and the ocean showed through the island.
+			indices.append_array([i, i + 1, i + columns, i + 1, i + columns + 1, i + columns])
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = vertices
@@ -744,7 +747,7 @@ func _cliff_proxy_mesh() -> ArrayMesh:
 	for z in range(rows - 1):
 		for x in range(columns - 1):
 			var i := z * columns + x
-			indices.append_array(PackedInt32Array([i, i + columns, i + 1, i + 1, i + columns, i + columns + 1]))
+			indices.append_array(PackedInt32Array([i, i + 1, i + columns, i + 1, i + columns + 1, i + columns]))
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = vertices
@@ -758,7 +761,8 @@ func _cliff_proxy_mesh() -> ArrayMesh:
 		var a := indices[i]
 		var b := indices[i + 1]
 		var c := indices[i + 2]
-		var face := (vertices[b] - vertices[a]).cross(vertices[c] - vertices[a])
+		# Clockwise front faces: (c - a) x (b - a) is the outward normal.
+		var face := (vertices[c] - vertices[a]).cross(vertices[b] - vertices[a])
 		normals[a] += face
 		normals[b] += face
 		normals[c] += face
