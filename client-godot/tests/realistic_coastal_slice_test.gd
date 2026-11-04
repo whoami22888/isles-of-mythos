@@ -4,6 +4,13 @@ func _init() -> void:
 	call_deferred("run")
 
 func run() -> void:
+	# Pin the viewport to the project's 1280x720 window contract so the
+	# projected safe-frame checks run against the same frame in headless
+	# and windowed runs. Assertions are unchanged.
+	root.content_scale_size = Vector2i(1280, 720)
+	root.content_scale_mode = Window.CONTENT_SCALE_MODE_CANVAS_ITEMS
+	root.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_EXPAND
+	root.size = Vector2i(1280, 720)
 	var scene: Node3D = load("res://scenes/realistic_coastal_slice.tscn").instantiate()
 	root.add_child(scene)
 	await process_frame
