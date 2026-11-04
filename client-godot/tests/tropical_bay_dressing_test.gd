@@ -47,6 +47,7 @@ func run() -> void:
 	ok = _check(_outward_faces(dressing_script, "box") == 0, "hut wall faces point outward") and ok
 	ok = _check(_outward_faces(dressing_script, "roof") == 0, "hut roof faces point outward") and ok
 	ok = _check(_outward_faces(dressing_script, "trunk") == 0, "palm trunk faces point outward") and ok
+	ok = _check(_landmass_boundary_submerged(dressing_script), "landmass outer ring sits below sea level") and ok
 	print("Tropical bay dressing test: %s" % ("PASS" if ok else "FAIL"))
 	quit(0 if ok else 1)
 
@@ -104,3 +105,26 @@ func _outward_faces(dressing_script, kind: String) -> int:
 	if inward > 0:
 		printerr("%s: %d of %d faces point inward" % [kind, inward, indices.size() / 3])
 	return inward
+
+# Every boundary vertex must sit under the ocean (y = -0.35) so the island
+# meets the water instead of ending in an open edge. Uses the shipped seeds.
+func _landmass_boundary_submerged(dressing_script) -> bool:
+	var cases := [
+		[19.0, 16.0, 19.0, 3.1, 0.22, 10, 30],
+		[17.0, 12.0, 7.5, 1.3, 0.0, 10, 30],
+		[13.0, 10.0, 5.0, 2.7, 0.0, 10, 30],
+		[21.0, 14.0, 6.0, 4.4, 0.0, 10, 30],
+		[15.0, 11.0, 4.2, 5.9, 0.0, 10, 30],
+		[6.5, 2.75, 5.8, -14.0 * 0.37, 0.0, 5, 16],
+		[6.5, 2.75, 5.8, 2.5 * 0.37, 0.0, 5, 16],
+		[6.5, 2.75, 5.8, 16.5 * 0.37, 0.0, 5, 16],
+	]
+	for c in cases:
+		var mesh: ArrayMesh = dressing_script.landmass_mesh(c[0], c[1], c[2], c[3], c[4], c[5], c[6])
+		var vertices: PackedVector3Array = mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+		var sectors: int = c[6]
+		for i in range(vertices.size() - sectors, vertices.size()):
+			if vertices[i].y >= -0.35:
+				printerr("landmass seed %.2f boundary vertex %d at y=%.3f" % [c[3], i, vertices[i].y])
+				return false
+	return true

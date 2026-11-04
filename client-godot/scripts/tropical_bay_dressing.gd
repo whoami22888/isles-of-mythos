@@ -380,7 +380,10 @@ static func landmass_mesh(radius_x: float, radius_z: float, peak: float, seed: f
 		for sector in range(sectors):
 			var angle := TAU * float(sector) / float(sectors)
 			var coast := 1.0 + 0.16 * sin(angle * 3.0 + seed) + 0.09 * sin(angle * 7.0 + seed * 2.3) + 0.05 * sin(angle * 13.0 + seed * 0.7)
-			var t := r / coast
+			# Profile runs on the normalised radius; the noisy coastline scales the
+			# vertex position instead. The outer ring (t = 1.2) is then always past
+			# the skirt (t >= 1.15) and every boundary vertex is under the sea.
+			var t := r
 			var body := pow(clampf(1.0 - t, 0.0, 1.0), 1.7)
 			var ridge := 0.12 * sin(angle * 5.0 + seed * 1.9 + r * 6.0) * body
 			var height := peak * (body + ridge)
@@ -388,7 +391,7 @@ static func landmass_mesh(radius_x: float, radius_z: float, peak: float, seed: f
 				height -= peak * crater * (1.0 - smoothstep(0.0, 0.16, t))
 			height += 0.55 * (1.0 - smoothstep(0.88, 1.0, t))
 			height -= 2.2 * smoothstep(1.0, 1.15, t)
-			vertices.append(Vector3(cos(angle) * r * radius_x, SEA + height, sin(angle) * r * radius_z))
+			vertices.append(Vector3(cos(angle) * r * coast * radius_x, SEA + height, sin(angle) * r * coast * radius_z))
 	var indices := PackedInt32Array()
 	for sector in range(sectors):
 		_add_upward_triangle(vertices, indices, 0, 1 + sector, 1 + (sector + 1) % sectors)
