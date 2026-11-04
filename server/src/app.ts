@@ -8,12 +8,14 @@ import type { WebSocket } from "ws";
 import type { Pool } from "pg";
 import { config } from "./config.js";
 import { recordHttpRequest, recordTick, renderPrometheusMetrics, setActivePlayers, setDatabaseUp, setWebSocketAuthenticated, setWebSocketConnections } from "./metrics.js";
+import { AUTHORITATIVE_SIMULATION_TICK_MS, nextAuthoritativeTickDelayMs } from "./simulation-cadence.js";
 import { createDbPool } from "./db.js";
-import { registerAuthRoutes } from "./auth.js";
+import { isGameplayAccessToken, registerAuthRoutes } from "./auth.js";
 import { registerCreatureResearchRoutes } from "./creature-research-routes.js";
 import { log } from "./logger.js";
 import { parseClientMessage, type ServerMessage } from "./protocol.js";
-import { PlayerStore, serializePlayerState } from "./player.js";
+import { PLAYER_MAX_HEALTH, PlayerStore, serializePlayerState } from "./player.js";
+import { applyAuthoritativeRespawn, hasSpawnGrace, nextRespawnAt, safeSpawnPoint, SPAWN_GRACE_MS } from "./player-respawn.js";
 import { WorldChunkCache } from "./world.js";
 import { createWorldResourceVisibilityBatcher } from "./world-resource-visibility.js";
 import { SHOP_ITEMS, calculatePurchase, getShopItem, serializeShopItem } from "./shop.js";
@@ -243,6 +245,9 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const dodgeCooldowns = new Map<string, number>();
   const blocking = new Set<string>();
   const invulnerableUntil = new Map<string, number>();
+  const spawnGraceUntil = new Map<string, number>();
+  const respawnAt = new Map<string, number>();
+  const safeSpawn = safeSpawnPoint();
   const playerStatuses = new Map<string, StatusEffect[]>();
   const combatActivationNextAt = new Map<string, number>();
   const combatReplay = new CombatReplayCache<Extract<ServerMessage, { type: "combat_result" }>>();
@@ -412,6 +417,28 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     }
   }
 
+  function grantSpawnGrace(userId: string, now: number): void {
+    spawnGraceUntil.set(userId, now + SPAWN_GRACE_MS);
+  }
+
+  function isFreshSpawn(state: { x: number; y: number; health: number; xp: number; level: number }): boolean {
+    return state.level <= 1 && state.xp <= 0 && state.health >= PLAYER_MAX_HEALTH
+      && Math.abs(state.x) <= 0.01 && Math.abs(state.y) <= 0.01;
+  }
+
+  function performRespawn(userId: string, now: number): void {
+    const player = players.get(userId);
+    if (!player) return;
+    applyAuthoritativeRespawn(player, safeSpawn);
+    players.markDirty(userId);
+    playerStatuses.delete(userId);
+    respawnAt.delete(userId);
+    grantSpawnGrace(userId, now);
+    for (const socket of userSockets.get(userId) ?? []) {
+      send(socket, { type: "player_state", state: serializePlayerState(player) });
+    }
+  }
+
   await app.register(cors, {
     origin: (origin, callback) => {
       callback(null, origin === undefined || origin === config.corsOrigin);
@@ -451,9 +478,11 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   let territorySeasonTick: ReturnType<typeof setInterval> | undefined;
   let realmAiScheduler: RealmAiScheduler | undefined;
   let worldEventTick: ReturnType<typeof setInterval> | undefined;
-  let combatTick: ReturnType<typeof setInterval> | undefined;
+  let simulationTimer: ReturnType<typeof setTimeout> | undefined;
   let persistenceTick: ReturnType<typeof setInterval> | undefined;
-  const COMBAT_TICK_INTERVAL_MS = 33; // ~30 Hz, within the authoritative 30–60 Hz combat range.
+  let nextSimulationDeadlineNs = 0n;
+  // Worker step speed is defined against this legacy 250 ms baseline and scaled
+  // by the 50 ms authoritative step, so units per second stay the same.
   const BASE_SIMULATION_TICK_MS = 250;
 
   app.addHook("onListen", () => {
@@ -494,10 +523,10 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   { const realmAiIntervalMs = options.realmAiTickMs ?? config.realmAiTickMs; realmAiScheduler = startRealmAiScheduler({ intervalMs: realmAiIntervalMs, run: (signal) => runRealmAiTickOnce(db, realms, realmAiIntervalMs, signal), log, drainTimeoutMs: options.realmAiDrainTimeoutMs }); }
   survivalTick.unref();
 
-  combatTick = setInterval(() => {
+  const runAuthoritativeSimulationTick = (): void => {
     const tickStartedAt = process.hrtime.bigint();
     const now = Date.now();
-    tickPlayerStatuses(COMBAT_TICK_INTERVAL_MS);
+    tickPlayerStatuses(AUTHORITATIVE_SIMULATION_TICK_MS);
 
     if (capturedWorldCreaturesLoaded) {
     for (const [connectedUserId, nextActivationAt] of combatActivationNextAt) {
@@ -538,7 +567,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         for (const socket of userSockets.get(projectile.ownerUserId) ?? []) send(socket, missedResult);
         continue;
       }
-      const outcome = advanceProjectile(projectile, target, COMBAT_TICK_INTERVAL_MS / 1000, now);
+      const outcome = advanceProjectile(projectile, target, AUTHORITATIVE_SIMULATION_TICK_MS / 1000, now);
       if (outcome === "flying") continue;
       projectiles.delete(projectileId);
       pendingCombatRequests.delete(replayKey);
@@ -566,7 +595,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       }
     }
     for (const [targetId, target] of combatTargets) {
-      tickStatuses(target, COMBAT_TICK_INTERVAL_MS);
+      tickStatuses(target, AUTHORITATIVE_SIMULATION_TICK_MS);
       if (target.health <= 0) {
         target.aiState = "dead";
         combatTargets.delete(targetId);
@@ -575,7 +604,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     }
     for (const connectedUserId of userSockets.keys()) {
       const player = players.get(connectedUserId);
-      if (player) creatures.tickAi(connectedUserId, player, COMBAT_TICK_INTERVAL_MS);
+      if (player) creatures.tickAi(connectedUserId, player, AUTHORITATIVE_SIMULATION_TICK_MS);
       const base = bases.get(connectedUserId);
       if (!base) continue;
       for (const worker of base.workers) {
@@ -586,7 +615,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         const dx = waypoint.x - creature.x;
         const dy = waypoint.y - creature.y;
         const distance = Math.hypot(dx, dy);
-        const step = Math.min(distance, 0.375 * (COMBAT_TICK_INTERVAL_MS / BASE_SIMULATION_TICK_MS));
+        const step = Math.min(distance, 0.375 * (AUTHORITATIVE_SIMULATION_TICK_MS / BASE_SIMULATION_TICK_MS));
         if (step > 0) {
           creatures.moveWorker(
             connectedUserId,
@@ -599,22 +628,23 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     }
     const candidates = [...userSockets.keys()].flatMap((userId) => {
       const state = players.get(userId);
-      return state && state.health > 0 ? [{ userId, x: state.x, y: state.y }] : [];
+      if (!state || state.health <= 0 || hasSpawnGrace(spawnGraceUntil.get(userId), now)) return [];
+      return [{ userId, x: state.x, y: state.y }];
     });
     for (const target of combatTargets.values()) {
-      const ai = tickCreatureAi(target, candidates, now, COMBAT_TICK_INTERVAL_MS);
+      const ai = tickCreatureAi(target, candidates, now, AUTHORITATIVE_SIMULATION_TICK_MS);
       const userId = ai.targetUserId;
       if (!userId || target.health <= 0) continue;
       const targetPlayer = players.get(userId);
       if (!targetPlayer || targetPlayer.health <= 0) continue;
       if (ai.state === "chase") {
-        const step = target.speed * (COMBAT_TICK_INTERVAL_MS / 1000);
+        const step = target.speed * (AUTHORITATIVE_SIMULATION_TICK_MS / 1000);
         target.x += ai.moveX * step;
         target.y += ai.moveY * step;
       }
       if (ai.state === "attack" && distance(target, targetPlayer) <= target.attackRange && now >= target.nextAttackAt) {
         target.nextAttackAt = now + target.attackCooldownMs;
-        const immune = (invulnerableUntil.get(userId) ?? 0) > now;
+        const immune = (invulnerableUntil.get(userId) ?? 0) > now || hasSpawnGrace(spawnGraceUntil.get(userId), now);
         if (!immune) {
           const blocked = blocking.has(userId) && targetPlayer.stamina > 0;
           const mitigatedDamage = mitigateDamage(target.attack, targetPlayer.defense);
@@ -629,7 +659,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         }
       }
       if (ai.ability && distance(target, targetPlayer) <= ai.ability.range) {
-        const immune = (invulnerableUntil.get(userId) ?? 0) > now;
+        const immune = (invulnerableUntil.get(userId) ?? 0) > now || hasSpawnGrace(spawnGraceUntil.get(userId), now);
         if (!immune) {
           const pseudoTarget = createCombatTarget(userId, "player", targetPlayer.x, targetPlayer.y, targetPlayer.level);
           pseudoTarget.health = targetPlayer.health;
@@ -648,9 +678,33 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     for (const [cooldownUserId, until] of attackCooldowns) if (until <= now) attackCooldowns.delete(cooldownUserId);
     for (const [cooldownUserId, until] of dodgeCooldowns) if (until <= now) dodgeCooldowns.delete(cooldownUserId);
     for (const [userId, until] of invulnerableUntil) if (until <= now) invulnerableUntil.delete(userId);
+    for (const connectedUserId of userSockets.keys()) {
+      const living = players.get(connectedUserId);
+      if (!living) continue;
+      if (living.health > 0) {
+        respawnAt.delete(connectedUserId);
+        continue;
+      }
+      const due = respawnAt.get(connectedUserId);
+      if (due === undefined) respawnAt.set(connectedUserId, nextRespawnAt(now));
+      else if (now >= due) performRespawn(connectedUserId, now);
+    }
+    for (const [graceUserId, until] of spawnGraceUntil) if (until <= now) spawnGraceUntil.delete(graceUserId);
     recordTick(Number(process.hrtime.bigint() - tickStartedAt) / 1e6);
-  }, COMBAT_TICK_INTERVAL_MS);
-  combatTick.unref();
+  };
+
+  const scheduleAuthoritativeSimulation = (): void => {
+    if (shuttingDown) return;
+    const step = nextAuthoritativeTickDelayMs(process.hrtime.bigint(), nextSimulationDeadlineNs);
+    nextSimulationDeadlineNs = step.deadlineNs;
+    simulationTimer = setTimeout(() => {
+      if (shuttingDown) return;
+      runAuthoritativeSimulationTick();
+      scheduleAuthoritativeSimulation();
+    }, step.delayMs);
+    simulationTimer.unref();
+  };
+  scheduleAuthoritativeSimulation();
 
   persistenceTick = setInterval(() => {
     void Promise.all([players.persistDirty(), creatures.persistDirty(), bases.processAll()]).catch((error) => {
@@ -675,7 +729,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     if (breedingTick) clearInterval(breedingTick);
     if (navalFireTick) clearInterval(navalFireTick);
     if (persistenceTick) clearInterval(persistenceTick);
-    if (combatTick) clearInterval(combatTick);
+    if (simulationTimer) clearTimeout(simulationTimer);
     // Drain the in-flight realm AI tick only after every other timer is stopped and shutdown is flagged.
     // Fail closed: if the tick cannot be proven settled (even after abort), still persist and close sockets,
     // but never tear down the pool under a live transaction, and surface the failure to the caller.
@@ -881,8 +935,10 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
               send(socket, { type: "error", code: "INVALID_MESSAGE" });
               return;
             }
-            const payload = app.jwt.verify<{ sub: string; username: string }>(message.token);
-            if (typeof payload.sub !== "string" || payload.sub.length === 0) throw new Error("invalid_subject");
+            const payload = app.jwt.verify<{ sub: string; username: string; role?: string; typ?: string }>(message.token);
+            if (typeof payload.sub !== "string" || payload.sub.length === 0 || !isGameplayAccessToken(payload)) {
+              throw new Error("invalid_subject");
+            }
             const authenticatedUserId = payload.sub;
             const pendingUnload = pendingPlayerUnloads.get(authenticatedUserId);
             if (pendingUnload) await pendingUnload;
@@ -905,6 +961,9 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
             authenticatedSocketCount += 1;
             setWebSocketAuthenticated(authenticatedSocketCount);
             setActivePlayers(userSockets.size);
+            const spawnedAt = Date.now();
+            if (state.health <= 0) performRespawn(authenticatedUserId, spawnedAt);
+            else if (isFreshSpawn(state)) grantSpawnGrace(authenticatedUserId, spawnedAt);
             send(socket, { type: "auth_ok", userId: authenticatedUserId });
             send(socket, { type: "player_state", state: serializePlayerState(state) });
             sendCreatureSnapshot(socket, ownedCreatures);
@@ -1279,8 +1338,8 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           const response=await runBaseRequest(authenticatedUserId,message.requestId,"create_base|"+message.name+"|"+message.x+"|"+message.y,async()=>{
             try{
               const base=await bases.create(authenticatedUserId,message.name,message.x,message.y);
-              return {type:"base_state",base};
-            }catch(error){const code=errorCode(error,"BASE_CREATE_FAILED"); const allowed=["BASE_ALREADY_EXISTS","INVALID_BASE_COORDINATES","BASE_CREATE_FAILED"]; return {type:"error",code:(allowed.includes(code)?code:"BASE_CREATE_FAILED") as "BASE_ALREADY_EXISTS"|"INVALID_BASE_COORDINATES"|"BASE_CREATE_FAILED"};}
+              return {type:"base_state",requestId:message.requestId,base};
+            }catch(error){const code=errorCode(error,"BASE_CREATE_FAILED"); const allowed=["BASE_ALREADY_EXISTS","INVALID_BASE_COORDINATES","BASE_CREATE_FAILED"]; return {type:"error",requestId:message.requestId,code:(allowed.includes(code)?code:"BASE_CREATE_FAILED") as "BASE_ALREADY_EXISTS"|"INVALID_BASE_COORDINATES"|"BASE_CREATE_FAILED"};}
           });
           send(socket,response);
           return;
@@ -1294,7 +1353,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
               if(!BUILDING_TYPES.includes(message.buildingType as BuildingType))throw new Error("INVALID_BUILDING_TYPE");
               const building=await bases.createBuilding(authenticatedUserId,message.buildingType as BuildingType,message.level,message.gridX,message.gridY);
               return {type:"building_state",requestId:message.requestId,building};
-            }catch(error){const code=errorCode(error,"BUILD_FAILED"); const allowed=["BASE_NOT_FOUND","BASE_PERMISSION_DENIED","INVALID_BUILDING_TYPE","INVALID_BUILDING_LEVEL","INVALID_BUILDING_POSITION","BUILDING_POSITION_OCCUPIED","BUILDING_PREREQUISITE_MISSING","INSUFFICIENT_STORAGE","BUILD_FAILED","WORKER_CAPACITY_REACHED"]; return {type:"error",code:(allowed.includes(code)?code:"BUILD_FAILED") as "BASE_NOT_FOUND"|"BASE_PERMISSION_DENIED"|"INVALID_BUILDING_TYPE"|"INVALID_BUILDING_LEVEL"|"INVALID_BUILDING_POSITION"|"BUILDING_POSITION_OCCUPIED"|"BUILDING_PREREQUISITE_MISSING"|"INSUFFICIENT_STORAGE"|"BUILD_FAILED"|"WORKER_CAPACITY_REACHED"};}
+            }catch(error){const code=errorCode(error,"BUILD_FAILED"); const allowed=["BASE_NOT_FOUND","BASE_PERMISSION_DENIED","INVALID_BUILDING_TYPE","INVALID_BUILDING_LEVEL","INVALID_BUILDING_POSITION","BUILDING_POSITION_OCCUPIED","BUILDING_PREREQUISITE_MISSING","INSUFFICIENT_STORAGE","BUILD_FAILED","WORKER_CAPACITY_REACHED"]; return {type:"error",requestId:message.requestId,code:(allowed.includes(code)?code:"BUILD_FAILED") as "BASE_NOT_FOUND"|"BASE_PERMISSION_DENIED"|"INVALID_BUILDING_TYPE"|"INVALID_BUILDING_LEVEL"|"INVALID_BUILDING_POSITION"|"BUILDING_POSITION_OCCUPIED"|"BUILDING_PREREQUISITE_MISSING"|"INSUFFICIENT_STORAGE"|"BUILD_FAILED"|"WORKER_CAPACITY_REACHED"};}
           });
           send(socket,response);
           return;
@@ -1901,6 +1960,8 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         playerConnections.delete(disconnectedUserId);
         blocking.delete(disconnectedUserId);
         invulnerableUntil.delete(disconnectedUserId);
+        spawnGraceUntil.delete(disconnectedUserId);
+        respawnAt.delete(disconnectedUserId);
         playerStatuses.delete(disconnectedUserId);
         combatActivationNextAt.delete(disconnectedUserId);
         for (const [key] of pendingCombatRequests) if (key.startsWith(disconnectedUserId + ":")) pendingCombatRequests.delete(key);

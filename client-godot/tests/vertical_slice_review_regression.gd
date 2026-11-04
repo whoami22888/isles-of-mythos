@@ -59,6 +59,13 @@ func _drag(world, index: int, pos: Vector2, rel: Vector2) -> void:
 	world.get_node("Camera").call("_input", e)
 	world._unhandled_input(e)
 
+func _take_intent(world, stub) -> int:
+	var n: int = stub.gathers.size() + stub.moves.size() + (1 if world._approaching else 0)
+	stub.gathers.clear()
+	stub.moves.clear()
+	world._approaching = false
+	return n
+
 func run() -> void:
 	# Finding 2: request the chunk that contains the authoritative player.
 	var made = await _make()
@@ -165,50 +172,41 @@ func run() -> void:
 	await process_frame
 
 	# PR #250 review: end-to-end touch dispatch through the real world handler.
+	# An "intent" is any server-bound action a tap starts (move or gather).
 	made = await _make()
 	world = made[0]
 	stub = made[1]
 	world._on_player_state({"x": 5.0, "y": 5.0})
-	world._on_world_chunk("c", {"x": 0, "y": 0, "resources": [{"id": "wood:e2e", "x": 5, "y": 5}]})
-	var w := Vector2(700, 450)
+	var w := Vector2(640, 420)
 	var hud := Vector2(30, 30)
 	_touch(world, 0, true, w)
 	_touch(world, 0, false, w)
-	check(stub.gathers == ["wood:e2e"], "stationary world tap issues exactly one gather intent, got %s" % [stub.gathers])
-	world._unhandled_input(InputEventScreenTouch.new())
-	check(stub.gathers.size() == 1, "repeated release cannot double-submit")
-	_touch(world, 1, true, w)
-	_drag(world, 1, w + Vector2(80, 0), Vector2(80, 0))
-	_touch(world, 1, false, w + Vector2(80, 0))
-	_touch(world, 2, true, w)
-	_touch(world, 3, true, w + Vector2(100, 0))
-	_drag(world, 3, w + Vector2(160, 40), Vector2(60, 40))
-	_touch(world, 3, false, w + Vector2(160, 40))
-	_touch(world, 2, false, w)
-	_touch(world, 4, true, hud)
-	_touch(world, 4, false, hud)
-	# Mixed HUD/world contacts, both orders, and world release while HUD held.
-	_touch(world, 5, true, w)
-	_touch(world, 6, true, hud)
-	_touch(world, 5, false, w)
-	_touch(world, 6, false, hud)
-	_touch(world, 7, true, hud)
-	_touch(world, 8, true, w)
-	_touch(world, 8, false, w)
-	_touch(world, 7, false, hud)
-	_touch(world, 9, true, w)
-	_touch(world, 10, true, hud)
-	_touch(world, 10, false, hud)
-	_touch(world, 9, false, w)
-	check(stub.gathers.size() == 1 and not world._approaching and stub.moves.is_empty(), "drag, pinch, HUD and mixed HUD/world touches issue no intents, got %s" % [stub.gathers])
-	# Interrupted session: a pending press must not survive focus loss.
+	check(_take_intent(world, stub) == 1, "stationary world tap issues exactly one intent")
+	var stale := InputEventScreenTouch.new()
+	world._unhandled_input(stale)
+	check(_take_intent(world, stub) == 0, "repeated release cannot double-submit")
+	var sequences := {
+		"drag": [[1, true, w], ["d", 1, w + Vector2(80, 0)], [1, false, w + Vector2(80, 0)]],
+		"pinch": [[2, true, w], [3, true, w + Vector2(100, 0)], ["d", 3, w + Vector2(160, 40)], [3, false, w + Vector2(160, 40)], [2, false, w]],
+		"hud": [[4, true, hud], [4, false, hud]],
+		"world then hud": [[5, true, w], [6, true, hud], [5, false, w], [6, false, hud]],
+		"hud then world": [[7, true, hud], [8, true, w], [8, false, w], [7, false, hud]],
+		"world release while hud held": [[9, true, w], [10, true, hud], [9, false, w], [10, false, hud]],
+	}
+	for label in sequences:
+		for step in sequences[label]:
+			if step[0] is String:
+				_drag(world, step[1], step[2], step[2] - w)
+			else:
+				_touch(world, step[0], step[1], step[2])
+		check(_take_intent(world, stub) == 0, "%s issues no intent" % label)
 	_touch(world, 11, true, w)
 	world.get_node("Camera").reset_touch_state()
 	_touch(world, 11, false, w)
-	check(stub.gathers.size() == 1, "touch state reset on focus loss drops the pending tap")
+	check(_take_intent(world, stub) == 0, "touch state reset on focus loss drops the pending tap")
 	_touch(world, 12, true, w)
 	_touch(world, 12, false, w)
-	check(stub.gathers.size() == 2, "normal tap works again after mixed gestures")
+	check(_take_intent(world, stub) == 1, "normal tap works again after mixed gestures")
 	world.queue_free()
 	await process_frame
 
@@ -279,6 +277,20 @@ func run() -> void:
 	check(world.get_node("Interface/Panel/Margin/Content/Token").text.is_empty(), "JWT is not rendered")
 	button.pressed.emit()
 	check(stub.connects == 1, "reconnect control reuses the in-memory session to reconnect")
+	world.queue_free()
+	await process_frame
+
+	# A ground tap away from resources walks. A tap on a resource still gathers.
+	made = await _make()
+	world = made[0]
+	stub = made[1]
+	world._on_player_state({"x": 0.0, "y": 0.0})
+	world._on_world_chunk("c", {"x": 0, "y": 0, "resources": [{"id": "wood:tap", "x": 8, "y": 0}]})
+	check(world._intent_for_ground(3.0, 4.0) == "move", "empty ground is a free move")
+	world._approach_step()
+	check(stub.moves.size() == 1 and stub.gathers.is_empty(), "free move sends a move intent and does not gather")
+	check(world._intent_for_ground(8.0, 0.0) == "gather", "a tap on a resource gathers")
+	check(world._approaching, "an out-of-range resource tap walks to it first")
 	world.queue_free()
 	await process_frame
 

@@ -3,6 +3,9 @@ from pathlib import Path
 import tempfile
 import unittest
 
+# Run staging containment regressions through the existing model-test entrypoint.
+from test_stage_polyhaven_models_security import StageSecurityTests  # noqa: F401
+
 SCRIPT = Path(__file__).parent / 'stage_polyhaven_models.py'
 spec = importlib.util.spec_from_file_location('model_stage', SCRIPT)
 mod = importlib.util.module_from_spec(spec)

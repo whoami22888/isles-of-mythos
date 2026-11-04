@@ -1,6 +1,7 @@
 import type { Pool } from "pg";
 import { describe, expect, it } from "vitest";
 import { CreatureStore } from "./creature.js";
+import { AUTHORITATIVE_SIMULATION_TICK_MS } from "./simulation-cadence.js";
 
 function storeFor(overrides: Record<string, unknown> = {}): CreatureStore {
   const row = {
@@ -28,20 +29,23 @@ function storeFor(overrides: Record<string, unknown> = {}): CreatureStore {
 }
 
 describe("authoritative base worker movement", () => {
-  it("scales follower movement to a 30 Hz simulation step", async () => {
+  it("scales follower movement to the 20 Hz authoritative step", async () => {
     const legacyCadence = storeFor({ party_slot: 0 });
-    const thirtyHz = storeFor({ party_slot: 0 });
+    const authoritative = storeFor({ party_slot: 0 });
     await legacyCadence.load("user-1");
-    await thirtyHz.load("user-1");
+    await authoritative.load("user-1");
 
+    expect(AUTHORITATIVE_SIMULATION_TICK_MS).toBe(50);
     expect(legacyCadence.tickAi("user-1", { x: 5, y: 0 })).toBe(true);
-    expect(thirtyHz.tickAi("user-1", { x: 5, y: 0 }, 33)).toBe(true);
+    expect(authoritative.tickAi("user-1", { x: 5, y: 0 }, AUTHORITATIVE_SIMULATION_TICK_MS)).toBe(true);
 
     const legacyX = legacyCadence.getCreature("user-1", "creature-1")?.x;
-    const thirtyHzX = thirtyHz.getCreature("user-1", "creature-1")?.x;
+    const steppedX = authoritative.getCreature("user-1", "creature-1")?.x;
     expect(legacyX).toBeCloseTo(0.375);
-    expect(thirtyHzX).toBeCloseTo(0.375 * (33 / 250));
-    expect(thirtyHzX).toBeCloseTo((legacyX ?? 0) * (33 / 250));
+    expect(steppedX).toBeCloseTo(0.375 * (50 / 250));
+    expect(steppedX).toBeCloseTo((legacyX ?? 0) * (50 / 250));
+    // Twenty 50 ms steps cover the same distance as one legacy 250 ms step.
+    expect((steppedX ?? 0) * (1_000 / AUTHORITATIVE_SIMULATION_TICK_MS)).toBeCloseTo((legacyX ?? 0) * 4);
   });
 
   it("moves a tamed un-partied worker and marks its state dirty", async () => {

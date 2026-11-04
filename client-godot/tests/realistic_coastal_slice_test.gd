@@ -4,6 +4,13 @@ func _init() -> void:
 	call_deferred("run")
 
 func run() -> void:
+	# Pin the viewport to the project's 1280x720 window contract so the
+	# projected safe-frame checks run against the same frame in headless
+	# and windowed runs. Assertions are unchanged.
+	root.content_scale_size = Vector2i(1280, 720)
+	root.content_scale_mode = Window.CONTENT_SCALE_MODE_CANVAS_ITEMS
+	root.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_EXPAND
+	root.size = Vector2i(1280, 720)
 	var scene: Node3D = load("res://scenes/realistic_coastal_slice.tscn").instantiate()
 	root.add_child(scene)
 	await process_frame
@@ -22,7 +29,9 @@ func run() -> void:
 			tree_count += 1
 		if child.name == "HarbourShipFocalPoint":
 			ship_count += 1
-	var ok := terrain != null and terrain.mesh != null and terrain.mesh.get_surface_count() == 1
+	var ok := _check(root.get_visible_rect().size == Vector2(1280, 720),
+		"viewport pin applied (1280x720)")
+	ok = ok and terrain != null and terrain.mesh != null and terrain.mesh.get_surface_count() == 1
 	ok = _check(water != null and gameplay != null and cinematic != null, "contract line 26") and ok
 	var depth_layer := scene.get_node_or_null("CoastalPBRDepthLayer")
 	ok = _check(rock_count == 4 and tree_count == 4 and ship_count == 1 and gameplay.current, "contract line 28") and ok
