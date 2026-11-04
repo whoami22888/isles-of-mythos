@@ -120,6 +120,10 @@ jobs:
           echo "POSTGRES_SERVER_VERSION_NUM=$version_num" >> "$GITHUB_ENV"
       - name: Seed 5,000 player identities
         run: PGPASSWORD=postgres psql "$DATABASE_URL" -c "INSERT INTO users (username, email, password_hash) SELECT 'loadtest_' || g, 'loadtest_' || g || '@example.invalid', 'loadtest-password-hash' FROM generate_series(0, 4999) AS g ON CONFLICT DO NOTHING;"
+      - name: Enable test-only WAL I/O timing
+        run: |
+          PGPASSWORD=postgres psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "ALTER SYSTEM SET track_wal_io_timing = on" -c "SELECT pg_reload_conf()"
+          test "$(PGPASSWORD=postgres psql "$DATABASE_URL" -Atc 'SHOW track_wal_io_timing')" = on
       - name: Build
         run: npm run build
       - name: Start server
@@ -144,10 +148,17 @@ jobs:
           ) > performance-system.log 2>&1 &
       - name: Self-test persisted-evidence validator
         run: node scripts/validate-performance-report.mjs --self-test
-      - name: Run sustained player-load and domain stress scenarios
-        run: node scripts/sustained-load.mjs
-      - name: Validate persisted gameplay and stress evidence
-        run: node scripts/validate-performance-report.mjs performance-results.json
+      - name: Run sustained load and validate live evidence
+        run: |
+          set -euo pipefail
+          node scripts/sample-postgres-waits.mjs > postgres-waits.jsonl 2> postgres-waits.err &
+          sampler=$!
+          trap 'kill "$sampler" 2>/dev/null || true; wait "$sampler" 2>/dev/null || true' EXIT
+          node scripts/sustained-load.mjs
+          node scripts/validate-performance-report.mjs performance-results.json
+          kill -0 "$sampler"
+          test -s postgres-waits.jsonl
+          if test -s postgres-waits.err; then echo "::error::PostgreSQL wait sampler failed; inspect uploaded stderr artifact"; exit 1; fi
       - name: Stop server
         if: always()
         run: |
@@ -180,6 +191,7 @@ jobs:
             postgres-sbom-arm64.json
             postgres.sbom.cdx.json
             postgres-vulnerability-report.txt
+            postgres-waits.jsonl
           )
           missing=0
           for file in "${files[@]}"; do
@@ -214,4 +226,6 @@ jobs:
             postgres-sbom-arm64.json
             postgres.sbom.cdx.json
             postgres-vulnerability-report.txt
+            postgres-waits.jsonl
+            postgres-waits.err
           if-no-files-found: error

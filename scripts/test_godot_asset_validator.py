@@ -100,6 +100,48 @@ class AssetValidatorTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Unregistered"):
             validator.validate()
 
+    def test_import_sidecar_allowed(self):
+        """Godot's import and UID sidecars do not count as source art."""
+        (self.assets / "terrain.glb").write_bytes(self.sample)
+        (self.assets / "terrain.glb.import").write_text("[remap]\n")
+        (self.assets / "terrain.glb.uid").write_text("uid://test\n")
+        self.write([self.entry])
+        self.assertEqual(validator.validate(), 0)
+
+    def test_unregistered_hidden_file_rejected(self):
+        """Unknown hidden files must not bypass provenance scanning."""
+        self.write([])
+        (self.assets / ".unreviewed.glb").write_bytes(b"unverified")
+        with self.assertRaisesRegex(ValueError, "Unregistered"):
+            validator.validate()
+
+    def test_import_texture_copy_requires_registered_source_hash(self):
+        """Only byte-identical copies of registered cliff textures are allowed."""
+        (self.assets / "terrain.glb").write_bytes(self.sample)
+        source = (self.assets / "polyhaven/coastal_cliff_01/textures"
+                  / "coastal_cliff_01_diff_1k.jpg")
+        source.parent.mkdir(parents=True)
+        source.write_bytes(b"source texture")
+        source_entry = dict(
+            self.entry,
+            id="texture",
+            path=str(source.relative_to(self.assets)),
+            sha256=hashlib.sha256(source.read_bytes()).hexdigest(),
+            source_url="https://polyhaven.com/a/coastal_cliff_01",
+            download_url=("https://dl.polyhaven.org/coastal_cliff_01/"
+                          "coastal_cliff_01_diff_1k.jpg"),
+            upstream_md5="a" * 32,
+        )
+        output = (self.assets / "generated/coastal_cliff_blender"
+                  / "coastal_cliff_lod1_coastal_cliff_01_diff_1k.jpg")
+        output.parent.mkdir(parents=True)
+        output.write_bytes(source.read_bytes())
+        self.write([self.entry, source_entry])
+        self.assertEqual(validator.validate(), 0)
+        output.write_bytes(b"unverified bytes")
+        with self.assertRaisesRegex(ValueError, "Unregistered"):
+            validator.validate()
+
     def test_path_traversal_rejected(self):
         """Regression: path traversal rejected."""
         self.entry["path"] = "../outside.glb"

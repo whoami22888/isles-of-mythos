@@ -178,7 +178,6 @@ describe("NET-04 gap 3: unbounded or empty id strings", () => {
     ["fire_cannon", { type: "fire_cannon", requestId: "r1", shipId: "s1", targetShipId: "s2" }, "targetShipId"],
     ["board_ship", { type: "board_ship", requestId: "r1", shipId: "s1", targetShipId: "s2" }, "targetShipId"],
     ["assign_ship_npc_crew", { type: "assign_ship_npc_crew", requestId: "r1", shipId: "s1", npcType: "pirate", role: "gunner", skill: 10, morale: 50 }, "shipId"],
-    ["change_realm_reputation", { type: "change_realm_reputation", requestId: "r1", realm: "storm_empire", delta: 5 }, "realm"],
     ["auction_create", { type: "auction_create", requestId: "r1", itemId: "i1", quantity: 1, startPrice: "10", buyNowPrice: null, durationMs: 60000 }, "itemId"],
     ["auction_list", { type: "auction_list", requestId: "r1", itemId: "i1", minPrice: null, maxPrice: null }, "itemId"],
     ["chat_send", { type: "chat_send", requestId: "r1", channel: "whisper", body: "hi", recipientUserId: "u1", guildId: null, partyId: null }, "recipientUserId"],
@@ -314,4 +313,30 @@ describe("id-only social/auction messages are rebuilt, not spread (NET-04 slice 
     expect(({} as Record<string, unknown>).polluted).toBeUndefined();
   });
 });
+
+describe("server-only operations are not client messages (NET-04 slice 2b)", () => {
+  it("tick_realm_ai is rejected by the parser; realm AI is server-scheduled", () => {
+    expect(parse({ type: "tick_realm_ai", requestId: "r1" })).toBeNull();
+  });
+  it("change_realm_reputation is rejected: clients cannot grant themselves reputation", () => {
+    expect(parse({ type: "change_realm_reputation", requestId: "r1", realm: "storm_empire", delta: 5 })).toBeNull();
+  });
+  it("ship crew assignment never carries client skill/morale; they are optional and dropped", () => {
+    const crew = { type: "assign_ship_crew", requestId: "r1", shipId: "s1", creatureId: "c1", role: "gunner" };
+    expect(parse(crew)).toEqual(crew);
+    expect(parse({ ...crew, skill: 100, morale: 100 })).toEqual(crew);
+    expect(parse({ ...crew, skill: "x", morale: -5 })).toEqual(crew);
+    const npc = { type: "assign_ship_npc_crew", requestId: "r1", shipId: "s1", npcType: "dragon", role: "gunner" };
+    expect(parse(npc)).toEqual(npc);
+    expect(parse({ ...npc, skill: 100, morale: 100 })).toEqual(npc);
+    expect(parse({ ...npc, npcType: "kraken" })).toBeNull();
+  });
+  it("start_breeding never carries a client-chosen duration (server default only)", () => {
+    const base = { type: "start_breeding", requestId: "r1", baseId: "b", penBuildingId: "p", parentAId: "a", parentBId: "c" };
+    expect(parse(base)).toEqual(base);
+    expect(parse({ ...base, durationMs: 1 })).toEqual(base);
+    expect(parse({ ...base, durationMs: 86_400_000 })).toEqual(base);
+  });
+});
+
 

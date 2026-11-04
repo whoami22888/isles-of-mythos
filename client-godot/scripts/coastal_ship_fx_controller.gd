@@ -90,6 +90,8 @@ func advance_visual_demo(delta: float) -> void:
     # Children are set to explicit-step mode during the cinematic only.
     wake.advance_wake(delta)
     bow_spray.advance_contact(delta)
+    if _coast.has_method("sync_ocean_vessel_uniforms"):
+        _coast.sync_ocean_vessel_uniforms()
 
 
 func _process(delta: float) -> void:

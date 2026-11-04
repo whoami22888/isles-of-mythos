@@ -1,6 +1,10 @@
+import { CREW_START_MORALE, deriveNpcCrewSkill, npcCrewHireFee } from "./crew-stats.js";
+import { runEconomyMutation, subtractGoldDoubloons } from "./economy.js";
 import { CREATURE_STATS } from "./combat.js";
 import { CREW_BONUS_CAPS, stackCrewContributions } from "./crew-bonus.js";
 import type { Pool } from "pg";
+
+interface NpcCrewResult{id:string;shipId:string;creatureId:null;npcType:CrewType;role:CrewRole;skill:number;morale:number}
 
 const CREW_TYPES = ["pirate", "mermaid", "dragon", "npc_specialist"] as const;
 const CREW_ROLES = ["captain", "navigator", "gunner", "engineer", "medic", "scout", "boarding_specialist"] as const;
@@ -26,18 +30,48 @@ const mapShip = (r:Row) => ({
 export class NavalStore {
   constructor(private readonly db:Pool) {}
 
-  async assignNpcCrew(userId:string,shipId:string,npcType:CrewType,role:CrewRole,skill:number,morale:number) {
-    if(!CREW_TYPES.includes(npcType) || !CREW_ROLES.includes(role) || !Number.isSafeInteger(skill) || skill<1 || skill>100 || !Number.isSafeInteger(morale) || morale<0 || morale>100) throw new Error("INVALID_CREW_ASSIGNMENT");
+  /**
+   * Hires a paid NPC crew member. When `request` is given (the WebSocket path always gives it), the requestId and
+   * fingerprint are recorded in the same transaction as the debit and the crew insert, so a retry after a lost
+   * response, restart, other server instance or cache expiry returns the original crew instead of charging again.
+   * Rows live in ship_cargo_requests (generic key/fingerprint/response) under a key that starts with "npc_hire:" so they
+   * cannot collide with cargo requests (whose keys always start with the user UUID); a failed hire rolls the row back, leaving the requestId reusable.
+   */
+  async assignNpcCrew(userId:string,shipId:string,npcType:CrewType,role:CrewRole,request?:{requestId:string;fingerprint:string}) {
+    if(!CREW_TYPES.includes(npcType) || !CREW_ROLES.includes(role)) throw new Error("INVALID_CREW_ASSIGNMENT");
+    if(request && (!request.requestId || request.requestId.length>64)) throw new Error("INVALID_REQUEST_ID");
+    const fee=npcCrewHireFee(npcType),skill=deriveNpcCrewSkill(npcType),morale=CREW_START_MORALE;
+    const requestKey=request ? "npc_hire:"+userId+":"+request.requestId : null;
     const c=await this.db.connect();
     try {
       await c.query("BEGIN");
+      // Take the economy row lock first. The request insert's foreign key to player_profiles would otherwise take a
+      // KEY SHARE lock that conflicts with runEconomyMutation's FOR UPDATE in a concurrent hire, deadlocking with the
+      // ship lock. Lock order for hires is always: profile -> request row -> ship.
+      const profile=await c.query("SELECT 1 FROM player_profiles WHERE user_id=$1 FOR UPDATE",[userId]);
+      if(!profile.rows[0]) throw new Error("PLAYER_NOT_FOUND");
+      if(request && requestKey){
+        const claimed=await c.query<{transaction_id:string}>("INSERT INTO ship_cargo_requests(request_key,user_id,fingerprint,response) VALUES($1,$2,$3,'{}'::jsonb) ON CONFLICT(request_key) DO NOTHING RETURNING transaction_id",[requestKey,userId,request.fingerprint]);
+        if(!claimed.rows[0]){
+          const existing=await c.query<{fingerprint:string;response:{crew?:NpcCrewResult}}>("SELECT fingerprint,response FROM ship_cargo_requests WHERE request_key=$1 FOR UPDATE",[requestKey]);
+          const row=existing.rows[0];
+          if(!row) throw new Error("NPC_CREW_REQUEST_CONFLICT");
+          if(row.fingerprint!==request.fingerprint) throw new Error("NPC_CREW_REQUEST_CONFLICT");
+          if(!row.response.crew) throw new Error("NPC_CREW_REQUEST_CONFLICT");
+          await c.query("COMMIT");
+          return row.response.crew;
+        }
+      }
       const ship=await c.query<{crew_capacity:number}>("SELECT crew_capacity FROM player_ships WHERE id=$1 AND owner_user_id=$2 FOR UPDATE",[shipId,userId]);
       if(!ship.rows[0]) throw new Error("SHIP_NOT_FOUND");
       const count=await c.query<{count:string}>("SELECT COUNT(*)::text count FROM ship_crew WHERE ship_id=$1",[shipId]);
       if(Number(count.rows[0]?.count??0)>=ship.rows[0].crew_capacity) throw new Error("SHIP_CREW_CAPACITY_REACHED");
+      await runEconomyMutation(c,userId,d=>({gold:subtractGoldDoubloons(d.gold,fee),inventory:d.inventory,value:undefined}),"ship_npc_crew_hire");
       const row=await c.query<{id:string}>("INSERT INTO ship_crew(ship_id,creature_id,owner_user_id,npc_type,role,skill,morale) VALUES($1,NULL,$2,$3,$4,$5,$6) RETURNING id",[shipId,userId,npcType,role,skill,morale]);
+      const crew:NpcCrewResult={id:row.rows[0].id,shipId,creatureId:null,npcType,role,skill,morale};
+      if(requestKey) await c.query("UPDATE ship_cargo_requests SET response=$2::jsonb WHERE request_key=$1",[requestKey,JSON.stringify({crew})]);
       await c.query("COMMIT");
-      return {id:row.rows[0].id,shipId,creatureId:null,npcType,role,skill,morale};
+      return crew;
     } catch(e){await c.query("ROLLBACK");throw e} finally{c.release()}
   }
 

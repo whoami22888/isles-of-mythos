@@ -1,11 +1,13 @@
 export interface MutationTiming {
   startedAt: number;
   stages: Record<string, number>;
+  diagnostic?: { traceId: string; backendPid: number; commitEventLoopActiveMs?: number; commitEventLoopIdleMs?: number };
 }
 
 export interface MutationTimingSnapshot {
   totalMs: number;
   stages: Record<string, number>;
+  diagnostic?: MutationTiming["diagnostic"];
 }
 
 export type TimingClock = () => number;
@@ -42,6 +44,7 @@ export async function runTimedMutation<T>(
     const snapshot: MutationTimingSnapshot = {
       totalMs: now() - timing.startedAt,
       stages: { ...timing.stages },
+      diagnostic: timing.diagnostic,
     };
     try {
       onSettled(snapshot);

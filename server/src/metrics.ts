@@ -35,6 +35,14 @@ export function setActivePlayers(value: number): void {
   activePlayers = value;
 }
 
+/** Test hook. Clears the tick-rate window so a later file in the same worker cannot inherit it. */
+export function resetTickRateWindowForTests(): void {
+  tickRateWindowStartedAt = undefined;
+  tickRateWindowTickCount = 0;
+  tickRateHz = 0;
+  tickRateWindowSeconds = 0;
+}
+
 export function recordTick(durationMs: number): void {
   tickDurationSecondsSum += durationMs / 1000;
   tickDurationSecondsCount++;

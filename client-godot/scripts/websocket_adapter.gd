@@ -15,6 +15,10 @@ extends Node
 # through subscribe_chunks() (server parser: 1-9 chunks, |x|,|y| <= 1,000,000).
 
 signal status_changed(status: String)
+# Emitted when the server closes with 1008 (policy violation). reason is the explicit
+# auth code mapped from the close reason: "INVALID_TOKEN", "AUTH_TIMEOUT", or
+# "POLICY_VIOLATION" for any other 1008 close.
+signal auth_failed(reason: String)
 signal message_received(message: Dictionary)
 # Emitted for inbound packets that cannot be delivered. Bounded per window so a
 # hostile peer cannot flood listeners: see invalid_packet_count for exact totals.
@@ -273,6 +277,7 @@ func _handle_closed() -> void:
 	if code in NO_RECONNECT_CLOSE_CODES:
 		_reconnecting = false
 		_authenticated = false
+		auth_failed.emit(_auth_failure_reason(_socket.get_close_reason()))
 		status_changed.emit("Disconnected; server rejected the session")
 		return
 	if _authenticated:
@@ -285,6 +290,18 @@ func _handle_closed() -> void:
 		_schedule_reconnect()
 		return
 	status_changed.emit("Disconnected" if _auth_sent else "Connection failed; check endpoint and server availability")
+
+# Maps the server's close reason for a 1008 close to an explicit auth failure code.
+# The server closes with "invalid_token" or "authentication_timeout" (app.ts); any
+# other 1008 reason is reported as a generic policy violation.
+func _auth_failure_reason(close_reason: String) -> String:
+	match close_reason:
+		"invalid_token":
+			return "INVALID_TOKEN"
+		"authentication_timeout":
+			return "AUTH_TIMEOUT"
+		_:
+			return "POLICY_VIOLATION"
 
 func _schedule_reconnect() -> void:
 	if _reconnect_attempt >= max_reconnect_attempts:
