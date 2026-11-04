@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { createDbPool } from "./db.js";
 import { MAX_ITEM_STACK } from "./economy.js";
 import { gatherResource } from "./resource-gathering.js";
+import { createMutationTiming } from "./mutation-timing.js";
 import { generateChunk, type ResourceNode } from "./world.js";
 
 function findResource(): ResourceNode {
@@ -41,8 +42,14 @@ describe("resource gathering transactions", () => {
     const { db, userId } = await createPlayer();
     const node = findResource();
     try {
-      const first = await gatherResource(db, userId, "gather-1", "gather_resource|" + node.id, node);
+      const timing = createMutationTiming();
+      const first = await gatherResource(db, userId, "gather-1", "gather_resource|" + node.id, node, timing);
       const replay = await gatherResource(db, userId, "gather-1", "gather_resource|" + node.id, node);
+      expect(timing.diagnostic?.traceId).toMatch(/^[0-9a-f-]{36}$/i);
+      expect(timing.diagnostic?.backendPid).toBeGreaterThan(0);
+      expect(timing.stages.commitMs).toBeGreaterThanOrEqual(0);
+      expect(timing.diagnostic?.commitEventLoopActiveMs).toBeGreaterThanOrEqual(0);
+      expect(timing.diagnostic?.commitEventLoopIdleMs).toBeGreaterThanOrEqual(0);
       expect(first.transactionId).toMatch(/^[0-9a-f-]{36}$/i);
       expect(replay).toEqual(first);
       const ledger = await db.query<{ transaction_id:string }>("SELECT transaction_id FROM resource_gather_requests WHERE user_id=$1 AND request_id=$2",[userId,"gather-1"]);
