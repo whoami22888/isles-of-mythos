@@ -60,15 +60,15 @@ func _build_environment() -> void:
 	environment.sky = sky
 	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	environment.ambient_light_color = Color(0.93, 0.86, 0.72)
-	environment.ambient_light_energy = 0.72
+	environment.ambient_light_energy = 0.55
 	environment.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	environment.fog_enabled = true
 	environment.fog_mode = Environment.FOG_MODE_DEPTH
-	environment.fog_light_color = Color(0.69, 0.82, 0.88)
-	environment.fog_depth_begin = 40.0
-	environment.fog_depth_end = 150.0
+	environment.fog_light_color = Color(0.62, 0.78, 0.92)
+	environment.fog_depth_begin = 85.0
+	environment.fog_depth_end = 320.0
 	environment.fog_depth_curve = 1.15
-	environment.fog_aerial_perspective = 0.62
+	environment.fog_aerial_perspective = 0.35
 	environment.fog_sun_scatter = 0.32
 	world.environment = environment
 	add_child(world)

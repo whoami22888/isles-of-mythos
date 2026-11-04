@@ -43,6 +43,10 @@ func run() -> void:
 	ok = _check(sun != null and not sun.shadow_enabled, "low quality disables shadows") and ok
 	scene.apply_visual_quality(2)
 	ok = _check(sun.shadow_enabled, "high quality restores shadows") and ok
+	ok = _check(_outward_faces(dressing_script, "cone") == 0, "volcano/islet cone faces point outward") and ok
+	ok = _check(_outward_faces(dressing_script, "box") == 0, "hut wall faces point outward") and ok
+	ok = _check(_outward_faces(dressing_script, "roof") == 0, "hut roof faces point outward") and ok
+	ok = _check(_outward_faces(dressing_script, "trunk") == 0, "palm trunk faces point outward") and ok
 	print("Tropical bay dressing test: %s" % ("PASS" if ok else "FAIL"))
 	quit(0 if ok else 1)
 
@@ -50,3 +54,50 @@ func _check(condition: bool, label: String) -> bool:
 	if not condition:
 		printerr("FAILED: " + label)
 	return condition
+
+# Godot front faces are clockwise: for (a, b, c) the outward normal is
+# (c - a) x (b - a). Each closed primitive must face away from its own centre,
+# or cull_back draws only its far inside wall. Returns the inward face count.
+func _outward_faces(dressing_script, kind: String) -> int:
+	var vertices := PackedVector3Array()
+	var normals := PackedVector3Array()
+	var colors := PackedColorArray()
+	var indices := PackedInt32Array()
+	match kind:
+		"cone":
+			var arrays: Array = dressing_script._cone_mesh(2.0, 3.0, Color.WHITE, Color.WHITE, 10).surface_get_arrays(0)
+			vertices = arrays[Mesh.ARRAY_VERTEX]
+			indices = arrays[Mesh.ARRAY_INDEX]
+		"box":
+			dressing_script._add_box(vertices, colors, indices, Vector3(1.0, 2.0, 3.0), Vector3(2.0, 1.5, 1.0), Color.WHITE)
+		"roof":
+			dressing_script._add_prism_roof(vertices, colors, indices, Vector3(1.0, 2.0, 3.0), Vector3(2.0, 1.0, 1.5), Color.WHITE)
+		"trunk":
+			var arrays: Array = dressing_script._palm_mesh().surface_get_arrays(0)
+			vertices = arrays[Mesh.ARRAY_VERTEX]
+			normals = arrays[Mesh.ARRAY_NORMAL]
+			# The first 6 sides x 4 segments x 2 triangles are the closed trunk.
+			indices = (arrays[Mesh.ARRAY_INDEX] as PackedInt32Array).slice(0, 6 * 4 * 6)
+	var used := {}
+	for index in indices:
+		used[index] = true
+	var centre := Vector3.ZERO
+	for index in used.keys():
+		centre += vertices[index]
+	centre /= float(maxi(used.size(), 1))
+	var inward := 0
+	for t in range(0, indices.size(), 3):
+		var a := vertices[indices[t]]
+		var b := vertices[indices[t + 1]]
+		var c := vertices[indices[t + 2]]
+		var outward := (c - a).cross(b - a)
+		var face_centre := (a + b + c) / 3.0
+		var from_centre := face_centre - centre
+		if not normals.is_empty():
+			# The leaning trunk has authored normals; winding must agree with them.
+			from_centre = normals[indices[t]] + normals[indices[t + 1]] + normals[indices[t + 2]]
+		if outward.dot(from_centre) <= 0.0:
+			inward += 1
+	if inward > 0:
+		printerr("%s: %d of %d faces point inward" % [kind, inward, indices.size() / 3])
+	return inward

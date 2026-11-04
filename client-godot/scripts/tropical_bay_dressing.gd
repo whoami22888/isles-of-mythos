@@ -111,7 +111,7 @@ static func _palm_mesh() -> ArrayMesh:
 			var b := segment * sides + next_side
 			var c := a + sides
 			var d := b + sides
-			indices.append_array(PackedInt32Array([a, c, b, b, c, d]))
+			indices.append_array(PackedInt32Array([a, b, c, b, d, c]))
 	var frond_root := vertices.size()
 	var fronds := 7
 	for frond in range(fronds):
@@ -279,7 +279,7 @@ static func _add_box(vertices: PackedVector3Array, colors: PackedColorArray, ind
 	for corner in corners:
 		vertices.append(corner)
 		colors.append(color)
-	# Outward winding matches the coastal heightfield (clockwise from outside).
+	# Clockwise seen from outside, Godot's front face: (c - a) x (b - a) points out.
 	var faces := [
 		[0, 1, 2, 3],
 		[5, 4, 7, 6],
@@ -290,8 +290,8 @@ static func _add_box(vertices: PackedVector3Array, colors: PackedColorArray, ind
 	]
 	for face in faces:
 		indices.append_array(PackedInt32Array([
-			base + face[0], base + face[2], base + face[1],
-			base + face[0], base + face[3], base + face[2],
+			base + face[0], base + face[1], base + face[2],
+			base + face[0], base + face[2], base + face[3],
 		]))
 
 
@@ -350,7 +350,7 @@ static func _cone_mesh(radius: float, height: float, base_color: Color, peak_col
 		colors.append(base_color.lerp(peak_color, 0.25))
 	for side in range(sides):
 		var next_side := (side + 1) % sides
-		indices.append_array(PackedInt32Array([0, 1 + next_side, 1 + side]))
+		indices.append_array(PackedInt32Array([0, 1 + side, 1 + next_side]))
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = vertices
