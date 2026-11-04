@@ -30,6 +30,8 @@ func run() -> void:
     root.add_child(scene)
     await process_frame
     await process_frame
+    check(root.get_visible_rect().size == Vector2(1280, 720),
+        "Viewport pin not applied: safe-frame projection would measure the wrong frame")
 
     var terrain := scene.get_node_or_null("IrregularCoastalTerrain") as MeshInstance3D
     var water := scene.get_node_or_null("ShallowToDeepWater") as MeshInstance3D
