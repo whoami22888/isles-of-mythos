@@ -7,6 +7,8 @@ extends RefCounted
 const PALM_BUDGET := 96
 const GRASS_BUDGET := 180
 const PALM_TRIANGLE_BUDGET := 120
+const TERRAIN_SHADER := preload("res://shaders/coastal_terrain_surface.gdshader")
+const COAST_DIFFUSE := preload("res://assets/external/polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_diff_1k.jpg")
 
 
 static func attach(coast: Node3D) -> void:
@@ -298,13 +300,11 @@ static func _add_box(vertices: PackedVector3Array, colors: PackedColorArray, ind
 static func _volcano() -> Node3D:
 	var root := Node3D.new()
 	root.name = "DistantVolcano"
-	root.position = Vector3(6.0, -0.35, 86.0)
+	root.position = Vector3(6.0, 0.0, 86.0)
 	var mesh_instance := MeshInstance3D.new()
-	mesh_instance.mesh = _cone_mesh(18.0, 20.0, Color(0.22, 0.18, 0.16), Color(0.45, 0.12, 0.06), 16)
-	var material := StandardMaterial3D.new()
-	material.vertex_color_use_as_albedo = true
-	material.roughness = 0.95
-	mesh_instance.material_override = material
+	mesh_instance.name = "VolcanoLandmass"
+	mesh_instance.mesh = landmass_mesh(19.0, 16.0, 19.0, 3.1, 0.22)
+	mesh_instance.material_override = _landmass_material(Color(0.20, 0.30, 0.13), Color(0.30, 0.26, 0.23))
 	mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	root.add_child(mesh_instance)
 	var smoke := CPUParticles3D.new()
@@ -338,48 +338,95 @@ static func _volcano() -> Node3D:
 	return root
 
 
-static func _cone_mesh(radius: float, height: float, base_color: Color, peak_color: Color, sides: int = 10) -> ArrayMesh:
+static func _distant_islands() -> MeshInstance3D:
+	# Four sculpted landmasses merged into one mesh: one draw call, no cones.
+	var specs := [
+		[Vector3(-62.0, 0.0, 36.0), 17.0, 12.0, 7.5, 1.3],
+		[Vector3(58.0, 0.0, 28.0), 13.0, 10.0, 5.0, 2.7],
+		[Vector3(-28.0, 0.0, 78.0), 21.0, 14.0, 6.0, 4.4],
+		[Vector3(36.0, 0.0, 70.0), 15.0, 11.0, 4.2, 5.9],
+	]
+	var merged := SurfaceTool.new()
+	merged.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for spec in specs:
+		var part: ArrayMesh = landmass_mesh(spec[1], spec[2], spec[3], spec[4], 0.0)
+		merged.append_from(part, 0, Transform3D(Basis.IDENTITY, spec[0]))
+	var instance := MeshInstance3D.new()
+	instance.name = "HazyIslets"
+	instance.mesh = merged.commit()
+	instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	instance.material_override = _landmass_material(Color(0.18, 0.36, 0.12), Color(0.44, 0.40, 0.34))
+	return instance
+
+
+## Irregular island: noisy coastline, ridged slopes, beach shelf and a
+## submerged skirt so the ocean shader meets real geometry at sea level.
+## Every face is clockwise from above (Godot front face) by construction.
+static func landmass_mesh(radius_x: float, radius_z: float, peak: float, seed: float, crater: float) -> ArrayMesh:
+	const RINGS := 10
+	const SECTORS := 30
+	const SEA := -0.35
 	var vertices := PackedVector3Array()
-	var colors := PackedColorArray()
+	vertices.append(Vector3(0.0, SEA + peak * (1.0 - crater), 0.0))
+	for ring in range(1, RINGS + 1):
+		var r := float(ring) / float(RINGS) * 1.2
+		for sector in range(SECTORS):
+			var angle := TAU * float(sector) / float(SECTORS)
+			var coast := 1.0 + 0.16 * sin(angle * 3.0 + seed) + 0.09 * sin(angle * 7.0 + seed * 2.3) + 0.05 * sin(angle * 13.0 + seed * 0.7)
+			var t := r / coast
+			var body := pow(clampf(1.0 - t, 0.0, 1.0), 1.7)
+			var ridge := 0.12 * sin(angle * 5.0 + seed * 1.9 + r * 6.0) * body
+			var height := peak * (body + ridge)
+			if crater > 0.0:
+				height -= peak * crater * (1.0 - smoothstep(0.0, 0.16, t))
+			height += 0.55 * (1.0 - smoothstep(0.88, 1.0, t))
+			height -= 2.2 * smoothstep(1.0, 1.15, t)
+			vertices.append(Vector3(cos(angle) * r * radius_x, SEA + height, sin(angle) * r * radius_z))
 	var indices := PackedInt32Array()
-	vertices.append(Vector3(0.0, height, 0.0))
-	colors.append(peak_color)
-	for side in range(sides):
-		var angle := TAU * float(side) / float(sides)
-		vertices.append(Vector3(cos(angle) * radius, 0.0, sin(angle) * radius))
-		colors.append(base_color.lerp(peak_color, 0.25))
-	for side in range(sides):
-		var next_side := (side + 1) % sides
-		indices.append_array(PackedInt32Array([0, 1 + side, 1 + next_side]))
+	for sector in range(SECTORS):
+		_add_upward_triangle(vertices, indices, 0, 1 + sector, 1 + (sector + 1) % SECTORS)
+	for ring in range(RINGS - 1):
+		var inner := 1 + ring * SECTORS
+		var outer := inner + SECTORS
+		for sector in range(SECTORS):
+			var next := (sector + 1) % SECTORS
+			_add_upward_triangle(vertices, indices, inner + sector, outer + sector, outer + next)
+			_add_upward_triangle(vertices, indices, inner + sector, outer + next, inner + next)
+	var normals := PackedVector3Array()
+	normals.resize(vertices.size())
+	for t in range(0, indices.size(), 3):
+		var a := vertices[indices[t]]
+		var face := (vertices[indices[t + 2]] - a).cross(vertices[indices[t + 1]] - a)
+		for k in range(3):
+			normals[indices[t + k]] += face
+	var uvs := PackedVector2Array()
+	for i in range(vertices.size()):
+		normals[i] = normals[i].normalized()
+		uvs.append(Vector2(vertices[i].x, vertices[i].z) * 0.14)
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = vertices
-	arrays[Mesh.ARRAY_COLOR] = colors
+	arrays[Mesh.ARRAY_NORMAL] = normals
+	arrays[Mesh.ARRAY_TEX_UV] = uvs
 	arrays[Mesh.ARRAY_INDEX] = indices
 	var mesh := ArrayMesh.new()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 	return mesh
 
 
-static func _distant_islands() -> MultiMeshInstance3D:
-	var instance := MultiMeshInstance3D.new()
-	instance.name = "HazyIslets"
-	var multi := MultiMesh.new()
-	multi.transform_format = MultiMesh.TRANSFORM_3D
-	multi.mesh = _cone_mesh(1.0, 0.55, Color(0.16, 0.28, 0.24), Color(0.20, 0.32, 0.26))
-	var spots := [
-		Transform3D(Basis.IDENTITY.scaled(Vector3(18.0, 10.0, 14.0)), Vector3(-62.0, -0.35, 36.0)),
-		Transform3D(Basis.IDENTITY.scaled(Vector3(14.0, 7.0, 12.0)), Vector3(58.0, -0.35, 28.0)),
-		Transform3D(Basis.IDENTITY.scaled(Vector3(22.0, 8.0, 16.0)), Vector3(-28.0, -0.35, 78.0)),
-		Transform3D(Basis.IDENTITY.scaled(Vector3(16.0, 6.0, 12.0)), Vector3(36.0, -0.35, 70.0)),
-	]
-	multi.instance_count = spots.size()
-	for index in range(spots.size()):
-		multi.set_instance_transform(index, spots[index])
-	instance.multimesh = multi
-	instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	var material := StandardMaterial3D.new()
-	material.vertex_color_use_as_albedo = true
-	material.roughness = 1.0
-	instance.material_override = material
-	return instance
+static func _add_upward_triangle(vertices: PackedVector3Array, indices: PackedInt32Array, a: int, b: int, c: int) -> void:
+	# Godot front face is clockwise: (c - a) x (b - a) must point up.
+	if (vertices[c] - vertices[a]).cross(vertices[b] - vertices[a]).y < 0.0:
+		indices.append_array(PackedInt32Array([a, c, b]))
+	else:
+		indices.append_array(PackedInt32Array([a, b, c]))
+
+
+static func _landmass_material(grass: Color, rock: Color) -> ShaderMaterial:
+	var material := ShaderMaterial.new()
+	material.shader = TERRAIN_SHADER
+	material.set_shader_parameter("detail_albedo", COAST_DIFFUSE)
+	material.set_shader_parameter("grass_color", grass)
+	material.set_shader_parameter("rock_color", rock)
+	material.set_shader_parameter("sea_level", -0.35)
+	return material

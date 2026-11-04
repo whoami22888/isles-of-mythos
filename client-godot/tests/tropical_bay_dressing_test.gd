@@ -43,7 +43,7 @@ func run() -> void:
 	ok = _check(sun != null and not sun.shadow_enabled, "low quality disables shadows") and ok
 	scene.apply_visual_quality(2)
 	ok = _check(sun.shadow_enabled, "high quality restores shadows") and ok
-	ok = _check(_outward_faces(dressing_script, "cone") == 0, "volcano/islet cone faces point outward") and ok
+	ok = _check(_outward_faces(dressing_script, "landmass") == 0, "volcano/islet landmass faces point up") and ok
 	ok = _check(_outward_faces(dressing_script, "box") == 0, "hut wall faces point outward") and ok
 	ok = _check(_outward_faces(dressing_script, "roof") == 0, "hut roof faces point outward") and ok
 	ok = _check(_outward_faces(dressing_script, "trunk") == 0, "palm trunk faces point outward") and ok
@@ -64,8 +64,8 @@ func _outward_faces(dressing_script, kind: String) -> int:
 	var colors := PackedColorArray()
 	var indices := PackedInt32Array()
 	match kind:
-		"cone":
-			var arrays: Array = dressing_script._cone_mesh(2.0, 3.0, Color.WHITE, Color.WHITE, 10).surface_get_arrays(0)
+		"landmass":
+			var arrays: Array = dressing_script.landmass_mesh(18.0, 14.0, 12.0, 2.0, 0.2).surface_get_arrays(0)
 			vertices = arrays[Mesh.ARRAY_VERTEX]
 			indices = arrays[Mesh.ARRAY_INDEX]
 		"box":
@@ -93,7 +93,10 @@ func _outward_faces(dressing_script, kind: String) -> int:
 		var outward := (c - a).cross(b - a)
 		var face_centre := (a + b + c) / 3.0
 		var from_centre := face_centre - centre
-		if not normals.is_empty():
+		if kind == "landmass":
+			# A heightfield-style island: every face must face the sky.
+			from_centre = Vector3.UP
+		elif not normals.is_empty():
 			# The leaning trunk has authored normals; winding must agree with them.
 			from_centre = normals[indices[t]] + normals[indices[t + 1]] + normals[indices[t + 2]]
 		if outward.dot(from_centre) <= 0.0:
