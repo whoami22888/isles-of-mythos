@@ -100,6 +100,20 @@ describe("shop catalogue", () => {
     }
   });
 
+  it("rejects admin-scoped and refresh tokens for the same player without moving gold", async () => {
+    const { db, app, userId } = await createShopPlayer();
+    try {
+      await db.query("UPDATE player_profiles SET gold=$2, inventory=$3::jsonb WHERE user_id=$1", [userId, "100", JSON.stringify({})]);
+      for (const claims of [{ role: "admin", typ: "access" }, { role: "player", typ: "refresh" }] as const) {
+        const scoped = app.jwt.sign({ sub: userId, username: "shop_scope", ...claims }, { expiresIn: "5m" });
+        const response = await app.inject({ method: "POST", url: "/shop/purchase", headers: { authorization: `Bearer ${scoped}` }, payload: { requestId: "scope-" + claims.typ, itemId: "resource.wood", quantity: 1 } });
+        expect(response.statusCode, JSON.stringify(claims)).toBe(401);
+      }
+      const row = await db.query<{ gold: string; inventory: Record<string, number> }>("SELECT gold, inventory FROM player_profiles WHERE user_id=$1", [userId]);
+      expect(row.rows[0]).toEqual({ gold: "100", inventory: {} });
+    } finally { await app.close(); await db.end(); }
+  });
+
   it("executes an HTTP purchase only once for a repeated request id", async () => {
     const { db, app, userId, token } = await createShopPlayer();
     try {
