@@ -26,40 +26,120 @@ permissions:
   contents: read
 
 jobs:
-  codacy-security-scan:
-    permissions:
-      contents: read # for actions/checkout to fetch code
-      security-events: write # for github/codeql-action/upload-sarif to upload SARIF results
-      actions: read # only required for a private repository by github/codeql-action/upload-sarif to get the Action run status
-    name: Codacy Security Scan
+  analyzer:
+    name: Codacy ${{ matrix.tool }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    strategy:
+      fail-fast: false
+      matrix:
+        tool:
+          - agentlinter
+          - bandit
+          - biome
+          - checkov
+          - csslint
+          - eslint-9
+          - hadolint
+          - jacksonlinter
+          - jshint
+          - lizard
+          - markdownlint
+          - opengrep
+          - oxlint
+          - pmd
+          - pmd-7
+          - prospector
+          - pylint
+          - pylintpython3
+          - remark-lint
+          - ruff
+          - spectral
+          - stylelint
+          - tslint
     steps:
-      # Checkout the repository to the GitHub Actions runner
-      - name: Checkout code
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
-
-      # Execute Codacy Analysis CLI and generate a SARIF output with the security issues identified during the analysis
-      - name: Run Codacy Analysis CLI
-        uses: codacy/codacy-analysis-cli-action@d840f886c4bd4edc059706d09c6a1586111c540b
+      - name: Run explicitly selected Codacy analyzer
+        uses: codacy/codacy-analysis-cli-action@d43360362776a6789b47b99ae8973510854e2d3d # CLI 7.10.0
         with:
-          # Check https://github.com/codacy/codacy-analysis-cli#project-token to get your project token from your Codacy repository
-          # You can also omit the token and run the tools that support default configurations
-          project-token: ${{ secrets.CODACY_PROJECT_TOKEN }}
-          verbose: true
+          tool: ${{ matrix.tool }}
+          fail-if-incomplete: true
           output: results.sarif
           format: sarif
-          # Adjust severity of non-security issues
           gh-code-scanning-compat: true
-          # Force 0 exit code to allow SARIF file generation
-          # This will handover control about PR rejection to the GitHub side
           max-allowed-issues: 2147483647
-
-      # Upload the SARIF file generated in the previous step
-      - name: Upload SARIF results file
+      - name: Validate and split complete SARIF
+        run: |
+          python3 -m unittest discover -s scripts -p test_codacy_sarif_identity.py -v
+          python3 scripts/codacy_sarif_identity.py results.sarif upload-results
+          test "$(find upload-results -maxdepth 1 -name "part-*.sarif" -type f | wc -l)" -eq 1
+      - name: Retain analyzer SARIF
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        with:
+          name: codacy-${{ matrix.tool }}-${{ github.event.pull_request.head.sha || github.sha }}
+          path: results.sarif
+          if-no-files-found: error
+      - name: Upload analyzer SARIF
         uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4
         with:
-          sarif_file: results.sarif
+          sarif_file: upload-results/part-01.sarif
+          category: codacy-${{ matrix.tool }}
+          ref: ${{ github.event_name == 'pull_request' && format('refs/pull/{0}/head', github.event.pull_request.number) || github.ref }}
+          sha: ${{ github.event.pull_request.head.sha || github.sha }}
+  trivy:
+    name: Trivy filesystem security
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Scan vulnerabilities, secrets and misconfiguration
+        run: |
+          docker run --rm -v "$PWD:/repo" -w /repo docker.io/aquasec/trivy@sha256:62b1e65e8869bc4b4c6aa4fa2b21595256c7c2f6018a9d9ad61caf87187c1969 fs --scanners vuln,secret,misconfig --format sarif --output /repo/trivy.sarif /repo
+      - name: Validate exact-source Trivy SARIF
+        env:
+          SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          python3 -m unittest discover -s scripts -p test_validate_trivy_sarif.py -v
+          python3 scripts/validate_trivy_sarif.py trivy.sarif "$SOURCE_SHA" trivy-receipt.json
+      - name: Retain Trivy SARIF
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        with:
+          name: trivy-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            trivy.sarif
+            trivy-receipt.json
+          if-no-files-found: error
+      - name: Upload Trivy SARIF
+        uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4
+        with:
+          sarif_file: trivy.sarif
+          category: trivy-filesystem
+          ref: ${{ github.event_name == 'pull_request' && format('refs/pull/{0}/head', github.event.pull_request.number) || github.ref }}
+          sha: ${{ github.event.pull_request.head.sha || github.sha }}
+  codacy-security-scan:
+    name: Codacy Security Scan
+    if: ${{ always() }}
+    needs: [analyzer, trivy]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every scanner and upload
+        env:
+          ANALYZERS: ${{ needs.analyzer.result }}
+          TRIVY: ${{ needs.trivy.result }}
+        run: |
+          test "$ANALYZERS" = success
+          test "$TRIVY" = success
