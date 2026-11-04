@@ -105,7 +105,7 @@ static func _palm_mesh() -> ArrayMesh:
 			var normal := Vector3(cos(angle), 0.15, sin(angle)).normalized()
 			vertices.append(Vector3(cos(angle) * radius + lean, y, sin(angle) * radius))
 			normals.append(normal)
-			colors.append(Color(0.45, 0.27, 0.12).lerp(Color(0.62, 0.40, 0.18), t))
+			colors.append(Color(0.33, 0.27, 0.21).lerp(Color(0.52, 0.45, 0.34), t))
 	for segment in range(segments):
 		for side in range(sides):
 			var next_side := (side + 1) % sides
@@ -117,28 +117,37 @@ static func _palm_mesh() -> ArrayMesh:
 	var frond_root := vertices.size()
 	var fronds := 7
 	for frond in range(fronds):
-		var yaw := TAU * float(frond) / float(fronds)
+		var yaw := TAU * float(frond) / float(fronds) + 0.31 * sin(float(frond) * 2.3)
 		var direction := Vector3(cos(yaw), 0.0, sin(yaw))
 		var side := Vector3(-direction.z, 0.0, direction.x)
-		var base := frond_root + frond * 6
-		var droop: Array[float] = [0.35, -0.05, -0.85]
-		var reach: Array[float] = [0.35, 1.15, 2.15]
-		var half_width: Array[float] = [0.16, 0.42, 0.12]
+		var base := frond_root + frond * 9
+		var droop: Array[float] = [0.30, -0.10, -0.95]
+		var reach: Array[float] = [0.30, 1.20, 2.25]
+		var half_width: Array[float] = [0.14, 0.46, 0.10]
+		var fold := 0.16
 		for step in range(3):
+			# Midrib plus two leaflet edges folded down: a V cross-section
+			# gives each frond a lit and a shaded half instead of a flat card.
 			var center := Vector3(0.0, trunk_top, 0.0) + direction * reach[step] + Vector3(0.0, droop[step], 0.0)
-			vertices.append(center + side * half_width[step])
-			vertices.append(center - side * half_width[step])
+			var edge_drop := Vector3(0.0, -fold * half_width[step] * 2.2, 0.0)
+			vertices.append(center + side * half_width[step] + edge_drop)
+			vertices.append(center)
+			vertices.append(center - side * half_width[step] + edge_drop)
+			normals.append((Vector3.UP + side * 0.45).normalized())
 			normals.append(Vector3.UP)
-			normals.append(Vector3.UP)
-			var green := Color(0.10, 0.42, 0.14).lerp(Color(0.45, 0.62, 0.16), float(step) / 2.0)
-			colors.append(green)
-			colors.append(green)
-		indices.append_array(PackedInt32Array([
-			base, base + 2, base + 1,
-			base + 1, base + 2, base + 3,
-			base + 2, base + 4, base + 3,
-			base + 3, base + 4, base + 5,
-		]))
+			normals.append((Vector3.UP - side * 0.45).normalized())
+			var t_step := float(step) / 2.0
+			var green := Color(0.05, 0.19, 0.06).lerp(Color(0.17, 0.31, 0.08), t_step)
+			colors.append(green.darkened(0.12))
+			colors.append(green.lightened(0.06))
+			colors.append(green.darkened(0.12))
+		for step in range(2):
+			var r0 := base + step * 3
+			var r1 := r0 + 3
+			indices.append_array(PackedInt32Array([
+				r0, r0 + 1, r1, r0 + 1, r1 + 1, r1,
+				r0 + 1, r0 + 2, r1 + 1, r0 + 2, r1 + 2, r1 + 1,
+			]))
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = vertices
