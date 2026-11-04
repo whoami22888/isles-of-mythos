@@ -31,6 +31,26 @@ varying float swell_crest;
 uniform bool shoremap_bound = false;
 uniform vec2 near_patch_half_extent = vec2(92.0, 70.0);
 
+
+// Aperiodic cell hash for foam breakup. Never a fixed sine lattice.
+float foam_hash(vec2 q) {
+    return fract(sin(dot(q, vec2(127.1, 311.7))) * 43758.5453);
+}
+
+// Fraction of a ring of samples around p (radius r, metres) that lies above
+// sea level in the baked heightfield. 1.0 means fully land-surrounded.
+// Samples outside the baked mesh are gated by shore_terrain_coverage, so the
+// ring never invents shoreline where no terrain was baked.
+float shore_land_fraction(vec2 p, float r) {
+    float land = 0.0;
+    for (int i = 0; i < 12; i++) {
+        float a = float(i) * 0.5235988;
+        vec2 o = vec2(cos(a), sin(a)) * r;
+        land += step(SEA_LEVEL, shore_terrain_height(p + o));
+    }
+    return land / 12.0;
+}
+
 void vertex() {
     float ocean_time = deterministic_capture ? capture_time_seconds : TIME;
     vec2 xz = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xz;
@@ -76,6 +96,12 @@ void fragment() {
     float shallow_factor = coverage * depth_factor * seabed_variation;
     float contact = coverage * smoothstep(0.02, 0.12, depth_m)
                     * (1.0 - smoothstep(0.16, 0.55, depth_m));
+    // Distance-field style shoreline mask: water at this texel with land
+    // within 1.1 m (strong) and 2.6 m (soft). Follows the baked coastline.
+    float water_here = (1.0 - step(SEA_LEVEL, floor_y)) * coverage;
+    float land_near = shore_land_fraction(p, 1.1);
+    float land_far = shore_land_fraction(p, 2.6);
+    float shore_band = water_here * clamp(land_near * 1.1 + land_far * 0.35, 0.0, 1.0);
 
     // Gentle micro normals. High-frequency normals plus a shiny roughness
     // produced a repeating diamond lattice under the mobile specular model.
@@ -94,7 +120,8 @@ void fragment() {
                        * cos(p.y * 2.1 - ocean_time * 0.85);
     foam_pattern += sin(p.x * 3.4 - p.y * 2.6 + ocean_time * 1.5) * 0.35;
     float foam_motion = smoothstep(-0.15, 0.72, foam_pattern);
-    float shore_foam = contact * foam_motion * foam_amount;
+    float breakup = 0.78 + 0.22 * foam_hash(floor(p * 3.5));
+    float shore_foam = clamp(shore_band * breakup, 0.0, 1.0) * foam_amount * 0.9;
 
     vec2 fwd = vessel_forward;
     float fwd_len = length(fwd);
