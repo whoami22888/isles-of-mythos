@@ -48,6 +48,13 @@ func run() -> void:
 	ok = _check(_outward_faces(dressing_script, "roof") == 0, "hut roof faces point outward") and ok
 	ok = _check(_outward_faces(dressing_script, "trunk") == 0, "palm trunk faces point outward") and ok
 	ok = _check(_landmass_boundary_submerged(dressing_script), "landmass outer ring sits below sea level") and ok
+	var smoke := scene.get_node_or_null("TropicalBayDressing/DistantVolcano/VolcanoSmoke") as Node3D
+	var crater := scene.get_node_or_null("TropicalBayDressing/DistantVolcano/VolcanoLandmass") as MeshInstance3D
+	if smoke and crater:
+		var floor_y: float = (crater.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX] as PackedVector3Array)[0].y
+		ok = _check(smoke.position.y >= floor_y and smoke.position.y - floor_y <= 1.0, "volcano smoke emits from the crater floor") and ok
+	else:
+		ok = _check(false, "volcano smoke and landmass nodes") and ok
 	print("Tropical bay dressing test: %s" % ("PASS" if ok else "FAIL"))
 	quit(0 if ok else 1)
 

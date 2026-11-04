@@ -330,7 +330,10 @@ static func _volcano() -> Node3D:
 	smoke.initial_velocity_max = 2.0
 	smoke.scale_amount_min = 1.4
 	smoke.scale_amount_max = 3.2
-	smoke.position = Vector3(0.0, 19.0, 0.0)
+	# Emit from the crater floor (the landmass centre vertex), not the old
+	# cone tip, so the plume rises out of the crater.
+	var crater_floor: Vector3 = (mesh_instance.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX] as PackedVector3Array)[0]
+	smoke.position = crater_floor + Vector3(0.0, 0.3, 0.0)
 	var puff := SphereMesh.new()
 	puff.radial_segments = 6
 	puff.rings = 3
