@@ -1,6 +1,8 @@
 extends Node3D
 
 const Protocol = preload("res://gameplay/vertical_slice_protocol.gd")
+const GuildObjectivesPanel = preload("res://gameplay/guild_objectives_panel.gd")
+var _guild_objectives: VBoxContainer
 var _client: Node
 var _player := Vector3.ZERO
 var _markers: Dictionary = {}
@@ -50,6 +52,10 @@ func _ready() -> void:
 	_connect_button = $Interface/Panel/Margin/Content/Connect
 	_gather.pressed.connect(_gather_nearest)
 	_connect_button.pressed.connect(_connect)
+	_guild_objectives = GuildObjectivesPanel.new()
+	_guild_objectives.name = "GuildObjectives"
+	$Interface/Panel/Margin/Content.add_child(_guild_objectives)
+	_guild_objectives.reward_claimed.connect(func(_id: String, gold: String) -> void: _status.text = "Guild reward claimed: +" + gold + " gold")
 	_build_scaffold_world()
 	_client = Protocol.new()
 	add_child(_client)
@@ -185,6 +191,7 @@ func _on_transport_status(status: String) -> void:
 
 func _on_authenticated(_user_id: String) -> void:
 	_status.text = "Authenticated; awaiting server player position…"
+	_configure_guild_objectives()
 	# The chunk is requested once the server reports where the player is.
 	_chunk_known = false
 	_chunk_in_flight = ""
@@ -432,6 +439,14 @@ func _on_refresh_completed(result: int, response_code: int, _headers: PackedStri
 	_client.connect_to_server()
 	_status.text = "Session refreshed. Reconnecting…"
 
+# Guild objectives use the WebSocket session's HTTP base and current access token.
+func _configure_guild_objectives() -> void:
+	var base := ""
+	if _client.has_method("_is_safe_authenticated_url"):
+		base = _http_base(_handoff_endpoint)
+	_guild_objectives.configure(base, _handoff_token)
+	_guild_objectives.refresh(true)
+
 func _return_to_login(reason: String) -> void:
 	_refreshing = false
 	_stop_approach()
@@ -468,6 +483,8 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _on_ack(_request_id: String, message: Dictionary) -> void:
 	if message.get("type") == "resource_gathered":
+		# Guild progress is server-derived from the gather ledger; re-read it (rate bounded).
+		_guild_objectives.refresh()
 		var resource_id = message.get("resourceId")
 		if resource_id is String and _markers.has(resource_id):
 			_markers[resource_id].queue_free()
