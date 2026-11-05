@@ -211,22 +211,24 @@ static func _settlement(coast: Node3D) -> Node3D:
 	pier.material_override = material
 	pier.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	root.add_child(pier)
+	# Three stilted thatch huts merged into one mesh: one draw call, not three.
+	var hut_vertices := PackedVector3Array()
+	var hut_colors := PackedColorArray()
+	var hut_indices := PackedInt32Array()
 	for hut in [
-		[Vector3(-12.5, 0.0, 3.6), 1.7, Color(0.72, 0.58, 0.36), Color(0.62, 0.28, 0.16)],
-		[Vector3(-9.4, 0.0, 5.4), 1.35, Color(0.78, 0.64, 0.40), Color(0.70, 0.34, 0.18)],
-		[Vector3(8.8, 0.0, 4.8), 1.5, Color(0.66, 0.52, 0.34), Color(0.55, 0.24, 0.16)],
+		[Vector3(-12.5, 0.0, 3.6), 1.7, Color(0.60, 0.48, 0.31), Color(0.42, 0.31, 0.16)],
+		[Vector3(-9.4, 0.0, 5.4), 1.35, Color(0.66, 0.53, 0.34), Color(0.46, 0.34, 0.18)],
+		[Vector3(8.8, 0.0, 4.8), 1.5, Color(0.56, 0.45, 0.30), Color(0.39, 0.29, 0.15)],
 	]:
-		var hut_vertices := PackedVector3Array()
-		var hut_colors := PackedColorArray()
-		var hut_indices := PackedInt32Array()
-		_add_hut(hut_vertices, hut_colors, hut_indices, Vector3.ZERO, hut[1], hut[2], hut[3])
-		var hut_mesh := MeshInstance3D.new()
-		hut_mesh.mesh = _colored_mesh(hut_vertices, hut_colors, hut_indices)
-		hut_mesh.material_override = material
-		hut_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		var spot: Vector3 = hut[0]
-		hut_mesh.position = Vector3(spot.x, coast._terrain_height(spot.x, spot.z), spot.z)
-		root.add_child(hut_mesh)
+		var origin := Vector3(spot.x, coast._terrain_height(spot.x, spot.z), spot.z)
+		_add_hut(hut_vertices, hut_colors, hut_indices, origin, hut[1], hut[2], hut[3])
+	var huts := MeshInstance3D.new()
+	huts.name = "StiltedHuts"
+	huts.mesh = _colored_mesh(hut_vertices, hut_colors, hut_indices)
+	huts.material_override = material
+	huts.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	root.add_child(huts)
 	return root
 
 
@@ -238,12 +240,38 @@ static func _colored_mesh(vertices: PackedVector3Array, colors: PackedColorArray
 	arrays[Mesh.ARRAY_INDEX] = indices
 	var mesh := ArrayMesh.new()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	return mesh
+	# The boxes had no normals, so huts and pier lit as flat blobs. Generate
+	# flat per-face normals for crisp faceted wood and thatch.
+	var tool := SurfaceTool.new()
+	tool.create_from(mesh, 0)
+	tool.deindex()
+	tool.generate_normals()
+	# Re-index so callers that read ARRAY_INDEX (triangle budgets, capture
+	# cost reports) still get an indexed surface; faces stay flat-shaded.
+	tool.index()
+	return tool.commit()
 
 
 static func _add_hut(vertices: PackedVector3Array, colors: PackedColorArray, indices: PackedInt32Array, origin: Vector3, size: float, wall: Color, roof: Color) -> void:
-	_add_box(vertices, colors, indices, origin + Vector3(0.0, size * 0.45, 0.0), Vector3(size, size * 0.9, size * 0.8), wall)
-	_add_prism_roof(vertices, colors, indices, origin + Vector3(0.0, size * 0.95, 0.0), Vector3(size * 1.25, size * 0.55, size * 1.05), roof)
+	# Stilted beach hut: four posts, a raised deck, woven walls with a dark
+	# doorway and a steep thatch roof that overhangs the deck.
+	var post := Color(0.30, 0.21, 0.13)
+	var stilt := size * 0.42
+	var half_w := size * 0.5
+	var half_d := size * 0.4
+	for corner in [Vector2(-1, -1), Vector2(1, -1), Vector2(1, 1), Vector2(-1, 1)]:
+		_add_box(vertices, colors, indices,
+			origin + Vector3(corner.x * half_w, stilt * 0.5, corner.y * half_d),
+			Vector3(size * 0.09, stilt + 0.3, size * 0.09), post)
+	_add_box(vertices, colors, indices, origin + Vector3(0.0, stilt, 0.0),
+		Vector3(size * 1.18, size * 0.07, size * 1.0), post.lightened(0.18))
+	var wall_h := size * 0.62
+	_add_box(vertices, colors, indices, origin + Vector3(0.0, stilt + wall_h * 0.5, 0.0),
+		Vector3(size, wall_h, size * 0.8), wall)
+	_add_box(vertices, colors, indices, origin + Vector3(0.0, stilt + size * 0.24, half_d + 0.01),
+		Vector3(size * 0.26, size * 0.44, 0.04), Color(0.12, 0.08, 0.05))
+	_add_prism_roof(vertices, colors, indices, origin + Vector3(0.0, stilt + wall_h - size * 0.04, 0.0),
+		Vector3(size * 1.5, size * 0.78, size * 1.22), roof)
 
 
 static func _add_prism_roof(vertices: PackedVector3Array, colors: PackedColorArray, indices: PackedInt32Array, center: Vector3, size: Vector3, color: Color) -> void:
