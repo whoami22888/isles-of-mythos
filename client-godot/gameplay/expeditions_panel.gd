@@ -171,10 +171,20 @@ func _row(key: String, action: String, handler: Callable) -> Dictionary:
 	return _rows[key]
 
 static func _parse_iso(value: String) -> float:
-	# "2026-11-05T08:00:00.000Z" -> unix seconds (UTC); fractional part ignored.
+	# "2026-11-05T08:00:00.679Z" -> unix seconds (UTC) including the fraction, so
+	# the client never treats an expedition as returned before the server does.
 	if value.length() < 19:
 		return 0.0
-	return float(Time.get_unix_time_from_datetime_string(value.substr(0, 19)))
+	var seconds := float(Time.get_unix_time_from_datetime_string(value.substr(0, 19)))
+	if value.length() > 20 and value[19] == ".":
+		var digits := ""
+		for i in range(20, value.length()):
+			if not value[i].is_valid_int():
+				break
+			digits += value[i]
+		if not digits.is_empty():
+			seconds += float("0." + digits)
+	return seconds
 
 func _send_http(method: int, path: String, body: Variant) -> void:
 	var headers := PackedStringArray(["Accept: application/json", "Authorization: Bearer " + _token])

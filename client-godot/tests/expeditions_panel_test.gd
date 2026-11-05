@@ -84,6 +84,14 @@ func run() -> void:
 	panel.collect("e2")
 	panel.on_action_response(409, {"error": "EXPEDITION_IN_PROGRESS"})
 	check(paid.size() == 1 and sent.size() == 2 and sent[1]["path"] == "/expeditions", "409 pays nothing and re-reads")
+	# Server timestamps carry milliseconds: never enable Collect before the real return time.
+	var exp3 := {"expeditionId": "e3", "routeId": "reef.short", "returnsAt": Time.get_datetime_string_from_unix_time(int(now)) + ".679Z", "collectedAt": null}
+	panel.on_list_response(200, listing("docked", [exp3]))
+	check(not panel.can_collect("e3"), "returnsAt with .679 s is still in the future at the whole second")
+	now += 0.5
+	check(not panel.can_collect("e3"), "still not collectable at +0.5 s")
+	now += 0.5
+	check(panel.can_collect("e3"), "collectable once the fractional second has passed")
 	panel.on_list_response(500, null)
 	check(panel.get_child(0).text == "Expeditions (unavailable)", "server error shown, no crash")
 	panel.queue_free()
