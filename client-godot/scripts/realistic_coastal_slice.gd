@@ -52,9 +52,14 @@ func _build_environment() -> void:
 	var sky := Sky.new()
 	var sky_material := ProceduralSkyMaterial.new()
 	sky_material.sky_top_color = Color(0.22, 0.55, 0.95)
-	sky_material.sky_horizon_color = Color(0.98, 0.84, 0.62)
-	sky_material.ground_bottom_color = Color(0.10, 0.28, 0.38)
-	sky_material.ground_horizon_color = Color(0.55, 0.78, 0.78)
+	# Horizon sits between the warm sun and the blue haze so fog meets sky
+	# without a hard seam.
+	sky_material.sky_horizon_color = Color(0.80, 0.86, 0.88)
+	# Past the 640 x 480 m ocean plane the camera sees the sky's lower
+	# hemisphere. Match the fog tint the far water fades into, so there is
+	# no band where the water mesh ends.
+	sky_material.ground_bottom_color = Color(0.45, 0.63, 0.82)
+	sky_material.ground_horizon_color = Color(0.62, 0.78, 0.92)
 	sky_material.sun_angle_max = 22.0
 	sky.sky_material = sky_material
 	environment.sky = sky
@@ -70,6 +75,9 @@ func _build_environment() -> void:
 	environment.fog_depth_curve = 1.15
 	environment.fog_aerial_perspective = 0.35
 	environment.fog_sun_scatter = 0.32
+	# Default 1.0 painted the whole sky in flat fog colour, the pale band at
+	# the top of the gameplay view. Keep the sky gradient readable.
+	environment.fog_sky_affect = 0.3
 	world.environment = environment
 	add_child(world)
 	var sun := DirectionalLight3D.new()
