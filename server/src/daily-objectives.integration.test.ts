@@ -85,6 +85,9 @@ describe("daily objectives", () => {
       expect(await t.gold()).toBe("140");
       const ledger = await t.db.query("SELECT 1 FROM daily_objective_claims WHERE user_id=$1", [t.userId]);
       expect(ledger.rowCount).toBe(1);
+      // Replays must not write economy audit rows: only the real payout is recorded.
+      const audit = await t.db.query("SELECT 1 FROM economy_transactions WHERE user_id=$1 AND operation='daily_objective_claim'", [t.userId]);
+      expect(audit.rowCount).toBe(1);
     } finally { await t.close(); }
   });
 

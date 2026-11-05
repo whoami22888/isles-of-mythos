@@ -92,16 +92,20 @@ export class DailyObjectiveStore {
     const client = await this.db.connect();
     try {
       await client.query("BEGIN");
-      // Locks the player row first, so concurrent claims for the same player serialize.
+      // Lock the player row first so concurrent claims for the same player serialize.
+      const player = await client.query("SELECT 1 FROM player_profiles WHERE user_id=$1 FOR UPDATE", [userId]);
+      if (!player.rows[0]) throw new Error("PLAYER_NOT_FOUND");
+      const existing = await client.query<{ transaction_id: string; reward_gold: string }>(
+        "SELECT transaction_id, reward_gold FROM daily_objective_claims WHERE user_id=$1 AND objective_day=$2::date AND objective_id=$3",
+        [userId, day, objective.id],
+      );
+      const prior = existing.rows[0];
+      if (prior) {
+        // Replay: no economy write, so the audit trail records only the real payout.
+        await client.query("COMMIT");
+        return { objectiveId: objective.id, day, transactionId: prior.transaction_id, rewardGold: prior.reward_gold, replayed: true };
+      }
       const result = await runEconomyMutation(client, userId, async (draft) => {
-        const existing = await client.query<{ transaction_id: string; reward_gold: string }>(
-          "SELECT transaction_id, reward_gold FROM daily_objective_claims WHERE user_id=$1 AND objective_day=$2::date AND objective_id=$3",
-          [userId, day, objective.id],
-        );
-        const prior = existing.rows[0];
-        if (prior) {
-          return { gold: draft.gold, inventory: draft.inventory, value: { objectiveId: objective.id, day, transactionId: prior.transaction_id, rewardGold: prior.reward_gold, replayed: true } };
-        }
         const progress = await progressFor(client, userId, objective, day);
         if (progress < objective.target) throw new Error("DAILY_OBJECTIVE_INCOMPLETE");
         const inserted = await client.query<{ transaction_id: string }>(
