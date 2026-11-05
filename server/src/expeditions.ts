@@ -171,7 +171,17 @@ export function registerExpeditionRoutes(app: FastifyInstance, db: Pool, players
     config: { rateLimit: { max: 60, timeWindow: "1 minute" } },
   }, async (request, reply) => {
     if (!(await verifyPlayer(request))) return reply.code(401).send({ error: "UNAUTHORIZED" });
-    return { routes: Object.values(EXPEDITION_ROUTES).map((r) => ({ routeId: r.id, durationSeconds: r.durationSeconds, items: r.items, gold: r.gold.toString() })), expeditions: await store.list(request.user.sub) };
+    const userId = request.user.sub;
+    // Only the caller's own ships, and only what the expedition picker needs.
+    const ships = await db.query<{ id: string; name: string; status: string }>(
+      "SELECT id, name, status FROM player_ships WHERE owner_user_id=$1 AND status IN ('active','docked') ORDER BY created_at, id",
+      [userId],
+    );
+    return {
+      routes: Object.values(EXPEDITION_ROUTES).map((r) => ({ routeId: r.id, durationSeconds: r.durationSeconds, items: r.items, gold: r.gold.toString() })),
+      ships: ships.rows.map((row) => ({ shipId: row.id, name: row.name, status: row.status })),
+      expeditions: await store.list(userId),
+    };
   });
 
   app.post<{ Body: { shipId: string; routeId: string; requestId: string } }>("/expeditions/start", {

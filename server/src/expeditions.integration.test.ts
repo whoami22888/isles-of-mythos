@@ -40,6 +40,10 @@ describe("ship expeditions", () => {
       expect(exp.replayed).toBe(false);
       expect(Date.parse(exp.returnsAt) - Date.parse(exp.startedAt)).toBe(120_000);
       expect(await t.shipStatus()).toBe("docked");
+      const listing = JSON.parse((await t.app.inject({ method: "GET", url: "/expeditions", headers: t.auth })).body) as { routes: { routeId: string }[]; ships: { shipId: string; status: string }[]; expeditions: { expeditionId: string }[] };
+      expect(listing.routes.map((r) => r.routeId)).toEqual(["reef.short", "isles.long"]);
+      expect(listing.ships).toEqual([{ shipId: t.shipId, name: "Tide Runner", status: "docked" }]);
+      expect(listing.expeditions.map((e) => e.expeditionId)).toEqual([exp.expeditionId]);
       const early = await t.collect(exp.expeditionId);
       expect(early.statusCode).toBe(409);
       expect(JSON.parse(early.body)).toEqual({ error: "EXPEDITION_IN_PROGRESS" });
@@ -94,6 +98,8 @@ describe("ship expeditions", () => {
     const b = await setup();
     try {
       expect((await b.start({ shipId: a.shipId, routeId: "reef.short", requestId: "exp-steal-0001" })).statusCode).toBe(404);
+      const bView = JSON.parse((await b.app.inject({ method: "GET", url: "/expeditions", headers: b.auth })).body) as { ships: { shipId: string }[] };
+      expect(bView.ships.map((s) => s.shipId)).toEqual([b.shipId]);
       const exp = JSON.parse((await a.start({ shipId: a.shipId, routeId: "reef.short", requestId: "exp-own-00001" })).body) as { expeditionId: string };
       await a.arrive(exp.expeditionId);
       expect((await b.collect(exp.expeditionId)).statusCode).toBe(404);
