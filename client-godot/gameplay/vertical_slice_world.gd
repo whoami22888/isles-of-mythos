@@ -1,6 +1,8 @@
 extends Node3D
 
 const Protocol = preload("res://gameplay/vertical_slice_protocol.gd")
+const ExpeditionsPanel = preload("res://gameplay/expeditions_panel.gd")
+var _expeditions: VBoxContainer
 var _client: Node
 var _player := Vector3.ZERO
 var _markers: Dictionary = {}
@@ -50,6 +52,10 @@ func _ready() -> void:
 	_connect_button = $Interface/Panel/Margin/Content/Connect
 	_gather.pressed.connect(_gather_nearest)
 	_connect_button.pressed.connect(_connect)
+	_expeditions = ExpeditionsPanel.new()
+	_expeditions.name = "Expeditions"
+	$Interface/Panel/Margin/Content.add_child(_expeditions)
+	_expeditions.expedition_collected.connect(func(_id: String, gold: String) -> void: _status.text = "Expedition returned: +" + gold + " gold")
 	_build_scaffold_world()
 	_client = Protocol.new()
 	add_child(_client)
@@ -185,6 +191,7 @@ func _on_transport_status(status: String) -> void:
 
 func _on_authenticated(_user_id: String) -> void:
 	_status.text = "Authenticated; awaiting server player position…"
+	_configure_expeditions()
 	# The chunk is requested once the server reports where the player is.
 	_chunk_known = false
 	_chunk_in_flight = ""
@@ -431,6 +438,14 @@ func _on_refresh_completed(result: int, response_code: int, _headers: PackedStri
 	_client.configure(_handoff_endpoint, access)
 	_client.connect_to_server()
 	_status.text = "Session refreshed. Reconnecting…"
+
+# Expeditions use the WebSocket session's HTTP base and current access token.
+func _configure_expeditions() -> void:
+	var base := ""
+	if _client.has_method("_is_safe_authenticated_url"):
+		base = _http_base(_handoff_endpoint)
+	_expeditions.configure(base, _handoff_token)
+	_expeditions.refresh()
 
 func _return_to_login(reason: String) -> void:
 	_refreshing = false
