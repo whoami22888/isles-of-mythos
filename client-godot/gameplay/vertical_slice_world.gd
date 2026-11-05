@@ -5,6 +5,8 @@ const GuildObjectivesPanel = preload("res://gameplay/guild_objectives_panel.gd")
 var _guild_objectives: VBoxContainer
 const ExpeditionsPanel = preload("res://gameplay/expeditions_panel.gd")
 var _expeditions: VBoxContainer
+const DailyObjectivesPanel = preload("res://gameplay/daily_objectives_panel.gd")
+var _objectives: VBoxContainer
 var _client: Node
 var _player := Vector3.ZERO
 var _markers: Dictionary = {}
@@ -62,6 +64,10 @@ func _ready() -> void:
 	_expeditions.name = "Expeditions"
 	$Interface/Panel/Margin/Content.add_child(_expeditions)
 	_expeditions.expedition_collected.connect(func(_id: String, gold: String) -> void: _status.text = "Expedition returned: +" + gold + " gold")
+	_objectives = DailyObjectivesPanel.new()
+	_objectives.name = "DailyObjectives"
+	$Interface/Panel/Margin/Content.add_child(_objectives)
+	_objectives.reward_claimed.connect(func(_id: String, gold: String) -> void: _status.text = "Daily reward claimed: +" + gold + " gold")
 	_build_scaffold_world()
 	_client = Protocol.new()
 	add_child(_client)
@@ -199,6 +205,7 @@ func _on_authenticated(_user_id: String) -> void:
 	_status.text = "Authenticated; awaiting server player position…"
 	_configure_guild_objectives()
 	_configure_expeditions()
+	_configure_objectives()
 	# The chunk is requested once the server reports where the player is.
 	_chunk_known = false
 	_chunk_in_flight = ""
@@ -462,6 +469,15 @@ func _configure_expeditions() -> void:
 	_expeditions.configure(base, _handoff_token)
 	_expeditions.refresh()
 
+# Daily objectives use the same server as the WebSocket session and its current
+# access token. Unsafe or unknown endpoints leave the panel unconfigured.
+func _configure_objectives() -> void:
+	var base := ""
+	if _client.has_method("_is_safe_authenticated_url"):
+		base = _http_base(_handoff_endpoint)
+	_objectives.configure(base, _handoff_token)
+	_objectives.refresh(true)
+
 func _return_to_login(reason: String) -> void:
 	_refreshing = false
 	_stop_approach()
@@ -500,6 +516,9 @@ func _on_ack(_request_id: String, message: Dictionary) -> void:
 	if message.get("type") == "resource_gathered":
 		# Guild progress is server-derived from the gather ledger; re-read it (rate bounded).
 		_guild_objectives.refresh()
+
+		# Progress is server-derived from the gather ledger; re-read it (rate bounded).
+		_objectives.refresh()
 		var resource_id = message.get("resourceId")
 		if resource_id is String and _markers.has(resource_id):
 			_markers[resource_id].queue_free()
