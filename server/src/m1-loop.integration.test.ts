@@ -267,6 +267,17 @@ describe("M1 first playable loop (server contract)", () => {
     const requests = await db.query("SELECT 1 FROM resource_gather_requests WHERE user_id=$1 AND request_id=$2", [userId, requestId]);
     expect(requests.rowCount).toBe(1);
 
+    // Daily objectives read the same committed gather ledger: the real gather (and not its
+    // replay) is counted exactly once. Herb has no daily objective.
+    const daily = await app.inject({ method: "GET", url: "/daily-objectives", headers: { authorization: `Bearer ${token}` } });
+    expect(daily.statusCode).toBe(200);
+    const dailyBody = JSON.parse(daily.body) as { objectives: { objectiveId: string; progress: number; complete: boolean; claimed: boolean }[] };
+    const objectiveId = target.type === "wood" ? "gather.wood" : target.type === "stone" ? "gather.stone" : null;
+    for (const objective of dailyBody.objectives) {
+      const expected = objective.objectiveId === objectiveId ? quantity : 0;
+      expect(objective, objective.objectiveId).toMatchObject({ progress: expected, complete: false, claimed: false });
+    }
+
     // Same requestId reused for a different intent is a conflict, not a second grant.
     const other = [...nodes].find((n) => n.id !== target.id)!;
     const conflict = await client.request({ type: "gather_resource", requestId, resourceId: other.id }, ["resource_gathered"]);
