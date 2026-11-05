@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { buildApp } from "./app.js";
 import { createDbPool } from "./db.js";
 import { PlayerStore } from "./player.js";
-import { DAILY_OBJECTIVES, utcDay } from "./daily-objectives.js";
+import { DAILY_OBJECTIVES, progressFor, utcDay } from "./daily-objectives.js";
 
 // Progress comes only from the authoritative gather/craft ledgers. These tests seed
 // committed ledger rows directly, exactly as gatherResource/craft would leave them.
@@ -110,4 +110,39 @@ describe("daily objectives", () => {
       expect((await t.app.inject({ method: "GET", url: "/daily-objectives" })).statusCode).toBe(401);
     } finally { await t.close(); }
   });
+
+  it("uses UTC ledger boundaries with a non-UTC PostgreSQL session", async () => {
+    const t = await setup();
+    const client = await t.db.connect();
+    try {
+      await client.query("BEGIN");
+      await client.query("SET LOCAL TIME ZONE 'Australia/Sydney'");
+      const day = "2026-11-06";
+      const rows = [
+        { at: "2026-11-05T13:30:00Z", quantity: 5 }, // Nov 6 Sydney, Nov 5 UTC
+        { at: "2026-11-06T00:30:00Z", quantity: 7 }, // Nov 6 UTC
+      ];
+      for (const row of rows) {
+        await client.query(
+          "INSERT INTO resource_gather_requests(user_id,request_id,fingerprint,node_id,item_id,quantity,respawns_at,created_at) VALUES($1,$2,'seed','seed-node','resource.wood',$3,now(),$4::timestamptz)",
+          [t.userId, randomUUID(), row.quantity, row.at],
+        );
+        await client.query(
+          "INSERT INTO craft_requests(request_key,user_id,fingerprint,response,created_at) VALUES($1,$2,'test.recipe','{}'::jsonb,$3::timestamptz)",
+          [t.userId + ":" + randomUUID(), t.userId, row.at],
+        );
+      }
+      const wood = DAILY_OBJECTIVES.find((objective) => objective.id === "gather.wood");
+      const craft = DAILY_OBJECTIVES.find((objective) => objective.id === "craft.any");
+      if (!wood || !craft) throw new Error("TEST_OBJECTIVE_MISSING");
+      expect(await progressFor(client, t.userId, wood, day)).toBe(7);
+      expect(await progressFor(client, t.userId, craft, day)).toBe(1);
+    } finally {
+      await client.query("ROLLBACK");
+      client.release();
+      await t.close();
+    }
+  });
+
+
 });

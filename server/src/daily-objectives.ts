@@ -44,16 +44,16 @@ export function utcDay(now: Date): string {
 
 type Queryable = Pick<Pool | PoolClient, "query">;
 
-async function progressFor(db: Queryable, userId: string, objective: DailyObjective, day: string): Promise<number> {
+export async function progressFor(db: Queryable, userId: string, objective: DailyObjective, day: string): Promise<number> {
   if (objective.kind === "gather") {
     const { rows } = await db.query<{ total: string | null }>(
-      "SELECT COALESCE(SUM(quantity),0)::bigint AS total FROM resource_gather_requests WHERE user_id=$1 AND item_id=$2 AND created_at >= $3::date AND created_at < ($3::date + 1)",
+      "SELECT COALESCE(SUM(quantity),0)::bigint AS total FROM resource_gather_requests WHERE user_id=$1 AND item_id=$2 AND created_at >= ($3::date::timestamp AT TIME ZONE 'UTC') AND created_at < (($3::date + 1)::timestamp AT TIME ZONE 'UTC')",
       [userId, objective.itemId, day],
     );
     return Number(rows[0]?.total ?? 0);
   }
   const { rows } = await db.query<{ total: string }>(
-    "SELECT COUNT(*)::bigint AS total FROM craft_requests WHERE user_id=$1 AND created_at >= $2::date AND created_at < ($2::date + 1)",
+    "SELECT COUNT(*)::bigint AS total FROM craft_requests WHERE user_id=$1 AND created_at >= ($2::date::timestamp AT TIME ZONE 'UTC') AND created_at < (($2::date + 1)::timestamp AT TIME ZONE 'UTC')",
     [userId, day],
   );
   return Number(rows[0]?.total ?? 0);
