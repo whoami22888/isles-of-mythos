@@ -54,6 +54,7 @@ jobs:
           "$RUNNER_TEMP/godot/godot" --headless --path client-godot --script res://tests/vertical_slice_world_regression.gd
           "$RUNNER_TEMP/godot/godot" --headless --path client-godot --script res://tests/vertical_slice_review_regression.gd
           "$RUNNER_TEMP/godot/godot" --headless --path client-godot --script res://tests/guild_objectives_panel_test.gd
+          "$RUNNER_TEMP/godot/godot" --headless --path client-godot --script res://tests/expeditions_panel_test.gd
           "$RUNNER_TEMP/godot/godot" --headless --path client-godot --script res://tests/vertical_slice_ground_coverage_regression.gd
           "$RUNNER_TEMP/godot/godot" --headless --path client-godot --script res://tests/phone_handoff_regression.gd
           "$RUNNER_TEMP/godot/godot" --headless --path client-godot --script res://tests/creature_snapshot_assembler_test.gd
