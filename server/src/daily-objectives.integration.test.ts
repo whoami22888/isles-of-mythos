@@ -129,7 +129,7 @@ describe("daily objectives", () => {
         );
         await client.query(
           "INSERT INTO craft_requests(request_key,user_id,fingerprint,response,created_at) VALUES($1,$2,'test.recipe','{}'::jsonb,$3::timestamptz)",
-          [t.userId + ":" + randomUUID(), t.userId, row.at],
+          [`${t.userId}:${randomUUID()}`, t.userId, row.at],
         );
       }
       const wood = DAILY_OBJECTIVES.find((objective) => objective.id === "gather.wood");
