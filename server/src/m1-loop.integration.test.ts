@@ -238,6 +238,10 @@ describe("M1 first playable loop (server contract)", () => {
     const quantity = target.type === "herb" ? 1 : 2;
     const requestId = "m1-gather-" + unique.slice(0, 12);
     touchedNodeId = target.id;
+    // Join a guild just before the gather so guild objective progress can be checked against it.
+    const guildTag = unique.slice(0, 6);
+    const guildRow = await db.query<{ id: string }>("INSERT INTO guilds(name, tag, leader_user_id) VALUES($1,$2,$3) RETURNING id", [`M1 ${guildTag}`, guildTag, userId]);
+    await db.query("INSERT INTO guild_members(guild_id, user_id, rank) VALUES($1,$2,'master')", [guildRow.rows[0]?.id, userId]);
 
     const startedAt = performance.now();
     const ack = await client.request({ type: "gather_resource", requestId, resourceId: target.id }, ["resource_gathered"]);
@@ -277,6 +281,13 @@ describe("M1 first playable loop (server contract)", () => {
       const expected = objective.objectiveId === objectiveId ? quantity : 0;
       expect(objective, objective.objectiveId).toMatchObject({ progress: expected, complete: false, claimed: false });
     }
+    // The weekly guild objective reads the same ledger for members, from when they joined.
+    const guildView = await app.inject({ method: "GET", url: "/guild-objectives", headers: { authorization: `Bearer ${token}` } });
+    expect(guildView.statusCode).toBe(200);
+    const guildBody = JSON.parse(guildView.body) as { guildId: string | null; objectives: { objectiveId: string; guildProgress: number; myContribution: number }[] };
+    expect(guildBody.guildId).toBe(guildRow.rows[0]?.id);
+    const woodQuantity = target.type === "wood" ? quantity : 0;
+    expect(guildBody.objectives.find((o) => o.objectiveId === "guild.wood")).toMatchObject({ guildProgress: woodQuantity, myContribution: woodQuantity });
 
     // Same requestId reused for a different intent is a conflict, not a second grant.
     const other = [...nodes].find((n) => n.id !== target.id)!;
