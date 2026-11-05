@@ -693,6 +693,11 @@ func apply_visual_quality(level: int) -> void:
 	var sun := get_node_or_null("WarmSun") as DirectionalLight3D
 	if sun:
 		sun.shadow_enabled = clamped == 2
+	# Project default is 2x MSAA (thin rigging and fronds alias badly
+	# without it). The mid-range floor drops it to save fill rate.
+	var viewport := get_viewport()
+	if viewport:
+		viewport.msaa_3d = Viewport.MSAA_DISABLED if clamped == 0 else Viewport.MSAA_2X
 	var dressing := get_node_or_null("TropicalBayDressing")
 	if dressing:
 		var palms := dressing.get_node_or_null("TropicalPalmGrove") as MultiMeshInstance3D

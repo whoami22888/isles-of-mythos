@@ -41,8 +41,10 @@ func run() -> void:
 		ok = _check(grass.multimesh.visible_instance_count == 0, "low quality drops grass cards") and ok
 	var sun := scene.get_node_or_null("WarmSun") as DirectionalLight3D
 	ok = _check(sun != null and not sun.shadow_enabled, "low quality disables shadows") and ok
+	ok = _check(scene.get_viewport().msaa_3d == Viewport.MSAA_DISABLED, "low quality disables MSAA") and ok
 	scene.apply_visual_quality(2)
 	ok = _check(sun.shadow_enabled, "high quality restores shadows") and ok
+	ok = _check(scene.get_viewport().msaa_3d == Viewport.MSAA_2X, "high quality uses 2x MSAA") and ok
 	ok = _check(_outward_faces(dressing_script, "landmass") == 0, "volcano/islet landmass faces point up") and ok
 	ok = _check(_outward_faces(dressing_script, "box") == 0, "hut wall faces point outward") and ok
 	ok = _check(_outward_faces(dressing_script, "roof") == 0, "hut roof faces point outward") and ok
