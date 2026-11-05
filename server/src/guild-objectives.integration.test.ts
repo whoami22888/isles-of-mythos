@@ -5,6 +5,7 @@ import type { Pool } from "pg";
 import { buildApp } from "./app.js";
 import { createDbPool } from "./db.js";
 import { PlayerStore } from "./player.js";
+import { GUILD_OBJECTIVES, progressFor } from "./guild-objectives.js";
 
 // Guild progress comes only from committed gather-ledger rows of current members, made
 // after they joined, inside the current UTC week. Rows are seeded exactly as
@@ -96,5 +97,27 @@ describe("guild objectives", () => {
     const again = await hopper.claim();
     expect(JSON.parse(again.body)).toMatchObject({ replayed: true });
     expect(await hopper.gold()).toBe("30");
+  });
+
+  it("keeps the UTC week window exact when the PostgreSQL session time zone observes DST", async () => {
+    // Sydney leaves DST on Sunday 2026-04-05, inside the UTC week starting Monday 2026-03-30.
+    const a = await player();
+    const g = await guild(a.id);
+    await join(g, a.id, "'2026-03-01T00:00:00Z'");
+    await gathered(a.id, 7, "'2026-04-05T23:30:00Z'"); // last 30 minutes of the UTC week: counts
+    await gathered(a.id, 40, "'2026-04-06T00:30:00Z'"); // next UTC week: must not count
+    await gathered(a.id, 900, "'2026-03-29T23:30:00Z'"); // previous UTC week: must not count
+    const objective = GUILD_OBJECTIVES.find((o) => o.id === "guild.wood");
+    if (!objective) throw new Error("guild.wood objective missing");
+    const client = await db.connect();
+    try {
+      await client.query("BEGIN");
+      await client.query("SET LOCAL TIME ZONE 'Australia/Sydney'");
+      const progress = await progressFor(client, a.id, objective, new Date("2026-04-02T12:00:00Z"));
+      expect(progress).toMatchObject({ weekStart: "2026-03-30", guildTotal: 7, mine: 7 });
+    } finally {
+      await client.query("ROLLBACK");
+      client.release();
+    }
   });
 });

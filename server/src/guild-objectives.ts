@@ -25,10 +25,13 @@ type Queryable = Pick<Pool | PoolClient, "query">;
 
 interface Progress { guildId: string; weekStart: string; guildTotal: number; mine: number }
 
-async function progressFor(db: Queryable, userId: string, objective: GuildObjective): Promise<Progress | null> {
+// Both week bounds are built in UTC wall-clock time and converted once. Adding '7 days' to a
+// timestamptz would use the session time zone and shift the end by an hour across a DST change.
+export async function progressFor(db: Queryable, userId: string, objective: GuildObjective, asOf?: Date): Promise<Progress | null> {
   const { rows } = await db.query<{ guild_id: string; week_start: string; guild_total: string; mine: string }>(
     `WITH me AS (SELECT guild_id FROM guild_members WHERE user_id=$1),
-          wk AS (SELECT date_trunc('week', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC' AS start)
+          utc AS (SELECT date_trunc('week', COALESCE($3::timestamptz, now()) AT TIME ZONE 'UTC') AS start),
+          wk AS (SELECT start AT TIME ZONE 'UTC' AS start, (start + interval '7 days') AT TIME ZONE 'UTC' AS finish FROM utc)
      SELECT me.guild_id,
             to_char((SELECT start FROM wk) AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS week_start,
             COALESCE(SUM(r.quantity), 0)::bigint AS guild_total,
@@ -38,9 +41,9 @@ async function progressFor(db: Queryable, userId: string, objective: GuildObject
        LEFT JOIN resource_gather_requests r
          ON r.user_id = m.user_id AND r.item_id = $2
         AND r.created_at >= GREATEST(m.joined_at, (SELECT start FROM wk))
-        AND r.created_at < (SELECT start FROM wk) + interval '7 days'
+        AND r.created_at < (SELECT finish FROM wk)
       GROUP BY me.guild_id`,
-    [userId, objective.itemId],
+    [userId, objective.itemId, asOf ?? null],
   );
   const row = rows[0];
   if (!row) return null;
