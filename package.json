@@ -7,7 +7,7 @@
     "server"
   ],
   "allowScripts": {
-    "argon2@0.45.1": true,
+    "argon2@0.45.2": true,
     "esbuild@0.28.2": true
   },
   "scripts": {
