@@ -4,8 +4,12 @@ extends SceneTree
 ## The session, player and chunk states below are local presentation fixtures fed through the same
 ## handlers the server messages use (a stub stands in for the authenticated transport so the HUD is in
 ## its gameplay state); no server authority is simulated. llvmpipe numbers are not phone measurements.
-## Frames: collapsed gameplay HUD, the same view orbited, and the objectives/crafting drawer expanded.
+## Frames: collapsed gameplay HUD, the same view orbited, close views of the player avatar idle and
+## mid-walk, and the objectives/crafting drawer expanded.
 ## Output directory: IOM_VERTICAL_SLICE_OUTPUT_DIR (default user://).
+## Motion evidence: when IOM_VERTICAL_SLICE_MOTION_DIR is set, a sequential walk-then-idle clip of the
+## avatar is written there as walk_%03d.png (run Godot with --fixed-fps 30 so every frame advances the
+## animation by exactly 1/30 s); CI encodes it to an MP4.
 const WorldScene = preload("res://gameplay/vertical_slice.tscn")
 
 ## Authenticated-session stand-in: reports a live session and records nothing.
@@ -74,8 +78,31 @@ func _capture() -> void:
 	if not await _frame(out.path_join("vertical-slice-gameplay-orbited.png")):
 		quit(1)
 		return
-	# The objectives/crafting drawer opened from the HUD toggle.
 	world._on_camera_drag(Vector2(140.0, 0.0))
+	# Closer look at the player avatar: standing idle, then mid-walk after a few server steps.
+	var camera := world.get_node("Camera") as Camera3D
+	var feet: Vector3 = world._player - Vector3(0.0, world.PLAYER_HALF_HEIGHT, 0.0)
+	camera.h_offset = 0.0
+	camera.look_at_from_position(feet + Vector3(2.4, 2.2, -4.2), feet + Vector3(0.0, 0.9, 0.0))
+	if not await _frame(out.path_join("vertical-slice-player-closeup-idle.png")):
+		quit(1)
+		return
+	for i in 4:
+		world._on_player_state({"x": 10.0 + 0.3 * (i + 1), "y": 11.0, "health": 100})
+		await process_frame
+	feet = world._player - Vector3(0.0, world.PLAYER_HALF_HEIGHT, 0.0)
+	camera.h_offset = 0.0
+	camera.look_at_from_position(feet + Vector3(2.4, 2.2, -4.2), feet + Vector3(0.0, 0.9, 0.0))
+	if not await _frame(out.path_join("vertical-slice-player-closeup-walk.png")):
+		quit(1)
+		return
+	world._on_player_state({"x": 10.0, "y": 11.0, "health": 100})
+	var motion_dir := OS.get_environment("IOM_VERTICAL_SLICE_MOTION_DIR")
+	if not motion_dir.is_empty():
+		if not await _capture_walk_motion(world, camera, motion_dir):
+			quit(1)
+			return
+	# The objectives/crafting drawer opened from the HUD toggle.
 	(world.get_node("Interface/Panel/Margin/Content/DrawerToggle") as Button).pressed.emit()
 	if not world.is_drawer_open():
 		push_error("Drawer toggle did not open the drawer")
@@ -87,3 +114,38 @@ func _capture() -> void:
 	world.queue_free()
 	await process_frame
 	quit(0)
+
+## Sequential engine frames of the avatar walking along +X then settling to idle. Server states are
+## fed every frame (a local fixture, not simulated authority) at the walk speed, and the camera follows
+## the feet so the gait stays framed. Every frame is a real Godot render saved in order.
+const MOTION_WALK_FRAMES := 66
+const MOTION_IDLE_FRAMES := 24
+const MOTION_SPEED_PER_FRAME := 0.11
+
+func _capture_walk_motion(world: Node, camera: Camera3D, motion_dir: String) -> bool:
+	DirAccess.make_dir_recursive_absolute(motion_dir)
+	var x := 8.0
+	world._on_player_state({"x": x, "y": 11.0, "health": 100})
+	await process_frame
+	var index := 0
+	for frame in MOTION_WALK_FRAMES + MOTION_IDLE_FRAMES:
+		if frame < MOTION_WALK_FRAMES:
+			x += MOTION_SPEED_PER_FRAME
+			world._on_player_state({"x": x, "y": 11.0, "health": 100})
+		var feet: Vector3 = world._player - Vector3(0.0, world.PLAYER_HALF_HEIGHT, 0.0)
+		camera.h_offset = 0.0
+		camera.look_at_from_position(feet + Vector3(1.2, 1.9, -4.6), feet + Vector3(0.0, 0.9, 0.0))
+		await process_frame
+		await RenderingServer.frame_post_draw
+		var image: Image = root.get_viewport().get_texture().get_image()
+		if image == null or image.is_empty():
+			push_error("Renderer did not produce a motion frame")
+			return false
+		if image.save_png(motion_dir.path_join("walk_%03d.png" % index)) != OK:
+			push_error("Could not write motion frame %d" % index)
+			return false
+		index += 1
+	print("captured %d sequential motion frames in %s" % [index, motion_dir])
+	world._on_player_state({"x": 10.0, "y": 11.0, "health": 100})
+	await process_frame
+	return true
