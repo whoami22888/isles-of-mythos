@@ -51,6 +51,9 @@ var _drawer_open := true
 ## True between an authenticated session and the next observed loss of it;
 ## only gates whether the Reconnect control is shown in the compact HUD.
 var _session_live := false
+## Set when a command outcome is unknown and the HUD asks for a manual
+## reconnect; cleared by the next successful authentication.
+var _reconnect_requested := false
 var _client: Node
 var _player := Vector3.ZERO
 var _markers: Dictionary = {}
@@ -214,9 +217,10 @@ func _apply_hud_layout() -> void:
 	_endpoint.visible = not compact
 	# The JWT field is never shown again after a login handoff.
 	_token.visible = not compact and _handoff_token.is_empty()
-	# Reconnect is the recovery control: shown until a session is live and
-	# again whenever it is lost.
-	_connect_button.visible = not compact or not _session_live
+	# Reconnect is the recovery control: shown until a session is live, again
+	# whenever it is lost or a command outcome is unknown, and always inside
+	# the open drawer so a manual reconnect is never out of reach.
+	_connect_button.visible = not compact or not _session_live or _reconnect_requested or _drawer_open
 	_state.visible = not compact or _drawer_open
 	_gather.text = GATHER_LABEL_COMPACT if compact else GATHER_LABEL_FULL
 	_hud_scroll.visible = _drawer_open
@@ -454,6 +458,7 @@ func _on_transport_status(status: String) -> void:
 func _on_authenticated(_user_id: String) -> void:
 	_status.text = "Authenticated; awaiting server player position…"
 	_session_live = true
+	_reconnect_requested = false
 	_enter_gameplay_hud()
 	_apply_hud_layout()
 	_configure_guild_objectives()
@@ -846,3 +851,5 @@ func _on_outcome_unknown(request_id: String) -> void:
 	if request_id == _chunk_in_flight:
 		_chunk_in_flight = ""
 	_status.text = "Command outcome unknown; reconnect manually before retrying"
+	_reconnect_requested = true
+	_apply_hud_layout()

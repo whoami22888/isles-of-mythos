@@ -160,6 +160,22 @@ func run() -> void:
 	world._on_authenticated("u1")
 	await _settle()
 	check(not reconnect.visible and not world.is_drawer_open(), "re-authentication hides Reconnect and keeps the drawer choice")
+	# A timed-out command (socket still open) asks for a manual reconnect, so the
+	# control must come back even though the session is still authenticated.
+	world._on_outcome_unknown("timed-out-request")
+	await _settle()
+	check(reconnect.visible, "Reconnect is shown when a command outcome is unknown")
+	check(_collapsed_fraction(world) <= MAX_COLLAPSED_FRACTION, "collapsed HUD with the outcome-unknown Reconnect stays <= 22%")
+	world._on_authenticated("u1")
+	await _settle()
+	check(not reconnect.visible, "re-authentication clears the outcome-unknown Reconnect")
+	# The open drawer always offers a manual reconnect.
+	world.set_drawer_open(true)
+	await _settle()
+	check(reconnect.visible, "the open drawer always offers Reconnect")
+	world.set_drawer_open(false)
+	await _settle()
+	check(not reconnect.visible, "collapsing the drawer hides Reconnect again while the session is healthy")
 
 	# S23 Ultra landscape: 2340x1080 window. With canvas_items/expand stretch
 	# the visible rect keeps a 720 px height and widens; the fraction is
