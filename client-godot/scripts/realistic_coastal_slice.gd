@@ -52,24 +52,32 @@ func _build_environment() -> void:
 	var sky := Sky.new()
 	var sky_material := ProceduralSkyMaterial.new()
 	sky_material.sky_top_color = Color(0.22, 0.55, 0.95)
-	sky_material.sky_horizon_color = Color(0.98, 0.84, 0.62)
-	sky_material.ground_bottom_color = Color(0.10, 0.28, 0.38)
-	sky_material.ground_horizon_color = Color(0.55, 0.78, 0.78)
+	# Horizon sits between the warm sun and the blue haze so fog meets sky
+	# without a hard seam.
+	sky_material.sky_horizon_color = Color(0.80, 0.86, 0.88)
+	# Past the 640 x 480 m ocean plane the camera sees the sky's lower
+	# hemisphere. Match the fog tint the far water fades into, so there is
+	# no band where the water mesh ends.
+	sky_material.ground_bottom_color = Color(0.45, 0.63, 0.82)
+	sky_material.ground_horizon_color = Color(0.62, 0.78, 0.92)
 	sky_material.sun_angle_max = 22.0
 	sky.sky_material = sky_material
 	environment.sky = sky
 	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	environment.ambient_light_color = Color(0.93, 0.86, 0.72)
-	environment.ambient_light_energy = 0.72
+	environment.ambient_light_energy = 0.55
 	environment.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	environment.fog_enabled = true
 	environment.fog_mode = Environment.FOG_MODE_DEPTH
-	environment.fog_light_color = Color(0.69, 0.82, 0.88)
-	environment.fog_depth_begin = 40.0
-	environment.fog_depth_end = 150.0
+	environment.fog_light_color = Color(0.62, 0.78, 0.92)
+	environment.fog_depth_begin = 85.0
+	environment.fog_depth_end = 320.0
 	environment.fog_depth_curve = 1.15
-	environment.fog_aerial_perspective = 0.62
+	environment.fog_aerial_perspective = 0.35
 	environment.fog_sun_scatter = 0.32
+	# Default 1.0 painted the whole sky in flat fog colour, the pale band at
+	# the top of the gameplay view. Keep the sky gradient readable.
+	environment.fog_sky_affect = 0.3
 	world.environment = environment
 	add_child(world)
 	var sun := DirectionalLight3D.new()
@@ -139,7 +147,10 @@ func _build_coastal_terrain() -> void:
 	for z in range(rows - 1):
 		for x in range(columns - 1):
 			var i := z * columns + x
-			indices.append_array([i, i + columns, i + 1, i + 1, i + columns, i + columns + 1])
+			# Godot front faces are clockwise seen from the normal side. The
+			# old order was counter-clockwise from above, so cull_back removed
+			# the whole land surface and the ocean showed through the island.
+			indices.append_array([i, i + 1, i + columns, i + 1, i + columns + 1, i + columns])
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = vertices
@@ -682,6 +693,11 @@ func apply_visual_quality(level: int) -> void:
 	var sun := get_node_or_null("WarmSun") as DirectionalLight3D
 	if sun:
 		sun.shadow_enabled = clamped == 2
+	# Project default is 2x MSAA (thin rigging and fronds alias badly
+	# without it). The mid-range floor drops it to save fill rate.
+	var viewport := get_viewport()
+	if viewport:
+		viewport.msaa_3d = Viewport.MSAA_DISABLED if clamped == 0 else Viewport.MSAA_2X
 	var dressing := get_node_or_null("TropicalBayDressing")
 	if dressing:
 		var palms := dressing.get_node_or_null("TropicalPalmGrove") as MultiMeshInstance3D
@@ -716,58 +732,16 @@ func _install_cliff_proxy(asset: Node3D) -> void:
 		return
 	var source := meshes[0] as MeshInstance3D
 	var material := source.get_active_material(0)
-	source.mesh = _cliff_proxy_mesh()
+	# A closed, grounded rock ridge keeps the admitted PBR cliff material at
+	# mobile cost. The former open arch sheet read as floating ribbons.
+	source.mesh = Dressing.landmass_mesh(6.5, 2.75, 5.8, asset.position.x * 0.37, 0.0, 5, 16)
+	source.transform = Transform3D.IDENTITY
 	if material:
 		source.set_surface_override_material(0, material)
 	for extra_index in range(1, meshes.size()):
 		var extra := meshes[extra_index] as MeshInstance3D
 		extra.mesh = null
 		extra.visible = false
-
-
-func _cliff_proxy_mesh() -> ArrayMesh:
-	var columns := 7
-	var rows := 4
-	var vertices := PackedVector3Array()
-	var uvs := PackedVector2Array()
-	var indices := PackedInt32Array()
-	var width := 13.0
-	var depth := 5.5
-	for z in range(rows):
-		for x in range(columns):
-			var fx := float(x) / float(columns - 1)
-			var fz := float(z) / float(rows - 1)
-			var height := 1.4 + sin(fx * PI) * 6.4 * (1.0 - fz * 0.45)
-			height += cos(fx * 8.0 + fz) * 0.35
-			vertices.append(Vector3((fx - 0.5) * width, height, (fz - 0.5) * depth))
-			uvs.append(Vector2(fx, fz))
-	for z in range(rows - 1):
-		for x in range(columns - 1):
-			var i := z * columns + x
-			indices.append_array(PackedInt32Array([i, i + columns, i + 1, i + 1, i + columns, i + columns + 1]))
-	var arrays := []
-	arrays.resize(Mesh.ARRAY_MAX)
-	arrays[Mesh.ARRAY_VERTEX] = vertices
-	arrays[Mesh.ARRAY_TEX_UV] = uvs
-	arrays[Mesh.ARRAY_INDEX] = indices
-	var mesh := ArrayMesh.new()
-	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	var normals := PackedVector3Array()
-	normals.resize(vertices.size())
-	for i in range(0, indices.size(), 3):
-		var a := indices[i]
-		var b := indices[i + 1]
-		var c := indices[i + 2]
-		var face := (vertices[b] - vertices[a]).cross(vertices[c] - vertices[a])
-		normals[a] += face
-		normals[b] += face
-		normals[c] += face
-	for i in range(normals.size()):
-		normals[i] = normals[i].normalized()
-	arrays[Mesh.ARRAY_NORMAL] = normals
-	mesh.clear_surfaces()
-	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	return mesh
 
 
 func _process(_delta: float) -> void:

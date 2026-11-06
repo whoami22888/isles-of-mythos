@@ -157,6 +157,8 @@ func run() -> void:
 	ok = _check(gameplay.position.z < scene.ship_focal.position.z - 5.0, "contract line 148") and ok
 	scene.skip_cinematic()
 	ok = _check(gameplay.current and not scene._cinematic_active, "contract line 150") and ok
+	ok = _check(terrain != null and _front_faces_point_up(terrain.mesh),
+		"terrain front faces (clockwise) point up, so cull_back keeps the land") and ok
 	if not ok:
 		push_error("Realistic coastal slice contract failed")
 	print("Realistic coastal slice test: %s" % ("PASS" if ok else "FAIL"))
@@ -166,3 +168,23 @@ func _check(condition: bool, label: String) -> bool:
 	if not condition:
 		printerr("FAILED: " + label)
 	return condition
+
+# Godot treats clockwise triangles as front faces. For a clockwise triangle
+# (a, b, c) the outward normal is (c - a) x (b - a). A heightfield seen from
+# above must face +Y, or cull_back hides the land and the ocean shows through.
+func _front_faces_point_up(mesh: Mesh) -> bool:
+	if mesh == null or mesh.get_surface_count() == 0:
+		return false
+	var arrays := mesh.surface_get_arrays(0)
+	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+	if indices.is_empty():
+		return false
+	for t in range(0, indices.size(), 3):
+		var a := vertices[indices[t]]
+		var b := vertices[indices[t + 1]]
+		var c := vertices[indices[t + 2]]
+		if (c - a).cross(b - a).y <= 0.0:
+			printerr("terrain triangle %d is back-facing from above" % (t / 3))
+			return false
+	return true
