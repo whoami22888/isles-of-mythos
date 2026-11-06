@@ -7,8 +7,8 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 // Migration 042 rollback on a disposable database: a ship that is away on an uncollected
 // expedition is 'docked'. Dropping ship_expeditions must not strand it in that state.
 const ADMIN_URL = process.env.DATABASE_URL ?? "postgres://postgres:postgres@127.0.0.1:5432/isles_test";
-const scratchName = "isles_mig042_" + randomBytes(4).toString("hex");
-const scratchUrl = (() => { const u = new URL(ADMIN_URL); u.pathname = "/" + scratchName; return u.toString(); })();
+const scratchName = `isles_mig042_${randomBytes(4).toString("hex")}`;
+const scratchUrl = (() => { const u = new URL(ADMIN_URL); u.pathname = `/${scratchName}`; return u.toString(); })();
 const bin = new URL("../../node_modules/.bin/node-pg-migrate", import.meta.url).pathname;
 // Roll back every migration from 042 onward so 042's down runs even after later migrations land.
 const stepsThrough042 = readdirSync(new URL("../migrations", import.meta.url)).filter((f) => /^\d{3}_.*\.js$/.test(f) && Number(f.slice(0, 3)) >= 42).length;
