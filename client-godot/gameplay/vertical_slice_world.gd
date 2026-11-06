@@ -10,6 +10,7 @@ var _objectives: VBoxContainer
 const CraftPanel = preload("res://gameplay/craft_panel.gd")
 var _craft: VBoxContainer
 const TouchControls = preload("res://gameplay/touch_controls.gd")
+const PlayerAvatar = preload("res://gameplay/player_avatar.gd")
 var _touch: Control
 ## Camera orbit yaw (radians) around the authoritative player. Presentation
 ## only; manual move directions are rotated by it so "up" walks away from the
@@ -320,7 +321,10 @@ const PLAYER_HALF_HEIGHT := 0.9
 const WADE_DEPTH := 0.5
 const MARKER_RADIUS := 0.3
 ## Coastal-bay local X/Z of the harbour ship in the gameplay view.
-const GAMEPLAY_SHIP_MOORING := Vector2(1.0, -17.0)
+const GAMEPLAY_SHIP_MOORING := Vector2(-17.0, -7.0)
+## Ship heading in the gameplay view: broadside to the follow camera, parallel
+## to the beach, so the whole hull and rig read inside the frame.
+const GAMEPLAY_SHIP_YAW_DEGREES := 0.0
 var _ground: MeshInstance3D
 var _coastal: Node3D
 var _death: Label
@@ -337,16 +341,15 @@ func _build_scaffold_world() -> void:
 	if _coastal:
 		_ground.visible = false
 	_recenter_ground()
-	var player := MeshInstance3D.new()
-	var capsule := CapsuleMesh.new()
-	capsule.height = 1.8
-	capsule.radius = 0.35
-	player.mesh = capsule
-	player.material_override = _material(Color("#d9a441"))
+	# Presentation-only avatar (rigged character, capsule fallback); the server
+	# position below is still the only thing that moves it.
+	var player := PlayerAvatar.new()
+	player.feet_offset = PLAYER_HALF_HEIGHT
 	player.name = "ServerPlayerRepresentation"
 	add_child(player)
 	player.position = Vector3(_player.x, _feet_height(_player.x, _player.z) + PLAYER_HALF_HEIGHT, _player.z)
 	_player = player.position
+	player.observe_server_position(_player)
 	if _coastal == null:
 		var light := DirectionalLight3D.new()
 		light.rotation_degrees = Vector3(-55, -25, 0)
@@ -375,16 +378,20 @@ func _mount_coastal_world() -> void:
 	var ship = _coastal.get("ship_focal")
 	if ship is Node3D:
 		(ship as Node3D).position = Vector3(GAMEPLAY_SHIP_MOORING.x, (ship as Node3D).position.y, GAMEPLAY_SHIP_MOORING.y)
+		(ship as Node3D).rotation_degrees.y = GAMEPLAY_SHIP_YAW_DEGREES
 		# A moored ship leaves no wake; otherwise the ocean shader draws a
 		# static wake trail from the hull towards the beach.
 		var water := _coastal.get_node_or_null("ShallowToDeepWater") as MeshInstance3D
 		if water and water.material_override is ShaderMaterial:
 			(water.material_override as ShaderMaterial).set_shader_parameter("wake_strength", 0.0)
-	for node in _coastal.find_children("*", "DirectionalLight3D", true, false):
-		if node is DirectionalLight3D:
-			(node as DirectionalLight3D).shadow_enabled = false
+	# Lighting follows the coastal scene's own quality tier
+	# (apply_visual_quality: WarmSun casts shadows at the S23-class tier, an
+	# explicit low/medium IOM_VISUAL_QUALITY turns them off). The gameplay mount
+	# must not override it.
 
-const CAMERA_OFFSET := Vector3(0, 28, 24)
+## About 22.5 m from the player's feet at the same ~49 degree pitch: close
+## enough that the 1.8 m avatar reads on a phone, far enough to see the beach.
+const CAMERA_OFFSET := Vector3(0, 13.5, 15.0)
 
 # Keep the gameplay camera on the authoritative player so an account restored
 # far from the origin is still on screen. Presentation only; no game state.
@@ -548,6 +555,7 @@ func _on_player_state(state: Dictionary) -> void:
 		_recenter_ground()
 		_player.y = _feet_height(_player.x, _player.z) + PLAYER_HALF_HEIGHT
 		$ServerPlayerRepresentation.position = _player
+		$ServerPlayerRepresentation.observe_server_position(_player)
 		_follow_camera()
 		var health = state.get("health", 1)
 		if _death:
