@@ -74,6 +74,7 @@ func run() -> void:
 	var session := await _check_register_and_authenticate(ws_url, http_base)
 	if not session.is_empty():
 		await _check_authoritative_move(session)
+		await _check_reconnect_restores_state(session, ws_url)
 		await _check_clean_teardown(session)
 		if handoff_override:
 			await _check_scaffold_handoff(ws_url, session["token"])
@@ -160,7 +161,7 @@ func _check_register_and_authenticate(ws_url: String, _http_base: String) -> Dic
 	check(typeof(state.get("x")) in [TYPE_FLOAT, TYPE_INT] and typeof(state.get("y")) in [TYPE_FLOAT, TYPE_INT],
 		"Server player_state must carry numeric x and y")
 	check(client.is_authenticated(), "Protocol must report authenticated after auth_ok")
-	return {"client": client, "received": received, "token": token, "user_id": user_id}
+	return {"client": client, "received": received, "token": token, "user_id": user_id, "username": username}
 
 
 # The client only sends intent. The server must move the player and report the
@@ -176,6 +177,103 @@ func _check_authoritative_move(session: Dictionary) -> void:
 		return not received["state"].is_empty() and float(received["state"].get("x", start_x)) != start_x)
 	check(moved, "Server must report a changed player position after a move intent")
 	check(received["errors"].is_empty(), "Session must receive no server errors (got %s)" % str(received["errors"]))
+
+
+# Real-client reconnect: gather a resource, lose the socket without a deliberate close,
+# let the adapter's own recovery path reconnect with a REFRESHED token (a second /auth/login),
+# then require the server-restored position and inventory to equal what was recorded before
+# the drop. The server-side counterpart (abrupt terminate, same-requestId replay after
+# reconnect) lives in server/src/reconnect.integration.test.ts: the client generates its own
+# random request ids, so an identical-id replay cannot be driven from here.
+func _check_reconnect_restores_state(session: Dictionary, ws_url: String) -> void:
+	var client = session["client"]
+	var received: Dictionary = session["received"]
+	var user_id: String = session["user_id"]
+	var seen := {"chunks": [], "acks": [], "rejected": [], "reconnected": false, "attempts": 0}
+	client.world_chunk_received.connect(func(_id: String, chunk: Dictionary) -> void:
+		seen["chunks"].append(chunk))
+	client.command_acknowledged.connect(func(_id: String, message: Dictionary) -> void:
+		if message.get("type") == "resource_gathered":
+			seen["acks"].append(message))
+	client.server_rejected.connect(func(code: String) -> void:
+		seen["rejected"].append(code))
+	client.reconnected.connect(func() -> void:
+		seen["reconnected"] = true)
+	client.reconnect_scheduled.connect(func(_attempt: int, _delay: float) -> void:
+		seen["attempts"] += 1)
+
+	# Discover gatherable nodes in the 3x3 chunks around the current position, one request at a time.
+	var here_x := float(received["state"].get("x", 0.0))
+	var here_y := float(received["state"].get("y", 0.0))
+	var cx := int(floor(here_x / 32.0))
+	var cy := int(floor(here_y / 32.0))
+	for dy in range(-1, 2):
+		for dx in range(-1, 2):
+			var before: int = seen["chunks"].size()
+			var request_id: String = client.request_world_chunk(cx + dx, cy + dy)
+			check(not request_id.is_empty(), "Chunk request must be sent while authenticated")
+			await _wait_until(func() -> bool: return seen["chunks"].size() > before)
+	var target := {}
+	var best := INF
+	for chunk in seen["chunks"]:
+		for node in chunk.get("resources", []):
+			var d := Vector2(float(node["x"]), float(node["y"])).distance_to(Vector2(here_x, here_y))
+			if d < best:
+				best = d
+				target = node
+	check(not target.is_empty(), "World chunks must expose a gatherable resource node")
+	if target.is_empty():
+		return
+
+	# Walk (intent only) until inside the server's 2.5 tile gather range.
+	var target_pos := Vector2(float(target["x"]), float(target["y"]))
+	for _i in range(300):
+		var pos := Vector2(float(received["state"].get("x", 0.0)), float(received["state"].get("y", 0.0)))
+		if pos.distance_to(target_pos) <= 2.0:
+			break
+		var dir := (target_pos - pos).normalized()
+		client.request_move(dir.x, dir.y)
+		await create_timer(0.07).timeout
+	var gather_id: String = client.request_gather(str(target["id"]))
+	check(not gather_id.is_empty(), "Gather request must be sent while authenticated")
+	var gathered := await _wait_until(func() -> bool: return seen["acks"].size() > 0)
+	check(gathered, "Server must acknowledge the gather (rejections: %s)" % str(seen["rejected"]))
+	if not gathered:
+		return
+	var ack_state: Dictionary = seen["acks"][0].get("state", {})
+	var inventory_before: Dictionary = ack_state.get("inventory", {})
+	var x_before := float(ack_state.get("x", 0.0))
+	var y_before := float(ack_state.get("y", 0.0))
+	check(not inventory_before.is_empty(), "Gather ACK must carry the authoritative inventory")
+
+	# Lose the connection (not disconnect_from_server): the adapter must treat it as a lost session.
+	received["state"] = {}
+	received["auth"] = {}
+	client._socket.close(4001, "e2e_drop")
+	var login := await _post_json("/auth/login", {"identifier": session["username"], "password": "E2e-Integration-Passw0rd"})
+	check(login[0] == 200, "Re-login for a refreshed token must return 200 (got %d)" % login[0])
+	var fresh_token := str(login[1].get("accessToken", ""))
+	check(not fresh_token.is_empty(), "Re-login must return an access token")
+	client.configure(ws_url, fresh_token)
+	var back := await _wait_until(func() -> bool:
+		return seen["reconnected"] and not received["state"].is_empty() and client.is_authenticated(), 20000)
+	check(back, "Adapter must reconnect and re-authenticate after the drop")
+	check(seen["attempts"] >= 1, "Adapter must schedule its own reconnect after an unplanned drop")
+	if not back:
+		return
+	check(str(received["auth"].get("userId", "")) == user_id, "Reconnected auth_ok must be for the same user")
+	var restored: Dictionary = received["state"]
+	check(is_equal_approx(float(restored.get("x", NAN)), x_before) and is_equal_approx(float(restored.get("y", NAN)), y_before),
+		"Position must be restored from the server after reconnect (got %s,%s want %s,%s)" % [restored.get("x"), restored.get("y"), x_before, y_before])
+	check(restored.get("inventory", {}) == inventory_before,
+		"Inventory must be restored from the server after reconnect (got %s want %s)" % [str(restored.get("inventory")), str(inventory_before)])
+
+	# The node is depleted: a fresh gather after reconnect must be rejected and must not grant again.
+	var acks_before: int = seen["acks"].size()
+	var rejected_before: int = seen["rejected"].size()
+	client.request_gather(str(target["id"]))
+	var refused := await _wait_until(func() -> bool: return seen["rejected"].size() > rejected_before or seen["acks"].size() > acks_before)
+	check(refused and seen["acks"].size() == acks_before, "A second gather of the depleted node must be rejected, never granted")
 
 
 # Deliberate disconnect must close the socket, clear authentication, and must
