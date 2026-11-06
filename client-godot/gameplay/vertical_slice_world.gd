@@ -183,9 +183,11 @@ func _manual_move_step(delta: float) -> bool:
 	if intent == Vector2.ZERO:
 		_manual_moving = false
 		return false
+	# Manual input always wins: cancel any approach started by a tap or the
+	# Gather button while the stick or a key is held, not only on the first frame.
+	_stop_approach()
 	if not _manual_moving:
 		_manual_moving = true
-		_stop_approach()
 		_move_clock = MOVE_INTERVAL_SECONDS
 	_move_clock += delta
 	if _move_clock >= MOVE_INTERVAL_SECONDS:

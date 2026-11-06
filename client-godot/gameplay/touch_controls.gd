@@ -64,7 +64,8 @@ func _input(event: InputEvent) -> void:
 	if not is_visible_in_tree():
 		return
 	if event is InputEventScreenTouch:
-		_on_press(event.index, event.position, event.pressed)
+		# An OS-cancelled gesture releases the finger but is never a tap.
+		_on_press(event.index, event.position, event.pressed, event.canceled)
 	elif event is InputEventScreenDrag:
 		_on_drag(event.index, event.position)
 	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
@@ -75,7 +76,7 @@ func _input(event: InputEvent) -> void:
 		if event.device != InputEvent.DEVICE_ID_EMULATION:
 			_on_drag(MOUSE_FINGER, event.position)
 
-func _on_press(finger: int, position: Vector2, pressed: bool) -> void:
+func _on_press(finger: int, position: Vector2, pressed: bool, canceled := false) -> void:
 	if pressed:
 		if _is_blocked(position) or finger == _joystick_finger or finger == _camera_finger:
 			return
@@ -96,7 +97,7 @@ func _on_press(finger: int, position: Vector2, pressed: bool) -> void:
 		return
 	if finger != _joystick_finger and finger != _camera_finger:
 		return
-	var was_tap: bool = _travel.has(finger) and float(_travel[finger][1]) <= TAP_MAX_TRAVEL
+	var was_tap: bool = not canceled and _travel.has(finger) and float(_travel[finger][1]) <= TAP_MAX_TRAVEL
 	_travel.erase(finger)
 	if finger == _joystick_finger:
 		_joystick_finger = -1

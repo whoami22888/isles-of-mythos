@@ -120,6 +120,21 @@ func run() -> void:
 	touch(2, right, true)
 	touch(2, right + Vector2(3, 0), false)
 	check(taps.size() == 1, "short press emits one tap")
+	# An OS-cancelled gesture frees the finger but is never a tap.
+	touch(2, right, true)
+	var cancel := InputEventScreenTouch.new()
+	cancel.index = 2
+	cancel.position = right + Vector2(2, 0)
+	cancel.pressed = false
+	cancel.canceled = true
+	root.push_input(cancel, true)
+	check(taps.size() == 1 and not controls.is_camera_active(), "cancelled camera touch emits no tap and frees the finger")
+	touch(7, left, true)
+	drag(7, left + Vector2(radius, 0))
+	cancel.index = 7
+	cancel.position = left + Vector2(radius, 0)
+	root.push_input(cancel, true)
+	check(taps.size() == 1 and not controls.is_joystick_active() and controls.joystick_vector() == Vector2.ZERO, "cancelled joystick touch resets without a tap")
 	controls.queue_free()
 	await process_frame
 
@@ -186,6 +201,22 @@ func run() -> void:
 	await process_frame
 	await process_frame
 	check(fake.moves.is_empty(), "no move is sent after release")
+	# An approach started (tap / Gather) while the stick is held is cancelled, so
+	# it cannot walk the player once manual input is released.
+	touch(8, left, true)
+	drag(8, left + Vector2(radius, 0))
+	await process_frame
+	world._approaching = true
+	world._move_to_point = true
+	await process_frame
+	await process_frame
+	check(not world._approaching, "approach started during manual movement is cancelled")
+	touch(8, left + Vector2(radius, 0), false)
+	await process_frame
+	fake.moves.clear()
+	await process_frame
+	await process_frame
+	check(fake.moves.is_empty() and not world._approaching, "no automatic walk after releasing the stick, got %s" % [fake.moves])
 
 	# Camera drag orbits the camera, and movement stays camera-relative for both inputs.
 	touch(5, right, true)
