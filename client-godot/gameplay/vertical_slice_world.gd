@@ -9,6 +9,14 @@ const DailyObjectivesPanel = preload("res://gameplay/daily_objectives_panel.gd")
 var _objectives: VBoxContainer
 const CraftPanel = preload("res://gameplay/craft_panel.gd")
 var _craft: VBoxContainer
+const TouchControls = preload("res://gameplay/touch_controls.gd")
+var _touch: Control
+## Camera orbit yaw (radians) around the authoritative player. Presentation
+## only; manual move directions are rotated by it so "up" walks away from the
+## camera for both keyboard and joystick.
+var _camera_yaw := 0.0
+const CAMERA_ORBIT_RADIANS_PER_PIXEL := 0.008
+var _manual_moving := false
 ## Gameplay panels live in a viewport-bounded scroll area so every control
 ## stays reachable at 1280x720 and on phones however long the lists grow.
 var _hud_scroll: ScrollContainer
@@ -137,6 +145,55 @@ func _ready() -> void:
 	_death.add_theme_color_override("font_shadow_color", Color(0.15, 0.05, 0.02, 0.85))
 	_death.add_theme_constant_override("shadow_outline_size", 6)
 	$Interface.add_child(_death)
+	_mount_touch_controls()
+
+## Phone controls sit below the HUD in the Interface layer; touches that start
+## on the HUD panel stay with the HUD.
+func _mount_touch_controls() -> void:
+	_touch = TouchControls.new()
+	_touch.name = "TouchControls"
+	_touch.blocked_controls.append($Interface/Panel as Control)
+	$Interface.add_child(_touch)
+	$Interface.move_child(_touch, 0)
+	_touch.camera_drag.connect(_on_camera_drag)
+	_touch.tapped.connect(_handle_tap)
+
+func _on_camera_drag(delta: Vector2) -> void:
+	_camera_yaw = wrapf(_camera_yaw - delta.x * CAMERA_ORBIT_RADIANS_PER_PIXEL, -PI, PI)
+	_follow_camera()
+
+## The single manual-movement source: keyboard actions and the touch joystick
+## (screen space, +y = down/towards camera) combined into a unit world XZ
+## direction, rotated by the camera orbit. Zero when there is no input.
+func manual_move_intent() -> Vector2:
+	var screen := Vector2.ZERO
+	var focus := get_viewport().gui_get_focus_owner()
+	if not (focus is LineEdit):
+		screen = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+	if _touch != null:
+		screen += _touch.joystick_vector()
+	if screen.length() < 0.0001:
+		return Vector2.ZERO
+	return screen.normalized().rotated(-_camera_yaw)
+
+## Sends the manual direction through the existing server `move` intent at the
+## same bounded cadence as tap-to-move. Returns true while manual input is held.
+func _manual_move_step(delta: float) -> bool:
+	var intent := manual_move_intent()
+	if intent == Vector2.ZERO:
+		_manual_moving = false
+		return false
+	# Manual input always wins: cancel any approach started by a tap or the
+	# Gather button while the stick or a key is held, not only on the first frame.
+	_stop_approach()
+	if not _manual_moving:
+		_manual_moving = true
+		_move_clock = MOVE_INTERVAL_SECONDS
+	_move_clock += delta
+	if _move_clock >= MOVE_INTERVAL_SECONDS:
+		_move_clock = 0.0
+		_client.request_move(intent.x, intent.y)
+	return true
 
 func _connect() -> void:
 	_client.configure(_handoff_endpoint if not _handoff_token.is_empty() else _endpoint.text,
@@ -206,7 +263,7 @@ func _follow_camera() -> void:
 	_recenter_ground()
 	var camera: Camera3D = $Camera
 	var target := Vector3(_player.x, 0.0, _player.z)
-	camera.look_at_from_position(target + CAMERA_OFFSET, target)
+	camera.look_at_from_position(target + CAMERA_OFFSET.rotated(Vector3.UP, _camera_yaw), target)
 
 # Snap the scaffold ground to the centre of the player's chunk (not the raw position, so it does not jitter
 # every move). Presentation only; no game state.
@@ -260,6 +317,8 @@ func _process(delta: float) -> void:
 	if _chunk_known and _refresh_clock >= CHUNK_REFRESH_SECONDS:
 		_refresh_clock = 0.0
 		_request_current_chunk()
+	if _manual_move_step(delta):
+		return
 	if _approaching:
 		_move_clock += delta
 		if _move_clock >= MOVE_INTERVAL_SECONDS:

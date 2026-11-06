@@ -95,7 +95,7 @@ describe("reconnect durability after an abrupt socket drop (real server + Postgr
     await client.waitFor((m) => m.type === "server_ready", 0, "server_ready");
     client.socket.send(JSON.stringify({ type: "auth", token }));
     const authOk = await client.waitFor((m) => m.type === "auth_ok" || m.type === "error", 0, "auth_ok");
-    if (authOk.type !== "auth_ok") throw new Error("AUTH_FAILED:" + String(authOk.code));
+    if (authOk.type !== "auth_ok") throw new Error(`AUTH_FAILED:${String(authOk.code)}`);
     expect(authOk.userId).toBe(userId);
     const playerState = await client.waitFor((m) => m.type === "player_state", 0, "player_state");
     return { client, state: playerState.state as PublicPlayerState };
@@ -118,7 +118,7 @@ describe("reconnect durability after an abrupt socket drop (real server + Postgr
     let cursor = from;
     for (let received = 0; received < coords.length; received += 1) {
       const frame = await client.waitFor((m) => m.type === "world_chunk" || m.type === "error", cursor, "world_chunk");
-      if (frame.type === "error") throw new Error("SUBSCRIBE_FAILED:" + String(frame.code));
+      if (frame.type === "error") throw new Error(`SUBSCRIBE_FAILED:${String(frame.code)}`);
       cursor = client.messages.indexOf(frame) + 1;
       nodes.push(...(frame.chunk as { resources: ResourceNode[] }).resources);
     }
@@ -155,7 +155,7 @@ describe("reconnect durability after an abrupt socket drop (real server + Postgr
     expect(dist(last, target)).toBeLessThanOrEqual(GATHER_RANGE);
 
     const itemId = target.type === "wood" ? "resource.wood" : target.type === "stone" ? "resource.stone" : "resource.herb";
-    const requestId = "rc-gather-" + unique.slice(0, 12);
+    const requestId = `rc-gather-${unique.slice(0, 12)}`;
     const ack = await first.request({ type: "gather_resource", requestId, resourceId: target.id }, ["resource_gathered"]);
     expect(ack).toMatchObject({ type: "resource_gathered", requestId, resourceId: target.id, itemId });
     const quantity = ack.quantity as number;
