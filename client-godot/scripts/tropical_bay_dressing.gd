@@ -86,6 +86,8 @@ static func _foliage_material(height: float, amplitude: float) -> ShaderMaterial
 	material.shader = FOLIAGE_WIND_SHADER
 	material.set_shader_parameter("canopy_height", height)
 	material.set_shader_parameter("wind_strength", amplitude)
+	# Normal runtime is driven by TIME; fixed-step captures may override this.
+	material.set_shader_parameter("capture_time_seconds", -1.0)
 	return material
 
 
