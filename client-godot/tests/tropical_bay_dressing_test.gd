@@ -33,6 +33,14 @@ func run() -> void:
 				"foliage height is configured") and ok
 			ok = _check(is_equal_approx(float(shader_material.get_shader_parameter("wind_strength")), float(case[2])),
 				"foliage wind amplitude is bounded") and ok
+			ok = _check(is_equal_approx(float(shader_material.get_shader_parameter("capture_time_seconds")), -1.0),
+				"foliage defaults to live engine time") and ok
+			# Capture time must be writable without swapping shaders or altering
+			# the runtime wind-strength setting; the renderer drives logical FPS.
+			shader_material.set_shader_parameter("capture_time_seconds", 1.25)
+			ok = _check(is_equal_approx(float(shader_material.get_shader_parameter("capture_time_seconds")), 1.25),
+				"foliage accepts a deterministic capture clock") and ok
+			shader_material.set_shader_parameter("capture_time_seconds", -1.0)
 	var dressing_script = load("res://scripts/tropical_bay_dressing.gd")
 	ok = _check(dressing_script.palm_triangle_count() < 120, "palm mesh stays cheap") and ok
 	ok = _check(scene.get_node_or_null("TropicalBayDressing/DistantVolcano") != null, "volcano landmark") and ok
