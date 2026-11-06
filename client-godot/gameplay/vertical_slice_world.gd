@@ -13,8 +13,10 @@ const TouchControls = preload("res://gameplay/touch_controls.gd")
 var _touch: Control
 ## Camera orbit yaw (radians) around the authoritative player. Presentation
 ## only; manual move directions are rotated by it so "up" walks away from the
-## camera for both keyboard and joystick.
-var _camera_yaw := 0.0
+## camera for both keyboard and joystick. It starts at PI: the camera sits
+## seaward of the player and looks inland across the beach, so the coastal
+## bay's cliff band is behind the player instead of between camera and player.
+var _camera_yaw := PI
 const CAMERA_ORBIT_RADIANS_PER_PIXEL := 0.008
 var _manual_moving := false
 ## Gameplay panels live in a viewport-bounded scroll area so every control
@@ -101,6 +103,7 @@ func _ready() -> void:
 		_objectives.refresh()
 		_guild_objectives.refresh())
 	_build_scaffold_world()
+	get_viewport().size_changed.connect(_on_viewport_resized)
 	_client = Protocol.new()
 	add_child(_client)
 	_client.status_changed.connect(_on_transport_status)
@@ -202,7 +205,19 @@ func _connect() -> void:
 
 # Scaffold ground edge length: four chunks, so the player's chunk plus a one-chunk margin is always covered
 # once the plane is snapped to the player's chunk centre (see _recenter_ground).
+# It is only a fallback: it stays hidden whenever the coastal world mounts.
 const GROUND_SIZE := CHUNK_SIZE * 4.0
+## Point of the authored coastal bay (its local space) that the centre of the
+## player's chunk maps to. With a 32 m chunk this puts the chunk over the
+## beach, grass shelf and cliff band (local z -9..23) instead of open sea.
+const COASTAL_CHUNK_ANCHOR := Vector3(0.0, 0.0, 7.0)
+const PLAYER_HALF_HEIGHT := 0.9
+## Off-island positions wade at this depth below the water line instead of
+## sinking to the seabed; presentation only, the server owns the position.
+const WADE_DEPTH := 0.5
+const MARKER_RADIUS := 0.3
+## Coastal-bay local X/Z of the harbour ship in the gameplay view.
+const GAMEPLAY_SHIP_MOORING := Vector2(1.0, -17.0)
 var _ground: MeshInstance3D
 var _coastal: Node3D
 var _death: Label
@@ -215,12 +230,10 @@ func _build_scaffold_world() -> void:
 	_ground.mesh = plane
 	_ground.material_override = _material(Color("#183b3a"))
 	add_child(_ground)
+	_mount_coastal_world()
+	if _coastal:
+		_ground.visible = false
 	_recenter_ground()
-	if not _handoff_token.is_empty():
-		_mount_coastal_world()
-		if _coastal:
-			_ground.visible = false
-			_recenter_ground()
 	var player := MeshInstance3D.new()
 	var capsule := CapsuleMesh.new()
 	capsule.height = 1.8
@@ -229,6 +242,8 @@ func _build_scaffold_world() -> void:
 	player.material_override = _material(Color("#d9a441"))
 	player.name = "ServerPlayerRepresentation"
 	add_child(player)
+	player.position = Vector3(_player.x, _feet_height(_player.x, _player.z) + PLAYER_HALF_HEIGHT, _player.z)
+	_player = player.position
 	if _coastal == null:
 		var light := DirectionalLight3D.new()
 		light.rotation_degrees = Vector3(-55, -25, 0)
@@ -251,6 +266,17 @@ func _mount_coastal_world() -> void:
 	var cinematic = _coastal.get("cinematic_camera")
 	if cinematic is Camera3D:
 		(cinematic as Camera3D).current = false
+	# The bay's harbour ship is moored at local z -5.8 for the cinematic; from
+	# the seaward follow camera its masts would stand between the camera and
+	# the beach the player walks on, so the gameplay view moors it offshore.
+	var ship = _coastal.get("ship_focal")
+	if ship is Node3D:
+		(ship as Node3D).position = Vector3(GAMEPLAY_SHIP_MOORING.x, (ship as Node3D).position.y, GAMEPLAY_SHIP_MOORING.y)
+		# A moored ship leaves no wake; otherwise the ocean shader draws a
+		# static wake trail from the hull towards the beach.
+		var water := _coastal.get_node_or_null("ShallowToDeepWater") as MeshInstance3D
+		if water and water.material_override is ShaderMaterial:
+			(water.material_override as ShaderMaterial).set_shader_parameter("wake_strength", 0.0)
 	for node in _coastal.find_children("*", "DirectionalLight3D", true, false):
 		if node is DirectionalLight3D:
 			(node as DirectionalLight3D).shadow_enabled = false
@@ -262,8 +288,26 @@ const CAMERA_OFFSET := Vector3(0, 28, 24)
 func _follow_camera() -> void:
 	_recenter_ground()
 	var camera: Camera3D = $Camera
-	var target := Vector3(_player.x, 0.0, _player.z)
+	var target := Vector3(_player.x, _player.y - PLAYER_HALF_HEIGHT, _player.z)
 	camera.look_at_from_position(target + CAMERA_OFFSET.rotated(Vector3.UP, _camera_yaw), target)
+	_frame_player_in_play_area(camera)
+
+func _on_viewport_resized() -> void:
+	_frame_player_in_play_area($Camera)
+
+## Shift the view sideways (Camera3D.h_offset, not the camera position or
+## orbit pivot) so the player sits in the middle of the screen area left free
+## by the HUD panel instead of at the panel's edge. Presentation only.
+func _frame_player_in_play_area(camera: Camera3D) -> void:
+	var screen := get_viewport().get_visible_rect().size
+	var panel := get_node_or_null("Interface/Panel") as Control
+	if screen.y <= 0.0 or panel == null or not panel.is_visible_in_tree():
+		camera.h_offset = 0.0
+		return
+	var free_left := clampf(panel.get_global_rect().end.x, 0.0, screen.x * 0.6)
+	var shift_px := (free_left + screen.x) * 0.5 - screen.x * 0.5
+	var view_height := 2.0 * CAMERA_OFFSET.length() * tan(deg_to_rad(camera.fov) * 0.5)
+	camera.h_offset = -shift_px * view_height / screen.y
 
 # Snap the scaffold ground to the centre of the player's chunk (not the raw position, so it does not jitter
 # every move). Presentation only; no game state.
@@ -272,8 +316,33 @@ func _recenter_ground() -> void:
 		return
 	var chunk := _chunk_for_position(_player)
 	_ground.position = Vector3((float(chunk.x) + 0.5) * CHUNK_SIZE, 0.0, (float(chunk.y) + 0.5) * CHUNK_SIZE)
-	if _coastal:
-		_coastal.position = _ground.position
+	if _coastal == null:
+		return
+	var anchor := _ground.position - COASTAL_CHUNK_ANCHOR
+	if _coastal.position.is_equal_approx(anchor):
+		return
+	_coastal.relocate(anchor)
+	# The bay only moves when the player's chunk changes; keep everything that
+	# is already on screen standing on the relocated terrain.
+	for resource_id in _markers:
+		var marker: Node3D = _markers[resource_id]
+		marker.position.y = _surface_height(marker.position.x, marker.position.z) + MARKER_RADIUS
+	var representation := get_node_or_null("ServerPlayerRepresentation") as Node3D
+	if representation:
+		_player.y = _feet_height(_player.x, _player.z) + PLAYER_HALF_HEIGHT
+		representation.position = _player
+
+## Visible surface at a server position mapped to world X/Z: the coastal
+## terrain or the water line above it, or the flat scaffold at y = 0.
+func _surface_height(x: float, z: float) -> float:
+	if _coastal == null:
+		return 0.0
+	return maxf(_coastal.terrain_height_at(x, z), _coastal.water_level())
+
+func _feet_height(x: float, z: float) -> float:
+	if _coastal == null:
+		return 0.0
+	return maxf(_coastal.terrain_height_at(x, z), _coastal.water_level() - WADE_DEPTH)
 
 func _material(color: Color) -> StandardMaterial3D:
 	var material := StandardMaterial3D.new()
@@ -362,7 +431,11 @@ func _on_player_state(state: Dictionary) -> void:
 	var y = state.get("y")
 	if x is int or x is float:
 		var world_y = y if y is int or y is float else 0
-		_player = Vector3(float(x), 0.9, float(world_y))
+		# Server x/y map to world x/z unchanged; only the presentation height
+		# comes from the coastal terrain once the bay sits on this chunk.
+		_player = Vector3(float(x), _player.y, float(world_y))
+		_recenter_ground()
+		_player.y = _feet_height(_player.x, _player.z) + PLAYER_HALF_HEIGHT
 		$ServerPlayerRepresentation.position = _player
 		_follow_camera()
 		var health = state.get("health", 1)
@@ -398,7 +471,9 @@ func _on_world_chunk(request_id: String, chunk: Dictionary) -> void:
 			marker = _markers[resource_id]
 		else:
 			marker = _create_resource_marker(resource_id)
-		marker.position = Vector3(float(resource.get("x", 0)), 0.3, float(resource.get("y", 0)))
+		var marker_x := float(resource.get("x", 0))
+		var marker_z := float(resource.get("y", 0))
+		marker.position = Vector3(marker_x, _surface_height(marker_x, marker_z) + MARKER_RADIUS, marker_z)
 	# The server's chunk snapshot is authoritative: remove resources no longer
 	# present, including depleted nodes, without retaining orphaned MeshInstances.
 	for resource_id in _markers.keys():
@@ -464,16 +539,43 @@ func _begin_resource_approach(resource_id: String) -> void:
 		return
 	_send_gather(resource_id)
 
+const TAP_RAY_MAX_DISTANCE := 400.0
+const TAP_RAY_STEP := 0.5
+
 func _ground_point(screen: Vector2) -> Variant:
 	var camera: Camera3D = $Camera
 	var origin := camera.project_ray_origin(screen)
 	var normal := camera.project_ray_normal(screen)
+	if _coastal != null:
+		return _surface_ray_hit(origin, normal)
 	if absf(normal.y) < 0.0001:
 		return null
 	var distance := -origin.y / normal.y
 	if distance < 0.0:
 		return null
 	return origin + normal * distance
+
+## First crossing of the camera ray with the visible terrain/water surface.
+## Bounded march plus bisection, run only on a tap; no physics bodies needed.
+func _surface_ray_hit(origin: Vector3, normal: Vector3) -> Variant:
+	var previous := 0.0
+	var distance := TAP_RAY_STEP
+	while distance <= TAP_RAY_MAX_DISTANCE:
+		var point := origin + normal * distance
+		if point.y <= _surface_height(point.x, point.z):
+			var low := previous
+			var high := distance
+			for _i in range(12):
+				var mid := (low + high) * 0.5
+				var probe := origin + normal * mid
+				if probe.y <= _surface_height(probe.x, probe.z):
+					high = mid
+				else:
+					low = mid
+			return origin + normal * high
+		previous = distance
+		distance += TAP_RAY_STEP
+	return null
 
 func _handle_tap(screen: Vector2) -> void:
 	var point: Variant = _ground_point(screen)
@@ -581,7 +683,8 @@ func _gather_nearest() -> void:
 	var nearest_distance := INF
 	for resource_id in _markers:
 		var marker: Node3D = _markers[resource_id]
-		var distance := marker.position.distance_to(_player)
+		# Server range is planar x/y; presentation heights must not reorder it.
+		var distance := Vector2(marker.position.x - _player.x, marker.position.z - _player.z).length()
 		if distance < nearest_distance:
 			nearest_distance = distance
 			nearest_id = resource_id
