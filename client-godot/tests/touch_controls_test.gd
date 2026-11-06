@@ -154,8 +154,21 @@ func run() -> void:
 	# A touch starting on the HUD panel never moves the player.
 	var hud_point: Vector2 = panel.get_global_rect().get_center()
 	# World joystick touches start on the left half but outside the HUD panel.
-	left = Vector2(minf(panel.get_global_rect().end.x + 40.0, screen.x * 0.5 - 20.0), screen.y * 0.7)
-	check(not panel.get_global_rect().has_point(left) and left.x < screen.x * 0.5, "world joystick point is left of centre and off the HUD")
+	var hud_rect: Rect2 = panel.get_global_rect()
+	var split: float = mounted.joystick_split_x() if mounted != null else screen.x * 0.5
+	# The joystick zone beside a left-docked HUD is half the free area, not a sliver.
+	check(is_equal_approx(split - hud_rect.end.x, screen.x - split) and split - hud_rect.end.x >= 3.0 * radius, "joystick zone beside the HUD is %.0f px wide (split %.0f, HUD end %.0f)" % [split - hud_rect.end.x, split, hud_rect.end.x])
+	left = Vector2(hud_rect.end.x + 30.0, screen.y * 0.7)
+	check(not hud_rect.has_point(left) and left.x < split, "world joystick point is in the joystick zone and off the HUD")
+	if mounted != null:
+		touch(9, left, true)
+		check(mounted.is_joystick_active() and mounted._joystick_anchor.x - radius >= hud_rect.end.x - 0.01, "joystick ring is drawn clear of the HUD, ring x %.0f" % mounted._joystick_anchor.x)
+		check(mounted.joystick_vector() == Vector2.ZERO, "clamping the ring never moves the player at rest")
+		var cancel_hud := InputEventScreenTouch.new()
+		cancel_hud.index = 9
+		cancel_hud.position = left
+		cancel_hud.canceled = true
+		root.push_input(cancel_hud, true)
 	touch(3, hud_point, true)
 	drag(3, hud_point + Vector2(radius, 0))
 	await process_frame

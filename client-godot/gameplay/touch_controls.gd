@@ -1,7 +1,8 @@
 extends Control
 
 ## Phone controls for the vertical slice: a floating virtual joystick on the
-## left half of the screen and camera drag/orbit on the right half.
+## left half of the free play area (beside a left-docked HUD) and camera
+## drag/orbit on the right half.
 ##
 ## Presentation/input only. The joystick produces a normalized direction that
 ## the world feeds into the same `move` intent path the keyboard uses; the
@@ -28,6 +29,8 @@ var blocked_controls: Array[Control] = []
 var _joystick_finger := -1
 var _joystick_origin := Vector2.ZERO
 var _joystick_point := Vector2.ZERO
+## Where the ring is drawn: the landing point clamped clear of the HUD/edges.
+var _joystick_anchor := Vector2.ZERO
 var _direction := Vector2.ZERO
 var _camera_finger := -1
 var _camera_last := Vector2.ZERO
@@ -80,10 +83,17 @@ func _on_press(finger: int, position: Vector2, pressed: bool, canceled := false)
 	if pressed:
 		if _is_blocked(position) or finger == _joystick_finger or finger == _camera_finger:
 			return
-		var left_half := position.x < _screen_size().x * 0.5
+		var free_left := free_area_left()
+		var left_half := position.x < joystick_split_x()
 		if left_half and _joystick_finger == -1:
 			_joystick_finger = finger
+			# Direction is always measured from where the thumb landed; only the
+			# drawn ring is clamped so it stays fully visible beside a docked HUD.
+			var screen := _screen_size()
 			_joystick_origin = position
+			_joystick_anchor = Vector2(
+				clampf(position.x, free_left + JOYSTICK_RADIUS, maxf(free_left + JOYSTICK_RADIUS, screen.x - JOYSTICK_RADIUS)),
+				clampf(position.y, JOYSTICK_RADIUS, maxf(JOYSTICK_RADIUS, screen.y - JOYSTICK_RADIUS)))
 			_joystick_point = position
 			_set_direction(Vector2.ZERO)
 		elif not left_half and _camera_finger == -1:
@@ -145,6 +155,25 @@ func _is_blocked(position: Vector2) -> bool:
 			return true
 	return false
 
+## Right edge of any visible blocked control docked on the left side of the
+## screen (the HUD panel); 0 when nothing is docked there.
+func free_area_left() -> float:
+	var screen := _screen_size()
+	var edge := 0.0
+	for control in blocked_controls:
+		if is_instance_valid(control) and control.is_visible_in_tree():
+			var rect := control.get_global_rect()
+			if rect.position.x < screen.x * 0.25 and rect.end.x < screen.x * 0.75:
+				edge = maxf(edge, rect.end.x)
+	return edge
+
+## Touches left of this x drive the joystick, right of it the camera: the
+## midpoint of the area not covered by a left-docked HUD, so the joystick zone
+## is always as wide as the camera zone instead of a sliver beside the HUD.
+func joystick_split_x() -> float:
+	var free_left := free_area_left()
+	return free_left + (_screen_size().x - free_left) * 0.5
+
 func _claim() -> void:
 	var viewport := get_viewport()
 	if viewport != null:
@@ -157,7 +186,7 @@ func _screen_size() -> Vector2:
 func _draw() -> void:
 	if _joystick_finger == -1:
 		return
-	var base := _joystick_origin - get_global_rect().position
+	var base := _joystick_anchor - get_global_rect().position
 	draw_circle(base, JOYSTICK_RADIUS, Color(1, 1, 1, 0.12))
 	draw_arc(base, JOYSTICK_RADIUS, 0.0, TAU, 48, Color(1, 0.95, 0.82, 0.45), 2.0)
 	var knob := base + (_joystick_point - _joystick_origin).limit_length(JOYSTICK_RADIUS)
