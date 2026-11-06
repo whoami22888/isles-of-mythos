@@ -321,7 +321,10 @@ const PLAYER_HALF_HEIGHT := 0.9
 const WADE_DEPTH := 0.5
 const MARKER_RADIUS := 0.3
 ## Coastal-bay local X/Z of the harbour ship in the gameplay view.
-const GAMEPLAY_SHIP_MOORING := Vector2(1.0, -17.0)
+const GAMEPLAY_SHIP_MOORING := Vector2(-17.0, -7.0)
+## Ship heading in the gameplay view: broadside to the follow camera, parallel
+## to the beach, so the whole hull and rig read inside the frame.
+const GAMEPLAY_SHIP_YAW_DEGREES := 0.0
 var _ground: MeshInstance3D
 var _coastal: Node3D
 var _death: Label
@@ -375,16 +378,20 @@ func _mount_coastal_world() -> void:
 	var ship = _coastal.get("ship_focal")
 	if ship is Node3D:
 		(ship as Node3D).position = Vector3(GAMEPLAY_SHIP_MOORING.x, (ship as Node3D).position.y, GAMEPLAY_SHIP_MOORING.y)
+		(ship as Node3D).rotation_degrees.y = GAMEPLAY_SHIP_YAW_DEGREES
 		# A moored ship leaves no wake; otherwise the ocean shader draws a
 		# static wake trail from the hull towards the beach.
 		var water := _coastal.get_node_or_null("ShallowToDeepWater") as MeshInstance3D
 		if water and water.material_override is ShaderMaterial:
 			(water.material_override as ShaderMaterial).set_shader_parameter("wake_strength", 0.0)
-	for node in _coastal.find_children("*", "DirectionalLight3D", true, false):
-		if node is DirectionalLight3D:
-			(node as DirectionalLight3D).shadow_enabled = false
+	# Lighting follows the coastal scene's own quality tier
+	# (apply_visual_quality: WarmSun casts shadows at the S23-class tier, an
+	# explicit low/medium IOM_VISUAL_QUALITY turns them off). The gameplay mount
+	# must not override it.
 
-const CAMERA_OFFSET := Vector3(0, 28, 24)
+## About 22.5 m from the player's feet at the same ~49 degree pitch: close
+## enough that the 1.8 m avatar reads on a phone, far enough to see the beach.
+const CAMERA_OFFSET := Vector3(0, 13.5, 15.0)
 
 # Keep the gameplay camera on the authoritative player so an account restored
 # far from the origin is still on screen. Presentation only; no game state.
