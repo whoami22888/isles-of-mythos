@@ -7,6 +7,8 @@ const ExpeditionsPanel = preload("res://gameplay/expeditions_panel.gd")
 var _expeditions: VBoxContainer
 const DailyObjectivesPanel = preload("res://gameplay/daily_objectives_panel.gd")
 var _objectives: VBoxContainer
+const CraftPanel = preload("res://gameplay/craft_panel.gd")
+var _craft: VBoxContainer
 var _client: Node
 var _player := Vector3.ZERO
 var _markers: Dictionary = {}
@@ -68,6 +70,14 @@ func _ready() -> void:
 	_objectives.name = "DailyObjectives"
 	$Interface/Panel/Margin/Content.add_child(_objectives)
 	_objectives.reward_claimed.connect(func(_id: String, gold: String) -> void: _status.text = "Daily reward claimed: +" + gold + " gold")
+	_craft = CraftPanel.new()
+	_craft.name = "CraftPanel"
+	_craft.craft_sender = func(recipe_id: String) -> String: return _client.request_craft(recipe_id)
+	$Interface/Panel/Margin/Content.add_child(_craft)
+	_craft.craft_succeeded.connect(func(_id: String) -> void:
+		_status.text = "Server ACK: craft persisted"
+		_objectives.refresh()
+		_guild_objectives.refresh())
 	_build_scaffold_world()
 	_client = Protocol.new()
 	add_child(_client)
@@ -273,6 +283,7 @@ func _approach_step() -> void:
 	_client.request_move(direction.x, direction.y)
 
 func _on_player_state(state: Dictionary) -> void:
+	_craft.set_inventory(state.get("inventory"))
 	var x = state.get("x")
 	var y = state.get("y")
 	if x is int or x is float:
@@ -513,6 +524,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		_handle_tap(event.position)
 
 func _on_ack(_request_id: String, message: Dictionary) -> void:
+	if message.get("type") == "craft_result":
+		_craft.on_craft_ack(_request_id, message)
+		return
 	if message.get("type") == "resource_gathered":
 		# Guild progress is server-derived from the gather ledger; re-read it (rate bounded).
 		_guild_objectives.refresh()
@@ -526,15 +540,18 @@ func _on_ack(_request_id: String, message: Dictionary) -> void:
 		_status.text = "Server ACK: resource persisted; local view refreshed"
 		var state = message.get("state")
 		if state is Dictionary:
+			_craft.set_inventory(state.get("inventory"))
 			_state.text = "Authoritative inventory state received"
 
 func _on_rejection(code: String) -> void:
+	_craft.on_server_error(code)
 	if code == "PLAYER_DEAD" and _death:
 		_death.visible = true
 		_death.text = "You died - respawning"
 	_status.text = "Server rejected command: %s" % code
 
 func _on_outcome_unknown(request_id: String) -> void:
+	_craft.on_outcome_unknown(request_id)
 	if request_id == _chunk_in_flight:
 		_chunk_in_flight = ""
 	_status.text = "Command outcome unknown; reconnect manually before retrying"

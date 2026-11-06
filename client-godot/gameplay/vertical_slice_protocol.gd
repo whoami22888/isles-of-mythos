@@ -61,6 +61,12 @@ func request_world_chunk(chunk_x: int, chunk_y: int) -> String:
 func request_gather(resource_id: String) -> String:
 	return _send_request("gather_resource", {"resourceId": resource_id})
 
+## Sends the server `craft` action: {type, requestId, recipeId} (server/src/protocol.ts).
+func request_craft(recipe_id: String) -> String:
+	if recipe_id.is_empty() or recipe_id.length() > 64:
+		return ""
+	return _send_request("craft", {"recipeId": recipe_id})
+
 ## Sends the existing server `move` intent (direction only, no request ID, no
 ## client-supplied time or speed). The server alone computes the new position.
 func request_move(dx: float, dy: float) -> bool:
@@ -73,7 +79,7 @@ func request_move(dx: float, dy: float) -> bool:
 func _send_request(action: String, fields: Dictionary) -> String:
 	if not is_authenticated() or _pending.size() >= MAX_PENDING:
 		return ""
-	if action != "subscribe_chunks" and action != "gather_resource":
+	if action != "subscribe_chunks" and action != "gather_resource" and action != "craft":
 		return ""
 	var request_id := _crypto.generate_random_bytes(16).hex_encode()
 	if request_id.is_empty() or _pending.has(request_id):
@@ -114,6 +120,12 @@ func _on_message(message: Dictionary) -> void:
 		if gather_id is String and _pending_action_matches(gather_id, "gather_resource"):
 			_pending.erase(gather_id)
 			command_acknowledged.emit(gather_id, message)
+		return
+	if message_type == "craft_result":
+		var craft_id = message.get("requestId")
+		if craft_id is String and _pending_action_matches(craft_id, "craft"):
+			_pending.erase(craft_id)
+			command_acknowledged.emit(craft_id, message)
 		return
 	if message_type == "error":
 		var code = message.get("code")
