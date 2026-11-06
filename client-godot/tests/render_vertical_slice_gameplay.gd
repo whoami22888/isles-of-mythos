@@ -1,10 +1,22 @@
 extends SceneTree
 ## Capture ACTUAL Godot-rendered frames of the playable vertical slice gameplay view on the coastal bay:
-## the follow camera, the player and resource markers on the terrain, the HUD and touch controls.
-## The player/chunk states below are local presentation fixtures fed through the same handlers the
-## server messages use; no server authority is simulated. llvmpipe numbers are not phone measurements.
+## the follow camera, the player and resource markers on the terrain, the phone HUD and touch controls.
+## The session, player and chunk states below are local presentation fixtures fed through the same
+## handlers the server messages use (a stub stands in for the authenticated transport so the HUD is in
+## its gameplay state); no server authority is simulated. llvmpipe numbers are not phone measurements.
+## Frames: collapsed gameplay HUD, the same view orbited, and the objectives/crafting drawer expanded.
 ## Output directory: IOM_VERTICAL_SLICE_OUTPUT_DIR (default user://).
 const WorldScene = preload("res://gameplay/vertical_slice.tscn")
+
+## Authenticated-session stand-in: reports a live session and records nothing.
+class FixtureSession extends Node:
+	func configure(_u: String, _t: String) -> void: pass
+	func connect_to_server() -> void: pass
+	func is_authenticated() -> bool: return true
+	func request_world_chunk(_x: int, _y: int) -> String: return ""
+	func request_move(_dx: float, _dy: float) -> bool: return false
+	func request_gather(_id: String) -> String: return ""
+	func request_craft(_id: String) -> String: return ""
 
 func _init() -> void:
 	call_deferred("_capture")
@@ -38,7 +50,16 @@ func _capture() -> void:
 		push_error("Coastal world not mounted")
 		quit(1)
 		return
-	world._on_player_state({"x": 10.0, "y": 11.0, "health": 100, "inventory": {}})
+	var transport: Node = world._client
+	world._client = FixtureSession.new()
+	world.add_child(world._client)
+	transport.queue_free()
+	world._on_authenticated("fixture-player")
+	if not world.is_gameplay_hud() or world.is_drawer_open():
+		push_error("Authenticated session did not enter the collapsed gameplay HUD")
+		quit(1)
+		return
+	world._on_player_state({"x": 10.0, "y": 11.0, "health": 100, "inventory": {"resource.wood": 6, "resource.stone": 3}})
 	world._on_world_chunk("", {"x": 0, "y": 0, "resources": [
 		{"id": "wood:fixture-1", "type": "wood", "x": 7.5, "y": 9.0},
 		{"id": "stone:fixture-2", "type": "stone", "x": 13.0, "y": 9.5},
@@ -51,6 +72,16 @@ func _capture() -> void:
 	# Touch-controls camera orbit (presentation only) around the same player.
 	world._on_camera_drag(Vector2(-140.0, 0.0))
 	if not await _frame(out.path_join("vertical-slice-gameplay-orbited.png")):
+		quit(1)
+		return
+	# The objectives/crafting drawer opened from the HUD toggle.
+	world._on_camera_drag(Vector2(140.0, 0.0))
+	(world.get_node("Interface/Panel/Margin/Content/DrawerToggle") as Button).pressed.emit()
+	if not world.is_drawer_open():
+		push_error("Drawer toggle did not open the drawer")
+		quit(1)
+		return
+	if not await _frame(out.path_join("vertical-slice-gameplay-drawer.png")):
 		quit(1)
 		return
 	world.queue_free()
