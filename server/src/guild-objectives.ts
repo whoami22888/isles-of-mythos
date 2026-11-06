@@ -158,7 +158,9 @@ const ERRORS: Record<string, number> = {
   GUILD_CONTRIBUTION_REQUIRED: 409,
 };
 
-export function registerGuildObjectiveRoutes(app: FastifyInstance, db: Pool, players: PlayerStore): void {
+// `onEconomyChanged` lets the WebSocket layer push the refreshed player_state to an in-world
+// player, so the HUD shows the reward at once instead of on the next move.
+export function registerGuildObjectiveRoutes(app: FastifyInstance, db: Pool, players: PlayerStore, onEconomyChanged?: (userId: string) => void): void {
   const store = new GuildObjectiveStore(db);
 
   app.get("/guild-objectives", {
@@ -183,7 +185,10 @@ export function registerGuildObjectiveRoutes(app: FastifyInstance, db: Pool, pla
       return await players.runExclusive(userId, async () => {
         await players.ensureProfile(userId);
         const result = await store.claim(userId, request.body.objectiveId);
-        if (players.get(userId)) await players.reloadEconomy(userId);
+        if (players.get(userId)) {
+          await players.reloadEconomy(userId);
+          onEconomyChanged?.(userId);
+        }
         return result;
       });
     } catch (error) {

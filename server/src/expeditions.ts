@@ -156,7 +156,9 @@ const ERRORS: Record<string, number> = {
 };
 const UUID = "^[0-9a-fA-F-]{36}$";
 
-export function registerExpeditionRoutes(app: FastifyInstance, db: Pool, players: PlayerStore): void {
+// `onEconomyChanged` lets the WebSocket layer push the refreshed player_state to an in-world
+// player, so the HUD shows the reward at once instead of on the next move.
+export function registerExpeditionRoutes(app: FastifyInstance, db: Pool, players: PlayerStore, onEconomyChanged?: (userId: string) => void): void {
   const store = new ExpeditionStore(db);
   const fail = (error: unknown): { code: number; error: string } | null => {
     const code = error instanceof Error ? error.message : "";
@@ -223,7 +225,10 @@ export function registerExpeditionRoutes(app: FastifyInstance, db: Pool, players
       return await players.runExclusive(userId, async () => {
         await players.ensureProfile(userId);
         const result = await store.collect(userId, request.body.expeditionId);
-        if (players.get(userId)) await players.reloadEconomy(userId);
+        if (players.get(userId)) {
+          await players.reloadEconomy(userId);
+          onEconomyChanged?.(userId);
+        }
         return result;
       });
     } catch (error) {

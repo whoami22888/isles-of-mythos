@@ -140,7 +140,9 @@ async function verifyPlayer(request: FastifyRequest): Promise<boolean> {
   return isGameplayAccessToken(request.user);
 }
 
-export function registerDailyObjectiveRoutes(app: FastifyInstance, db: Pool, players: PlayerStore): void {
+// `onEconomyChanged` lets the WebSocket layer push the refreshed player_state to an in-world
+// player, so the HUD shows the reward at once instead of on the next move.
+export function registerDailyObjectiveRoutes(app: FastifyInstance, db: Pool, players: PlayerStore, onEconomyChanged?: (userId: string) => void): void {
   const store = new DailyObjectiveStore(db);
 
   app.get("/daily-objectives", {
@@ -173,7 +175,10 @@ export function registerDailyObjectiveRoutes(app: FastifyInstance, db: Pool, pla
         await players.ensureProfile(userId);
         const result = await store.claim(userId, request.body.objectiveId);
         // Keep an in-world player's cached gold in step with the committed reward.
-        if (players.get(userId)) await players.reloadEconomy(userId);
+        if (players.get(userId)) {
+          await players.reloadEconomy(userId);
+          onEconomyChanged?.(userId);
+        }
         return result;
       });
     } catch (error) {
