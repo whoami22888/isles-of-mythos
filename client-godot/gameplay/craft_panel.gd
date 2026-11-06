@@ -100,18 +100,22 @@ func on_craft_ack(request_id: String, message: Dictionary) -> void:
 	_set_message("Crafted %s" % str((_rows[recipe_id]["recipe"] as Dictionary)["name"]))
 	craft_succeeded.emit(recipe_id)
 
-## Server error (carries no requestId). Attributed to the in-flight craft only for
-## the codes the craft handler itself returns; local inventory is left untouched.
+## A rejection the transport has attributed to this craft request (it has
+## already removed the request from its pending set). Inventory is untouched.
+func on_craft_rejected(request_id: String, code: String) -> void:
+	if request_id.is_empty() or request_id != _in_flight_request:
+		return
+	_clear_flight()
+	_set_message(CRAFT_ERROR_TEXT.get(code, "Server rejected craft: %s" % code))
+	_render()
+
+## Uncorrelated server error (no requestId). It may belong to another command,
+## so the craft stays pending until it is acknowledged, attributed via
+## on_craft_rejected, or reported outcome-unknown by the transport.
 func on_server_error(code: String) -> void:
 	if not is_busy():
 		return
-	if CRAFT_ERROR_TEXT.has(code):
-		_clear_flight()
-		_set_message(CRAFT_ERROR_TEXT[code])
-		_render()
-	else:
-		# Ambiguous: keep the request pending until the transport reports its outcome.
-		_set_message("Server error: %s" % code)
+	_set_message("Server error: %s (craft still pending)" % code)
 
 func on_outcome_unknown(request_id: String) -> void:
 	if request_id.is_empty() or request_id != _in_flight_request:

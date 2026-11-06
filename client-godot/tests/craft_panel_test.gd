@@ -48,13 +48,18 @@ func run() -> void:
 	check(not panel.craft("tool.wooden-club") and not panel.craft("tool.stone-axe"), "no second send while in flight")
 	check(sent.size() == 1, "still exactly one request sent")
 
-	# Rejection: server error text shown, inventory untouched, request cleared.
+	# An uncorrelated error may belong to another command: the craft stays pending.
 	panel.on_server_error("INSUFFICIENT_INVENTORY")
+	check(panel.is_busy() and not panel.craft_enabled("tool.wooden-club"), "uncorrelated error keeps the craft pending")
+	# Attributed rejection: server error text shown, inventory untouched, request cleared.
+	panel.on_craft_rejected("other-id", "INSUFFICIENT_INVENTORY")
+	check(panel.is_busy(), "rejection for another request id ignored")
+	panel.on_craft_rejected("req-1", "INSUFFICIENT_INVENTORY")
 	check(panel.message_text() == "Server: not enough materials", "server error shown, got '%s'" % panel.message_text())
 	check(panel.inventory_count("resource.wood") == 9 and panel.inventory_count("tool.wooden-club") == 0, "rejection leaves inventory unchanged")
 	check(panel.craft_enabled("tool.wooden-club"), "buttons re-enabled after rejection")
-	panel.on_server_error("INSUFFICIENT_INVENTORY")
-	check(panel.message_text() == "Server: not enough materials" and panel.inventory_count("resource.wood") == 9, "stray error with nothing in flight is ignored")
+	panel.on_craft_rejected("req-1", "INSUFFICIENT_INVENTORY")
+	check(panel.message_text() == "Server: not enough materials" and panel.inventory_count("resource.wood") == 9, "stray rejection with nothing in flight is ignored")
 
 	# ACK handling: uncorrelated / mismatched / malformed ACKs are ignored.
 	check(panel.craft("tool.wooden-club"), "second craft sends a fresh request id")
@@ -99,6 +104,24 @@ func run() -> void:
 	check(acked == [["abc", "craft_result"]] and not protocol._pending.has("abc"), "craft_result acknowledges the craft request")
 	protocol._on_message(ack("abc", "tool.wooden-club", {}))
 	check(acked.size() == 1, "duplicate craft_result is not acknowledged twice")
+	# Error attribution: resolve a craft only when it is the sole possible owner.
+	var rejected: Array = []
+	protocol.command_rejected.connect(func(id: String, code: String) -> void: rejected.append([id, code]))
+	protocol._pending.clear()
+	protocol._pending["c1"] = {"action": "craft", "started_ms": Time.get_ticks_msec()}
+	protocol._pending["g1"] = {"action": "gather_resource", "started_ms": Time.get_ticks_msec()}
+	protocol._on_message({"type": "error", "code": "INVENTORY_LIMIT"})
+	check(rejected.is_empty() and protocol._pending.has("c1"), "inventory error is not attributed to a craft while a gather is pending")
+	protocol._on_message({"type": "error", "code": "RECIPE_NOT_FOUND"})
+	check(rejected == [["c1", "RECIPE_NOT_FOUND"]] and not protocol._pending.has("c1"), "craft-only error resolves the sole pending craft")
+	protocol._pending.erase("g1")
+	protocol._on_message({"type": "error", "code": "RATE_LIMITED"})
+	check(rejected.size() == 1, "non-craft error never resolves anything")
+	# Repeated rejected crafts must not leak pending slots (MAX_PENDING = 8).
+	for attempt in range(12):
+		protocol._pending["r%d" % attempt] = {"action": "craft", "started_ms": Time.get_ticks_msec()}
+		protocol._on_message({"type": "error", "code": "INSUFFICIENT_INVENTORY"})
+	check(protocol._pending.is_empty() and rejected.size() == 13, "12 rejected crafts leave no pending slots, got %d" % protocol._pending.size())
 	protocol.queue_free()
 
 	# Integration: world mounts the panel and routes server inventory into it.
@@ -106,8 +129,20 @@ func run() -> void:
 	world.begin_authenticated_session("ws://127.0.0.1:9/ws", "test-session")
 	root.add_child(world)
 	await process_frame
-	var mounted = world.get_node_or_null("Interface/Panel/Margin/Content/CraftPanel")
-	check(mounted != null, "world HUD contains the craft panel")
+	var mounted = world.get_node_or_null("Interface/Panel/Margin/Content/HudScroll/HudPanels/CraftPanel")
+	check(mounted != null, "world HUD contains the craft panel inside the scroll area")
+	# Overflow: however long the panels grow, the HUD stays within the viewport.
+	var hud_panels = world.get_node_or_null("Interface/Panel/Margin/Content/HudScroll/HudPanels")
+	if hud_panels != null:
+		for i in range(20):
+			var filler := Button.new()
+			filler.custom_minimum_size = Vector2(0, 48)
+			hud_panels.add_child(filler)
+	await process_frame
+	await process_frame
+	var hud_rect: Rect2 = (world.get_node("Interface/Panel") as Control).get_global_rect()
+	var visible_size: Vector2 = root.get_visible_rect().size
+	check(hud_rect.end.y <= visible_size.y, "HUD bottom %.0f fits viewport height %.0f" % [hud_rect.end.y, visible_size.y])
 	if mounted != null:
 		world._on_player_state({"x": 1, "y": 1, "health": 100, "inventory": {"resource.wood": 12}})
 		check(mounted.inventory_count("resource.wood") == 12, "player_state inventory reaches the panel")

@@ -9,8 +9,16 @@ signal world_chunk_received(request_id: String, chunk: Dictionary)
 signal command_acknowledged(request_id: String, message: Dictionary)
 signal server_rejected(code: String)
 signal command_outcome_unknown(request_id: String)
+## A server error that can be attributed to exactly one pending craft. The
+## request is resolved (removed from _pending) before this is emitted.
+signal command_rejected(request_id: String, code: String)
 
 const MAX_PENDING := 8
+## Codes the server `craft` handler returns (server/src/app.ts craft branch).
+## Only RECIPE_NOT_FOUND is craft-specific; the inventory codes are also
+## returned by gather_resource, so they are attributed only when no gather is
+## pending.
+const CRAFT_ERROR_CODES := ["RECIPE_NOT_FOUND", "INSUFFICIENT_INVENTORY", "INVENTORY_LIMIT"]
 ## `_authenticated` is owned by the base adapter (it also drives reconnect/resync); this subclass reuses it.
 var _pending: Dictionary = {}
 var _crypto := Crypto.new()
@@ -131,8 +139,32 @@ func _on_message(message: Dictionary) -> void:
 		var code = message.get("code")
 		if code is String and not code.is_empty():
 			# Current server errors carry no request ID. Never guess which durable
-			# request they reject; the pending request remains outcome-unknown.
+			# request they reject: resolve a craft only when attribution is
+			# unambiguous, otherwise the pending request stays outcome-unknown.
+			var craft_id := _attributable_craft(code)
+			if not craft_id.is_empty():
+				_pending.erase(craft_id)
+				command_rejected.emit(craft_id, code)
 			server_rejected.emit(code)
+
+## Returns the single pending craft a craft-handler error code must belong to,
+## or "" when the error could also come from another pending request.
+func _attributable_craft(code: String) -> String:
+	if not CRAFT_ERROR_CODES.has(code):
+		return ""
+	var crafts: Array[String] = []
+	var gathers := 0
+	for request_id in _pending:
+		var action = (_pending[request_id] as Dictionary).get("action")
+		if action == "craft":
+			crafts.append(request_id)
+		elif action == "gather_resource":
+			gathers += 1
+	if crafts.size() != 1:
+		return ""
+	if code != "RECIPE_NOT_FOUND" and gathers > 0:
+		return ""
+	return crafts[0]
 
 func _pending_action_matches(request_id: String, expected_action: String) -> bool:
 	if not _pending.has(request_id):
