@@ -97,7 +97,7 @@ jobs:
         run: |
           set -euo pipefail
           IOM_VERTICAL_SLICE_OUTPUT_DIR="$RUNNER_TEMP/visual-evidence" xvfb-run -a -s "-screen 0 1280x720x24" "$RUNNER_TEMP/godot" --path client-godot --rendering-method mobile --script res://tests/render_vertical_slice_gameplay.gd
-          for name in vertical-slice-gameplay.png vertical-slice-gameplay-orbited.png; do
+          for name in vertical-slice-gameplay.png vertical-slice-gameplay-orbited.png vertical-slice-gameplay-drawer.png; do
             test -s "$RUNNER_TEMP/visual-evidence/$name"
             file "$RUNNER_TEMP/visual-evidence/$name"
           done
@@ -108,6 +108,7 @@ jobs:
           path: |
             ${{ runner.temp }}/visual-evidence/vertical-slice-gameplay.png
             ${{ runner.temp }}/visual-evidence/vertical-slice-gameplay-orbited.png
+            ${{ runner.temp }}/visual-evidence/vertical-slice-gameplay-drawer.png
             ${{ runner.temp }}/visual-evidence/VERTICAL-SLICE-SHA256SUMS
           if-no-files-found: error
       - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
