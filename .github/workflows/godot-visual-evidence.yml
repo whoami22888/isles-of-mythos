@@ -78,6 +78,46 @@ jobs:
             file "$RUNNER_TEMP/visual-evidence/$name"
           done
           (cd "$RUNNER_TEMP/visual-evidence" && sha256sum boot-*.png > BOOT-UI-SHA256SUMS && sha256sum sculpted-terrain-preview.png island-preview.png coastal-cinematic.png > SHA256SUMS)
+      - name: Capture vertical slice touch controls (joystick held, camera orbited)
+        shell: bash
+        run: |
+          set -euo pipefail
+          IOM_TOUCH_CONTROLS_OUTPUT_DIR="$RUNNER_TEMP/visual-evidence" xvfb-run -a -s "-screen 0 1280x720x24" "$RUNNER_TEMP/godot" --path client-godot --rendering-method mobile --script res://tests/render_touch_controls.gd
+          for name in touch-joystick-held.png touch-camera-orbited.png; do
+            test -s "$RUNNER_TEMP/visual-evidence/$name"
+            file "$RUNNER_TEMP/visual-evidence/$name"
+          done
+          if cmp -s "$RUNNER_TEMP/visual-evidence/touch-joystick-held.png" "$RUNNER_TEMP/visual-evidence/touch-camera-orbited.png"; then
+            echo "::error::Camera orbit capture is byte-identical to the joystick capture"
+            exit 1
+          fi
+          (cd "$RUNNER_TEMP/visual-evidence" && sha256sum touch-*.png > TOUCH-CONTROLS-SHA256SUMS && cat TOUCH-CONTROLS-SHA256SUMS)
+      - name: Capture vertical slice gameplay view on the coastal bay
+        shell: bash
+        run: |
+          set -euo pipefail
+          IOM_VERTICAL_SLICE_OUTPUT_DIR="$RUNNER_TEMP/visual-evidence" xvfb-run -a -s "-screen 0 1280x720x24" "$RUNNER_TEMP/godot" --path client-godot --rendering-method mobile --script res://tests/render_vertical_slice_gameplay.gd
+          for name in vertical-slice-gameplay.png vertical-slice-gameplay-orbited.png; do
+            test -s "$RUNNER_TEMP/visual-evidence/$name"
+            file "$RUNNER_TEMP/visual-evidence/$name"
+          done
+          (cd "$RUNNER_TEMP/visual-evidence" && sha256sum vertical-slice-*.png > VERTICAL-SLICE-SHA256SUMS && cat VERTICAL-SLICE-SHA256SUMS)
+      - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
+        with:
+          name: godot-vertical-slice-gameplay-visual-evidence
+          path: |
+            ${{ runner.temp }}/visual-evidence/vertical-slice-gameplay.png
+            ${{ runner.temp }}/visual-evidence/vertical-slice-gameplay-orbited.png
+            ${{ runner.temp }}/visual-evidence/VERTICAL-SLICE-SHA256SUMS
+          if-no-files-found: error
+      - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
+        with:
+          name: godot-touch-controls-visual-evidence
+          path: |
+            ${{ runner.temp }}/visual-evidence/touch-joystick-held.png
+            ${{ runner.temp }}/visual-evidence/touch-camera-orbited.png
+            ${{ runner.temp }}/visual-evidence/TOUCH-CONTROLS-SHA256SUMS
+          if-no-files-found: error
       - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
         with:
           name: godot-boot-ui-visual-evidence

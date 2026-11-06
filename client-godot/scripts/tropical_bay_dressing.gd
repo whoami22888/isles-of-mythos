@@ -7,6 +7,8 @@ extends RefCounted
 const PALM_BUDGET := 96
 const GRASS_BUDGET := 180
 const PALM_TRIANGLE_BUDGET := 120
+const TERRAIN_SHADER := preload("res://shaders/coastal_terrain_surface.gdshader")
+const COAST_DIFFUSE := preload("res://assets/external/polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_diff_1k.jpg")
 
 
 static func attach(coast: Node3D) -> void:
@@ -103,7 +105,7 @@ static func _palm_mesh() -> ArrayMesh:
 			var normal := Vector3(cos(angle), 0.15, sin(angle)).normalized()
 			vertices.append(Vector3(cos(angle) * radius + lean, y, sin(angle) * radius))
 			normals.append(normal)
-			colors.append(Color(0.45, 0.27, 0.12).lerp(Color(0.62, 0.40, 0.18), t))
+			colors.append(Color(0.33, 0.27, 0.21).lerp(Color(0.52, 0.45, 0.34), t))
 	for segment in range(segments):
 		for side in range(sides):
 			var next_side := (side + 1) % sides
@@ -111,32 +113,41 @@ static func _palm_mesh() -> ArrayMesh:
 			var b := segment * sides + next_side
 			var c := a + sides
 			var d := b + sides
-			indices.append_array(PackedInt32Array([a, c, b, b, c, d]))
+			indices.append_array(PackedInt32Array([a, b, c, b, d, c]))
 	var frond_root := vertices.size()
 	var fronds := 7
 	for frond in range(fronds):
-		var yaw := TAU * float(frond) / float(fronds)
+		var yaw := TAU * float(frond) / float(fronds) + 0.31 * sin(float(frond) * 2.3)
 		var direction := Vector3(cos(yaw), 0.0, sin(yaw))
 		var side := Vector3(-direction.z, 0.0, direction.x)
-		var base := frond_root + frond * 6
-		var droop: Array[float] = [0.35, -0.05, -0.85]
-		var reach: Array[float] = [0.35, 1.15, 2.15]
-		var half_width: Array[float] = [0.16, 0.42, 0.12]
+		var base := frond_root + frond * 9
+		var droop: Array[float] = [0.30, -0.10, -0.95]
+		var reach: Array[float] = [0.30, 1.20, 2.25]
+		var half_width: Array[float] = [0.14, 0.46, 0.10]
+		var fold := 0.16
 		for step in range(3):
+			# Midrib plus two leaflet edges folded down: a V cross-section
+			# gives each frond a lit and a shaded half instead of a flat card.
 			var center := Vector3(0.0, trunk_top, 0.0) + direction * reach[step] + Vector3(0.0, droop[step], 0.0)
-			vertices.append(center + side * half_width[step])
-			vertices.append(center - side * half_width[step])
+			var edge_drop := Vector3(0.0, -fold * half_width[step] * 2.2, 0.0)
+			vertices.append(center + side * half_width[step] + edge_drop)
+			vertices.append(center)
+			vertices.append(center - side * half_width[step] + edge_drop)
+			normals.append((Vector3.UP + side * 0.45).normalized())
 			normals.append(Vector3.UP)
-			normals.append(Vector3.UP)
-			var green := Color(0.10, 0.42, 0.14).lerp(Color(0.45, 0.62, 0.16), float(step) / 2.0)
-			colors.append(green)
-			colors.append(green)
-		indices.append_array(PackedInt32Array([
-			base, base + 2, base + 1,
-			base + 1, base + 2, base + 3,
-			base + 2, base + 4, base + 3,
-			base + 3, base + 4, base + 5,
-		]))
+			normals.append((Vector3.UP - side * 0.45).normalized())
+			var t_step := float(step) / 2.0
+			var green := Color(0.05, 0.19, 0.06).lerp(Color(0.17, 0.31, 0.08), t_step)
+			colors.append(green.darkened(0.12))
+			colors.append(green.lightened(0.06))
+			colors.append(green.darkened(0.12))
+		for step in range(2):
+			var r0 := base + step * 3
+			var r1 := r0 + 3
+			indices.append_array(PackedInt32Array([
+				r0, r0 + 1, r1, r0 + 1, r1 + 1, r1,
+				r0 + 1, r0 + 2, r1 + 1, r0 + 2, r1 + 2, r1 + 1,
+			]))
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = vertices
@@ -200,22 +211,24 @@ static func _settlement(coast: Node3D) -> Node3D:
 	pier.material_override = material
 	pier.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	root.add_child(pier)
+	# Three stilted thatch huts merged into one mesh: one draw call, not three.
+	var hut_vertices := PackedVector3Array()
+	var hut_colors := PackedColorArray()
+	var hut_indices := PackedInt32Array()
 	for hut in [
-		[Vector3(-12.5, 0.0, 3.6), 1.7, Color(0.72, 0.58, 0.36), Color(0.62, 0.28, 0.16)],
-		[Vector3(-9.4, 0.0, 5.4), 1.35, Color(0.78, 0.64, 0.40), Color(0.70, 0.34, 0.18)],
-		[Vector3(8.8, 0.0, 4.8), 1.5, Color(0.66, 0.52, 0.34), Color(0.55, 0.24, 0.16)],
+		[Vector3(-12.5, 0.0, 3.6), 1.7, Color(0.60, 0.48, 0.31), Color(0.42, 0.31, 0.16)],
+		[Vector3(-9.4, 0.0, 5.4), 1.35, Color(0.66, 0.53, 0.34), Color(0.46, 0.34, 0.18)],
+		[Vector3(8.8, 0.0, 4.8), 1.5, Color(0.56, 0.45, 0.30), Color(0.39, 0.29, 0.15)],
 	]:
-		var hut_vertices := PackedVector3Array()
-		var hut_colors := PackedColorArray()
-		var hut_indices := PackedInt32Array()
-		_add_hut(hut_vertices, hut_colors, hut_indices, Vector3.ZERO, hut[1], hut[2], hut[3])
-		var hut_mesh := MeshInstance3D.new()
-		hut_mesh.mesh = _colored_mesh(hut_vertices, hut_colors, hut_indices)
-		hut_mesh.material_override = material
-		hut_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		var spot: Vector3 = hut[0]
-		hut_mesh.position = Vector3(spot.x, coast._terrain_height(spot.x, spot.z), spot.z)
-		root.add_child(hut_mesh)
+		var origin := Vector3(spot.x, coast._terrain_height(spot.x, spot.z), spot.z)
+		_add_hut(hut_vertices, hut_colors, hut_indices, origin, hut[1], hut[2], hut[3])
+	var huts := MeshInstance3D.new()
+	huts.name = "StiltedHuts"
+	huts.mesh = _colored_mesh(hut_vertices, hut_colors, hut_indices)
+	huts.material_override = material
+	huts.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	root.add_child(huts)
 	return root
 
 
@@ -227,12 +240,38 @@ static func _colored_mesh(vertices: PackedVector3Array, colors: PackedColorArray
 	arrays[Mesh.ARRAY_INDEX] = indices
 	var mesh := ArrayMesh.new()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	return mesh
+	# The boxes had no normals, so huts and pier lit as flat blobs. Generate
+	# flat per-face normals for crisp faceted wood and thatch.
+	var tool := SurfaceTool.new()
+	tool.create_from(mesh, 0)
+	tool.deindex()
+	tool.generate_normals()
+	# Re-index so callers that read ARRAY_INDEX (triangle budgets, capture
+	# cost reports) still get an indexed surface; faces stay flat-shaded.
+	tool.index()
+	return tool.commit()
 
 
 static func _add_hut(vertices: PackedVector3Array, colors: PackedColorArray, indices: PackedInt32Array, origin: Vector3, size: float, wall: Color, roof: Color) -> void:
-	_add_box(vertices, colors, indices, origin + Vector3(0.0, size * 0.45, 0.0), Vector3(size, size * 0.9, size * 0.8), wall)
-	_add_prism_roof(vertices, colors, indices, origin + Vector3(0.0, size * 0.95, 0.0), Vector3(size * 1.25, size * 0.55, size * 1.05), roof)
+	# Stilted beach hut: four posts, a raised deck, woven walls with a dark
+	# doorway and a steep thatch roof that overhangs the deck.
+	var post := Color(0.30, 0.21, 0.13)
+	var stilt := size * 0.42
+	var half_w := size * 0.5
+	var half_d := size * 0.4
+	for corner in [Vector2(-1, -1), Vector2(1, -1), Vector2(1, 1), Vector2(-1, 1)]:
+		_add_box(vertices, colors, indices,
+			origin + Vector3(corner.x * half_w, stilt * 0.5, corner.y * half_d),
+			Vector3(size * 0.09, stilt + 0.3, size * 0.09), post)
+	_add_box(vertices, colors, indices, origin + Vector3(0.0, stilt, 0.0),
+		Vector3(size * 1.18, size * 0.07, size * 1.0), post.lightened(0.18))
+	var wall_h := size * 0.62
+	_add_box(vertices, colors, indices, origin + Vector3(0.0, stilt + wall_h * 0.5, 0.0),
+		Vector3(size, wall_h, size * 0.8), wall)
+	_add_box(vertices, colors, indices, origin + Vector3(0.0, stilt + size * 0.24, half_d + 0.01),
+		Vector3(size * 0.26, size * 0.44, 0.04), Color(0.12, 0.08, 0.05))
+	_add_prism_roof(vertices, colors, indices, origin + Vector3(0.0, stilt + wall_h - size * 0.04, 0.0),
+		Vector3(size * 1.5, size * 0.78, size * 1.22), roof)
 
 
 static func _add_prism_roof(vertices: PackedVector3Array, colors: PackedColorArray, indices: PackedInt32Array, center: Vector3, size: Vector3, color: Color) -> void:
@@ -279,7 +318,7 @@ static func _add_box(vertices: PackedVector3Array, colors: PackedColorArray, ind
 	for corner in corners:
 		vertices.append(corner)
 		colors.append(color)
-	# Outward winding matches the coastal heightfield (clockwise from outside).
+	# Clockwise seen from outside, Godot's front face: (c - a) x (b - a) points out.
 	var faces := [
 		[0, 1, 2, 3],
 		[5, 4, 7, 6],
@@ -290,21 +329,19 @@ static func _add_box(vertices: PackedVector3Array, colors: PackedColorArray, ind
 	]
 	for face in faces:
 		indices.append_array(PackedInt32Array([
-			base + face[0], base + face[2], base + face[1],
-			base + face[0], base + face[3], base + face[2],
+			base + face[0], base + face[1], base + face[2],
+			base + face[0], base + face[2], base + face[3],
 		]))
 
 
 static func _volcano() -> Node3D:
 	var root := Node3D.new()
 	root.name = "DistantVolcano"
-	root.position = Vector3(6.0, -0.35, 86.0)
+	root.position = Vector3(6.0, 0.0, 86.0)
 	var mesh_instance := MeshInstance3D.new()
-	mesh_instance.mesh = _cone_mesh(18.0, 20.0, Color(0.22, 0.18, 0.16), Color(0.45, 0.12, 0.06), 16)
-	var material := StandardMaterial3D.new()
-	material.vertex_color_use_as_albedo = true
-	material.roughness = 0.95
-	mesh_instance.material_override = material
+	mesh_instance.name = "VolcanoLandmass"
+	mesh_instance.mesh = landmass_mesh(19.0, 16.0, 19.0, 3.1, 0.22)
+	mesh_instance.material_override = _landmass_material(Color(0.20, 0.30, 0.13), Color(0.30, 0.26, 0.23))
 	mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	root.add_child(mesh_instance)
 	var smoke := CPUParticles3D.new()
@@ -321,7 +358,10 @@ static func _volcano() -> Node3D:
 	smoke.initial_velocity_max = 2.0
 	smoke.scale_amount_min = 1.4
 	smoke.scale_amount_max = 3.2
-	smoke.position = Vector3(0.0, 19.0, 0.0)
+	# Emit from the crater floor (the landmass centre vertex), not the old
+	# cone tip, so the plume rises out of the crater.
+	var crater_floor: Vector3 = (mesh_instance.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX] as PackedVector3Array)[0]
+	smoke.position = crater_floor + Vector3(0.0, 0.3, 0.0)
 	var puff := SphereMesh.new()
 	puff.radial_segments = 6
 	puff.rings = 3
@@ -338,48 +378,96 @@ static func _volcano() -> Node3D:
 	return root
 
 
-static func _cone_mesh(radius: float, height: float, base_color: Color, peak_color: Color, sides: int = 10) -> ArrayMesh:
+static func _distant_islands() -> MeshInstance3D:
+	# Four sculpted landmasses merged into one mesh: one draw call, no cones.
+	var specs := [
+		[Vector3(-62.0, 0.0, 36.0), 17.0, 12.0, 7.5, 1.3],
+		[Vector3(58.0, 0.0, 28.0), 13.0, 10.0, 5.0, 2.7],
+		[Vector3(-28.0, 0.0, 78.0), 21.0, 14.0, 6.0, 4.4],
+		[Vector3(36.0, 0.0, 70.0), 15.0, 11.0, 4.2, 5.9],
+	]
+	var merged := SurfaceTool.new()
+	merged.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for spec in specs:
+		var part: ArrayMesh = landmass_mesh(spec[1], spec[2], spec[3], spec[4], 0.0)
+		merged.append_from(part, 0, Transform3D(Basis.IDENTITY, spec[0]))
+	var instance := MeshInstance3D.new()
+	instance.name = "HazyIslets"
+	instance.mesh = merged.commit()
+	instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	instance.material_override = _landmass_material(Color(0.18, 0.36, 0.12), Color(0.44, 0.40, 0.34))
+	return instance
+
+
+## Irregular island: noisy coastline, ridged slopes, beach shelf and a
+## submerged skirt so the ocean shader meets real geometry at sea level.
+## Every face is clockwise from above (Godot front face) by construction.
+static func landmass_mesh(radius_x: float, radius_z: float, peak: float, seed: float, crater: float, rings: int = 10, sectors: int = 30) -> ArrayMesh:
+	const SEA := -0.35
 	var vertices := PackedVector3Array()
-	var colors := PackedColorArray()
+	vertices.append(Vector3(0.0, SEA + peak * (1.0 - crater), 0.0))
+	for ring in range(1, rings + 1):
+		var r := float(ring) / float(rings) * 1.2
+		for sector in range(sectors):
+			var angle := TAU * float(sector) / float(sectors)
+			var coast := 1.0 + 0.16 * sin(angle * 3.0 + seed) + 0.09 * sin(angle * 7.0 + seed * 2.3) + 0.05 * sin(angle * 13.0 + seed * 0.7)
+			# Profile runs on the normalised radius; the noisy coastline scales the
+			# vertex position instead. The outer ring (t = 1.2) is then always past
+			# the skirt (t >= 1.15) and every boundary vertex is under the sea.
+			var t := r
+			var body := pow(clampf(1.0 - t, 0.0, 1.0), 1.7)
+			var ridge := 0.12 * sin(angle * 5.0 + seed * 1.9 + r * 6.0) * body
+			var height := peak * (body + ridge)
+			if crater > 0.0:
+				height -= peak * crater * (1.0 - smoothstep(0.0, 0.16, t))
+			height += 0.55 * (1.0 - smoothstep(0.88, 1.0, t))
+			height -= 2.2 * smoothstep(1.0, 1.15, t)
+			vertices.append(Vector3(cos(angle) * r * coast * radius_x, SEA + height, sin(angle) * r * coast * radius_z))
 	var indices := PackedInt32Array()
-	vertices.append(Vector3(0.0, height, 0.0))
-	colors.append(peak_color)
-	for side in range(sides):
-		var angle := TAU * float(side) / float(sides)
-		vertices.append(Vector3(cos(angle) * radius, 0.0, sin(angle) * radius))
-		colors.append(base_color.lerp(peak_color, 0.25))
-	for side in range(sides):
-		var next_side := (side + 1) % sides
-		indices.append_array(PackedInt32Array([0, 1 + next_side, 1 + side]))
+	for sector in range(sectors):
+		_add_upward_triangle(vertices, indices, 0, 1 + sector, 1 + (sector + 1) % sectors)
+	for ring in range(rings - 1):
+		var inner := 1 + ring * sectors
+		var outer := inner + sectors
+		for sector in range(sectors):
+			var next := (sector + 1) % sectors
+			_add_upward_triangle(vertices, indices, inner + sector, outer + sector, outer + next)
+			_add_upward_triangle(vertices, indices, inner + sector, outer + next, inner + next)
+	var normals := PackedVector3Array()
+	normals.resize(vertices.size())
+	for t in range(0, indices.size(), 3):
+		var a := vertices[indices[t]]
+		var face := (vertices[indices[t + 2]] - a).cross(vertices[indices[t + 1]] - a)
+		for k in range(3):
+			normals[indices[t + k]] += face
+	var uvs := PackedVector2Array()
+	for i in range(vertices.size()):
+		normals[i] = normals[i].normalized()
+		uvs.append(Vector2(vertices[i].x, vertices[i].z) * 0.14)
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = vertices
-	arrays[Mesh.ARRAY_COLOR] = colors
+	arrays[Mesh.ARRAY_NORMAL] = normals
+	arrays[Mesh.ARRAY_TEX_UV] = uvs
 	arrays[Mesh.ARRAY_INDEX] = indices
 	var mesh := ArrayMesh.new()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 	return mesh
 
 
-static func _distant_islands() -> MultiMeshInstance3D:
-	var instance := MultiMeshInstance3D.new()
-	instance.name = "HazyIslets"
-	var multi := MultiMesh.new()
-	multi.transform_format = MultiMesh.TRANSFORM_3D
-	multi.mesh = _cone_mesh(1.0, 0.55, Color(0.16, 0.28, 0.24), Color(0.20, 0.32, 0.26))
-	var spots := [
-		Transform3D(Basis.IDENTITY.scaled(Vector3(18.0, 10.0, 14.0)), Vector3(-62.0, -0.35, 36.0)),
-		Transform3D(Basis.IDENTITY.scaled(Vector3(14.0, 7.0, 12.0)), Vector3(58.0, -0.35, 28.0)),
-		Transform3D(Basis.IDENTITY.scaled(Vector3(22.0, 8.0, 16.0)), Vector3(-28.0, -0.35, 78.0)),
-		Transform3D(Basis.IDENTITY.scaled(Vector3(16.0, 6.0, 12.0)), Vector3(36.0, -0.35, 70.0)),
-	]
-	multi.instance_count = spots.size()
-	for index in range(spots.size()):
-		multi.set_instance_transform(index, spots[index])
-	instance.multimesh = multi
-	instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	var material := StandardMaterial3D.new()
-	material.vertex_color_use_as_albedo = true
-	material.roughness = 1.0
-	instance.material_override = material
-	return instance
+static func _add_upward_triangle(vertices: PackedVector3Array, indices: PackedInt32Array, a: int, b: int, c: int) -> void:
+	# Godot front face is clockwise: (c - a) x (b - a) must point up.
+	if (vertices[c] - vertices[a]).cross(vertices[b] - vertices[a]).y < 0.0:
+		indices.append_array(PackedInt32Array([a, c, b]))
+	else:
+		indices.append_array(PackedInt32Array([a, b, c]))
+
+
+static func _landmass_material(grass: Color, rock: Color) -> ShaderMaterial:
+	var material := ShaderMaterial.new()
+	material.shader = TERRAIN_SHADER
+	material.set_shader_parameter("detail_albedo", COAST_DIFFUSE)
+	material.set_shader_parameter("grass_color", grass)
+	material.set_shader_parameter("rock_color", rock)
+	material.set_shader_parameter("sea_level", -0.35)
+	return material

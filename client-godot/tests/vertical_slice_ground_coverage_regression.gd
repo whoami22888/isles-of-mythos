@@ -3,6 +3,8 @@ extends SceneTree
 # Regression: the scaffold ground was a fixed 64x64 plane at the origin while the camera and player follow
 # the authoritative position, so an account restored away from the origin saw no ground. The ground must keep
 # covering the player's whole chunk plus a one-chunk margin wherever the server places the player.
+# Since the slice renders the coastal bay, the VISIBLE ground is the bay's ocean plane (the scaffold plane is a
+# hidden fallback), so coverage is asserted on whichever plane is actually shown.
 
 const Scene = preload("res://gameplay/vertical_slice.tscn")
 const CHUNK_SIZE := 32.0
@@ -34,6 +36,14 @@ func _init() -> void:
 	quit(0)
 
 func _find_ground(world: Node) -> MeshInstance3D:
+	var coastal := world.get_node_or_null("CoastalWorld")
+	if coastal != null:
+		var scaffold := world.get_node_or_null("ScaffoldGround") as MeshInstance3D
+		_assert(scaffold == null or not scaffold.visible, "scaffold fallback is hidden under the coastal world")
+		var ocean := coastal.get_node_or_null("ShallowToDeepWater") as MeshInstance3D
+		if ocean != null and ocean.mesh is PlaneMesh and ocean.is_visible_in_tree():
+			return ocean
+		return null
 	for child in world.get_children():
 		if child is MeshInstance3D and (child as MeshInstance3D).mesh is PlaneMesh:
 			return child
@@ -42,7 +52,7 @@ func _find_ground(world: Node) -> MeshInstance3D:
 func _assert_covers(ground: MeshInstance3D, p: Vector2) -> void:
 	var plane := ground.mesh as PlaneMesh
 	var half := plane.size / 2.0
-	var center := Vector2(ground.position.x, ground.position.z)
+	var center := Vector2(ground.global_position.x, ground.global_position.z)
 	var chunk := Vector2(floorf(p.x / CHUNK_SIZE), floorf(p.y / CHUNK_SIZE))
 	var chunk_min := chunk * CHUNK_SIZE - Vector2(CHUNK_SIZE, CHUNK_SIZE)
 	var chunk_max := (chunk + Vector2.ONE) * CHUNK_SIZE + Vector2(CHUNK_SIZE, CHUNK_SIZE)

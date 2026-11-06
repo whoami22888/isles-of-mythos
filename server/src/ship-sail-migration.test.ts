@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
+import { readdirSync } from "node:fs";
 import pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -9,6 +10,8 @@ const ADMIN_URL = process.env.DATABASE_URL ?? "postgres://postgres:postgres@127.
 const scratchName = "isles_mig040_" + randomBytes(4).toString("hex");
 const scratchUrl = (() => { const u = new URL(ADMIN_URL); u.pathname = "/" + scratchName; return u.toString(); })();
 const bin = new URL("../../node_modules/.bin/node-pg-migrate", import.meta.url).pathname;
+// Roll back every migration from 040 onward so 040's down is exercised even after later migrations land.
+const stepsThrough040 = readdirSync(new URL("../migrations", import.meta.url)).filter((f) => /^\d{3}_.*\.js$/.test(f) && Number(f.slice(0, 3)) >= 40).length;
 const run = (...args: string[]): string =>
   execFileSync(bin, [...args, "-m", "migrations"], { cwd: new URL("..", import.meta.url).pathname, env: { ...process.env, DATABASE_URL: scratchUrl }, encoding: "utf8" });
 
@@ -40,7 +43,7 @@ describe("migration 040 player_ships.last_sailed_at", () => {
     expect(up[0]).toMatchObject({ is_nullable: "NO", data_type: "timestamp with time zone" });
     expect(up[0].column_default).toMatch(/now\(\)/i);
 
-    run("down", "1");
+    run("down", String(stepsThrough040));
     expect(await columnInfo()).toHaveLength(0);
 
     run("up");

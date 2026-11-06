@@ -280,8 +280,11 @@ func _handle_closed() -> void:
 		auth_failed.emit(_auth_failure_reason(_socket.get_close_reason()))
 		status_changed.emit("Disconnected; server rejected the session")
 		return
-	if _authenticated:
-		# An established session was lost: begin recovery.
+	if _authenticated or _auth_sent:
+		# An established session was lost: begin recovery. An abrupt drop after `auth` was
+		# sent is treated the same way: Godot discards packets still queued at an abrupt
+		# close, so an auth_ok that arrived in the same poll is unobservable. Explicit
+		# credential rejections close with 1008 and were handled above (never retried).
 		_authenticated = false
 		_reconnecting = true
 		_schedule_reconnect()
