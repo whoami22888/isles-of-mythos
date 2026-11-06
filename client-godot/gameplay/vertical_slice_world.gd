@@ -7,6 +7,12 @@ const ExpeditionsPanel = preload("res://gameplay/expeditions_panel.gd")
 var _expeditions: VBoxContainer
 const DailyObjectivesPanel = preload("res://gameplay/daily_objectives_panel.gd")
 var _objectives: VBoxContainer
+const CraftPanel = preload("res://gameplay/craft_panel.gd")
+var _craft: VBoxContainer
+## Gameplay panels live in a viewport-bounded scroll area so every control
+## stays reachable at 1280x720 and on phones however long the lists grow.
+var _hud_scroll: ScrollContainer
+var _hud_panels: VBoxContainer
 var _client: Node
 var _player := Vector3.ZERO
 var _markers: Dictionary = {}
@@ -56,18 +62,36 @@ func _ready() -> void:
 	_connect_button = $Interface/Panel/Margin/Content/Connect
 	_gather.pressed.connect(_gather_nearest)
 	_connect_button.pressed.connect(_connect)
+	_hud_scroll = ScrollContainer.new()
+	_hud_scroll.name = "HudScroll"
+	_hud_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	$Interface/Panel/Margin/Content.add_child(_hud_scroll)
+	_hud_panels = VBoxContainer.new()
+	_hud_panels.name = "HudPanels"
+	_hud_panels.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_hud_scroll.add_child(_hud_panels)
+	_fit_hud_scroll()
+	get_viewport().size_changed.connect(_fit_hud_scroll)
 	_guild_objectives = GuildObjectivesPanel.new()
 	_guild_objectives.name = "GuildObjectives"
-	$Interface/Panel/Margin/Content.add_child(_guild_objectives)
+	_hud_panels.add_child(_guild_objectives)
 	_guild_objectives.reward_claimed.connect(func(_id: String, gold: String) -> void: _status.text = "Guild reward claimed: +" + gold + " gold")
 	_expeditions = ExpeditionsPanel.new()
 	_expeditions.name = "Expeditions"
-	$Interface/Panel/Margin/Content.add_child(_expeditions)
+	_hud_panels.add_child(_expeditions)
 	_expeditions.expedition_collected.connect(func(_id: String, gold: String) -> void: _status.text = "Expedition returned: +" + gold + " gold")
 	_objectives = DailyObjectivesPanel.new()
 	_objectives.name = "DailyObjectives"
-	$Interface/Panel/Margin/Content.add_child(_objectives)
+	_hud_panels.add_child(_objectives)
 	_objectives.reward_claimed.connect(func(_id: String, gold: String) -> void: _status.text = "Daily reward claimed: +" + gold + " gold")
+	_craft = CraftPanel.new()
+	_craft.name = "CraftPanel"
+	_craft.craft_sender = func(recipe_id: String) -> String: return _client.request_craft(recipe_id)
+	_hud_panels.add_child(_craft)
+	_craft.craft_succeeded.connect(func(_id: String) -> void:
+		_status.text = "Server ACK: craft persisted"
+		_objectives.refresh()
+		_guild_objectives.refresh())
 	_build_scaffold_world()
 	_client = Protocol.new()
 	add_child(_client)
@@ -77,6 +101,7 @@ func _ready() -> void:
 	_client.world_chunk_received.connect(_on_world_chunk)
 	_client.command_acknowledged.connect(_on_ack)
 	_client.server_rejected.connect(_on_rejection)
+	_client.command_rejected.connect(func(request_id: String, code: String) -> void: _craft.on_craft_rejected(request_id, code))
 	_client.command_outcome_unknown.connect(_on_outcome_unknown)
 	_client.auth_failed.connect(_on_auth_failed)
 	var endpoint := OS.get_environment("IOM_WS_URL")
@@ -273,6 +298,7 @@ func _approach_step() -> void:
 	_client.request_move(direction.x, direction.y)
 
 func _on_player_state(state: Dictionary) -> void:
+	_craft.set_inventory(state.get("inventory"))
 	var x = state.get("x")
 	var y = state.get("y")
 	if x is int or x is float:
@@ -513,6 +539,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		_handle_tap(event.position)
 
 func _on_ack(_request_id: String, message: Dictionary) -> void:
+	if message.get("type") == "craft_result":
+		_craft.on_craft_ack(_request_id, message)
+		return
 	if message.get("type") == "resource_gathered":
 		# Guild progress is server-derived from the gather ledger; re-read it (rate bounded).
 		_guild_objectives.refresh()
@@ -526,15 +555,26 @@ func _on_ack(_request_id: String, message: Dictionary) -> void:
 		_status.text = "Server ACK: resource persisted; local view refreshed"
 		var state = message.get("state")
 		if state is Dictionary:
+			_craft.set_inventory(state.get("inventory"))
 			_state.text = "Authoritative inventory state received"
 
+## Bound the scroll area to 45% of the visible height (at least 180 px) so
+## the fixed controls above it plus the scroll area fit on screen.
+func _fit_hud_scroll() -> void:
+	if _hud_scroll == null:
+		return
+	var visible_height := get_viewport().get_visible_rect().size.y
+	_hud_scroll.custom_minimum_size = Vector2(0.0, maxf(180.0, visible_height * 0.45))
+
 func _on_rejection(code: String) -> void:
+	_craft.on_server_error(code)
 	if code == "PLAYER_DEAD" and _death:
 		_death.visible = true
 		_death.text = "You died - respawning"
 	_status.text = "Server rejected command: %s" % code
 
 func _on_outcome_unknown(request_id: String) -> void:
+	_craft.on_outcome_unknown(request_id)
 	if request_id == _chunk_in_flight:
 		_chunk_in_flight = ""
 	_status.text = "Command outcome unknown; reconnect manually before retrying"

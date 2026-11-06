@@ -76,7 +76,7 @@ func run() -> void:
 	world.begin_authenticated_session("ws://127.0.0.1:9/ws", "test-session")
 	root.add_child(world)
 	await process_frame
-	check(world.get_node_or_null("Interface/Panel/Margin/Content/DailyObjectives") != null, "world HUD contains the daily objectives panel")
+	check(world.get_node_or_null("Interface/Panel/Margin/Content/HudScroll/HudPanels/DailyObjectives") != null, "world HUD contains the daily objectives panel")
 	world.queue_free()
 	await process_frame
 

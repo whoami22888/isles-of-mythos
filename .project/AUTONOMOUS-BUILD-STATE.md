@@ -166,3 +166,51 @@ Cost policy: bounded task packets, one owner/path; reuse unchanged exact-SHA evi
 - #238: the recorded combat timer was 33 ms (~30.026 Hz) and the performance gate accepted any rate ≥ 20 Hz. The simulation step is now a fixed 50 ms clock (combat, projectiles, statuses, creature AI, workers). The gate is 19–22 Hz so the measured 30 Hz run fails and a slightly early or late scheduler still passes. Gameplay p95/p99 and tick p95/p99 thresholds are unchanged. One-second and slower domain timers are not this metric.
 - Local evidence: server vitest 618 passed against a local PostgreSQL used only as a test database; validator self-test PASS; typecheck and eslint on the touched server files PASS. This PostgreSQL was not the CI PostgreSQL 18 acceptance image. Exact-SHA CI is not yet recorded.
 - Overlap: draft PR #228 counts sockets in Redis and does not change movement speed or the tick. PR #191 changes `create_base` request ids in `app.ts` and the Godot gateway; this branch does not touch that handler. PR #201 is auth and `boot.gd`, untouched.
+
+## Orchestrator checkpoint — 2026-11-06
+
+- Live main after this pass: `cbc18e298f06d900774d47af60f9c0cd27a11d96`.
+- Merged by the build orchestrator on owner-delegated authority (2026-11-06):
+  - #262 → `49bb215`: coastal terrain/dressing winding fixes with regressions,
+    near-field fog and sky band, sculpted horizon islands and grounded cliff
+    ridges, stilted huts and palms, 2x MSAA (tier 0 off), in-range npm updates,
+    glob CVE override. Exact-head `e209f7a`: CI 42116597081, Performance
+    42116597149 (attempt 2 PASS; attempt 1 1000-player gameplay p99 538 ms FAIL,
+    cause unproven), Trivy, CodeQL, Codacy, Static and Godot export PASS, Codex
+    no findings. Visual acceptance remains FAIL/NOT VERIFIED; S23 MSAA cost NOT
+    VERIFIED. Merged as a defect fix, not art acceptance.
+  - #272 → `cbc18e2`: daily-objective windows use UTC midnight. Exact-head
+    `31ec13d`: all 57 checks PASS, Codex clean.
+- Already on main: the objectives/expeditions/guild-objectives stack (#264–#270)
+  via #271 (`9b095e5`) and the reconnect fix #268 (`c309669`).
+- Milestone audit of `49bb215` (read-only; cited tests exist, not re-run):
+  - IOM-00 shell/APK: PARTIAL. No physical-device launch (android_arm64_apk
+    NOT_VERIFIED).
+  - IOM-01 asset admission: BLOCKED. H01–H11 provenance closure (H09 digest, H10
+    licence, H02 per-model).
+  - IOM-02 world/camera/LOD: PARTIAL. Gameplay scene builds a primitive scaffold
+    world; coastal slice is not the gameplay world; no owner-baseline
+    comparison.
+  - IOM-03 command/reconnect seam: PARTIAL. Client sends few commands; no real
+    Godot client↔server disconnect/reconnect test.
+  - IOM-04 creatures/workers/base: PARTIAL (server only). No client capture,
+    worker or base UI.
+  - IOM-05 naval/guild UI and onboarding: NOT STARTED (client). No onboarding
+    flow or ship control UI.
+  - IOM-06 purchases/liveops: PARTIAL (server only). No client store;
+    owner/provider controls required.
+  - IOM-07 Android acceptance: BLOCKED. Needs a playable APK and authorised
+    device testing.
+- New-player path on main: register PARTIAL (no client test), login YES, enter
+  world PARTIAL (scaffold), move PARTIAL, gather YES (scaffold), craft NO on
+  client (addressed by PR #275), objectives/expeditions/guild panels YES
+  (functional), reconnect PARTIAL (no live client e2e).
+- Assigned (isolated worktrees, local commits, orchestrator integrates): Client
+  craft panel over the vertical-slice protocol (integrated, PR #275); real Godot
+  client disconnect/reconnect end-to-end test (in progress). Queued next: HUD
+  and touch controls; coastal slice as the gameplay world (visual gate applies);
+  device-run Android smoke (owner must authorise phone testing).
+- Open queue: #273 (guild-week UTC) awaiting Codex review on `d3202aa`; graphics
+  PRs #174/#175/#183/#214/#249/#259/#260 need visual sign-off and rebases;
+  #204/#205/#190/#247 likely stale.
+- Notion checkpoint: pending (not yet written this session).
