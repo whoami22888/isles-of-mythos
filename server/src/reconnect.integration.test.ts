@@ -133,8 +133,11 @@ describe("reconnect durability after an abrupt socket drop (real server + Postgr
 
     const { client: first, state: spawn } = await connectAndAuth(firstToken);
     const nodes = await discoverNodes(first, spawn);
-    expect(nodes.length).toBeGreaterThan(0);
-    const target = [...nodes].sort((a, b) => dist(a, spawn) - dist(b, spawn))[0];
+    expect(nodes.length).toBeGreaterThan(1);
+    // Every new player spawns on the same tile, and m1-loop.integration.test.ts
+    // depletes the node nearest to it. Vitest runs files in parallel against
+    // one database, so take the second-nearest node to avoid racing m1-loop.
+    const target = [...nodes].sort((a, b) => dist(a, spawn) - dist(b, spawn))[1];
     touchedNodeId = target.id;
 
     // Move (intent only) until within gather range.

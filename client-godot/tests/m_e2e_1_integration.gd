@@ -213,15 +213,19 @@ func _check_reconnect_restores_state(session: Dictionary, ws_url: String) -> voi
 			var request_id: String = client.request_world_chunk(cx + dx, cy + dy)
 			check(not request_id.is_empty(), "Chunk request must be sent while authenticated")
 			await _wait_until(func() -> bool: return seen["chunks"].size() > before)
-	var target := {}
-	var best := INF
+	# Skip the node nearest to the shared new-player spawn: CI runs this test
+	# shortly before the server suite on the same database, and
+	# server/src/m1-loop.integration.test.ts depends on that node (wood respawns
+	# after 60 s; depleted nodes are hidden from chunks). Take the next nearest.
+	var candidates: Array = []
 	for chunk in seen["chunks"]:
 		for node in chunk.get("resources", []):
-			var d := Vector2(float(node["x"]), float(node["y"])).distance_to(Vector2(here_x, here_y))
-			if d < best:
-				best = d
-				target = node
-	check(not target.is_empty(), "World chunks must expose a gatherable resource node")
+			candidates.append(node)
+	candidates.sort_custom(func(a, b) -> bool:
+		var here := Vector2(here_x, here_y)
+		return Vector2(float(a["x"]), float(a["y"])).distance_to(here) < Vector2(float(b["x"]), float(b["y"])).distance_to(here))
+	var target: Dictionary = candidates[1] if candidates.size() > 1 else {}
+	check(not target.is_empty(), "World chunks must expose at least two gatherable resource nodes")
 	if target.is_empty():
 		return
 
