@@ -100,6 +100,9 @@ func _on_press(finger: int, position: Vector2, pressed: bool, canceled := false)
 			_camera_finger = finger
 			_camera_last = position
 		else:
+			# Zone already owned by another finger: consume the press so the
+			# world's tap-to-move fallback never sees it; it is never a tap.
+			_claim()
 			return
 		_travel[finger] = [position, 0.0]
 		_claim()

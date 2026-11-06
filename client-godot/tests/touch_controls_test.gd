@@ -236,6 +236,18 @@ func run() -> void:
 	drag(5, right + Vector2(-120, 0))
 	touch(5, right + Vector2(-120, 0), false)
 	check(not is_zero_approx(world._camera_yaw), "right-half drag orbits the camera")
+	# A second finger pressed in an occupied zone is consumed: no tap, no walk.
+	touch(10, right, true)
+	world._stop_approach()
+	fake.moves.clear()
+	touch(11, right + Vector2(0, 60), true)
+	await process_frame
+	await process_frame
+	check(not world._approaching and not world._move_to_point and fake.moves.is_empty(), "extra finger in the occupied camera zone starts no walk, got %s" % [fake.moves])
+	touch(11, right + Vector2(0, 60), false)
+	touch(10, right, false)
+	world._stop_approach()
+	await process_frame
 	Input.action_press("move_forward")
 	var kb_forward: Vector2 = world.manual_move_intent()
 	Input.action_release("move_forward")
