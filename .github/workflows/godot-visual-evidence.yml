@@ -92,6 +92,24 @@ jobs:
             exit 1
           fi
           (cd "$RUNNER_TEMP/visual-evidence" && sha256sum touch-*.png > TOUCH-CONTROLS-SHA256SUMS && cat TOUCH-CONTROLS-SHA256SUMS)
+      - name: Capture vertical slice gameplay view on the coastal bay
+        shell: bash
+        run: |
+          set -euo pipefail
+          IOM_VERTICAL_SLICE_OUTPUT_DIR="$RUNNER_TEMP/visual-evidence" xvfb-run -a -s "-screen 0 1280x720x24" "$RUNNER_TEMP/godot" --path client-godot --rendering-method mobile --script res://tests/render_vertical_slice_gameplay.gd
+          for name in vertical-slice-gameplay.png vertical-slice-gameplay-orbited.png; do
+            test -s "$RUNNER_TEMP/visual-evidence/$name"
+            file "$RUNNER_TEMP/visual-evidence/$name"
+          done
+          (cd "$RUNNER_TEMP/visual-evidence" && sha256sum vertical-slice-*.png > VERTICAL-SLICE-SHA256SUMS && cat VERTICAL-SLICE-SHA256SUMS)
+      - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
+        with:
+          name: godot-vertical-slice-gameplay-visual-evidence
+          path: |
+            ${{ runner.temp }}/visual-evidence/vertical-slice-gameplay.png
+            ${{ runner.temp }}/visual-evidence/vertical-slice-gameplay-orbited.png
+            ${{ runner.temp }}/visual-evidence/VERTICAL-SLICE-SHA256SUMS
+          if-no-files-found: error
       - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
         with:
           name: godot-touch-controls-visual-evidence

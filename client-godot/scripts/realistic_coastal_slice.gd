@@ -687,6 +687,37 @@ func sync_ocean_vessel_uniforms() -> void:
 	material.set_shader_parameter("vessel_forward", Vector2(forward.x, forward.z))
 
 
+## Presentation-only surface queries for hosts that place server-positioned
+## markers on this bay (the gameplay vertical slice). Global X/Z in, global Y
+## out; the same height equation the terrain mesh and props are built from.
+func terrain_height_at(global_x: float, global_z: float) -> float:
+	var local := to_local(Vector3(global_x, 0.0, global_z))
+	return to_global(Vector3(local.x, _terrain_height(local.x, local.z), local.z)).y
+
+
+func water_level() -> float:
+	return to_global(Vector3(0.0, WATER_Y, 0.0)).y
+
+
+## Move the whole bay so that `global_origin` is its new origin. The ocean's
+## shoreline heightmap is sampled in world X/Z, so its origin moves with it;
+## the bake itself is reused, never recomputed per move.
+func relocate(global_origin: Vector3) -> void:
+	var before := global_position
+	global_position = global_origin
+	if _shore_binding.is_empty():
+		return
+	var water := get_node_or_null("ShallowToDeepWater") as MeshInstance3D
+	if water == null or not (water.material_override is ShaderMaterial):
+		return
+	var material := water.material_override as ShaderMaterial
+	var moved := global_position - before
+	var origin: Vector2 = _shore_binding["origin"] + Vector2(moved.x, moved.z)
+	_shore_binding["origin"] = origin
+	material.set_shader_parameter("shore_origin_xz", origin)
+	sync_ocean_vessel_uniforms()
+
+
 func apply_visual_quality(level: int) -> void:
 	# 0 mid-range floor, 1 balanced, 2 S23-class target. Presentation only.
 	var clamped := clampi(level, 0, 2)
