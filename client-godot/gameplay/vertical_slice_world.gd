@@ -10,6 +10,7 @@ var _objectives: VBoxContainer
 const CraftPanel = preload("res://gameplay/craft_panel.gd")
 var _craft: VBoxContainer
 const TouchControls = preload("res://gameplay/touch_controls.gd")
+const PlayerAvatar = preload("res://gameplay/player_avatar.gd")
 var _touch: Control
 ## Camera orbit yaw (radians) around the authoritative player. Presentation
 ## only; manual move directions are rotated by it so "up" walks away from the
@@ -337,16 +338,15 @@ func _build_scaffold_world() -> void:
 	if _coastal:
 		_ground.visible = false
 	_recenter_ground()
-	var player := MeshInstance3D.new()
-	var capsule := CapsuleMesh.new()
-	capsule.height = 1.8
-	capsule.radius = 0.35
-	player.mesh = capsule
-	player.material_override = _material(Color("#d9a441"))
+	# Presentation-only avatar (rigged character, capsule fallback); the server
+	# position below is still the only thing that moves it.
+	var player := PlayerAvatar.new()
+	player.feet_offset = PLAYER_HALF_HEIGHT
 	player.name = "ServerPlayerRepresentation"
 	add_child(player)
 	player.position = Vector3(_player.x, _feet_height(_player.x, _player.z) + PLAYER_HALF_HEIGHT, _player.z)
 	_player = player.position
+	player.observe_server_position(_player)
 	if _coastal == null:
 		var light := DirectionalLight3D.new()
 		light.rotation_degrees = Vector3(-55, -25, 0)
@@ -548,6 +548,7 @@ func _on_player_state(state: Dictionary) -> void:
 		_recenter_ground()
 		_player.y = _feet_height(_player.x, _player.z) + PLAYER_HALF_HEIGHT
 		$ServerPlayerRepresentation.position = _player
+		$ServerPlayerRepresentation.observe_server_position(_player)
 		_follow_camera()
 		var health = state.get("health", 1)
 		if _death:

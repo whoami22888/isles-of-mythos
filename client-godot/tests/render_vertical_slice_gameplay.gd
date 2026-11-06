@@ -4,7 +4,8 @@ extends SceneTree
 ## The session, player and chunk states below are local presentation fixtures fed through the same
 ## handlers the server messages use (a stub stands in for the authenticated transport so the HUD is in
 ## its gameplay state); no server authority is simulated. llvmpipe numbers are not phone measurements.
-## Frames: collapsed gameplay HUD, the same view orbited, and the objectives/crafting drawer expanded.
+## Frames: collapsed gameplay HUD, the same view orbited, close views of the player avatar idle and
+## mid-walk, and the objectives/crafting drawer expanded.
 ## Output directory: IOM_VERTICAL_SLICE_OUTPUT_DIR (default user://).
 const WorldScene = preload("res://gameplay/vertical_slice.tscn")
 
@@ -74,8 +75,26 @@ func _capture() -> void:
 	if not await _frame(out.path_join("vertical-slice-gameplay-orbited.png")):
 		quit(1)
 		return
-	# The objectives/crafting drawer opened from the HUD toggle.
 	world._on_camera_drag(Vector2(140.0, 0.0))
+	# Closer look at the player avatar: standing idle, then mid-walk after a few server steps.
+	var camera := world.get_node("Camera") as Camera3D
+	var feet: Vector3 = world._player - Vector3(0.0, world.PLAYER_HALF_HEIGHT, 0.0)
+	camera.h_offset = 0.0
+	camera.look_at_from_position(feet + Vector3(2.4, 2.2, -4.2), feet + Vector3(0.0, 0.9, 0.0))
+	if not await _frame(out.path_join("vertical-slice-player-closeup-idle.png")):
+		quit(1)
+		return
+	for i in 4:
+		world._on_player_state({"x": 10.0 + 0.3 * (i + 1), "y": 11.0, "health": 100})
+		await process_frame
+	feet = world._player - Vector3(0.0, world.PLAYER_HALF_HEIGHT, 0.0)
+	camera.h_offset = 0.0
+	camera.look_at_from_position(feet + Vector3(2.4, 2.2, -4.2), feet + Vector3(0.0, 0.9, 0.0))
+	if not await _frame(out.path_join("vertical-slice-player-closeup-walk.png")):
+		quit(1)
+		return
+	world._on_player_state({"x": 10.0, "y": 11.0, "health": 100})
+	# The objectives/crafting drawer opened from the HUD toggle.
 	(world.get_node("Interface/Panel/Margin/Content/DrawerToggle") as Button).pressed.emit()
 	if not world.is_drawer_open():
 		push_error("Drawer toggle did not open the drawer")
