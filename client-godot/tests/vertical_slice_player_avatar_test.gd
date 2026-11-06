@@ -22,6 +22,16 @@ func _frames(count: int) -> void:
 	for _i in count:
 		await process_frame
 
+## Waits for at least `seconds` of simulated process time (not a frame count),
+## so delta-based turning settles the same on fast and slow runners. Bounded.
+func _wait_simulated(seconds: float) -> void:
+	var elapsed := 0.0
+	var frames := 0
+	while elapsed < seconds and frames < 100000:
+		await process_frame
+		elapsed += root.get_process_delta_time()
+		frames += 1
+
 func _bone_world(skeleton: Skeleton3D, bone: String) -> Vector3:
 	var index := skeleton.find_bone(bone)
 	return (skeleton.global_transform * skeleton.get_bone_global_pose(index)).origin if index >= 0 else Vector3.INF
@@ -38,7 +48,8 @@ func _toe_direction(skeleton: Skeleton3D) -> Vector2:
 	return Vector2(toes.x - heel.x, toes.z - heel.z).normalized()
 
 func _check_faces(avatar: Node3D, skeleton: Skeleton3D, want: Vector2, label: String) -> void:
-	await _frames(30)
+	# TURN_RATE 14/s: 0.6 s of simulation leaves < 0.03% of the turn remaining.
+	await _wait_simulated(0.6)
 	var yaw: float = avatar.facing_yaw()
 	var forward := Vector2(sin(yaw), cos(yaw))
 	check(forward.dot(want) > 0.97, "%s: body yaw faces %s, got %s" % [label, want, forward])
