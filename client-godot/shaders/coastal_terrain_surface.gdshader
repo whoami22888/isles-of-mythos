@@ -6,7 +6,7 @@ render_mode cull_back, diffuse_burley, specular_schlick_ggx;
 // flat colour. Vertex normals from the heightfield carry the cliff light.
 uniform sampler2D detail_albedo : source_color, filter_linear_mipmap, repeat_enable;
 uniform vec4 sand_color : source_color = vec4(0.89, 0.76, 0.48, 1.0);
-uniform vec4 grass_color : source_color = vec4(0.24, 0.52, 0.18, 1.0);
+uniform vec4 grass_color : source_color = vec4(0.20, 0.40, 0.13, 1.0);
 uniform vec4 rock_color : source_color = vec4(0.48, 0.42, 0.36, 1.0);
 uniform float sea_level = -0.35;
 

@@ -1,6 +1,59 @@
 extends Node3D
 
 const Protocol = preload("res://gameplay/vertical_slice_protocol.gd")
+const GuildObjectivesPanel = preload("res://gameplay/guild_objectives_panel.gd")
+var _guild_objectives: VBoxContainer
+const ExpeditionsPanel = preload("res://gameplay/expeditions_panel.gd")
+var _expeditions: VBoxContainer
+const DailyObjectivesPanel = preload("res://gameplay/daily_objectives_panel.gd")
+var _objectives: VBoxContainer
+const CraftPanel = preload("res://gameplay/craft_panel.gd")
+var _craft: VBoxContainer
+const TouchControls = preload("res://gameplay/touch_controls.gd")
+var _touch: Control
+## Camera orbit yaw (radians) around the authoritative player. Presentation
+## only; manual move directions are rotated by it so "up" walks away from the
+## camera for both keyboard and joystick. It starts at PI: the camera sits
+## seaward of the player and looks inland across the beach, so the coastal
+## bay's cliff band is behind the player instead of between camera and player.
+var _camera_yaw := PI
+const CAMERA_ORBIT_RADIANS_PER_PIXEL := 0.008
+var _manual_moving := false
+## Gameplay panels live in a viewport-bounded scroll area so every control
+## stays reachable at 1280x720 and on phones however long the lists grow.
+var _hud_scroll: ScrollContainer
+var _hud_panels: VBoxContainer
+## Phone HUD. Before gameplay (the pre-login/debug flow) the panel shows the
+## connection form with the drawer open, as before. Once the session is handed
+## off from login or authenticates, the panel becomes a compact HUD: status,
+## Gather and a drawer toggle, collapsed by default, so the game world stays
+## visible and the touch joystick zone widens (TouchControls reads the panel
+## rect live). Presentation only; no server or protocol state lives here.
+## Minimum panel width (stylebox and margins included) of the collapsed HUD;
+## the drawer toggle label makes it about 246 px, so the right edge sits near
+## 270 px of a 1280 px wide view (about 21%), and the canvas_items
+## stretch keeps the same logical width on wider phones such as 2340x1080.
+const COMPACT_HUD_WIDTH := 244.0
+## The open drawer gets a readable column for the objectives/crafting rows.
+const EXPANDED_HUD_WIDTH := 420.0
+const COMPACT_HUD_MARGIN := 8
+const FULL_HUD_MARGIN := 16
+const HUD_TOUCH_TARGET := 48.0
+const GATHER_LABEL_FULL := "Touch / click: walk to and gather nearest visible resource"
+const GATHER_LABEL_COMPACT := "Gather nearest"
+const DRAWER_LABEL_OPEN := "Close drawer"
+const DRAWER_LABEL_CLOSED := "Quests & crafting"
+var _panel: PanelContainer
+var _title: Label
+var _drawer_toggle: Button
+var _gameplay_hud := false
+var _drawer_open := true
+## True between an authenticated session and the next observed loss of it;
+## only gates whether the Reconnect control is shown in the compact HUD.
+var _session_live := false
+## Set when a command outcome is unknown and the HUD asks for a manual
+## reconnect; cleared by the next successful authentication.
+var _reconnect_requested := false
 var _client: Node
 var _player := Vector3.ZERO
 var _markers: Dictionary = {}
@@ -48,9 +101,44 @@ func _ready() -> void:
 	_endpoint = $Interface/Panel/Margin/Content/Endpoint
 	_token = $Interface/Panel/Margin/Content/Token
 	_connect_button = $Interface/Panel/Margin/Content/Connect
+	_panel = $Interface/Panel
+	_title = $Interface/Panel/Margin/Content/Title
+	_drawer_toggle = $Interface/Panel/Margin/Content/DrawerToggle
+	_drawer_toggle.pressed.connect(toggle_drawer)
 	_gather.pressed.connect(_gather_nearest)
 	_connect_button.pressed.connect(_connect)
+	_hud_scroll = ScrollContainer.new()
+	_hud_scroll.name = "HudScroll"
+	_hud_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	$Interface/Panel/Margin/Content.add_child(_hud_scroll)
+	_hud_panels = VBoxContainer.new()
+	_hud_panels.name = "HudPanels"
+	_hud_panels.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_hud_scroll.add_child(_hud_panels)
+	_fit_hud_scroll()
+	get_viewport().size_changed.connect(_fit_hud_scroll)
+	_guild_objectives = GuildObjectivesPanel.new()
+	_guild_objectives.name = "GuildObjectives"
+	_hud_panels.add_child(_guild_objectives)
+	_guild_objectives.reward_claimed.connect(func(_id: String, gold: String) -> void: _status.text = "Guild reward claimed: +" + gold + " gold")
+	_expeditions = ExpeditionsPanel.new()
+	_expeditions.name = "Expeditions"
+	_hud_panels.add_child(_expeditions)
+	_expeditions.expedition_collected.connect(func(_id: String, gold: String) -> void: _status.text = "Expedition returned: +" + gold + " gold")
+	_objectives = DailyObjectivesPanel.new()
+	_objectives.name = "DailyObjectives"
+	_hud_panels.add_child(_objectives)
+	_objectives.reward_claimed.connect(func(_id: String, gold: String) -> void: _status.text = "Daily reward claimed: +" + gold + " gold")
+	_craft = CraftPanel.new()
+	_craft.name = "CraftPanel"
+	_craft.craft_sender = func(recipe_id: String) -> String: return _client.request_craft(recipe_id)
+	_hud_panels.add_child(_craft)
+	_craft.craft_succeeded.connect(func(_id: String) -> void:
+		_status.text = "Server ACK: craft persisted"
+		_objectives.refresh()
+		_guild_objectives.refresh())
 	_build_scaffold_world()
+	get_viewport().size_changed.connect(_on_viewport_resized)
 	_client = Protocol.new()
 	add_child(_client)
 	_client.status_changed.connect(_on_transport_status)
@@ -59,6 +147,7 @@ func _ready() -> void:
 	_client.world_chunk_received.connect(_on_world_chunk)
 	_client.command_acknowledged.connect(_on_ack)
 	_client.server_rejected.connect(_on_rejection)
+	_client.command_rejected.connect(func(request_id: String, code: String) -> void: _craft.on_craft_rejected(request_id, code))
 	_client.command_outcome_unknown.connect(_on_outcome_unknown)
 	_client.auth_failed.connect(_on_auth_failed)
 	var endpoint := OS.get_environment("IOM_WS_URL")
@@ -73,6 +162,7 @@ func _ready() -> void:
 		# Keep the only recovery control; it reuses the in-memory session and
 		# never displays the JWT.
 		_connect_button.text = "Reconnect"
+		_enter_gameplay_hud()
 		_connect()
 	elif not _token.text.is_empty():
 		_connect()
@@ -94,6 +184,122 @@ func _ready() -> void:
 	_death.add_theme_color_override("font_shadow_color", Color(0.15, 0.05, 0.02, 0.85))
 	_death.add_theme_constant_override("shadow_outline_size", 6)
 	$Interface.add_child(_death)
+	_mount_touch_controls()
+	_apply_hud_layout()
+
+func is_gameplay_hud() -> bool:
+	return _gameplay_hud
+
+func is_drawer_open() -> bool:
+	return _drawer_open
+
+func toggle_drawer() -> void:
+	set_drawer_open(not _drawer_open)
+
+func set_drawer_open(open: bool) -> void:
+	_drawer_open = open
+	_apply_hud_layout()
+
+## Switches to the compact gameplay HUD once per scene with the drawer
+## collapsed. Later re-authentications keep the player's drawer choice.
+func _enter_gameplay_hud() -> void:
+	if _gameplay_hud:
+		return
+	_gameplay_hud = true
+	_drawer_open = false
+	_apply_hud_layout()
+
+func _apply_hud_layout() -> void:
+	if _panel == null or _hud_scroll == null:
+		return
+	var compact := _gameplay_hud
+	_title.visible = not compact
+	_endpoint.visible = not compact
+	# The JWT field is never shown again after a login handoff.
+	_token.visible = not compact and _handoff_token.is_empty()
+	# Reconnect is the recovery control: shown until a session is live, again
+	# whenever it is lost or a command outcome is unknown, and always inside
+	# the open drawer so a manual reconnect is never out of reach.
+	_connect_button.visible = not compact or not _session_live or _reconnect_requested or _drawer_open
+	_state.visible = not compact or _drawer_open
+	_gather.text = GATHER_LABEL_COMPACT if compact else GATHER_LABEL_FULL
+	_hud_scroll.visible = _drawer_open
+	_drawer_toggle.text = DRAWER_LABEL_OPEN if _drawer_open else DRAWER_LABEL_CLOSED
+	var touch_height := HUD_TOUCH_TARGET if compact else 0.0
+	_gather.custom_minimum_size.y = touch_height
+	_connect_button.custom_minimum_size.y = touch_height
+	_drawer_toggle.custom_minimum_size.y = HUD_TOUCH_TARGET
+	if not compact:
+		_panel.custom_minimum_size.x = 0.0
+	else:
+		_panel.custom_minimum_size.x = EXPANDED_HUD_WIDTH if _drawer_open else COMPACT_HUD_WIDTH
+	var margin: MarginContainer = $Interface/Panel/Margin
+	var inset := COMPACT_HUD_MARGIN if compact else FULL_HUD_MARGIN
+	for side in ["margin_left", "margin_top", "margin_right", "margin_bottom"]:
+		margin.add_theme_constant_override(side, inset)
+	# Containers only grow on their own: shrink the panel to its new minimum
+	# once the visibility changes have propagated, then re-centre the player.
+	call_deferred("_settle_hud_layout")
+
+func _settle_hud_layout() -> void:
+	if _panel == null or not is_inside_tree():
+		return
+	_panel.reset_size()
+	# Wrapped labels (the status line) report their final height only after the
+	# new width is laid out; shrink once more on the next frame.
+	await get_tree().process_frame
+	if _panel == null or not is_inside_tree():
+		return
+	_panel.reset_size()
+	_frame_player_in_play_area($Camera)
+
+## Phone controls sit below the HUD in the Interface layer; touches that start
+## on the HUD panel stay with the HUD.
+func _mount_touch_controls() -> void:
+	_touch = TouchControls.new()
+	_touch.name = "TouchControls"
+	_touch.blocked_controls.append($Interface/Panel as Control)
+	$Interface.add_child(_touch)
+	$Interface.move_child(_touch, 0)
+	_touch.camera_drag.connect(_on_camera_drag)
+	_touch.tapped.connect(_handle_tap)
+
+func _on_camera_drag(delta: Vector2) -> void:
+	_camera_yaw = wrapf(_camera_yaw - delta.x * CAMERA_ORBIT_RADIANS_PER_PIXEL, -PI, PI)
+	_follow_camera()
+
+## The single manual-movement source: keyboard actions and the touch joystick
+## (screen space, +y = down/towards camera) combined into a unit world XZ
+## direction, rotated by the camera orbit. Zero when there is no input.
+func manual_move_intent() -> Vector2:
+	var screen := Vector2.ZERO
+	var focus := get_viewport().gui_get_focus_owner()
+	if not (focus is LineEdit):
+		screen = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+	if _touch != null:
+		screen += _touch.joystick_vector()
+	if screen.length() < 0.0001:
+		return Vector2.ZERO
+	return screen.normalized().rotated(-_camera_yaw)
+
+## Sends the manual direction through the existing server `move` intent at the
+## same bounded cadence as tap-to-move. Returns true while manual input is held.
+func _manual_move_step(delta: float) -> bool:
+	var intent := manual_move_intent()
+	if intent == Vector2.ZERO:
+		_manual_moving = false
+		return false
+	# Manual input always wins: cancel any approach started by a tap or the
+	# Gather button while the stick or a key is held, not only on the first frame.
+	_stop_approach()
+	if not _manual_moving:
+		_manual_moving = true
+		_move_clock = MOVE_INTERVAL_SECONDS
+	_move_clock += delta
+	if _move_clock >= MOVE_INTERVAL_SECONDS:
+		_move_clock = 0.0
+		_client.request_move(intent.x, intent.y)
+	return true
 
 func _connect() -> void:
 	_client.configure(_handoff_endpoint if not _handoff_token.is_empty() else _endpoint.text,
@@ -102,7 +308,19 @@ func _connect() -> void:
 
 # Scaffold ground edge length: four chunks, so the player's chunk plus a one-chunk margin is always covered
 # once the plane is snapped to the player's chunk centre (see _recenter_ground).
+# It is only a fallback: it stays hidden whenever the coastal world mounts.
 const GROUND_SIZE := CHUNK_SIZE * 4.0
+## Point of the authored coastal bay (its local space) that the centre of the
+## player's chunk maps to. With a 32 m chunk this puts the chunk over the
+## beach, grass shelf and cliff band (local z -9..23) instead of open sea.
+const COASTAL_CHUNK_ANCHOR := Vector3(0.0, 0.0, 7.0)
+const PLAYER_HALF_HEIGHT := 0.9
+## Off-island positions wade at this depth below the water line instead of
+## sinking to the seabed; presentation only, the server owns the position.
+const WADE_DEPTH := 0.5
+const MARKER_RADIUS := 0.3
+## Coastal-bay local X/Z of the harbour ship in the gameplay view.
+const GAMEPLAY_SHIP_MOORING := Vector2(1.0, -17.0)
 var _ground: MeshInstance3D
 var _coastal: Node3D
 var _death: Label
@@ -115,12 +333,10 @@ func _build_scaffold_world() -> void:
 	_ground.mesh = plane
 	_ground.material_override = _material(Color("#183b3a"))
 	add_child(_ground)
+	_mount_coastal_world()
+	if _coastal:
+		_ground.visible = false
 	_recenter_ground()
-	if not _handoff_token.is_empty():
-		_mount_coastal_world()
-		if _coastal:
-			_ground.visible = false
-			_recenter_ground()
 	var player := MeshInstance3D.new()
 	var capsule := CapsuleMesh.new()
 	capsule.height = 1.8
@@ -129,6 +345,8 @@ func _build_scaffold_world() -> void:
 	player.material_override = _material(Color("#d9a441"))
 	player.name = "ServerPlayerRepresentation"
 	add_child(player)
+	player.position = Vector3(_player.x, _feet_height(_player.x, _player.z) + PLAYER_HALF_HEIGHT, _player.z)
+	_player = player.position
 	if _coastal == null:
 		var light := DirectionalLight3D.new()
 		light.rotation_degrees = Vector3(-55, -25, 0)
@@ -151,6 +369,17 @@ func _mount_coastal_world() -> void:
 	var cinematic = _coastal.get("cinematic_camera")
 	if cinematic is Camera3D:
 		(cinematic as Camera3D).current = false
+	# The bay's harbour ship is moored at local z -5.8 for the cinematic; from
+	# the seaward follow camera its masts would stand between the camera and
+	# the beach the player walks on, so the gameplay view moors it offshore.
+	var ship = _coastal.get("ship_focal")
+	if ship is Node3D:
+		(ship as Node3D).position = Vector3(GAMEPLAY_SHIP_MOORING.x, (ship as Node3D).position.y, GAMEPLAY_SHIP_MOORING.y)
+		# A moored ship leaves no wake; otherwise the ocean shader draws a
+		# static wake trail from the hull towards the beach.
+		var water := _coastal.get_node_or_null("ShallowToDeepWater") as MeshInstance3D
+		if water and water.material_override is ShaderMaterial:
+			(water.material_override as ShaderMaterial).set_shader_parameter("wake_strength", 0.0)
 	for node in _coastal.find_children("*", "DirectionalLight3D", true, false):
 		if node is DirectionalLight3D:
 			(node as DirectionalLight3D).shadow_enabled = false
@@ -162,8 +391,26 @@ const CAMERA_OFFSET := Vector3(0, 28, 24)
 func _follow_camera() -> void:
 	_recenter_ground()
 	var camera: Camera3D = $Camera
-	var target := Vector3(_player.x, 0.0, _player.z)
-	camera.look_at_from_position(target + CAMERA_OFFSET, target)
+	var target := Vector3(_player.x, _player.y - PLAYER_HALF_HEIGHT, _player.z)
+	camera.look_at_from_position(target + CAMERA_OFFSET.rotated(Vector3.UP, _camera_yaw), target)
+	_frame_player_in_play_area(camera)
+
+func _on_viewport_resized() -> void:
+	_frame_player_in_play_area($Camera)
+
+## Shift the view sideways (Camera3D.h_offset, not the camera position or
+## orbit pivot) so the player sits in the middle of the screen area left free
+## by the HUD panel instead of at the panel's edge. Presentation only.
+func _frame_player_in_play_area(camera: Camera3D) -> void:
+	var screen := get_viewport().get_visible_rect().size
+	var panel := get_node_or_null("Interface/Panel") as Control
+	if screen.y <= 0.0 or panel == null or not panel.is_visible_in_tree():
+		camera.h_offset = 0.0
+		return
+	var free_left := clampf(panel.get_global_rect().end.x, 0.0, screen.x * 0.6)
+	var shift_px := (free_left + screen.x) * 0.5 - screen.x * 0.5
+	var view_height := 2.0 * CAMERA_OFFSET.length() * tan(deg_to_rad(camera.fov) * 0.5)
+	camera.h_offset = -shift_px * view_height / screen.y
 
 # Snap the scaffold ground to the centre of the player's chunk (not the raw position, so it does not jitter
 # every move). Presentation only; no game state.
@@ -172,8 +419,33 @@ func _recenter_ground() -> void:
 		return
 	var chunk := _chunk_for_position(_player)
 	_ground.position = Vector3((float(chunk.x) + 0.5) * CHUNK_SIZE, 0.0, (float(chunk.y) + 0.5) * CHUNK_SIZE)
-	if _coastal:
-		_coastal.position = _ground.position
+	if _coastal == null:
+		return
+	var anchor := _ground.position - COASTAL_CHUNK_ANCHOR
+	if _coastal.position.is_equal_approx(anchor):
+		return
+	_coastal.relocate(anchor)
+	# The bay only moves when the player's chunk changes; keep everything that
+	# is already on screen standing on the relocated terrain.
+	for resource_id in _markers:
+		var marker: Node3D = _markers[resource_id]
+		marker.position.y = _surface_height(marker.position.x, marker.position.z) + MARKER_RADIUS
+	var representation := get_node_or_null("ServerPlayerRepresentation") as Node3D
+	if representation:
+		_player.y = _feet_height(_player.x, _player.z) + PLAYER_HALF_HEIGHT
+		representation.position = _player
+
+## Visible surface at a server position mapped to world X/Z: the coastal
+## terrain or the water line above it, or the flat scaffold at y = 0.
+func _surface_height(x: float, z: float) -> float:
+	if _coastal == null:
+		return 0.0
+	return maxf(_coastal.terrain_height_at(x, z), _coastal.water_level())
+
+func _feet_height(x: float, z: float) -> float:
+	if _coastal == null:
+		return 0.0
+	return maxf(_coastal.terrain_height_at(x, z), _coastal.water_level() - WADE_DEPTH)
 
 func _material(color: Color) -> StandardMaterial3D:
 	var material := StandardMaterial3D.new()
@@ -185,6 +457,13 @@ func _on_transport_status(status: String) -> void:
 
 func _on_authenticated(_user_id: String) -> void:
 	_status.text = "Authenticated; awaiting server player position…"
+	_session_live = true
+	_reconnect_requested = false
+	_enter_gameplay_hud()
+	_apply_hud_layout()
+	_configure_guild_objectives()
+	_configure_expeditions()
+	_configure_objectives()
 	# The chunk is requested once the server reports where the player is.
 	_chunk_known = false
 	_chunk_in_flight = ""
@@ -208,12 +487,18 @@ func _request_current_chunk() -> void:
 
 func _process(delta: float) -> void:
 	if _client == null or not _client.is_authenticated():
+		if _session_live:
+			# The session dropped: bring back the Reconnect control.
+			_session_live = false
+			_apply_hud_layout()
 		_stop_approach()
 		return
 	_refresh_clock += delta
 	if _chunk_known and _refresh_clock >= CHUNK_REFRESH_SECONDS:
 		_refresh_clock = 0.0
 		_request_current_chunk()
+	if _manual_move_step(delta):
+		return
 	if _approaching:
 		_move_clock += delta
 		if _move_clock >= MOVE_INTERVAL_SECONDS:
@@ -252,11 +537,16 @@ func _approach_step() -> void:
 	_client.request_move(direction.x, direction.y)
 
 func _on_player_state(state: Dictionary) -> void:
+	_craft.set_inventory(state.get("inventory"))
 	var x = state.get("x")
 	var y = state.get("y")
 	if x is int or x is float:
 		var world_y = y if y is int or y is float else 0
-		_player = Vector3(float(x), 0.9, float(world_y))
+		# Server x/y map to world x/z unchanged; only the presentation height
+		# comes from the coastal terrain once the bay sits on this chunk.
+		_player = Vector3(float(x), _player.y, float(world_y))
+		_recenter_ground()
+		_player.y = _feet_height(_player.x, _player.z) + PLAYER_HALF_HEIGHT
 		$ServerPlayerRepresentation.position = _player
 		_follow_camera()
 		var health = state.get("health", 1)
@@ -292,7 +582,9 @@ func _on_world_chunk(request_id: String, chunk: Dictionary) -> void:
 			marker = _markers[resource_id]
 		else:
 			marker = _create_resource_marker(resource_id)
-		marker.position = Vector3(float(resource.get("x", 0)), 0.3, float(resource.get("y", 0)))
+		var marker_x := float(resource.get("x", 0))
+		var marker_z := float(resource.get("y", 0))
+		marker.position = Vector3(marker_x, _surface_height(marker_x, marker_z) + MARKER_RADIUS, marker_z)
 	# The server's chunk snapshot is authoritative: remove resources no longer
 	# present, including depleted nodes, without retaining orphaned MeshInstances.
 	for resource_id in _markers.keys():
@@ -358,16 +650,43 @@ func _begin_resource_approach(resource_id: String) -> void:
 		return
 	_send_gather(resource_id)
 
+const TAP_RAY_MAX_DISTANCE := 400.0
+const TAP_RAY_STEP := 0.5
+
 func _ground_point(screen: Vector2) -> Variant:
 	var camera: Camera3D = $Camera
 	var origin := camera.project_ray_origin(screen)
 	var normal := camera.project_ray_normal(screen)
+	if _coastal != null:
+		return _surface_ray_hit(origin, normal)
 	if absf(normal.y) < 0.0001:
 		return null
 	var distance := -origin.y / normal.y
 	if distance < 0.0:
 		return null
 	return origin + normal * distance
+
+## First crossing of the camera ray with the visible terrain/water surface.
+## Bounded march plus bisection, run only on a tap; no physics bodies needed.
+func _surface_ray_hit(origin: Vector3, normal: Vector3) -> Variant:
+	var previous := 0.0
+	var distance := TAP_RAY_STEP
+	while distance <= TAP_RAY_MAX_DISTANCE:
+		var point := origin + normal * distance
+		if point.y <= _surface_height(point.x, point.z):
+			var low := previous
+			var high := distance
+			for _i in range(12):
+				var mid := (low + high) * 0.5
+				var probe := origin + normal * mid
+				if probe.y <= _surface_height(probe.x, probe.z):
+					high = mid
+				else:
+					low = mid
+			return origin + normal * high
+		previous = distance
+		distance += TAP_RAY_STEP
+	return null
 
 func _handle_tap(screen: Vector2) -> void:
 	var point: Variant = _ground_point(screen)
@@ -432,6 +751,31 @@ func _on_refresh_completed(result: int, response_code: int, _headers: PackedStri
 	_client.connect_to_server()
 	_status.text = "Session refreshed. Reconnecting…"
 
+# Guild objectives use the WebSocket session's HTTP base and current access token.
+func _configure_guild_objectives() -> void:
+	var base := ""
+	if _client.has_method("_is_safe_authenticated_url"):
+		base = _http_base(_handoff_endpoint)
+	_guild_objectives.configure(base, _handoff_token)
+	_guild_objectives.refresh(true)
+
+# Expeditions use the WebSocket session's HTTP base and current access token.
+func _configure_expeditions() -> void:
+	var base := ""
+	if _client.has_method("_is_safe_authenticated_url"):
+		base = _http_base(_handoff_endpoint)
+	_expeditions.configure(base, _handoff_token)
+	_expeditions.refresh()
+
+# Daily objectives use the same server as the WebSocket session and its current
+# access token. Unsafe or unknown endpoints leave the panel unconfigured.
+func _configure_objectives() -> void:
+	var base := ""
+	if _client.has_method("_is_safe_authenticated_url"):
+		base = _http_base(_handoff_endpoint)
+	_objectives.configure(base, _handoff_token)
+	_objectives.refresh(true)
+
 func _return_to_login(reason: String) -> void:
 	_refreshing = false
 	_stop_approach()
@@ -450,7 +794,8 @@ func _gather_nearest() -> void:
 	var nearest_distance := INF
 	for resource_id in _markers:
 		var marker: Node3D = _markers[resource_id]
-		var distance := marker.position.distance_to(_player)
+		# Server range is planar x/y; presentation heights must not reorder it.
+		var distance := Vector2(marker.position.x - _player.x, marker.position.z - _player.z).length()
 		if distance < nearest_distance:
 			nearest_distance = distance
 			nearest_id = resource_id
@@ -467,7 +812,15 @@ func _unhandled_input(event: InputEvent) -> void:
 		_handle_tap(event.position)
 
 func _on_ack(_request_id: String, message: Dictionary) -> void:
+	if message.get("type") == "craft_result":
+		_craft.on_craft_ack(_request_id, message)
+		return
 	if message.get("type") == "resource_gathered":
+		# Guild progress is server-derived from the gather ledger; re-read it (rate bounded).
+		_guild_objectives.refresh()
+
+		# Progress is server-derived from the gather ledger; re-read it (rate bounded).
+		_objectives.refresh()
 		var resource_id = message.get("resourceId")
 		if resource_id is String and _markers.has(resource_id):
 			_markers[resource_id].queue_free()
@@ -475,15 +828,28 @@ func _on_ack(_request_id: String, message: Dictionary) -> void:
 		_status.text = "Server ACK: resource persisted; local view refreshed"
 		var state = message.get("state")
 		if state is Dictionary:
+			_craft.set_inventory(state.get("inventory"))
 			_state.text = "Authoritative inventory state received"
 
+## Bound the scroll area to 45% of the visible height (at least 180 px) so
+## the fixed controls above it plus the scroll area fit on screen.
+func _fit_hud_scroll() -> void:
+	if _hud_scroll == null:
+		return
+	var visible_height := get_viewport().get_visible_rect().size.y
+	_hud_scroll.custom_minimum_size = Vector2(0.0, maxf(180.0, visible_height * 0.45))
+
 func _on_rejection(code: String) -> void:
+	_craft.on_server_error(code)
 	if code == "PLAYER_DEAD" and _death:
 		_death.visible = true
 		_death.text = "You died - respawning"
 	_status.text = "Server rejected command: %s" % code
 
 func _on_outcome_unknown(request_id: String) -> void:
+	_craft.on_outcome_unknown(request_id)
 	if request_id == _chunk_in_flight:
 		_chunk_in_flight = ""
 	_status.text = "Command outcome unknown; reconnect manually before retrying"
+	_reconnect_requested = true
+	_apply_hud_layout()

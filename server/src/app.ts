@@ -12,6 +12,9 @@ import { AUTHORITATIVE_SIMULATION_TICK_MS, nextAuthoritativeTickDelayMs } from "
 import { createDbPool } from "./db.js";
 import { isGameplayAccessToken, registerAuthRoutes, verifyGameplayRequest } from "./auth.js";
 import { registerCreatureResearchRoutes } from "./creature-research-routes.js";
+import { registerDailyObjectiveRoutes } from "./daily-objectives.js";
+import { registerExpeditionRoutes } from "./expeditions.js";
+import { registerGuildObjectiveRoutes } from "./guild-objectives.js";
 import { log } from "./logger.js";
 import { parseClientMessage, type ServerMessage } from "./protocol.js";
 import { PLAYER_MAX_HEALTH, PlayerStore, serializePlayerState } from "./player.js";
@@ -820,6 +823,9 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
 
   await registerAuthRoutes(app, db);
   registerCreatureResearchRoutes(app, db, players);
+  registerDailyObjectiveRoutes(app, db, players);
+  registerExpeditionRoutes(app, db, players);
+  registerGuildObjectiveRoutes(app, db, players);
 
   app.get("/shop/catalog", { schema: { tags: ["shop"] } }, () => ({
     items: SHOP_ITEMS.map(serializeShopItem),
