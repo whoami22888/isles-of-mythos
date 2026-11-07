@@ -102,6 +102,14 @@ class CaptureContinuityTests(unittest.TestCase):
                 self.assertEqual(1, MODULE.main())
             self.assertIn("invalid lighting ROI", stderr.getvalue())
 
+    def test_cli_rejects_non_integer_lighting_roi(self):
+        with tempfile.TemporaryDirectory() as folder:
+            arguments = [str(SOURCE), folder, "--lighting-roi", "0,0,a,8"]
+            stderr = io.StringIO()
+            with mock.patch.object(sys, "argv", arguments), contextlib.redirect_stderr(stderr):
+                self.assertEqual(1, MODULE.main())
+            self.assertIn("lighting ROI requires integer x0,y0,x1,y1", stderr.getvalue())
+
 
 if __name__ == "__main__":
     unittest.main()

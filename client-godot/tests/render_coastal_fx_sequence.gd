@@ -169,6 +169,7 @@ func _record() -> void:
                     land_luma += (54.0 * land_pixel.r + 183.0 * land_pixel.g + 19.0 * land_pixel.b) / 256.0
                     land_samples += 1
             land_luma = land_luma * 255.0 / float(land_samples)
+            print("IOM_INTERNAL_LAND_LUMA frame=%d luma=%.2f" % [frame_number, land_luma])
             if land_luma < 90.0:
                 _fail("Underlit Mobile renderer at partition start %d: land luma %.2f" % [frame_number, land_luma])
                 return
