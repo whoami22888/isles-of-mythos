@@ -136,13 +136,14 @@ export class ExpeditionStore {
   }
 }
 
-async function verifyPlayer(request: FastifyRequest): Promise<boolean> {
+async function verifyPlayer(request: FastifyRequest): Promise<string | null> {
   try {
     await request.jwtVerify();
   } catch {
-    return false;
+    return null;
   }
-  return isGameplayAccessToken(request.user);
+  const userId = request.user.sub;
+  return isGameplayAccessToken(request.user) && typeof userId === "string" && userId.length > 0 ? userId : null;
 }
 
 const ERRORS: Record<string, number> = {
@@ -156,7 +157,9 @@ const ERRORS: Record<string, number> = {
 };
 const UUID = "^[0-9a-fA-F-]{36}$";
 
-export function registerExpeditionRoutes(app: FastifyInstance, db: Pool, players: PlayerStore): void {
+// `onEconomyChanged` lets the WebSocket layer push the refreshed player_state to an in-world
+// player, so the HUD shows the reward at once instead of on the next move.
+export function registerExpeditionRoutes(app: FastifyInstance, db: Pool, players: PlayerStore, onEconomyChanged?: (userId: string) => void): void {
   const store = new ExpeditionStore(db);
   const fail = (error: unknown): { code: number; error: string } | null => {
     const code = error instanceof Error ? error.message : "";
@@ -170,8 +173,8 @@ export function registerExpeditionRoutes(app: FastifyInstance, db: Pool, players
     schema: { tags: ["naval"], security: [{ bearerAuth: [] }] },
     config: { rateLimit: { max: 60, timeWindow: "1 minute" } },
   }, async (request, reply) => {
-    if (!(await verifyPlayer(request))) return reply.code(401).send({ error: "UNAUTHORIZED" });
-    const userId = request.user.sub;
+    const userId = await verifyPlayer(request);
+    if (!userId) return reply.code(401).send({ error: "UNAUTHORIZED" });
     // Only the caller's own ships, and only what the expedition picker needs.
     const ships = await db.query<{ id: string; name: string; status: string }>(
       "SELECT id, name, status FROM player_ships WHERE owner_user_id=$1 AND status IN ('active','docked') ORDER BY created_at, id",
@@ -199,9 +202,10 @@ export function registerExpeditionRoutes(app: FastifyInstance, db: Pool, players
     },
     config: { rateLimit: { max: 30, timeWindow: "1 minute" } },
   }, async (request, reply) => {
-    if (!(await verifyPlayer(request))) return reply.code(401).send({ error: "UNAUTHORIZED" });
+    const userId = await verifyPlayer(request);
+    if (!userId) return reply.code(401).send({ error: "UNAUTHORIZED" });
     try {
-      return await store.start(request.user.sub, request.body.shipId, request.body.routeId, request.body.requestId);
+      return await store.start(userId, request.body.shipId, request.body.routeId, request.body.requestId);
     } catch (error) {
       const mapped = fail(error);
       if (mapped) return reply.code(mapped.code).send({ error: mapped.error });
@@ -217,13 +221,16 @@ export function registerExpeditionRoutes(app: FastifyInstance, db: Pool, players
     },
     config: { rateLimit: { max: 30, timeWindow: "1 minute" } },
   }, async (request, reply) => {
-    if (!(await verifyPlayer(request))) return reply.code(401).send({ error: "UNAUTHORIZED" });
-    const userId = request.user.sub;
+    const userId = await verifyPlayer(request);
+    if (!userId) return reply.code(401).send({ error: "UNAUTHORIZED" });
     try {
       return await players.runExclusive(userId, async () => {
         await players.ensureProfile(userId);
         const result = await store.collect(userId, request.body.expeditionId);
-        if (players.get(userId)) await players.reloadEconomy(userId);
+        if (players.get(userId)) {
+          await players.reloadEconomy(userId);
+          onEconomyChanged?.(userId);
+        }
         return result;
       });
     } catch (error) {
