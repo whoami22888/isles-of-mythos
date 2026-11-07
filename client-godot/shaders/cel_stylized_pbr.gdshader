@@ -40,6 +40,21 @@ vec4 sample_triplanar(sampler2D tex, vec3 p, vec3 n) {
          + texture(tex, uvw.xy) * w.z;
 }
 
+// Reorient each tangent-space projection into the mesh's object space.
+// Axis signs preserve outward-facing normals on negative-facing surfaces.
+vec3 sample_triplanar_normal(vec3 p, vec3 geometric_normal) {
+    vec3 w = projection_weights(geometric_normal);
+    vec3 uvw = p * triplanar_scale;
+    vec3 nx = texture(normal_texture, uvw.yz).xyz * 2.0 - 1.0;
+    vec3 ny = texture(normal_texture, uvw.xz).xyz * 2.0 - 1.0;
+    vec3 nz = texture(normal_texture, uvw.xy).xyz * 2.0 - 1.0;
+    vec3 face = mix(vec3(-1.0), vec3(1.0), step(vec3(0.0), geometric_normal));
+    vec3 tx = vec3(nx.z * face.x, nx.x, nx.y);
+    vec3 ty = vec3(ny.x, ny.z * face.y, ny.y);
+    vec3 tz = vec3(nz.x, nz.y, nz.z * face.z);
+    return normalize(tx * w.x + ty * w.y + tz * w.z);
+}
+
 void fragment() {
     vec4 albedo_sample = vec4(1.0);
     if (use_albedo_texture) {
@@ -57,9 +72,12 @@ void fragment() {
             : texture(roughness_texture, UV).r;
     }
     if (use_normal_texture) {
-        // A tangent-space normal requires UV tangent data. Triplanar meshes without
-        // tangents use their geometric normal rather than an invalid tangent basis.
-        if (!use_triplanar) {
+        if (use_triplanar) {
+            vec3 object_normal = sample_triplanar_normal(local_position, local_normal);
+            // NORMAL in fragment() is view-space; object-space projections
+            // must use the inverse-transpose model normal transform.
+            NORMAL = normalize(mat3(VIEW_MATRIX) * MODEL_NORMAL_MATRIX * object_normal);
+        } else {
             NORMAL_MAP = texture(normal_texture, UV).rgb;
             NORMAL_MAP_DEPTH = 1.0;
         }
