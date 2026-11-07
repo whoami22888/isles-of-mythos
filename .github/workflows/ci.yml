@@ -215,3 +215,140 @@ jobs:
           asset="$(printf '%s' "$index" | sed -n 's/.*src="\([^"]*\.js\)".*/\1/p' | head -n 1)"
           test -n "$asset"
           curl --fail --silent "http://127.0.0.1:3000$asset" >/dev/null
+
+
+  prompt-003-matrix:
+    name: Diagnostic matrix / ${{ matrix.target }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [lint, typecheck, unit, integration, godot]
+    env:
+      NODE_ENV: test
+      ENVIRONMENT: test
+      DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/isles_test
+      JWT_SECRET: test-only-jwt-secret-not-for-production
+      REDIS_URL: redis://127.0.0.1:6379
+      GODOT_SHA256: cadd3204e728a35d3f13adb7fd0d7902636b79f6b95c40c265eb73b6c35329e4
+      TEMPLATES_SHA256: f298490b8d44d934be425a5a65a51bf15f422428b229a06a6e11d9ffea248011
+    services:
+      postgres:
+        image: cgr.dev/chainguard/postgres@sha256:0926ac7262a2c1963179eb939cd5d610e1be3ecca90b4b5cad8db8df16fab87e
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: isles_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d isles_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        if: matrix.target != 'godot'
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Install Node dependencies
+        if: matrix.target != 'godot'
+        run: |
+          set -euo pipefail
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm rebuild argon2 esbuild
+      - name: Lint
+        if: matrix.target == 'lint'
+        run: npm run lint
+      - name: TypeScript compilation
+        if: matrix.target == 'typecheck'
+        run: npm run typecheck
+      - name: Client unit tests
+        if: matrix.target == 'unit'
+        run: npm run test -w client
+      - name: Start Redis and migrate integration database
+        if: matrix.target == 'integration'
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --detach --name isles-matrix-redis --publish 127.0.0.1:6379:6379 \
+            cgr.dev/chainguard/redis@sha256:3f3fc328656462296b9d4cb04848780a3d0ddb0ad5d86482cda882735217d899 \
+            --protected-mode no --save "" --appendonly no
+          for attempt in $(seq 1 30); do
+            if exec 3<>/dev/tcp/127.0.0.1/6379 2>/dev/null; then
+              printf 'PING\r\n' >&3
+              reply="$(timeout 2 head -c 7 <&3 || true)"
+              exec 3<&- 3>&-
+              if [ "${reply%$'\r'}" = "+PONG" ] || [[ "$reply" == +PONG* ]]; then
+                break
+              fi
+            fi
+            sleep 1
+          done
+          if [ "$attempt" -eq 30 ]; then
+            docker logs isles-matrix-redis
+            echo "::error::Redis health probe failed"
+            exit 1
+          fi
+          npm run migrate:up
+      - name: Server integration tests
+        if: matrix.target == 'integration'
+        run: |
+          set -euo pipefail
+          npm run test -w server -- src/index.test.ts -t "enforces one authoritative projectile cooldown across server instances"
+      - name: Install pinned Godot 4.7.2 and templates
+        if: matrix.target == 'godot'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/prompt003" "$HOME/.local/share/godot/export_templates/4.7.2.stable"
+          curl --fail --location --retry 3 -o "$RUNNER_TEMP/prompt003/godot.zip" "https://github.com/godotengine/godot/releases/download/4.7.2-stable/Godot_v4.7.2-stable_linux.x86_64.zip"
+          echo "$GODOT_SHA256  $RUNNER_TEMP/prompt003/godot.zip" | sha256sum --check
+          unzip -q "$RUNNER_TEMP/prompt003/godot.zip" -d "$RUNNER_TEMP/prompt003"
+          install "$RUNNER_TEMP/prompt003/Godot_v4.7.2-stable_linux.x86_64" "$RUNNER_TEMP/prompt003/godot"
+          "$RUNNER_TEMP/prompt003/godot" --version | grep -F '4.7.2.stable'
+          curl --fail --location --retry 3 -o "$RUNNER_TEMP/prompt003/templates.tpz" "https://github.com/godotengine/godot/releases/download/4.7.2-stable/Godot_v4.7.2-stable_export_templates.tpz"
+          echo "$TEMPLATES_SHA256  $RUNNER_TEMP/prompt003/templates.tpz" | sha256sum --check
+          unzip -q "$RUNNER_TEMP/prompt003/templates.tpz" -d "$RUNNER_TEMP/prompt003/templates"
+          cp -R "$RUNNER_TEMP/prompt003/templates/templates/." "$HOME/.local/share/godot/export_templates/4.7.2.stable/"
+      - name: Verify Godot import and compile
+        if: matrix.target == 'godot'
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$RUNNER_TEMP/prompt003/godot" --headless --editor --path client-godot --quit --import 2>&1 | tee "$RUNNER_TEMP/prompt003/import.log"
+          if grep -E 'SCRIPT ERROR:|Parse Error:|ERROR:.*Shader' "$RUNNER_TEMP/prompt003/import.log"; then
+            echo "::error::Godot compilation errors found"
+            exit 1
+          fi
+          "$RUNNER_TEMP/prompt003/godot" --headless --path client-godot --script res://tests/headless_smoke.gd
+      - name: Export and verify signed Android debug APK
+        if: matrix.target == 'godot' && github.event_name == 'pull_request' && github.base_ref == 'main'
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${ANDROID_HOME:=${ANDROID_SDK_ROOT:-}}"
+          test -n "$ANDROID_HOME"
+          mkdir -p "$RUNNER_TEMP/prompt003/artifact"
+          apk="$RUNNER_TEMP/prompt003/artifact/isles-of-mythos-debug.apk"
+          "$RUNNER_TEMP/prompt003/godot" --headless --path client-godot --export-debug "Android Debug" "$apk"
+          test -s "$apk"
+          apksigner="$(ls -1 "$ANDROID_HOME"/build-tools/*/apksigner 2>/dev/null | sort -V | tail -n 1)"
+          test -x "$apksigner"
+          "$apksigner" verify --verbose "$apk" | tee "$RUNNER_TEMP/prompt003/artifact/APKSIGNER.txt"
+          sha256sum "$apk" | tee "$RUNNER_TEMP/prompt003/artifact/SHA256SUMS"
+      - name: Upload signed Android debug APK
+        if: matrix.target == 'godot' && github.event_name == 'pull_request' && github.base_ref == 'main'
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
+        with:
+          name: ci-matrix-android-debug-${{ github.event.pull_request.number || github.run_id }}
+          path: ${{ runner.temp }}/prompt003/artifact
+          if-no-files-found: error
+          retention-days: 14
