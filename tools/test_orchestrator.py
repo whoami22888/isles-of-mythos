@@ -80,6 +80,41 @@ class Detection(unittest.TestCase):
         self.assertEqual(orch.detect_rate_limit(1, "HTTP 429"), (True, None))
 
 
+class NetworkInterruptions(Base):
+    def test_explicit_network_errors_are_retryable_only_when_failed(self):
+        for message in ("ECONNRESET", "ETIMEDOUT", "EAI_AGAIN", "connection reset by peer",
+                        "temporary failure in name resolution", "curl: (28) operation timed out"):
+            self.assertTrue(orch.detect_network_dropout(1, message), message)
+            self.assertFalse(orch.detect_network_dropout(0, message), message)
+        for message in ("AssertionError: expected connection timeout", "HTTP 400", "out of memory", ""):
+            self.assertFalse(orch.detect_network_dropout(1, message), message)
+
+    def test_network_failure_creates_checkpoint_and_resumes_pending_step(self):
+        self.assertEqual(self.make({"s2": (1, "connect ECONNRESET")}).run(self.plan()), orch.EXIT_RATE_LIMITED)
+        checkpoint = json.loads(self.ckpt.read_text())
+        self.assertEqual(checkpoint["reason"], "network_interruption")
+        self.assertEqual(checkpoint["progress"], {"completed": ["s1"], "pending": "s2"})
+        self.calls.clear()
+        self.assertEqual(self.make().resume(), orch.EXIT_OK)
+        self.assertEqual(self.calls, ["s2", "s3"])
+
+    def test_in_process_api_connection_exception_creates_checkpoint(self):
+        self.assertEqual(self.make({"s2": ConnectionError("offline")}).run(self.plan()), orch.EXIT_RATE_LIMITED)
+        self.assertEqual(json.loads(self.ckpt.read_text())["reason"], "network_interruption")
+
+    def test_in_process_http_429_exception_preserves_retry_after(self):
+        from urllib.error import HTTPError
+        error = HTTPError("https://example.invalid/api", 429, "Too Many Requests", {"Retry-After": "9"}, None)
+        self.assertEqual(self.make({"s2": error}).run(self.plan()), orch.EXIT_RATE_LIMITED)
+        self.assertEqual(json.loads(self.ckpt.read_text())["retry_after_seconds"], 9.0)
+
+    def test_in_process_non_retryable_http_error_fails(self):
+        from urllib.error import HTTPError
+        error = HTTPError("https://example.invalid/api", 403, "Forbidden", {}, None)
+        self.assertEqual(self.make({"s2": error}).run(self.plan()), orch.EXIT_FAILED)
+        self.assertEqual(json.loads(self.ckpt.read_text())["state"], "failed")
+
+
 class Plan(Base):
     def test_rejects_duplicate_ids_empty_plans_and_shell_strings(self):
         for bad in [{"steps": []}, self.plan(("a", "a")), {"steps": [{"id": "x", "argv": "echo hi"}]},
