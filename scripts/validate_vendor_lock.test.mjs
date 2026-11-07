@@ -124,3 +124,40 @@ test("a symlinked licence directory is rejected too", () => {
   symlinkSync(outside, join(root, "lic"));
   assert.match(validateVendorLock(root).join("\n"), /symlink|outside|license file/i);
 });
+
+
+const SOURCE_REVISION = "1234567890abcdef1234567890abcdef12345678";
+function sourceEntry(overrides = {}) {
+  return entry({
+    path: "assets-src/H01/palm.glb", vendor: "Kenney",
+    source_revision: SOURCE_REVISION, ...overrides
+  });
+}
+test("incoming assets-src import with verified vendor and revision passes", () => {
+  const files = { "assets-src/H01/palm.glb": "palm", "vendor/kit/LICENSE.txt": "CC0" };
+  assert.deepEqual(validateVendorLock(repo(files, { version: "1.0.0", assets: [sourceEntry()] })), []);
+});
+test("incoming assets-src unlisted binary is rejected with its real SHA-256", () => {
+  const errs = validateVendorLock(repo({ "assets-src/H01/palm.glb": "palm" })).join("\n");
+  assert.match(errs, /unlisted import/);
+  assert.ok(errs.includes(sha("palm")));
+});
+test("incoming assets-src altered binary is rejected with both hashes", () => {
+  const files = { "assets-src/H01/palm.glb": "changed", "vendor/kit/LICENSE.txt": "CC0" };
+  const errs = validateVendorLock(repo(files, { version: "1.0.0", assets: [sourceEntry()] })).join("\n");
+  assert.match(errs, /sha256 mismatch/);
+  assert.ok(errs.includes(sha("palm")) && errs.includes(sha("changed")));
+});
+test("incoming assets-src cannot omit exact source revision or vendor identity", () => {
+  const files = { "assets-src/H01/palm.glb": "palm", "vendor/kit/LICENSE.txt": "CC0" };
+  for (const override of [{ source_revision: "latest" }, { vendor: "" }]) {
+    const errs = validateVendorLock(repo(files, { version: "1.0.0", assets: [sourceEntry(override)] })).join("\n");
+    assert.match(errs, /source_revision|vendor provenance/);
+  }
+});
+test("incoming assets-src symlinks are rejected", () => {
+  const root = repo({});
+  mkdirSync(join(root, "assets-src"), { recursive: true });
+  symlinkSync("/etc/passwd", join(root, "assets-src", "escape.bin"));
+  assert.match(validateVendorLock(root).join("\n"), /symlink rejected/);
+});

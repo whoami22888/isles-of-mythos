@@ -13,8 +13,9 @@ const { join, relative, resolve, sep, isAbsolute } = require("node:path");
 const LICENSES = new Set(["CC0-1.0", "CC-BY-4.0", "CC-BY-SA-4.0", "MIT", "Apache-2.0", "OFL-1.1"]); // same as validate_godot_assets.py
 const HASH = /^[0-9a-f]{64}$/;
 const TOP_KEYS = new Set(["$schema", "version", "assets"]);
-const ENTRY_KEYS = new Set(["path", "sha256", "license", "license_path", "source_url"]);
+const ENTRY_KEYS = new Set(["path", "sha256", "license", "license_path", "source_url", "vendor", "source_revision", "pack_id"]);
 const EXTERNAL_DIR = join("client-godot", "assets", "external");
+const { validateAssetSourceTree } = require("./validate_asset_src.js");
 
 function sha256File(file) {
   return createHash("sha256").update(readFileSync(file)).digest("hex");
@@ -114,7 +115,7 @@ function validateVendorLock(root = resolve(__dirname, "..")) {
       return errors.push(`${at}: file not found or not a regular file: ${asset.path}`);
     }
     const actual = sha256File(abs);
-    if (HASH.test(asset.sha256 ?? "") && actual !== asset.sha256) errors.push(`${at}: sha256 mismatch for ${asset.path}`);
+    if (HASH.test(asset.sha256 ?? "") && actual !== asset.sha256) errors.push(`${at}: sha256 mismatch for ${asset.path} (expected ${asset.sha256}, actual ${actual})`);
     const registered = manifestByRepoPath.get(relative(root, abs));
     if (registered && registered.sha256 !== asset.sha256) errors.push(`${at}: digest disagrees with external-assets.json for ${asset.path}`);
   });
@@ -128,6 +129,7 @@ function validateVendorLock(root = resolve(__dirname, "..")) {
       else if (!manifestPaths.has(rel) && !seen.has(file.full)) errors.push(`unregistered file under ${EXTERNAL_DIR}: ${rel}`);
     }
   }
+  errors.push(...validateAssetSourceTree(root, lock.assets));
   return errors;
 }
 
