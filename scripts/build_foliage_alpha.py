@@ -24,13 +24,16 @@ def main() -> None:
         raise ValueError("Unexpected source leaf atlas size")
     output = Image.new("RGBA", image.size)
     pixels = []
-    for red, green, blue in image.get_flattened_data():
-        # The licensed atlas has an actual black matte. Values 0-4 are the
-        # matte/JPEG fringe; leaf interiors are far brighter. Retain the
-        # original colour and feather only this narrow authored edge.
-        strength = max(red, green, blue)
-        alpha = min(255, max(0, (strength - 4) * 255 // 20))
-        pixels.append((red, green, blue, alpha))
+    source_pixels = image.load()
+    for y in range(image.height):
+        for x in range(image.width):
+            red, green, blue = source_pixels[x, y]
+            # The licensed atlas has an actual black matte. Values 0-4 are the
+            # matte/JPEG fringe; leaf interiors are far brighter. Retain the
+            # original colour and feather only this narrow authored edge.
+            strength = max(red, green, blue)
+            alpha = min(255, max(0, (strength - 4) * 255 // 20))
+            pixels.append((red, green, blue, alpha))
     output.putdata(pixels)
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     output.save(OUTPUT, optimize=False)
