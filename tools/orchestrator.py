@@ -547,18 +547,30 @@ class Orchestrator:
                     if self._head_moved(plan, completed, baseline, step["id"]):
                         return EXIT_FAILED
                     if response.code == 429:
-                        raw_retry = response.headers.get("Retry-After") if response.headers else None
+                        raw_retry = (
+                            response.headers.get("Retry-After")
+                            if response.headers else None
+                        )
                         try:
-                            delay = min(max(float(raw_retry), 0.0), MAX_RETRY_AFTER) if raw_retry else None
+                            delay = (
+                                min(max(float(raw_retry), 0.0), MAX_RETRY_AFTER)
+                                if raw_retry else None
+                            )
                         except (ValueError, TypeError):
                             delay = None
                         return self._rate_limited(plan, completed, step["id"], delay, "HTTP 429")
-                    self._save(plan, completed, step["id"], "failed", reason=f"HTTP {response.code}")
+                    self._save(
+                        plan, completed, step["id"], "failed",
+                        reason=f"HTTP {response.code}",
+                    )
                     return EXIT_FAILED
                 except (URLError, ConnectionError, TimeoutError) as interruption:
                     if self._head_moved(plan, completed, baseline, step["id"]):
                         return EXIT_FAILED
-                    return self._network_interrupted(plan, completed, step["id"], type(interruption).__name__)
+                    return self._network_interrupted(
+                        plan, completed, step["id"],
+                        type(interruption).__name__,
+                    )
                 if self._head_moved(plan, completed, baseline, step["id"]):
                     return EXIT_FAILED
                 if code == 0:
@@ -591,8 +603,14 @@ class Orchestrator:
         return EXIT_OK
 
     def _network_interrupted(self, plan, completed, pending, tail) -> int:
-        self._save(plan, completed, pending, "checkpointed", reason="network_interruption", tail=tail)
-        self.log(f"network interruption at step {pending}; checkpoint written; resume with --resume")
+        self._save(
+            plan, completed, pending, "checkpointed",
+            reason="network_interruption", tail=tail,
+        )
+        self.log(
+            f"network interruption at step {pending}; "
+            "checkpoint written; resume with --resume"
+        )
         return EXIT_RATE_LIMITED
 
     def _rate_limited(self, plan, completed, pending, retry_after, tail) -> int:
