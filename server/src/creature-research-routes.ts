@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import type { Pool } from "pg";
 import type { PlayerStore } from "./player.js";
+import { verifyGameplayRequest } from "./auth.js";
 import { CREATURE_SKILLS, canResearchSkill, rankForExperience, type BuildingProgress, type SkillId } from "./creature-mastery.js";
 import { CreatureResearchStore, RESEARCH_MATERIALS } from "./creature-research-store.js";
 
@@ -36,8 +37,7 @@ export function registerCreatureResearchRoutes(app: FastifyInstance, db: Pool, p
     schema: { tags: ["creatures"], security: [{ bearerAuth: [] }] },
     config: { rateLimit: { max: 60, timeWindow: "1 minute" } },
   }, async (request, reply) => {
-    try { await request.jwtVerify(); }
-    catch { return reply.code(401).send({ error: "UNAUTHORIZED" }); }
+    if (!(await verifyGameplayRequest(request))) return reply.code(401).send({ error: "UNAUTHORIZED" });
     const userId = request.user.sub;
     await players.ensureProfile(userId);
     const [rows, buildings] = await Promise.all([
@@ -75,8 +75,7 @@ export function registerCreatureResearchRoutes(app: FastifyInstance, db: Pool, p
     schema: { tags: ["creatures"], security: [{ bearerAuth: [] }] },
     config: { rateLimit: { max: 60, timeWindow: "1 minute" } },
   }, async (request, reply) => {
-    try { await request.jwtVerify(); }
-    catch { return reply.code(401).send({ error: "UNAUTHORIZED" }); }
+    if (!(await verifyGameplayRequest(request))) return reply.code(401).send({ error: "UNAUTHORIZED" });
     const userId = request.user.sub;
     const { rows } = await db.query<TrainingRow>(
       `SELECT c.id,c.species,c.nickname,c.level,c.tame_progress,
@@ -129,8 +128,7 @@ export function registerCreatureResearchRoutes(app: FastifyInstance, db: Pool, p
       }
     },
   }, async (request, reply) => {
-    try { await request.jwtVerify(); }
-    catch { return reply.code(401).send({ error: "UNAUTHORIZED" }); }
+    if (!(await verifyGameplayRequest(request))) return reply.code(401).send({ error: "UNAUTHORIZED" });
     try {
       const userId = request.user.sub;
       return await players.runExclusive(userId, async () => {

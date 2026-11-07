@@ -10,7 +10,7 @@ import { config } from "./config.js";
 import { recordHttpRequest, recordTick, renderPrometheusMetrics, setActivePlayers, setDatabaseUp, setWebSocketAuthenticated, setWebSocketConnections } from "./metrics.js";
 import { AUTHORITATIVE_SIMULATION_TICK_MS, nextAuthoritativeTickDelayMs } from "./simulation-cadence.js";
 import { createDbPool } from "./db.js";
-import { isGameplayAccessToken, registerAuthRoutes } from "./auth.js";
+import { isGameplayAccessToken, registerAuthRoutes, verifyGameplayRequest } from "./auth.js";
 import { registerCreatureResearchRoutes } from "./creature-research-routes.js";
 import { registerDailyObjectiveRoutes } from "./daily-objectives.js";
 import { registerExpeditionRoutes } from "./expeditions.js";
@@ -850,9 +850,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       },
     },
     async (request, reply) => {
-      try {
-        await request.jwtVerify();
-      } catch {
+      if (!(await verifyGameplayRequest(request))) {
         return reply.code(401).send({ error: "UNAUTHORIZED", message: "Invalid credentials" });
       }
 
