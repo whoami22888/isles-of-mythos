@@ -9,6 +9,7 @@ import tempfile
 import time
 import unittest
 from unittest import mock
+from urllib.error import HTTPError
 
 import orchestrator as orch
 
@@ -81,17 +82,25 @@ class Detection(unittest.TestCase):
 
 
 class NetworkInterruptions(Base):
+    """Checkpoint transient outages without masking ordinary failures."""
+
     def test_explicit_network_errors_are_retryable_only_when_failed(self):
+        """Retry explicit failed network commands, not successful log mentions."""
         for message in ("ECONNRESET", "ETIMEDOUT", "EAI_AGAIN", "connection reset by peer",
                         "temporary failure in name resolution", "curl: (28) operation timed out"):
             self.assertTrue(orch.detect_network_dropout(1, message), message)
             self.assertFalse(orch.detect_network_dropout(0, message), message)
-        for message in ("AssertionError: expected connection timeout", "HTTP 400", "out of memory", ""):
+        for message in (
+            "AssertionError: expected connection timeout",
+            "HTTP 400", "out of memory", "",
+        ):
             self.assertFalse(orch.detect_network_dropout(1, message), message)
 
     def test_network_failure_creates_checkpoint_and_resumes_pending_step(self):
-        self.assertEqual(self.make({"s2": (1, "connect ECONNRESET")}).run(self.plan()), orch.EXIT_RATE_LIMITED)
-        checkpoint = json.loads(self.ckpt.read_text())
+        """Preserve completed steps when an interrupted command resumes."""
+        result = self.make({"s2": (1, "connect ECONNRESET")}).run(self.plan())
+        self.assertEqual(result, orch.EXIT_RATE_LIMITED)
+        checkpoint = orch.load_checkpoint(self.ckpt)
         self.assertEqual(checkpoint["reason"], "network_interruption")
         self.assertEqual(checkpoint["progress"], {"completed": ["s1"], "pending": "s2"})
         self.calls.clear()
@@ -99,20 +108,27 @@ class NetworkInterruptions(Base):
         self.assertEqual(self.calls, ["s2", "s3"])
 
     def test_in_process_api_connection_exception_creates_checkpoint(self):
-        self.assertEqual(self.make({"s2": ConnectionError("offline")}).run(self.plan()), orch.EXIT_RATE_LIMITED)
-        self.assertEqual(json.loads(self.ckpt.read_text())["reason"], "network_interruption")
+        """Checkpoint exceptions from the in-process API runner."""
+        result = self.make({"s2": ConnectionError("offline")}).run(self.plan())
+        self.assertEqual(result, orch.EXIT_RATE_LIMITED)
+        self.assertEqual(orch.load_checkpoint(self.ckpt)["reason"], "network_interruption")
 
     def test_in_process_http_429_exception_preserves_retry_after(self):
-        from urllib.error import HTTPError
-        error = HTTPError("https://example.invalid/api", 429, "Too Many Requests", {"Retry-After": "9"}, None)
+        """Preserve a bounded HTTP Retry-After value."""
+        error = HTTPError(
+            "https://example.invalid/api", 429, "Too Many Requests",
+            {"Retry-After": "9"}, None,
+        )
         self.assertEqual(self.make({"s2": error}).run(self.plan()), orch.EXIT_RATE_LIMITED)
-        self.assertEqual(json.loads(self.ckpt.read_text())["retry_after_seconds"], 9.0)
+        self.assertEqual(orch.load_checkpoint(self.ckpt)["retry_after_seconds"], 9.0)
 
     def test_in_process_non_retryable_http_error_fails(self):
-        from urllib.error import HTTPError
-        error = HTTPError("https://example.invalid/api", 403, "Forbidden", {}, None)
+        """Treat non-rate-limited HTTP errors as hard failures."""
+        error = HTTPError(
+            "https://example.invalid/api", 403, "Forbidden", {}, None,
+        )
         self.assertEqual(self.make({"s2": error}).run(self.plan()), orch.EXIT_FAILED)
-        self.assertEqual(json.loads(self.ckpt.read_text())["state"], "failed")
+        self.assertEqual(orch.load_checkpoint(self.ckpt)["state"], "failed")
 
 
 class Plan(Base):
