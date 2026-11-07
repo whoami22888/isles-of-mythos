@@ -178,6 +178,7 @@ jobs:
           "$GODOT_BIN" --headless --path client-godot --script res://tests/m_e2e_1_integration.gd
           "$GODOT_BIN" --headless --path client-godot --script res://tests/m_e2e_1_integration.gd -- --internal-gameplay-handoff
           "$GODOT_BIN" --headless --path client-godot --script res://tests/phone_handoff_regression.gd
+          "$GODOT_BIN" --headless --path client-godot --script res://tests/tropical_bay_dressing_test.gd
 
       - name: Run server tests (Godot end-to-end is mandatory, never skipped)
         env:

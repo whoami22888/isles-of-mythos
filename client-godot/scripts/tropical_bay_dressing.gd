@@ -9,6 +9,7 @@ const GRASS_BUDGET := 180
 const PALM_TRIANGLE_BUDGET := 120
 const TERRAIN_SHADER := preload("res://shaders/coastal_terrain_surface.gdshader")
 const COAST_DIFFUSE := preload("res://assets/external/polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_diff_1k.jpg")
+const FOLIAGE_WIND_SHADER := preload("res://shaders/tropical_foliage_wind.gdshader")
 
 
 static func attach(coast: Node3D) -> void:
@@ -69,7 +70,10 @@ static func _scatter_multimesh(coast: Node3D, mesh: ArrayMesh, budget: int, spac
 	instance.set_meta("placed_count", placed)
 	instance.multimesh = multi
 	instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	instance.material_override = _foliage_material()
+	# Both meshes keep the same batched draw path. Taller palms bend more
+	# slowly than short grass; neither moves at the rooted base.
+	instance.material_override = _foliage_material(0.55 if include_beach else 3.4,
+		0.065 if include_beach else 0.13)
 	return instance
 
 
@@ -77,13 +81,13 @@ static func _clear_of_ship(px: float, pz: float) -> bool:
 	return Vector2(px - 1.0, pz + 5.8).length() > 7.5
 
 
-static func _foliage_material() -> StandardMaterial3D:
-	var material := StandardMaterial3D.new()
-	material.vertex_color_use_as_albedo = true
-	material.roughness = 0.86
-	material.specular_mode = BaseMaterial3D.SPECULAR_SCHLICK_GGX
-	material.metallic = 0.0
-	material.cull_mode = BaseMaterial3D.CULL_DISABLED
+static func _foliage_material(height: float, amplitude: float) -> ShaderMaterial:
+	var material := ShaderMaterial.new()
+	material.shader = FOLIAGE_WIND_SHADER
+	material.set_shader_parameter("canopy_height", height)
+	material.set_shader_parameter("wind_strength", amplitude)
+	# Normal runtime is driven by TIME; fixed-step captures may override this.
+	material.set_shader_parameter("capture_time_seconds", -1.0)
 	return material
 
 
