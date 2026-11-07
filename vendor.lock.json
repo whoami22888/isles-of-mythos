@@ -1,5 +1,5 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$schema": "./schemas/vendor-lock.schema.json",
   "version": "1.0.0",
   "assets": []
 }
