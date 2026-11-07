@@ -153,7 +153,10 @@ def _parse_roi(raw_roi: Optional[str]) -> Optional[Region]:
     """Parse the CLI rectangle without accepting partial coordinates."""
     if raw_roi is None:
         return None
-    values = tuple(map(int, raw_roi.split(",")))
+    try:
+        values = tuple(int(part) for part in raw_roi.split(","))
+    except ValueError as exc:
+        raise ValueError("lighting ROI requires integer x0,y0,x1,y1") from exc
     if len(values) != 4:
         raise ValueError("lighting ROI requires x0,y0,x1,y1")
     return values
