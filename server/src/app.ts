@@ -1,3 +1,6 @@
+Warning: truncated output (original token count: 31569)
+Total output lines: 2015
+
 import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
 import cors from "@fastify/cors";
 import rateLimit from "@fastify/rate-limit";
@@ -10,7 +13,7 @@ import { config } from "./config.js";
 import { recordHttpRequest, recordTick, renderPrometheusMetrics, setActivePlayers, setDatabaseUp, setWebSocketAuthenticated, setWebSocketConnections } from "./metrics.js";
 import { AUTHORITATIVE_SIMULATION_TICK_MS, nextAuthoritativeTickDelayMs } from "./simulation-cadence.js";
 import { createDbPool } from "./db.js";
-import { isGameplayAccessToken, registerAuthRoutes } from "./auth.js";
+import { isGameplayAccessToken, registerAuthRoutes, verifyGameplayRequest } from "./auth.js";
 import { registerCreatureResearchRoutes } from "./creature-research-routes.js";
 import { registerDailyObjectiveRoutes } from "./daily-objectives.js";
 import { registerExpeditionRoutes } from "./expeditions.js";
@@ -855,9 +858,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       },
     },
     async (request, reply) => {
-      try {
-        await request.jwtVerify();
-      } catch {
+      if (!(await verifyGameplayRequest(request))) {
         return reply.code(401).send({ error: "UNAUTHORIZED", message: "Invalid credentials" });
       }
 
@@ -1253,108 +1254,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           if(captureReplay.kind==="conflict"){recordRequestDuplicate(authenticatedUserId,"CONFLICT");send(socket,{type:"error",code:"INVALID_MESSAGE"});return;}
           const pendingCapture=pendingCreatureRequests.get(authenticatedUserId+":"+message.requestId);
           if(pendingCapture){recordRequestDuplicate(authenticatedUserId,"COALESCED");send(socket,await pendingCapture);return;}
-          const state=players.get(authenticatedUserId); if(!state){send(socket,{type:"error",code:"AUTH_REQUIRED"});return;}
-          if(state.health<=0){send(socket,{type:"error",code:"PLAYER_DEAD"});return;}
-          const coords=parseCreatureTargetId(message.targetId);
-          if(!coords){send(socket,{type:"error",code:"INVALID_MESSAGE"});return;}
-          await ensureCapturedWorldCreaturesLoaded();
-          const chunk=visibleWorldChunk(Math.floor(coords.x/32),Math.floor(coords.y/32));
-          const spawn=chunk.creatures.find(c=>c.id===message.targetId);
-          if(!spawn||defeatedCreatures.has(message.targetId)){send(socket,{type:"error",code:"INVALID_MESSAGE"});return;}
-          let target=combatTargets.get(message.targetId);
-          if(!target){target=createCombatTarget(spawn.id,spawn.species,spawn.x,spawn.y,spawn.level);combatTargets.set(target.id,target);}
-          if(distance(state,target)>2.5){send(socket,{type:"error",code:"OUT_OF_RANGE"});return;}
-          if(target.health>target.maxHealth*CAPTURE_HEALTH_RATIO){send(socket,{type:"error",code:"CREATURE_TOO_HEALTHY"});return;}
-          const fingerprint=captureFingerprint;
-          const response=await runCreatureRequest(authenticatedUserId,message.requestId,fingerprint,async()=>{
-            try{
-              return await players.runExclusive(authenticatedUserId, async()=>{
-                const creature=await creatures.capture(authenticatedUserId,target);
-                await players.reloadEconomy(authenticatedUserId);
-                combatTargets.delete(target.id); defeatedCreatures.add(target.id); capturedWorldCreatures.add(target.id);
-                const result: ServerMessage={type:"creature_state",requestId:message.requestId,creature};
-                for(const ownerSocket of userSockets.get(authenticatedUserId)??[])send(ownerSocket,result);
-                return result;
-              });
-            }catch(error){
-              const code=errorCode(error, "CAPTURE_FAILED");
-              if(code==="NO_CAPTURE_ORB")return {type:"error",code:"NO_CAPTURE_ORB"};
-              if(code==="CREATURE_ALREADY_CAPTURED")return {type:"error",code:"CREATURE_ALREADY_CAPTURED"};
-              if(code==="POPULATION_LIMIT_REACHED")return {type:"error",code:"POPULATION_LIMIT_REACHED"};
-              throw error;
-            }
-          });
-          if(response.type==="error"||response.type==="creature_state")send(socket,response);
-          return;
-        }
-
-        if (message.type === "tame") {
-          if(!userId){send(socket,{type:"error",code:"AUTH_REQUIRED"});return;}
-          const authenticatedUserId=userId;
-          const response=await runCreatureRequest(authenticatedUserId,message.requestId,message.type+"|"+message.creatureId,async()=>{
-            try{
-              return await players.runExclusive(authenticatedUserId, async()=>{
-                const result=await creatures.tame(authenticatedUserId,message.creatureId);
-                if(result.consumed) await players.reloadEconomy(authenticatedUserId);
-                return {type:"creature_state",requestId:message.requestId,creature:result.creature};
-              });
-            }catch(error){
-              const code=errorCode(error, "TAME_FAILED");
-              if(code==="CREATURE_NOT_FOUND")return {type:"error",code:"CREATURE_NOT_FOUND"};
-              if(code==="NO_CREATURE_FEED")return {type:"error",code:"NO_CREATURE_FEED"};
-              throw error;
-            }
-          });
-          send(socket,response);
-          return;
-        }
-
-        if (message.type === "set_creature_party") {
-          if(!userId){send(socket,{type:"error",code:"AUTH_REQUIRED"});return;}
-          const authenticatedUserId=userId;
-          const response=await runCreatureRequest(authenticatedUserId,message.requestId,message.type+"|"+message.creatureId+"|"+String(message.slot),async()=>{
-            try{
-              const creature=await creatures.setPartySlot(authenticatedUserId,message.creatureId,message.slot);
-              return {type:"creature_state",requestId:message.requestId,creature};
-            }catch(error){
-              const code=errorCode(error, "PARTY_UPDATE_FAILED");
-              if(code==="CREATURE_NOT_FOUND")return {type:"error",code:"CREATURE_NOT_FOUND"};
-              if(code==="CREATURE_NOT_TAMED")return {type:"error",code:"CREATURE_NOT_TAMED"};
-              if(code==="INVALID_PARTY_SLOT")return {type:"error",code:"INVALID_PARTY_SLOT"};
-              throw error;
-            }
-          });
-          send(socket,response);
-          if(response.type==="creature_state")sendCreatureSnapshot(socket,creatures.get(authenticatedUserId));
-          return;
-        }
-
-        if (message.type === "set_creature_ai") {
-          if(!userId){send(socket,{type:"error",code:"AUTH_REQUIRED"});return;}
-          const authenticatedUserId=userId;
-          const response=await runCreatureRequest(authenticatedUserId,message.requestId,message.type+"|"+message.creatureId+"|"+message.mode,()=>{
-            try{
-              const creature=creatures.setAiMode(authenticatedUserId,message.creatureId,message.mode);
-              return {type:"creature_state",requestId:message.requestId,creature};
-            }catch(error){
-              const code=errorCode(error, "CREATURE_AI_UPDATE_FAILED");
-              if(code==="CREATURE_NOT_FOUND")return {type:"error",code:"CREATURE_NOT_FOUND"};
-              if(code==="CREATURE_NOT_TAMED")return {type:"error",code:"CREATURE_NOT_TAMED"};
-              throw error;
-            }
-          });
-          send(socket,response);
-          return;
-        }
-
-        if (message.type === "create_base") {
-          if(!userId){send(socket,{type:"error",code:"AUTH_REQUIRED"});return;}
-          const authenticatedUserId=userId;
-          const response=await runBaseRequest(authenticatedUserId,message.requestId,"create_base|"+message.name+"|"+message.x+"|"+message.y,async()=>{
-            try{
-              const base=await bases.create(authenticatedUserId,message.name,message.x,message.y);
-              return {type:"base_state",requestId:message.requestId,base};
-            }catch(error){const code=errorCode(error,"BASE_CREATE_FAILED"); const allowed=["BASE_ALREADY_EXISTS","INVALID_BASE_COORDINATES","BASE_CREATE_FAILED"]; return {type:"error",requestId:message.requestId,code:(allowed.includes(code)?code:"BASE_CREATE_FAILED") as "BASE_ALREADY_EXISTS"|"INVALID_BASE_COORDINATES"|"BASE_CREATE_FAILED"};}
+          const state=players.get(authenticated…1569 tokens truncated…e:"error",requestId:message.requestId,code:(allowed.includes(code)?code:"BASE_CREATE_FAILED") as "BASE_ALREADY_EXISTS"|"INVALID_BASE_COORDINATES"|"BASE_CREATE_FAILED"};}
           });
           send(socket,response);
           return;

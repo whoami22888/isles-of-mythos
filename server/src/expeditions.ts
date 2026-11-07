@@ -136,13 +136,14 @@ export class ExpeditionStore {
   }
 }
 
-async function verifyPlayer(request: FastifyRequest): Promise<boolean> {
+async function verifyPlayer(request: FastifyRequest): Promise<string | null> {
   try {
     await request.jwtVerify();
   } catch {
-    return false;
+    return null;
   }
-  return isGameplayAccessToken(request.user);
+  const userId = request.user.sub;
+  return isGameplayAccessToken(request.user) && typeof userId === "string" && userId.length > 0 ? userId : null;
 }
 
 const ERRORS: Record<string, number> = {
@@ -172,8 +173,8 @@ export function registerExpeditionRoutes(app: FastifyInstance, db: Pool, players
     schema: { tags: ["naval"], security: [{ bearerAuth: [] }] },
     config: { rateLimit: { max: 60, timeWindow: "1 minute" } },
   }, async (request, reply) => {
-    if (!(await verifyPlayer(request))) return reply.code(401).send({ error: "UNAUTHORIZED" });
-    const userId = request.user.sub;
+    const userId = await verifyPlayer(request);
+    if (!userId) return reply.code(401).send({ error: "UNAUTHORIZED" });
     // Only the caller's own ships, and only what the expedition picker needs.
     const ships = await db.query<{ id: string; name: string; status: string }>(
       "SELECT id, name, status FROM player_ships WHERE owner_user_id=$1 AND status IN ('active','docked') ORDER BY created_at, id",
@@ -201,9 +202,10 @@ export function registerExpeditionRoutes(app: FastifyInstance, db: Pool, players
     },
     config: { rateLimit: { max: 30, timeWindow: "1 minute" } },
   }, async (request, reply) => {
-    if (!(await verifyPlayer(request))) return reply.code(401).send({ error: "UNAUTHORIZED" });
+    const userId = await verifyPlayer(request);
+    if (!userId) return reply.code(401).send({ error: "UNAUTHORIZED" });
     try {
-      return await store.start(request.user.sub, request.body.shipId, request.body.routeId, request.body.requestId);
+      return await store.start(userId, request.body.shipId, request.body.routeId, request.body.requestId);
     } catch (error) {
       const mapped = fail(error);
       if (mapped) return reply.code(mapped.code).send({ error: mapped.error });
@@ -219,8 +221,8 @@ export function registerExpeditionRoutes(app: FastifyInstance, db: Pool, players
     },
     config: { rateLimit: { max: 30, timeWindow: "1 minute" } },
   }, async (request, reply) => {
-    if (!(await verifyPlayer(request))) return reply.code(401).send({ error: "UNAUTHORIZED" });
-    const userId = request.user.sub;
+    const userId = await verifyPlayer(request);
+    if (!userId) return reply.code(401).send({ error: "UNAUTHORIZED" });
     try {
       return await players.runExclusive(userId, async () => {
         await players.ensureProfile(userId);

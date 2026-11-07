@@ -141,13 +141,14 @@ export class GuildObjectiveStore {
   }
 }
 
-async function verifyPlayer(request: FastifyRequest): Promise<boolean> {
+async function verifyPlayer(request: FastifyRequest): Promise<string | null> {
   try {
     await request.jwtVerify();
   } catch {
-    return false;
+    return null;
   }
-  return isGameplayAccessToken(request.user);
+  const userId = request.user.sub;
+  return isGameplayAccessToken(request.user) && typeof userId === "string" && userId.length > 0 ? userId : null;
 }
 
 const ERRORS: Record<string, number> = {
@@ -167,8 +168,9 @@ export function registerGuildObjectiveRoutes(app: FastifyInstance, db: Pool, pla
     schema: { tags: ["guilds"], security: [{ bearerAuth: [] }] },
     config: { rateLimit: { max: 60, timeWindow: "1 minute" } },
   }, async (request, reply) => {
-    if (!(await verifyPlayer(request))) return reply.code(401).send({ error: "UNAUTHORIZED" });
-    return store.list(request.user.sub);
+    const userId = await verifyPlayer(request);
+    if (!userId) return reply.code(401).send({ error: "UNAUTHORIZED" });
+    return store.list(userId);
   });
 
   app.post<{ Body: { objectiveId: string } }>("/guild-objectives/claim", {
@@ -179,8 +181,8 @@ export function registerGuildObjectiveRoutes(app: FastifyInstance, db: Pool, pla
     },
     config: { rateLimit: { max: 30, timeWindow: "1 minute" } },
   }, async (request, reply) => {
-    if (!(await verifyPlayer(request))) return reply.code(401).send({ error: "UNAUTHORIZED" });
-    const userId = request.user.sub;
+    const userId = await verifyPlayer(request);
+    if (!userId) return reply.code(401).send({ error: "UNAUTHORIZED" });
     try {
       return await players.runExclusive(userId, async () => {
         await players.ensureProfile(userId);

@@ -131,13 +131,14 @@ export class DailyObjectiveStore {
   }
 }
 
-async function verifyPlayer(request: FastifyRequest): Promise<boolean> {
+async function verifyPlayer(request: FastifyRequest): Promise<string | null> {
   try {
     await request.jwtVerify();
   } catch {
-    return false;
+    return null;
   }
-  return isGameplayAccessToken(request.user);
+  const userId = request.user.sub;
+  return isGameplayAccessToken(request.user) && typeof userId === "string" && userId.length > 0 ? userId : null;
 }
 
 // `onEconomyChanged` lets the WebSocket layer push the refreshed player_state to an in-world
@@ -149,8 +150,8 @@ export function registerDailyObjectiveRoutes(app: FastifyInstance, db: Pool, pla
     schema: { tags: ["progression"], security: [{ bearerAuth: [] }] },
     config: { rateLimit: { max: 60, timeWindow: "1 minute" } },
   }, async (request, reply) => {
-    if (!(await verifyPlayer(request))) return reply.code(401).send({ error: "UNAUTHORIZED" });
-    const userId = request.user.sub;
+    const userId = await verifyPlayer(request);
+    if (!userId) return reply.code(401).send({ error: "UNAUTHORIZED" });
     await players.ensureProfile(userId);
     return store.list(userId);
   });
@@ -168,8 +169,8 @@ export function registerDailyObjectiveRoutes(app: FastifyInstance, db: Pool, pla
     },
     config: { rateLimit: { max: 30, timeWindow: "1 minute" } },
   }, async (request, reply) => {
-    if (!(await verifyPlayer(request))) return reply.code(401).send({ error: "UNAUTHORIZED" });
-    const userId = request.user.sub;
+    const userId = await verifyPlayer(request);
+    if (!userId) return reply.code(401).send({ error: "UNAUTHORIZED" });
     try {
       return await players.runExclusive(userId, async () => {
         await players.ensureProfile(userId);
