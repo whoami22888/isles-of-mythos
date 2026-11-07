@@ -1,6 +1,7 @@
 extends SceneTree
 
 const Adapter = preload("res://scripts/websocket_adapter.gd")
+const FallbackFactory = preload("res://scripts/render_fallback_factory.gd")
 var _failures := 0
 
 func check(condition: bool, description: String) -> void:
@@ -101,6 +102,36 @@ func run() -> void:
 			break
 		await process_frame
 	check(not adapter._attempt_active, "Refused connections must terminate the pending attempt")
+	# Prompt 004: missing resources must not crash or replace genuine production graphics.
+	var missing_character := FallbackFactory.get_fallback_mesh("res://_missing_character_004.glb")
+	check(missing_character.mesh is CapsuleMesh, "Missing characters use a capsule diagnostic")
+	var character_material := missing_character.material_override as StandardMaterial3D
+	check(character_material != null and character_material.albedo_color == Color(0.0, 0.8, 1.0), "Missing character diagnostic must be cyan")
+	missing_character.free()
+	var missing_prop := FallbackFactory.load_mesh_or_fallback("res://_missing_prop_004.gltf", "building") as MeshInstance3D
+	check(missing_prop != null and missing_prop.mesh is BoxMesh, "Missing building uses a box diagnostic")
+	if missing_prop != null:
+		var prop_material := missing_prop.material_override as StandardMaterial3D
+		check(prop_material != null and prop_material.albedo_color == Color(1.0, 0.0, 1.0), "Missing building diagnostic must be magenta")
+		missing_prop.free()
+	var missing_sprite := FallbackFactory.load_sprite_or_fallback("res://_missing_ui_004.png") as ColorRect
+	check(missing_sprite != null and missing_sprite.size == Vector2(32, 32), "Missing sprite must be a 32px ColorRect")
+	if missing_sprite != null:
+		var checker := missing_sprite.get_node_or_null("Checkerboard") as TextureRect
+		check(checker != null and checker.texture != null, "Missing sprite must have checkerboard texture")
+		if checker != null and checker.texture != null:
+			var pixels := checker.texture.get_image()
+			check(pixels.get_pixel(0, 0) != pixels.get_pixel(4, 0), "Checkerboard must have alternating tiles")
+		missing_sprite.free()
+	var missing_audio := FallbackFactory.load_audio_or_fallback("res://_missing_clip_004.ogg")
+	check(missing_audio != null and missing_audio.stream == null, "Missing audio must be safely silent")
+	missing_audio.free()
+	var asset_log := FileAccess.open("user://missing_assets.log", FileAccess.READ)
+	check(asset_log != null, "Missing asset paths must be written to the user log")
+	if asset_log != null:
+		var logged := asset_log.get_as_text()
+		check(logged.contains("_missing_character_004.glb") and logged.contains("_missing_prop_004.gltf") and logged.contains("_missing_ui_004.png") and logged.contains("_missing_clip_004.ogg"), "Every missing asset category must be logged")
+		asset_log.close()
 	adapter.queue_free()
 	scene.queue_free()
 	print("IOM-00 connection checks: %s failures" % _failures)
