@@ -177,6 +177,26 @@ class GraphicsGateTest(unittest.TestCase):
         self.assertIn('FOLIAGE_ALPHA', codes)
         self.assertIn('HEAVY_LOD0', codes)
 
+    def test_distant_tree_budget_uses_instantiated_mesh(self):
+        mesh = {'node': 'VerifiedTropicalContentLayer/Tree/island_tree_01_LOD2',
+                'surfaces': [{'triangles': 14000, 'material': 'Bark',
+                              'transparency': 0, 'albedo_alpha': False, 'texture': ''}]}
+        self.assertEqual([], gate.inspect_scene_nodes_runtime('res://scenes/coastal.tscn', [mesh]))
+        mesh['surfaces'][0]['triangles'] = 15000
+        self.assertIn('HEAVY_LOD0', {f.code for f in
+                      gate.inspect_scene_nodes_runtime('res://scenes/coastal.tscn', [mesh])})
+
+    def test_base_ship_is_only_covered_by_verified_fx_motion(self):
+        (self.root / 'scripts').mkdir()
+        (self.root / 'scripts/coast.gd').write_text('const SHIP_SCENE = 1\n')
+        (self.root / 'scenes/realistic_coastal_slice.tscn').write_text(
+            '[ext_resource type="Script" path="res://scripts/coast.gd" id="1"]')
+        report = {'__ship_motion_verified__': False,
+                  'res://scenes/realistic_coastal_slice.tscn': []}
+        self.assertIn('STATIC_SHIP', {f.code for f in gate.audit(self.root, report)[0]})
+        report['__ship_motion_verified__'] = True
+        self.assertNotIn('STATIC_SHIP', {f.code for f in gate.audit(self.root, report)[0]})
+
     def test_heightfield_water_is_not_misclassified_as_uv_only_depth(self):
         (self.root / 'scripts').mkdir()
         (self.root / 'scripts/water.gd').write_text(

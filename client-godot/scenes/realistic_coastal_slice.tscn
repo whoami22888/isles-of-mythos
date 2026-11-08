@@ -1,6 +1,12 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://scripts/realistic_coastal_slice.gd" id="1"]
+[ext_resource type="PackedScene" path="res://assets/external/generated/coastal_cliff_blender/coastal_cliff_lod2.glb" id="2_cliff_lod2"]
+[ext_resource type="PackedScene" path="res://assets/external/generated/foliage/island_tree_01_lod2.glb" id="3_tree_01_lod2"]
+[ext_resource type="PackedScene" path="res://assets/external/generated/foliage/island_tree_02_lod2.glb" id="4_tree_02_lod2"]
 
 [node name="RealisticCoastalSlice" type="Node3D"]
 script = ExtResource("1")
+coastal_cliff_lod2_scene = ExtResource("2_cliff_lod2")
+tropical_tree_lod2_scene = ExtResource("3_tree_01_lod2")
+tropical_tree_alt_lod2_scene = ExtResource("4_tree_02_lod2")

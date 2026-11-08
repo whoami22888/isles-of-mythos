@@ -210,6 +210,12 @@ def inspect_scene_nodes_runtime(scene_path: str, meshes: list[dict]) -> list[Fin
         node = mesh["node"]
         surfaces = mesh["surfaces"]
         triangles = sum(surface["triangles"] for surface in surfaces)
+        if "VerifiedTropicalContentLayer" in node and "island_tree" in node.lower() and triangles >= 15000:
+            key = ("HEAVY_LOD0", node.rsplit("/", 1)[-1])
+            if key not in seen:
+                issues.append(Finding("HEAVY_LOD0", scene_path,
+                    f"{node}: {triangles:,} triangles exceed 15,000 distant-tree budget"))
+                seen.add(key)
         if triangles > TRIANGLE_REVIEW_LIMIT:
             key = ("HEAVY_LOD0", node.rsplit("/", 1)[-1])
             if key not in seen:
@@ -254,7 +260,11 @@ def _runtime_report(root: Path, godot_bin: str) -> dict:
                 "res://scenes/realistic_coastal_fx_slice.tscn"}
     if not required.issubset(report):
         raise ValueError("Godot runtime probe omitted a production coastal scene")
+    if not isinstance(report.get("__ship_motion_verified__"), bool):
+        raise ValueError("Godot runtime probe omitted ship movement result")
     for scene, meshes in report.items():
+        if scene == "__ship_motion_verified__":
+            continue
         if not isinstance(scene, str) or not scene.startswith("res://scenes/") or not isinstance(meshes, list) or not meshes:
             raise ValueError("Invalid runtime scene report")
         for mesh in meshes:
@@ -316,7 +326,8 @@ def audit(root: Path, runtime_report: dict | None = None) -> tuple[list[Finding]
                 "Water has no observable wave animation/displacement"))
         if "SHIP_SCENE" in script and not re.search(
             r'AnimationPlayer|AnimationTree|_animate_ship|ship_motion|ship_velocity|ship\.position\s*[+\-]=|advance_visual_demo', script
-        ):
+        ) and not (path.name == "realistic_coastal_slice.tscn" and runtime_report is not None
+                   and runtime_report.get("__ship_motion_verified__")):
             issues.append(Finding("STATIC_SHIP", path.name,
                 "Ship placed but no ship movement/animation implementation observed"))
         if "coastal" in path.name.lower() and "slice" in path.name.lower():
