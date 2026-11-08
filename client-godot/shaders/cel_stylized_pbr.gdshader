@@ -52,7 +52,16 @@ vec3 sample_triplanar_normal(vec3 p, vec3 geometric_normal) {
     vec3 tx = vec3(nx.z * face.x, nx.x, nx.y);
     vec3 ty = vec3(ny.x, ny.z * face.y, ny.y);
     vec3 tz = vec3(nz.x, nz.y, nz.z * face.z);
-    return normalize(tx * w.x + ty * w.y + tz * w.z);
+    // Blend tangent perturbations relative to each projection's flat normal.
+    // Blending the projection normals themselves biases oblique flat surfaces
+    // toward the dominant world axis (especially with sharp weights).
+    vec3 flat_x = vec3(face.x, 0.0, 0.0);
+    vec3 flat_y = vec3(0.0, face.y, 0.0);
+    vec3 flat_z = vec3(0.0, 0.0, face.z);
+    vec3 perturbation = (tx - flat_x) * w.x
+                      + (ty - flat_y) * w.y
+                      + (tz - flat_z) * w.z;
+    return normalize(normalize(geometric_normal) + perturbation);
 }
 
 void fragment() {
