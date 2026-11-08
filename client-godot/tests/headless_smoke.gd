@@ -131,6 +131,11 @@ func run() -> void:
 	if asset_log != null:
 		var logged := asset_log.get_as_text()
 		check(logged.contains("_missing_character_004.glb") and logged.contains("_missing_prop_004.gltf") and logged.contains("_missing_ui_004.png") and logged.contains("_missing_clip_004.ogg"), "Every missing asset category must be logged")
+		var log_before := logged.count("mesh\tres://_missing_character_004.glb")
+		var duplicate := FallbackFactory.get_fallback_mesh("res://_missing_character_004.glb")
+		duplicate.free()
+		var after_duplicate := FileAccess.get_file_as_string("user://missing_assets.log")
+		check(after_duplicate.count("mesh\tres://_missing_character_004.glb") == log_before, "Repeated missing paths must not duplicate diagnostic log entries")
 		asset_log.close()
 	adapter.queue_free()
 	scene.queue_free()
