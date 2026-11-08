@@ -1316,5 +1316,44 @@
       ],
       "generation_note": "Blender 4.3.2 COLLAPSE decimation; selected mesh only; original PBR regions, UVs, normals and exported tangents; recipe scripts/blender/author_bounded_lods.py"
     }
+    ,{
+      "id": "generated-island-tree-leaves-rgba-1k",
+      "path": "generated/foliage/island_tree_leaves_rgba_1k.png",
+      "sha256": "04b86ff4b54792a0692f7a20230def49e7942fd4e0acc9dbbe55e384b86c49ea",
+      "source_url": "https://polyhaven.com/a/island_tree_01",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/island_tree_01/island_tree_01_leaves_diff_1k.jpg",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "generated_from": [
+        "polyhaven/island_tree_01/textures/island_tree_01_leaves_diff_1k.jpg",
+        "polyhaven/island_tree_02/textures/island_tree_02_leaves_diff_1k.jpg"
+      ],
+      "generation_note": "Black-matte leaf silhouettes converted to albedo alpha with scripts/build_foliage_alpha.py; both licensed source atlases are byte-identical. Existing ARM and normal maps remain separate."
+    },
+    {
+      "id": "generated-island-tree-01-lod2",
+      "path": "generated/foliage/island_tree_01_lod2.glb",
+      "sha256": "5be71d44ee2fd738fb39eba9bd2365868b03d085603b9dcb938951590a92f1e6",
+      "source_url": "https://polyhaven.com/a/island_tree_01",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/island_tree_01/island_tree_01_1k.gltf",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "generated_from": ["generated/bounded_lods/island_tree_01.glb"],
+      "generation_note": "Blender 4.3.2 14,000-triangle far-scatter LOD2 from admitted bounded mesh; preserves three authored material regions and UVs; recipe scripts/blender/build_island_tree_lods.py"
+    },
+    {
+      "id": "generated-island-tree-02-lod2",
+      "path": "generated/foliage/island_tree_02_lod2.glb",
+      "sha256": "23ed7b10634aa279efdd16e0072e439bfa0c4ec0275461d687d1896e5ea9bac6",
+      "source_url": "https://polyhaven.com/a/island_tree_02",
+      "download_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/island_tree_02/island_tree_02_1k.gltf",
+      "license": "CC0-1.0",
+      "license_url": "https://polyhaven.com/license",
+      "attribution": "Poly Haven",
+      "generated_from": ["generated/bounded_lods/island_tree_02.glb"],
+      "generation_note": "Blender 4.3.2 14,000-triangle far-scatter LOD2 from admitted bounded mesh; preserves three authored material regions and UVs; recipe scripts/blender/build_island_tree_lods.py"
+    }
   ]
 }
