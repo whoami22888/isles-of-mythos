@@ -27,13 +27,15 @@ static func _log_missing(path: String, category: String) -> void:
 	var key := category + ":" + safe_path
 	if _logged_paths.has(key) or _logged_paths.size() >= MAX_LOGGED_PATHS:
 		return
-	_logged_paths[key] = true
 	var mode := FileAccess.READ_WRITE if FileAccess.file_exists(LOG_PATH) else FileAccess.WRITE
 	var file := FileAccess.open(LOG_PATH, mode)
 	if file == null:
 		return
 	file.seek_end()
 	file.store_line("%s\t%s" % [category, safe_path])
+	file.flush()
+	file.close()
+	_logged_paths[key] = true
 
 
 static func get_fallback_mesh(path: String, kind: String = "character") -> MeshInstance3D:
