@@ -102,6 +102,9 @@ func run() -> void:
 			break
 		await process_frame
 	check(not adapter._attempt_active, "Refused connections must terminate the pending attempt")
+	# Isolate the persistent log fixture from earlier headless test runs.
+	if FileAccess.file_exists("user://missing_assets.log"):
+		check(DirAccess.remove_absolute(ProjectSettings.globalize_path("user://missing_assets.log")) == OK, "Missing-asset test log must reset")
 	# Prompt 004: missing resources must not crash or replace genuine production graphics.
 	var missing_character := FallbackFactory.get_fallback_mesh("res://_missing_character_004.glb")
 	check(missing_character.mesh is CapsuleMesh, "Missing characters use a capsule diagnostic")
@@ -132,6 +135,8 @@ func run() -> void:
 		var logged := asset_log.get_as_text()
 		check(logged.contains("_missing_character_004.glb") and logged.contains("_missing_prop_004.gltf") and logged.contains("_missing_ui_004.png") and logged.contains("_missing_clip_004.ogg"), "Every missing asset category must be logged")
 		var log_before := logged.count("mesh\tres://_missing_character_004.glb")
+		check(log_before == 1, "Initial missing character must create exactly one TSV log record")
+		check(logged.ends_with("\n"), "Missing-asset log records must be newline terminated")
 		var duplicate := FallbackFactory.get_fallback_mesh("res://_missing_character_004.glb")
 		duplicate.free()
 		var after_duplicate := FileAccess.get_file_as_string("user://missing_assets.log")
