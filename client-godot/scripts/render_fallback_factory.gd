@@ -4,6 +4,7 @@ class_name RenderFallbackFactory
 ## Defensive asset loader. The primitives are diagnostic fallbacks, not approved
 ## production art. Never turn a missing resource into a client-authoritative state.
 const LOG_PATH := "user://missing_assets.log"
+const ROTATED_LOG_PATH := "user://missing_assets.log.1"
 const CHECKER_SIZE := 32
 const MAX_LOGGED_PATHS := 1024
 const MAX_LOG_BYTES := 262144
@@ -22,19 +23,46 @@ static func _load_checked(path: String, extensions: PackedStringArray) -> Resour
 	return ResourceLoader.load(path)
 
 
+static func _safe_log_path(path: String) -> String:
+	# Keep the TSV record single-line and two-column, including for C0/DEL chars.
+	var result := ""
+	for index in range(mini(path.length(), 512)):
+		var codepoint := path.unicode_at(index)
+		if codepoint < 32 or codepoint == 127:
+			result += " "
+		else:
+			result += path[index]
+	return result
+
+
 static func _log_missing(path: String, category: String) -> void:
 	# Asset paths are untrusted. Sanitize log lines and bound the number written.
-	var safe_path := path.replace("\n", " ").replace("\r", " ").replace("\t", " ").substr(0, 512)
+	var safe_path := _safe_log_path(path)
 	var key := category + ":" + safe_path
 	if _logged_paths.has(key) or _logged_paths.size() >= MAX_LOGGED_PATHS:
 		return
 	var line := "%s\t%s\n" % [category, safe_path]
-	var bytes := line.to_utf8_buffer().size()
-	# A persistent log must remain bounded even across process restarts.
-	var existing_size := FileAccess.get_file_as_bytes(LOG_PATH).size() if FileAccess.file_exists(LOG_PATH) else 0
-	var rotate := existing_size + bytes > MAX_LOG_BYTES
-	var mode := FileAccess.WRITE if rotate or not FileAccess.file_exists(LOG_PATH) else FileAccess.READ_WRITE
-	var file := FileAccess.open(LOG_PATH, mode)
+	var entry_bytes := line.to_utf8_buffer().size()
+	# Check size without allocating the entire log. Preserve one bounded archive.
+	var exists := FileAccess.file_exists(LOG_PATH)
+	var existing_size := 0
+	if exists:
+		var reader := FileAccess.open(LOG_PATH, FileAccess.READ)
+		if reader == null:
+			return
+		existing_size = reader.get_length()
+		reader.close()
+	if exists and existing_size + entry_bytes > MAX_LOG_BYTES:
+		if existing_size <= MAX_LOG_BYTES:
+			# The one-generation backup is replaced on subsequent rotations.
+			if DirAccess.rename_absolute(LOG_PATH, ROTATED_LOG_PATH) != OK:
+				return
+		else:
+			# Pre-cap/corrupt oversized logs cannot become unbounded archives.
+			if DirAccess.remove_absolute(LOG_PATH) != OK:
+				return
+		exists = false
+	var file := FileAccess.open(LOG_PATH, FileAccess.READ_WRITE if exists else FileAccess.WRITE)
 	if file == null:
 		return
 	file.seek_end()
@@ -46,7 +74,6 @@ static func _log_missing(path: String, category: String) -> void:
 	if write_error != OK:
 		return
 	_logged_paths[key] = true
-
 
 static func get_fallback_mesh(path: String, kind: String = "character") -> MeshInstance3D:
 	_log_missing(path, "mesh")
