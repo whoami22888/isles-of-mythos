@@ -142,6 +142,12 @@ func run() -> void:
 		var after_duplicate := FileAccess.get_file_as_string("user://missing_assets.log")
 		check(after_duplicate.count("mesh\tres://_missing_character_004.glb") == log_before, "Repeated missing paths must not duplicate diagnostic log entries")
 		asset_log.close()
+	# Untrusted asset paths must not introduce extra TSV columns or records.
+	var tabbed_asset := FallbackFactory.get_fallback_mesh("res://_missing\tunsafe_004.glb")
+	tabbed_asset.free()
+	var sanitized_log := FileAccess.get_file_as_string("user://missing_assets.log")
+	check(sanitized_log.contains("mesh\tres://_missing unsafe_004.glb\n"), "Tabs in missing asset paths must be sanitized into one TSV record")
+	check(not sanitized_log.contains("res://_missing\tunsafe_004.glb"), "Untrusted tabs must not create extra TSV fields")
 	# A log from an earlier session must rotate rather than grow forever.
 	var full_log := FileAccess.open("user://missing_assets.log", FileAccess.WRITE)
 	check(full_log != null, "Log rotation fixture must open")
