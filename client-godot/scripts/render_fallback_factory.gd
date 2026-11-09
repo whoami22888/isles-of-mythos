@@ -55,11 +55,11 @@ static func _log_missing(path: String, category: String) -> void:
 	if exists and existing_size + entry_bytes > MAX_LOG_BYTES:
 		if existing_size <= MAX_LOG_BYTES:
 			# The one-generation backup is replaced on subsequent rotations.
-			if DirAccess.rename_absolute(LOG_PATH, ROTATED_LOG_PATH) != OK:
+			if DirAccess.rename_absolute(ProjectSettings.globalize_path(LOG_PATH), ProjectSettings.globalize_path(ROTATED_LOG_PATH)) != OK:
 				return
 		else:
 			# Pre-cap/corrupt oversized logs cannot become unbounded archives.
-			if DirAccess.remove_absolute(LOG_PATH) != OK:
+			if DirAccess.remove_absolute(ProjectSettings.globalize_path(LOG_PATH)) != OK:
 				return
 		exists = false
 	var file := FileAccess.open(LOG_PATH, FileAccess.READ_WRITE if exists else FileAccess.WRITE)
