@@ -24,7 +24,7 @@ static func _load_checked(path: String, extensions: PackedStringArray) -> Resour
 
 static func _log_missing(path: String, category: String) -> void:
 	# Asset paths are untrusted. Sanitize log lines and bound the number written.
-	var safe_path := path.replace("\n", " ").replace("\r", " ").substr(0, 512)
+	var safe_path := path.replace("\n", " ").replace("\r", " ").replace("\t", " ").substr(0, 512)
 	var key := category + ":" + safe_path
 	if _logged_paths.has(key) or _logged_paths.size() >= MAX_LOGGED_PATHS:
 		return
