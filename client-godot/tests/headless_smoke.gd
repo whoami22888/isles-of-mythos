@@ -137,6 +137,18 @@ func run() -> void:
 		var after_duplicate := FileAccess.get_file_as_string("user://missing_assets.log")
 		check(after_duplicate.count("mesh\tres://_missing_character_004.glb") == log_before, "Repeated missing paths must not duplicate diagnostic log entries")
 		asset_log.close()
+	# A log from an earlier session must rotate rather than grow forever.
+	var full_log := FileAccess.open("user://missing_assets.log", FileAccess.WRITE)
+	check(full_log != null, "Log rotation fixture must open")
+	if full_log != null:
+		for chunk in range(256):
+			full_log.store_string("x".repeat(1024))
+		full_log.close()
+		var rotated_asset := FallbackFactory.get_fallback_mesh("res://_rotation_probe_004.glb")
+		rotated_asset.free()
+		var rotated_text := FileAccess.get_file_as_string("user://missing_assets.log")
+		check(rotated_text.contains("_rotation_probe_004.glb"), "New missing asset must be recorded after log rotation")
+		check(FileAccess.get_file_as_bytes("user://missing_assets.log").size() <= FallbackFactory.MAX_LOG_BYTES, "Persistent missing-asset log must stay under its byte cap")
 	adapter.queue_free()
 	scene.queue_free()
 	print("IOM-00 connection checks: %s failures" % _failures)
