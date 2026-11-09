@@ -374,6 +374,7 @@ async function wsLoad(playerCount, users, sampleUsers, sampleNodes, cohortStart,
   // and the unchanged acceptance percentile calculation.
   const gameplayBatchDiagnostics = [];
   for (let offset = 0; offset < sampleCount; offset += 10) {
+    const batchStartedAt = new Date().toISOString();
     const batchSize = Math.min(10, sampleCount - offset);
     const batch = await Promise.all(Array.from({ length: batchSize }, async (_, localIndex) => {
       const index = offset + localIndex;
@@ -391,6 +392,8 @@ async function wsLoad(playerCount, users, sampleUsers, sampleNodes, cohortStart,
     const gatherMs = batch.map(result => result.mutation.latencyMs);
     gameplayBatchDiagnostics.push({
       offset, samples: batch.length * 2,
+      batchStartedAt,
+      batchFinishedAt: new Date().toISOString(),
       craftP95Ms: percentile(craftMs, 0.95),
       gatherP95Ms: percentile(gatherMs, 0.95),
       craftMaxMs: Math.max(...craftMs),
