@@ -6,6 +6,7 @@ class_name RenderFallbackFactory
 const LOG_PATH := "user://missing_assets.log"
 const CHECKER_SIZE := 32
 const MAX_LOGGED_PATHS := 1024
+const MAX_LOG_BYTES := 262144
 static var _logged_paths: Dictionary = {}
 
 
@@ -27,14 +28,23 @@ static func _log_missing(path: String, category: String) -> void:
 	var key := category + ":" + safe_path
 	if _logged_paths.has(key) or _logged_paths.size() >= MAX_LOGGED_PATHS:
 		return
-	var mode := FileAccess.READ_WRITE if FileAccess.file_exists(LOG_PATH) else FileAccess.WRITE
+	var line := "%s\\t%s\\n" % [category, safe_path]
+	var bytes := line.to_utf8_buffer().size()
+	# A persistent log must remain bounded even across process restarts.
+	var existing_size := FileAccess.get_file_as_bytes(LOG_PATH).size() if FileAccess.file_exists(LOG_PATH) else 0
+	var rotate := existing_size + bytes > MAX_LOG_BYTES
+	var mode := FileAccess.WRITE if rotate or not FileAccess.file_exists(LOG_PATH) else FileAccess.READ_WRITE
 	var file := FileAccess.open(LOG_PATH, mode)
 	if file == null:
 		return
 	file.seek_end()
-	file.store_line("%s\t%s" % [category, safe_path])
+	file.store_string(line)
 	file.flush()
+	var write_error := file.get_error()
 	file.close()
+	# Do not suppress a future retry when the write failed (e.g. full storage).
+	if write_error != OK:
+		return
 	_logged_paths[key] = true
 
 
