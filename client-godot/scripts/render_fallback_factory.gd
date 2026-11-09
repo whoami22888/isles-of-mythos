@@ -28,7 +28,7 @@ static func _log_missing(path: String, category: String) -> void:
 	var key := category + ":" + safe_path
 	if _logged_paths.has(key) or _logged_paths.size() >= MAX_LOGGED_PATHS:
 		return
-	var line := "%s\\t%s\\n" % [category, safe_path]
+	var line := "%s\t%s\n" % [category, safe_path]
 	var bytes := line.to_utf8_buffer().size()
 	# A persistent log must remain bounded even across process restarts.
 	var existing_size := FileAccess.get_file_as_bytes(LOG_PATH).size() if FileAccess.file_exists(LOG_PATH) else 0
