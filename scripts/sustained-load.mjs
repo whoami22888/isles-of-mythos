@@ -1,3 +1,5 @@
+/* jshint esversion: 11, node: true */
+// This Node ESM load harness uses modern JavaScript; do not parse it as ES5.
 import { createHmac } from "node:crypto";
 import { writeFileSync } from "node:fs";
 import { WebSocket } from "ws";
