@@ -22,6 +22,7 @@ uniform float sand_scale = 0.22;
 uniform float grass_scale = 0.16;
 uniform float rock_scale = 0.11;
 uniform float rock_bias = 0.0;
+uniform float sand_bias = 0.0;
 uniform float distant_cool = 0.0;
 
 varying vec3 world_pos;
@@ -35,9 +36,9 @@ void vertex() {
 	float slope = 1.0 - clamp(world_nor.y, 0.0, 1.0);
 	float height = world_pos.y - sea_level;
 	// Wide sandy beach, then a soft climb into grass. Steep faces go to rock.
-	float beach = (1.0 - smoothstep(0.12, 2.25, height)) * (1.0 - smoothstep(0.16, 0.48, slope));
-	sand_weight = clamp(beach, 0.0, 1.0);
-	rock_weight = clamp(smoothstep(0.28, 0.68, slope) * (1.0 - sand_weight * 0.65) + rock_bias, 0.0, 1.0);
+	float beach = (1.0 - smoothstep(0.10, 2.70, height)) * (1.0 - smoothstep(0.16, 0.48, slope));
+	sand_weight = clamp(beach + sand_bias, 0.0, 1.0);
+	rock_weight = clamp(smoothstep(0.22, 0.60, slope) * (1.0 - sand_weight * 0.65) + rock_bias, 0.0, 1.0);
 }
 
 vec3 triplanar_albedo(sampler2D tex, vec3 p, vec3 n, float scale) {

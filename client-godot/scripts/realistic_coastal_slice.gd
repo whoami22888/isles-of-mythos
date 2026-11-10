@@ -34,9 +34,12 @@ const Dressing := preload("res://scripts/tropical_bay_dressing.gd")
 @export var tropical_tree_lod2_scene: PackedScene
 @export var tropical_tree_alt_lod2_scene: PackedScene
 const WATER_Y := -0.35
-const GAMEPLAY_CAMERA := Vector3(12.0, 30.0, -22.0)
-const CINEMATIC_START_CAMERA := Vector3(-11.0, 5.5, -18.0)
-const CINEMATIC_LOOK_TARGET := Vector3(1.0, 2.2, 1.0)
+const GAMEPLAY_CAMERA := Vector3(7.2, 19.8, -16.2)
+const CINEMATIC_START_CAMERA := Vector3(-16.5, 6.8, -16.0)
+const CINEMATIC_LOOK_TARGET := Vector3(2.5, 2.6, 5.0)
+# Plants sit inland of the sand; rocks may rest in the shallows.
+const FOLIAGE_MIN_ABOVE_SEA := 1.15
+const ROCK_MIN_ABOVE_SEA := -0.12
 
 var gameplay_camera: Camera3D
 var cinematic_camera: Camera3D
@@ -142,10 +145,17 @@ func _fbm(p: Vector2, octaves: int = 4) -> float:
 	return acc / maxf(sum_w, 0.0001)
 
 
+func is_foliage_ground(px: float, pz: float) -> bool:
+	return _terrain_height(px, pz) >= WATER_Y + FOLIAGE_MIN_ABOVE_SEA
+
+
+func is_rock_ground(px: float, pz: float) -> bool:
+	return _terrain_height(px, pz) >= WATER_Y + ROCK_MIN_ABOVE_SEA
+
+
 func _terrain_height(px: float, pz: float) -> float:
 	# Organic island: domain-warped radial falloff, a south-facing crescent
-	# bay, a sandy ring of varying width, and inland peaks. No rectangular
-	# side masks and no straight mesa wall.
+	# bay with a wide sand terrace, and rugged inland peaks.
 	var warp := Vector2((_fbm(Vector2(px, pz) * 0.08, 3) - 0.5) * 5.0, (_fbm(Vector2(px + 17.0, pz - 9.0) * 0.08, 3) - 0.5) * 5.0)
 	var wpos := Vector2(px, pz) + warp
 	var centre := Vector2(1.0, 11.0)
@@ -160,15 +170,14 @@ func _terrain_height(px: float, pz: float) -> float:
 	var north_cap := exp(-pow((ang - 0.65) / 0.70, 2.0))
 	var head := head_west * 1.05 + head_east * 0.72
 	var coast_n := _fbm(wpos * 0.11, 3)
-	var island_r := 16.6 - 6.6 * bay + 5.4 * head + 3.6 * east_bulge + 8.6 * north_cap + (coast_n - 0.5) * 3.8
-	# Keep the vertical-slice open-water fixture at (16, 3) just off the east shore.
+	# Slightly larger landmass; the south waterline stays north of the berth.
+	var island_r := 18.2 - 7.2 * bay + 5.6 * head + 3.8 * east_bulge + 8.8 * north_cap + (coast_n - 0.5) * 3.6
 	island_r -= 7.0 * exp(-((px - 16.0) * (px - 16.0)) / 10.0 - ((pz - 3.0) * (pz - 3.0)) / 8.0)
-	var beach_w := 3.1 + 3.0 * bay - 1.5 * head
+	# Wide pale crescent in the bay, a thin varying edge on other coasts.
+	var beach_w := clampf(2.2 + 7.6 * bay - 1.1 * head, 1.6, 11.0)
 	var offshore := radius - island_r
 	var deep := -6.6 + (_fbm(Vector2(px, pz) * 0.05, 3) - 0.5) * 0.45 + 0.55 * tanh(px * 0.08)
 	var shelf := -0.92 + (_fbm(Vector2(px, pz) * 0.18, 2) - 0.5) * 0.12
-	# Shallow apron around the coast, wider in the bay. Softly deepen the
-	# anchorage so the galleon never sits on the shelf.
 	var apron := 1.0 - smoothstep(1.2, 8.5, offshore)
 	apron *= 1.0 - 0.25 * (1.0 - bay)
 	var berth := exp(-(((px - 1.5) * (px - 1.5)) / 64.0 + ((pz + 7.2) * (pz + 7.2)) / 36.0))
@@ -176,32 +185,35 @@ func _terrain_height(px: float, pz: float) -> float:
 	var berth_w := 1.0 if offshore > 0.6 else 0.15
 	seabed = lerpf(seabed, -5.6, berth * berth_w)
 	if offshore >= 0.0:
-		# Blend up to a dry beach only at the true shoreline, not under the ship.
 		var lip := 1.0 - smoothstep(-0.15, 1.15, offshore)
-		return lerpf(seabed, WATER_Y + 0.08 + 0.2 * bay, lip * (1.0 - berth))
-	var inland := clampf((-offshore) / maxf(beach_w + 4.2, 0.8), 0.0, 1.0)
+		return lerpf(seabed, WATER_Y + 0.10 + 0.16 * bay, lip * (1.0 - berth))
+	# Flat-ish sand terrace, then a ramp into the hills so the bay reads as a
+	# wide beach rather than a thin ring against a rising lawn.
+	var onto := -offshore
+	var sand_t := clampf(onto / maxf(beach_w, 0.8), 0.0, 1.0)
+	var sand_y := WATER_Y + 0.16 + 0.46 * sand_t * sand_t * (3.0 - 2.0 * sand_t)
+	var hill_blend := smoothstep(beach_w * 0.40, beach_w + 3.2, onto)
+	var inland := clampf(onto / maxf(beach_w + 5.0, 0.8), 0.0, 1.0)
 	inland = inland * inland * (3.0 - 2.0 * inland)
 	var n := _fbm(wpos * 0.07, 3)
 	var ridged := 1.0 - absf(2.0 * _fbm(wpos * 0.045 + Vector2(40.0, -20.0), 3) - 1.0)
-	var d1 := (px + 6.2) * (px + 6.2) + (pz - 15.6) * (pz - 15.6)
-	var d2 := (px - 7.8) * (px - 7.8) + (pz - 17.4) * (pz - 17.4)
+	# Sharper peak kernels plus mid-frequency ridge/gully noise so summits and
+	# some faces go steep enough for the rock blend, not smooth green lumps.
+	var d1 := (px + 6.2) * (px + 6.2) + (pz - 15.8) * (pz - 15.8)
+	var d2 := (px - 8.0) * (px - 8.0) + (pz - 17.6) * (pz - 17.6)
 	var d3 := (px - 16.0) * (px - 16.0) + (pz - 26.5) * (pz - 26.5)
-	var peak_a := exp(-d1 / 28.0) * (7.4 + n * 1.1)
-	var peak_b := exp(-d2 / 34.0) * (8.8 + ridged * 1.2)
-	var peak_c := exp(-d3 / 22.0) * 8.0
-	var knoll := exp(-((px + 1.5) * (px + 1.5) + (pz - 12.2) * (pz - 12.2)) / 18.0) * 2.2
-	var hills := (0.55 + 2.05 * n + 1.55 * ridged * inland) * inland + (peak_a + peak_b + peak_c + knoll) * (0.55 + 0.45 * inland)
-	# Sand ring of varying width just above the waterline.
-	var beach := 0.0
-	if offshore > -beach_w and offshore < 0.35:
-		var bt := clampf((beach_w + offshore) / (beach_w + 0.35), 0.0, 1.0)
-		beach = bt * bt * (3.0 - 2.0 * bt) * (0.5 + 0.4 * bay)
-	var land := WATER_Y + 0.14 + beach + hills
-	# Inside the coastline the surface stays dry. Do not lerp back toward the
-	# seabed or the first few metres of beach flood and gameplay fixtures sink.
-	if inland < 0.22:
-		var shore := WATER_Y + 0.16 + beach
-		return lerpf(shore, land, inland / 0.22)
+	var peak_a := exp(-d1 / 22.0) * (8.6 + n * 0.8)
+	var peak_b := exp(-d2 / 26.0) * (10.2 + ridged * 1.0)
+	var peak_c := exp(-d3 / 20.0) * 8.4
+	var knoll := exp(-((px + 1.5) * (px + 1.5) + (pz - 12.2) * (pz - 12.2)) / 16.0) * 2.0
+	var peak_sum := peak_a + peak_b + peak_c
+	var ridge_detail := 1.0 - absf(2.0 * _fbm(wpos * 0.16 + Vector2(8.0, 3.0), 3) - 1.0)
+	var gully := _fbm(wpos * 0.14 + Vector2(21.0, -7.0), 3)
+	var rugged := (peak_sum / 10.0) * (1.55 * (ridge_detail - 0.42) - 0.9 * gully * (1.0 - ridge_detail))
+	var hills := (0.50 + 1.7 * n + 1.35 * ridged * inland) * inland + (peak_sum + knoll) * (0.50 + 0.50 * inland) + rugged * inland
+	var land := sand_y + hills * hill_blend
+	if hill_blend < 0.05:
+		return sand_y
 	return land
 
 
@@ -420,7 +432,7 @@ func _build_premium_landmarks() -> void:
 		[Vector3(-19.0, 0.0, 12.5), 1.1, 48.0], [Vector3(17.5, 0.0, 13.5), 0.95, 48.0]
 	]:
 		var tree := TREE_SCENE.instantiate()
-		var tree_xz: Vector2 = walk_to_land(entry[0].x, entry[0].z, 0.45)
+		var tree_xz: Vector2 = walk_to_land(entry[0].x, entry[0].z, FOLIAGE_MIN_ABOVE_SEA)
 		tree.position = Vector3(tree_xz.x, 0.0, tree_xz.y)
 		tree.scale = Vector3.ONE * entry[1]
 		# Keep a detailed near-field silhouette while bounding the imported
@@ -446,7 +458,7 @@ func _build_premium_landmarks() -> void:
 		[Vector3(8.7, 0.0, 12.6), 1.85],
 	]:
 		var shoreline_tree := TREE_SCENE.instantiate()
-		var shore_xz: Vector2 = walk_to_land(entry[0].x, entry[0].z, 0.45)
+		var shore_xz: Vector2 = walk_to_land(entry[0].x, entry[0].z, FOLIAGE_MIN_ABOVE_SEA)
 		shoreline_tree.position = Vector3(shore_xz.x, 0.0, shore_xz.y)
 		shoreline_tree.scale = Vector3.ONE * entry[1]
 		_apply_far_foliage_lod(shoreline_tree, 36000)
@@ -510,7 +522,8 @@ func _build_premium_landmarks() -> void:
 		premium_layer.add_child(imported)
 		var hint := Vector2(imported.position.x, imported.position.z)
 		if entry[1] != COASTAL_CLIFF_SCENE:
-			hint = walk_to_land(hint.x, hint.y, 0.35)
+			var min_y := FOLIAGE_MIN_ABOVE_SEA if (entry[1] == TROPICAL_TREE_SCENE or entry[1] == TROPICAL_TREE_ALT_SCENE) else 0.08
+			hint = walk_to_land(hint.x, hint.y, min_y)
 			imported.position.x = hint.x
 			imported.position.z = hint.y
 		else:
@@ -844,7 +857,7 @@ func _build_cameras() -> void:
 	gameplay_camera.current = true
 	add_child(gameplay_camera)
 	# Elevated gameplay view: ship in front, beach and cliffs behind.
-	gameplay_camera.look_at(Vector3(0.0, 3.5, 20.0))
+	gameplay_camera.look_at(Vector3(1.0, 3.2, 12.0))
 	cinematic_camera = Camera3D.new()
 	cinematic_camera.name = "CinematicRevealCamera"
 	cinematic_camera.position = CINEMATIC_START_CAMERA

@@ -68,7 +68,7 @@ static func attach(coast: Node3D) -> void:
 	root.name = "TropicalBayDressing"
 	coast.add_child(root)
 	var palm_mesh := _palm_v2_mesh()
-	var palm_multi := _scatter_multimesh(coast, palm_mesh, PALM_BUDGET, 2.35, 22.0, 0.9, 1.55, false, false, 0.4)
+	var palm_multi := _scatter_multimesh(coast, palm_mesh, PALM_BUDGET, 2.15, 24.0, 0.9, 1.55, false, false, 2.0)
 	palm_multi.name = "TropicalPalmGrove"
 	root.add_child(palm_multi)
 	var grass_mesh := _compose_plant_mesh(GRASS_CLUMP, PackedStringArray(["medium", "small"]), PackedStringArray(["dead", "seedling"]), Vector3(5.2, 5.2, 5.2), true)
@@ -112,20 +112,20 @@ static func attach(coast: Node3D) -> void:
 		root.add_child(sorrel_multi)
 	if anthurium_mesh:
 		var hero_red := _scatter_hero_flowers(coast, anthurium_mesh, PackedVector3Array([
-			Vector3(10.8, 0.0, 2.2), Vector3(11.8, 0.0, 5.1), Vector3(9.2, 0.0, 1.3),
-			Vector3(-10.6, 0.0, 2.0), Vector3(-8.4, 0.0, 3.4), Vector3(-13.0, 0.0, 5.4),
-			Vector3(2.0, 0.0, 8.4), Vector3(14.2, 0.0, 9.0), Vector3(7.0, 0.0, 3.2),
-			Vector3(12.8, 0.0, 6.6), Vector3(-2.4, 0.0, 7.0), Vector3(8.8, 0.0, 0.6)
-		]), 5.8, 7.4)
+			Vector3(10.8, 0.0, 8.2), Vector3(11.4, 0.0, 6.8), Vector3(8.6, 0.0, 7.4),
+			Vector3(-10.2, 0.0, 8.0), Vector3(-8.0, 0.0, 7.2), Vector3(-12.2, 0.0, 8.6),
+			Vector3(2.0, 0.0, 9.4), Vector3(13.0, 0.0, 10.0), Vector3(6.4, 0.0, 8.2),
+			Vector3(11.6, 0.0, 9.2), Vector3(-2.4, 0.0, 9.0), Vector3(7.8, 0.0, 6.6)
+		]), 2.1, 2.8)
 		hero_red.name = "HeroAnthurium"
 		root.add_child(hero_red)
 	if ursinia_mesh:
 		var hero_orange := _scatter_hero_flowers(coast, ursinia_mesh, PackedVector3Array([
-			Vector3(11.2, 0.0, 3.6), Vector3(8.4, 0.0, 1.6), Vector3(13.4, 0.0, 7.4),
-			Vector3(-11.8, 0.0, 3.8), Vector3(-9.0, 0.0, 1.8), Vector3(-6.6, 0.0, 4.8),
-			Vector3(0.6, 0.0, 9.2), Vector3(15.0, 0.0, 7.8), Vector3(6.4, 0.0, 2.4),
-			Vector3(7.6, 0.0, 0.4), Vector3(9.6, 0.0, 2.0), Vector3(12.2, 0.0, 3.0)
-		]), 6.0, 7.8)
+			Vector3(10.6, 0.0, 7.6), Vector3(8.0, 0.0, 8.4), Vector3(12.8, 0.0, 9.0),
+			Vector3(-11.0, 0.0, 7.8), Vector3(-8.4, 0.0, 8.6), Vector3(-6.2, 0.0, 9.2),
+			Vector3(0.6, 0.0, 10.0), Vector3(14.0, 0.0, 9.4), Vector3(5.8, 0.0, 7.8),
+			Vector3(7.2, 0.0, 9.6), Vector3(9.4, 0.0, 8.0), Vector3(11.8, 0.0, 7.2)
+		]), 2.2, 2.9)
 		hero_orange.name = "HeroUrsinia"
 		root.add_child(hero_orange)
 	var vine_mesh := _vine_card_mesh()
@@ -197,7 +197,7 @@ static func _scatter_multimesh(coast: Node3D, mesh: ArrayMesh, budget: int, spac
 				if inland_dense and _on_settlement_path(px, pz) and sin(px * 9.1 + pz * 4.3) > 0.15:
 					z += step
 					continue
-				if py > coast.WATER_Y + maxf(min_height, 0.45) and slope < slope_cap and _clear_of_ship(px, pz):
+				if coast.is_foliage_ground(px, pz) and py > coast.WATER_Y + min_height and slope < slope_cap and _clear_of_ship(px, pz):
 					var yaw := sin(px * 3.7 + pz * 2.2) * TAU
 					var scale := lerpf(scale_min, scale_max, 0.5 + 0.5 * sin(px * 5.1 + pz))
 					var basis := Basis(Vector3.UP, yaw).scaled(Vector3(scale, scale * lerpf(0.85, 1.2, 0.5 + 0.5 * cos(pz)), scale))
@@ -417,7 +417,7 @@ static func _settlement(coast: Node3D) -> Node3D:
 	var shore: Vector2 = coast.walk_to_shore(pier_hint.x + 3.6, pier_hint.y, Vector2(0.0, -1.0))
 	var pier_x := shore.x
 	# Start two planks inland and run out over the water so the deck reaches the bay.
-	for plank in range(10):
+	for plank in range(8):
 		var z := shore.y + 1.6 - float(plank) * 0.85
 		var deck_y: float = maxf(coast.WATER_Y + 0.35, coast._terrain_height(pier_x, z) + 0.2)
 		_add_box(vertices, colors, indices, Vector3(pier_x, deck_y, z), Vector3(1.6, 0.12, 0.72), Color(0.55, 0.38, 0.20))
@@ -633,16 +633,16 @@ static func landmass_mesh(radius_x: float, radius_z: float, peak: float, seed: f
 			# vertex position instead. The outer ring (t = 1.2) is then always past
 			# the skirt (t >= 1.15) and every boundary vertex is under the sea.
 			var t := r
-			# Fatter, off-round hills instead of a centred cone: a shoulder mid-slope
-			# and a broken sandy fringe so the base does not read as a disc.
-			var body := pow(clampf(1.0 - t, 0.0, 1.0), 1.18)
-			var shoulder := 0.32 * pow(clampf(1.0 - absf(t - 0.40) / 0.40, 0.0, 1.0), 1.35) * (0.55 + 0.45 * sin(angle * 3.0 + seed * 1.3))
-			var ridge := 0.16 * sin(angle * 4.0 + seed * 1.9 + r * 5.0) * body
-			var height := peak * (body * 0.78 + shoulder + ridge)
+			# Green flanks, a sharper rocky crown, then a direct drop into the
+			# sea — no sandy terrace that reads as a disc.
+			var body := pow(clampf(1.0 - t, 0.0, 1.0), 1.28)
+			var shoulder := 0.36 * pow(clampf(1.0 - absf(t - 0.46) / 0.36, 0.0, 1.0), 1.25) * (0.50 + 0.50 * sin(angle * 3.0 + seed * 1.3))
+			var ridge := 0.22 * sin(angle * 4.0 + seed * 1.9 + r * 5.0) * body
+			var crown := 0.18 * pow(clampf(1.0 - t / 0.34, 0.0, 1.0), 1.1)
+			var height := peak * (body * 0.72 + shoulder + ridge + crown)
 			if crater > 0.0:
 				height -= peak * crater * (1.0 - smoothstep(0.0, 0.16, t))
-			height += 0.38 * (1.0 - smoothstep(0.84, 1.0, t)) * (0.50 + 0.50 * sin(angle * 2.6 + seed * 0.8))
-			height -= 2.2 * smoothstep(1.0, 1.15, t)
+			height -= 2.5 * smoothstep(0.92, 1.14, t)
 			vertices.append(Vector3(cos(angle) * r * coast * radius_x, SEA + height, sin(angle) * r * coast * radius_z))
 	var indices := PackedInt32Array()
 	for sector in range(sectors):
@@ -700,8 +700,9 @@ static func _landmass_material(grass: Color, rock: Color, distant: bool = false)
 	material.set_shader_parameter("rock_tint", Color(0.58, 0.58, 0.60).lerp(rock, 0.35))
 	material.set_shader_parameter("sea_level", -0.35)
 	if distant:
-		material.set_shader_parameter("distant_cool", 0.85)
-		material.set_shader_parameter("rock_bias", -0.16)
+		material.set_shader_parameter("distant_cool", 0.72)
+		material.set_shader_parameter("rock_bias", 0.18)
+		material.set_shader_parameter("sand_bias", -0.90)
 	return material
 
 
@@ -830,12 +831,12 @@ static func _scatter_rock_clusters(coast: Node3D, mesh: ArrayMesh, budget: int, 
 			var px: float = hint.x + sin(seed * 5.1 + float(member) * 2.3) * 1.15
 			var pz: float = hint.y + cos(seed * 3.7 + float(member) * 1.9) * 0.95
 			var py: float = coast._terrain_height(px, pz)
-			if py < coast.WATER_Y - 0.05:
+			if not coast.is_rock_ground(px, pz):
 				var wet: Vector2 = coast.walk_to_land(px, pz, 0.05)
 				px = wet.x
 				pz = wet.y
 				py = coast._terrain_height(px, pz)
-			if py > coast.WATER_Y - 0.05 and _clear_of_ship(px, pz):
+			if coast.is_rock_ground(px, pz) and _clear_of_ship(px, pz):
 				var yaw := sin(px * 2.4 + pz * 1.7 + seed) * TAU
 				var scale := lerpf(scale_min, scale_max, 0.5 + 0.5 * sin(px * 3.2 + pz * 1.1 + seed))
 				var bury := scale * lerpf(0.42, 0.58, 0.5 + 0.5 * cos(pz + seed))
@@ -1042,7 +1043,7 @@ static func _scatter_cliff_vines(coast: Node3D, mesh: ArrayMesh, budget: int) ->
 			var gx: float = coast._terrain_height(px + 1.0, pz) - coast._terrain_height(px - 1.0, pz)
 			var gz: float = coast._terrain_height(px, pz + 1.0) - coast._terrain_height(px, pz - 1.0)
 			var slope := sqrt(gx * gx + gz * gz)
-			if py > 2.6 and slope > 1.2:
+			if coast.is_foliage_ground(px, pz) and py > 2.6 and slope > 1.2:
 				var yaw := atan2(gx, gz) + PI + sin(px * 2.1) * 0.25
 				var scale := lerpf(1.05, 1.7, 0.5 + 0.5 * sin(px * 4.0 + pz))
 				var basis := Basis(Vector3.UP, yaw).scaled(Vector3(scale, scale, scale))
@@ -1067,14 +1068,12 @@ static func _scatter_hero_flowers(coast: Node3D, mesh: ArrayMesh, anchors: Packe
 	var placed := 0
 	for i in range(anchors.size()):
 		var anchor: Vector3 = anchors[i]
-		var landed: Vector2 = coast.walk_to_land(anchor.x, anchor.z, 0.4)
+		var landed: Vector2 = coast.walk_to_land(anchor.x, anchor.z, coast.FOLIAGE_MIN_ABOVE_SEA)
 		var px := landed.x
 		var pz := landed.y
-		if not _clear_of_ship(px, pz):
+		if not _clear_of_ship(px, pz) or not coast.is_foliage_ground(px, pz):
 			continue
 		var py: float = coast._terrain_height(px, pz)
-		if py < coast.WATER_Y + 0.55:
-			continue
 		var yaw := sin(px * 2.8 + pz * 1.3) * 6.28
 		var scale := lerpf(scale_min, scale_max, 0.5 + 0.5 * sin(px * 3.3 + pz))
 		var basis := Basis(Vector3.UP, yaw).scaled(Vector3(scale, scale * 0.95, scale))

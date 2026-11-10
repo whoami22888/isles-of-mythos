@@ -50,6 +50,7 @@ func run() -> void:
 	ok = _check(_outward_faces(dressing_script, "roof") == 0, "hut roof faces point outward") and ok
 	ok = _check(_outward_faces(dressing_script, "trunk") == 0, "palm trunk faces point outward") and ok
 	ok = _check(_landmass_boundary_submerged(dressing_script), "landmass outer ring sits below sea level") and ok
+	ok = _check(_no_foliage_in_the_sea(scene, dressing), "no foliage instance has terrain height below sea level") and ok
 	var smoke := scene.get_node_or_null("TropicalBayDressing/DistantVolcano/VolcanoSmoke") as Node3D
 	var crater := scene.get_node_or_null("TropicalBayDressing/DistantVolcano/VolcanoLandmass") as MeshInstance3D
 	if smoke and crater:
@@ -68,6 +69,27 @@ func _check(condition: bool, label: String) -> bool:
 # Godot front faces are clockwise: for (a, b, c) the outward normal is
 # (c - a) x (b - a). Each closed primitive must face away from its own centre,
 # or cull_back draws only its far inside wall. Returns the inward face count.
+func _no_foliage_in_the_sea(scene: Node3D, dressing: Node) -> bool:
+	# Plants, palms and hero flowers must sit on land. Rocks may rest in the
+	# shallows and are skipped here.
+	if dressing == null:
+		return false
+	for child in dressing.get_children():
+		var n := String(child.name)
+		if n.begins_with("Shore") or n == "HazyIslets" or n == "DistantVolcano" or n == "BeachSettlement":
+			continue
+		var multi := child as MultiMeshInstance3D
+		if multi == null or multi.multimesh == null:
+			continue
+		var mm := multi.multimesh
+		for i in range(mm.visible_instance_count):
+			var xf := mm.get_instance_transform(i)
+			var py: float = scene._terrain_height(xf.origin.x, xf.origin.z)
+			if py < scene.WATER_Y:
+				printerr("foliage in the sea: %s[%d] at %s height=%.3f" % [n, i, xf.origin, py])
+				return false
+	return true
+
 func _outward_faces(dressing_script, kind: String) -> int:
 	var vertices := PackedVector3Array()
 	var normals := PackedVector3Array()
