@@ -7,7 +7,7 @@ const SHIP_SCENE := preload("res://assets/external/polyhaven/dutch_ship_medium/d
 const COASTAL_CLIFF_SCENE := preload("res://assets/external/polyhaven/coastal_cliff_01/coastal_cliff_01_1k.gltf")
 const TROPICAL_TREE_SCENE := preload("res://assets/external/polyhaven/island_tree_01/island_tree_01_1k.gltf")
 const TROPICAL_TREE_ALT_SCENE := preload("res://assets/external/polyhaven/island_tree_02/island_tree_02_1k.gltf")
-const ISLAND_LEAVES_RGBA := preload("res://assets/external/generated/foliage/island_tree_leaves_rgba_1k.png")
+const ISLAND_LEAVES_RGBA := preload("res://assets/external/generated/foliage/island_tree_leaves_rgba_coverage_1k.png")
 const TREE_SMALL_LEAVES_RGBA := preload("res://assets/external/polyhaven/tree_small_02/textures/tree_small_02_leaves_rgba_1k.png")
 const MOSS_ROCK_SCENE := preload("res://assets/external/polyhaven/rock_moss_set_01/rock_moss_set_01_1k.gltf")
 const COAST_DIFFUSE := preload("res://assets/external/polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_diff_1k.jpg")
@@ -114,7 +114,8 @@ func _build_environment() -> void:
 	sun.shadow_enabled = true
 	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
 	sun.directional_shadow_max_distance = 64.0
-	sun.shadow_bias = 0.06
+	sun.shadow_bias = 0.16
+	sun.shadow_normal_bias = 2.8
 	add_child(sun)
 	_build_sun_glow(sun)
 
@@ -673,11 +674,21 @@ func _preserve_authored_mesh(asset: Node3D, distant: bool = false) -> void:
 				continue
 			var foliage := material.duplicate() as StandardMaterial3D
 			foliage.albedo_texture = ISLAND_LEAVES_RGBA
-			foliage.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
-			foliage.alpha_scissor_threshold = 0.35
-			foliage.cull_mode = BaseMaterial3D.CULL_DISABLED
+			_soften_foliage_material(foliage)
 			originals[0].set_surface_override_material(surface_index, foliage)
 	authored.free()
+
+
+func _soften_foliage_material(material: StandardMaterial3D) -> void:
+	# Alpha-to-coverage (needs MSAA) plus a slightly higher scissor and
+	# anisotropic mips so distant canopies stop sparkling.
+	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	material.alpha_scissor_threshold = 0.62
+	material.alpha_antialiasing_mode = BaseMaterial3D.ALPHA_ANTIALIASING_ALPHA_TO_COVERAGE_AND_TO_ONE
+	material.alpha_antialiasing_edge = 0.35
+	material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	material.cull_mode = BaseMaterial3D.CULL_DISABLED
+
 
 func visual_bounds_world(asset: Node3D) -> AABB:
 	var lowest := Vector3(INF, INF, INF)
@@ -995,7 +1006,19 @@ func apply_visual_quality(level: int) -> void:
 	# without it). The mid-range floor drops it to save fill rate.
 	var viewport := get_viewport()
 	if viewport:
-		viewport.msaa_3d = Viewport.MSAA_DISABLED if clamped == 0 else Viewport.MSAA_2X
+		if clamped == 0:
+			viewport.msaa_3d = Viewport.MSAA_DISABLED
+			viewport.screen_space_aa = Viewport.SCREEN_SPACE_AA_DISABLED
+			viewport.use_debanding = false
+		elif clamped == 1:
+			viewport.msaa_3d = Viewport.MSAA_2X
+			viewport.screen_space_aa = Viewport.SCREEN_SPACE_AA_FXAA
+			viewport.use_debanding = true
+		else:
+			viewport.msaa_3d = Viewport.MSAA_4X
+			viewport.screen_space_aa = Viewport.SCREEN_SPACE_AA_FXAA
+			viewport.use_debanding = true
+		viewport.scaling_3d_scale = 1.0
 	var dressing := get_node_or_null("TropicalBayDressing")
 	if dressing:
 		var palms := dressing.get_node_or_null("TropicalPalmGrove") as MultiMeshInstance3D

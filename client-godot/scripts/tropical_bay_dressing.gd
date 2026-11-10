@@ -40,6 +40,7 @@ const MOSS_ROCK := "res://assets/external/polyhaven/rock_moss_set_01/rock_moss_s
 const TREE01_LOD2 := "res://assets/external/generated/foliage/island_tree_01_lod2.glb"
 const TREE02_LOD2 := "res://assets/external/generated/foliage/island_tree_02_lod2.glb"
 const VINE_ALBEDO := preload("res://assets/generated/foliage/hanging_vines_rgba.png")
+const LEAVES_COVERAGE := preload("res://assets/external/generated/foliage/island_tree_leaves_rgba_coverage_1k.png")
 const CLIFF_SHADER := preload("res://shaders/cliff_surface.gdshader")
 const ROCK_SHADER := preload("res://shaders/rock_surface.gdshader")
 const MOSS_ALBEDO := preload("res://assets/external/polyhaven/forrest_ground_01/forrest_ground_01_diff_1k.jpg")
@@ -339,6 +340,7 @@ static func _palm_v2_mesh() -> ArrayMesh:
 	instance.queue_free()
 	if result.get_surface_count() == 0:
 		return _palm_mesh()
+	_soften_mesh_alpha(result)
 	return result
 
 
@@ -843,6 +845,7 @@ static func _compose_plant_mesh(path: String, name_contains: PackedStringArray, 
 	instance.queue_free()
 	if result.get_surface_count() == 0:
 		return null
+	_soften_mesh_alpha(result)
 	return result
 
 
@@ -1050,12 +1053,9 @@ static func _vine_card_mesh() -> ArrayMesh:
 	var material := StandardMaterial3D.new()
 	material.albedo_texture = VINE_ALBEDO
 	material.albedo_color = Color(0.55, 0.62, 0.40, 1.0)
-	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
-	material.alpha_scissor_threshold = 0.40
-	material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	_soften_foliage_material(material)
 	material.roughness = 0.9
 	material.metallic = 0.0
-	material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	mesh.surface_set_material(0, material)
 	return mesh
 
@@ -1171,9 +1171,7 @@ static func _apply_leaf_scissor(mesh: ArrayMesh) -> void:
 		if not (n.contains("leaf") or n.contains("leaves")):
 			continue
 		var foliage := mat.duplicate() as StandardMaterial3D
-		foliage.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
-		foliage.alpha_scissor_threshold = 0.35
-		foliage.cull_mode = BaseMaterial3D.CULL_DISABLED
+		_soften_foliage_material(foliage)
 		mesh.surface_set_material(surface_index, foliage)
 
 
@@ -1334,3 +1332,31 @@ static func _scatter_hut_understory(coast: Node3D, mesh: ArrayMesh, budget: int)
 	instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_apply_distance_fade(instance, 58.0)
 	return instance
+
+
+static func _soften_foliage_material(material: StandardMaterial3D) -> void:
+	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	material.alpha_scissor_threshold = 0.62
+	material.alpha_antialiasing_mode = BaseMaterial3D.ALPHA_ANTIALIASING_ALPHA_TO_COVERAGE_AND_TO_ONE
+	material.alpha_antialiasing_edge = 0.35
+	material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	material.cull_mode = BaseMaterial3D.CULL_DISABLED
+
+
+static func _soften_mesh_alpha(mesh: ArrayMesh) -> void:
+	if mesh == null:
+		return
+	for surface_index in range(mesh.get_surface_count()):
+		var mat := mesh.surface_get_material(surface_index) as StandardMaterial3D
+		if mat == null:
+			continue
+		var n := str(mat.resource_name).to_lower()
+		var uses_cutout := mat.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED or n.contains("leaf") or n.contains("leaves") or n.contains("frond") or n.contains("fern") or n.contains("grass")
+		var foliage := mat.duplicate() as StandardMaterial3D
+		if uses_cutout:
+			_soften_foliage_material(foliage)
+			if n.contains("leaf") or n.contains("leaves"):
+				foliage.albedo_texture = LEAVES_COVERAGE
+		else:
+			foliage.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+		mesh.surface_set_material(surface_index, foliage)

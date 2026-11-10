@@ -4,23 +4,23 @@ render_mode cull_back, diffuse_burley, specular_schlick_ggx;
 // CC0 PBR sand / grass / rock, blended by world height and slope.
 // Sand and grass sample the XZ plane (the shelf is mostly flat).
 // Rock uses triplanar mapping so cliff faces do not stretch.
-uniform sampler2D sand_albedo : source_color, filter_linear_mipmap, repeat_enable;
-uniform sampler2D sand_normal : hint_normal, filter_linear_mipmap, repeat_enable;
-uniform sampler2D sand_rough : filter_linear_mipmap, repeat_enable;
-uniform sampler2D grass_albedo : source_color, filter_linear_mipmap, repeat_enable;
-uniform sampler2D grass_normal : hint_normal, filter_linear_mipmap, repeat_enable;
-uniform sampler2D grass_rough : filter_linear_mipmap, repeat_enable;
-uniform sampler2D rock_albedo : source_color, filter_linear_mipmap, repeat_enable;
-uniform sampler2D rock_normal : hint_normal, filter_linear_mipmap, repeat_enable;
-uniform sampler2D rock_rough : filter_linear_mipmap, repeat_enable;
+uniform sampler2D sand_albedo : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D sand_normal : hint_normal, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D sand_rough : filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D grass_albedo : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D grass_normal : hint_normal, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D grass_rough : filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D rock_albedo : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D rock_normal : hint_normal, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D rock_rough : filter_linear_mipmap_anisotropic, repeat_enable;
 
 uniform vec4 sand_tint : source_color = vec4(1.00, 0.96, 0.88, 1.0);
 uniform vec4 grass_tint : source_color = vec4(0.50, 0.72, 0.38, 1.0);
 uniform vec4 rock_tint : source_color = vec4(0.84, 0.78, 0.70, 1.0);
 uniform float sea_level = -0.35;
-uniform float sand_scale = 0.22;
-uniform float grass_scale = 0.16;
-uniform float rock_scale = 0.11;
+uniform float sand_scale = 0.11;
+uniform float grass_scale = 0.08;
+uniform float rock_scale = 0.055;
 uniform float rock_bias = 0.0;
 uniform float sand_bias = 0.0;
 uniform float distant_cool = 0.0;
@@ -89,10 +89,10 @@ vec3 grade_weathered_rock(vec3 rock) {
 float vertical_cracks(vec3 p) {
 	// Warped, infrequent veins — not a regular vertical barcode.
 	float wx = p.x + 0.55 * sin(p.z * 0.62) + 0.28 * sin(p.y * 1.15 + p.z * 0.3);
-	float vein = pow(abs(sin(wx * 1.15 + hash21(floor(p.xz * 1.7)) * 6.0)), 12.0);
-	float fine = pow(abs(sin(wx * 3.3 + p.z * 0.5)), 16.0) * 0.4;
-	float mottling = 0.15 * hash21(floor(p.xz * 4.3 + p.y * 0.7));
-	return clamp(vein * 0.55 + fine + mottling, 0.0, 0.7);
+	float vein = pow(abs(sin(wx * 0.85 + hash21(floor(p.xz * 0.9)) * 6.0)), 10.0);
+	float fine = pow(abs(sin(wx * 1.7 + p.z * 0.28)), 14.0) * 0.22;
+	float mottling = 0.06 * hash21(floor(p.xz * 1.6 + p.y * 0.35));
+	return clamp(vein * 0.45 + fine + mottling, 0.0, 0.45);
 }
 
 void fragment() {
@@ -113,7 +113,7 @@ void fragment() {
 	vec3 rock_b = triplanar_albedo(rock_albedo, world_pos.zyx * 0.83 + vec3(2.4, 0.0, 1.1), world_nor.zyx, rock_scale * 0.62);
 	vec3 rock = grade_weathered_rock(mix(rock_a, rock_b, 0.48) * rock_tint.rgb);
 	float cracks = vertical_cracks(world_pos);
-	rock *= (1.0 - cracks * 0.42);
+	rock *= (1.0 - cracks * 0.22);
 	// Soft moss drips on the upper wall so the face is not a clean stripe.
 	float face = 1.0 - smoothstep(0.28, 0.82, clamp(world_nor.y, 0.0, 1.0));
 	float drip = face * pow(hash21(vec2(world_pos.x * 1.8, floor(world_pos.z * 2.0))), 3.2);
@@ -128,15 +128,15 @@ void fragment() {
 	float grass_r = texture(grass_rough, grass_uv).r;
 	float rock_r = triplanar_scalar(rock_rough, world_pos, world_nor, rock_scale);
 	float rough = mix(grass_r, sand_r, sand_weight);
-	ROUGHNESS = clamp(mix(rough, mix(rock_r, 0.78, cracks), rock_weight), 0.45, 0.98);
+	ROUGHNESS = clamp(mix(rough, mix(max(rock_r, 0.62), 0.78, cracks), rock_weight), 0.58, 0.96);
 	METALLIC = 0.0;
 	SPECULAR = mix(0.12, 0.06, sand_weight);
 
-	vec3 n_sand = mix(vec3(0.5, 0.5, 1.0), texture(sand_normal, sand_uv).rgb, 0.12);
+	vec3 n_sand = mix(vec3(0.5, 0.5, 1.0), texture(sand_normal, sand_uv).rgb, 0.06);
 	vec3 n_grass = texture(grass_normal, grass_uv).rgb;
 	vec3 n_rock = triplanar_normal(rock_normal, world_pos, world_nor, rock_scale);
 	vec3 nmap = mix(n_grass, n_sand, sand_weight);
 	nmap = mix(nmap, n_rock, rock_weight);
 	NORMAL_MAP = nmap;
-	NORMAL_MAP_DEPTH = mix(0.28, 0.80, rock_weight);
+	NORMAL_MAP_DEPTH = mix(0.14, 0.38, rock_weight);
 }

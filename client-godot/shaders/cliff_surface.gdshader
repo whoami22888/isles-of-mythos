@@ -2,16 +2,16 @@ shader_type spatial;
 render_mode cull_back, diffuse_burley, specular_schlick_ggx;
 
 // Grey-brown weathered cliff with grass on ledges and moss drips on the face.
-uniform sampler2D rock_albedo : source_color, filter_linear_mipmap, repeat_enable;
-uniform sampler2D rock_normal : hint_normal, filter_linear_mipmap, repeat_enable;
-uniform sampler2D rock_rough : filter_linear_mipmap, repeat_enable;
-uniform sampler2D grass_albedo : source_color, filter_linear_mipmap, repeat_enable;
-uniform sampler2D grass_normal : hint_normal, filter_linear_mipmap, repeat_enable;
-uniform sampler2D grass_rough : filter_linear_mipmap, repeat_enable;
+uniform sampler2D rock_albedo : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D rock_normal : hint_normal, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D rock_rough : filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D grass_albedo : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D grass_normal : hint_normal, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D grass_rough : filter_linear_mipmap_anisotropic, repeat_enable;
 uniform vec4 rock_tint : source_color = vec4(0.84, 0.78, 0.70, 1.0);
 uniform vec4 grass_tint : source_color = vec4(0.38, 0.56, 0.26, 1.0);
-uniform float rock_scale = 0.10;
-uniform float grass_scale = 0.15;
+uniform float rock_scale = 0.05;
+uniform float grass_scale = 0.08;
 uniform float ledge_start = 0.48;
 uniform float ledge_full = 0.80;
 uniform float sea_level = -0.35;
@@ -67,10 +67,10 @@ vec3 grade_weathered_rock(vec3 rock) {
 float vertical_cracks(vec3 p) {
 	// Warped, infrequent veins — not a regular vertical barcode.
 	float wx = p.x + 0.55 * sin(p.z * 0.62) + 0.28 * sin(p.y * 1.15 + p.z * 0.3);
-	float vein = pow(abs(sin(wx * 1.15 + hash21(floor(p.xz * 1.7)) * 6.0)), 12.0);
-	float fine = pow(abs(sin(wx * 3.3 + p.z * 0.5)), 16.0) * 0.4;
-	float mottling = 0.15 * hash21(floor(p.xz * 4.3 + p.y * 0.7));
-	return clamp(vein * 0.55 + fine + mottling, 0.0, 0.7);
+	float vein = pow(abs(sin(wx * 0.85 + hash21(floor(p.xz * 0.9)) * 6.0)), 10.0);
+	float fine = pow(abs(sin(wx * 1.7 + p.z * 0.28)), 14.0) * 0.22;
+	float mottling = 0.06 * hash21(floor(p.xz * 1.6 + p.y * 0.35));
+	return clamp(vein * 0.45 + fine + mottling, 0.0, 0.45);
 }
 
 void fragment() {
@@ -83,7 +83,7 @@ void fragment() {
 	vec3 rock_b = triplanar_albedo(rock_albedo, world_pos.zyx * 0.83 + vec3(2.4, 0.0, 1.1), n.zyx, rock_scale * 0.62);
 	vec3 rock = grade_weathered_rock(mix(rock_a, rock_b, 0.48) * rock_tint.rgb);
 	float cracks = vertical_cracks(world_pos);
-	rock *= (1.0 - cracks * 0.40);
+	rock *= (1.0 - cracks * 0.22);
 	rock *= mix(1.0, 0.58, wet);
 	float face = 1.0 - smoothstep(0.28, 0.82, clamp(n.y, 0.0, 1.0));
 	float drip = face * pow(hash21(vec2(world_pos.x * 1.8, floor(world_pos.z * 2.0))), 2.8);
@@ -92,11 +92,11 @@ void fragment() {
 	ALBEDO = mix(rock, grass, grass_w);
 	float rock_r = triplanar_scalar(rock_rough, world_pos, n, rock_scale);
 	float grass_r = texture(grass_rough, world_pos.xz * grass_scale).r;
-	ROUGHNESS = clamp(mix(mix(mix(rock_r, 0.78, cracks), 0.45, wet * 0.5), grass_r, grass_w), 0.40, 0.98);
+	ROUGHNESS = clamp(mix(mix(mix(max(rock_r, 0.62), 0.78, cracks), 0.55, wet * 0.5), max(grass_r, 0.60), grass_w), 0.55, 0.96);
 	METALLIC = 0.0;
 	SPECULAR = mix(0.18, 0.08, grass_w);
 	vec3 n_rock = triplanar_normal(rock_normal, world_pos, n, rock_scale);
 	vec3 n_grass = texture(grass_normal, world_pos.xz * grass_scale).rgb;
 	NORMAL_MAP = mix(n_rock, n_grass, grass_w);
-	NORMAL_MAP_DEPTH = mix(0.90, 0.50, grass_w);
+	NORMAL_MAP_DEPTH = mix(0.42, 0.22, grass_w);
 }

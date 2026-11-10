@@ -2,10 +2,10 @@ shader_type spatial;
 render_mode cull_back, diffuse_burley, specular_schlick_ggx;
 
 // Darker, warmer rocks with a wet band near the waterline and moss on tops.
-uniform sampler2D albedo_tex : source_color, filter_linear_mipmap, repeat_enable;
-uniform sampler2D normal_tex : hint_normal, filter_linear_mipmap, repeat_enable;
-uniform sampler2D rough_tex : filter_linear_mipmap, repeat_enable;
-uniform sampler2D moss_tex : source_color, filter_linear_mipmap, repeat_enable;
+uniform sampler2D albedo_tex : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D normal_tex : hint_normal, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D rough_tex : filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D moss_tex : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform vec4 rock_tint : source_color = vec4(0.58, 0.48, 0.38, 1.0);
 uniform vec4 moss_tint : source_color = vec4(0.30, 0.42, 0.20, 1.0);
 uniform float sea_level = -0.35;
@@ -26,9 +26,9 @@ void fragment() {
 	rock *= mix(1.0, 0.42, wet);
 	ALBEDO = mix(rock, moss, up * mix(0.35, 0.62, 1.0 - wet));
 	float rough = texture(rough_tex, UV).g;
-	ROUGHNESS = mix(mix(clamp(rough, 0.45, 0.92), 0.38, wet * 0.7), 0.78, up * 0.3);
+	ROUGHNESS = mix(mix(clamp(rough, 0.62, 0.94), 0.55, wet * 0.5), 0.80, up * 0.3);
 	METALLIC = 0.0;
-	SPECULAR = mix(0.18, 0.32, wet);
+	SPECULAR = mix(0.10, 0.16, wet);
 	NORMAL_MAP = texture(normal_tex, UV).rgb;
-	NORMAL_MAP_DEPTH = 0.85;
+	NORMAL_MAP_DEPTH = 0.38;
 }
