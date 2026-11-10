@@ -4,7 +4,7 @@ extends RefCounted
 ## No second water or terrain system. The coastal slice still owns the mesh
 ## and the shore-height contract. Geometry here is first-party.
 
-const PALM_BUDGET := 24
+const PALM_BUDGET := 28
 const GRASS_BUDGET := 1800
 const FERN_BUDGET := 220
 const SHRUB_BUDGET := 120
@@ -18,8 +18,7 @@ const HERO_FLOWER_BUDGET := 16
 const BOULDER_BUDGET := 10
 const ROCK07_BUDGET := 10
 const MOSS_ROCK_BUDGET := 10
-const CANOPY_BUDGET := 8
-const CANOPY_B_BUDGET := 6
+const SOLID_BUSH_BUDGET := 48
 const CRAG_BUDGET := 7
 const CRAG07_BUDGET := 5
 const DRIFTWOOD_BUDGET := 8
@@ -78,7 +77,7 @@ static func attach(coast: Node3D) -> void:
 	root.name = "TropicalBayDressing"
 	coast.add_child(root)
 	var palm_mesh := _palm_v2_mesh()
-	var palm_multi := _scatter_multimesh(coast, palm_mesh, PALM_BUDGET, 2.15, 24.0, 0.9, 1.55, false, false, 2.0)
+	var palm_multi := _scatter_multimesh(coast, palm_mesh, PALM_BUDGET, 1.95, 22.0, 0.95, 1.6, false, false, 2.0)
 	palm_multi.name = "TropicalPalmGrove"
 	root.add_child(palm_multi)
 	var grass_mesh := _compose_plant_mesh(GRASS_CLUMP, PackedStringArray(["medium", "small"]), PackedStringArray(["dead", "seedling"]), Vector3(5.2, 5.2, 5.2), true)
@@ -165,20 +164,12 @@ static func attach(coast: Node3D) -> void:
 		var moss_rocks := _scatter_rock_clusters(coast, moss_mesh, MOSS_ROCK_BUDGET, 3.7, 0.48, 0.88)
 		moss_rocks.name = "ShoreMossRocks"
 		root.add_child(moss_rocks)
-	var tree01_mesh := _compose_plant_mesh(TREE01_LOD2, PackedStringArray(), PackedStringArray(), Vector3(1.15, 1.15, 1.15), true)
-	if tree01_mesh:
-		_apply_leaf_scissor(tree01_mesh)
-		var canopy := _scatter_multimesh(coast, tree01_mesh, CANOPY_BUDGET, 5.4, 24.0, 1.05, 1.55, false, false, 3.6, false, 88.0)
-		canopy.name = "TropicalBroadleafCanopy"
-		canopy.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
-		root.add_child(canopy)
-	var tree02_mesh := _compose_plant_mesh(TREE02_LOD2, PackedStringArray(), PackedStringArray(), Vector3(1.1, 1.1, 1.1), true)
-	if tree02_mesh:
-		_apply_leaf_scissor(tree02_mesh)
-		var canopy_b := _scatter_multimesh(coast, tree02_mesh, CANOPY_B_BUDGET, 6.0, 24.0, 1.0, 1.5, false, false, 4.2, false, 88.0)
-		canopy_b.name = "TropicalBroadleafCanopyB"
-		canopy_b.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
-		root.add_child(canopy_b)
+	var bush_mesh := _solid_canopy_bush_mesh()
+	if bush_mesh:
+		var bushes := _scatter_multimesh(coast, bush_mesh, SOLID_BUSH_BUDGET, 1.85, 20.0, 1.25, 2.15, false, false, 2.2, true, 80.0)
+		bushes.name = "SolidCanopyBushes"
+		bushes.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		root.add_child(bushes)
 	var crag_boulder := _compose_plant_mesh(BOULDER_MOBILE, PackedStringArray(), PackedStringArray(), Vector3.ONE, true)
 	if crag_boulder:
 		_apply_crag_shader(crag_boulder)
@@ -250,7 +241,7 @@ static func _scatter_multimesh(coast: Node3D, mesh: ArrayMesh, budget: int, spac
 				if inland_dense and _on_settlement_path(px, pz) and sin(px * 9.1 + pz * 4.3) > 0.15:
 					z += step
 					continue
-				if coast.is_foliage_ground(px, pz) and py > coast.WATER_Y + min_height and slope < slope_cap and _clear_of_ship(px, pz):
+				if coast.is_foliage_ground(px, pz) and py > coast.WATER_Y + min_height and slope < slope_cap and _clear_of_ship(px, pz) and _clear_of_summit(px, pz, py):
 					var yaw := sin(px * 3.7 + pz * 2.2) * TAU
 					var scale := lerpf(scale_min, scale_max, 0.5 + 0.5 * sin(px * 5.1 + pz))
 					var basis := Basis(Vector3.UP, yaw).scaled(Vector3(scale, scale * lerpf(0.85, 1.2, 0.5 + 0.5 * cos(pz)), scale))
@@ -270,6 +261,17 @@ static func _scatter_multimesh(coast: Node3D, mesh: ArrayMesh, budget: int, spac
 
 static func _clear_of_ship(px: float, pz: float) -> bool:
 	return Vector2(px - 1.5, pz + 7.2).length() > 7.5
+
+
+static func _clear_of_summit(px: float, pz: float, py: float) -> bool:
+	# Leave the two stacked crags visible; no palms, bushes or cards on the crowns.
+	if py >= 11.2:
+		return false
+	if Vector2(px + 6.2, pz - 15.8).length() < 3.6 and py > 8.5:
+		return false
+	if Vector2(px - 8.0, pz - 17.6).length() < 3.8 and py > 8.5:
+		return false
+	return true
 
 
 static func _on_settlement_path(px: float, pz: float) -> bool:
@@ -1094,7 +1096,7 @@ static func _scatter_cliff_vines(coast: Node3D, mesh: ArrayMesh, budget: int) ->
 			var gx: float = coast._terrain_height(px + 1.0, pz) - coast._terrain_height(px - 1.0, pz)
 			var gz: float = coast._terrain_height(px, pz + 1.0) - coast._terrain_height(px, pz - 1.0)
 			var slope := sqrt(gx * gx + gz * gz)
-			if coast.is_foliage_ground(px, pz) and py > 2.6 and slope > 1.2:
+			if coast.is_foliage_ground(px, pz) and py > 2.6 and py < 11.0 and slope > 1.2 and _clear_of_summit(px, pz, py):
 				var yaw := atan2(gx, gz) + PI + sin(px * 2.1) * 0.25
 				var scale := lerpf(1.05, 1.7, 0.5 + 0.5 * sin(px * 4.0 + pz))
 				var basis := Basis(Vector3.UP, yaw).scaled(Vector3(scale, scale, scale))
@@ -1360,3 +1362,62 @@ static func _soften_mesh_alpha(mesh: ArrayMesh) -> void:
 		else:
 			foliage.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 		mesh.surface_set_material(surface_index, foliage)
+
+
+static func _solid_canopy_bush_mesh() -> ArrayMesh:
+	# Opaque overlapping blobs — a full green mass, no alpha leaf cards.
+	var blobs: Array = [
+		[Vector3(0.0, 0.62, 0.0), 0.62],
+		[Vector3(0.40, 0.48, 0.10), 0.44],
+		[Vector3(-0.36, 0.44, 0.18), 0.42],
+		[Vector3(0.08, 0.50, -0.38), 0.40],
+		[Vector3(-0.12, 0.88, -0.06), 0.36],
+		[Vector3(0.22, 0.34, 0.34), 0.32],
+	]
+	var vertices := PackedVector3Array()
+	var normals := PackedVector3Array()
+	var uvs := PackedVector2Array()
+	var indices := PackedInt32Array()
+	for blob in blobs:
+		var centre: Vector3 = blob[0]
+		var radius: float = blob[1]
+		var sphere := SphereMesh.new()
+		sphere.radius = radius
+		sphere.height = radius * 2.0
+		sphere.radial_segments = 8
+		sphere.rings = 5
+		var arrays: Array = sphere.surface_get_arrays(0)
+		var src_v: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var src_n: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+		var src_uv: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+		var src_i: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+		var base := vertices.size()
+		for i in range(src_v.size()):
+			vertices.append(src_v[i] + centre)
+			if src_n.size() == src_v.size():
+				normals.append(src_n[i])
+			else:
+				normals.append(Vector3.UP)
+			if src_uv.size() == src_v.size():
+				uvs.append(src_uv[i])
+			else:
+				uvs.append(Vector2(src_v[i].x, src_v[i].z))
+		for idx in src_i:
+			indices.append(base + idx)
+	var mesh_arrays := []
+	mesh_arrays.resize(Mesh.ARRAY_MAX)
+	mesh_arrays[Mesh.ARRAY_VERTEX] = vertices
+	mesh_arrays[Mesh.ARRAY_NORMAL] = normals
+	mesh_arrays[Mesh.ARRAY_TEX_UV] = uvs
+	mesh_arrays[Mesh.ARRAY_INDEX] = indices
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, mesh_arrays)
+	var material := StandardMaterial3D.new()
+	material.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
+	material.albedo_texture = GRASS_ALBEDO
+	material.albedo_color = Color(0.42, 0.62, 0.28)
+	material.roughness = 0.94
+	material.metallic = 0.0
+	material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	mesh.surface_set_material(0, material)
+	return mesh

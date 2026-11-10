@@ -61,6 +61,7 @@ func _ready() -> void:
 	_build_premium_landmarks()
 	_build_cameras()
 	Dressing.attach(self)
+	_hide_sparse_broadleaf_trees()
 	_apply_visual_quality_from_environment()
 	sync_ocean_vessel_uniforms()
 
@@ -996,6 +997,16 @@ func relocate(global_origin: Vector3) -> void:
 	sync_ocean_vessel_uniforms()
 
 
+
+func _hide_sparse_broadleaf_trees() -> void:
+	# Contract nodes stay in the tree (scene_file_path, mesh, leaf alpha) but
+	# must not draw. Their lod2 cards sparkle against the sky.
+	for node in find_children("*", "Node3D", true, false):
+		var path := str(node.scene_file_path)
+		if path.ends_with("tree_small_02_1k.gltf") or path.ends_with("island_tree_01_1k.gltf") or path.ends_with("island_tree_02_1k.gltf"):
+			node.visible = false
+
+
 func apply_visual_quality(level: int) -> void:
 	# 0 mid-range floor, 1 balanced, 2 S23-class target. Presentation only.
 	var clamped := clampi(level, 0, 2)
@@ -1023,7 +1034,7 @@ func apply_visual_quality(level: int) -> void:
 	if dressing:
 		var palms := dressing.get_node_or_null("TropicalPalmGrove") as MultiMeshInstance3D
 		var grass := dressing.get_node_or_null("TropicalGrassTufts") as MultiMeshInstance3D
-		var palm_counts: Array[int] = [12, 18, 24]
+		var palm_counts: Array[int] = [12, 20, 28]
 		var grass_counts: Array[int] = [0, 700, 1800]
 		if palms and palms.multimesh:
 			var palm_placed := int(palms.get_meta("placed_count", palms.multimesh.visible_instance_count))
@@ -1042,8 +1053,7 @@ func apply_visual_quality(level: int) -> void:
 			["CliffVines", [0, 24, 48]],
 			["HeroAnthurium", [0, 10, 16]],
 			["HeroUrsinia", [0, 10, 16]],
-			["TropicalBroadleafCanopy", [0, 5, 8]],
-			["TropicalBroadleafCanopyB", [0, 3, 6]],
+			["SolidCanopyBushes", [0, 24, 48]],
 			["HutUnderstory", [0, 10, 18]],
 			["BeachDriftwood", [3, 5, 8]],
 			["BeachScatterRocks", [4, 8, 12]],
