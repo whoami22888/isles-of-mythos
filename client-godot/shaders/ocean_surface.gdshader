@@ -4,8 +4,8 @@ render_mode cull_back, depth_draw_opaque;
 // Animated 3-scale swell with analytic vertex normals. This material is opaque
 // on purpose: it retains early depth writes and mobile forward rendering.
 // Surface quality must still be checked against actual Godot footage.
-uniform vec4 water_shallow : source_color = vec4(0.10, 0.78, 0.72, 1.0);
-uniform vec4 water_deep : source_color = vec4(0.015, 0.14, 0.38, 1.0);
+uniform vec4 water_shallow : source_color = vec4(0.14, 0.80, 0.72, 1.0);
+uniform vec4 water_deep : source_color = vec4(0.02, 0.22, 0.42, 1.0);
 uniform vec4 foam_tint : source_color = vec4(0.95, 0.98, 0.96, 1.0);
 // Still-frame bow foam and stern trail. The moving ribbon in ShipWakeEffect
 // remains the animated history; this term keeps a wake when the vessel is idle.
@@ -71,11 +71,11 @@ void fragment() {
     // Open ocean is genuinely deep outside the source mesh footprint.
     // Wide turquoise shelf, then a real falloff into deep blue. Crest foam is
     // intentionally not added here: it turned every swell peak into a white tile.
-    float depth_factor = 1.0 - smoothstep(0.15, 6.5, depth_m);
+    float depth_factor = 1.0 - smoothstep(0.10, 8.5, depth_m);
     float seabed_variation = 0.86 + 0.14 * sin(dot(p, vec2(0.045, 0.03)));
     float shallow_factor = coverage * depth_factor * seabed_variation;
-    float contact = coverage * smoothstep(0.02, 0.12, depth_m)
-                    * (1.0 - smoothstep(0.16, 0.55, depth_m));
+    float contact = coverage * smoothstep(0.02, 0.14, depth_m)
+                    * (1.0 - smoothstep(0.20, 0.85, depth_m));
 
     // Gentle micro normals. High-frequency normals plus a shiny roughness
     // produced a repeating diamond lattice under the mobile specular model.

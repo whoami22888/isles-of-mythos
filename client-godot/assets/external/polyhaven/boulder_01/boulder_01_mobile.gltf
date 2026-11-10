@@ -1,0 +1,155 @@
+{
+  "asset": {
+    "version": "2.0",
+    "generator": "iom-island-pass cluster decimate v2 (nearest-UV)"
+  },
+  "buffers": [
+    {
+      "uri": "boulder_01_mobile.bin",
+      "byteLength": 162384
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteOffset": 0,
+      "byteLength": 43812,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 43812,
+      "byteLength": 43812,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 87624,
+      "byteLength": 29208,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 116832,
+      "byteLength": 45552,
+      "target": 34963
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 3651,
+      "type": "VEC3",
+      "min": [
+        -0.7372799125210993,
+        -0.06371966153383254,
+        -0.9355019610375166
+      ],
+      "max": [
+        0.5173098473321824,
+        0.918972508851872,
+        0.8795330699752358
+      ]
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 3651,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 3651,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5123,
+      "count": 22776,
+      "type": "SCALAR"
+    }
+  ],
+  "images": [
+    {
+      "uri": "textures/boulder_01_diff_1k.jpg"
+    },
+    {
+      "uri": "textures/boulder_01_nor_gl_1k.jpg"
+    },
+    {
+      "uri": "textures/boulder_01_arm_1k.jpg"
+    }
+  ],
+  "samplers": [
+    {
+      "magFilter": 9729,
+      "minFilter": 9987,
+      "wrapS": 10497,
+      "wrapT": 10497
+    }
+  ],
+  "textures": [
+    {
+      "sampler": 0,
+      "source": 0
+    },
+    {
+      "sampler": 0,
+      "source": 1
+    },
+    {
+      "sampler": 0,
+      "source": 2
+    }
+  ],
+  "materials": [
+    {
+      "name": "boulder_01",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 0
+        },
+        "metallicFactor": 0,
+        "metallicRoughnessTexture": {
+          "index": 2
+        }
+      },
+      "normalTexture": {
+        "index": 1
+      }
+    }
+  ],
+  "meshes": [
+    {
+      "name": "boulder_01_mobile",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "indices": 3,
+          "material": 0,
+          "mode": 4
+        }
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "boulder_01",
+      "mesh": 0
+    }
+  ],
+  "scenes": [
+    {
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "scene": 0
+}

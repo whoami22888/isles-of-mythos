@@ -6,10 +6,35 @@ extends RefCounted
 
 const PALM_BUDGET := 24
 const GRASS_BUDGET := 180
+const FERN_BUDGET := 36
+const SHRUB_BUDGET := 16
+const CALATHEA_BUDGET := 8
+const BOULDER_BUDGET := 18
 const PALM_TRIANGLE_BUDGET := 20000
 const PALM_V2 := "res://assets/generated/palm_v2/palm_v2_mobile.glb"
+const GRASS_CLUMP := "res://assets/external/polyhaven/grass_bermuda_01/grass_bermuda_01_1k.gltf"
+const FERN_PLANT := "res://assets/external/polyhaven/fern_02/fern_02_1k.gltf"
+const SHRUB_PLANT := "res://assets/external/polyhaven/shrub_03/shrub_03_1k.gltf"
+const CALATHEA_PLANT := "res://assets/external/polyhaven/calathea_orbifolia_01/calathea_orbifolia_01_1k.gltf"
+const BOULDER_MOBILE := "res://assets/external/polyhaven/boulder_01/boulder_01_mobile.gltf"
 const TERRAIN_SHADER := preload("res://shaders/coastal_terrain_surface.gdshader")
+const HUT_SHADER := preload("res://shaders/hut_surface.gdshader")
 const COAST_DIFFUSE := preload("res://assets/external/polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_diff_1k.jpg")
+const SAND_ALBEDO := preload("res://assets/external/polyhaven/coast_sand_01/coast_sand_01_diff_1k.jpg")
+const SAND_NORMAL := preload("res://assets/external/polyhaven/coast_sand_01/coast_sand_01_nor_gl_1k.jpg")
+const SAND_ROUGH := preload("res://assets/external/polyhaven/coast_sand_01/coast_sand_01_rough_1k.jpg")
+const GRASS_ALBEDO := preload("res://assets/external/polyhaven/forrest_ground_01/forrest_ground_01_diff_1k.jpg")
+const GRASS_NORMAL := preload("res://assets/external/polyhaven/forrest_ground_01/forrest_ground_01_nor_gl_1k.jpg")
+const GRASS_ROUGH := preload("res://assets/external/polyhaven/forrest_ground_01/forrest_ground_01_rough_1k.jpg")
+const ROCK_ALBEDO := preload("res://assets/external/polyhaven/cliff_side/cliff_side_diff_1k.jpg")
+const ROCK_NORMAL := preload("res://assets/external/polyhaven/cliff_side/cliff_side_nor_gl_1k.jpg")
+const ROCK_ROUGH := preload("res://assets/external/polyhaven/cliff_side/cliff_side_rough_1k.jpg")
+const WOOD_ALBEDO := preload("res://assets/external/polyhaven/brown_planks_08/brown_planks_08_diff_1k.jpg")
+const WOOD_NORMAL := preload("res://assets/external/polyhaven/brown_planks_08/brown_planks_08_nor_gl_1k.jpg")
+const WOOD_ROUGH := preload("res://assets/external/polyhaven/brown_planks_08/brown_planks_08_rough_1k.jpg")
+const THATCH_ALBEDO := preload("res://assets/external/polyhaven/thatch_roof_angled/thatch_roof_angled_diff_1k.jpg")
+const THATCH_NORMAL := preload("res://assets/external/polyhaven/thatch_roof_angled/thatch_roof_angled_nor_gl_1k.jpg")
+const THATCH_ROUGH := preload("res://assets/external/polyhaven/thatch_roof_angled/thatch_roof_angled_rough_1k.jpg")
 
 
 static func attach(coast: Node3D) -> void:
@@ -20,9 +45,32 @@ static func attach(coast: Node3D) -> void:
 	var palm_multi := _scatter_multimesh(coast, palm_mesh, PALM_BUDGET, 2.35, 15.0, 0.9, 1.55, false, false)
 	palm_multi.name = "TropicalPalmGrove"
 	root.add_child(palm_multi)
-	var grass_multi := _scatter_multimesh(coast, _grass_mesh(), GRASS_BUDGET, 1.25, 14.0, 0.75, 1.35, true)
+	var grass_mesh := _compose_plant_mesh(GRASS_CLUMP, PackedStringArray(["medium", "small"]), PackedStringArray(["dead", "seedling"]), Vector3(4.4, 4.4, 4.4), true)
+	if grass_mesh == null:
+		grass_mesh = _grass_mesh()
+	var grass_multi := _scatter_multimesh(coast, grass_mesh, GRASS_BUDGET, 1.45, 14.0, 0.85, 1.45, false, false)
 	grass_multi.name = "TropicalGrassTufts"
 	root.add_child(grass_multi)
+	var fern_mesh := _compose_plant_mesh(FERN_PLANT, PackedStringArray(["fern_02_a"]), PackedStringArray(), Vector3(2.45, 2.45, 2.45), true)
+	if fern_mesh:
+		var fern_multi := _scatter_multimesh(coast, fern_mesh, FERN_BUDGET, 3.6, 13.5, 0.85, 1.35, false, false)
+		fern_multi.name = "TropicalFernClumps"
+		root.add_child(fern_multi)
+	var shrub_mesh := _compose_plant_mesh(SHRUB_PLANT, PackedStringArray(["shrub_03_a"]), PackedStringArray(), Vector3(1.7, 1.7, 1.7), true)
+	if shrub_mesh:
+		var shrub_multi := _scatter_multimesh(coast, shrub_mesh, SHRUB_BUDGET, 5.2, 13.0, 0.8, 1.25, false, false)
+		shrub_multi.name = "TropicalShrubs"
+		root.add_child(shrub_multi)
+	var calathea_mesh := _compose_plant_mesh(CALATHEA_PLANT, PackedStringArray(["calathea_orbifolia_01_b"]), PackedStringArray(), Vector3(1.4, 1.4, 1.4), true)
+	if calathea_mesh:
+		var calathea_multi := _scatter_multimesh(coast, calathea_mesh, CALATHEA_BUDGET, 6.4, 12.5, 0.8, 1.15, false, false)
+		calathea_multi.name = "TropicalCalathea"
+		root.add_child(calathea_multi)
+	var boulder_mesh := _compose_plant_mesh(BOULDER_MOBILE, PackedStringArray(), PackedStringArray(), Vector3(1.6, 1.6, 1.6), true)
+	if boulder_mesh:
+		var rocks := _scatter_shore_rocks(coast, boulder_mesh, BOULDER_BUDGET)
+		rocks.name = "ShoreBoulders"
+		root.add_child(rocks)
 	root.add_child(_settlement(coast))
 	root.add_child(_volcano())
 	root.add_child(_distant_islands())
@@ -253,9 +301,7 @@ static func _grass_mesh() -> ArrayMesh:
 static func _settlement(coast: Node3D) -> Node3D:
 	var root := Node3D.new()
 	root.name = "BeachSettlement"
-	var material := StandardMaterial3D.new()
-	material.vertex_color_use_as_albedo = true
-	material.roughness = 0.9
+	var material := _hut_material()
 	var pier := MeshInstance3D.new()
 	pier.name = "WoodenPier"
 	var vertices := PackedVector3Array()
@@ -269,7 +315,7 @@ static func _settlement(coast: Node3D) -> Node3D:
 		_add_box(vertices, colors, indices, Vector3(-6.5, deck_y - 0.55, z), Vector3(0.12, 1.0, 0.12), Color(0.38, 0.25, 0.14))
 	pier.mesh = _colored_mesh(vertices, colors, indices)
 	pier.material_override = material
-	pier.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	pier.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	root.add_child(pier)
 	# Three stilted thatch huts merged into one mesh: one draw call, not three.
 	var hut_vertices := PackedVector3Array()
@@ -287,7 +333,7 @@ static func _settlement(coast: Node3D) -> Node3D:
 	huts.name = "StiltedHuts"
 	huts.mesh = _colored_mesh(hut_vertices, hut_colors, hut_indices)
 	huts.material_override = material
-	huts.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	huts.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	root.add_child(huts)
 	return root
 
@@ -331,7 +377,7 @@ static func _add_hut(vertices: PackedVector3Array, colors: PackedColorArray, ind
 	_add_box(vertices, colors, indices, origin + Vector3(0.0, stilt + size * 0.24, half_d + 0.01),
 		Vector3(size * 0.26, size * 0.44, 0.04), Color(0.12, 0.08, 0.05))
 	_add_prism_roof(vertices, colors, indices, origin + Vector3(0.0, stilt + wall_h - size * 0.04, 0.0),
-		Vector3(size * 1.5, size * 0.78, size * 1.22), roof)
+		Vector3(size * 1.5, size * 0.78, size * 1.22), Color(roof.r, roof.g, roof.b, 0.0))
 
 
 static func _add_prism_roof(vertices: PackedVector3Array, colors: PackedColorArray, indices: PackedInt32Array, center: Vector3, size: Vector3, color: Color) -> void:
@@ -526,8 +572,151 @@ static func _add_upward_triangle(vertices: PackedVector3Array, indices: PackedIn
 static func _landmass_material(grass: Color, rock: Color) -> ShaderMaterial:
 	var material := ShaderMaterial.new()
 	material.shader = TERRAIN_SHADER
-	material.set_shader_parameter("detail_albedo", COAST_DIFFUSE)
-	material.set_shader_parameter("grass_color", grass)
-	material.set_shader_parameter("rock_color", rock)
+	material.set_shader_parameter("sand_albedo", SAND_ALBEDO)
+	material.set_shader_parameter("sand_normal", SAND_NORMAL)
+	material.set_shader_parameter("sand_rough", SAND_ROUGH)
+	material.set_shader_parameter("grass_albedo", GRASS_ALBEDO)
+	material.set_shader_parameter("grass_normal", GRASS_NORMAL)
+	material.set_shader_parameter("grass_rough", GRASS_ROUGH)
+	material.set_shader_parameter("rock_albedo", ROCK_ALBEDO)
+	material.set_shader_parameter("rock_normal", ROCK_NORMAL)
+	material.set_shader_parameter("rock_rough", ROCK_ROUGH)
+	# Keep the call-site colours as a mild tint, lifted so distant islets stay readable.
+	material.set_shader_parameter("grass_tint", Color(0.62, 0.86, 0.48).lerp(grass, 0.25))
+	material.set_shader_parameter("rock_tint", Color(0.90, 0.88, 0.84).lerp(rock, 0.25))
 	material.set_shader_parameter("sea_level", -0.35)
 	return material
+
+
+static func _hut_material() -> ShaderMaterial:
+	var material := ShaderMaterial.new()
+	material.shader = HUT_SHADER
+	material.set_shader_parameter("wood_albedo", WOOD_ALBEDO)
+	material.set_shader_parameter("wood_normal", WOOD_NORMAL)
+	material.set_shader_parameter("wood_rough", WOOD_ROUGH)
+	material.set_shader_parameter("thatch_albedo", THATCH_ALBEDO)
+	material.set_shader_parameter("thatch_normal", THATCH_NORMAL)
+	material.set_shader_parameter("thatch_rough", THATCH_ROUGH)
+	return material
+
+
+static func _compose_plant_mesh(path: String, name_contains: PackedStringArray, name_excludes: PackedStringArray, bake_scale: Vector3, recenter: bool) -> ArrayMesh:
+	var packed := load(path) as PackedScene
+	if packed == null:
+		return null
+	var instance := packed.instantiate()
+	var meshes: Array[MeshInstance3D] = []
+	_collect_mesh_instances(instance, meshes)
+	if meshes.is_empty():
+		instance.queue_free()
+		return null
+	var result := ArrayMesh.new()
+	var min_y := 1.0e9
+	var baked_surfaces: Array = []
+	for mesh_instance in meshes:
+		var node_name := String(mesh_instance.name).to_lower()
+		if not name_contains.is_empty():
+			var allowed := false
+			for token in name_contains:
+				if node_name.contains(token.to_lower()):
+					allowed = true
+					break
+			if not allowed:
+				continue
+		var excluded := false
+		for token in name_excludes:
+			if node_name.contains(token.to_lower()):
+				excluded = true
+				break
+		if excluded:
+			continue
+		if mesh_instance.mesh == null:
+			continue
+		var xform := Transform3D.IDENTITY
+		var walker: Node = mesh_instance
+		while walker is Node3D:
+			xform = (walker as Node3D).transform * xform
+			if walker == instance:
+				break
+			walker = walker.get_parent()
+		xform = Transform3D.IDENTITY.scaled(bake_scale) * xform
+		var source_mesh := mesh_instance.mesh
+		for surface_index in range(source_mesh.get_surface_count()):
+			var arrays: Array = source_mesh.surface_get_arrays(surface_index)
+			var source_vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+			var vertex_count := source_vertices.size()
+			var vertices := source_vertices.duplicate()
+			for i in range(vertex_count):
+				vertices[i] = xform * vertices[i]
+				if vertices[i].y < min_y:
+					min_y = vertices[i].y
+			arrays[Mesh.ARRAY_VERTEX] = vertices
+			if arrays[Mesh.ARRAY_NORMAL] != null:
+				var source_normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+				if source_normals.size() == vertex_count:
+					var normals := source_normals.duplicate()
+					for i in range(vertex_count):
+						normals[i] = (xform.basis * normals[i]).normalized()
+					arrays[Mesh.ARRAY_NORMAL] = normals
+			baked_surfaces.append([arrays, source_mesh.surface_get_material(surface_index)])
+	if recenter and min_y < 9.0e8:
+		for entry in baked_surfaces:
+			var arrays: Array = entry[0]
+			var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+			for i in range(vertices.size()):
+				vertices[i].y -= min_y
+			arrays[Mesh.ARRAY_VERTEX] = vertices
+	for entry in baked_surfaces:
+		var arrays: Array = entry[0]
+		result.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+		if entry[1] != null:
+			result.surface_set_material(result.get_surface_count() - 1, entry[1])
+	instance.queue_free()
+	if result.get_surface_count() == 0:
+		return null
+	return result
+
+
+static func _collect_mesh_instances(node: Node, into: Array[MeshInstance3D]) -> void:
+	if node is MeshInstance3D:
+		into.append(node as MeshInstance3D)
+	for child in node.get_children():
+		_collect_mesh_instances(child, into)
+
+
+static func _scatter_shore_rocks(coast: Node3D, mesh: ArrayMesh, budget: int) -> MultiMeshInstance3D:
+	var instance := MultiMeshInstance3D.new()
+	var multi := MultiMesh.new()
+	multi.transform_format = MultiMesh.TRANSFORM_3D
+	multi.mesh = mesh
+	multi.instance_count = budget
+	var placed := 0
+	var x := -21.0
+	while x <= 21.0 and placed < budget:
+		var z := -2.2
+		while z <= 14.0 and placed < budget:
+			var jitter_x := sin(x * 5.7 + z * 2.1) * 1.3
+			var jitter_z := cos(x * 3.3 - z * 4.8) * 1.15
+			var px := x + jitter_x
+			var pz := z + jitter_z
+			var py: float = coast._terrain_height(px, pz)
+			var slope := absf(coast._terrain_height(px + 0.8, pz) - py) + absf(coast._terrain_height(px, pz + 0.8) - py)
+			var near_water: bool = py > coast.WATER_Y + 0.02 and py < coast.WATER_Y + 1.85
+			var steep: bool = py > coast.WATER_Y + 0.4 and slope > 0.55
+			if (near_water or steep) and _clear_of_ship(px, pz):
+				var yaw := sin(px * 2.4 + pz * 1.7) * TAU
+				var scale := lerpf(1.05, 2.15, 0.5 + 0.5 * sin(px * 3.2 + pz * 1.1))
+				var bury := 0.18 * scale
+				var tilt := sin(pz * 1.9) * 0.18
+				var basis := Basis.from_euler(Vector3(tilt, yaw, -tilt * 0.4)).scaled(Vector3(scale, scale * lerpf(0.75, 1.15, 0.5 + 0.5 * cos(px)), scale))
+				multi.set_instance_transform(placed, Transform3D(basis, Vector3(px, py - bury, pz)))
+				placed += 1
+			z += 3.4
+		x += 3.6
+	multi.visible_instance_count = placed
+	instance.set_meta("placed_count", placed)
+	instance.multimesh = multi
+	instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	instance.visibility_range_end = 90.0
+	instance.visibility_range_end_margin = 8.0
+	return instance

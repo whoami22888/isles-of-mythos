@@ -13,6 +13,16 @@ const COAST_DIFFUSE := preload("res://assets/external/polyhaven/coast_sand_rocks
 const COAST_NORMAL := preload("res://assets/external/polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_nor_gl_1k.jpg")
 const COAST_ROUGHNESS := preload("res://assets/external/polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_rough_1k.jpg")
 const COAST_AO := preload("res://assets/external/polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_ao_1k.jpg")
+const SAND_ALBEDO := preload("res://assets/external/polyhaven/coast_sand_01/coast_sand_01_diff_1k.jpg")
+const SAND_NORMAL := preload("res://assets/external/polyhaven/coast_sand_01/coast_sand_01_nor_gl_1k.jpg")
+const SAND_ROUGH := preload("res://assets/external/polyhaven/coast_sand_01/coast_sand_01_rough_1k.jpg")
+const GRASS_ALBEDO := preload("res://assets/external/polyhaven/forrest_ground_01/forrest_ground_01_diff_1k.jpg")
+const GRASS_NORMAL := preload("res://assets/external/polyhaven/forrest_ground_01/forrest_ground_01_nor_gl_1k.jpg")
+const GRASS_ROUGH := preload("res://assets/external/polyhaven/forrest_ground_01/forrest_ground_01_rough_1k.jpg")
+const ROCK_ALBEDO := preload("res://assets/external/polyhaven/cliff_side/cliff_side_diff_1k.jpg")
+const ROCK_NORMAL := preload("res://assets/external/polyhaven/cliff_side/cliff_side_nor_gl_1k.jpg")
+const ROCK_ROUGH := preload("res://assets/external/polyhaven/cliff_side/cliff_side_rough_1k.jpg")
+const COAST_HDRI := preload("res://assets/external/polyhaven/kloofendal_48d_partly_cloudy_puresky/kloofendal_48d_partly_cloudy_puresky_1k_ldr.png")
 const SHORE_BAKER := preload("res://scripts/coastal_shore_heightfield.gd")
 const OCEAN_SHADER := preload("res://shaders/ocean_surface.gdshader")
 const TERRAIN_SHADER := preload("res://shaders/coastal_terrain_surface.gdshader")
@@ -54,34 +64,35 @@ func _build_environment() -> void:
 	var environment := Environment.new()
 	environment.background_mode = Environment.BG_SKY
 	var sky := Sky.new()
-	var sky_material := ProceduralSkyMaterial.new()
-	sky_material.sky_top_color = Color(0.22, 0.55, 0.95)
-	# Horizon sits between the warm sun and the blue haze so fog meets sky
-	# without a hard seam.
-	sky_material.sky_horizon_color = Color(0.80, 0.86, 0.88)
-	# Past the 640 x 480 m ocean plane the camera sees the sky's lower
-	# hemisphere. Match the fog tint the far water fades into, so there is
-	# no band where the water mesh ends.
-	sky_material.ground_bottom_color = Color(0.45, 0.63, 0.82)
-	sky_material.ground_horizon_color = Color(0.62, 0.78, 0.92)
-	sky_material.sun_angle_max = 22.0
+	var sky_material := PanoramaSkyMaterial.new()
+	sky_material.panorama = COAST_HDRI
+	# Keep energy modest on compatibility / mobile: the HDRI should light the
+	# sky, not blow out the island.
+	sky_material.energy_multiplier = 1.05
 	sky.sky_material = sky_material
 	environment.sky = sky
-	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	environment.ambient_light_color = Color(0.93, 0.86, 0.72)
-	environment.ambient_light_energy = 0.55
-	environment.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	# Rotate so the brighter sky sits with the warm key light.
+	environment.sky_rotation = Vector3(0.0, deg_to_rad(155.0), 0.0)
+	environment.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
+	environment.ambient_light_energy = 0.85
+	environment.ambient_light_sky_contribution = 1.0
+	environment.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
+	environment.tonemap_mode = Environment.TONE_MAPPER_ACES
+	environment.tonemap_exposure = 0.98
+	environment.adjustment_enabled = true
+	environment.adjustment_saturation = 0.88
+	environment.adjustment_contrast = 1.05
+	environment.adjustment_brightness = 1.0
 	environment.fog_enabled = true
 	environment.fog_mode = Environment.FOG_MODE_DEPTH
-	environment.fog_light_color = Color(0.62, 0.78, 0.92)
-	environment.fog_depth_begin = 85.0
-	environment.fog_depth_end = 320.0
-	environment.fog_depth_curve = 1.15
-	environment.fog_aerial_perspective = 0.35
-	environment.fog_sun_scatter = 0.32
-	# Default 1.0 painted the whole sky in flat fog colour, the pale band at
-	# the top of the gameplay view. Keep the sky gradient readable.
-	environment.fog_sky_affect = 0.3
+	environment.fog_light_color = Color(0.72, 0.82, 0.88)
+	environment.fog_depth_begin = 48.0
+	environment.fog_depth_end = 210.0
+	environment.fog_depth_curve = 1.05
+	environment.fog_aerial_perspective = 0.45
+	environment.fog_sun_scatter = 0.28
+	# Distant islets should haze without washing out the sky dome.
+	environment.fog_sky_affect = 0.22
 	world.environment = environment
 	add_child(world)
 	var sun := DirectionalLight3D.new()
@@ -187,13 +198,23 @@ func _terrain_material() -> StandardMaterial3D:
 
 
 func _terrain_shader_material() -> ShaderMaterial:
-	# Keep the CC0 albedo/normal/roughness assignments above for the source
-	# gate, and shade the coast with slope-aware sand, grass and rock.
+	# Keep the CC0 sand/rock assignments in _terrain_material() for the source
+	# gate, and shade the coast with height/slope-blended PBR maps.
 	var reference := _terrain_material()
 	var material := ShaderMaterial.new()
 	material.shader = TERRAIN_SHADER
-	material.set_shader_parameter("detail_albedo", reference.albedo_texture)
+	material.set_shader_parameter("sand_albedo", SAND_ALBEDO)
+	material.set_shader_parameter("sand_normal", SAND_NORMAL)
+	material.set_shader_parameter("sand_rough", SAND_ROUGH)
+	material.set_shader_parameter("grass_albedo", GRASS_ALBEDO)
+	material.set_shader_parameter("grass_normal", GRASS_NORMAL)
+	material.set_shader_parameter("grass_rough", GRASS_ROUGH)
+	material.set_shader_parameter("rock_albedo", ROCK_ALBEDO)
+	material.set_shader_parameter("rock_normal", ROCK_NORMAL)
+	material.set_shader_parameter("rock_rough", ROCK_ROUGH)
 	material.set_shader_parameter("sea_level", WATER_Y)
+	if reference.albedo_texture == null:
+		push_error("Coastal terrain source albedo missing")
 	return material
 
 func _build_water() -> void:
@@ -249,7 +270,7 @@ func _build_premium_landmarks() -> void:
 	# fixed y-values. Keep the ship/cinematic sightline clear of near foliage.
 	for entry in [
 		[Vector3(-12.5, 0.0, 0.4), 1.15, 70.0], [Vector3(13.5, 0.0, 0.2), 1.25, 70.0],
-		[Vector3(-18.5, 0.0, 8.5), 1.4, 22.0], [Vector3(19.0, 0.0, 10.0), 1.3, 22.0]
+		[Vector3(-18.5, 0.0, 8.5), 1.4, 64.0], [Vector3(19.0, 0.0, 10.0), 1.3, 64.0]
 	]:
 		var rock := ROCK_SCENE.instantiate()
 		rock.position = entry[0]
@@ -260,7 +281,7 @@ func _build_premium_landmarks() -> void:
 		_configure_mobile_visibility(rock, entry[2])
 	for entry in [
 		[Vector3(-7.5, 0.0, 6.2), 1.05, 78.0], [Vector3(10.5, 0.0, 7.4), 1.0, 20.0],
-		[Vector3(-19.0, 0.0, 12.5), 1.1, 18.0], [Vector3(17.5, 0.0, 13.5), 0.95, 18.0]
+		[Vector3(-19.0, 0.0, 12.5), 1.1, 48.0], [Vector3(17.5, 0.0, 13.5), 0.95, 48.0]
 	]:
 		var tree := TREE_SCENE.instantiate()
 		tree.position = entry[0]
@@ -293,7 +314,7 @@ func _build_premium_landmarks() -> void:
 		_apply_far_foliage_lod(shoreline_tree, 36000)
 		grove.add_child(shoreline_tree)
 		_ground_asset_on_terrain(shoreline_tree)
-		_configure_mobile_visibility(shoreline_tree, 16.0, false)
+		_configure_mobile_visibility(shoreline_tree, 48.0, false)
 	for entry in [
 		[Vector3(-8.5, 0.0, 6.8), 1.25],
 		[Vector3(10.5, 0.0, 7.1), 1.5]
@@ -304,7 +325,7 @@ func _build_premium_landmarks() -> void:
 		_apply_landmark_lod(shore_rock, 30000)
 		grove.add_child(shore_rock)
 		_ground_asset_on_terrain(shore_rock, 0.18)
-		_configure_mobile_visibility(shore_rock, 20.0, false)
+		_configure_mobile_visibility(shore_rock, 64.0, false)
 	# Additional verified CC0 coastal families provide the silhouette and
 	# vegetation variation missing from the original three-asset slice. Keep
 	# them in a separate layer so the existing functional contract remains
@@ -330,7 +351,7 @@ func _build_premium_landmarks() -> void:
 		var imported := entry[1].instantiate() as Node3D
 		imported.position = entry[0]
 		imported.scale = Vector3.ONE
-		var view_range := 18.0
+		var view_range := 64.0
 		if entry[1] == TROPICAL_TREE_SCENE or entry[1] == TROPICAL_TREE_ALT_SCENE:
 			_apply_far_foliage_lod(imported, 48000)
 			view_range = 16.0
@@ -777,6 +798,17 @@ func apply_visual_quality(level: int) -> void:
 		if grass and grass.multimesh:
 			var grass_placed := int(grass.get_meta("placed_count", grass.multimesh.visible_instance_count))
 			grass.multimesh.visible_instance_count = mini(grass_counts[clamped], grass_placed)
+		for extra in [
+			["TropicalFernClumps", [0, 18, 36]],
+			["TropicalShrubs", [0, 8, 16]],
+			["TropicalCalathea", [0, 4, 8]],
+			["ShoreBoulders", [8, 14, 18]],
+		]:
+			var foliage := dressing.get_node_or_null(String(extra[0])) as MultiMeshInstance3D
+			if foliage and foliage.multimesh:
+				var placed_extra := int(foliage.get_meta("placed_count", foliage.multimesh.visible_instance_count))
+				var counts: Array = extra[1]
+				foliage.multimesh.visible_instance_count = mini(int(counts[clamped]), placed_extra)
 	var hero_range: float = [0.01, 48.0, 78.0][clamped]
 	for node in find_children("*", "Node3D", true, false):
 		if node.has_meta("heavy_foliage") and bool(node.get_meta("heavy_foliage")):
