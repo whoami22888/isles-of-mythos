@@ -17,9 +17,9 @@ func run() -> void:
 	ok = _check(grass != null and grass.multimesh != null, "grass multimesh") and ok
 	if palms and palms.multimesh:
 		ok = _check(palms.multimesh.visible_instance_count >= 24, "enough palms for a grove") and ok
-		ok = _check(palms.multimesh.visible_instance_count <= 96, "palm instance cap") and ok
+		ok = _check(palms.multimesh.visible_instance_count <= 32, "palm instance cap") and ok
 	var dressing_script = load("res://scripts/tropical_bay_dressing.gd")
-	ok = _check(dressing_script.palm_triangle_count() < 120, "palm mesh stays cheap") and ok
+	ok = _check(dressing_script.palm_triangle_count() < 15000, "palm mesh stays cheap") and ok
 	ok = _check(scene.get_node_or_null("TropicalBayDressing/DistantVolcano") != null, "volcano landmark") and ok
 	ok = _check(scene.get_node_or_null("TropicalBayDressing/HazyIslets") != null, "distant islets") and ok
 	var premium := scene.get_node_or_null("VerifiedTropicalContentLayer")

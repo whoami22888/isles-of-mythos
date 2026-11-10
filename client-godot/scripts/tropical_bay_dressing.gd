@@ -4,9 +4,10 @@ extends RefCounted
 ## No second water or terrain system. The coastal slice still owns the mesh
 ## and the shore-height contract. Geometry here is first-party.
 
-const PALM_BUDGET := 96
+const PALM_BUDGET := 32
 const GRASS_BUDGET := 180
-const PALM_TRIANGLE_BUDGET := 120
+const PALM_TRIANGLE_BUDGET := 15000
+const PALM_V2 := "res://assets/generated/palm_v2/palm_v2_mobile.glb"
 const TERRAIN_SHADER := preload("res://shaders/coastal_terrain_surface.gdshader")
 const COAST_DIFFUSE := preload("res://assets/external/polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_diff_1k.jpg")
 
@@ -15,8 +16,8 @@ static func attach(coast: Node3D) -> void:
 	var root := Node3D.new()
 	root.name = "TropicalBayDressing"
 	coast.add_child(root)
-	var palm_mesh := _palm_mesh()
-	var palm_multi := _scatter_multimesh(coast, palm_mesh, PALM_BUDGET, 2.35, 15.0, 0.9, 1.55, false)
+	var palm_mesh := _palm_v2_mesh()
+	var palm_multi := _scatter_multimesh(coast, palm_mesh, PALM_BUDGET, 2.35, 15.0, 0.9, 1.55, false, false)
 	palm_multi.name = "TropicalPalmGrove"
 	root.add_child(palm_multi)
 	var grass_multi := _scatter_multimesh(coast, _grass_mesh(), GRASS_BUDGET, 1.25, 14.0, 0.75, 1.35, true)
@@ -28,7 +29,7 @@ static func attach(coast: Node3D) -> void:
 
 
 static func palm_triangle_count() -> int:
-	return _count_triangles(_palm_mesh())
+	return _count_triangles(_palm_v2_mesh())
 
 
 static func _count_triangles(mesh: ArrayMesh) -> int:
@@ -39,7 +40,7 @@ static func _count_triangles(mesh: ArrayMesh) -> int:
 	return total
 
 
-static func _scatter_multimesh(coast: Node3D, mesh: ArrayMesh, budget: int, spacing: float, z_limit: float, scale_min: float, scale_max: float, include_beach: bool) -> MultiMeshInstance3D:
+static func _scatter_multimesh(coast: Node3D, mesh: ArrayMesh, budget: int, spacing: float, z_limit: float, scale_min: float, scale_max: float, include_beach: bool, use_override: bool = true) -> MultiMeshInstance3D:
 	var instance := MultiMeshInstance3D.new()
 	var multi := MultiMesh.new()
 	multi.transform_format = MultiMesh.TRANSFORM_3D
@@ -69,7 +70,8 @@ static func _scatter_multimesh(coast: Node3D, mesh: ArrayMesh, budget: int, spac
 	instance.set_meta("placed_count", placed)
 	instance.multimesh = multi
 	instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	instance.material_override = _foliage_material()
+	if use_override:
+		instance.material_override = _foliage_material()
 	return instance
 
 
@@ -85,6 +87,64 @@ static func _foliage_material() -> StandardMaterial3D:
 	material.metallic = 0.0
 	material.cull_mode = BaseMaterial3D.CULL_DISABLED
 	return material
+
+
+static func _palm_v2_mesh() -> ArrayMesh:
+	# Loads the PBR-textured palm_v2_mobile.glb, bakes its node transform into
+	# a mesh copy and scales it so the fronds sit ~3.4 tall like the procedural
+	# palm. Falls back to the procedural mesh if the asset is missing.
+	var packed := load(PALM_V2) as PackedScene
+	if packed == null:
+		return _palm_mesh()
+	var instance := packed.instantiate()
+	var mesh_instance := _find_mesh_instance(instance)
+	if mesh_instance == null or mesh_instance.mesh == null:
+		instance.queue_free()
+		return _palm_mesh()
+	var source_mesh := mesh_instance.mesh
+	# Compose local xforms from the mesh up to the packed root (instance may not be in the tree).
+	var xform := Transform3D.IDENTITY
+	var walker: Node = mesh_instance
+	while walker is Node3D:
+		xform = (walker as Node3D).transform * xform
+		if walker == instance:
+			break
+		walker = walker.get_parent()
+	xform = Transform3D.IDENTITY.scaled(Vector3(3.1, 3.1, 3.1)) * xform
+	var result := ArrayMesh.new()
+	for surface_index in range(source_mesh.get_surface_count()):
+		var arrays := source_mesh.surface_get_arrays(surface_index)
+		var source_vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var vertex_count := source_vertices.size()
+		var vertices := source_vertices.duplicate()
+		for i in range(vertex_count):
+			vertices[i] = xform * vertices[i]
+		arrays[Mesh.ARRAY_VERTEX] = vertices
+		if arrays[Mesh.ARRAY_NORMAL] != null:
+			var source_normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+			if source_normals.size() == vertex_count:
+				var normals := source_normals.duplicate()
+				for i in range(vertex_count):
+					normals[i] = (xform.basis * normals[i]).normalized()
+				arrays[Mesh.ARRAY_NORMAL] = normals
+		result.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+		var material := source_mesh.surface_get_material(surface_index)
+		if material != null:
+			result.surface_set_material(surface_index, material)
+	instance.queue_free()
+	if result.get_surface_count() == 0:
+		return _palm_mesh()
+	return result
+
+
+static func _find_mesh_instance(node: Node) -> MeshInstance3D:
+	if node is MeshInstance3D:
+		return node as MeshInstance3D
+	for child in node.get_children():
+		var found := _find_mesh_instance(child)
+		if found != null:
+			return found
+	return null
 
 
 static func _palm_mesh() -> ArrayMesh:

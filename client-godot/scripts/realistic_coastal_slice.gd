@@ -769,7 +769,7 @@ func apply_visual_quality(level: int) -> void:
 	if dressing:
 		var palms := dressing.get_node_or_null("TropicalPalmGrove") as MultiMeshInstance3D
 		var grass := dressing.get_node_or_null("TropicalGrassTufts") as MultiMeshInstance3D
-		var palm_counts: Array[int] = [32, 64, 96]
+		var palm_counts: Array[int] = [12, 24, 32]
 		var grass_counts: Array[int] = [0, 90, 180]
 		if palms and palms.multimesh:
 			var palm_placed := int(palms.get_meta("placed_count", palms.multimesh.visible_instance_count))

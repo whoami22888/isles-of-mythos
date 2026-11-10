@@ -13,6 +13,7 @@ const CLIFF_SCENE := "res://assets/external/polyhaven/coastal_cliff_01/coastal_c
 const CLIFF_ALBEDO := "res://assets/external/polyhaven/coastal_cliff_01/textures/coastal_cliff_01_diff_1k.jpg"
 const CLIFF_NORMAL := "res://assets/external/polyhaven/coastal_cliff_01/textures/coastal_cliff_01_nor_gl_1k.jpg"
 const KENNEY := "res://assets/opening/kenney/"
+const PALM_V2 := "res://assets/generated/palm_v2/palm_v2_mobile.glb"
 const DISPLAY_FONT := "res://assets/fonts/PirataOne-Regular.ttf"
 const UI_FONT := "res://assets/fonts/IMFeENrm28P.ttf"
 const FLAG_PATH := "user://opening_battle.cfg"
@@ -592,9 +593,9 @@ func _build_island() -> void:
 	island.add_child(sand)
 	_place_model(island, CLIFF_SCENE, "Cliff", Vector3(-6, 0.2, 8), Vector3(0, 0.4, 0), 1.05)
 	_place_model(island, KENNEY + "tower-complete-small.glb", "Watchtower", Vector3(-2, 8.2, 6), Vector3.ZERO, 1.8)
-	_place_model(island, KENNEY + "palm-detailed-straight.glb", "PalmA", Vector3(10, 0.55, -6), Vector3(0, 0.6, 0), 1.7)
-	_place_model(island, KENNEY + "palm-bend.glb", "PalmB", Vector3(16, 0.55, 2), Vector3(0, 1.2, 0), 1.6)
-	_place_model(island, KENNEY + "palm-detailed-straight.glb", "PalmC", Vector3(-16, 0.55, -8), Vector3(0, 2.1, 0), 1.5)
+	_place_model(island, PALM_V2, "PalmA", Vector3(10, 0.55, -6), Vector3(0, 0.6, 0), 1.7 * 3.85)
+	_place_model(island, PALM_V2, "PalmB", Vector3(16, 0.55, 2), Vector3(0, 1.2, 0), 1.6 * 3.85)
+	_place_model(island, PALM_V2, "PalmC", Vector3(-16, 0.55, -8), Vector3(0, 2.1, 0), 1.5 * 3.85)
 	_place_model(island, KENNEY + "rocks-sand-a.glb", "Rocks", Vector3(20, 0.2, 10), Vector3(0, 0.2, 0), 1.4)
 	_place_model(island, KENNEY + "structure-platform-dock.glb", "Dock", Vector3(24, 0.1, -4), Vector3(0, 1.1, 0), 2.4)
 	_place_model(island, KENNEY + "ship-pirate-large.glb", "BeachedHull", Vector3(8, 0.7, 12), Vector3(0.15, 2.4, 0.05), 1.15)
