@@ -23,6 +23,8 @@ const ROCK_ALBEDO := preload("res://assets/external/polyhaven/cliff_side/cliff_s
 const ROCK_NORMAL := preload("res://assets/external/polyhaven/cliff_side/cliff_side_nor_gl_1k.jpg")
 const ROCK_ROUGH := preload("res://assets/external/polyhaven/cliff_side/cliff_side_rough_1k.jpg")
 const COAST_HDRI := preload("res://assets/external/polyhaven/kloofendal_48d_partly_cloudy_puresky/kloofendal_48d_partly_cloudy_puresky_1k_ldr.png")
+const WATER_NORMAL := preload("res://assets/generated/water/water_ripples_nor_gl_1k.png")
+const SUN_GLOW := preload("res://assets/generated/lighting/sun_glow.png")
 const SHORE_BAKER := preload("res://scripts/coastal_shore_heightfield.gd")
 const OCEAN_SHADER := preload("res://shaders/ocean_surface.gdshader")
 const TERRAIN_SHADER := preload("res://shaders/coastal_terrain_surface.gdshader")
@@ -68,44 +70,49 @@ func _build_environment() -> void:
 	sky_material.panorama = COAST_HDRI
 	# Keep energy modest on compatibility / mobile: the HDRI should light the
 	# sky, not blow out the island.
-	sky_material.energy_multiplier = 1.05
+	sky_material.energy_multiplier = 0.74
 	sky.sky_material = sky_material
 	environment.sky = sky
 	# Rotate so the brighter sky sits with the warm key light.
 	environment.sky_rotation = Vector3(0.0, deg_to_rad(155.0), 0.0)
 	environment.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-	environment.ambient_light_energy = 0.85
+	environment.ambient_light_energy = 0.44
 	environment.ambient_light_sky_contribution = 1.0
 	environment.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
 	environment.tonemap_mode = Environment.TONE_MAPPER_ACES
-	environment.tonemap_exposure = 0.98
+	environment.tonemap_exposure = 0.86
 	environment.adjustment_enabled = true
 	environment.adjustment_saturation = 0.88
-	environment.adjustment_contrast = 1.05
-	environment.adjustment_brightness = 1.0
+	environment.adjustment_contrast = 1.22
+	environment.adjustment_brightness = 0.96
 	environment.fog_enabled = true
 	environment.fog_mode = Environment.FOG_MODE_DEPTH
-	environment.fog_light_color = Color(0.72, 0.82, 0.88)
-	environment.fog_depth_begin = 48.0
-	environment.fog_depth_end = 210.0
+	environment.fog_light_color = Color(0.46, 0.62, 0.84)
+	environment.fog_depth_begin = 28.0
+	environment.fog_depth_end = 180.0
 	environment.fog_depth_curve = 1.05
-	environment.fog_aerial_perspective = 0.45
-	environment.fog_sun_scatter = 0.28
-	# Distant islets should haze without washing out the sky dome.
-	environment.fog_sky_affect = 0.22
+	environment.fog_aerial_perspective = 0.72
+	environment.fog_sun_scatter = 0.22
+	# Keep the sky readable; haze is for distant land, not the dome.
+	environment.fog_sky_affect = 0.08
+	# Glow is ignored on some compatibility devices; the sun-glow billboard is the fallback.
+	environment.glow_enabled = true
+	environment.glow_intensity = 0.28
+	environment.glow_bloom = 0.08
 	world.environment = environment
 	add_child(world)
 	var sun := DirectionalLight3D.new()
 	sun.name = "WarmSun"
-	# Light arrives from the gameplay-camera side so sail faces are not black.
-	sun.rotation_degrees = Vector3(-46.0, 155.0, 0.0)
-	sun.light_color = Color(1.0, 0.92, 0.74)
-	sun.light_energy = 1.55
+	# Slightly lower golden key so the harbour side gets warm raking light.
+	sun.rotation_degrees = Vector3(-42.0, 155.0, 0.0)
+	sun.light_color = Color(1.0, 0.74, 0.42)
+	sun.light_energy = 1.95
 	sun.shadow_enabled = true
 	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
 	sun.directional_shadow_max_distance = 64.0
 	sun.shadow_bias = 0.06
 	add_child(sun)
+	_build_sun_glow(sun)
 
 func _terrain_height(px: float, pz: float) -> float:
 	# Seabed, beach, grass shelf and cliff. The same function grounds props.
@@ -119,7 +126,7 @@ func _terrain_height(px: float, pz: float) -> float:
 	seabed += smoothstep(-3.0, 1.2, dist) * 4.2
 	var beach := smoothstep(0.0, 5.0, dist) * 0.7
 	var grass := smoothstep(4.5, 10.0, dist) * 1.5
-	var cliff := smoothstep(10.5, 16.5, dist) * (6.2 + sin(px * 0.28) * 0.6)
+	var cliff := smoothstep(10.8, 14.4, dist) * (7.6 + sin(px * 0.28) * 0.85)
 	var plateau := smoothstep(15.0, 20.0, dist) * 1.2
 	var ridge := sin(px * 0.22 + 0.5) * 0.35 + cos(px * 0.51 - pz * 0.16) * 0.22
 	var land := WATER_Y + beach + grass + cliff + plateau + ridge
@@ -217,6 +224,37 @@ func _terrain_shader_material() -> ShaderMaterial:
 		push_error("Coastal terrain source albedo missing")
 	return material
 
+func sun_basis_z() -> Vector3:
+	var sun := get_node_or_null("WarmSun") as DirectionalLight3D
+	if sun:
+		return sun.global_transform.basis.z
+	return Vector3(0.35, 0.75, 0.55)
+
+
+func _build_sun_glow(sun: DirectionalLight3D) -> void:
+	# Compatibility often skips Environment.glow. A soft additive billboard in
+	# the sun's direction gives a cheap golden bloom that still depth-tests
+	# against the island.
+	var glow := MeshInstance3D.new()
+	glow.name = "SunGlow"
+	var quad := QuadMesh.new()
+	quad.size = Vector2(36.0, 36.0)
+	glow.mesh = quad
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	mat.albedo_texture = SUN_GLOW
+	mat.albedo_color = Color(1.0, 0.82, 0.5, 0.9)
+	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	mat.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	glow.material_override = mat
+	glow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	glow.position = Vector3(0.0, 14.0, 0.0) + sun.global_transform.basis.z * 95.0
+	add_child(glow)
+
+
 func _build_water() -> void:
 	# Preserve exact PBR terrain as shoreline source of truth. The binder
 	# rejects missing, transformed or non-grid geometry instead of inventing
@@ -243,8 +281,11 @@ func _build_water() -> void:
 	var material := ShaderMaterial.new()
 	material.shader = OCEAN_SHADER
 	material.set_shader_parameter("swell_scale", 0.08)
-	material.set_shader_parameter("ripple_detail", 0.18)
-	material.set_shader_parameter("foam_amount", 0.85)
+	material.set_shader_parameter("ripple_detail", 0.62)
+	material.set_shader_parameter("foam_amount", 1.0)
+	material.set_shader_parameter("water_normal", WATER_NORMAL)
+	material.set_shader_parameter("sand_albedo", SAND_ALBEDO)
+	material.set_shader_parameter("sun_dir", -sun_basis_z())
 	var baked: Dictionary = SHORE_BAKER.bind_to_material(terrain, material, 96, 72)
 	if baked.has("error"):
 		push_error("Coast heightmap binding failed: " + str(baked["error"]))
@@ -791,7 +832,7 @@ func apply_visual_quality(level: int) -> void:
 		var palms := dressing.get_node_or_null("TropicalPalmGrove") as MultiMeshInstance3D
 		var grass := dressing.get_node_or_null("TropicalGrassTufts") as MultiMeshInstance3D
 		var palm_counts: Array[int] = [12, 18, 24]
-		var grass_counts: Array[int] = [0, 90, 180]
+		var grass_counts: Array[int] = [0, 280, 560]
 		if palms and palms.multimesh:
 			var palm_placed := int(palms.get_meta("placed_count", palms.multimesh.visible_instance_count))
 			palms.multimesh.visible_instance_count = mini(palm_counts[clamped], palm_placed)
@@ -799,10 +840,16 @@ func apply_visual_quality(level: int) -> void:
 			var grass_placed := int(grass.get_meta("placed_count", grass.multimesh.visible_instance_count))
 			grass.multimesh.visible_instance_count = mini(grass_counts[clamped], grass_placed)
 		for extra in [
-			["TropicalFernClumps", [0, 18, 36]],
-			["TropicalShrubs", [0, 8, 16]],
-			["TropicalCalathea", [0, 4, 8]],
-			["ShoreBoulders", [8, 14, 18]],
+			["TropicalFernClumps", [0, 48, 96]],
+			["TropicalShrubs", [0, 24, 48]],
+			["TropicalCalathea", [0, 14, 28]],
+			["TropicalAnthurium", [0, 9, 18]],
+			["TropicalUrsinia", [0, 20, 40]],
+			["TropicalSorrel", [0, 16, 32]],
+			["CliffLedgeFerns", [0, 24, 48]],
+			["ShoreBoulders", [4, 8, 10]],
+			["ShoreRocks07", [4, 8, 10]],
+			["ShoreMossRocks", [4, 8, 10]],
 		]:
 			var foliage := dressing.get_node_or_null(String(extra[0])) as MultiMeshInstance3D
 			if foliage and foliage.multimesh:
@@ -831,12 +878,11 @@ func _install_cliff_proxy(asset: Node3D) -> void:
 		return
 	var source := meshes[0] as MeshInstance3D
 	var material := source.get_active_material(0)
-	# A closed, grounded rock ridge keeps the admitted PBR cliff material at
-	# mobile cost. The former open arch sheet read as floating ribbons.
-	source.mesh = Dressing.landmass_mesh(6.5, 2.75, 5.8, asset.position.x * 0.37, 0.0, 5, 16)
+	# Sculpted ridge: steep shore face, a mid ledge for vegetation, gentler
+	# back slope. The terrain shader puts rock on the cliffs and grass on ledges.
+	source.mesh = Dressing.cliff_ridge_mesh(13.0, 8.4, 5.2, asset.position.x * 0.41)
 	source.transform = Transform3D.IDENTITY
-	if material:
-		source.set_surface_override_material(0, material)
+	source.set_surface_override_material(0, Dressing.cliff_pbr_material())
 	for extra_index in range(1, meshes.size()):
 		var extra := meshes[extra_index] as MeshInstance3D
 		extra.mesh = null

@@ -1,0 +1,155 @@
+{
+  "asset": {
+    "version": "2.0",
+    "generator": "iom-island-pass rock_07 mobile"
+  },
+  "buffers": [
+    {
+      "uri": "rock_07_mobile.bin",
+      "byteLength": 88956
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteOffset": 0,
+      "byteLength": 24192,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 24192,
+      "byteLength": 24192,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 48384,
+      "byteLength": 16128,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 64512,
+      "byteLength": 24444,
+      "target": 34963
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 2016,
+      "type": "VEC3",
+      "min": [
+        -0.08634898066520691,
+        -0.0015798757473627727,
+        -0.1765643679178678
+      ],
+      "max": [
+        0.08091283962130547,
+        0.14080990850925446,
+        0.1418253630399704
+      ]
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 2016,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 2016,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5123,
+      "count": 12222,
+      "type": "SCALAR"
+    }
+  ],
+  "images": [
+    {
+      "uri": "textures/rock_07_diff_1k.jpg"
+    },
+    {
+      "uri": "textures/rock_07_nor_gl_1k.jpg"
+    },
+    {
+      "uri": "textures/rock_07_arm_1k.jpg"
+    }
+  ],
+  "samplers": [
+    {
+      "magFilter": 9729,
+      "minFilter": 9987,
+      "wrapS": 10497,
+      "wrapT": 10497
+    }
+  ],
+  "textures": [
+    {
+      "sampler": 0,
+      "source": 0
+    },
+    {
+      "sampler": 0,
+      "source": 1
+    },
+    {
+      "sampler": 0,
+      "source": 2
+    }
+  ],
+  "materials": [
+    {
+      "name": "rock_07",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 0
+        },
+        "metallicFactor": 0,
+        "metallicRoughnessTexture": {
+          "index": 2
+        }
+      },
+      "normalTexture": {
+        "index": 1
+      }
+    }
+  ],
+  "meshes": [
+    {
+      "name": "rock_07_mobile",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "indices": 3,
+          "material": 0,
+          "mode": 4
+        }
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "rock_07",
+      "mesh": 0
+    }
+  ],
+  "scenes": [
+    {
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "scene": 0
+}

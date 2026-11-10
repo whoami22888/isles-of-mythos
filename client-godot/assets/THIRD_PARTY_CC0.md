@@ -37,3 +37,21 @@ Downloads used the public Poly Haven API (`https://api.polyhaven.com/files/{id}`
 coast_sand_rocks_02, coast_rocks_05, coastal_cliff_01, rock_moss_set_01, tree_small_02, island_tree_01, island_tree_02, dutch_ship_medium. See also `TITLE_SCREEN_PROVENANCE.md` and `opening/PROVENANCE.md`.
 
 Palms (`assets/generated/palm_v2/`) are first-party game art, not Poly Haven, and are out of scope for this pass.
+
+
+## Island art pass 3
+
+| Asset | Source | Local path | Notes |
+| --- | --- | --- | --- |
+| rock_07 | https://polyhaven.com/a/rock_07 | `external/polyhaven/rock_07/` | Official 1K textures. `rock_07_mobile.gltf` is a cluster-decimated ~4070-triangle derivative. High-poly source bin is not in the tree. |
+| anthurium_botany_01 | https://polyhaven.com/a/anthurium_botany_01 | `external/polyhaven/anthurium_botany_01/` | Red tropical spathes. Alpha packed into the 1K PNG albedo. Runtime uses the `anthurium_botany_05_e` clump. |
+| flower_ursinia | https://polyhaven.com/a/flower_ursinia | `external/polyhaven/flower_ursinia/` | Orange Namaqualand daisies. Alpha packed into the 1K PNG albedo. Runtime uses the smaller d/e clumps. |
+| shrub_sorrel_01 | https://polyhaven.com/a/shrub_sorrel_01 | `external/polyhaven/shrub_sorrel_01/` | Red sorrel. Alpha packed into the 1K PNG albedo. |
+| rock_moss_set_01 (existing) | https://polyhaven.com/a/rock_moss_set_01 | `external/polyhaven/rock_moss_set_01/` | Already in the tree. Pass 3 scatters the `rock03` mesh as a third shore-rock family. |
+
+### First-party generated (not third-party)
+
+| File | Path | Notes |
+| --- | --- | --- |
+| water_ripples_nor_gl_1k.png | `generated/water/` | Tiling OpenGL water normal authored for this pass (domain-warped, multi-direction wave trains). Used because Poly Haven has no CC0 water-normal texture at 1K. |
+| sun_glow.png | `generated/lighting/` | Soft radial sun disc / halo for a compatibility-safe additive bloom billboard. |
