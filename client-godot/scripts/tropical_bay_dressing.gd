@@ -5,19 +5,26 @@ extends RefCounted
 ## and the shore-height contract. Geometry here is first-party.
 
 const PALM_BUDGET := 24
-const GRASS_BUDGET := 980
-const FERN_BUDGET := 160
-const SHRUB_BUDGET := 80
-const CALATHEA_BUDGET := 44
-const ANTHURIUM_BUDGET := 24
-const URSINIA_BUDGET := 48
-const SORREL_BUDGET := 40
-const LEDGE_FERN_BUDGET := 72
-const VINE_BUDGET := 40
-const HERO_FLOWER_BUDGET := 12
+const GRASS_BUDGET := 1800
+const FERN_BUDGET := 220
+const SHRUB_BUDGET := 120
+const CALATHEA_BUDGET := 60
+const ANTHURIUM_BUDGET := 32
+const URSINIA_BUDGET := 56
+const SORREL_BUDGET := 56
+const LEDGE_FERN_BUDGET := 96
+const VINE_BUDGET := 48
+const HERO_FLOWER_BUDGET := 16
 const BOULDER_BUDGET := 10
 const ROCK07_BUDGET := 10
 const MOSS_ROCK_BUDGET := 10
+const CANOPY_BUDGET := 8
+const CANOPY_B_BUDGET := 6
+const CRAG_BUDGET := 7
+const CRAG07_BUDGET := 5
+const DRIFTWOOD_BUDGET := 8
+const BEACH_ROCK_BUDGET := 12
+const HUT_UNDERSTORY_BUDGET := 18
 const PALM_TRIANGLE_BUDGET := 20000
 const PALM_V2 := "res://assets/generated/palm_v2/palm_v2_mobile.glb"
 const GRASS_CLUMP := "res://assets/external/polyhaven/grass_bermuda_01/grass_bermuda_01_1k.gltf"
@@ -30,6 +37,8 @@ const SORREL_PLANT := "res://assets/external/polyhaven/shrub_sorrel_01/shrub_sor
 const BOULDER_MOBILE := "res://assets/external/polyhaven/boulder_01/boulder_01_mobile.gltf"
 const ROCK07_MOBILE := "res://assets/external/polyhaven/rock_07/rock_07_mobile.gltf"
 const MOSS_ROCK := "res://assets/external/polyhaven/rock_moss_set_01/rock_moss_set_01_1k.gltf"
+const TREE01_LOD2 := "res://assets/external/generated/foliage/island_tree_01_lod2.glb"
+const TREE02_LOD2 := "res://assets/external/generated/foliage/island_tree_02_lod2.glb"
 const VINE_ALBEDO := preload("res://assets/generated/foliage/hanging_vines_rgba.png")
 const CLIFF_SHADER := preload("res://shaders/cliff_surface.gdshader")
 const ROCK_SHADER := preload("res://shaders/rock_surface.gdshader")
@@ -60,9 +69,9 @@ static var _hut_spots: Array[Vector2] = []
 
 static func attach(coast: Node3D) -> void:
 	_hut_spots = [
-		coast.walk_to_land(-11.0, 6.2, 0.6),
-		coast.walk_to_land(-7.8, 7.0, 0.6),
-		coast.walk_to_land(8.2, 6.8, 0.6),
+		coast.walk_to_gentle(-10.4, 8.6, 1.35),
+		coast.walk_to_gentle(-6.4, 9.2, 1.35),
+		coast.walk_to_gentle(8.0, 9.0, 1.35),
 	]
 	var root := Node3D.new()
 	root.name = "TropicalBayDressing"
@@ -74,12 +83,12 @@ static func attach(coast: Node3D) -> void:
 	var grass_mesh := _compose_plant_mesh(GRASS_CLUMP, PackedStringArray(["medium", "small"]), PackedStringArray(["dead", "seedling"]), Vector3(5.2, 5.2, 5.2), true)
 	if grass_mesh == null:
 		grass_mesh = _grass_mesh()
-	var grass_multi := _scatter_multimesh(coast, grass_mesh, GRASS_BUDGET, 0.50, 24.0, 0.95, 1.55, false, false, 0.6, true, 72.0)
+	var grass_multi := _scatter_multimesh(coast, grass_mesh, GRASS_BUDGET, 0.36, 24.0, 0.90, 1.40, false, false, 0.6, true, 72.0)
 	grass_multi.name = "TropicalGrassTufts"
 	root.add_child(grass_multi)
 	var fern_mesh := _compose_plant_mesh(FERN_PLANT, PackedStringArray(["fern_02_a"]), PackedStringArray(), Vector3(3.4, 3.4, 3.4), true)
 	if fern_mesh:
-		var fern_multi := _scatter_multimesh(coast, fern_mesh, FERN_BUDGET, 1.15, 24.0, 1.0, 1.55, false, false, 0.8, true, 68.0)
+		var fern_multi := _scatter_multimesh(coast, fern_mesh, FERN_BUDGET, 0.95, 24.0, 1.0, 1.55, false, false, 0.8, true, 68.0)
 		fern_multi.name = "TropicalFernClumps"
 		root.add_child(fern_multi)
 		var ledge_ferns := _scatter_multimesh(coast, fern_mesh, LEDGE_FERN_BUDGET, 1.45, 24.0, 1.0, 1.55, false, false, 8.0, false, 80.0)
@@ -87,12 +96,12 @@ static func attach(coast: Node3D) -> void:
 		root.add_child(ledge_ferns)
 	var shrub_mesh := _compose_plant_mesh(SHRUB_PLANT, PackedStringArray(["shrub_03_a"]), PackedStringArray(), Vector3(2.55, 2.55, 2.55), true)
 	if shrub_mesh:
-		var shrub_multi := _scatter_multimesh(coast, shrub_mesh, SHRUB_BUDGET, 1.65, 24.0, 0.95, 1.5, false, false, 1.0, true, 70.0)
+		var shrub_multi := _scatter_multimesh(coast, shrub_mesh, SHRUB_BUDGET, 1.35, 24.0, 0.95, 1.5, false, false, 1.0, true, 70.0)
 		shrub_multi.name = "TropicalShrubs"
 		root.add_child(shrub_multi)
 	var calathea_mesh := _compose_plant_mesh(CALATHEA_PLANT, PackedStringArray(["calathea_orbifolia_01_b"]), PackedStringArray(), Vector3(2.35, 2.35, 2.35), true)
 	if calathea_mesh:
-		var calathea_multi := _scatter_multimesh(coast, calathea_mesh, CALATHEA_BUDGET, 1.95, 24.0, 1.0, 1.45, false, false, 1.1, true, 64.0)
+		var calathea_multi := _scatter_multimesh(coast, calathea_mesh, CALATHEA_BUDGET, 1.55, 24.0, 1.0, 1.45, false, false, 1.1, true, 64.0)
 		calathea_multi.name = "TropicalCalathea"
 		root.add_child(calathea_multi)
 	var anthurium_mesh := _compose_plant_mesh(ANTHURIUM_PLANT, PackedStringArray(["anthurium_botany_05_e"]), PackedStringArray(), Vector3(2.4, 2.4, 2.4), true)
@@ -115,7 +124,9 @@ static func attach(coast: Node3D) -> void:
 			Vector3(10.8, 0.0, 8.2), Vector3(11.4, 0.0, 6.8), Vector3(8.6, 0.0, 7.4),
 			Vector3(-10.2, 0.0, 8.0), Vector3(-8.0, 0.0, 7.2), Vector3(-12.2, 0.0, 8.6),
 			Vector3(2.0, 0.0, 9.4), Vector3(13.0, 0.0, 10.0), Vector3(6.4, 0.0, 8.2),
-			Vector3(11.6, 0.0, 9.2), Vector3(-2.4, 0.0, 9.0), Vector3(7.8, 0.0, 6.6)
+			Vector3(11.6, 0.0, 9.2), Vector3(-2.4, 0.0, 9.0), Vector3(7.8, 0.0, 6.6),
+			Vector3(4.2, 0.0, 8.8), Vector3(-14.0, 0.0, 9.6), Vector3(15.2, 0.0, 9.2),
+			Vector3(-4.8, 0.0, 8.4)
 		]), 2.1, 2.8)
 		hero_red.name = "HeroAnthurium"
 		root.add_child(hero_red)
@@ -124,7 +135,9 @@ static func attach(coast: Node3D) -> void:
 			Vector3(10.6, 0.0, 7.6), Vector3(8.0, 0.0, 8.4), Vector3(12.8, 0.0, 9.0),
 			Vector3(-11.0, 0.0, 7.8), Vector3(-8.4, 0.0, 8.6), Vector3(-6.2, 0.0, 9.2),
 			Vector3(0.6, 0.0, 10.0), Vector3(14.0, 0.0, 9.4), Vector3(5.8, 0.0, 7.8),
-			Vector3(7.2, 0.0, 9.6), Vector3(9.4, 0.0, 8.0), Vector3(11.8, 0.0, 7.2)
+			Vector3(7.2, 0.0, 9.6), Vector3(9.4, 0.0, 8.0), Vector3(11.8, 0.0, 7.2),
+			Vector3(-13.4, 0.0, 8.8), Vector3(3.4, 0.0, 8.6), Vector3(16.0, 0.0, 10.2),
+			Vector3(-1.0, 0.0, 8.0)
 		]), 2.2, 2.9)
 		hero_orange.name = "HeroUrsinia"
 		root.add_child(hero_orange)
@@ -151,6 +164,45 @@ static func attach(coast: Node3D) -> void:
 		var moss_rocks := _scatter_rock_clusters(coast, moss_mesh, MOSS_ROCK_BUDGET, 3.7, 0.48, 0.88)
 		moss_rocks.name = "ShoreMossRocks"
 		root.add_child(moss_rocks)
+	var tree01_mesh := _compose_plant_mesh(TREE01_LOD2, PackedStringArray(), PackedStringArray(), Vector3(1.15, 1.15, 1.15), true)
+	if tree01_mesh:
+		_apply_leaf_scissor(tree01_mesh)
+		var canopy := _scatter_multimesh(coast, tree01_mesh, CANOPY_BUDGET, 5.4, 24.0, 1.05, 1.55, false, false, 3.6, false, 88.0)
+		canopy.name = "TropicalBroadleafCanopy"
+		canopy.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		root.add_child(canopy)
+	var tree02_mesh := _compose_plant_mesh(TREE02_LOD2, PackedStringArray(), PackedStringArray(), Vector3(1.1, 1.1, 1.1), true)
+	if tree02_mesh:
+		_apply_leaf_scissor(tree02_mesh)
+		var canopy_b := _scatter_multimesh(coast, tree02_mesh, CANOPY_B_BUDGET, 6.0, 24.0, 1.0, 1.5, false, false, 4.2, false, 88.0)
+		canopy_b.name = "TropicalBroadleafCanopyB"
+		canopy_b.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		root.add_child(canopy_b)
+	var crag_boulder := _compose_plant_mesh(BOULDER_MOBILE, PackedStringArray(), PackedStringArray(), Vector3.ONE, true)
+	if crag_boulder:
+		_apply_crag_shader(crag_boulder)
+		var crags := _scatter_summit_crags(coast, crag_boulder, CRAG_BUDGET, 1.0, 2.6, 4.4)
+		crags.name = "SummitCrags"
+		root.add_child(crags)
+	var crag_rock07 := _compose_plant_mesh(ROCK07_MOBILE, PackedStringArray(), PackedStringArray(), Vector3.ONE, true)
+	if crag_rock07:
+		_apply_crag_shader(crag_rock07)
+		var crags07 := _scatter_summit_crags(coast, crag_rock07, CRAG07_BUDGET, 2.2, 2.4, 4.0)
+		crags07.name = "SummitCrags07"
+		root.add_child(crags07)
+	var drift_mesh := _driftwood_mesh()
+	if drift_mesh:
+		var drift := _scatter_beach_props(coast, drift_mesh, DRIFTWOOD_BUDGET, 0.6, 0.85, 1.25, 0.12)
+		drift.name = "BeachDriftwood"
+		root.add_child(drift)
+	if rock07_mesh:
+		var beach_rocks := _scatter_beach_props(coast, rock07_mesh, BEACH_ROCK_BUDGET, 1.7, 0.28, 0.55, 0.22)
+		beach_rocks.name = "BeachScatterRocks"
+		root.add_child(beach_rocks)
+	if fern_mesh:
+		var hut_plants := _scatter_hut_understory(coast, fern_mesh, HUT_UNDERSTORY_BUDGET)
+		hut_plants.name = "HutUnderstory"
+		root.add_child(hut_plants)
 	root.add_child(_settlement(coast))
 	root.add_child(_volcano())
 	root.add_child(_distant_islands())
@@ -176,18 +228,18 @@ static func _scatter_multimesh(coast: Node3D, mesh: ArrayMesh, budget: int, spac
 	multi.instance_count = budget
 	var placed := 0
 	var min_height := -0.05 if include_beach else (1.6 if z_start > 8.0 else 1.05)
-	var slope_cap := 0.85 if include_beach else (2.15 if z_start > 8.0 else 1.25)
-	# Two offset passes so an irregular footprint still fills the budget.
-	for pass_i in range(2):
+	var slope_cap := 0.85 if include_beach else (2.85 if z_start > 8.0 else 2.45)
+	# Offset passes so an irregular footprint still fills the denser budget.
+	for pass_i in range(3):
 		if placed >= budget:
 			break
-		var x := -28.0 + (spacing * 0.5 if pass_i == 1 else 0.0)
+		var x := -28.0 + spacing * 0.33 * float(pass_i)
 		while x <= 28.0 and placed < budget:
-			var z := (z_start if z_start > -900.0 else (-1.0 if include_beach else 1.2)) + (spacing * 0.45 if pass_i == 1 else 0.0)
+			var z := (z_start if z_start > -900.0 else (-1.0 if include_beach else 1.2)) + spacing * 0.28 * float(pass_i)
 			while z <= z_limit and placed < budget:
 				var step := spacing
 				if inland_dense and z > 3.6:
-					step = spacing * 0.40
+					step = spacing * 0.32
 				var jitter_x := sin(x * 12.1 + z * 4.7 + float(pass_i) * 5.3) * step * 0.35
 				var jitter_z := cos(x * 7.3 - z * 9.1 + float(pass_i) * 3.1) * step * 0.35
 				var px := x + jitter_x
@@ -221,16 +273,15 @@ static func _clear_of_ship(px: float, pz: float) -> bool:
 
 static func _on_settlement_path(px: float, pz: float) -> bool:
 	for hut in _hut_spots:
-		if Vector2(px, pz).distance_to(hut) < 2.6:
+		# Only the hut footprint itself; a foliage ring sits just outside this.
+		if Vector2(px, pz).distance_to(hut) < 0.95:
 			return true
-	# Walked strip along the bay terrace between the west and east huts.
-	if _hut_spots.size() >= 2:
+	# Narrow path from the west hut down to the pier, not a cleared lawn.
+	if _hut_spots.size() >= 1:
 		var west: Vector2 = _hut_spots[0]
-		var east: Vector2 = _hut_spots[_hut_spots.size() - 1]
-		var mid_z := (west.y + east.y) * 0.5
-		if absf(pz - mid_z) < 2.2 and px > west.x - 1.0 and px < east.x + 1.0:
+		if absf(px - (west.x + 1.8)) < 1.05 and pz < west.y and pz > west.y - 4.8:
 			return true
-	return absf(px) < 3.4 and pz > 2.0 and pz < 9.0
+	return absf(px) < 2.0 and pz > 2.0 and pz < 6.2
 
 
 static func _foliage_material() -> StandardMaterial3D:
@@ -697,7 +748,7 @@ static func _landmass_material(grass: Color, rock: Color, distant: bool = false)
 	material.set_shader_parameter("rock_normal", ROCK_NORMAL)
 	material.set_shader_parameter("rock_rough", ROCK_ROUGH)
 	material.set_shader_parameter("grass_tint", Color(0.42, 0.62, 0.30).lerp(grass, 0.40))
-	material.set_shader_parameter("rock_tint", Color(0.58, 0.58, 0.60).lerp(rock, 0.35))
+	material.set_shader_parameter("rock_tint", Color(0.84, 0.78, 0.70).lerp(rock, 0.40))
 	material.set_shader_parameter("sea_level", -0.35)
 	if distant:
 		material.set_shader_parameter("distant_cool", 0.72)
@@ -887,7 +938,7 @@ static func cliff_pbr_material() -> ShaderMaterial:
 	material.set_shader_parameter("grass_albedo", GRASS_ALBEDO)
 	material.set_shader_parameter("grass_normal", GRASS_NORMAL)
 	material.set_shader_parameter("grass_rough", GRASS_ROUGH)
-	material.set_shader_parameter("rock_tint", Color(0.58, 0.56, 0.54))
+	material.set_shader_parameter("rock_tint", Color(0.84, 0.78, 0.70))
 	material.set_shader_parameter("grass_tint", Color(0.34, 0.52, 0.22))
 	material.set_shader_parameter("sea_level", -0.35)
 	return material
@@ -1086,3 +1137,200 @@ static func _scatter_hero_flowers(coast: Node3D, mesh: ArrayMesh, anchors: Packe
 	_apply_distance_fade(instance, 64.0)
 	return instance
 
+
+
+
+static func _apply_crag_shader(mesh: ArrayMesh) -> void:
+	for surface_index in range(mesh.get_surface_count()):
+		var src := mesh.surface_get_material(surface_index)
+		var mat := ShaderMaterial.new()
+		mat.shader = CLIFF_SHADER
+		if src is BaseMaterial3D:
+			var base := src as BaseMaterial3D
+			mat.set_shader_parameter("rock_albedo", base.albedo_texture if base.albedo_texture else ROCK_ALBEDO)
+			mat.set_shader_parameter("rock_normal", base.normal_texture if base.normal_texture else ROCK_NORMAL)
+			mat.set_shader_parameter("rock_rough", base.roughness_texture if base.roughness_texture else ROCK_ROUGH)
+		else:
+			mat.set_shader_parameter("rock_albedo", ROCK_ALBEDO)
+			mat.set_shader_parameter("rock_normal", ROCK_NORMAL)
+			mat.set_shader_parameter("rock_rough", ROCK_ROUGH)
+		mat.set_shader_parameter("grass_albedo", GRASS_ALBEDO)
+		mat.set_shader_parameter("grass_normal", GRASS_NORMAL)
+		mat.set_shader_parameter("grass_rough", GRASS_ROUGH)
+		mat.set_shader_parameter("rock_tint", Color(0.86, 0.80, 0.72))
+		mat.set_shader_parameter("grass_tint", Color(0.38, 0.56, 0.26))
+		mat.set_shader_parameter("sea_level", -0.35)
+		mesh.surface_set_material(surface_index, mat)
+
+static func _apply_leaf_scissor(mesh: ArrayMesh) -> void:
+	for surface_index in range(mesh.get_surface_count()):
+		var mat := mesh.surface_get_material(surface_index) as StandardMaterial3D
+		if mat == null:
+			continue
+		var n := str(mat.resource_name).to_lower()
+		if not (n.contains("leaf") or n.contains("leaves")):
+			continue
+		var foliage := mat.duplicate() as StandardMaterial3D
+		foliage.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+		foliage.alpha_scissor_threshold = 0.35
+		foliage.cull_mode = BaseMaterial3D.CULL_DISABLED
+		mesh.surface_set_material(surface_index, foliage)
+
+
+static func _driftwood_mesh() -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	# Two slightly offset tapered logs, origin at the underside so they rest on sand.
+	for log_i in range(2):
+		var ox := -0.15 + float(log_i) * 0.55
+		var oz := float(log_i) * 0.18
+		var yaw := 0.35 if log_i == 0 else -0.55
+		var c := cos(yaw)
+		var s := sin(yaw)
+		var length := 1.7 if log_i == 0 else 1.05
+		var rad := 0.13 if log_i == 0 else 0.10
+		for seg in range(5):
+			var t0 := float(seg) / 5.0
+			var t1 := float(seg + 1) / 5.0
+			var r0 := rad * lerpf(1.0, 0.55, t0)
+			var r1 := rad * lerpf(1.0, 0.55, t1)
+			var x0 := (t0 - 0.5) * length
+			var x1 := (t1 - 0.5) * length
+			var y0 := 0.08 + 0.04 * sin(t0 * PI)
+			var y1 := 0.08 + 0.04 * sin(t1 * PI)
+			# Square cross-section, cheap on mobile.
+			var corners := [Vector2(-1, -1), Vector2(1, -1), Vector2(1, 1), Vector2(-1, 1)]
+			for k in range(4):
+				var a: Vector2 = corners[k]
+				var b: Vector2 = corners[(k + 1) % 4]
+				var p0 := Vector3((x0 * c - (a.x * r0 + oz) * s) + ox, y0 + a.y * r0, x0 * s + (a.x * r0 + oz) * c)
+				var p1 := Vector3((x1 * c - (a.x * r1 + oz) * s) + ox, y1 + a.y * r1, x1 * s + (a.x * r1 + oz) * c)
+				var p2 := Vector3((x1 * c - (b.x * r1 + oz) * s) + ox, y1 + b.y * r1, x1 * s + (b.x * r1 + oz) * c)
+				var p3 := Vector3((x0 * c - (b.x * r0 + oz) * s) + ox, y0 + b.y * r0, x0 * s + (b.x * r0 + oz) * c)
+				_st_tri(st, p0, p1, p2)
+				_st_tri(st, p0, p2, p3)
+	st.generate_tangents()
+	st.index()
+	var mesh := st.commit()
+	var mat := StandardMaterial3D.new()
+	mat.albedo_texture = WOOD_ALBEDO
+	mat.normal_texture = WOOD_NORMAL
+	mat.roughness_texture = WOOD_ROUGH
+	mat.albedo_color = Color(0.72, 0.58, 0.42)
+	mat.roughness = 0.92
+	mat.metallic = 0.0
+	mesh.surface_set_material(0, mat)
+	return mesh
+
+
+static func _scatter_beach_props(coast: Node3D, mesh: ArrayMesh, budget: int, seed: float, scale_min: float, scale_max: float, bury: float) -> MultiMeshInstance3D:
+	var instance := MultiMeshInstance3D.new()
+	var multi := MultiMesh.new()
+	multi.transform_format = MultiMesh.TRANSFORM_3D
+	multi.mesh = mesh
+	multi.instance_count = budget
+	var anchors: Array[Vector2] = [
+		Vector2(-12.5 + seed, 3.4), Vector2(-8.2, 2.6 + seed * 0.2),
+		Vector2(-3.6 - seed * 0.15, 3.8), Vector2(1.4 + seed * 0.2, 2.8),
+		Vector2(5.8, 3.6 - seed * 0.1), Vector2(10.4 + seed * 0.1, 3.1),
+		Vector2(14.2, 4.0), Vector2(-14.8, 5.2),
+		Vector2(-5.0 + seed, 4.6), Vector2(7.6 - seed * 0.2, 4.8),
+		Vector2(12.8, 5.4), Vector2(-1.2, 4.2),
+	]
+	var placed := 0
+	for i in range(anchors.size()):
+		if placed >= budget:
+			break
+		var hint: Vector2 = coast.walk_to_land(anchors[i].x, anchors[i].y, 0.08)
+		var px: float = hint.x + sin(seed * 4.1 + float(i) * 2.2) * 0.8
+		var pz: float = hint.y + cos(seed * 3.3 + float(i) * 1.6) * 0.55
+		if not coast.is_beach_ground(px, pz):
+			var wet: Vector2 = coast.walk_to_shore(px, pz, Vector2(0.0, -1.0))
+			px = wet.x
+			pz = wet.y
+		if not coast.is_beach_ground(px, pz) or not _clear_of_ship(px, pz):
+			continue
+		var py: float = coast._terrain_height(px, pz)
+		var yaw := sin(px * 1.7 + pz * 2.1 + seed) * TAU
+		var scale := lerpf(scale_min, scale_max, 0.5 + 0.5 * sin(px * 2.4 + pz + seed))
+		var tilt := sin(pz * 1.4 + seed) * 0.18
+		var basis := Basis.from_euler(Vector3(tilt, yaw, -tilt * 0.3)).scaled(Vector3(scale, scale, scale))
+		multi.set_instance_transform(placed, Transform3D(basis, Vector3(px, py - bury * scale, pz)))
+		placed += 1
+	multi.visible_instance_count = placed
+	instance.set_meta("placed_count", placed)
+	instance.multimesh = multi
+	instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	_apply_distance_fade(instance, 70.0)
+	return instance
+
+
+static func _scatter_summit_crags(coast: Node3D, mesh: ArrayMesh, budget: int, seed: float, scale_min: float, scale_max: float) -> MultiMeshInstance3D:
+	var instance := MultiMeshInstance3D.new()
+	var multi := MultiMesh.new()
+	multi.transform_format = MultiMesh.TRANSFORM_3D
+	multi.mesh = mesh
+	multi.instance_count = budget
+	# Stacked, buried, scaled-up mobile rocks on the two main summits and the saddle.
+	var anchors: Array[Vector2] = [
+		Vector2(-6.2, 15.8), Vector2(-5.1, 15.1), Vector2(-7.0, 16.4),
+		Vector2(8.0, 17.6), Vector2(7.0, 16.8), Vector2(9.1, 18.2),
+		Vector2(0.9, 16.7), Vector2(-1.2, 16.2), Vector2(6.2, 15.6),
+		Vector2(-4.4, 17.0), Vector2(8.8, 16.4), Vector2(-6.8, 14.8),
+	]
+	var placed := 0
+	for i in range(anchors.size()):
+		if placed >= budget:
+			break
+		var px: float = anchors[i].x + sin(seed * 2.7 + float(i)) * 0.35
+		var pz: float = anchors[i].y + cos(seed * 1.9 + float(i)) * 0.30
+		var py: float = coast._terrain_height(px, pz)
+		if not coast.is_rock_ground(px, pz) or py < 4.0:
+			continue
+		var yaw := sin(px * 1.1 + pz + seed) * TAU
+		var scale := lerpf(scale_min, scale_max, 0.5 + 0.5 * sin(px * 0.7 + pz * 0.4 + seed))
+		var bury := scale * lerpf(0.48, 0.62, 0.5 + 0.5 * cos(pz + seed))
+		var tilt := 0.08 + 0.10 * sin(pz * 0.8 + seed)
+		var basis := Basis.from_euler(Vector3(tilt, yaw, -tilt * 0.35)).scaled(Vector3(scale, scale * lerpf(0.95, 1.22, 0.5 + 0.5 * sin(px)), scale))
+		multi.set_instance_transform(placed, Transform3D(basis, Vector3(px, py - bury, pz)))
+		placed += 1
+	multi.visible_instance_count = placed
+	instance.set_meta("placed_count", placed)
+	instance.multimesh = multi
+	instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	instance.material_overlay = null
+	_apply_distance_fade(instance, 110.0)
+	return instance
+
+
+static func _scatter_hut_understory(coast: Node3D, mesh: ArrayMesh, budget: int) -> MultiMeshInstance3D:
+	var instance := MultiMeshInstance3D.new()
+	var multi := MultiMesh.new()
+	multi.transform_format = MultiMesh.TRANSFORM_3D
+	multi.mesh = mesh
+	multi.instance_count = budget
+	var placed := 0
+	for hut in _hut_spots:
+		for i in range(6):
+			if placed >= budget:
+				break
+			var ang := float(i) * TAU / 6.0 + sin(hut.x * 2.1) * 0.3
+			var radius := 1.15 + 0.45 * (0.5 + 0.5 * sin(float(i) * 2.4 + hut.y))
+			var px: float = hut.x + cos(ang) * radius
+			var pz: float = hut.y + sin(ang) * radius
+			if not coast.is_foliage_ground(px, pz) or not _clear_of_ship(px, pz):
+				continue
+			if Vector2(px, pz).distance_to(hut) < 0.95:
+				continue
+			var py: float = coast._terrain_height(px, pz)
+			var yaw := ang + 0.4
+			var scale := lerpf(0.85, 1.25, 0.5 + 0.5 * sin(px * 3.1 + pz))
+			var basis := Basis(Vector3.UP, yaw).scaled(Vector3(scale, scale, scale))
+			multi.set_instance_transform(placed, Transform3D(basis, Vector3(px, py, pz)))
+			placed += 1
+	multi.visible_instance_count = placed
+	instance.set_meta("placed_count", placed)
+	instance.multimesh = multi
+	instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_apply_distance_fade(instance, 58.0)
+	return instance

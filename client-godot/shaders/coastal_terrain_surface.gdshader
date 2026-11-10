@@ -14,9 +14,9 @@ uniform sampler2D rock_albedo : source_color, filter_linear_mipmap, repeat_enabl
 uniform sampler2D rock_normal : hint_normal, filter_linear_mipmap, repeat_enable;
 uniform sampler2D rock_rough : filter_linear_mipmap, repeat_enable;
 
-uniform vec4 sand_tint : source_color = vec4(0.86, 0.80, 0.70, 1.0);
+uniform vec4 sand_tint : source_color = vec4(1.00, 0.96, 0.88, 1.0);
 uniform vec4 grass_tint : source_color = vec4(0.50, 0.72, 0.38, 1.0);
-uniform vec4 rock_tint : source_color = vec4(0.62, 0.60, 0.58, 1.0);
+uniform vec4 rock_tint : source_color = vec4(0.84, 0.78, 0.70, 1.0);
 uniform float sea_level = -0.35;
 uniform float sand_scale = 0.22;
 uniform float grass_scale = 0.16;
@@ -36,7 +36,7 @@ void vertex() {
 	float slope = 1.0 - clamp(world_nor.y, 0.0, 1.0);
 	float height = world_pos.y - sea_level;
 	// Wide sandy beach, then a soft climb into grass. Steep faces go to rock.
-	float beach = (1.0 - smoothstep(0.10, 2.70, height)) * (1.0 - smoothstep(0.16, 0.48, slope));
+	float beach = (1.0 - smoothstep(0.08, 3.40, height)) * (1.0 - smoothstep(0.18, 0.52, slope));
 	sand_weight = clamp(beach + sand_bias, 0.0, 1.0);
 	rock_weight = clamp(smoothstep(0.22, 0.60, slope) * (1.0 - sand_weight * 0.65) + rock_bias, 0.0, 1.0);
 }
@@ -78,11 +78,12 @@ float hash21(vec2 p) {
 vec3 grade_weathered_rock(vec3 rock) {
 	float luma = dot(rock, vec3(0.30, 0.55, 0.15));
 	vec3 grey = vec3(luma);
-	vec3 cool = mix(grey, rock, 0.20) * vec3(0.96, 0.94, 0.90) + vec3(0.05, 0.05, 0.045);
-	float hi = smoothstep(0.45, 0.80, luma);
-	cool = mix(cool, cool * vec3(1.08, 1.03, 0.94), hi * 0.22);
-	cool = mix(cool, cool * vec3(0.82, 0.86, 0.94), clamp(distant_cool, 0.0, 1.0) * 0.50);
-	return cool;
+	// Warm grey-brown, lifted so peak faces are not near-black.
+	vec3 warm = mix(grey, rock, 0.42) * vec3(1.10, 1.04, 0.94) + vec3(0.12, 0.10, 0.08);
+	float hi = smoothstep(0.35, 0.78, luma);
+	warm = mix(warm, warm * vec3(1.14, 1.08, 0.96), hi * 0.35);
+	warm = mix(warm, warm * vec3(0.88, 0.90, 0.96), clamp(distant_cool, 0.0, 1.0) * 0.40);
+	return warm;
 }
 
 float vertical_cracks(vec3 p) {
@@ -97,11 +98,14 @@ float vertical_cracks(vec3 p) {
 void fragment() {
 	vec2 sand_uv = world_pos.xz * sand_scale;
 	vec2 grass_uv = world_pos.xz * grass_scale;
+	float height = world_pos.y - sea_level;
 	vec3 sand = texture(sand_albedo, sand_uv).rgb * sand_tint.rgb;
-	sand = min(sand, vec3(0.70, 0.66, 0.58));
+	// Near-white warm sand; cap only to stop sun blowout. Darken a thin wet strip at the waterline.
+	sand = min(sand * vec3(1.08, 1.05, 1.00), vec3(0.98, 0.95, 0.88));
+	float wet_sand = (1.0 - smoothstep(0.04, 0.42, height)) * sand_weight;
+	sand *= mix(vec3(1.0), vec3(0.62, 0.57, 0.50), wet_sand);
 	vec3 grass = texture(grass_albedo, grass_uv).rgb * grass_tint.rgb;
 	// Inland ground is a darker, patchier undergrowth, not a golf-course lawn.
-	float height = world_pos.y - sea_level;
 	float inland = smoothstep(1.6, 4.8, height) * (1.0 - sand_weight);
 	float patch = 0.5 + 0.5 * sin(world_pos.x * 0.95 + 1.3) * cos(world_pos.z * 0.72);
 	grass = mix(grass, grass * vec3(0.52, 0.68, 0.40), inland * (0.40 + 0.40 * patch));
@@ -109,12 +113,12 @@ void fragment() {
 	vec3 rock_b = triplanar_albedo(rock_albedo, world_pos.zyx * 0.83 + vec3(2.4, 0.0, 1.1), world_nor.zyx, rock_scale * 0.62);
 	vec3 rock = grade_weathered_rock(mix(rock_a, rock_b, 0.48) * rock_tint.rgb);
 	float cracks = vertical_cracks(world_pos);
-	rock *= (1.0 - cracks * 0.28);
+	rock *= (1.0 - cracks * 0.42);
 	// Soft moss drips on the upper wall so the face is not a clean stripe.
 	float face = 1.0 - smoothstep(0.28, 0.82, clamp(world_nor.y, 0.0, 1.0));
 	float drip = face * pow(hash21(vec2(world_pos.x * 1.8, floor(world_pos.z * 2.0))), 3.2);
 	drip *= smoothstep(2.0, 6.0, height);
-	rock = mix(rock, vec3(0.20, 0.30, 0.14), drip * 0.32);
+	rock = mix(rock, vec3(0.28, 0.40, 0.18), drip * 0.48);
 	vec3 albedo = mix(grass, sand, sand_weight);
 	albedo = mix(albedo, rock, rock_weight);
 	float luma = dot(albedo, vec3(0.30, 0.55, 0.15));

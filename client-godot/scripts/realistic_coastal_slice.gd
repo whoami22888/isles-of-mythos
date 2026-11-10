@@ -8,6 +8,7 @@ const COASTAL_CLIFF_SCENE := preload("res://assets/external/polyhaven/coastal_cl
 const TROPICAL_TREE_SCENE := preload("res://assets/external/polyhaven/island_tree_01/island_tree_01_1k.gltf")
 const TROPICAL_TREE_ALT_SCENE := preload("res://assets/external/polyhaven/island_tree_02/island_tree_02_1k.gltf")
 const ISLAND_LEAVES_RGBA := preload("res://assets/external/generated/foliage/island_tree_leaves_rgba_1k.png")
+const TREE_SMALL_LEAVES_RGBA := preload("res://assets/external/polyhaven/tree_small_02/textures/tree_small_02_leaves_rgba_1k.png")
 const MOSS_ROCK_SCENE := preload("res://assets/external/polyhaven/rock_moss_set_01/rock_moss_set_01_1k.gltf")
 const COAST_DIFFUSE := preload("res://assets/external/polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_diff_1k.jpg")
 const COAST_NORMAL := preload("res://assets/external/polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_nor_gl_1k.jpg")
@@ -153,6 +154,11 @@ func is_rock_ground(px: float, pz: float) -> bool:
 	return _terrain_height(px, pz) >= WATER_Y + ROCK_MIN_ABOVE_SEA
 
 
+func is_beach_ground(px: float, pz: float) -> bool:
+	var py := _terrain_height(px, pz)
+	return py >= WATER_Y + 0.05 and py < WATER_Y + FOLIAGE_MIN_ABOVE_SEA
+
+
 func _terrain_height(px: float, pz: float) -> float:
 	# Organic island: domain-warped radial falloff, a south-facing crescent
 	# bay with a wide sand terrace, and rugged inland peaks.
@@ -173,8 +179,8 @@ func _terrain_height(px: float, pz: float) -> float:
 	# Slightly larger landmass; the south waterline stays north of the berth.
 	var island_r := 18.2 - 7.2 * bay + 5.6 * head + 3.8 * east_bulge + 8.8 * north_cap + (coast_n - 0.5) * 3.6
 	island_r -= 7.0 * exp(-((px - 16.0) * (px - 16.0)) / 10.0 - ((pz - 3.0) * (pz - 3.0)) / 8.0)
-	# Wide pale crescent in the bay, a thin varying edge on other coasts.
-	var beach_w := clampf(2.2 + 7.6 * bay - 1.1 * head, 1.6, 11.0)
+	# Broader pale crescent in the bay, a thinner varying edge on other coasts.
+	var beach_w := clampf(2.4 + 9.2 * bay - 1.0 * head, 1.6, 13.0)
 	var offshore := radius - island_r
 	var deep := -6.6 + (_fbm(Vector2(px, pz) * 0.05, 3) - 0.5) * 0.45 + 0.55 * tanh(px * 0.08)
 	var shelf := -0.92 + (_fbm(Vector2(px, pz) * 0.18, 2) - 0.5) * 0.12
@@ -192,25 +198,36 @@ func _terrain_height(px: float, pz: float) -> float:
 	var onto := -offshore
 	var sand_t := clampf(onto / maxf(beach_w, 0.8), 0.0, 1.0)
 	var sand_y := WATER_Y + 0.16 + 0.46 * sand_t * sand_t * (3.0 - 2.0 * sand_t)
-	var hill_blend := smoothstep(beach_w * 0.40, beach_w + 3.2, onto)
+	var hill_blend := smoothstep(beach_w * 0.62, beach_w + 2.6, onto)
 	var inland := clampf(onto / maxf(beach_w + 5.0, 0.8), 0.0, 1.0)
 	inland = inland * inland * (3.0 - 2.0 * inland)
 	var n := _fbm(wpos * 0.07, 3)
 	var ridged := 1.0 - absf(2.0 * _fbm(wpos * 0.045 + Vector2(40.0, -20.0), 3) - 1.0)
 	# Sharper peak kernels plus mid-frequency ridge/gully noise so summits and
 	# some faces go steep enough for the rock blend, not smooth green lumps.
-	var d1 := (px + 6.2) * (px + 6.2) + (pz - 15.8) * (pz - 15.8)
-	var d2 := (px - 8.0) * (px - 8.0) + (pz - 17.6) * (pz - 17.6)
-	var d3 := (px - 16.0) * (px - 16.0) + (pz - 26.5) * (pz - 26.5)
-	var peak_a := exp(-d1 / 22.0) * (8.6 + n * 0.8)
-	var peak_b := exp(-d2 / 26.0) * (10.2 + ridged * 1.0)
-	var peak_c := exp(-d3 / 20.0) * 8.4
-	var knoll := exp(-((px + 1.5) * (px + 1.5) + (pz - 12.2) * (pz - 12.2)) / 16.0) * 2.0
-	var peak_sum := peak_a + peak_b + peak_c
-	var ridge_detail := 1.0 - absf(2.0 * _fbm(wpos * 0.16 + Vector2(8.0, 3.0), 3) - 1.0)
-	var gully := _fbm(wpos * 0.14 + Vector2(21.0, -7.0), 3)
-	var rugged := (peak_sum / 10.0) * (1.55 * (ridge_detail - 0.42) - 0.9 * gully * (1.0 - ridge_detail))
-	var hills := (0.50 + 1.7 * n + 1.35 * ridged * inland) * inland + (peak_sum + knoll) * (0.50 + 0.50 * inland) + rugged * inland
+	# Anisotropic peaks: tight seaward faces, gentler jungle backs, a saddle
+	# ridge between the two main summits so they read as one crag, not two cones.
+	var pa := Vector2(px + 6.2, pz - 15.8)
+	var pb := Vector2(px - 8.0, pz - 17.6)
+	var pc := Vector2(px - 16.0, pz - 26.5)
+	var sea_a := Vector2(0.15, -1.0)
+	var sea_b := Vector2(0.35, -0.95)
+	var fall_a := 13.0 if pa.dot(sea_a) > 0.0 else 26.0
+	var fall_b := 14.0 if pb.dot(sea_b) > 0.0 else 28.0
+	var peak_a := exp(-pa.length_squared() / fall_a) * (10.4 + n * 0.6)
+	var peak_b := exp(-pb.length_squared() / fall_b) * (12.2 + ridged * 0.8)
+	var peak_c := exp(-pc.length_squared() / 18.0) * 7.6
+	var knoll := exp(-((px + 1.5) * (px + 1.5) + (pz - 12.2) * (pz - 12.2)) / 16.0) * 1.8
+	# Saddle ridge between A and B.
+	var mid := Vector2(px - 0.9, pz - 16.7)
+	var ridge_line := absf(mid.dot(Vector2(-0.82, 0.57)))
+	var along := mid.dot(Vector2(0.57, 0.82))
+	var saddle := exp(-ridge_line * ridge_line / 3.2) * exp(-along * along / 40.0) * 6.4
+	var peak_sum := peak_a + peak_b + peak_c + saddle
+	var ridge_detail := 1.0 - absf(2.0 * _fbm(wpos * 0.19 + Vector2(8.0, 3.0), 3) - 1.0)
+	var gully := _fbm(wpos * 0.16 + Vector2(21.0, -7.0), 3)
+	var rugged := (peak_sum / 9.0) * (1.85 * (ridge_detail - 0.38) - 1.05 * gully * (1.0 - ridge_detail))
+	var hills := (0.45 + 1.55 * n + 1.2 * ridged * inland) * inland + (peak_sum + knoll) * (0.50 + 0.50 * inland) + rugged * inland
 	var land := sand_y + hills * hill_blend
 	if hill_blend < 0.05:
 		return sand_y
@@ -241,6 +258,18 @@ func walk_to_shore(px: float, pz: float, dir: Vector2, max_steps: int = 20) -> V
 		if _terrain_height(nxt.x, nxt.y) < WATER_Y + 0.06:
 			return p
 		p = nxt
+	return p
+
+
+func walk_to_gentle(px: float, pz: float, min_above: float = 1.2, max_slope: float = 1.35, max_steps: int = 16) -> Vector2:
+	# Prefer a flatter pad just inland of the first dry sample, for hut seating.
+	var p := walk_to_land(px, pz, min_above)
+	for _i in range(max_steps):
+		var py := _terrain_height(p.x, p.y)
+		var slope := absf(_terrain_height(p.x + 0.8, p.y) - py) + absf(_terrain_height(p.x, p.y + 0.8) - py)
+		if slope <= max_slope and py >= WATER_Y + min_above:
+			return p
+		p.y += 0.55
 	return p
 
 
@@ -428,8 +457,8 @@ func _build_premium_landmarks() -> void:
 		_ground_asset_on_terrain(rock, 0.3)
 		_configure_mobile_visibility(rock, entry[2])
 	for entry in [
-		[Vector3(-7.5, 0.0, 6.2), 1.05, 78.0], [Vector3(10.5, 0.0, 7.4), 1.0, 20.0],
-		[Vector3(-19.0, 0.0, 12.5), 1.1, 48.0], [Vector3(17.5, 0.0, 13.5), 0.95, 48.0]
+		[Vector3(-6.8, 0.0, 10.8), 1.15, 90.0], [Vector3(9.6, 0.0, 11.2), 1.1, 90.0],
+		[Vector3(-10.5, 0.0, 13.8), 1.2, 90.0], [Vector3(11.8, 0.0, 14.4), 1.05, 90.0]
 	]:
 		var tree := TREE_SCENE.instantiate()
 		var tree_xz: Vector2 = walk_to_land(entry[0].x, entry[0].z, FOLIAGE_MIN_ABOVE_SEA)
@@ -442,7 +471,7 @@ func _build_premium_landmarks() -> void:
 		_ground_asset_on_terrain(tree)
 		# One hero tree stays in the gameplay view. The other admitted copies
 		# exist for the contract but cull before they dominate the frame.
-		tree.set_meta("heavy_foliage", entry[2] >= 70.0)
+		tree.set_meta("heavy_foliage", false)
 		_configure_mobile_visibility(tree, entry[2], false)
 	# Verified imported PBR art only, arranged in a landscape-depth layer.
 	# Old 26m foliage culling hid essentially all background vegetation after
@@ -453,9 +482,9 @@ func _build_premium_landmarks() -> void:
 	add_child(grove)
 	for entry in [
 		[Vector3(-8.1, 0.0, 17.0), 2.2],
-		[Vector3(-4.3, 0.0, 11.3), 1.75],
+		[Vector3(-3.6, 0.0, 13.4), 1.85],
 		[Vector3(3.5, 0.0, 18.2), 2.1],
-		[Vector3(8.7, 0.0, 12.6), 1.85],
+		[Vector3(8.0, 0.0, 13.6), 1.9],
 	]:
 		var shoreline_tree := TREE_SCENE.instantiate()
 		var shore_xz: Vector2 = walk_to_land(entry[0].x, entry[0].z, FOLIAGE_MIN_ABOVE_SEA)
@@ -610,7 +639,14 @@ func _preserve_authored_mesh(asset: Node3D, distant: bool = false) -> void:
 	if asset_name not in ["tree_small_02", "island_tree_01", "island_tree_02", "coast_rocks_05"]:
 		return
 	var packed: PackedScene
-	if distant and asset_name == "island_tree_01":
+	if asset_name == "tree_small_02":
+		# The bounded tree_small_02 lod reads as bare sticks from the gameplay
+		# camera. Swap the visible mesh for the leafy island-tree lod2 and keep
+		# the original scene_file_path for the slice contract.
+		packed = tropical_tree_lod2_scene
+		if packed == null:
+			packed = load("res://assets/external/generated/foliage/island_tree_01_lod2.glb") as PackedScene
+	elif distant and asset_name == "island_tree_01":
 		packed = tropical_tree_lod2_scene
 	elif distant and asset_name == "island_tree_02":
 		packed = tropical_tree_alt_lod2_scene
@@ -630,7 +666,7 @@ func _preserve_authored_mesh(asset: Node3D, distant: bool = false) -> void:
 	# mesh, including material regions, UVs, normals and tangent arrays.
 	originals[0].mesh = replacements[0].mesh
 	originals[0].lod_bias = 1.5
-	if asset_name in ["island_tree_01", "island_tree_02"]:
+	if asset_name in ["island_tree_01", "island_tree_02", "tree_small_02"]:
 		for surface_index in range(originals[0].mesh.get_surface_count()):
 			var material := originals[0].get_active_material(surface_index) as StandardMaterial3D
 			if material == null or not str(material.resource_name).to_lower().contains("leaves"):
@@ -638,6 +674,8 @@ func _preserve_authored_mesh(asset: Node3D, distant: bool = false) -> void:
 			var foliage := material.duplicate() as StandardMaterial3D
 			foliage.albedo_texture = ISLAND_LEAVES_RGBA
 			foliage.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+			foliage.alpha_scissor_threshold = 0.35
+			foliage.cull_mode = BaseMaterial3D.CULL_DISABLED
 			originals[0].set_surface_override_material(surface_index, foliage)
 	authored.free()
 
@@ -963,7 +1001,7 @@ func apply_visual_quality(level: int) -> void:
 		var palms := dressing.get_node_or_null("TropicalPalmGrove") as MultiMeshInstance3D
 		var grass := dressing.get_node_or_null("TropicalGrassTufts") as MultiMeshInstance3D
 		var palm_counts: Array[int] = [12, 18, 24]
-		var grass_counts: Array[int] = [0, 420, 980]
+		var grass_counts: Array[int] = [0, 700, 1800]
 		if palms and palms.multimesh:
 			var palm_placed := int(palms.get_meta("placed_count", palms.multimesh.visible_instance_count))
 			palms.multimesh.visible_instance_count = mini(palm_counts[clamped], palm_placed)
@@ -971,16 +1009,23 @@ func apply_visual_quality(level: int) -> void:
 			var grass_placed := int(grass.get_meta("placed_count", grass.multimesh.visible_instance_count))
 			grass.multimesh.visible_instance_count = mini(grass_counts[clamped], grass_placed)
 		for extra in [
-			["TropicalFernClumps", [0, 80, 160]],
-			["TropicalShrubs", [0, 40, 80]],
-			["TropicalCalathea", [0, 22, 44]],
-			["TropicalAnthurium", [0, 12, 24]],
-			["TropicalUrsinia", [0, 24, 48]],
-			["TropicalSorrel", [0, 20, 40]],
-			["CliffLedgeFerns", [0, 36, 72]],
-			["CliffVines", [0, 20, 40]],
-			["HeroAnthurium", [0, 8, 12]],
-			["HeroUrsinia", [0, 8, 12]],
+			["TropicalFernClumps", [0, 110, 220]],
+			["TropicalShrubs", [0, 60, 120]],
+			["TropicalCalathea", [0, 30, 60]],
+			["TropicalAnthurium", [0, 16, 32]],
+			["TropicalUrsinia", [0, 28, 56]],
+			["TropicalSorrel", [0, 28, 56]],
+			["CliffLedgeFerns", [0, 48, 96]],
+			["CliffVines", [0, 24, 48]],
+			["HeroAnthurium", [0, 10, 16]],
+			["HeroUrsinia", [0, 10, 16]],
+			["TropicalBroadleafCanopy", [0, 5, 8]],
+			["TropicalBroadleafCanopyB", [0, 3, 6]],
+			["HutUnderstory", [0, 10, 18]],
+			["BeachDriftwood", [3, 5, 8]],
+			["BeachScatterRocks", [4, 8, 12]],
+			["SummitCrags", [3, 5, 7]],
+			["SummitCrags07", [2, 4, 5]],
 			["ShoreBoulders", [4, 8, 10]],
 			["ShoreRocks07", [4, 8, 10]],
 			["ShoreMossRocks", [4, 8, 10]],

@@ -8,8 +8,8 @@ uniform sampler2D rock_rough : filter_linear_mipmap, repeat_enable;
 uniform sampler2D grass_albedo : source_color, filter_linear_mipmap, repeat_enable;
 uniform sampler2D grass_normal : hint_normal, filter_linear_mipmap, repeat_enable;
 uniform sampler2D grass_rough : filter_linear_mipmap, repeat_enable;
-uniform vec4 rock_tint : source_color = vec4(0.58, 0.56, 0.54, 1.0);
-uniform vec4 grass_tint : source_color = vec4(0.36, 0.54, 0.24, 1.0);
+uniform vec4 rock_tint : source_color = vec4(0.84, 0.78, 0.70, 1.0);
+uniform vec4 grass_tint : source_color = vec4(0.38, 0.56, 0.26, 1.0);
 uniform float rock_scale = 0.10;
 uniform float grass_scale = 0.15;
 uniform float ledge_start = 0.48;
@@ -58,10 +58,10 @@ float hash21(vec2 p) {
 vec3 grade_weathered_rock(vec3 rock) {
 	float luma = dot(rock, vec3(0.30, 0.55, 0.15));
 	vec3 grey = vec3(luma);
-	vec3 cool = mix(grey, rock, 0.20) * vec3(0.96, 0.94, 0.90) + vec3(0.05, 0.05, 0.045);
-	float hi = smoothstep(0.45, 0.80, luma);
-	cool = mix(cool, cool * vec3(1.08, 1.03, 0.94), hi * 0.22);
-	return cool;
+	vec3 warm = mix(grey, rock, 0.42) * vec3(1.10, 1.04, 0.94) + vec3(0.12, 0.10, 0.08);
+	float hi = smoothstep(0.35, 0.78, luma);
+	warm = mix(warm, warm * vec3(1.14, 1.08, 0.96), hi * 0.35);
+	return warm;
 }
 
 float vertical_cracks(vec3 p) {
@@ -77,13 +77,13 @@ void fragment() {
 	vec3 n = normalize(world_nor);
 	float grass_w = smoothstep(ledge_start, ledge_full, clamp(n.y, 0.0, 1.0));
 	// Extra moss on mid ledges so the wall is broken up.
-	grass_w = clamp(grass_w + smoothstep(0.32, 0.62, n.y) * 0.22, 0.0, 1.0);
+	grass_w = clamp(grass_w + smoothstep(0.28, 0.60, n.y) * 0.34, 0.0, 1.0);
 	float wet = 1.0 - smoothstep(sea_level + 0.05, sea_level + 1.6, world_pos.y);
 	vec3 rock_a = triplanar_albedo(rock_albedo, world_pos, n, rock_scale);
 	vec3 rock_b = triplanar_albedo(rock_albedo, world_pos.zyx * 0.83 + vec3(2.4, 0.0, 1.1), n.zyx, rock_scale * 0.62);
 	vec3 rock = grade_weathered_rock(mix(rock_a, rock_b, 0.48) * rock_tint.rgb);
 	float cracks = vertical_cracks(world_pos);
-	rock *= (1.0 - cracks * 0.28);
+	rock *= (1.0 - cracks * 0.40);
 	rock *= mix(1.0, 0.58, wet);
 	float face = 1.0 - smoothstep(0.28, 0.82, clamp(n.y, 0.0, 1.0));
 	float drip = face * pow(hash21(vec2(world_pos.x * 1.8, floor(world_pos.z * 2.0))), 2.8);
