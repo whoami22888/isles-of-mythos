@@ -114,37 +114,127 @@ func _build_environment() -> void:
 	add_child(sun)
 	_build_sun_glow(sun)
 
+func _hash21(p: Vector2) -> float:
+	return fposmod(sin(p.dot(Vector2(127.1, 311.7))) * 43758.5453, 1.0)
+
+
+func _value_noise(p: Vector2) -> float:
+	var i := Vector2(floorf(p.x), floorf(p.y))
+	var f := p - i
+	f = f * f * (Vector2(3.0, 3.0) - 2.0 * f)
+	var a := _hash21(i)
+	var b := _hash21(i + Vector2(1.0, 0.0))
+	var c := _hash21(i + Vector2(0.0, 1.0))
+	var d := _hash21(i + Vector2(1.0, 1.0))
+	return lerpf(lerpf(a, b, f.x), lerpf(c, d, f.x), f.y)
+
+
+func _fbm(p: Vector2, octaves: int = 4) -> float:
+	var acc := 0.0
+	var w := 0.5
+	var sum_w := 0.0
+	var q := p
+	for _i in range(octaves):
+		acc += w * _value_noise(q)
+		sum_w += w
+		w *= 0.5
+		q *= 2.03
+	return acc / maxf(sum_w, 0.0001)
+
+
 func _terrain_height(px: float, pz: float) -> float:
-	# Seabed, beach, grass shelf and cliff. The same function grounds props.
-	# Open water in front of the cove stays several metres below sea level so
-	# the ocean shader can grade turquoise shallows into deep blue.
-	var side_mask := 1.0 - smoothstep(24.0, 34.0, absf(px))
-	var north_mask := 1.0 - smoothstep(20.0, 28.0, pz)
-	var shore_z := -2.2 + sin(px * 0.085) * 2.2 + sin(px * 0.31 + 0.4) * 0.8
-	var dist := pz - shore_z
-	# Wide shallow lagoon just under the waterline, then a drop further out.
-	# Climb back to a dry beach at the shoreline so the harbour sand is not flooded.
-	var deep_bed := -6.8 + sin(px * 0.17 + pz * 0.11) * 0.35 + sin(px * 0.07) * 0.45
-	var shelf_y := -0.90 + sin(px * 0.41 + 0.6) * 0.12 + sin(pz * 0.22) * 0.06
-	var seabed := lerpf(deep_bed, shelf_y, smoothstep(-17.5, -6.2, dist))
-	seabed = lerpf(seabed, WATER_Y + 0.22, smoothstep(-1.7, 1.4, dist))
-	var beach := smoothstep(0.0, 5.0, dist) * 0.7
-	var grass := smoothstep(4.5, 10.0, dist) * 1.5
-	var cliff := smoothstep(10.8, 14.4, dist) * (7.6 + sin(px * 0.28) * 0.85)
-	var plateau := smoothstep(15.0, 20.0, dist) * 1.2
-	var ridge := sin(px * 0.22 + 0.5) * 0.35 + cos(px * 0.51 - pz * 0.16) * 0.22
-	var land := WATER_Y + beach + grass + cliff + plateau + ridge
-	var islet_dx := px + 21.0
-	var islet_dz := pz - 0.5
-	land += exp(-(islet_dx * islet_dx + islet_dz * islet_dz) / 26.0) * 3.4
-	var blend := smoothstep(-1.0, 1.6, dist)
-	var height := lerpf(seabed, land, blend)
-	return lerpf(seabed - 0.35, height, side_mask * north_mask)
+	# Organic island: domain-warped radial falloff, a south-facing crescent
+	# bay, a sandy ring of varying width, and inland peaks. No rectangular
+	# side masks and no straight mesa wall.
+	var warp := Vector2((_fbm(Vector2(px, pz) * 0.08, 3) - 0.5) * 5.0, (_fbm(Vector2(px + 17.0, pz - 9.0) * 0.08, 3) - 0.5) * 5.0)
+	var wpos := Vector2(px, pz) + warp
+	var centre := Vector2(1.0, 11.0)
+	var delta := wpos - centre
+	var radius := delta.length()
+	var ang := atan2(delta.x, delta.y)
+	var south := maxf(0.0, -cos(ang))
+	var bay := pow(south, 1.32)
+	var head_west := exp(-pow((ang - PI - 1.02) / 0.44, 2.0))
+	var head_east := exp(-pow((ang - PI + 0.88) / 0.42, 2.0))
+	var east_bulge := exp(-pow((ang - 1.50) / 0.28, 2.0))
+	var north_cap := exp(-pow((ang - 0.65) / 0.70, 2.0))
+	var head := head_west * 1.05 + head_east * 0.72
+	var coast_n := _fbm(wpos * 0.11, 3)
+	var island_r := 16.6 - 6.6 * bay + 5.4 * head + 3.6 * east_bulge + 8.6 * north_cap + (coast_n - 0.5) * 3.8
+	# Keep the vertical-slice open-water fixture at (16, 3) just off the east shore.
+	island_r -= 7.0 * exp(-((px - 16.0) * (px - 16.0)) / 10.0 - ((pz - 3.0) * (pz - 3.0)) / 8.0)
+	var beach_w := 3.1 + 3.0 * bay - 1.5 * head
+	var offshore := radius - island_r
+	var deep := -6.6 + (_fbm(Vector2(px, pz) * 0.05, 3) - 0.5) * 0.45 + 0.55 * tanh(px * 0.08)
+	var shelf := -0.92 + (_fbm(Vector2(px, pz) * 0.18, 2) - 0.5) * 0.12
+	# Shallow apron around the coast, wider in the bay. Softly deepen the
+	# anchorage so the galleon never sits on the shelf.
+	var apron := 1.0 - smoothstep(1.2, 8.5, offshore)
+	apron *= 1.0 - 0.25 * (1.0 - bay)
+	var berth := exp(-(((px - 1.5) * (px - 1.5)) / 64.0 + ((pz + 7.2) * (pz + 7.2)) / 36.0))
+	var seabed := lerpf(deep, shelf, apron * (1.0 - berth))
+	var berth_w := 1.0 if offshore > 0.6 else 0.15
+	seabed = lerpf(seabed, -5.6, berth * berth_w)
+	if offshore >= 0.0:
+		# Blend up to a dry beach only at the true shoreline, not under the ship.
+		var lip := 1.0 - smoothstep(-0.15, 1.15, offshore)
+		return lerpf(seabed, WATER_Y + 0.08 + 0.2 * bay, lip * (1.0 - berth))
+	var inland := clampf((-offshore) / maxf(beach_w + 4.2, 0.8), 0.0, 1.0)
+	inland = inland * inland * (3.0 - 2.0 * inland)
+	var n := _fbm(wpos * 0.07, 3)
+	var ridged := 1.0 - absf(2.0 * _fbm(wpos * 0.045 + Vector2(40.0, -20.0), 3) - 1.0)
+	var d1 := (px + 6.2) * (px + 6.2) + (pz - 15.6) * (pz - 15.6)
+	var d2 := (px - 7.8) * (px - 7.8) + (pz - 17.4) * (pz - 17.4)
+	var d3 := (px - 16.0) * (px - 16.0) + (pz - 26.5) * (pz - 26.5)
+	var peak_a := exp(-d1 / 28.0) * (7.4 + n * 1.1)
+	var peak_b := exp(-d2 / 34.0) * (8.8 + ridged * 1.2)
+	var peak_c := exp(-d3 / 22.0) * 8.0
+	var knoll := exp(-((px + 1.5) * (px + 1.5) + (pz - 12.2) * (pz - 12.2)) / 18.0) * 2.2
+	var hills := (0.55 + 2.05 * n + 1.55 * ridged * inland) * inland + (peak_a + peak_b + peak_c + knoll) * (0.55 + 0.45 * inland)
+	# Sand ring of varying width just above the waterline.
+	var beach := 0.0
+	if offshore > -beach_w and offshore < 0.35:
+		var bt := clampf((beach_w + offshore) / (beach_w + 0.35), 0.0, 1.0)
+		beach = bt * bt * (3.0 - 2.0 * bt) * (0.5 + 0.4 * bay)
+	var land := WATER_Y + 0.14 + beach + hills
+	# Inside the coastline the surface stays dry. Do not lerp back toward the
+	# seabed or the first few metres of beach flood and gameplay fixtures sink.
+	if inland < 0.22:
+		var shore := WATER_Y + 0.16 + beach
+		return lerpf(shore, land, inland / 0.22)
+	return land
+
+
+func walk_to_land(px: float, pz: float, min_above: float = 0.35, max_steps: int = 28) -> Vector2:
+	# Walk toward the island centre until the point is dry. Used to re-seat
+	# props when the coastline moves under a hint position.
+	var p := Vector2(px, pz)
+	var target := Vector2(0.0, 11.0)
+	for _i in range(max_steps):
+		if _terrain_height(p.x, p.y) >= WATER_Y + min_above:
+			return p
+		var dir := target - p
+		if dir.length() < 0.25:
+			break
+		p += dir.normalized() * 0.9
+	return p
+
+
+func walk_to_shore(px: float, pz: float, dir: Vector2, max_steps: int = 20) -> Vector2:
+	# Step from a dry hint toward the water until the next step would submerge.
+	var p := walk_to_land(px, pz, 0.2)
+	var step := dir.normalized() * 0.7
+	for _i in range(max_steps):
+		var nxt := p + step
+		if _terrain_height(nxt.x, nxt.y) < WATER_Y + 0.06:
+			return p
+		p = nxt
+	return p
 
 
 func _build_coastal_terrain() -> void:
-	# Dense-enough terrain for curving coast and layered relief, bounded for
-	# mobile: 96 x 72 vertices / fewer than 14k surface triangles.
+	# Organic coastline on the existing mobile grid. The shore baker (and the
+	# ocean integration test) require this mesh to stay 96 x 72 vertices.
 	const columns := 96
 	const rows := 72
 	var vertices := PackedVector3Array()
@@ -156,8 +246,8 @@ func _build_coastal_terrain() -> void:
 		for x in range(columns):
 			var fx := float(x) / float(columns - 1)
 			var fz := float(z) / float(rows - 1)
-			var px := (fx - 0.5) * 72.0
-			var pz := (fz - 0.5) * 58.0
+			var px := (fx - 0.5) * 80.0
+			var pz := (fz - 0.5) * 68.0
 			var py := _terrain_height(px, pz)
 			vertices.append(Vector3(px, py, pz))
 			uvs.append(Vector2(px * 0.14, pz * 0.14))
@@ -303,7 +393,7 @@ func _build_water() -> void:
 func _build_premium_landmarks() -> void:
 	ship_focal = SHIP_SCENE.instantiate()
 	ship_focal.name = "HarbourShipFocalPoint"
-	ship_focal.position = Vector3(1.0, -0.05, -5.8)
+	ship_focal.position = Vector3(1.5, -0.05, -7.2)
 	ship_focal.rotation_degrees = Vector3(0.0, 18.0, 0.0)
 	ship_focal.scale = Vector3.ONE * 0.72
 	add_child(ship_focal)
@@ -318,7 +408,8 @@ func _build_premium_landmarks() -> void:
 		[Vector3(-18.5, 0.0, 8.5), 1.4, 64.0], [Vector3(19.0, 0.0, 10.0), 1.3, 64.0]
 	]:
 		var rock := ROCK_SCENE.instantiate()
-		rock.position = entry[0]
+		var rock_xz: Vector2 = walk_to_land(entry[0].x, entry[0].z, 0.05)
+		rock.position = Vector3(rock_xz.x, 0.0, rock_xz.y)
 		rock.scale = Vector3.ONE * entry[1]
 		_apply_landmark_lod(rock, 30000)
 		add_child(rock)
@@ -329,7 +420,8 @@ func _build_premium_landmarks() -> void:
 		[Vector3(-19.0, 0.0, 12.5), 1.1, 48.0], [Vector3(17.5, 0.0, 13.5), 0.95, 48.0]
 	]:
 		var tree := TREE_SCENE.instantiate()
-		tree.position = entry[0]
+		var tree_xz: Vector2 = walk_to_land(entry[0].x, entry[0].z, 0.45)
+		tree.position = Vector3(tree_xz.x, 0.0, tree_xz.y)
 		tree.scale = Vector3.ONE * entry[1]
 		# Keep a detailed near-field silhouette while bounding the imported
 		# 2.06M-triangle source before the Mobile renderer sees four copies.
@@ -354,7 +446,8 @@ func _build_premium_landmarks() -> void:
 		[Vector3(8.7, 0.0, 12.6), 1.85],
 	]:
 		var shoreline_tree := TREE_SCENE.instantiate()
-		shoreline_tree.position = entry[0]
+		var shore_xz: Vector2 = walk_to_land(entry[0].x, entry[0].z, 0.45)
+		shoreline_tree.position = Vector3(shore_xz.x, 0.0, shore_xz.y)
 		shoreline_tree.scale = Vector3.ONE * entry[1]
 		_apply_far_foliage_lod(shoreline_tree, 36000)
 		grove.add_child(shoreline_tree)
@@ -365,7 +458,8 @@ func _build_premium_landmarks() -> void:
 		[Vector3(10.5, 0.0, 7.1), 1.5]
 	]:
 		var shore_rock := ROCK_SCENE.instantiate()
-		shore_rock.position = entry[0]
+		var sr_xz: Vector2 = walk_to_land(entry[0].x, entry[0].z, 0.05)
+		shore_rock.position = Vector3(sr_xz.x, 0.0, sr_xz.y)
 		shore_rock.scale = Vector3.ONE * entry[1]
 		_apply_landmark_lod(shore_rock, 30000)
 		grove.add_child(shore_rock)
@@ -383,9 +477,9 @@ func _build_premium_landmarks() -> void:
 		# The source cliff is a 461k-triangle photogrammetry slab. Keep the
 		# admitted node and its PBR material, but draw a small ridgeline mesh
 		# so three copies do not dominate the mobile frame.
-		[Vector3(-14.0, 0.0, 13.5), COASTAL_CLIFF_SCENE],
-		[Vector3(2.5, 0.0, 16.0), COASTAL_CLIFF_SCENE],
-		[Vector3(16.5, 0.0, 13.0), COASTAL_CLIFF_SCENE],
+		[Vector3(-14.5, 0.0, 6.5), COASTAL_CLIFF_SCENE],
+		[Vector3(14.8, 0.0, 6.2), COASTAL_CLIFF_SCENE],
+		[Vector3(8.0, 0.0, 16.5), COASTAL_CLIFF_SCENE],
 		[Vector3(-11.5, 0.0, 9.5), TROPICAL_TREE_SCENE],
 		[Vector3(11.0, 0.0, 12.0), TROPICAL_TREE_ALT_SCENE],
 		[Vector3(-3.5, 0.0, 16.5), TROPICAL_TREE_ALT_SCENE],
@@ -414,13 +508,27 @@ func _build_premium_landmarks() -> void:
 			imported.scale = Vector3.ONE * 0.75
 			view_range = 18.0
 		premium_layer.add_child(imported)
-		_ground_asset_on_terrain(imported, 1.4 if entry[1] == COASTAL_CLIFF_SCENE else 0.08)
+		var hint := Vector2(imported.position.x, imported.position.z)
+		if entry[1] != COASTAL_CLIFF_SCENE:
+			hint = walk_to_land(hint.x, hint.y, 0.35)
+			imported.position.x = hint.x
+			imported.position.z = hint.y
+		else:
+			# Seat outcrops on headland / peak faces, still behind the ship so
+			# they stay background landmarks (not a camera-spanning wall).
+			hint = walk_to_land(hint.x, hint.y, 1.2)
+			if hint.y < ship_focal.position.z + 11.0:
+				hint = walk_to_land(hint.x, ship_focal.position.z + 12.0, 1.2)
+			imported.position.x = hint.x
+			imported.position.z = hint.y
+		_ground_asset_on_terrain(imported, 1.0 if entry[1] == COASTAL_CLIFF_SCENE else 0.08)
 		_configure_mobile_visibility(imported, view_range, false)
 	# Spawn state belongs to scene construction, not recursive material
 	# traversal. Keeping this here guarantees one authoritative marker.
 	player_marker = Node3D.new()
 	player_marker.name = "PlayerSpawnMarker"
-	player_marker.position = Vector3(0.0, _terrain_height(0.0, 5.5) + 0.75, 5.5)
+	var spawn_xz := walk_to_land(0.0, 5.5, 0.45)
+	player_marker.position = Vector3(spawn_xz.x, _terrain_height(spawn_xz.x, spawn_xz.y) + 0.75, spawn_xz.y)
 	add_child(player_marker)
 
 func _configure_ship_sails(root: Node) -> void:
@@ -893,7 +1001,7 @@ func _install_cliff_proxy(asset: Node3D) -> void:
 	var material := source.get_active_material(0)
 	# Sculpted ridge: steep shore face, a mid ledge for vegetation, gentler
 	# back slope. The terrain shader puts rock on the cliffs and grass on ledges.
-	source.mesh = Dressing.cliff_ridge_mesh(13.0, 8.4, 5.2, asset.position.x * 0.41)
+	source.mesh = Dressing.cliff_ridge_mesh(7.2, 4.4, 4.6, asset.position.x * 0.41)
 	source.transform = Transform3D.IDENTITY
 	source.set_surface_override_material(0, Dressing.cliff_pbr_material())
 	for extra_index in range(1, meshes.size()):

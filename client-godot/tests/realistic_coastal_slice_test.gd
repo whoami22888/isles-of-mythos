@@ -66,7 +66,7 @@ func run() -> void:
 	# The premium content layer must contain real varied tropical geometry; a
 	# shader-only or palette-only replacement cannot satisfy the coastal brief.
 	var premium_layer := scene.get_node_or_null("VerifiedTropicalContentLayer")
-	ok = _check(premium_layer != null and premium_layer.get_child_count() == 9, "contract line 60") and ok
+	ok = _check(premium_layer != null and premium_layer.get_child_count() == 15, "contract line 60") and ok
 	if premium_layer:
 		var premium_paths := []
 		for child in premium_layer.get_children():

@@ -53,52 +53,61 @@ const THATCH_ALBEDO := preload("res://assets/external/polyhaven/thatch_roof_angl
 const THATCH_NORMAL := preload("res://assets/external/polyhaven/thatch_roof_angled/thatch_roof_angled_nor_gl_1k.jpg")
 const THATCH_ROUGH := preload("res://assets/external/polyhaven/thatch_roof_angled/thatch_roof_angled_rough_1k.jpg")
 
+# Hut footprints resolved against the current heightfield at attach time so
+# path thinning, pier start, and the hut mesh all share the same dry terrace.
+static var _hut_spots: Array[Vector2] = []
+
 
 static func attach(coast: Node3D) -> void:
+	_hut_spots = [
+		coast.walk_to_land(-11.0, 6.2, 0.6),
+		coast.walk_to_land(-7.8, 7.0, 0.6),
+		coast.walk_to_land(8.2, 6.8, 0.6),
+	]
 	var root := Node3D.new()
 	root.name = "TropicalBayDressing"
 	coast.add_child(root)
 	var palm_mesh := _palm_v2_mesh()
-	var palm_multi := _scatter_multimesh(coast, palm_mesh, PALM_BUDGET, 2.35, 15.0, 0.9, 1.55, false, false)
+	var palm_multi := _scatter_multimesh(coast, palm_mesh, PALM_BUDGET, 2.35, 22.0, 0.9, 1.55, false, false, 0.4)
 	palm_multi.name = "TropicalPalmGrove"
 	root.add_child(palm_multi)
 	var grass_mesh := _compose_plant_mesh(GRASS_CLUMP, PackedStringArray(["medium", "small"]), PackedStringArray(["dead", "seedling"]), Vector3(5.2, 5.2, 5.2), true)
 	if grass_mesh == null:
 		grass_mesh = _grass_mesh()
-	var grass_multi := _scatter_multimesh(coast, grass_mesh, GRASS_BUDGET, 0.50, 15.5, 0.95, 1.55, false, false, 0.6, true, 72.0)
+	var grass_multi := _scatter_multimesh(coast, grass_mesh, GRASS_BUDGET, 0.50, 24.0, 0.95, 1.55, false, false, 0.6, true, 72.0)
 	grass_multi.name = "TropicalGrassTufts"
 	root.add_child(grass_multi)
 	var fern_mesh := _compose_plant_mesh(FERN_PLANT, PackedStringArray(["fern_02_a"]), PackedStringArray(), Vector3(3.4, 3.4, 3.4), true)
 	if fern_mesh:
-		var fern_multi := _scatter_multimesh(coast, fern_mesh, FERN_BUDGET, 1.15, 15.5, 1.0, 1.55, false, false, 0.8, true, 68.0)
+		var fern_multi := _scatter_multimesh(coast, fern_mesh, FERN_BUDGET, 1.15, 24.0, 1.0, 1.55, false, false, 0.8, true, 68.0)
 		fern_multi.name = "TropicalFernClumps"
 		root.add_child(fern_multi)
-		var ledge_ferns := _scatter_multimesh(coast, fern_mesh, LEDGE_FERN_BUDGET, 1.45, 18.0, 1.0, 1.55, false, false, 9.0, false, 80.0)
+		var ledge_ferns := _scatter_multimesh(coast, fern_mesh, LEDGE_FERN_BUDGET, 1.45, 24.0, 1.0, 1.55, false, false, 8.0, false, 80.0)
 		ledge_ferns.name = "CliffLedgeFerns"
 		root.add_child(ledge_ferns)
 	var shrub_mesh := _compose_plant_mesh(SHRUB_PLANT, PackedStringArray(["shrub_03_a"]), PackedStringArray(), Vector3(2.55, 2.55, 2.55), true)
 	if shrub_mesh:
-		var shrub_multi := _scatter_multimesh(coast, shrub_mesh, SHRUB_BUDGET, 1.65, 15.5, 0.95, 1.5, false, false, 1.0, true, 70.0)
+		var shrub_multi := _scatter_multimesh(coast, shrub_mesh, SHRUB_BUDGET, 1.65, 24.0, 0.95, 1.5, false, false, 1.0, true, 70.0)
 		shrub_multi.name = "TropicalShrubs"
 		root.add_child(shrub_multi)
 	var calathea_mesh := _compose_plant_mesh(CALATHEA_PLANT, PackedStringArray(["calathea_orbifolia_01_b"]), PackedStringArray(), Vector3(2.35, 2.35, 2.35), true)
 	if calathea_mesh:
-		var calathea_multi := _scatter_multimesh(coast, calathea_mesh, CALATHEA_BUDGET, 1.95, 15.0, 1.0, 1.45, false, false, 1.1, true, 64.0)
+		var calathea_multi := _scatter_multimesh(coast, calathea_mesh, CALATHEA_BUDGET, 1.95, 24.0, 1.0, 1.45, false, false, 1.1, true, 64.0)
 		calathea_multi.name = "TropicalCalathea"
 		root.add_child(calathea_multi)
 	var anthurium_mesh := _compose_plant_mesh(ANTHURIUM_PLANT, PackedStringArray(["anthurium_botany_05_e"]), PackedStringArray(), Vector3(2.4, 2.4, 2.4), true)
 	if anthurium_mesh:
-		var anthurium_multi := _scatter_multimesh(coast, anthurium_mesh, ANTHURIUM_BUDGET, 2.0, 14.5, 1.05, 1.45, false, false, 1.0, true, 60.0)
+		var anthurium_multi := _scatter_multimesh(coast, anthurium_mesh, ANTHURIUM_BUDGET, 2.0, 24.0, 1.05, 1.45, false, false, 1.0, true, 60.0)
 		anthurium_multi.name = "TropicalAnthurium"
 		root.add_child(anthurium_multi)
 	var ursinia_mesh := _compose_plant_mesh(URSINIA_PLANT, PackedStringArray(["flower_ursinia_e_lod0", "flower_ursinia_d_lod0"]), PackedStringArray(), Vector3(3.2, 3.2, 3.2), true)
 	if ursinia_mesh:
-		var flower_multi := _scatter_multimesh(coast, ursinia_mesh, URSINIA_BUDGET, 1.85, 14.5, 1.05, 1.5, false, false, 1.0, true, 58.0)
+		var flower_multi := _scatter_multimesh(coast, ursinia_mesh, URSINIA_BUDGET, 1.85, 24.0, 1.05, 1.5, false, false, 1.0, true, 58.0)
 		flower_multi.name = "TropicalUrsinia"
 		root.add_child(flower_multi)
 	var sorrel_mesh := _compose_plant_mesh(SORREL_PLANT, PackedStringArray(["shrub_sorrel_01_d", "shrub_sorrel_01_e"]), PackedStringArray(), Vector3(3.5, 3.5, 3.5), true)
 	if sorrel_mesh:
-		var sorrel_multi := _scatter_multimesh(coast, sorrel_mesh, SORREL_BUDGET, 1.9, 14.5, 1.05, 1.5, false, false, 1.0, true, 58.0)
+		var sorrel_multi := _scatter_multimesh(coast, sorrel_mesh, SORREL_BUDGET, 1.9, 24.0, 1.05, 1.5, false, false, 1.0, true, 58.0)
 		sorrel_multi.name = "TropicalSorrel"
 		root.add_child(sorrel_multi)
 	if anthurium_mesh:
@@ -166,33 +175,36 @@ static func _scatter_multimesh(coast: Node3D, mesh: ArrayMesh, budget: int, spac
 	multi.mesh = mesh
 	multi.instance_count = budget
 	var placed := 0
-	var x := -22.0
-	while x <= 22.0 and placed < budget:
-		var z := z_start if z_start > -900.0 else (-1.0 if include_beach else 1.2)
-		while z <= z_limit and placed < budget:
-			var step := spacing
-			if inland_dense and z > 3.6:
-				step = spacing * 0.40
-			var jitter_x := sin(x * 12.1 + z * 4.7) * step * 0.35
-			var jitter_z := cos(x * 7.3 - z * 9.1) * step * 0.35
-			var px := x + jitter_x
-			var pz := z + jitter_z
-			var py: float = coast._terrain_height(px, pz)
-			var slope := absf(coast._terrain_height(px + 0.8, pz) - py) + absf(coast._terrain_height(px, pz + 0.8) - py)
-			var min_height := -0.05 if include_beach else (1.6 if z_start > 8.0 else 1.05)
-			var slope_cap := 0.85 if include_beach else (2.15 if z_start > 8.0 else 1.25)
-			# Keep a thinner walked strip near the huts; pack the rest of the plateau.
-			if inland_dense and _on_settlement_path(px, pz) and sin(px * 9.1 + pz * 4.3) > 0.15:
+	var min_height := -0.05 if include_beach else (1.6 if z_start > 8.0 else 1.05)
+	var slope_cap := 0.85 if include_beach else (2.15 if z_start > 8.0 else 1.25)
+	# Two offset passes so an irregular footprint still fills the budget.
+	for pass_i in range(2):
+		if placed >= budget:
+			break
+		var x := -28.0 + (spacing * 0.5 if pass_i == 1 else 0.0)
+		while x <= 28.0 and placed < budget:
+			var z := (z_start if z_start > -900.0 else (-1.0 if include_beach else 1.2)) + (spacing * 0.45 if pass_i == 1 else 0.0)
+			while z <= z_limit and placed < budget:
+				var step := spacing
+				if inland_dense and z > 3.6:
+					step = spacing * 0.40
+				var jitter_x := sin(x * 12.1 + z * 4.7 + float(pass_i) * 5.3) * step * 0.35
+				var jitter_z := cos(x * 7.3 - z * 9.1 + float(pass_i) * 3.1) * step * 0.35
+				var px := x + jitter_x
+				var pz := z + jitter_z
+				var py: float = coast._terrain_height(px, pz)
+				var slope := absf(coast._terrain_height(px + 0.8, pz) - py) + absf(coast._terrain_height(px, pz + 0.8) - py)
+				if inland_dense and _on_settlement_path(px, pz) and sin(px * 9.1 + pz * 4.3) > 0.15:
+					z += step
+					continue
+				if py > coast.WATER_Y + maxf(min_height, 0.45) and slope < slope_cap and _clear_of_ship(px, pz):
+					var yaw := sin(px * 3.7 + pz * 2.2) * TAU
+					var scale := lerpf(scale_min, scale_max, 0.5 + 0.5 * sin(px * 5.1 + pz))
+					var basis := Basis(Vector3.UP, yaw).scaled(Vector3(scale, scale * lerpf(0.85, 1.2, 0.5 + 0.5 * cos(pz)), scale))
+					multi.set_instance_transform(placed, Transform3D(basis, Vector3(px, py, pz)))
+					placed += 1
 				z += step
-				continue
-			if py > coast.WATER_Y + min_height and slope < slope_cap and _clear_of_ship(px, pz):
-				var yaw := sin(px * 3.7 + pz * 2.2) * TAU
-				var scale := lerpf(scale_min, scale_max, 0.5 + 0.5 * sin(px * 5.1 + pz))
-				var basis := Basis(Vector3.UP, yaw).scaled(Vector3(scale, scale * lerpf(0.85, 1.2, 0.5 + 0.5 * cos(pz)), scale))
-				multi.set_instance_transform(placed, Transform3D(basis, Vector3(px, py, pz)))
-				placed += 1
-			z += step
-		x += spacing
+			x += spacing
 	multi.visible_instance_count = placed
 	instance.set_meta("placed_count", placed)
 	instance.multimesh = multi
@@ -204,14 +216,21 @@ static func _scatter_multimesh(coast: Node3D, mesh: ArrayMesh, budget: int, spac
 
 
 static func _clear_of_ship(px: float, pz: float) -> bool:
-	return Vector2(px - 1.0, pz + 5.8).length() > 7.5
+	return Vector2(px - 1.5, pz + 7.2).length() > 7.5
 
 
 static func _on_settlement_path(px: float, pz: float) -> bool:
-	for hut in [Vector2(-12.5, 3.6), Vector2(-9.4, 5.4), Vector2(8.8, 4.8)]:
+	for hut in _hut_spots:
 		if Vector2(px, pz).distance_to(hut) < 2.6:
 			return true
-	return absf(px) < 3.4 and pz > 0.6 and pz < 7.0
+	# Walked strip along the bay terrace between the west and east huts.
+	if _hut_spots.size() >= 2:
+		var west: Vector2 = _hut_spots[0]
+		var east: Vector2 = _hut_spots[_hut_spots.size() - 1]
+		var mid_z := (west.y + east.y) * 0.5
+		if absf(pz - mid_z) < 2.2 and px > west.x - 1.0 and px < east.x + 1.0:
+			return true
+	return absf(px) < 3.4 and pz > 2.0 and pz < 9.0
 
 
 static func _foliage_material() -> StandardMaterial3D:
@@ -394,12 +413,17 @@ static func _settlement(coast: Node3D) -> Node3D:
 	var vertices := PackedVector3Array()
 	var colors := PackedColorArray()
 	var indices := PackedInt32Array()
-	for plank in range(7):
-		var z := 1.4 - float(plank) * 0.95
-		var deck_y: float = maxf(coast.WATER_Y + 0.35, coast._terrain_height(-7.2, z) + 0.2)
-		_add_box(vertices, colors, indices, Vector3(-7.2, deck_y, z), Vector3(1.6, 0.12, 0.72), Color(0.55, 0.38, 0.20))
-		_add_box(vertices, colors, indices, Vector3(-7.9, deck_y - 0.55, z), Vector3(0.12, 1.0, 0.12), Color(0.38, 0.25, 0.14))
-		_add_box(vertices, colors, indices, Vector3(-6.5, deck_y - 0.55, z), Vector3(0.12, 1.0, 0.12), Color(0.38, 0.25, 0.14))
+	var pier_hint := _hut_spots[0] if _hut_spots.size() > 0 else Vector2(-7.2, 6.0)
+	var shore: Vector2 = coast.walk_to_shore(pier_hint.x + 3.6, pier_hint.y, Vector2(0.0, -1.0))
+	var pier_x := shore.x
+	# Start two planks inland and run out over the water so the deck reaches the bay.
+	for plank in range(10):
+		var z := shore.y + 1.6 - float(plank) * 0.85
+		var deck_y: float = maxf(coast.WATER_Y + 0.35, coast._terrain_height(pier_x, z) + 0.2)
+		_add_box(vertices, colors, indices, Vector3(pier_x, deck_y, z), Vector3(1.6, 0.12, 0.72), Color(0.55, 0.38, 0.20))
+		var stilt_len: float = maxf(1.0, deck_y - minf(coast._terrain_height(pier_x, z), coast.WATER_Y) + 0.15)
+		_add_box(vertices, colors, indices, Vector3(pier_x - 0.7, deck_y - stilt_len * 0.5, z), Vector3(0.12, stilt_len, 0.12), Color(0.38, 0.25, 0.14))
+		_add_box(vertices, colors, indices, Vector3(pier_x + 0.7, deck_y - stilt_len * 0.5, z), Vector3(0.12, stilt_len, 0.12), Color(0.38, 0.25, 0.14))
 	pier.mesh = _colored_mesh(vertices, colors, indices)
 	pier.material_override = material
 	pier.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
@@ -408,14 +432,15 @@ static func _settlement(coast: Node3D) -> Node3D:
 	var hut_vertices := PackedVector3Array()
 	var hut_colors := PackedColorArray()
 	var hut_indices := PackedInt32Array()
-	for hut in [
-		[Vector3(-12.5, 0.0, 3.6), 1.7, Color(0.60, 0.48, 0.31), Color(0.42, 0.31, 0.16)],
-		[Vector3(-9.4, 0.0, 5.4), 1.35, Color(0.66, 0.53, 0.34), Color(0.46, 0.34, 0.18)],
-		[Vector3(8.8, 0.0, 4.8), 1.5, Color(0.56, 0.45, 0.30), Color(0.39, 0.29, 0.15)],
-	]:
-		var spot: Vector3 = hut[0]
-		var origin := Vector3(spot.x, coast._terrain_height(spot.x, spot.z), spot.z)
-		_add_hut(hut_vertices, hut_colors, hut_indices, origin, hut[1], hut[2], hut[3])
+	var hut_styles := [
+		[1.7, Color(0.60, 0.48, 0.31), Color(0.42, 0.31, 0.16)],
+		[1.35, Color(0.66, 0.53, 0.34), Color(0.46, 0.34, 0.18)],
+		[1.5, Color(0.56, 0.45, 0.30), Color(0.39, 0.29, 0.15)],
+	]
+	for hi in range(mini(_hut_spots.size(), hut_styles.size())):
+		var spot: Vector2 = _hut_spots[hi]
+		var origin := Vector3(spot.x, coast._terrain_height(spot.x, spot.y), spot.y)
+		_add_hut(hut_vertices, hut_colors, hut_indices, origin, hut_styles[hi][0], hut_styles[hi][1], hut_styles[hi][2])
 	var huts := MeshInstance3D.new()
 	huts.name = "StiltedHuts"
 	huts.mesh = _colored_mesh(hut_vertices, hut_colors, hut_indices)
@@ -582,7 +607,7 @@ static func _distant_islands() -> MeshInstance3D:
 	var merged := SurfaceTool.new()
 	merged.begin(Mesh.PRIMITIVE_TRIANGLES)
 	for spec in specs:
-		var part: ArrayMesh = landmass_mesh(spec[1], spec[2], spec[3], spec[4], 0.0)
+		var part: ArrayMesh = landmass_mesh(spec[1], spec[2], spec[3], spec[4], 0.0, 12, 40)
 		merged.append_from(part, 0, Transform3D(Basis.IDENTITY, spec[0]))
 	var instance := MeshInstance3D.new()
 	instance.name = "HazyIslets"
@@ -603,17 +628,20 @@ static func landmass_mesh(radius_x: float, radius_z: float, peak: float, seed: f
 		var r := float(ring) / float(rings) * 1.2
 		for sector in range(sectors):
 			var angle := TAU * float(sector) / float(sectors)
-			var coast := 1.0 + 0.16 * sin(angle * 3.0 + seed) + 0.09 * sin(angle * 7.0 + seed * 2.3) + 0.05 * sin(angle * 13.0 + seed * 0.7)
+			var coast := 1.0 + 0.34 * sin(angle * 2.0 + seed) + 0.22 * sin(angle * 5.0 + seed * 1.7) + 0.14 * sin(angle * 9.0 + seed * 2.3) + 0.09 * sin(angle * 17.0 + seed * 0.6) + 0.05 * sin(angle * 23.0 + seed * 3.1)
 			# Profile runs on the normalised radius; the noisy coastline scales the
 			# vertex position instead. The outer ring (t = 1.2) is then always past
 			# the skirt (t >= 1.15) and every boundary vertex is under the sea.
 			var t := r
-			var body := pow(clampf(1.0 - t, 0.0, 1.0), 1.7)
-			var ridge := 0.12 * sin(angle * 5.0 + seed * 1.9 + r * 6.0) * body
-			var height := peak * (body + ridge)
+			# Fatter, off-round hills instead of a centred cone: a shoulder mid-slope
+			# and a broken sandy fringe so the base does not read as a disc.
+			var body := pow(clampf(1.0 - t, 0.0, 1.0), 1.18)
+			var shoulder := 0.32 * pow(clampf(1.0 - absf(t - 0.40) / 0.40, 0.0, 1.0), 1.35) * (0.55 + 0.45 * sin(angle * 3.0 + seed * 1.3))
+			var ridge := 0.16 * sin(angle * 4.0 + seed * 1.9 + r * 5.0) * body
+			var height := peak * (body * 0.78 + shoulder + ridge)
 			if crater > 0.0:
 				height -= peak * crater * (1.0 - smoothstep(0.0, 0.16, t))
-			height += 0.55 * (1.0 - smoothstep(0.88, 1.0, t))
+			height += 0.38 * (1.0 - smoothstep(0.84, 1.0, t)) * (0.50 + 0.50 * sin(angle * 2.6 + seed * 0.8))
 			height -= 2.2 * smoothstep(1.0, 1.15, t)
 			vertices.append(Vector3(cos(angle) * r * coast * radius_x, SEA + height, sin(angle) * r * coast * radius_z))
 	var indices := PackedInt32Array()
@@ -798,9 +826,15 @@ static func _scatter_rock_clusters(coast: Node3D, mesh: ArrayMesh, budget: int, 
 		for i in range(group):
 			if placed >= budget:
 				break
-			var px: float = anchor.x + sin(seed * 5.1 + float(member) * 2.3) * 1.15
-			var pz: float = anchor.y + cos(seed * 3.7 + float(member) * 1.9) * 0.95
+			var hint: Vector2 = coast.walk_to_land(anchor.x, anchor.y, 0.05)
+			var px: float = hint.x + sin(seed * 5.1 + float(member) * 2.3) * 1.15
+			var pz: float = hint.y + cos(seed * 3.7 + float(member) * 1.9) * 0.95
 			var py: float = coast._terrain_height(px, pz)
+			if py < coast.WATER_Y - 0.05:
+				var wet: Vector2 = coast.walk_to_land(px, pz, 0.05)
+				px = wet.x
+				pz = wet.y
+				py = coast._terrain_height(px, pz)
 			if py > coast.WATER_Y - 0.05 and _clear_of_ship(px, pz):
 				var yaw := sin(px * 2.4 + pz * 1.7 + seed) * TAU
 				var scale := lerpf(scale_min, scale_max, 0.5 + 0.5 * sin(px * 3.2 + pz * 1.1 + seed))
@@ -998,22 +1032,24 @@ static func _scatter_cliff_vines(coast: Node3D, mesh: ArrayMesh, budget: int) ->
 	multi.mesh = mesh
 	multi.instance_count = budget
 	var placed := 0
-	var x := -20.0
-	while x <= 20.0 and placed < budget:
-		var z := 10.2
-		while z <= 16.5 and placed < budget:
+	var x := -24.0
+	while x <= 24.0 and placed < budget:
+		var z := 0.0
+		while z <= 24.0 and placed < budget:
 			var px := x + sin(x * 3.7 + z) * 0.6
 			var pz := z + cos(x * 2.2) * 0.4
 			var py: float = coast._terrain_height(px, pz)
-			var down: float = py - coast._terrain_height(px, pz - 1.2)
-			if py > 3.5 and down > 0.8:
-				var yaw := 3.14159 + sin(px * 2.1) * 0.35
+			var gx: float = coast._terrain_height(px + 1.0, pz) - coast._terrain_height(px - 1.0, pz)
+			var gz: float = coast._terrain_height(px, pz + 1.0) - coast._terrain_height(px, pz - 1.0)
+			var slope := sqrt(gx * gx + gz * gz)
+			if py > 2.6 and slope > 1.2:
+				var yaw := atan2(gx, gz) + PI + sin(px * 2.1) * 0.25
 				var scale := lerpf(1.05, 1.7, 0.5 + 0.5 * sin(px * 4.0 + pz))
 				var basis := Basis(Vector3.UP, yaw).scaled(Vector3(scale, scale, scale))
 				multi.set_instance_transform(placed, Transform3D(basis, Vector3(px, py + 0.15, pz)))
 				placed += 1
-			z += 1.7
-		x += 1.6
+			z += 1.6
+		x += 1.5
 	multi.visible_instance_count = placed
 	instance.set_meta("placed_count", placed)
 	instance.multimesh = multi
@@ -1031,12 +1067,13 @@ static func _scatter_hero_flowers(coast: Node3D, mesh: ArrayMesh, anchors: Packe
 	var placed := 0
 	for i in range(anchors.size()):
 		var anchor: Vector3 = anchors[i]
-		var px := anchor.x
-		var pz := anchor.z
+		var landed: Vector2 = coast.walk_to_land(anchor.x, anchor.z, 0.4)
+		var px := landed.x
+		var pz := landed.y
 		if not _clear_of_ship(px, pz):
 			continue
 		var py: float = coast._terrain_height(px, pz)
-		if py < coast.WATER_Y + 0.35:
+		if py < coast.WATER_Y + 0.55:
 			continue
 		var yaw := sin(px * 2.8 + pz * 1.3) * 6.28
 		var scale := lerpf(scale_min, scale_max, 0.5 + 0.5 * sin(px * 3.3 + pz))
