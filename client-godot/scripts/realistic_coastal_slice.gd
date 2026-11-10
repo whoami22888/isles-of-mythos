@@ -70,31 +70,31 @@ func _build_environment() -> void:
 	sky_material.panorama = COAST_HDRI
 	# Keep energy modest on compatibility / mobile: the HDRI should light the
 	# sky, not blow out the island.
-	sky_material.energy_multiplier = 0.74
+	sky_material.energy_multiplier = 0.80
 	sky.sky_material = sky_material
 	environment.sky = sky
 	# Rotate so the brighter sky sits with the warm key light.
 	environment.sky_rotation = Vector3(0.0, deg_to_rad(155.0), 0.0)
 	environment.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-	environment.ambient_light_energy = 0.44
+	environment.ambient_light_energy = 0.50
 	environment.ambient_light_sky_contribution = 1.0
 	environment.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
 	environment.tonemap_mode = Environment.TONE_MAPPER_ACES
 	environment.tonemap_exposure = 0.86
 	environment.adjustment_enabled = true
 	environment.adjustment_saturation = 0.88
-	environment.adjustment_contrast = 1.22
-	environment.adjustment_brightness = 0.96
+	environment.adjustment_contrast = 1.16
+	environment.adjustment_brightness = 0.97
 	environment.fog_enabled = true
 	environment.fog_mode = Environment.FOG_MODE_DEPTH
-	environment.fog_light_color = Color(0.46, 0.62, 0.84)
-	environment.fog_depth_begin = 28.0
+	environment.fog_light_color = Color(0.62, 0.74, 0.86)
+	environment.fog_depth_begin = 32.0
 	environment.fog_depth_end = 180.0
 	environment.fog_depth_curve = 1.05
-	environment.fog_aerial_perspective = 0.72
-	environment.fog_sun_scatter = 0.22
+	environment.fog_aerial_perspective = 0.78
+	environment.fog_sun_scatter = 0.34
 	# Keep the sky readable; haze is for distant land, not the dome.
-	environment.fog_sky_affect = 0.08
+	environment.fog_sky_affect = 0.14
 	# Glow is ignored on some compatibility devices; the sun-glow billboard is the fallback.
 	environment.glow_enabled = true
 	environment.glow_intensity = 0.28
@@ -104,9 +104,9 @@ func _build_environment() -> void:
 	var sun := DirectionalLight3D.new()
 	sun.name = "WarmSun"
 	# Slightly lower golden key so the harbour side gets warm raking light.
-	sun.rotation_degrees = Vector3(-42.0, 155.0, 0.0)
-	sun.light_color = Color(1.0, 0.74, 0.42)
-	sun.light_energy = 1.95
+	sun.rotation_degrees = Vector3(-33.0, 148.0, 0.0)
+	sun.light_color = Color(1.0, 0.70, 0.36)
+	sun.light_energy = 1.72
 	sun.shadow_enabled = true
 	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
 	sun.directional_shadow_max_distance = 64.0
@@ -122,8 +122,12 @@ func _terrain_height(px: float, pz: float) -> float:
 	var north_mask := 1.0 - smoothstep(20.0, 28.0, pz)
 	var shore_z := -2.2 + sin(px * 0.085) * 2.2 + sin(px * 0.31 + 0.4) * 0.8
 	var dist := pz - shore_z
-	var seabed := -6.4 + sin(px * 0.17 + pz * 0.11) * 0.4 + sin(px * 0.07) * 0.55
-	seabed += smoothstep(-3.0, 1.2, dist) * 4.2
+	# Wide shallow lagoon just under the waterline, then a drop further out.
+	# Climb back to a dry beach at the shoreline so the harbour sand is not flooded.
+	var deep_bed := -6.8 + sin(px * 0.17 + pz * 0.11) * 0.35 + sin(px * 0.07) * 0.45
+	var shelf_y := -0.90 + sin(px * 0.41 + 0.6) * 0.12 + sin(pz * 0.22) * 0.06
+	var seabed := lerpf(deep_bed, shelf_y, smoothstep(-17.5, -6.2, dist))
+	seabed = lerpf(seabed, WATER_Y + 0.22, smoothstep(-1.7, 1.4, dist))
 	var beach := smoothstep(0.0, 5.0, dist) * 0.7
 	var grass := smoothstep(4.5, 10.0, dist) * 1.5
 	var cliff := smoothstep(10.8, 14.4, dist) * (7.6 + sin(px * 0.28) * 0.85)
@@ -355,7 +359,7 @@ func _build_premium_landmarks() -> void:
 		_apply_far_foliage_lod(shoreline_tree, 36000)
 		grove.add_child(shoreline_tree)
 		_ground_asset_on_terrain(shoreline_tree)
-		_configure_mobile_visibility(shoreline_tree, 48.0, false)
+		_configure_mobile_visibility(shoreline_tree, 90.0, false)
 	for entry in [
 		[Vector3(-8.5, 0.0, 6.8), 1.25],
 		[Vector3(10.5, 0.0, 7.1), 1.5]
@@ -386,6 +390,12 @@ func _build_premium_landmarks() -> void:
 		[Vector3(11.0, 0.0, 12.0), TROPICAL_TREE_ALT_SCENE],
 		[Vector3(-3.5, 0.0, 16.5), TROPICAL_TREE_ALT_SCENE],
 		[Vector3(5.5, 0.0, 15.0), TROPICAL_TREE_SCENE],
+		[Vector3(6.8, 0.0, 8.2), TROPICAL_TREE_ALT_SCENE],
+		[Vector3(-6.2, 0.0, 8.6), TROPICAL_TREE_SCENE],
+		[Vector3(1.2, 0.0, 11.4), TROPICAL_TREE_SCENE],
+		[Vector3(13.2, 0.0, 8.8), TROPICAL_TREE_ALT_SCENE],
+		[Vector3(-8.4, 0.0, 12.4), TROPICAL_TREE_ALT_SCENE],
+		[Vector3(3.6, 0.0, 7.1), TROPICAL_TREE_SCENE],
 		[Vector3(-16.0, 0.0, 8.0), MOSS_ROCK_SCENE],
 		[Vector3(15.0, 0.0, 9.0), MOSS_ROCK_SCENE]
 	]:
@@ -395,7 +405,7 @@ func _build_premium_landmarks() -> void:
 		var view_range := 64.0
 		if entry[1] == TROPICAL_TREE_SCENE or entry[1] == TROPICAL_TREE_ALT_SCENE:
 			_apply_far_foliage_lod(imported, 48000)
-			view_range = 16.0
+			view_range = 96.0
 		elif entry[1] == COASTAL_CLIFF_SCENE:
 			_install_cliff_proxy(imported)
 			view_range = 120.0
@@ -832,7 +842,7 @@ func apply_visual_quality(level: int) -> void:
 		var palms := dressing.get_node_or_null("TropicalPalmGrove") as MultiMeshInstance3D
 		var grass := dressing.get_node_or_null("TropicalGrassTufts") as MultiMeshInstance3D
 		var palm_counts: Array[int] = [12, 18, 24]
-		var grass_counts: Array[int] = [0, 280, 560]
+		var grass_counts: Array[int] = [0, 420, 980]
 		if palms and palms.multimesh:
 			var palm_placed := int(palms.get_meta("placed_count", palms.multimesh.visible_instance_count))
 			palms.multimesh.visible_instance_count = mini(palm_counts[clamped], palm_placed)
@@ -840,13 +850,16 @@ func apply_visual_quality(level: int) -> void:
 			var grass_placed := int(grass.get_meta("placed_count", grass.multimesh.visible_instance_count))
 			grass.multimesh.visible_instance_count = mini(grass_counts[clamped], grass_placed)
 		for extra in [
-			["TropicalFernClumps", [0, 48, 96]],
-			["TropicalShrubs", [0, 24, 48]],
-			["TropicalCalathea", [0, 14, 28]],
-			["TropicalAnthurium", [0, 9, 18]],
-			["TropicalUrsinia", [0, 20, 40]],
-			["TropicalSorrel", [0, 16, 32]],
-			["CliffLedgeFerns", [0, 24, 48]],
+			["TropicalFernClumps", [0, 80, 160]],
+			["TropicalShrubs", [0, 40, 80]],
+			["TropicalCalathea", [0, 22, 44]],
+			["TropicalAnthurium", [0, 12, 24]],
+			["TropicalUrsinia", [0, 24, 48]],
+			["TropicalSorrel", [0, 20, 40]],
+			["CliffLedgeFerns", [0, 36, 72]],
+			["CliffVines", [0, 20, 40]],
+			["HeroAnthurium", [0, 8, 12]],
+			["HeroUrsinia", [0, 8, 12]],
 			["ShoreBoulders", [4, 8, 10]],
 			["ShoreRocks07", [4, 8, 10]],
 			["ShoreMossRocks", [4, 8, 10]],

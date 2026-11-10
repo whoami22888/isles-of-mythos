@@ -4,7 +4,7 @@ render_mode blend_mix, depth_draw_opaque, cull_back, diffuse_burley, specular_sc
 // Stylised tropical water for the compatibility renderer. Shalllows are
 // translucent over the real sand mesh; mid and deep water stay opaque.
 // Colour is driven by the baked shore heightfield, never a flat #00BFFF slab.
-uniform vec4 water_shallow : source_color = vec4(0.58, 0.76, 0.70, 1.0);
+uniform vec4 water_shallow : source_color = vec4(0.60, 0.82, 0.74, 1.0);
 uniform vec4 water_mid : source_color = vec4(0.10, 0.32, 0.34, 1.0);
 uniform vec4 water_deep : source_color = vec4(0.04, 0.12, 0.22, 1.0);
 uniform vec4 foam_tint : source_color = vec4(0.90, 0.93, 0.90, 1.0);
@@ -74,10 +74,10 @@ void fragment() {
 
 	// Pale turquoise over sand, teal mid-shelf, then a deeper blue offshore.
 	vec3 sand = texture(sand_albedo, p * 0.20).rgb * vec3(1.08, 0.98, 0.82);
-	float pale_w = coverage * (1.0 - smoothstep(0.02, 4.40, depth_m));
-	float teal_w = coverage * smoothstep(0.70, 3.60, depth_m) * (1.0 - smoothstep(5.50, 10.0, depth_m));
-	float navy_w = clamp(smoothstep(4.20, 11.0, depth_m) + deep_open, 0.0, 1.0);
-	vec3 pale = mix(sand, water_shallow.rgb, 0.38);
+	float pale_w = coverage * (1.0 - smoothstep(0.05, 2.60, depth_m));
+	float teal_w = coverage * smoothstep(1.80, 4.20, depth_m) * (1.0 - smoothstep(7.00, 12.0, depth_m));
+	float navy_w = clamp(smoothstep(8.00, 15.0, depth_m) + deep_open, 0.0, 1.0);
+	vec3 pale = mix(sand, water_shallow.rgb, 0.62);
 	vec3 sea = mix(water_mid.rgb, pale, clamp(pale_w, 0.0, 1.0));
 	sea = mix(sea, water_mid.rgb, clamp(teal_w, 0.0, 1.0));
 	sea = mix(sea, water_deep.rgb, navy_w);
@@ -92,9 +92,11 @@ void fragment() {
 	float foam_pattern = sin(p.x * 1.6 + ocean_time * 1.2) * cos(p.y * 2.1 - ocean_time * 0.85);
 	foam_pattern += sin(p.x * 3.4 - p.y * 2.6 + ocean_time * 1.5) * 0.35;
 	float foam_motion = smoothstep(-0.15, 0.72, foam_pattern);
-	float band = coverage * smoothstep(0.00, 0.40, depth_m) * (1.0 - smoothstep(0.70, 2.60, depth_m));
-	float lip = coverage * (1.0 - smoothstep(0.00, 0.28, depth_m)) * smoothstep(-0.03, 0.04, depth_m);
-	float shore_foam = (band * foam_motion * 1.05 + lip * 0.90) * foam_amount;
+	// Foam only in a thin shoreline band. A wide band turns the whole lagoon
+	// into a repeating white checker because the shelf is ~0.5–1 m deep.
+	float band = coverage * smoothstep(0.00, 0.10, depth_m) * (1.0 - smoothstep(0.22, 0.55, depth_m));
+	float lip = coverage * (1.0 - smoothstep(0.00, 0.16, depth_m)) * smoothstep(-0.03, 0.04, depth_m);
+	float shore_foam = (band * foam_motion * 0.90 + lip * 0.80) * foam_amount;
 
 	vec2 fwd = vessel_forward;
 	float fwd_len = length(fwd);
@@ -116,7 +118,7 @@ void fragment() {
 	vec3 ldir = normalize(sun_dir);
 	vec3 view_world = normalize((INV_VIEW_MATRIX * vec4(VIEW, 0.0)).xyz);
 	vec3 halfv = normalize(ldir + view_world);
-	float glint = pow(max(dot(n_world, halfv), 0.0), 140.0) * (1.0 - foam) * 0.70;
+	float glint = pow(max(dot(n_world, halfv), 0.0), 180.0) * (1.0 - foam) * 0.40;
 	sea += vec3(1.0, 0.95, 0.84) * glint;
 
 	ALBEDO = mix(sea, foam_tint.rgb, foam);
@@ -125,6 +127,6 @@ void fragment() {
 	SPECULAR = mix(0.42, 0.08, foam);
 	// See-through only over the real sand shelf. Deep and open ocean stay solid
 	// so the 640 m plane does not composite against the sky as a film of cyan.
-	float clear = coverage * (1.0 - smoothstep(0.04, 3.60, depth_m));
-	ALPHA = mix(1.0, 0.26, clear * (1.0 - foam));
+	float clear = coverage * (1.0 - smoothstep(0.04, 1.35, depth_m));
+	ALPHA = mix(1.0, 0.34, clear * (1.0 - foam));
 }

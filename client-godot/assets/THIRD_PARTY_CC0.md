@@ -55,3 +55,5 @@ Palms (`assets/generated/palm_v2/`) are first-party game art, not Poly Haven, an
 | --- | --- | --- |
 | water_ripples_nor_gl_1k.png | `generated/water/` | Tiling OpenGL water normal authored for this pass (domain-warped, multi-direction wave trains). Used because Poly Haven has no CC0 water-normal texture at 1K. |
 | sun_glow.png | `generated/lighting/` | Soft radial sun disc / halo for a compatibility-safe additive bloom billboard. |
+| hanging_vines_rgba.png | `generated/foliage/` | First-party alpha card for hanging vines on cliff ledges. |
+
