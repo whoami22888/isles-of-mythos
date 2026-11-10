@@ -2,21 +2,21 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://1ghy51i5tr6n"
-path.s3tc="res://.godot/imported/palm_v2_mobile_texture_pbr_20250901.jpg-c98fc3db86a893eb6d6c19a0be8ef30a.s3tc.ctex"
-path.etc2="res://.godot/imported/palm_v2_mobile_texture_pbr_20250901.jpg-c98fc3db86a893eb6d6c19a0be8ef30a.etc2.ctex"
+uid="uid://bkyokac5jvpnj"
+path.s3tc="res://.godot/imported/palm_v2_mobile_texture_pbr_20250901.png-f6a31186449cd5041ee4094fc53adf24.s3tc.ctex"
+path.etc2="res://.godot/imported/palm_v2_mobile_texture_pbr_20250901.png-f6a31186449cd5041ee4094fc53adf24.etc2.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 generator_parameters={
-"md5": "18ee5a8fbfc66bd51cc2520ce306c341"
+"md5": "3fafd24bd799f22e7034633ff2dce658"
 }
 
 [deps]
 
-source_file="res://assets/generated/palm_v2/palm_v2_mobile_texture_pbr_20250901.jpg"
-dest_files=["res://.godot/imported/palm_v2_mobile_texture_pbr_20250901.jpg-c98fc3db86a893eb6d6c19a0be8ef30a.s3tc.ctex", "res://.godot/imported/palm_v2_mobile_texture_pbr_20250901.jpg-c98fc3db86a893eb6d6c19a0be8ef30a.etc2.ctex"]
+source_file="res://assets/generated/palm_v2/palm_v2_mobile_texture_pbr_20250901.png"
+dest_files=["res://.godot/imported/palm_v2_mobile_texture_pbr_20250901.png-f6a31186449cd5041ee4094fc53adf24.s3tc.ctex", "res://.godot/imported/palm_v2_mobile_texture_pbr_20250901.png-f6a31186449cd5041ee4094fc53adf24.etc2.ctex"]
 
 [params]
 

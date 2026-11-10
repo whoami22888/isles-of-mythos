@@ -4,9 +4,9 @@ extends RefCounted
 ## No second water or terrain system. The coastal slice still owns the mesh
 ## and the shore-height contract. Geometry here is first-party.
 
-const PALM_BUDGET := 32
+const PALM_BUDGET := 24
 const GRASS_BUDGET := 180
-const PALM_TRIANGLE_BUDGET := 15000
+const PALM_TRIANGLE_BUDGET := 20000
 const PALM_V2 := "res://assets/generated/palm_v2/palm_v2_mobile.glb"
 const TERRAIN_SHADER := preload("res://shaders/coastal_terrain_surface.gdshader")
 const COAST_DIFFUSE := preload("res://assets/external/polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_diff_1k.jpg")
@@ -110,7 +110,7 @@ static func _palm_v2_mesh() -> ArrayMesh:
 		if walker == instance:
 			break
 		walker = walker.get_parent()
-	xform = Transform3D.IDENTITY.scaled(Vector3(3.1, 3.1, 3.1)) * xform
+	xform = Transform3D.IDENTITY.scaled(Vector3(3.0, 3.0, 3.0)) * xform
 	var result := ArrayMesh.new()
 	for surface_index in range(source_mesh.get_surface_count()):
 		var arrays := source_mesh.surface_get_arrays(surface_index)
