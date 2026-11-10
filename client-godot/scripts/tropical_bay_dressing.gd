@@ -18,7 +18,8 @@ const HERO_FLOWER_BUDGET := 16
 const BOULDER_BUDGET := 10
 const ROCK07_BUDGET := 10
 const MOSS_ROCK_BUDGET := 10
-const SOLID_BUSH_BUDGET := 48
+const SOLID_BUSH_BUDGET := 28
+const SOLID_BUSH_B_BUDGET := 20
 const CRAG_BUDGET := 7
 const CRAG07_BUDGET := 5
 const DRIFTWOOD_BUDGET := 8
@@ -40,6 +41,7 @@ const TREE01_LOD2 := "res://assets/external/generated/foliage/island_tree_01_lod
 const TREE02_LOD2 := "res://assets/external/generated/foliage/island_tree_02_lod2.glb"
 const VINE_ALBEDO := preload("res://assets/generated/foliage/hanging_vines_rgba.png")
 const LEAVES_COVERAGE := preload("res://assets/external/generated/foliage/island_tree_leaves_rgba_coverage_1k.png")
+const SHRUB_COVERAGE := preload("res://assets/external/generated/foliage/shrub_03_diff_coverage_1k.png")
 const CLIFF_SHADER := preload("res://shaders/cliff_surface.gdshader")
 const ROCK_SHADER := preload("res://shaders/rock_surface.gdshader")
 const MOSS_ALBEDO := preload("res://assets/external/polyhaven/forrest_ground_01/forrest_ground_01_diff_1k.jpg")
@@ -164,12 +166,18 @@ static func attach(coast: Node3D) -> void:
 		var moss_rocks := _scatter_rock_clusters(coast, moss_mesh, MOSS_ROCK_BUDGET, 3.7, 0.48, 0.88)
 		moss_rocks.name = "ShoreMossRocks"
 		root.add_child(moss_rocks)
-	var bush_mesh := _solid_canopy_bush_mesh()
-	if bush_mesh:
-		var bushes := _scatter_multimesh(coast, bush_mesh, SOLID_BUSH_BUDGET, 1.85, 20.0, 1.25, 2.15, false, false, 2.2, true, 80.0)
+	var bush_mesh_a := _leafy_canopy_bush_mesh(0)
+	if bush_mesh_a:
+		var bushes := _scatter_multimesh(coast, bush_mesh_a, SOLID_BUSH_BUDGET, 1.95, 20.0, 1.15, 1.68, false, false, 2.15, true, 80.0)
 		bushes.name = "SolidCanopyBushes"
 		bushes.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 		root.add_child(bushes)
+	var bush_mesh_b := _leafy_canopy_bush_mesh(1)
+	if bush_mesh_b:
+		var bushes_b := _scatter_multimesh(coast, bush_mesh_b, SOLID_BUSH_B_BUDGET, 2.15, 20.0, 1.12, 1.62, false, false, 2.55, true, 80.0)
+		bushes_b.name = "SolidCanopyBushesB"
+		bushes_b.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		root.add_child(bushes_b)
 	var crag_boulder := _compose_plant_mesh(BOULDER_MOBILE, PackedStringArray(), PackedStringArray(), Vector3.ONE, true)
 	if crag_boulder:
 		_apply_crag_shader(crag_boulder)
@@ -1364,60 +1372,259 @@ static func _soften_mesh_alpha(mesh: ArrayMesh) -> void:
 		mesh.surface_set_material(surface_index, foliage)
 
 
-static func _solid_canopy_bush_mesh() -> ArrayMesh:
-	# Opaque overlapping blobs — a full green mass, no alpha leaf cards.
-	var blobs: Array = [
-		[Vector3(0.0, 0.62, 0.0), 0.62],
-		[Vector3(0.40, 0.48, 0.10), 0.44],
-		[Vector3(-0.36, 0.44, 0.18), 0.42],
-		[Vector3(0.08, 0.50, -0.38), 0.40],
-		[Vector3(-0.12, 0.88, -0.06), 0.36],
-		[Vector3(0.22, 0.34, 0.34), 0.32],
-	]
+static func _leafy_canopy_bush_mesh(variant: int) -> ArrayMesh:
+	# Overlapping Poly Haven shrub_03 clumps plus an irregular opaque core so
+	# the mass stays leafy and dense, without smooth spheres or sky holes.
+	var second_clump := "shrub_03_c" if variant == 0 else "shrub_03_b"
+	var clump_a := _compose_plant_mesh(SHRUB_PLANT, PackedStringArray(["shrub_03_a"]), PackedStringArray(), Vector3(2.05, 2.05, 2.05), true)
+	var clump_b := _compose_plant_mesh(SHRUB_PLANT, PackedStringArray([second_clump]), PackedStringArray(), Vector3(1.88, 1.88, 1.88), true)
+	if clump_a == null:
+		return null
+	_recenter_mesh_origin(clump_a)
+	var result := ArrayMesh.new()
+	_append_mesh_transformed(result, clump_a, Transform3D.IDENTITY)
+	if clump_b != null:
+		_recenter_mesh_origin(clump_b)
+		var yaw := 2.15 if variant == 0 else -1.45
+		var offset := Vector3(0.22, 0.02, 0.16) if variant == 0 else Vector3(-0.18, 0.0, 0.20)
+		_append_mesh_transformed(result, clump_b, Transform3D(Basis(Vector3.UP, yaw), offset))
+	var yaw2 := -1.05 if variant == 0 else 2.55
+	var offset2 := Vector3(-0.16, 0.03, -0.14) if variant == 0 else Vector3(0.18, 0.02, -0.12)
+	var scale2 := 0.76
+	_append_mesh_transformed(result, clump_a, Transform3D(Basis(Vector3.UP, yaw2).scaled(Vector3(scale2, scale2, scale2)), offset2))
+	for surface_index in range(result.get_surface_count()):
+		var source_mat := result.surface_get_material(surface_index) as StandardMaterial3D
+		var foliage := StandardMaterial3D.new() if source_mat == null else source_mat.duplicate() as StandardMaterial3D
+		_soften_foliage_material(foliage)
+		foliage.albedo_texture = SHRUB_COVERAGE
+		foliage.albedo_color = Color(0.86, 0.88, 0.76)
+		foliage.roughness = 0.9
+		foliage.metallic = 0.0
+		result.surface_set_material(surface_index, foliage)
+	var bounds := _mesh_aabb(result)
+	_append_dense_leaf_cluster(result, bounds, variant)
+	_append_irregular_foliage_core(result, bounds, variant)
+	return result
+
+
+static func _mesh_aabb(mesh: ArrayMesh) -> AABB:
+	var bounds := AABB()
+	var started := false
+	for surface_index in range(mesh.get_surface_count()):
+		var arrays: Array = mesh.surface_get_arrays(surface_index)
+		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		for vertex in vertices:
+			if not started:
+				bounds = AABB(vertex, Vector3.ZERO)
+				started = true
+			else:
+				bounds = bounds.expand(vertex)
+	return bounds
+
+
+static func _recenter_mesh_origin(mesh: ArrayMesh) -> void:
+	var bounds := _mesh_aabb(mesh)
+	var shift := Vector3(-(bounds.position.x + bounds.size.x * 0.5), -bounds.position.y, -(bounds.position.z + bounds.size.z * 0.5))
+	var saved_arrays: Array = []
+	var saved_mats: Array = []
+	for surface_index in range(mesh.get_surface_count()):
+		var arrays: Array = mesh.surface_get_arrays(surface_index)
+		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		for i in range(vertices.size()):
+			vertices[i] += shift
+		arrays[Mesh.ARRAY_VERTEX] = vertices
+		saved_arrays.append(arrays)
+		saved_mats.append(mesh.surface_get_material(surface_index))
+	# clear() is not available on ArrayMesh; rebuild into a temp and copy surfaces back
+	# by removing from the end, then re-adding.
+	mesh.clear_surfaces()
+	for i in range(saved_arrays.size()):
+		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, saved_arrays[i])
+		if saved_mats[i] != null:
+			mesh.surface_set_material(mesh.get_surface_count() - 1, saved_mats[i])
+
+
+static func _append_mesh_transformed(dest: ArrayMesh, src: ArrayMesh, xform: Transform3D) -> void:
+	for surface_index in range(src.get_surface_count()):
+		var arrays: Array = src.surface_get_arrays(surface_index)
+		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var shifted := PackedVector3Array()
+		shifted.resize(vertices.size())
+		for i in range(vertices.size()):
+			shifted[i] = xform * vertices[i]
+		arrays[Mesh.ARRAY_VERTEX] = shifted
+		if arrays[Mesh.ARRAY_NORMAL] != null:
+			var source_normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+			if source_normals.size() == vertices.size():
+				var normals := PackedVector3Array()
+				normals.resize(source_normals.size())
+				for i in range(source_normals.size()):
+					normals[i] = (xform.basis * source_normals[i]).normalized()
+				arrays[Mesh.ARRAY_NORMAL] = normals
+		dest.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+		var mat := src.surface_get_material(surface_index)
+		if mat != null:
+			dest.surface_set_material(dest.get_surface_count() - 1, mat)
+
+
+static func _append_irregular_foliage_core(mesh: ArrayMesh, bounds: AABB, variant: int) -> void:
+	# Lumpy opaque volume, kept inside the leaf envelope so sky never shows through.
+	var centre := Vector3(
+		bounds.position.x + bounds.size.x * 0.5,
+		bounds.position.y + bounds.size.y * 0.48,
+		bounds.position.z + bounds.size.z * 0.5
+	)
+	var rx: float = maxf(bounds.size.x * 0.20, 0.22)
+	var ry: float = maxf(bounds.size.y * 0.22, 0.20)
+	var rz: float = maxf(bounds.size.z * 0.20, 0.22)
+	var seed: float = 1.7 if variant == 0 else 4.3
+	var radial := 8
+	var rings := 6
 	var vertices := PackedVector3Array()
 	var normals := PackedVector3Array()
 	var uvs := PackedVector2Array()
 	var indices := PackedInt32Array()
-	for blob in blobs:
-		var centre: Vector3 = blob[0]
-		var radius: float = blob[1]
-		var sphere := SphereMesh.new()
-		sphere.radius = radius
-		sphere.height = radius * 2.0
-		sphere.radial_segments = 8
-		sphere.rings = 5
-		var arrays: Array = sphere.surface_get_arrays(0)
-		var src_v: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
-		var src_n: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
-		var src_uv: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
-		var src_i: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
-		var base := vertices.size()
-		for i in range(src_v.size()):
-			vertices.append(src_v[i] + centre)
-			if src_n.size() == src_v.size():
-				normals.append(src_n[i])
-			else:
-				normals.append(Vector3.UP)
-			if src_uv.size() == src_v.size():
-				uvs.append(src_uv[i])
-			else:
-				uvs.append(Vector2(src_v[i].x, src_v[i].z))
-		for idx in src_i:
-			indices.append(base + idx)
-	var mesh_arrays := []
+	for ring in range(rings + 1):
+		var phi := PI * float(ring) / float(rings)
+		var sp := sin(phi)
+		var cp := cos(phi)
+		for seg in range(radial):
+			var theta := TAU * float(seg) / float(radial)
+			var ct := cos(theta)
+			var st := sin(theta)
+			var nx := sp * ct
+			var ny := cp
+			var nz := sp * st
+			var lump: float = 1.0 + 0.32 * sin(3.0 * theta + seed) * sin(2.0 * phi) + 0.20 * cos(5.0 * theta - seed) * sin(3.0 * phi) + 0.14 * sin(4.0 * phi + theta * 2.0)
+			var point := Vector3(centre.x + nx * rx * lump, centre.y + ny * ry * lump * 0.9, centre.z + nz * rz * lump)
+			vertices.append(point)
+			normals.append(Vector3(nx / rx, ny / ry, nz / rz).normalized())
+			uvs.append(Vector2(float(seg) / float(radial) * 4.0, float(ring) / float(rings) * 4.0))
+	for ring in range(rings):
+		for seg in range(radial):
+			var a := ring * radial + seg
+			var b := ring * radial + ((seg + 1) % radial)
+			var c := (ring + 1) * radial + seg
+			var d := (ring + 1) * radial + ((seg + 1) % radial)
+			indices.append(a)
+			indices.append(c)
+			indices.append(b)
+			indices.append(b)
+			indices.append(c)
+			indices.append(d)
+	var mesh_arrays: Array = []
 	mesh_arrays.resize(Mesh.ARRAY_MAX)
 	mesh_arrays[Mesh.ARRAY_VERTEX] = vertices
 	mesh_arrays[Mesh.ARRAY_NORMAL] = normals
 	mesh_arrays[Mesh.ARRAY_TEX_UV] = uvs
 	mesh_arrays[Mesh.ARRAY_INDEX] = indices
-	var mesh := ArrayMesh.new()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, mesh_arrays)
 	var material := StandardMaterial3D.new()
 	material.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
 	material.albedo_texture = GRASS_ALBEDO
-	material.albedo_color = Color(0.42, 0.62, 0.28)
-	material.roughness = 0.94
+	material.albedo_color = Color(0.28, 0.32, 0.22)
+	material.roughness = 0.95
 	material.metallic = 0.0
 	material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
-	mesh.surface_set_material(0, material)
-	return mesh
+	mesh.surface_set_material(mesh.get_surface_count() - 1, material)
+
+
+static func _append_dense_leaf_cluster(mesh: ArrayMesh, bounds: AABB, variant: int) -> void:
+	# Broad leaf cards from the hardened shrub_03 atlas, packed around the core
+	# so the mass reads as foliage rather than a smooth volume.
+	var leaf_uvs: Array[Rect2] = [
+		Rect2(0.032, 0.313, 0.277, 0.333),
+		Rect2(0.480, 0.606, 0.267, 0.335),
+		Rect2(0.055, 0.042, 0.208, 0.259),
+		Rect2(0.319, 0.122, 0.199, 0.250),
+		Rect2(0.052, 0.676, 0.188, 0.227),
+		Rect2(0.422, 0.381, 0.201, 0.209),
+		Rect2(0.282, 0.628, 0.149, 0.154),
+	]
+	var centre := Vector3(
+		bounds.position.x + bounds.size.x * 0.5,
+		bounds.position.y + bounds.size.y * 0.50,
+		bounds.position.z + bounds.size.z * 0.5
+	)
+	var rx: float = maxf(bounds.size.x * 0.42, 0.45)
+	var ry: float = maxf(bounds.size.y * 0.40, 0.42)
+	var rz: float = maxf(bounds.size.z * 0.42, 0.45)
+	var seed: float = 2.4 if variant == 0 else 5.1
+	var count := 168
+	var vertices := PackedVector3Array()
+	var normals := PackedVector3Array()
+	var uvs := PackedVector2Array()
+	var indices := PackedInt32Array()
+	var golden := PI * (3.0 - sqrt(5.0))
+	for i in range(count):
+		var t := float(i) / float(count - 1)
+		var y := 1.0 - t * 1.7
+		if y < -0.55:
+			continue
+		var rad := sqrt(maxf(0.0, 1.0 - y * y))
+		var theta := golden * float(i) + seed
+		var x := cos(theta) * rad
+		var z := sin(theta) * rad
+		var lump: float = 1.0 + 0.18 * sin(3.0 * theta + seed) * (0.4 + 0.6 * rad) + 0.10 * cos(float(i) * 0.7)
+		var origin := Vector3(centre.x + x * rx * lump, centre.y + y * ry * lump, centre.z + z * rz * lump)
+		var outward := Vector3(x, y * 0.7, z).normalized()
+		if outward.length_squared() < 0.01:
+			outward = Vector3.UP
+		var tangent := outward.cross(Vector3.UP)
+		if tangent.length_squared() < 0.01:
+			tangent = outward.cross(Vector3.RIGHT)
+		tangent = tangent.normalized()
+		var bitangent := outward.cross(tangent).normalized()
+		var twist := sin(float(i) * 1.7 + seed) * 0.7
+		var ct := cos(twist)
+		var st := sin(twist)
+		var axis_a := (tangent * ct + bitangent * st)
+		var axis_b := (-tangent * st + bitangent * ct)
+		var leaf_size: float = lerpf(0.18, 0.36, 0.5 + 0.5 * sin(float(i) * 2.3 + seed))
+		var uv_rect: Rect2 = leaf_uvs[i % leaf_uvs.size()]
+		# Two crossed cards so the leaf has volume from every angle.
+		for cross in range(2):
+			var a: Vector3 = axis_a if cross == 0 else (axis_a * 0.35 + outward * 0.2 + axis_b * 0.9).normalized()
+			var b: Vector3 = axis_b if cross == 0 else (axis_b * 0.35 + outward * 0.15 - axis_a * 0.9).normalized()
+			var half_w := leaf_size * (0.42 if cross == 0 else 0.38)
+			var half_h := leaf_size * (0.70 if cross == 0 else 0.64)
+			var p0 := origin - a * half_w - b * half_h
+			var p1 := origin + a * half_w - b * half_h
+			var p2 := origin + a * half_w + b * half_h
+			var p3 := origin - a * half_w + b * half_h
+			var normal := a.cross(b).normalized()
+			if normal.dot(outward) < 0.0:
+				normal = -normal
+			var base := vertices.size()
+			vertices.append(p0)
+			vertices.append(p1)
+			vertices.append(p2)
+			vertices.append(p3)
+			normals.append(normal)
+			normals.append(normal)
+			normals.append(normal)
+			normals.append(normal)
+			uvs.append(uv_rect.position)
+			uvs.append(Vector2(uv_rect.position.x + uv_rect.size.x, uv_rect.position.y))
+			uvs.append(uv_rect.position + uv_rect.size)
+			uvs.append(Vector2(uv_rect.position.x, uv_rect.position.y + uv_rect.size.y))
+			indices.append(base)
+			indices.append(base + 1)
+			indices.append(base + 2)
+			indices.append(base)
+			indices.append(base + 2)
+			indices.append(base + 3)
+	var mesh_arrays: Array = []
+	mesh_arrays.resize(Mesh.ARRAY_MAX)
+	mesh_arrays[Mesh.ARRAY_VERTEX] = vertices
+	mesh_arrays[Mesh.ARRAY_NORMAL] = normals
+	mesh_arrays[Mesh.ARRAY_TEX_UV] = uvs
+	mesh_arrays[Mesh.ARRAY_INDEX] = indices
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, mesh_arrays)
+	var foliage := StandardMaterial3D.new()
+	_soften_foliage_material(foliage)
+	foliage.albedo_texture = SHRUB_COVERAGE
+	foliage.albedo_color = Color(0.86, 0.88, 0.76)
+	foliage.roughness = 0.9
+	foliage.metallic = 0.0
+	mesh.surface_set_material(mesh.get_surface_count() - 1, foliage)

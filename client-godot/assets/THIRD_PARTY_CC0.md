@@ -57,3 +57,10 @@ Palms (`assets/generated/palm_v2/`) are first-party game art, not Poly Haven, an
 | sun_glow.png | `generated/lighting/` | Soft radial sun disc / halo for a compatibility-safe additive bloom billboard. |
 | hanging_vines_rgba.png | `generated/foliage/` | First-party alpha card for hanging vines on cliff ledges. |
 
+
+## Island art pass 10
+
+| Asset | Source | Local path | Notes |
+| --- | --- | --- | --- |
+| shrub_03 (existing) | https://polyhaven.com/a/shrub_03 | `external/polyhaven/shrub_03/` | Already credited above. Pass 10 composes overlapping `shrub_03_a` / `shrub_03_b` / `shrub_03_c` clumps as the leafy canopy bushes, with a first-party irregular opaque core behind them so the sky does not show through. |
+| shrub_03_diff_coverage_1k.png | derived from shrub_03 1K albedo | `external/generated/foliage/` | First-party processing of the official CC0 albedo: 2px alpha dilation, hardened coverage (alpha snapped to 0/255), mild desaturation toward olive, mipmaps on. Used only on the canopy bushes. |
