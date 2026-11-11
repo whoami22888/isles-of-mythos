@@ -78,6 +78,17 @@ class OceanShaderContractTests(unittest.TestCase):
             r"VERTEX\.y\s*\+=\s*0\.18\s*\+\s*displacement\s*\*\s*envelope",
         )
 
+    def test_mobile_normal_map_is_encoded_in_unsigned_tangent_space(self):
+        """Prevent signed tangent normals from corrupting mobile water lighting."""
+        self.assertRegex(
+            self.code,
+            r"NORMAL_MAP\\s*=\\s*normalize\\s*\\(\\s*vec3\\s*\\(",
+        )
+        self.assertRegex(
+            self.code,
+            r"\\)\\s*\\)\\s*\\*\\s*0\\.5\\s*\\+\\s*0\\.5\\s*;",
+        )
+
     def test_foam_is_bounded(self):
         """Keep the shoreline and wake foam blend within its existing limit."""
         self.assertRegex(
