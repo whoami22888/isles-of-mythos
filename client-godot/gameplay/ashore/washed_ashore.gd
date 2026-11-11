@@ -2039,6 +2039,16 @@ func _intro_at(ahead: float, right: float) -> Vector3:
 ## Wet, sun-bleached wreck: tone the torn sails and rigging down so the
 ## halves read as hull, not as bright sheets.
 func _tone_wreck(node: Node) -> void:
+	# The beached halves keep only their hulls: their standing masts and
+	# furled sails rendered as black silhouettes against the sky (backlit
+	# alpha-scissor rigging), so they are snapped off here.
+	for mesh in Art.meshes(node):
+		if mesh.mesh == null:
+			continue
+		for i in mesh.mesh.get_surface_count():
+			var tag := Art.surface_tag(mesh, i)
+			if "rigging" in tag or "sail" in tag:
+				mesh.visible = false
 	Art.tone_matching(node, "sail", Color(0.36, 0.33, 0.29), 1.0)
 	Art.tone_matching(node, "plane", Color(0.36, 0.33, 0.29), 1.0)
 	Art.tone_matching(node, "rigging", Color(0.46, 0.43, 0.38), 1.0)
