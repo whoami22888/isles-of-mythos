@@ -1,3 +1,5 @@
+/* jshint esversion: 11, node: true */
+// This Node ESM load harness uses modern JavaScript; do not parse it as ES5.
 import { createHmac } from "node:crypto";
 import { writeFileSync } from "node:fs";
 import { WebSocket } from "ws";
@@ -370,7 +372,11 @@ async function wsLoad(playerCount, users, sampleUsers, sampleNodes, cohortStart,
   if (pings === 0 || pongs !== pings) throw new Error("Player-load ping failure: requested=" + playerCount + " pings=" + pings + " pongs=" + pongs);
 
   const gameplayResults = [];
+  // Diagnostic-only breakdown: preserve every original gameplay latency sample
+  // and the unchanged acceptance percentile calculation.
+  const gameplayBatchDiagnostics = [];
   for (let offset = 0; offset < sampleCount; offset += 10) {
+    const batchStartedAt = new Date().toISOString();
     const batchSize = Math.min(10, sampleCount - offset);
     const batch = await Promise.all(Array.from({ length: batchSize }, async (_, localIndex) => {
       const index = offset + localIndex;
@@ -384,6 +390,17 @@ async function wsLoad(playerCount, users, sampleUsers, sampleNodes, cohortStart,
       return { craft, mutation };
     }));
     gameplayResults.push(...batch);
+    const craftMs = batch.map(result => result.craft.latencyMs);
+    const gatherMs = batch.map(result => result.mutation.latencyMs);
+    gameplayBatchDiagnostics.push({
+      offset, samples: batch.length * 2,
+      batchStartedAt,
+      batchFinishedAt: new Date().toISOString(),
+      craftP95Ms: percentile(craftMs, 0.95),
+      gatherP95Ms: percentile(gatherMs, 0.95),
+      craftMaxMs: Math.max(...craftMs),
+      gatherMaxMs: Math.max(...gatherMs),
+    });
   }
 
   const gameplayCraft = gameplayResults[0]?.craft;
@@ -394,6 +411,7 @@ async function wsLoad(playerCount, users, sampleUsers, sampleNodes, cohortStart,
   return {
     requestedPlayers: playerCount, connected, authenticated, errors, gameplayCraft, gameplayMutation,
     gameplayLatencySamples: gameplayLatencies.length,
+    gameplayBatchDiagnostics,
     gameplayP50Ms: percentile(gameplayLatencies, 0.5),
     gameplayP95Ms: percentile(gameplayLatencies, 0.95),
     gameplayP99Ms: percentile(gameplayLatencies, 0.99),
