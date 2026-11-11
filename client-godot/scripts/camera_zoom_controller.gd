@@ -1,0 +1,141 @@
+extends Camera3D
+## PROMPT_007: client-only camera. Gameplay positions remain server-authoritative.
+signal camera_mode_changed(is_top_down: bool)
+
+@export var focus_point: Vector3 = Vector3.ZERO
+@export_range(1.0, 100.0) var smoothing: float = 10.0
+@export_range(0.001, 0.2) var zoom_sensitivity: float = 0.015
+@export_range(0.001, 1.0) var pan_sensitivity: float = 1.0
+@export_range(0.1, 10.0) var collision_clearance: float = 0.5
+@export_flags_3d_physics var terrain_collision_mask: int = 1
+
+const NEAR_DISTANCE: float = 10.0
+const FAR_DISTANCE: float = 120.0
+const NEAR_PITCH: float = -45.0
+const FAR_PITCH: float = -85.0
+const MODE_THRESHOLD: float = 0.5
+
+var _zoom_fraction: float = 0.0
+var _rendered_distance: float = NEAR_DISTANCE
+var _rendered_pitch: float = NEAR_PITCH
+var _touches: Dictionary = {}
+var _top_down: bool = false
+var _pinch_start_distance: float = 0.0
+var _pinch_start_zoom: float = 0.0
+
+
+func _ready() -> void:
+	top_level = true
+	# Threaded physics may lock direct_space_state during _ready().
+	_apply_camera_transform(false)
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_APPLICATION_FOCUS_OUT or what == NOTIFICATION_WM_WINDOW_FOCUS_OUT:
+		_touches.clear()
+		_pinch_start_distance = 0.0
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventScreenTouch:
+		if event.pressed:
+			_touches[event.index] = event.position
+		else:
+			_touches.erase(event.index)
+		_capture_pinch_baseline()
+	elif event is InputEventScreenDrag:
+		if not _touches.has(event.index):
+			return
+		var old_positions: Dictionary = _touches.duplicate()
+		_touches[event.index] = event.position
+		if _touches.size() >= 2:
+			var indices: Array = _touches.keys()
+			indices.sort()
+			var first: int = indices[0]
+			var second: int = indices[1]
+			var new_distance: float = (_touches[first] as Vector2).distance_to(_touches[second] as Vector2)
+			# Recompute from the gesture's start, not the last clamped zoom.
+			_set_zoom(_pinch_start_zoom - (new_distance - _pinch_start_distance) * zoom_sensitivity)
+			var old_midpoint: Vector2 = ((old_positions[first] as Vector2) + (old_positions[second] as Vector2)) * 0.5
+			var new_midpoint: Vector2 = ((_touches[first] as Vector2) + (_touches[second] as Vector2)) * 0.5
+			_pan(new_midpoint - old_midpoint)
+		else:
+			_pan(event.relative)
+	elif event is InputEventMouseButton and event.pressed:
+		var wheel_factor: float = event.factor if event.factor > 0.0 else 1.0
+		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
+			_set_zoom(_zoom_fraction - 0.06 * wheel_factor)
+		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			_set_zoom(_zoom_fraction + 0.06 * wheel_factor)
+
+
+func _capture_pinch_baseline() -> void:
+	_pinch_start_distance = 0.0
+	if _touches.size() < 2:
+		return
+	var indices: Array = _touches.keys()
+	indices.sort()
+	_pinch_start_distance = (_touches[indices[0]] as Vector2).distance_to(_touches[indices[1]] as Vector2)
+	_pinch_start_zoom = _zoom_fraction
+
+
+func _physics_process(delta: float) -> void:
+	var weight: float = clampf(1.0 - exp(-smoothing * maxf(delta, 0.0)), 0.0, 1.0)
+	_rendered_distance = lerpf(_rendered_distance, lerpf(NEAR_DISTANCE, FAR_DISTANCE, _zoom_fraction), weight)
+	_rendered_pitch = lerpf(_rendered_pitch, lerpf(NEAR_PITCH, FAR_PITCH, _zoom_fraction), weight)
+	_apply_camera_transform(true)
+
+
+func _set_zoom(value: float) -> void:
+	_zoom_fraction = clampf(value, 0.0, 1.0)
+	var next_mode: bool = _zoom_fraction >= MODE_THRESHOLD
+	if next_mode != _top_down:
+		_top_down = next_mode
+		camera_mode_changed.emit(_top_down)
+
+
+func _pan(motion: Vector2) -> void:
+	# Convert viewport pixels to world metres at the current orbit distance.
+	var viewport_size: Vector2 = get_viewport().get_visible_rect().size
+	if viewport_size.x < 1.0 or viewport_size.y < 1.0:
+		viewport_size = Vector2(1280.0, 720.0)
+	var half_fov: float = deg_to_rad(fov) * 0.5
+	if keep_aspect == Camera3D.KEEP_WIDTH:
+		half_fov = atan(tan(half_fov) * viewport_size.y / viewport_size.x)
+	var metres_per_pixel: float = 2.0 * _rendered_distance * tan(half_fov) / viewport_size.y
+	var scale_factor: float = pan_sensitivity * metres_per_pixel
+	var yaw: float = rotation.y
+	var right: Vector3 = Vector3(cos(yaw), 0.0, -sin(yaw))
+	var forward: Vector3 = Vector3(-sin(yaw), 0.0, -cos(yaw))
+	focus_point += (-right * motion.x + forward * motion.y) * scale_factor
+
+
+func _apply_camera_transform(resolve_collision: bool = false) -> void:
+	rotation.x = deg_to_rad(_rendered_pitch)
+	var pitch_radians: float = deg_to_rad(-_rendered_pitch)
+	var offset: Vector3 = Vector3(0.0, sin(pitch_radians), cos(pitch_radians)) * _rendered_distance
+	offset = offset.rotated(Vector3.UP, rotation.y)
+	var orbit_focus: Vector3 = focus_point
+	if resolve_collision and is_inside_tree() and terrain_collision_mask != 0:
+		var space: PhysicsDirectSpaceState3D = get_world_3d().direct_space_state
+		# Resolve focus above raised terrain before casting toward the camera.
+		var height_range: float = maxf(512.0, _rendered_distance * 2.0)
+		var down_ray: PhysicsRayQueryParameters3D = PhysicsRayQueryParameters3D.create(
+			focus_point + Vector3.UP * height_range,
+			focus_point - Vector3.UP * height_range,
+			terrain_collision_mask
+		)
+		var ground: Dictionary = space.intersect_ray(down_ray)
+		if not ground.is_empty():
+			orbit_focus.y = maxf(orbit_focus.y, float(ground["position"].y) + collision_clearance)
+		var desired: Vector3 = orbit_focus + offset
+		var query: PhysicsRayQueryParameters3D = PhysicsRayQueryParameters3D.create(
+			orbit_focus, desired, terrain_collision_mask
+		)
+		var hit: Dictionary = space.intersect_ray(query)
+		if not hit.is_empty():
+			var hit_distance: float = orbit_focus.distance_to(hit["position"])
+			desired = orbit_focus + offset.normalized() * maxf(0.1, hit_distance - collision_clearance)
+		global_position = desired
+	else:
+		global_position = orbit_focus + offset
