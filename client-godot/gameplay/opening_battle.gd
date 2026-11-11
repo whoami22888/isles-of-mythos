@@ -27,7 +27,7 @@ const AUDIO_CHEER := "res://assets/opening/audio/cheer.ogg"
 const AUDIO_SWING := "res://assets/opening/audio/swing.ogg"
 const AUDIO_HIT := "res://assets/opening/audio/hit.ogg"
 
-enum Beat { ESTABLISH, POWDER, BALL, TIMING, IMPACT, TARGET, VOLLEY, BOARDING, CHEER, RISE, SMASH, ASHORE }
+enum Beat { ESTABLISH, POWDER, BALL, TIMING, IMPACT, TARGET, VOLLEY, BOARDING, CHEER, DEFEAT, CALM, RISE, SMASH, ASHORE }
 
 var _client: Node
 var _endpoint := ""
@@ -43,6 +43,10 @@ var _shake := 0.0
 var _misses := 0
 var _chose_mast := false
 var _sail_speed := 1.15
+var _glow: MeshInstance3D
+var _glow_light: OmniLight3D
+var _rock_point := Vector3(2.0, 0.2, -52.0)
+var _snapped := false
 var _player_hp := 5
 var _player_iframes := 0.0
 var _attack_cool := 0.0
@@ -134,7 +138,7 @@ func _process(delta: float) -> void:
 		_water_mat.set_shader_parameter("storm", _storm)
 		_water_mat.set_shader_parameter("ship_a", _ship_wake(_player_ship))
 		_water_mat.set_shader_parameter("ship_b", _ship_wake(_enemy_ship))
-	if _beat < Beat.RISE:
+	if _beat < Beat.DEFEAT:
 		var step := Vector3(0.0, 0.0, -_sail_speed * delta)
 		if _player_ship:
 			_player_ship.position += step
@@ -160,9 +164,17 @@ func _update_beat(delta: float) -> void:
 				_enter_boarding()
 		Beat.CHEER:
 			if _clock > 4.0:
+				_enter_defeat()
+		Beat.DEFEAT:
+			_tick_defeat(delta)
+			if _clock > 5.2:
+				_enter_calm()
+		Beat.CALM:
+			_tick_calm(delta)
+			if _clock > 3.6:
 				_enter_rise()
 		Beat.RISE:
-			if _clock > 8.0:
+			if _clock > 6.0:
 				_enter_smash()
 		Beat.SMASH:
 			if _clock > 3.4:
@@ -245,9 +257,43 @@ func _enter_cheer() -> void:
 	_play(AUDIO_CHEER, -6.0)
 	_burst(_player.global_position + Vector3(0, 2.2, 0), Color(1.0, 0.86, 0.45), 18, Vector3(0, 1.2, 0), 3.0, 0.35, 1.2)
 
+func _enter_defeat() -> void:
+	_beat = Beat.DEFEAT
+	_clock = 0.0
+	_hard_cut = true
+	_sail_speed = 0.0
+	if _chose_mast:
+		_say("Her mast is gone. She's drifting.")
+		_break_enemy_mast()
+	else:
+		_say("She's taking on water.")
+		_play(AUDIO_BOOM, -8.0)
+		if _enemy_ship:
+			_burst(_enemy_ship.global_position + Vector3(0, 0.2, 0), Color(0.7, 0.9, 1.0), 22, Vector3(0, -2, 0), 3.5, 0.4, 1.1)
+
+func _enter_calm() -> void:
+	_beat = Beat.CALM
+	_clock = 0.0
+	_hard_cut = true
+	_say("")
+	_hush_bed()
+	_storm = 0.0
+	if _sky_mat:
+		_sky_mat.set_shader_parameter("storm", 0.0)
+	if _water_mat:
+		_water_mat.set_shader_parameter("storm", 0.0)
+		_water_mat.set_shader_parameter("shallow_color", Color(0.18, 0.95, 0.82))
+		_water_mat.set_shader_parameter("deep_color", Color(0.02, 0.28, 0.32))
+	_ensure_glow()
+	if _glow:
+		_glow.visible = true
+	if _glow_light:
+		_glow_light.visible = true
+
 func _enter_rise() -> void:
 	_beat = Beat.RISE
 	_clock = 0.0
+	_hard_cut = true
 	_say("")
 	_sail_speed = 0.0
 	if _water_mat:
@@ -255,19 +301,31 @@ func _enter_rise() -> void:
 		_water_mat.set_shader_parameter("deep_color", Color(0.02, 0.22, 0.28))
 	_play(AUDIO_ROAR, -4.0)
 	_shake = 0.85
+	if _glow_light:
+		_glow_light.light_energy = 3.4
+	_dim_leviathan_eyes()
 
 func _enter_smash() -> void:
 	_beat = Beat.SMASH
 	_clock = 0.0
 	_hard_cut = true
 	_play(AUDIO_BOOM, -2.0)
-	_shake = 1.3
-	_pitch_ship(_player_ship, 18.0)
-	_pitch_ship(_enemy_ship, -16.0)
+	_shake = 1.6
+	_snap_ship(_player_ship, 1.0)
+	_snap_ship(_enemy_ship, -1.0)
 	if _player_ship:
 		_burst(_player_ship.global_position + Vector3(0, 2, 0), Color(0.75, 0.9, 1.0), 36, Vector3(0, -3, 0), 8.0, 0.8, 1.6)
 	if _enemy_ship:
 		_burst(_enemy_ship.global_position + Vector3(0, 3, 0), Color(0.55, 0.4, 0.28), 28, Vector3(0, 2, 0), 7.0, 0.55, 1.5)
+	if _leviathan:
+		_burst(_leviathan.global_position + Vector3(0, 4, 0), Color(0.55, 0.75, 0.8, 0.85), 40, Vector3(0, 2.5, 0), 7.0, 0.7, 1.4)
+	# Everything goes dark.
+	if _white:
+		_white.color = Color(0, 0, 0, 0)
+		_white.visible = true
+		var fade := create_tween()
+		fade.tween_interval(1.15)
+		fade.tween_property(_white, "color:a", 1.0, 0.85)
 
 func _enter_ashore() -> void:
 	_beat = Beat.ASHORE
@@ -275,29 +333,38 @@ func _enter_ashore() -> void:
 	_say("")
 	_prompt.visible = false
 	if _white:
+		_white.color = Color(0, 0, 0, 1)
 		_white.visible = true
-		var tween := create_tween()
-		tween.tween_property(_white, "color:a", 1.0, 1.1)
 	if _ashore:
 		_ashore.visible = true
 		_ashore.modulate.a = 0.0
 		var tween := create_tween()
-		tween.tween_interval(0.7)
+		tween.tween_interval(0.4)
 		tween.tween_property(_ashore, "modulate:a", 1.0, 0.6)
+
+func defeat_path() -> String:
+	return "mast" if _chose_mast else "hull"
+
+func _write_opening_outcome() -> void:
+	var cfg := ConfigFile.new()
+	cfg.load(FLAG_PATH)
+	cfg.set_value("opening", "completed", true)
+	cfg.set_value("opening", "defeat_path", defeat_path())
+	cfg.save(FLAG_PATH)
 
 func _finish_opening() -> void:
 	if _finished or _capture:
 		return
 	_finished = true
-	var cfg := ConfigFile.new()
-	cfg.set_value("opening", "completed", true)
-	cfg.save(FLAG_PATH)
+	_write_opening_outcome()
 	var packed = load("res://gameplay/ashore/washed_ashore.tscn")
 	if packed == null:
 		return
 	var gameplay = packed.instantiate()
 	gameplay.begin_authenticated_session(_endpoint, _token, _refresh)
 	get_tree().root.add_child(gameplay)
+	if gameplay.has_method("apply_opening_outcome"):
+		gameplay.apply_opening_outcome(defeat_path())
 	get_tree().current_scene = gameplay
 	queue_free()
 
@@ -496,12 +563,21 @@ func _camera_shot() -> Array:
 			return [fight + side * 5.6 + aft * 1.4 + Vector3(0, 2.5, 0), fight + Vector3(0, 1.15, 0)]
 		Beat.CHEER:
 			return [deck + aft * 3.2 + side * 2.2 + Vector3(0, 2.1, 0), deck]
+		Beat.DEFEAT:
+			if _chose_mast:
+				var wreck := _enemy_ship.global_position if _enemy_ship else _rock_point
+				return [wreck + Vector3(13.0, 6.5, 8.0), wreck + Vector3(0, 2.2, 0)]
+			var sunk := _enemy_ship.global_position if _enemy_ship else enemy
+			return [Vector3(sunk.x + 14.0, 7.2, sunk.z + 5.5), Vector3(sunk.x, 1.4, sunk.z)]
+		Beat.CALM:
+			var mid := (_player_ship.global_position + (_enemy_ship.global_position if _enemy_ship else _player_ship.global_position)) * 0.5
+			return [mid + Vector3(-4.0, 20.0, 26.0), mid + Vector3(0, 0.2, 0)]
 		Beat.RISE:
 			var rise_focus := (_leviathan.global_position + Vector3(0, 9.0, 0)) if _leviathan else enemy
 			return [_player.global_position + aft * 10.0 + side * 4.0 + Vector3(0, 7.0, 0), rise_focus]
 		Beat.SMASH:
 			var blow := _leviathan.global_position if _leviathan else _player_ship.global_position
-			return [blow + Vector3(14.0, 3.4, 9.0), blow + Vector3(0, 4.0, 0)]
+			return [blow + Vector3(18.0, 7.0, 14.0), blow + Vector3(0, 5.0, 0)]
 		_:
 			return [_player.global_position + aft * 2.4 + side * 2.2 + Vector3(0, 1.85, 0), deck - aft * 4.0]
 
@@ -527,9 +603,11 @@ func _update_camera(_delta: float) -> void:
 func _update_leviathan(delta: float) -> void:
 	if _leviathan == null or _beat < Beat.RISE:
 		return
-	_leviathan_rise = move_toward(_leviathan_rise, 1.0 if _beat == Beat.RISE or _beat == Beat.SMASH else 0.7, delta * 0.22)
-	_leviathan.position.y = lerpf(-16.0, 2.5, _leviathan_rise)
-	_leviathan.rotation.y += delta * 0.15
+	var target := 1.0 if _beat == Beat.RISE or _beat == Beat.SMASH else 0.7
+	var rate := 0.55 if _beat == Beat.SMASH else 0.28
+	_leviathan_rise = move_toward(_leviathan_rise, target, delta * rate)
+	_leviathan.position.y = lerpf(-16.0, 6.5, _leviathan_rise)
+	_leviathan.rotation.y += delta * (0.55 if _beat == Beat.SMASH else 0.12)
 
 func _build_environment() -> void:
 	var world := WorldEnvironment.new()
@@ -629,6 +707,7 @@ func _build_island() -> void:
 	_place_model(island, PALM_V2, "PalmB", Vector3(16, 0.55, 2), Vector3(0, 1.2, 0), 1.6 * 3.71)
 	_place_model(island, PALM_V2, "PalmC", Vector3(-16, 0.55, -8), Vector3(0, 2.1, 0), 1.5 * 3.71)
 	_place_model(island, KENNEY + "rocks-sand-a.glb", "Rocks", Vector3(20, 0.2, 10), Vector3(0, 0.2, 0), 1.4)
+	_rock_point = island.to_global(Vector3(20, 0.2, 10))
 	_place_model(island, KENNEY + "structure-platform-dock.glb", "Dock", Vector3(24, 0.1, -4), Vector3(0, 1.1, 0), 2.4)
 	_place_model(island, KENNEY + "ship-pirate-large.glb", "BeachedHull", Vector3(8, 0.7, 12), Vector3(0.15, 2.4, 0.05), 1.15)
 	var falls := MeshInstance3D.new()
@@ -843,17 +922,30 @@ func _build_leviathan() -> void:
 	mat.emission_energy_multiplier = 0.55
 	body.material_override = mat
 	_leviathan.add_child(body)
+	var arm := MeshInstance3D.new()
+	arm.name = "Tentacle"
+	arm.mesh = _serpent_mesh()
+	arm.rotation_degrees = Vector3(18, 110, -25)
+	arm.position = Vector3(-4.0, -2.0, 3.0)
+	arm.scale = Vector3(1.35, 1.2, 1.35)
+	var arm_mat := StandardMaterial3D.new()
+	arm_mat.albedo_color = Color(0.01, 0.02, 0.03)
+	arm_mat.roughness = 0.55
+	arm_mat.emission_enabled = false
+	arm.material_override = arm_mat
+	_leviathan.add_child(arm)
 	for side in [-1.0, 1.0]:
 		var eye := MeshInstance3D.new()
+		eye.name = "Eye"
 		var sphere := SphereMesh.new()
-		sphere.radius = 0.28
-		sphere.height = 0.56
+		sphere.radius = 0.22
+		sphere.height = 0.44
 		eye.mesh = sphere
 		var glow := StandardMaterial3D.new()
-		glow.albedo_color = Color(0.2, 1.0, 0.75)
+		glow.albedo_color = Color(0.04, 0.08, 0.07)
 		glow.emission_enabled = true
-		glow.emission = Color(0.3, 1.0, 0.7)
-		glow.emission_energy_multiplier = 4.0
+		glow.emission = Color(0.08, 0.16, 0.12)
+		glow.emission_energy_multiplier = 0.35
 		eye.material_override = glow
 		eye.position = Vector3(side * 0.55, 16.2, 1.1)
 		_leviathan.add_child(eye)
@@ -956,7 +1048,7 @@ func _build_ui() -> void:
 	_style_label(_hp, 28, false)
 	layer.add_child(_hp)
 	_white = ColorRect.new()
-	_white.color = Color(1, 0.97, 0.92, 0)
+	_white.color = Color(0, 0, 0, 0)
 	_white.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_white.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_white.visible = false
@@ -1143,6 +1235,7 @@ func _burst(at: Vector3, color: Color, amount: int, gravity: Vector3, speed: flo
 	particles.amount = amount
 	particles.lifetime = life
 	particles.visibility_aabb = AABB(Vector3(-12, -12, -12), Vector3(24, 24, 24))
+	add_child(particles)
 	particles.global_position = at
 	var process := ParticleProcessMaterial.new()
 	process.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
@@ -1166,7 +1259,6 @@ func _burst(at: Vector3, color: Color, amount: int, gravity: Vector3, speed: flo
 	mat.vertex_color_use_as_albedo = true
 	quad.material = mat
 	particles.draw_pass_1 = quad
-	add_child(particles)
 	particles.emitting = true
 	get_tree().create_timer(life + 0.25).timeout.connect(particles.queue_free)
 
@@ -1406,29 +1498,263 @@ func _ray_point_distance(from: Vector3, to: Vector3, point: Vector3) -> float:
 		return 999.0
 	return point.distance_to(from + dir * along)
 
+func _clear_bursts() -> void:
+	for child in get_children():
+		if child is GPUParticles3D:
+			child.queue_free()
+
+
+func _restore_enemy_for_pose() -> void:
+	_clear_bursts()
+	if _enemy_ship == null:
+		return
+	_enemy_ship.rotation_degrees = Vector3.ZERO
+	_enemy_ship.position.y = 0.0
+	for mesh in _meshes(_enemy_ship):
+		mesh.visible = true
+	var stump := _enemy_ship.get_node_or_null("BrokenMast")
+	if stump:
+		stump.queue_free()
+
+
 func capture_pose(which: String) -> void:
 	_capture = true
 	_sail_speed = 0.0
 	if which == "broadside":
 		_enter_impact()
 		_clock = 0.4
+	elif which == "mast_wreck":
+		_chose_mast = true
+		_restore_enemy_for_pose()
+		_place_for_ending()
+		_enter_defeat()
+		_tick_defeat(2.2)
+		_clock = 2.2
+		_clear_bursts()
+	elif which == "hull_sink":
+		_chose_mast = false
+		_restore_enemy_for_pose()
+		_place_for_ending()
+		_enter_defeat()
+		_tick_defeat(0.85)
+		_clock = 0.85
+		_clear_bursts()
+		if _enemy_ship:
+			_burst(_enemy_ship.global_position + Vector3(0, 0.5, 0), Color(0.75, 0.92, 1.0, 0.7), 8, Vector3(0, 1.2, 0), 1.6, 0.2, 0.7)
+	elif which == "calm":
+		_chose_mast = false
+		_restore_enemy_for_pose()
+		_place_for_ending()
+		if _enemy_ship:
+			_enemy_ship.position.y = 0.0
+			_enemy_ship.rotation_degrees.x = 0.0
+			_enemy_ship.rotation_degrees.z = 0.0
+		_enter_calm()
+		_tick_calm(1.8)
+		_clock = 1.8
+		_clear_bursts()
 	elif which == "leviathan":
+		_place_for_ending()
 		_beat = Beat.RISE
 		_clock = 5.0
-		_leviathan_rise = 0.82
+		_leviathan_rise = 0.92
 		_storm = 0.05
 		_say("")
+		_dim_leviathan_eyes()
 		if _leviathan:
-			_leviathan.position.y = 4.0
-			_lock_camera = true
-			_camera.global_position = _leviathan.global_position + Vector3(26.0, 12.0, 18.0)
-			_camera.look_at(_leviathan.global_position + Vector3(0.0, 8.0, 0.0), Vector3.UP)
-		if _water_mat:
-			_water_mat.set_shader_parameter("shallow_color", Color(0.25, 1.0, 0.78))
+			_leviathan.position.y = 5.5
+		_enter_smash()
+		_clock = 0.35
+		if _white:
+			_white.visible = false
 	else:
 		_enter_powder()
 		_clock = 0.2
 	_update_camera(1.0)
+
+
+func _tick_defeat(delta: float) -> void:
+	if _enemy_ship == null:
+		return
+	if _chose_mast:
+		var to := _rock_point - _enemy_ship.global_position
+		to.y = 0.0
+		if to.length() > 1.2:
+			_enemy_ship.global_position += to.normalized() * minf(delta * 7.5, to.length())
+		_enemy_ship.rotation_degrees.z = move_toward(_enemy_ship.rotation_degrees.z, 22.0, delta * 10.0)
+		_enemy_ship.rotation_degrees.x = move_toward(_enemy_ship.rotation_degrees.x, 8.0, delta * 6.0)
+		_enemy_ship.position.y = move_toward(_enemy_ship.position.y, 0.35, delta * 1.2)
+		if to.length() < 8.0 and int(_clock * 4.0) != int((_clock - delta) * 4.0):
+			_burst(_enemy_ship.global_position + Vector3(0, 0.4, 0), Color(0.55, 0.45, 0.32), 10, Vector3(0, -1, 0), 2.2, 0.3, 0.6)
+	else:
+		_enemy_ship.position.y = move_toward(_enemy_ship.position.y, -7.5, delta * 2.1)
+		_enemy_ship.rotation_degrees.z = move_toward(_enemy_ship.rotation_degrees.z, -28.0, delta * 8.0)
+		_enemy_ship.rotation_degrees.x = move_toward(_enemy_ship.rotation_degrees.x, 12.0, delta * 5.0)
+		if int(_clock * 3.0) != int((_clock - delta) * 3.0):
+			_burst(_enemy_ship.global_position + Vector3(0, 0.6, 0), Color(0.7, 0.9, 1.0), 14, Vector3(0, 1.5, 0), 2.4, 0.28, 0.9)
+			_burst(_enemy_ship.global_position + Vector3(0, -0.4, 0), Color(0.55, 0.8, 0.95, 0.7), 10, Vector3(0, 2.2, 0), 1.6, 0.18, 1.1)
+
+
+func _tick_calm(delta: float) -> void:
+	_ensure_glow()
+	if _glow:
+		var pulse := 0.45 + 0.55 * (0.5 + 0.5 * sin(_clock * 2.4))
+		var mat := _glow.material_override as StandardMaterial3D
+		if mat:
+			mat.emission_energy_multiplier = 1.2 + pulse * 1.1
+		_glow.position.y = 0.12
+	if _glow_light:
+		_glow_light.light_energy = 1.2 + 0.8 * (0.5 + 0.5 * sin(_clock * 2.4))
+
+
+func _break_enemy_mast() -> void:
+	if _enemy_ship == null:
+		return
+	for mesh in _meshes(_enemy_ship):
+		var n := mesh.name.to_lower()
+		if "sail" in n or "rigging" in n:
+			mesh.visible = false
+	var stump := MeshInstance3D.new()
+	stump.name = "BrokenMast"
+	var cyl := CylinderMesh.new()
+	cyl.top_radius = 0.12
+	cyl.bottom_radius = 0.22
+	cyl.height = 2.4
+	stump.mesh = cyl
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.22, 0.14, 0.08)
+	mat.roughness = 0.9
+	stump.material_override = mat
+	stump.position = _measure_deck(_enemy_ship)["center"] + Vector3(0, 1.1, 0)
+	stump.rotation_degrees = Vector3(18, 0, 28)
+	_enemy_ship.add_child(stump)
+	_burst(_enemy_ship.global_position + Vector3(0, 6, 0), Color(0.75, 0.7, 0.62), 18, Vector3(0, -1, 0), 3.0, 0.35, 0.9)
+
+
+func _ensure_glow() -> void:
+	if _glow:
+		return
+	_glow = MeshInstance3D.new()
+	_glow.name = "AbyssalGlow"
+	var plane := PlaneMesh.new()
+	plane.size = Vector2(56, 56)
+	_glow.mesh = plane
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	mat.albedo_color = Color(0.08, 0.85, 0.72, 0.22)
+	mat.emission_enabled = true
+	mat.emission = Color(0.12, 0.9, 0.75)
+	mat.emission_energy_multiplier = 1.6
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mat.no_depth_test = false
+	mat.render_priority = 1
+	_glow.material_override = mat
+	_glow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var mid := Vector3.ZERO
+	if _player_ship and _enemy_ship:
+		mid = (_player_ship.global_position + _enemy_ship.global_position) * 0.5
+	elif _player_ship:
+		mid = _player_ship.global_position
+	_glow.position = Vector3(mid.x, 0.12, mid.z)
+	add_child(_glow)
+	_glow_light = OmniLight3D.new()
+	_glow_light.name = "AbyssalLight"
+	_glow_light.light_color = Color(0.25, 0.85, 0.8)
+	_glow_light.light_energy = 2.4
+	_glow_light.omni_range = 36.0
+	_glow_light.shadow_enabled = false
+	_glow_light.position = _glow.position + Vector3(0, 0.8, 0)
+	add_child(_glow_light)
+
+
+func _hush_bed() -> void:
+	for name in ["Ocean", "Shanty"]:
+		var player := get_node_or_null(name) as AudioStreamPlayer
+		if player:
+			var tween := create_tween()
+			tween.tween_property(player, "volume_db", -48.0, 0.8)
+
+
+func _dim_leviathan_eyes() -> void:
+	if _leviathan == null:
+		return
+	for child in _leviathan.get_children():
+		if child.name.begins_with("Eye") and child is MeshInstance3D:
+			var mat := (child as MeshInstance3D).material_override as StandardMaterial3D
+			if mat:
+				mat.emission_energy_multiplier = 0.15
+				mat.albedo_color = Color(0.02, 0.04, 0.03)
+
+
+func _snap_ship(ship: Node3D, sign: float) -> void:
+	if ship == null or _snapped and ship.has_meta("snapped"):
+		return
+	var hull := ship.get_node_or_null("Hull") as Node3D
+	if hull == null:
+		_pitch_ship(ship, 16.0 * sign)
+		return
+	var origin := hull.global_position
+	var normal := ship.global_transform.basis.x.normalized()
+	hull.visible = false
+	for side in [-1.0, 1.0]:
+		var half := hull.duplicate() as Node3D
+		half.visible = true
+		half.name = "HullHalf_%d" % int(side)
+		ship.add_child(half)
+		_apply_clip(half, origin, normal * side)
+		var tween := create_tween()
+		tween.set_parallel(true)
+		tween.tween_property(half, "rotation_degrees:z", sign * side * 24.0, 0.95)
+		tween.tween_property(half, "position:y", half.position.y - 1.6, 1.25)
+		tween.tween_property(half, "position:x", half.position.x + side * 1.8, 1.1)
+	ship.set_meta("snapped", true)
+	_snapped = true
+
+
+func _apply_clip(root: Node, origin: Vector3, normal: Vector3) -> void:
+	var shader = load("res://shaders/opening_clip_half.gdshader")
+	if shader == null:
+		return
+	for mesh in _meshes(root):
+		var mat := ShaderMaterial.new()
+		mat.shader = shader
+		mat.set_shader_parameter("clip_origin", origin)
+		mat.set_shader_parameter("clip_normal", normal)
+		var existing := mesh.get_active_material(0)
+		if existing is BaseMaterial3D and (existing as BaseMaterial3D).albedo_texture:
+			mat.set_shader_parameter("albedo_tex", (existing as BaseMaterial3D).albedo_texture)
+		mesh.material_override = mat
+
+
+func _place_for_ending() -> void:
+	_sail_speed = 0.0
+	# Keep both ships in open water so defeat / calm / leviathan shots don't
+	# plant the galleon on the island grass.
+	if _chose_mast:
+		if _player_ship:
+			_player_ship.global_position = _rock_point + Vector3(-18.0, 0.0, 14.0)
+		if _enemy_ship:
+			_enemy_ship.global_position = _rock_point + Vector3(5.5, 0.15, 5.0)
+	else:
+		if _player_ship:
+			_player_ship.global_position = Vector3(4.0, 0.0, -22.0)
+		if _enemy_ship:
+			_enemy_ship.global_position = Vector3(16.0, 0.0, -30.0)
+	if _leviathan:
+		var mid := Vector3(10.0, -16.0, -26.0)
+		if _player_ship and _enemy_ship:
+			mid = (_player_ship.global_position + _enemy_ship.global_position) * 0.5
+			mid.y = -16.0
+		_leviathan.position = mid
+	if _glow:
+		var mid2 := Vector3.ZERO
+		if _player_ship and _enemy_ship:
+			mid2 = (_player_ship.global_position + _enemy_ship.global_position) * 0.5
+		_glow.position = Vector3(mid2.x, 0.12, mid2.z)
+		if _glow_light:
+			_glow_light.position = _glow.position + Vector3(0, 0.5, 0)
 
 
 class OpeningSession extends Node:

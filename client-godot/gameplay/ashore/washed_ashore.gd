@@ -78,6 +78,9 @@ var _end_open := false
 var _end_dismissed := false
 var _guard_down := false
 var _creature_hostile := false
+var _defeat_path := ""
+var _outcome_applied := false
+var _silas_shown := false
 var _creature_hp := 4
 var _creature_max := 4
 var _attack_cd := 0.0
@@ -197,6 +200,7 @@ func _ready() -> void:
 	_hud.world = self
 	add_child(_hud)
 	if _saved.is_empty():
+		_read_opening_outcome()
 		_enter("wake")
 	else:
 		_apply_save(_saved)
@@ -560,6 +564,7 @@ func _tick_fork(delta: float) -> void:
 
 
 func _tick_play(delta: float) -> void:
+	_tick_silas_hint()
 	_step_time += delta
 	_swing = maxf(_swing - delta, 0.0)
 	_attack_cd = maxf(_attack_cd - delta, 0.0)
@@ -1683,6 +1688,8 @@ func _save() -> void:
 		"dusk": _dusk_active,
 		"pos": [_player.position.x, _player.position.y, _player.position.z],
 		"nodes": nodes,
+		"defeat_path": _defeat_path,
+		"silas_shown": _silas_shown,
 	}
 	var cfg := ConfigFile.new()
 	cfg.set_value("ashore", "state", JSON.stringify(state))
@@ -1717,6 +1724,10 @@ func _apply_save(state: Dictionary) -> void:
 			if state["pet"].has(key):
 				_pet_stats[key] = state["pet"][key]
 	_pet_freed = bool(state.get("pet_freed", false))
+	_defeat_path = str(state.get("defeat_path", _defeat_path))
+	_silas_shown = bool(state.get("silas_shown", _silas_shown))
+	if _defeat_path != "":
+		apply_opening_outcome(_defeat_path)
 	_warmth = float(state.get("warmth", _warmth))
 	_hunger = float(state.get("hunger", _hunger))
 	_health = int(state.get("health", _health))
@@ -2840,3 +2851,147 @@ class ShoreSession extends Node:
 	func configure(url: String, token: String) -> void:
 		_url = url
 		_token = token
+
+
+func defeat_path() -> String:
+	return _defeat_path
+
+
+func _read_opening_outcome() -> void:
+	var cfg := ConfigFile.new()
+	if cfg.load("user://opening_battle.cfg") != OK:
+		return
+	var path := str(cfg.get_value("opening", "defeat_path", ""))
+	if path != "":
+		apply_opening_outcome(path)
+
+
+func apply_opening_outcome(path: String) -> void:
+	if path != "mast" and path != "hull":
+		return
+	_defeat_path = path
+	if not _outcome_applied:
+		_outcome_applied = true
+		if path == "mast":
+			_boost_node_loot("hull", "planks", 2)
+			_boost_node_loot("rigging", "rope", 2)
+		else:
+			_boost_node_loot("cargo_cloth", "cloth", 2)
+			_boost_node_loot("cargo_tools", "cloth", 1)
+	if path == "mast" and get_node_or_null("MastPlank0") == null:
+		_place_outcome_props(true)
+	elif path == "hull" and get_node_or_null("SinkCargo0") == null:
+		_place_outcome_props(false)
+	_place_silas_cutlass()
+
+
+func _boost_node_loot(node_id: String, item_id: String, extra: int) -> void:
+	var node := _node_by_id(node_id)
+	if node.is_empty():
+		return
+	var loot: Array = node.get("loot", [])
+	if loot.is_empty():
+		node["loot"] = [[{"id": item_id, "amount": extra}]]
+		return
+	var first = loot[0]
+	if first is Array:
+		var found := false
+		for entry in first:
+			if entry is Dictionary and str(entry.get("id", "")) == item_id:
+				entry["amount"] = int(entry.get("amount", 1)) + extra
+				found = true
+				break
+		if not found:
+			first.append({"id": item_id, "amount": extra})
+
+
+func _place_outcome_props(mast: bool) -> void:
+	var wreck := _landmark_position("wreck")
+	if mast:
+		for i in 3:
+			var at := wreck + Vector3(-1.8 + float(i) * 1.1, 0, 2.4 + float(i % 2) * 0.6)
+			at.y = _ground_y(at.x, at.z)
+			_place_model(self, MODELS + "wood.glb", "MastPlank%d" % i, at, Vector3(0.1, float(i), 0.2), 0.7, true)
+		_place_model(self, MODELS + "wood.glb", "MastRopeSpar", wreck + Vector3(2.2, 0, 1.8), Vector3(0.2, 0.8, 0.1), 0.55, true)
+	else:
+		for i in 3:
+			var at := wreck + Vector3(2.4 + float(i) * 0.9, 0, -1.2 + float(i % 2) * 0.8)
+			at.y = _ground_y(at.x, at.z)
+			var path := MODELS + ("chest.glb" if i != 1 else "barrel.glb")
+			_place_model(self, path, "SinkCargo%d" % i, at, Vector3(0, float(i) * 0.7, 0), 0.7, true)
+
+
+func _place_silas_cutlass() -> void:
+	if get_node_or_null("SilasCutlass"):
+		return
+	var wreck := _landmark_position("wreck")
+	# Open sand away from the Tools bench (wreck-2,+4) and cargo piles.
+	var at := wreck + Vector3(-5.2, 0, -3.4)
+	at.y = _ground_y(at.x, at.z)
+	var holder := Node3D.new()
+	holder.name = "SilasCutlass"
+	holder.position = at
+	# Lay the blade across the sand so a 3/4 beach shot can read it as a sword.
+	holder.rotation_degrees = Vector3(0, 15, 0)
+	add_child(holder)
+	var steel := StandardMaterial3D.new()
+	steel.albedo_color = Color(0.86, 0.88, 0.92)
+	steel.metallic = 0.35
+	steel.roughness = 0.42
+	steel.emission_enabled = false
+	var blade := MeshInstance3D.new()
+	blade.name = "Blade"
+	var blade_mesh := BoxMesh.new()
+	blade_mesh.size = Vector3(1.7, 0.07, 0.2)
+	blade.mesh = blade_mesh
+	blade.material_override = steel
+	blade.position = Vector3(0.55, 0.07, 0)
+	blade.rotation_degrees = Vector3(4, 0, 8)
+	holder.add_child(blade)
+	var tip := MeshInstance3D.new()
+	var tip_mesh := PrismMesh.new()
+	tip_mesh.size = Vector3(0.16, 0.22, 0.055)
+	tip.mesh = tip_mesh
+	tip.material_override = steel
+	tip.position = Vector3(1.42, 0.08, 0)
+	tip.rotation_degrees = Vector3(90, 0, 90)
+	holder.add_child(tip)
+	var guard := MeshInstance3D.new()
+	var guard_mesh := BoxMesh.new()
+	guard_mesh.size = Vector3(0.08, 0.07, 0.36)
+	guard.mesh = guard_mesh
+	guard.material_override = steel
+	guard.position = Vector3(-0.22, 0.07, 0)
+	holder.add_child(guard)
+	var hilt := MeshInstance3D.new()
+	var hilt_mesh := CylinderMesh.new()
+	hilt_mesh.top_radius = 0.04
+	hilt_mesh.bottom_radius = 0.05
+	hilt_mesh.height = 0.36
+	hilt.mesh = hilt_mesh
+	var wood := StandardMaterial3D.new()
+	wood.albedo_color = Color(0.32, 0.18, 0.08)
+	wood.roughness = 0.85
+	hilt.material_override = wood
+	hilt.position = Vector3(-0.42, 0.07, 0)
+	hilt.rotation_degrees = Vector3(0, 0, 90)
+	holder.add_child(hilt)
+	var label := _label3("Silas's cutlass", 0.55)
+	label.name = "Title"
+	label.position = Vector3(0.2, 0.42, 0)
+	label.pixel_size = 0.003
+	label.modulate = Color(1, 0.95, 0.8, 0.9)
+	holder.add_child(label)
+
+
+func _tick_silas_hint() -> void:
+	if _silas_shown or _player == null:
+		return
+	var blade := get_node_or_null("SilasCutlass") as Node3D
+	if blade == null:
+		return
+	if _flat(_player.global_position, blade.global_position) < 3.2:
+		_silas_shown = true
+		_line = "Silas's cutlass... no sign of him"
+		_show_hint(_line)
+		_push_hud()
