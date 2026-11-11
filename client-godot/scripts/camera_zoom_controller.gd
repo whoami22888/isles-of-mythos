@@ -58,7 +58,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			_set_zoom(_zoom_fraction + 0.06)
 
 
-func _process(delta: float) -> void:
+func _physics_process(delta: float) -> void:
 	var weight: float = clampf(1.0 - exp(-smoothing * maxf(delta, 0.0)), 0.0, 1.0)
 	_rendered_distance = lerpf(_rendered_distance, lerpf(NEAR_DISTANCE, FAR_DISTANCE, _zoom_fraction), weight)
 	_rendered_pitch = lerpf(_rendered_pitch, lerpf(NEAR_PITCH, FAR_PITCH, _zoom_fraction), weight)
