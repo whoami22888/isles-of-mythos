@@ -44,6 +44,19 @@ class OceanShaderContractTests(unittest.TestCase):
         self.assertNotIn('ALPHA = 0.0;', cleaned)
         self.assertNotIn('example comment', cleaned)
 
+    def test_shoreline_include_resolves_required_functions(self):
+        """A named include must exist and define the functions the ocean calls."""
+        includes = re.findall(r'^\\s*#include\\s+"(res://[^"]+)"', self.code, re.MULTILINE)
+        self.assertIn("res://shaders/coastal_shore_sampler.gdshaderinc", includes)
+        for uri in includes:
+            path = SHADER.parents[1] / uri.removeprefix("res://")
+            with self.subTest(include=uri):
+                self.assertTrue(path.is_file(), f"missing Godot shader include: {uri}")
+                source = strip_shader_comments(path.read_text(encoding="utf-8"))
+                if uri.endswith("/coastal_shore_sampler.gdshaderinc"):
+                    for symbol in ("shore_terrain_coverage", "shore_terrain_height"):
+                        self.assertRegex(source, rf"\\bfloat\\s+{symbol}\\s*\\(")
+
     def test_mobile_opaque_depth_path_is_preserved(self):
         """Keep the mobile opaque depth path without fragment alpha writes."""
         self.assertRegex(
