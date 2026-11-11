@@ -8,7 +8,7 @@ func _initialize() -> void:
 
 
 func _run() -> void:
-	var camera: Camera3D = Controller.new()
+	var camera = Controller.new()
 	camera.terrain_collision_mask = 0
 	root.add_child(camera)
 	await process_frame
