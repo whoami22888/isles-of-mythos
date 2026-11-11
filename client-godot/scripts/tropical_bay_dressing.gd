@@ -196,13 +196,15 @@ static func attach(coast: Node3D) -> void:
 		drift.name = "BeachDriftwood"
 		root.add_child(drift)
 	if rock07_mesh:
-		var beach_rocks := _scatter_beach_props(coast, rock07_mesh, BEACH_ROCK_BUDGET, 1.7, 0.28, 0.55, 0.22)
+		var beach_rocks := _scatter_beach_props(coast, rock07_mesh, BEACH_ROCK_BUDGET, 1.7, 0.28, 0.55, 0.48)
 		beach_rocks.name = "BeachScatterRocks"
 		root.add_child(beach_rocks)
 	if fern_mesh:
 		var hut_plants := _scatter_hut_understory(coast, fern_mesh, HUT_UNDERSTORY_BUDGET)
 		hut_plants.name = "HutUnderstory"
 		root.add_child(hut_plants)
+	_scatter_beach_wreckage(coast, root)
+	_scatter_leeward_cover(coast, root)
 	root.add_child(_settlement(coast))
 	root.add_child(_volcano())
 	root.add_child(_distant_islands())
@@ -928,11 +930,20 @@ static func _apply_rock_shader(mesh: ArrayMesh) -> void:
 		var src := mesh.surface_get_material(surface_index)
 		var mat := ShaderMaterial.new()
 		mat.shader = ROCK_SHADER
+		var albedo: Texture2D = ROCK_ALBEDO
+		var normal: Texture2D = ROCK_NORMAL
+		var rough: Texture2D = ROCK_ROUGH
 		if src is BaseMaterial3D:
 			var base := src as BaseMaterial3D
-			mat.set_shader_parameter("albedo_tex", base.albedo_texture)
-			mat.set_shader_parameter("normal_tex", base.normal_texture)
-			mat.set_shader_parameter("rough_tex", base.roughness_texture)
+			if base.albedo_texture != null:
+				albedo = base.albedo_texture
+			if base.normal_texture != null:
+				normal = base.normal_texture
+			if base.roughness_texture != null:
+				rough = base.roughness_texture
+		mat.set_shader_parameter("albedo_tex", albedo)
+		mat.set_shader_parameter("normal_tex", normal)
+		mat.set_shader_parameter("rough_tex", rough)
 		mat.set_shader_parameter("moss_tex", MOSS_ALBEDO)
 		mat.set_shader_parameter("sea_level", -0.35)
 		mesh.surface_set_material(surface_index, mat)
@@ -1628,3 +1639,100 @@ static func _append_dense_leaf_cluster(mesh: ArrayMesh, bounds: AABB, variant: i
 	foliage.roughness = 0.9
 	foliage.metallic = 0.0
 	mesh.surface_set_material(mesh.get_surface_count() - 1, foliage)
+
+
+static func _scatter_beach_wreckage(coast: Node3D, root: Node3D) -> void:
+	# Washed-up hull, planks, crates and rope on the bay beach. No glow.
+	var wreck := Node3D.new()
+	wreck.name = "BeachWreckage"
+	root.add_child(wreck)
+	var pier := Vector3(1.5, coast._terrain_height(1.5, 4.2), 4.2)
+	_add_wreck_model(wreck, "res://assets/opening/kenney/ship-pirate-large.glb", pier + Vector3(5.4, 0.0, 0.6), Vector3(0.35, 2.05, 0.25), 0.48, 0.85)
+	_add_wreck_model(wreck, "res://assets/opening/kenney/barrel.glb", pier + Vector3(3.4, 0.0, 1.8), Vector3(0.1, 0.6, 0.2), 0.9, 0.05)
+	_add_wreck_model(wreck, "res://assets/opening/kenney/barrel.glb", pier + Vector3(6.6, 0.0, -0.4), Vector3(0.2, -0.4, 0.3), 0.7, 0.05)
+	_add_wreck_model(wreck, "res://assets/opening/kenney/chest.glb", pier + Vector3(4.6, 0.0, 2.4), Vector3(0.0, 0.9, 0.15), 0.8, 0.04)
+	var plank := _driftwood_mesh()
+	if plank:
+		for i in range(5):
+			var inst := MeshInstance3D.new()
+			inst.mesh = plank
+			var px := 3.2 + float(i) * 0.85
+			var pz := 3.1 + (0.4 if i % 2 == 0 else -0.5)
+			var py: float = coast._terrain_height(px, pz)
+			inst.position = Vector3(px, py - 0.04, pz)
+			inst.rotation = Vector3(0.05, float(i) * 0.7, 0.08)
+			inst.scale = Vector3(0.7, 0.55, 0.7)
+			inst.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			wreck.add_child(inst)
+	# Ground every wreck child to the sand so nothing floats.
+	for child in wreck.get_children():
+		if child is Node3D:
+			var node := child as Node3D
+			var gy: float = coast._terrain_height(node.position.x, node.position.z)
+			if node.position.y > gy + 0.8:
+				node.position.y = gy + 0.15
+
+
+static func _add_wreck_model(parent: Node3D, path: String, hint: Vector3, rot: Vector3, scale: float, bury: float) -> void:
+	var packed = load(path)
+	if packed == null:
+		return
+	var inst: Node = packed.instantiate() if packed is PackedScene else null
+	if inst == null or not (inst is Node3D):
+		if inst:
+			inst.free()
+		return
+	var node := inst as Node3D
+	node.position = Vector3(hint.x, hint.y - bury, hint.z)
+	node.rotation = rot
+	node.scale = Vector3.ONE * scale
+	parent.add_child(node)
+	for mesh in _collect_visuals(node):
+		mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		if mesh.material_override is StandardMaterial3D:
+			(mesh.material_override as StandardMaterial3D).emission_enabled = false
+
+
+static func _collect_visuals(root: Node) -> Array[GeometryInstance3D]:
+	var found: Array[GeometryInstance3D] = []
+	var queue: Array[Node] = [root]
+	while not queue.is_empty():
+		var node: Node = queue.pop_back()
+		if node is GeometryInstance3D:
+			found.append(node as GeometryInstance3D)
+		for child in node.get_children():
+			queue.append(child)
+	return found
+
+
+static func _scatter_leeward_cover(coast: Node3D, root: Node3D) -> void:
+	# Grass-height bushes on the previously bare inland / back slopes.
+	var bush := _leafy_canopy_bush_mesh(0)
+	if bush == null:
+		return
+	var inst := MultiMeshInstance3D.new()
+	var multi := MultiMesh.new()
+	multi.transform_format = MultiMesh.TRANSFORM_3D
+	multi.mesh = bush
+	multi.instance_count = 28
+	var placed := 0
+	var x := -16.0
+	while x <= 16.0 and placed < 28:
+		var z := 9.5
+		while z <= 19.0 and placed < 28:
+			var px := x + sin(z * 2.1) * 1.1
+			var pz := z + cos(x * 1.7) * 0.8
+			var py: float = coast._terrain_height(px, pz)
+			if _clear_of_summit(px, pz, py) and _clear_of_ship(px, pz) and py > coast.WATER_Y + 1.2:
+				var scale := lerpf(0.7, 1.15, 0.5 + 0.5 * sin(px * 2.2 + pz))
+				var basis := Basis(Vector3.UP, px * 1.3).scaled(Vector3(scale, scale, scale))
+				multi.set_instance_transform(placed, Transform3D(basis, Vector3(px, py, pz)))
+				placed += 1
+			z += 2.4
+		x += 3.1
+	multi.visible_instance_count = placed
+	inst.multimesh = multi
+	inst.name = "LeewardCover"
+	inst.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	_apply_distance_fade(inst, 80.0)
+	root.add_child(inst)

@@ -197,6 +197,7 @@ func _enter_timing() -> void:
 func _enter_impact() -> void:
 	_beat = Beat.IMPACT
 	_clock = 0.0
+	_hard_cut = true
 	_ring.visible = false
 	_fire_button.visible = false
 	_say("Hit. She's smoking.")
@@ -211,6 +212,7 @@ func _enter_target() -> void:
 func _enter_volley() -> void:
 	_beat = Beat.VOLLEY
 	_clock = 0.0
+	_hard_cut = true
 	_mast_button.visible = false
 	_hull_button.visible = false
 	_say("Mast in splinters." if _chose_mast else "Hull staved in.")
@@ -219,6 +221,7 @@ func _enter_volley() -> void:
 func _enter_boarding() -> void:
 	_beat = Beat.BOARDING
 	_clock = 0.0
+	_hard_cut = true
 	_say("They're swinging aboard. Fight.")
 	var count := 2 if _chose_mast else 3
 	var hp := 4 if _chose_mast else 3
@@ -233,6 +236,7 @@ func _enter_boarding() -> void:
 func _enter_cheer() -> void:
 	_beat = Beat.CHEER
 	_clock = 0.0
+	_hard_cut = true
 	_attack_button.visible = false
 	_dodge_button.visible = false
 	_stick_base.visible = false
@@ -255,6 +259,7 @@ func _enter_rise() -> void:
 func _enter_smash() -> void:
 	_beat = Beat.SMASH
 	_clock = 0.0
+	_hard_cut = true
 	_play(AUDIO_BOOM, -2.0)
 	_shake = 1.3
 	_pitch_ship(_player_ship, 18.0)
@@ -287,7 +292,7 @@ func _finish_opening() -> void:
 	var cfg := ConfigFile.new()
 	cfg.set_value("opening", "completed", true)
 	cfg.save(FLAG_PATH)
-	var packed = load("res://gameplay/vertical_slice.tscn")
+	var packed = load("res://gameplay/ashore/washed_ashore.tscn")
 	if packed == null:
 		return
 	var gameplay = packed.instantiate()
@@ -468,25 +473,52 @@ func _update_boarders(delta: float) -> void:
 	if alive == 0 and _clock > 1.2 and _boarders.size() > 0:
 		_enter_cheer()
 
-func _update_camera(_delta: float) -> void:
-	if _lock_camera or _camera == null or _player == null or _player_ship == null:
-		return
-	# basis.x runs stern-ward on this hull, so the deck camera sits aft of the captain.
+var _hard_cut := false
+
+func _camera_shot() -> Array:
+	# Automatic cinematic cuts driven by battle beats. Presentation only.
 	var aft := _player_ship.global_transform.basis.x
 	var side := _player_ship.global_transform.basis.z
-	var focus := _player.global_position + Vector3(0, 1.5, 0) - aft * 4.0
-	if _enemy_ship and _beat < Beat.RISE:
-		focus = focus.lerp(_enemy_ship.global_position + Vector3(0, 5.0, 0), 0.7)
-	var wanted := _player.global_position + aft * 2.4 + side * 2.2 + Vector3(0, 1.85, 0)
-	if _beat >= Beat.RISE:
-		wanted = _player.global_position + aft * 10.0 + side * 4.0 + Vector3(0, 7.0, 0)
-		if _leviathan:
-			focus = _leviathan.global_position + Vector3(0, 9.0, 0)
-	if not _camera_ready:
+	var deck := _player.global_position + Vector3(0, 1.6, 0)
+	var enemy := (_enemy_ship.global_position + Vector3(0, 5.0, 0)) if _enemy_ship else deck + Vector3(12, 0, 0)
+	var cannon_at := _cannon.global_position if _cannon else deck
+	match _beat:
+		Beat.ESTABLISH:
+			return [_player_ship.global_position + aft * 26.0 + side * 16.0 + Vector3(0, 14.0, 0), (_player_ship.global_position + enemy) * 0.5 + Vector3(0, 5.5, 0)]
+		Beat.POWDER, Beat.BALL, Beat.TIMING:
+			return [cannon_at + aft * 1.8 + side * -1.3 + Vector3(0, 1.75, 0), cannon_at - aft * 3.2 + Vector3(0, 1.3, 0)]
+		Beat.IMPACT, Beat.VOLLEY:
+			return [enemy + Vector3(7.0, 3.2, 9.0), enemy + Vector3(0, 2.6, 0)]
+		Beat.BOARDING:
+			var fight := deck
+			if _boarders.size() > 0 and is_instance_valid(_boarders[0]):
+				fight = fight.lerp(_boarders[0].global_position, 0.5)
+			return [fight + side * 5.6 + aft * 1.4 + Vector3(0, 2.5, 0), fight + Vector3(0, 1.15, 0)]
+		Beat.CHEER:
+			return [deck + aft * 3.2 + side * 2.2 + Vector3(0, 2.1, 0), deck]
+		Beat.RISE:
+			var rise_focus := (_leviathan.global_position + Vector3(0, 9.0, 0)) if _leviathan else enemy
+			return [_player.global_position + aft * 10.0 + side * 4.0 + Vector3(0, 7.0, 0), rise_focus]
+		Beat.SMASH:
+			var blow := _leviathan.global_position if _leviathan else _player_ship.global_position
+			return [blow + Vector3(14.0, 3.4, 9.0), blow + Vector3(0, 4.0, 0)]
+		_:
+			return [_player.global_position + aft * 2.4 + side * 2.2 + Vector3(0, 1.85, 0), deck - aft * 4.0]
+
+
+func _update_camera(_delta: float) -> void:
+	if _camera == null or _player == null or _player_ship == null:
+		return
+	var shot: Array = _camera_shot()
+	var wanted: Vector3 = shot[0]
+	var focus: Vector3 = shot[1]
+	if (not _camera_ready) or _hard_cut:
 		_camera.global_position = wanted
 		_camera_ready = true
+		_hard_cut = false
 	else:
-		_camera.global_position = _camera.global_position.lerp(wanted, 0.08 if _beat >= Beat.RISE else 0.18)
+		var rate := 0.22 if _beat == Beat.ESTABLISH else (0.10 if _beat >= Beat.RISE else 0.16)
+		_camera.global_position = _camera.global_position.lerp(wanted, rate)
 	if _shake > 0.01:
 		var jitter := Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)) * _shake * 0.18
 		_camera.global_position += jitter

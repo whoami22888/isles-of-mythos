@@ -19,7 +19,26 @@ var _touch: Control
 ## bay's cliff band is behind the player instead of between camera and player.
 var _camera_yaw := PI
 const CAMERA_ORBIT_RADIANS_PER_PIXEL := 0.008
+## Official debug flag. The debug APK is still a release-facing playtest build,
+## so server log lines stay hidden unless this is turned on.
+const DEBUG_SERVER_LOG := false
+const MANUAL_ORBIT_HOLD := 2.8
+const CAMERA_FOLLOW_RATE := 8.0
+const PET_SCENE := "res://assets/ashore/models/cat.glb"
 var _manual_moving := false
+var _manual_orbit_hold := 0.0
+var _camera_smoothed := Vector3.ZERO
+var _camera_ready_follow := false
+var _saved_occluders: Dictionary = {}
+var _last_oxygen := 100.0
+var _last_hunger := 100.0
+var _last_health := 100.0
+var _vitals: Label
+var _pet: Node3D
+var _pet_freed := false
+var _pet_fed := false
+var _pet_pile: Node3D
+var _pet_prompt: Label
 ## Gameplay panels live in a viewport-bounded scroll area so every control
 ## stays reachable at 1280x720 and on phones however long the lists grow.
 var _hud_scroll: ScrollContainer
@@ -185,6 +204,33 @@ func _ready() -> void:
 	_death.add_theme_color_override("font_shadow_color", Color(0.15, 0.05, 0.02, 0.85))
 	_death.add_theme_constant_override("shadow_outline_size", 6)
 	$Interface.add_child(_death)
+	_vitals = Label.new()
+	_vitals.name = "Vitals"
+	_vitals.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_vitals.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_vitals.offset_left = -280.0
+	_vitals.offset_top = 16.0
+	_vitals.offset_right = -16.0
+	_vitals.offset_bottom = 56.0
+	_vitals.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_vitals.add_theme_font_size_override("font_size", 16)
+	_vitals.add_theme_color_override("font_color", Color("#fff1d0"))
+	_vitals.add_theme_color_override("font_shadow_color", Color(0.1, 0.05, 0.02, 0.8))
+	_vitals.add_theme_constant_override("shadow_outline_size", 4)
+	$Interface.add_child(_vitals)
+	_pet_prompt = Label.new()
+	_pet_prompt.name = "PetPrompt"
+	_pet_prompt.text = "Tide-Puck is pinned under the wreckage"
+	_pet_prompt.visible = false
+	_pet_prompt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_pet_prompt.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	_pet_prompt.offset_left = -240.0
+	_pet_prompt.offset_top = -120.0
+	_pet_prompt.offset_right = 240.0
+	_pet_prompt.offset_bottom = -80.0
+	_pet_prompt.add_theme_font_size_override("font_size", 20)
+	_pet_prompt.add_theme_color_override("font_color", Color("#fff1d0"))
+	$Interface.add_child(_pet_prompt)
 	_mount_touch_controls()
 	_apply_hud_layout()
 
@@ -222,7 +268,13 @@ func _apply_hud_layout() -> void:
 	# whenever it is lost or a command outcome is unknown, and always inside
 	# the open drawer so a manual reconnect is never out of reach.
 	_connect_button.visible = not compact or not _session_live or _reconnect_requested or _drawer_open
-	_state.visible = not compact or _drawer_open
+	_state.visible = DEBUG_SERVER_LOG and (not compact or _drawer_open)
+	if _status:
+		# Keep the compact status strip visible (HUD tests and layout), but
+		# blank out server jargon unless the debug flag is on.
+		if compact and not DEBUG_SERVER_LOG and not _is_player_facing_status(_status.text):
+			_status.text = ""
+		_status.visible = true
 	_gather.text = GATHER_LABEL_COMPACT if compact else GATHER_LABEL_FULL
 	_hud_scroll.visible = _drawer_open
 	_drawer_toggle.text = DRAWER_LABEL_OPEN if _drawer_open else DRAWER_LABEL_CLOSED
@@ -266,7 +318,9 @@ func _mount_touch_controls() -> void:
 	_touch.tapped.connect(_handle_tap)
 
 func _on_camera_drag(delta: Vector2) -> void:
+	# Swipe stays optional; auto-follow resumes after a short hold.
 	_camera_yaw = wrapf(_camera_yaw - delta.x * CAMERA_ORBIT_RADIANS_PER_PIXEL, -PI, PI)
+	_manual_orbit_hold = MANUAL_ORBIT_HOLD
 	_follow_camera()
 
 ## The single manual-movement source: keyboard actions and the touch joystick
@@ -338,6 +392,7 @@ func _build_scaffold_world() -> void:
 	_ground.material_override = _material(Color("#183b3a"))
 	add_child(_ground)
 	_mount_coastal_world()
+	_mount_beach_pet()
 	if _coastal:
 		_ground.visible = false
 	_recenter_ground()
@@ -399,8 +454,20 @@ func _follow_camera() -> void:
 	_recenter_ground()
 	var camera: Camera3D = $Camera
 	var target := Vector3(_player.x, _player.y - PLAYER_HALF_HEIGHT, _player.z)
-	camera.look_at_from_position(target + CAMERA_OFFSET.rotated(Vector3.UP, _camera_yaw), target)
+	var offset := CAMERA_OFFSET.rotated(Vector3.UP, _camera_yaw)
+	var wanted := target + offset
+	# Lift over terrain so the follow cam does not clip the hill.
+	var ground_y := _surface_height(wanted.x, wanted.z) + 2.2
+	if wanted.y < ground_y:
+		wanted.y = ground_y
+	if not _camera_ready_follow:
+		_camera_smoothed = wanted
+		_camera_ready_follow = true
+	else:
+		_camera_smoothed = _camera_smoothed.lerp(wanted, 1.0 - exp(-CAMERA_FOLLOW_RATE * get_process_delta_time()))
+	camera.look_at_from_position(_camera_smoothed, target + Vector3(0, 1.0, 0))
 	_frame_player_in_play_area(camera)
+	_fade_occluders(camera.global_position, target + Vector3(0, 1.2, 0))
 
 func _on_viewport_resized() -> void:
 	_frame_player_in_play_area($Camera)
@@ -493,24 +560,32 @@ func _request_current_chunk() -> void:
 	_refresh_clock = 0.0
 
 func _process(delta: float) -> void:
+	if _manual_orbit_hold > 0.0:
+		_manual_orbit_hold = maxf(0.0, _manual_orbit_hold - delta)
 	if _client == null or not _client.is_authenticated():
 		if _session_live:
 			# The session dropped: bring back the Reconnect control.
 			_session_live = false
 			_apply_hud_layout()
 		_stop_approach()
+		_update_pet(delta)
+		_follow_camera()
 		return
 	_refresh_clock += delta
 	if _chunk_known and _refresh_clock >= CHUNK_REFRESH_SECONDS:
 		_refresh_clock = 0.0
 		_request_current_chunk()
-	if _manual_move_step(delta):
-		return
-	if _approaching:
-		_move_clock += delta
-		if _move_clock >= MOVE_INTERVAL_SECONDS:
-			_move_clock = 0.0
-			_approach_step()
+	if not _manual_move_step(delta):
+		if _approaching:
+			_move_clock += delta
+			if _move_clock >= MOVE_INTERVAL_SECONDS:
+				_move_clock = 0.0
+				_approach_step()
+	_auto_frame_camera(delta)
+	_update_pet(delta)
+	_follow_camera()
+	if _gameplay_hud and not DEBUG_SERVER_LOG and _status and not _is_player_facing_status(_status.text):
+		_status.text = ""
 
 func _stop_approach() -> void:
 	_approaching = false
@@ -557,9 +632,7 @@ func _on_player_state(state: Dictionary) -> void:
 		$ServerPlayerRepresentation.position = _player
 		$ServerPlayerRepresentation.observe_server_position(_player)
 		_follow_camera()
-		var health = state.get("health", 1)
-		if _death:
-			_death.visible = (health is int or health is float) and float(health) <= 0.0
+		_ingest_survival(state)
 		_state.text = "Server player position: (%d, %d)" % [int(_player.x), int(_player.z)]
 		# Follow the authoritative position: request the chunk containing the
 		# player on first state and whenever the player crosses a boundary.
@@ -589,10 +662,12 @@ func _on_world_chunk(request_id: String, chunk: Dictionary) -> void:
 		if _markers.has(resource_id):
 			marker = _markers[resource_id]
 		else:
-			marker = _create_resource_marker(resource_id)
+			marker = _create_resource_marker(resource_id, str(resource.get("type", "")))
 		var marker_x := float(resource.get("x", 0))
 		var marker_z := float(resource.get("y", 0))
-		marker.position = Vector3(marker_x, _surface_height(marker_x, marker_z) + MARKER_RADIUS, marker_z)
+		var gy := _surface_height(marker_x, marker_z)
+		# Origin at mid-height so the prop sits on the surface, not floating or buried.
+		marker.position = Vector3(marker_x, gy + MARKER_RADIUS, marker_z)
 	# The server's chunk snapshot is authoritative: remove resources no longer
 	# present, including depleted nodes, without retaining orphaned MeshInstances.
 	for resource_id in _markers.keys():
@@ -600,17 +675,57 @@ func _on_world_chunk(request_id: String, chunk: Dictionary) -> void:
 			_markers[resource_id].queue_free()
 			_markers.erase(resource_id)
 
-func _create_resource_marker(resource_id: String) -> MeshInstance3D:
+func _create_resource_marker(resource_id: String, resource_type: String = "") -> MeshInstance3D:
+	var kind := resource_type
+	if kind.is_empty():
+		if "wood" in resource_id:
+			kind = "wood"
+		elif "stone" in resource_id:
+			kind = "stone"
+		else:
+			kind = "herb"
 	var marker := MeshInstance3D.new()
-	var sphere := SphereMesh.new()
-	sphere.radius = 0.3
-	sphere.height = 0.6
-	marker.mesh = sphere
-	marker.material_override = _material(Color("#67d4a3"))
 	marker.name = "ServerResource_" + resource_id.replace(":", "_")
+	marker.mesh = _resource_prop_mesh(kind)
+	var mat := StandardMaterial3D.new()
+	mat.emission_enabled = false
+	mat.metallic = 0.0
+	mat.roughness = 0.9
+	if kind == "wood":
+		mat.albedo_color = Color(0.45, 0.32, 0.18)
+	elif kind == "stone":
+		mat.albedo_color = Color(0.55, 0.50, 0.44)
+	else:
+		mat.albedo_color = Color(0.28, 0.42, 0.22)
+	marker.material_override = mat
+	marker.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	add_child(marker)
 	_markers[resource_id] = marker
 	return marker
+
+
+func _resource_prop_mesh(kind: String) -> Mesh:
+	# Grounded, unlit-but-textured masses. No glow, no spheres.
+	if kind == "wood":
+		var log_mesh := CylinderMesh.new()
+		log_mesh.top_radius = 0.18
+		log_mesh.bottom_radius = 0.22
+		log_mesh.height = 0.9
+		log_mesh.radial_segments = 8
+		return log_mesh
+	if kind == "stone":
+		var rock := SphereMesh.new()
+		rock.radius = 0.28
+		rock.height = 0.42
+		rock.radial_segments = 7
+		rock.rings = 5
+		return rock
+	var bush := SphereMesh.new()
+	bush.radius = 0.32
+	bush.height = 0.55
+	bush.radial_segments = 8
+	bush.rings = 6
+	return bush
 
 func _intent_for_ground(x: float, z: float) -> String:
 	var resource_id := _resource_near(Vector2(x, z), TAP_RESOURCE_RADIUS)
@@ -701,6 +816,8 @@ func _handle_tap(screen: Vector2) -> void:
 	if point == null:
 		return
 	var world: Vector3 = point
+	if _try_rescue_pet(world):
+		return
 	_intent_for_ground(world.x, world.z)
 
 func _http_base(endpoint: String) -> String:
@@ -851,8 +968,12 @@ func _on_rejection(code: String) -> void:
 	_craft.on_server_error(code)
 	if code == "PLAYER_DEAD" and _death:
 		_death.visible = true
-		_death.text = "You died - respawning"
-	_status.text = "Server rejected command: %s" % code
+		_death.text = "%s — respawning" % _death_cause()
+		_status.text = _death_cause()
+	elif code == "INSUFFICIENT_INVENTORY":
+		_status.text = "Not enough materials"
+	else:
+		_status.text = "Server rejected command: %s" % code
 
 func _on_outcome_unknown(request_id: String) -> void:
 	_craft.on_outcome_unknown(request_id)
@@ -861,3 +982,199 @@ func _on_outcome_unknown(request_id: String) -> void:
 	_status.text = "Command outcome unknown; reconnect manually before retrying"
 	_reconnect_requested = true
 	_apply_hud_layout()
+
+
+func _is_player_facing_status(text: String) -> bool:
+	if text.is_empty():
+		return false
+	var hide_prefixes := PackedStringArray([
+		"Server rejected command",
+		"Server player position",
+		"Moving;",
+		"Moving toward",
+		"Authoritative",
+		"Awaiting server",
+		"Command outcome",
+		"Authenticated",
+		"Enter a JWT",
+		"Command window",
+	])
+	for prefix in hide_prefixes:
+		if text.begins_with(prefix):
+			return false
+	return true
+
+
+func _auto_frame_camera(_delta: float) -> void:
+	if _manual_orbit_hold > 0.0:
+		return
+	# Sit behind the last walk direction; stay put when idle.
+	var avatar := get_node_or_null("ServerPlayerRepresentation")
+	var facing := PI
+	if avatar and avatar.has_method("facing_yaw"):
+		facing = float(avatar.facing_yaw())
+		# Camera offset faces opposite the avatar's look direction.
+		var desired := wrapf(facing + PI, -PI, PI)
+		_camera_yaw = lerp_angle(_camera_yaw, desired, 0.08)
+
+
+func _fade_occluders(cam: Vector3, target: Vector3) -> void:
+	# Restore instances unhidden last frame, then hide foliage on the camera-player ray.
+	for key in _saved_occluders.keys():
+		var rec: Dictionary = _saved_occluders[key]
+		var inst: Object = rec.get("instance")
+		if inst is MultiMeshInstance3D and rec.has("index"):
+			var multi: MultiMesh = (inst as MultiMeshInstance3D).multimesh
+			if multi and rec["index"] < multi.instance_count:
+				multi.set_instance_transform(rec["index"], rec["xform"])
+		elif inst is GeometryInstance3D:
+			(inst as GeometryInstance3D).transparency = 0.0
+	_saved_occluders.clear()
+	var delta := target - cam
+	var length := delta.length()
+	if length < 0.5:
+		return
+	var dir := delta / length
+	var dressing := _coastal.get_node_or_null("TropicalBayDressing") if _coastal else null
+	if dressing == null:
+		return
+	for child in dressing.get_children():
+		var foliage := child as MultiMeshInstance3D
+		if foliage == null or foliage.multimesh == null:
+			continue
+		var multi := foliage.multimesh
+		var count := mini(multi.visible_instance_count, multi.instance_count)
+		for i in range(count):
+			var xform := multi.get_instance_transform(i)
+			var point: Vector3 = foliage.global_transform * xform.origin + Vector3(0, 2.0, 0)
+			var along := (point - cam).dot(dir)
+			if along < 1.0 or along > length - 1.2:
+				continue
+			var closest := cam + dir * along
+			if closest.distance_to(point) > 2.4:
+				continue
+			var key := "%s:%d" % [foliage.get_path(), i]
+			_saved_occluders[key] = {"instance": foliage, "index": i, "xform": xform}
+			var hidden := xform
+			hidden.basis = hidden.basis.scaled(Vector3(0.05, 0.05, 0.05))
+			multi.set_instance_transform(i, hidden)
+
+
+func _ingest_survival(state: Dictionary) -> void:
+	if state.get("oxygen") is int or state.get("oxygen") is float:
+		_last_oxygen = float(state["oxygen"])
+	if state.get("hunger") is int or state.get("hunger") is float:
+		_last_hunger = float(state["hunger"])
+	var health = state.get("health", _last_health)
+	if health is int or health is float:
+		_last_health = float(health)
+	if _death:
+		_death.visible = _last_health <= 0.0
+		if _last_health <= 0.0:
+			_death.text = "%s — respawning" % _death_cause()
+	_update_vitals()
+
+
+func _death_cause() -> String:
+	if _last_oxygen <= 0.05:
+		return "You drowned"
+	if _last_hunger <= 0.05:
+		return "You starved"
+	return "You died"
+
+
+func _update_vitals() -> void:
+	if _vitals == null:
+		return
+	_vitals.visible = _gameplay_hud
+	_vitals.text = "HP %d   Hunger %d   Air %d" % [int(_last_health), int(_last_hunger), int(_last_oxygen)]
+	if _last_oxygen < 35.0 and _last_health > 0.0:
+		_status.text = "Drowning!"
+		_status.visible = true
+	elif _last_hunger < 15.0 and _last_health > 0.0:
+		_status.text = "Starving!"
+		_status.visible = true
+
+
+func _mount_beach_pet() -> void:
+	# Pin Tide-Puck under the washed-up hull (same beach as BeachWreckage).
+	var packed = load(PET_SCENE)
+	var origin := Vector3(6.2, 0.0, 4.6)
+	if _coastal:
+		origin.y = _surface_height(origin.x, origin.z)
+	else:
+		origin.y = 0.2
+	_pet_pile = Node3D.new()
+	_pet_pile.name = "PetRescuePile"
+	_pet_pile.position = origin
+	add_child(_pet_pile)
+	var crate = load("res://assets/opening/kenney/chest.glb")
+	if crate is PackedScene:
+		var box = crate.instantiate()
+		if box is Node3D:
+			(box as Node3D).scale = Vector3.ONE * 0.85
+			(box as Node3D).position.y = 0.05
+			_pet_pile.add_child(box)
+	var plank_src = load("res://assets/opening/kenney/barrel.glb")
+	if plank_src is PackedScene:
+		var beam = plank_src.instantiate()
+		if beam is Node3D:
+			(beam as Node3D).scale = Vector3(1.1, 0.45, 1.1)
+			(beam as Node3D).rotation = Vector3(0.4, 0.8, 0.15)
+			(beam as Node3D).position = Vector3(0.15, 0.12, 0.1)
+			_pet_pile.add_child(beam)
+	if packed is PackedScene:
+		_pet = packed.instantiate()
+		_pet.name = "TidePuck"
+		_pet.visible = false
+		_pet.scale = Vector3.ONE * 0.7
+		_pet.position = origin + Vector3(-0.35, 0.0, 0.2)
+		add_child(_pet)
+
+
+func _try_rescue_pet(world: Vector3) -> bool:
+	if _pet_pile == null:
+		return false
+	var origin := _pet.global_position if _pet_freed and _pet else _pet_pile.position
+	if Vector2(world.x - origin.x, world.z - origin.z).length() > 2.4:
+		return false
+	if not _pet_freed:
+		_pet_freed = true
+		if _pet:
+			_pet.visible = true
+			_pet.position = _pet_pile.position + Vector3(-0.8, 0.0, 0.4)
+		if _pet_pile:
+			_pet_pile.visible = false
+		if _pet_prompt:
+			_pet_prompt.text = "Tap to feed Tide-Puck"
+			_pet_prompt.visible = true
+		_status.text = "You freed Tide-Puck. Feed the companion."
+		_status.visible = true
+		return true
+	if not _pet_fed:
+		_pet_fed = true
+		if _pet_prompt:
+			_pet_prompt.text = "Tide-Puck will follow you"
+			_pet_prompt.visible = true
+		_status.text = "Tide-Puck is fed and will stay with you"
+		_status.visible = true
+		return true
+	return false
+
+
+func _update_pet(delta: float) -> void:
+	if _pet_prompt and _pet_pile:
+		var focus := _pet.global_position if _pet_freed and _pet else _pet_pile.position
+		var near := Vector2(_player.x - focus.x, _player.z - focus.z).length() < 4.0
+		if not _pet_freed:
+			_pet_prompt.visible = near
+		elif not _pet_fed:
+			_pet_prompt.visible = near
+	if not _pet_fed or _pet == null:
+		return
+	var follow := Vector3(_player.x, _player.y - 0.9, _player.z) + Vector3(-0.9, 0, -0.7)
+	follow.y = _surface_height(follow.x, follow.z)
+	_pet.global_position = _pet.global_position.lerp(follow, 1.0 - exp(-4.0 * delta))
+	var look := Vector3(_player.x, _pet.global_position.y, _player.z)
+	if look.distance_to(_pet.global_position) > 0.15:
+		_pet.look_at(look, Vector3.UP)

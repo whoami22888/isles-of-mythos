@@ -110,14 +110,28 @@ func _build_environment() -> void:
 	sun.name = "WarmSun"
 	# Slightly lower golden key so the harbour side gets warm raking light.
 	sun.rotation_degrees = Vector3(-33.0, 148.0, 0.0)
-	sun.light_color = Color(1.0, 0.70, 0.36)
-	sun.light_energy = 1.72
+	sun.light_color = Color(1.0, 0.92, 0.78)
+	sun.light_energy = 1.85
 	sun.shadow_enabled = true
-	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
-	sun.directional_shadow_max_distance = 64.0
-	sun.shadow_bias = 0.16
-	sun.shadow_normal_bias = 2.8
+	# PCF13 + two blended splits: the old single orthogonal cascade was the
+	# blocky, dithered grain on the ship's water shadow on mobile.
+	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
+	sun.directional_shadow_blend_splits = true
+	sun.directional_shadow_max_distance = 60.0
+	sun.directional_shadow_split_1 = 0.18
+	sun.shadow_bias = 0.08
+	sun.shadow_normal_bias = 2.0
 	add_child(sun)
+	# Unshadowed upward aqua bounce (docs lighting cheat). Does not add a
+	# second shadow-casting sun, so the mobile shadow budget stays at one.
+	var bounce := DirectionalLight3D.new()
+	bounce.name = "AquaBounce"
+	bounce.rotation_degrees = Vector3(70.0, -32.0, 0.0)
+	bounce.light_color = Color(0.45, 0.85, 0.95)
+	bounce.light_energy = 0.25
+	bounce.shadow_enabled = false
+	bounce.light_specular = 0.0
+	add_child(bounce)
 	_build_sun_glow(sun)
 
 func _hash21(p: Vector2) -> float:
@@ -1055,6 +1069,7 @@ func apply_visual_quality(level: int) -> void:
 			["HeroUrsinia", [0, 10, 16]],
 			["SolidCanopyBushes", [0, 16, 28]],
 			["SolidCanopyBushesB", [0, 12, 20]],
+			["LeewardCover", [0, 14, 28]],
 			["HutUnderstory", [0, 10, 18]],
 			["BeachDriftwood", [3, 5, 8]],
 			["BeachScatterRocks", [4, 8, 12]],

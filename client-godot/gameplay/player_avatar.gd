@@ -10,6 +10,19 @@ extends Node3D
 ## loaded, the original gold capsule stays visible as a cheap fallback.
 
 const KENNEY := "res://assets/opening/kenney/"
+# Full literal paths AND preloads: the 10 Nov phone APK showed the gold
+# capsule (washed white in sun) because the Kenney FBX never mounted.
+# Concatenated KENNEY + "characterMedium.fbx" strings are invisible to the
+# export dependency scanner, so the remapped .scn can be omitted from the
+# PCK even with export_filter=all_resources. preload() forces a pack.
+const CHARACTER_SCENE_PATH := "res://assets/opening/kenney/characterMedium.fbx"
+const IDLE_CLIP_PATH := "res://assets/opening/kenney/idle.fbx"
+const WALK_CLIP_PATH := "res://assets/opening/kenney/run.fbx"
+const SKIN_TEXTURE_PATH := "res://assets/opening/kenney/criminalMaleA.png"
+const CHARACTER_SCENE := preload("res://assets/opening/kenney/characterMedium.fbx")
+const IDLE_CLIP := preload("res://assets/opening/kenney/idle.fbx")
+const WALK_CLIP := preload("res://assets/opening/kenney/run.fbx")
+const SKIN_TEXTURE := preload("res://assets/opening/kenney/criminalMaleA.png")
 const TARGET_HEIGHT := 1.8
 ## Walk is held this long after the last server position change, so the 20 Hz
 ## state stream (moves are sent every 0.08 s) reads as continuous walking.
@@ -28,10 +41,10 @@ const ANIM_WALK := "Walk"
 
 ## Height of the node origin above the feet (the world's PLAYER_HALF_HEIGHT).
 var feet_offset := 0.9
-var character_scene_path := KENNEY + "characterMedium.fbx"
-var idle_clip_path := KENNEY + "idle.fbx"
-var walk_clip_path := KENNEY + "run.fbx"
-var skin_texture_path := KENNEY + "criminalMaleA.png"
+var character_scene_path := CHARACTER_SCENE_PATH
+var idle_clip_path := IDLE_CLIP_PATH
+var walk_clip_path := WALK_CLIP_PATH
+var skin_texture_path := SKIN_TEXTURE_PATH
 
 var _capsule: MeshInstance3D
 var _body: Node3D
@@ -114,9 +127,9 @@ func _set_state(next: String) -> void:
 		_anim.speed_scale = WALK_SPEED_SCALE if next == ANIM_WALK else 1.0
 
 func _mount_character() -> void:
-	if not ResourceLoader.exists(character_scene_path):
-		return
-	var packed = load(character_scene_path)
+	var packed = CHARACTER_SCENE if character_scene_path == CHARACTER_SCENE_PATH else load(character_scene_path)
+	if packed == null and ResourceLoader.exists(character_scene_path):
+		packed = load(character_scene_path)
 	if not (packed is PackedScene):
 		return
 	var rig = packed.instantiate()
@@ -138,7 +151,7 @@ func _mount_character() -> void:
 	var fitted := _merged_aabb(rig)
 	rig.position.y -= fitted.position.y
 	# One shared material and one 35 KB albedo for the single skinned surface.
-	var skin = load(skin_texture_path) if ResourceLoader.exists(skin_texture_path) else null
+	var skin = SKIN_TEXTURE if skin_texture_path == SKIN_TEXTURE_PATH else (load(skin_texture_path) if ResourceLoader.exists(skin_texture_path) else null)
 	var mat := StandardMaterial3D.new()
 	mat.albedo_texture = skin
 	mat.roughness = 0.62
@@ -159,9 +172,13 @@ func _mount_character() -> void:
 		_anim.play(ANIM_IDLE)
 
 func _copy_longest_clip(library: AnimationLibrary, path: String, alias: String) -> void:
-	if not ResourceLoader.exists(path):
-		return
-	var packed = load(path)
+	var packed = null
+	if path == IDLE_CLIP_PATH:
+		packed = IDLE_CLIP
+	elif path == WALK_CLIP_PATH:
+		packed = WALK_CLIP
+	elif ResourceLoader.exists(path):
+		packed = load(path)
 	if not (packed is PackedScene):
 		return
 	var temp = packed.instantiate()

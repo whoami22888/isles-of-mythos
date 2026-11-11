@@ -38,7 +38,8 @@ void vertex() {
 	// Wide sandy beach, then a soft climb into grass. Steep faces go to rock.
 	float beach = (1.0 - smoothstep(0.08, 3.40, height)) * (1.0 - smoothstep(0.18, 0.52, slope));
 	sand_weight = clamp(beach + sand_bias, 0.0, 1.0);
-	rock_weight = clamp(smoothstep(0.22, 0.60, slope) * (1.0 - sand_weight * 0.65) + rock_bias, 0.0, 1.0);
+	// Keep grass on mid slopes (the bare brown "back" lump); only steep faces go fully to rock.
+	rock_weight = clamp(smoothstep(0.38, 0.82, slope) * (1.0 - sand_weight * 0.65) + rock_bias, 0.0, 1.0);
 }
 
 vec3 triplanar_albedo(sampler2D tex, vec3 p, vec3 n, float scale) {
