@@ -64,3 +64,22 @@ Palms (`assets/generated/palm_v2/`) are first-party game art, not Poly Haven, an
 | --- | --- | --- | --- |
 | shrub_03 (existing) | https://polyhaven.com/a/shrub_03 | `external/polyhaven/shrub_03/` | Already credited above. Pass 10 composes overlapping `shrub_03_a` / `shrub_03_b` / `shrub_03_c` clumps as the leafy canopy bushes, with a first-party irregular opaque core behind them so the sky does not show through. |
 | shrub_03_diff_coverage_1k.png | derived from shrub_03 1K albedo | `external/generated/foliage/` | First-party processing of the official CC0 albedo: 2px alpha dilation, hardened coverage (alpha snapped to 0/255), mild desaturation toward olive, mipmaps on. Used only on the canopy bushes. |
+
+
+## Opening build v1
+
+CC0 sources added under `opening/library/` and `ashore/library/`. Per-file SHA-256 values are listed in `opening/PROVENANCE.md` and `ashore/PROVENANCE.md`.
+
+| Asset | Source | Local path |
+| --- | --- | --- |
+| cannon_01 | https://polyhaven.com/a/cannon_01 | `opening/library/cannon_01/` |
+| coast_rocks_01, coast_rocks_03 | https://polyhaven.com/a/coast_rocks_01, https://polyhaven.com/a/coast_rocks_03 | `opening/library/` |
+| namaqualand_boulder_02, namaqualand_boulder_06 | https://polyhaven.com/a/namaqualand_boulder_02, https://polyhaven.com/a/namaqualand_boulder_06 | `opening/library/sea_stack_boulder_02/`, `opening/library/dark_boulder_06/` |
+| dry_branches_medium_01, dead_tree_trunk, dead_tree_trunk_02 | https://polyhaven.com/a/dry_branches_medium_01, https://polyhaven.com/a/dead_tree_trunk, https://polyhaven.com/a/dead_tree_trunk_02 | `opening/library/driftwood_*`, `ashore/library/log_dead_trunk_02/` |
+| dutch_ship_large_02 (broken into halves) | https://polyhaven.com/a/dutch_ship_large_02 | `opening/library/hull_half_bow/`, `opening/library/hull_half_stern/` |
+| wooden_handle_saber | https://polyhaven.com/a/wooden_handle_saber | `opening/library/silas_cutlass_saber/` |
+| treasure_chest, wine_barrel_01, wooden_barrels_01, wooden_crate_01, wooden_crate_02 | https://polyhaven.com/a/treasure_chest and the matching asset pages | `opening/library/` |
+| stone_01, stone_fire_pit | https://polyhaven.com/a/stone_01, https://polyhaven.com/a/stone_fire_pit | `ashore/library/` |
+| Quaternius Ultimate Base Characters and Universal Animation Library (Standard) | https://quaternius.com (CC0, licence text in the UAL download) | `opening/library/castaway_ubc_rigged/` |
+
+These are not CC0 and are listed in the PROVENANCE files: `*_hy3d` meshes (Tencent HY 3D free tier, commercial terms unconfirmed), and `leviathan_tentacle` (TripoSR MIT output from a Z-Image-Turbo Apache-2.0 concept).

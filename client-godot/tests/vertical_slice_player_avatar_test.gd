@@ -1,6 +1,6 @@
 extends SceneTree
 
-# The vertical slice player is the admitted Kenney rigged character, not the gold capsule: it is
+# The vertical slice player is the rigged castaway stand-in (Quaternius UBC + UAL, CC0), not the gold capsule: it is
 # mounted at the server position, about 1.8 m tall with its feet on the coastal terrain, turns toward
 # the server position change, and plays Walk while the server position changes and Idle otherwise.
 # The capsule remains as the fallback when the rig cannot be loaded. Presentation only.
@@ -38,13 +38,13 @@ func _bone_world(skeleton: Skeleton3D, bone: String) -> Vector3:
 
 func _lowest_foot(skeleton: Skeleton3D) -> float:
 	var lowest := INF
-	for bone in ["LeftFoot", "RightFoot", "LeftToes", "RightToes"]:
+	for bone in ["foot_l", "foot_r", "ball_l", "ball_r"]:
 		lowest = minf(lowest, _bone_world(skeleton, bone).y)
 	return lowest
 
 func _toe_direction(skeleton: Skeleton3D) -> Vector2:
-	var heel := (_bone_world(skeleton, "LeftFoot") + _bone_world(skeleton, "RightFoot")) * 0.5
-	var toes := (_bone_world(skeleton, "LeftToes_end") + _bone_world(skeleton, "RightToes_end")) * 0.5
+	var heel := (_bone_world(skeleton, "foot_l") + _bone_world(skeleton, "foot_r")) * 0.5
+	var toes := (_bone_world(skeleton, "ball_l") + _bone_world(skeleton, "ball_r")) * 0.5
 	return Vector2(toes.x - heel.x, toes.z - heel.z).normalized()
 
 func _check_faces(avatar: Node3D, skeleton: Skeleton3D, want: Vector2, label: String) -> void:
@@ -118,7 +118,7 @@ func run() -> void:
 
 	# Fallback: a missing rig keeps the capsule.
 	var fallback := PlayerAvatar.new()
-	fallback.character_scene_path = "res://assets/opening/kenney/missing-character.fbx"
+	fallback.character_scene_path = "res://assets/opening/library/missing-character.glb"
 	root.add_child(fallback)
 	await _frames(1)
 	check(not fallback.is_character_mounted(), "missing rig is not mounted")

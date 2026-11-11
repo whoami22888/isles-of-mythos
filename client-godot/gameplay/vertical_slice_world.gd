@@ -154,7 +154,7 @@ func _ready() -> void:
 	_craft.craft_sender = func(recipe_id: String) -> String: return _client.request_craft(recipe_id)
 	_hud_panels.add_child(_craft)
 	_craft.craft_succeeded.connect(func(_id: String) -> void:
-		_status.text = "Server ACK: craft persisted"
+		_status.text = "Crafted"
 		_objectives.refresh()
 		_guild_objectives.refresh())
 	_build_scaffold_world()
@@ -976,6 +976,8 @@ func _on_rejection(code: String) -> void:
 		_status.text = _death_cause()
 	elif code == "INSUFFICIENT_INVENTORY":
 		_status.text = "Not enough materials"
+	elif code == "INVENTORY_LIMIT":
+		_status.text = "Your pack is full"
 	else:
 		_status.text = "Server rejected command: %s" % code
 

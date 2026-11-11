@@ -34,10 +34,16 @@ func run() -> void:
 	root.add_child(panel)
 	await process_frame
 
-	check(panel.craft_enabled("tool.wooden-club"), "craft button enabled when idle")
+	check(not panel.craft_enabled("tool.wooden-club"), "craft button disabled while the server inventory is short")
+	check(not panel.craft("tool.wooden-club"), "short craft is rejected locally")
+	check(panel.message_text() == "Need 8 more wood", "shortfall shown, got '%s'" % panel.message_text())
 	check(not panel.craft("not.a.recipe"), "unknown recipe is never sent")
 	check(sent.is_empty(), "nothing sent yet")
 	panel.set_inventory({"resource.wood": 9, "resource.stone": 1})
+	check(panel.craft_enabled("tool.wooden-club"), "craft button enabled once the server inventory covers it")
+	check(not panel.craft_enabled("tool.stone-axe"), "stone axe still short on stone")
+	check(not panel.craft("tool.stone-axe") and sent.is_empty(), "short stone axe never reaches the server")
+	check(panel.shortfall_text("tool.stone-axe") == "Need 3 more stone", "per-ingredient shortfall, got '%s'" % panel.shortfall_text("tool.stone-axe"))
 	check(panel.row_text("tool.wooden-club") == "Wooden Club: wood 9/8", "server inventory rendered, got '%s'" % panel.row_text("tool.wooden-club"))
 	check(panel.row_text("tool.stone-axe") == "Stone Axe: wood 9/6, stone 1/4", "ingredients rendered, got '%s'" % panel.row_text("tool.stone-axe"))
 
@@ -55,11 +61,11 @@ func run() -> void:
 	panel.on_craft_rejected("other-id", "INSUFFICIENT_INVENTORY")
 	check(panel.is_busy(), "rejection for another request id ignored")
 	panel.on_craft_rejected("req-1", "INSUFFICIENT_INVENTORY")
-	check(panel.message_text() == "Server: not enough materials", "server error shown, got '%s'" % panel.message_text())
+	check(panel.message_text() == "Not enough materials", "friendly server error shown, got '%s'" % panel.message_text())
 	check(panel.inventory_count("resource.wood") == 9 and panel.inventory_count("tool.wooden-club") == 0, "rejection leaves inventory unchanged")
 	check(panel.craft_enabled("tool.wooden-club"), "buttons re-enabled after rejection")
 	panel.on_craft_rejected("req-1", "INSUFFICIENT_INVENTORY")
-	check(panel.message_text() == "Server: not enough materials" and panel.inventory_count("resource.wood") == 9, "stray rejection with nothing in flight is ignored")
+	check(panel.message_text() == "Not enough materials" and panel.inventory_count("resource.wood") == 9, "stray rejection with nothing in flight is ignored")
 
 	# ACK handling: uncorrelated / mismatched / malformed ACKs are ignored.
 	check(panel.craft("tool.wooden-club"), "second craft sends a fresh request id")
@@ -75,18 +81,21 @@ func run() -> void:
 	panel.on_craft_ack("req-2", ack("req-2", "tool.wooden-club", {"resource.wood": 1, "tool.wooden-club": 1}))
 	check(crafted == ["tool.wooden-club"], "success signal emitted once")
 	check(panel.inventory_count("resource.wood") == 1 and panel.inventory_count("tool.wooden-club") == 1, "inventory comes from the server ACK")
-	check(not panel.is_busy() and panel.craft_enabled("tool.wooden-club"), "idle after ACK")
+	check(not panel.is_busy() and not panel.craft_enabled("tool.wooden-club"), "idle after ACK, club now short")
+	check(panel.shortfall_text("tool.wooden-club") == "Need 7 more wood", "shortfall follows the ACK inventory")
 	panel.on_craft_ack("req-2", ack("req-2", "tool.wooden-club", {"resource.wood": 99}))
 	check(panel.inventory_count("resource.wood") == 1 and crafted.size() == 1, "replayed ACK is not applied twice")
 
 	# Ambiguous error keeps the request pending; unknown outcome clears it without inventory change.
+	panel.set_inventory({"resource.wood": 11})
 	check(panel.craft("structure.wooden-wall"), "craft sends")
 	panel.on_server_error("RATE_LIMITED")
 	check(panel.is_busy(), "unrelated server error keeps request pending")
 	panel.on_outcome_unknown("other-id")
 	check(panel.is_busy(), "unknown outcome for another request ignored")
 	panel.on_outcome_unknown("req-3")
-	check(not panel.is_busy() and panel.inventory_count("resource.wood") == 1, "unknown outcome frees the panel, inventory unchanged")
+	check(not panel.is_busy() and panel.inventory_count("resource.wood") == 11, "unknown outcome frees the panel, inventory unchanged")
+	check(not panel.message_text().contains("Awaiting") and not panel.message_text().contains("_"), "no raw server text left on the panel, got '%s'" % panel.message_text())
 	panel.queue_free()
 
 	# Protocol: craft is a correlated action and craft_result is accepted only for it.

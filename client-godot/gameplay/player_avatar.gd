@@ -2,27 +2,18 @@ extends Node3D
 ## Presentation-only avatar for the server-authoritative player in the
 ## vertical slice. The node's position is still written by the world from
 ## server state (body centre, feet + feet_offset); this script only decides how
-## that position looks: the admitted Kenney "Animated Characters" rig
-## (CC0-1.0, see assets/opening/PROVENANCE.md) scaled to about 1.8 m with its
-## feet on the terrain, turned toward the last server position change, and
-## playing Idle or Walk depending on whether the server position is changing.
+## that position looks: the castaway stand-in (Quaternius Ultimate Base
+## Characters body with Universal Animation Library clips, CC0, 1K textures;
+## see assets/opening/PROVENANCE.md) scaled to about 1.8 m with its feet on
+## the terrain, turned toward the last server position change, and playing
+## Idle or Walk depending on whether the server position is changing.
 ## Nothing here sends intents or predicts movement. If the rig cannot be
 ## loaded, the original gold capsule stays visible as a cheap fallback.
 
-const KENNEY := "res://assets/opening/kenney/"
-# Full literal paths AND preloads: the 10 Nov phone APK showed the gold
-# capsule (washed white in sun) because the Kenney FBX never mounted.
-# Concatenated KENNEY + "characterMedium.fbx" strings are invisible to the
-# export dependency scanner, so the remapped .scn can be omitted from the
-# PCK even with export_filter=all_resources. preload() forces a pack.
-const CHARACTER_SCENE_PATH := "res://assets/opening/kenney/characterMedium.fbx"
-const IDLE_CLIP_PATH := "res://assets/opening/kenney/idle.fbx"
-const WALK_CLIP_PATH := "res://assets/opening/kenney/run.fbx"
-const SKIN_TEXTURE_PATH := "res://assets/opening/kenney/criminalMaleA.png"
-const CHARACTER_SCENE := preload("res://assets/opening/kenney/characterMedium.fbx")
-const IDLE_CLIP := preload("res://assets/opening/kenney/idle.fbx")
-const WALK_CLIP := preload("res://assets/opening/kenney/run.fbx")
-const SKIN_TEXTURE := preload("res://assets/opening/kenney/criminalMaleA.png")
+# Full literal path AND preload: concatenated strings are invisible to the
+# export dependency scanner, so the rig could be left out of the PCK.
+const CHARACTER_SCENE_PATH := "res://assets/opening/library/castaway_ubc_rigged/castaway_ubc_rigged.glb"
+const CHARACTER_SCENE := preload("res://assets/opening/library/castaway_ubc_rigged/castaway_ubc_rigged.glb")
 const TARGET_HEIGHT := 1.8
 ## Walk is held this long after the last server position change, so the 20 Hz
 ## state stream (moves are sent every 0.08 s) reads as continuous walking.
@@ -33,18 +24,15 @@ const MOVE_EPSILON := 0.01
 const TELEPORT_DISTANCE := 4.0
 const TURN_RATE := 14.0
 const BLEND_SECONDS := 0.18
-## The pack ships idle, run and jump only; the run clip slowed down stands in
-## for a walk cycle at the server's 4 m/s land speed.
-const WALK_SPEED_SCALE := 0.8
+## The UAL walk cycle is authored for about 1.4 m/s; the server moves the
+## player at 4 m/s on land, so play it faster to keep the feet from skating.
+const WALK_SPEED_SCALE := 1.6
 const ANIM_IDLE := "Idle"
 const ANIM_WALK := "Walk"
 
 ## Height of the node origin above the feet (the world's PLAYER_HALF_HEIGHT).
 var feet_offset := 0.9
 var character_scene_path := CHARACTER_SCENE_PATH
-var idle_clip_path := IDLE_CLIP_PATH
-var walk_clip_path := WALK_CLIP_PATH
-var skin_texture_path := SKIN_TEXTURE_PATH
 
 var _capsule: MeshInstance3D
 var _body: Node3D
@@ -150,50 +138,16 @@ func _mount_character() -> void:
 	rig.scale = Vector3.ONE * (TARGET_HEIGHT / box.size.y)
 	var fitted := _merged_aabb(rig)
 	rig.position.y -= fitted.position.y
-	# One shared material and one 35 KB albedo for the single skinned surface.
-	var skin = SKIN_TEXTURE if skin_texture_path == SKIN_TEXTURE_PATH else (load(skin_texture_path) if ResourceLoader.exists(skin_texture_path) else null)
-	var mat := StandardMaterial3D.new()
-	mat.albedo_texture = skin
-	mat.roughness = 0.62
-	mat.metallic = 0.0
-	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
-	for mesh in meshes:
-		mesh.material_override = mat
-	_anim = AnimationPlayer.new()
-	_anim.name = "Clips"
-	rig.add_child(_anim)
-	var library := AnimationLibrary.new()
-	_anim.add_animation_library("", library)
-	_copy_longest_clip(library, idle_clip_path, ANIM_IDLE)
-	_copy_longest_clip(library, walk_clip_path, ANIM_WALK)
+	# The rig keeps its own 1K linen/canvas/skin materials and clips.
+	_anim = rig.find_child("AnimationPlayer", true, false) as AnimationPlayer
+	if _anim:
+		for clip_name in [ANIM_IDLE, ANIM_WALK]:
+			if _anim.has_animation(clip_name):
+				_anim.get_animation(clip_name).loop_mode = Animation.LOOP_LINEAR
 	_character = rig
 	_capsule.visible = false
-	if _anim.has_animation(ANIM_IDLE):
+	if _anim and _anim.has_animation(ANIM_IDLE):
 		_anim.play(ANIM_IDLE)
-
-func _copy_longest_clip(library: AnimationLibrary, path: String, alias: String) -> void:
-	var packed = null
-	if path == IDLE_CLIP_PATH:
-		packed = IDLE_CLIP
-	elif path == WALK_CLIP_PATH:
-		packed = WALK_CLIP
-	elif ResourceLoader.exists(path):
-		packed = load(path)
-	if not (packed is PackedScene):
-		return
-	var temp = packed.instantiate()
-	var source := temp.find_child("AnimationPlayer", true, false) as AnimationPlayer
-	var best: Animation = null
-	if source:
-		for anim_name in source.get_animation_list():
-			var anim := source.get_animation(anim_name)
-			if anim != null and (best == null or anim.length > best.length):
-				best = anim
-	if best != null:
-		var clip := best.duplicate() as Animation
-		clip.loop_mode = Animation.LOOP_LINEAR
-		library.add_animation(alias, clip)
-	temp.free()
 
 ## Bounds of the rig's meshes in the Body's space (feet at y = 0 once fitted).
 func _merged_aabb(rig: Node3D) -> AABB:

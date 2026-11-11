@@ -18,10 +18,11 @@ const RECIPES := [
 	{"id": "consumable.herb-bandage", "name": "Herb Bandage", "ingredients": [["resource.herb", 3]]},
 ]
 # Error codes the server craft handler returns without a requestId (app.ts).
+# Player-facing text: never show raw server codes.
 const CRAFT_ERROR_TEXT := {
-	"RECIPE_NOT_FOUND": "Server does not know that recipe",
-	"INSUFFICIENT_INVENTORY": "Server: not enough materials",
-	"INVENTORY_LIMIT": "Server: inventory is full",
+	"RECIPE_NOT_FOUND": "That recipe is not available yet",
+	"INSUFFICIENT_INVENTORY": "Not enough materials",
+	"INVENTORY_LIMIT": "Your pack is full",
 }
 
 # (recipe_id: String) -> request_id String ("" when the command could not be sent).
@@ -61,13 +62,20 @@ func is_busy() -> bool:
 func craft(recipe_id: String) -> bool:
 	if is_busy() or not _rows.has(recipe_id) or not craft_sender.is_valid():
 		return false
+	# Reject locally against the server-reported inventory: sending a craft the
+	# server will refuse is what left the panel on "Awaiting server craft ACK".
+	var short := shortfall_text(recipe_id)
+	if not short.is_empty():
+		_set_message(short)
+		_render()
+		return false
 	var request_id = craft_sender.call(recipe_id)
 	if not (request_id is String) or request_id.is_empty():
 		_set_message("Command window unavailable")
 		return false
 	_in_flight_request = request_id
 	_in_flight_recipe = recipe_id
-	_set_message("Awaiting server craft ACK")
+	_set_message("Crafting...")
 	_render()
 	return true
 
@@ -115,13 +123,14 @@ func on_craft_rejected(request_id: String, code: String) -> void:
 func on_server_error(code: String) -> void:
 	if not is_busy():
 		return
-	_set_message("Server error: %s (craft still pending)" % code)
+	if CRAFT_ERROR_TEXT.has(code):
+		_set_message("%s (checking with the server)" % CRAFT_ERROR_TEXT[code])
 
 func on_outcome_unknown(request_id: String) -> void:
 	if request_id.is_empty() or request_id != _in_flight_request:
 		return
 	_clear_flight()
-	_set_message("Craft outcome unknown; check inventory before retrying")
+	_set_message("Craft not confirmed; check your pack before retrying")
 	_render()
 
 func message_text() -> String:
@@ -130,6 +139,19 @@ func message_text() -> String:
 func row_text(recipe_id: String) -> String:
 	var row = _rows.get(recipe_id)
 	return "" if row == null else (row["label"] as Label).text
+
+## "" when the server-reported inventory covers the recipe, else e.g.
+## "Need 2 more wood" (every missing ingredient, comma separated).
+func shortfall_text(recipe_id: String) -> String:
+	var row = _rows.get(recipe_id)
+	if row == null:
+		return ""
+	var missing: Array[String] = []
+	for ingredient in (row["recipe"] as Dictionary)["ingredients"]:
+		var need := int(ingredient[1]) - inventory_count(ingredient[0])
+		if need > 0:
+			missing.append("%d more %s" % [need, str(ingredient[0]).trim_prefix("resource.")])
+	return "" if missing.is_empty() else "Need " + ", ".join(missing)
 
 func craft_enabled(recipe_id: String) -> bool:
 	var row = _rows.get(recipe_id)
@@ -150,4 +172,7 @@ func _render() -> void:
 		for ingredient in (row["recipe"] as Dictionary)["ingredients"]:
 			parts.append("%s %d/%d" % [str(ingredient[0]).trim_prefix("resource."), inventory_count(ingredient[0]), ingredient[1]])
 		(row["label"] as Label).text = "%s: %s" % [(row["recipe"] as Dictionary)["name"], ", ".join(parts)]
-		(row["button"] as Button).disabled = is_busy()
+		var short := shortfall_text(recipe_id)
+		var button := row["button"] as Button
+		button.disabled = is_busy() or not short.is_empty()
+		button.tooltip_text = short

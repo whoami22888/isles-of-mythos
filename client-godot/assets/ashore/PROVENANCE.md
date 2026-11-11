@@ -11,7 +11,7 @@ These recordings are the client-only sounds in `client-godot/gameplay/ashore/`. 
 | `audio/crunch.ogg` | `a9d01831fab133074ea09718de803c717f47be0fa18630a0d4fe082ba0a5fcf8` | StarNinjas, [7 eating crunches](https://opengameart.org/content/7-eating-crunches), `crunch.1.ogg` inside `crunch_-_tito.zip` (SHA-256 `92017d0e4130d5b3fb4622ae9c17f4b4c099f5fdd08ea7c3322cea9e0b81f85f`). License CC0-1.0. |
 | `audio/fire.ogg` | `f922929805bc6afdf0a35727fa3998033db544c1b6f62ed3aeab94341ed6ddeb` | AntumDeluge, [Fire Crackling](https://opengameart.org/content/fire-crackling), `fire-1_0.ogg`. License CC0-1.0. |
 
-The hut, the shark fins, and the leviathan carcass are original meshes built in the scene. They are not third-party downloads. Island sand, cliff, waterfall, volcano rock, palms, crates, the beached hull, and the offshore galleon reuse the CC0 Kenney and Poly Haven sources already registered for the opening battle and `client-godot/assets/external-assets.json`.
+The island is the realistic coastal slice (`scenes/realistic_coastal_slice.tscn`), whose terrain, water, palms and foliage are registered in `client-godot/assets/external-assets.json`. Beach wreckage, cargo, the hull halves, the castaway, Tide-Puck, Silas's cutlass and the offshore tentacle come from `client-godot/assets/opening/library/` (see `opening/PROVENANCE.md`). The shark fins, crab and fish are small original meshes built in the scene.
 
 # Washed-ashore model provenance
 
@@ -51,3 +51,17 @@ Stylised, animated models used by `client-godot/gameplay/ashore/washed_ashore.gd
 | `models/dino.glb` | `19b9a3841ebfd7595da9cd595b74e231da29730fe8030a2d17a021bc26b563ef` | Quaternius, "Dino" from the [Ultimate Monsters Bundle](https://poly.pizza/bundle/Ultimate-Monsters-Bundle-5oyGWAmOB6), downloaded from `https://static.poly.pizza/1c1ae302-b948-4de4-961a-44f762b722cf.glb`. License [CC0-1.0](https://creativecommons.org/publicdomain/zero/1.0/). Unmodified. |
 
 Shaders `client-godot/shaders/ashore_ground.gdshader`, `ashore_sky.gdshader` and the rewritten `ashore_water.gdshader` are original work for this repository.
+
+
+# Washed-ashore library (`library/`)
+
+| Shipped file | SHA-256 | Origin | Licence | Notes |
+| --- | --- | --- | --- | --- |
+| `library/hut_hy3d/hut_hy3d.glb` | `9d8aab2d94f8a97001bed59540f8bb535ba7c6cb14e7d61d6c95bf358d6d47d6` | Tencent HY 3D Global (free tier), first-party concept | HY3D free tier, commercial terms unconfirmed | Decimated, 1K. Finished hut stage. |
+| `library/log_dead_trunk_02/log_dead_trunk_02.glb` | `d26aa64790d117c2579fe1deb570a90f52a0ae9fb31098e80c0c2acf6e537bd4` | Poly Haven [dead_tree_trunk_02](https://polyhaven.com/a/dead_tree_trunk_02) | CC0-1.0 | 1K. Hut stage, fire logs. |
+| `library/stone_01/stone_01.glb` | `95dd10b07a4c65be5581628b3b4573fabbd3011ddb2a8f3d414d171b375db74a` | Poly Haven [stone_01](https://polyhaven.com/a/stone_01) | CC0-1.0 | 1K. Flint and crab-pool stones. |
+| `library/stone_fire_pit/stone_fire_pit.glb` | `0edb96631742ceea1e4bbed47b343549c5fe77dd68d34dd50892c431996f132f` | Poly Haven [stone_fire_pit](https://polyhaven.com/a/stone_fire_pit) | CC0-1.0 | 1K. Camp and player fire. |
+
+**Hunyuan3D (HY 3D) assets:** `*_hy3d.glb` were generated with Tencent HY 3D Global on its free tier from first-party concept images. The free tier's commercial-use terms are **not yet confirmed**. Treat these as placeholders until the terms are confirmed or the meshes are replaced.
+
+The Quaternius `models/` above stay in the tree for reference. Since the opening build v1, only `models/dino.glb` (the dusk creature) is still used: there is no realistic creature asset yet.

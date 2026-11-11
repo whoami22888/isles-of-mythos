@@ -1,6 +1,6 @@
 extends SceneTree
 ## Headless-friendly capture of the opening battle. Not a CI gate.
-## IOM_OPENING_POSE=deck|broadside|leviathan
+## IOM_OPENING_POSE=establish|deck|broadside|mast_wreck|hull_sink|calm|leviathan|smash
 ## IOM_OPENING_SHOT=/absolute/path.png
 
 func _init() -> void:
@@ -26,6 +26,10 @@ func run() -> void:
 		await RenderingServer.frame_post_draw
 	if battle.has_method("capture_pose"):
 		battle.capture_pose(pose)
+	for _i in 4:
+		await process_frame
+	if battle.has_method("settle_capture") and pose != "smash":
+		battle.settle_capture()
 	for _i in 8:
 		await process_frame
 		await RenderingServer.frame_post_draw

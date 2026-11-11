@@ -2,26 +2,50 @@ extends Node3D
 ## Local washed-ashore island. The opening battle hands its in-memory session
 ## here. Nothing on this screen is the server debug slice.
 ##
-## Mobile budget for a Galaxy S23 Ultra class device: one shadowed sun,
-## a 32x32 lagoon grid, depth fog, and no shadow casting on small props.
-## Pickups use albedo only. Flame and the distant volcano are the only glow.
+## The island is the realistic coastal slice (same terrain, water, sky and
+## foliage as the bay); the castaway lands on its south beach.
+##
+## Mobile budget for a Galaxy S23 Ultra class device: the slice's one shadowed
+## sun and water plane, 1K textures, joined hull halves, and no shadow
+## casting on small props. Pickups use albedo only; fire is the only light.
 
 const CATALOG_PATH := "res://gameplay/ashore/data/catalog.json"
 const SAVE_PATH := "user://washed_ashore.cfg"
 const OFFSHORE_WARNING := "Too dangerous: sharks/storm"
 const PET_DEFENCE_LINE := "Needs Pet Defence research and training"
 
-const KENNEY := "res://assets/opening/kenney/"
-const SHIP_SCENE := "res://assets/external/polyhaven/dutch_ship_medium/dutch_ship_medium_1k.gltf"
-const CLIFF_SCENE := "res://assets/external/polyhaven/coastal_cliff_01/coastal_cliff_01_1k.gltf"
-const TREE_A := "res://assets/external/polyhaven/island_tree_01/island_tree_01_1k.gltf"
-const TREE_B := "res://assets/external/polyhaven/island_tree_02/island_tree_02_1k.gltf"
-const SAND_ALBEDO := "res://assets/external/polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_diff_1k.jpg"
-const SAND_NORMAL := "res://assets/external/polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_nor_gl_1k.jpg"
-const SAND_ROUGH := "res://assets/external/polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_rough_1k.jpg"
-const CLIFF_ALBEDO := "res://assets/external/polyhaven/coastal_cliff_01/textures/coastal_cliff_01_diff_1k.jpg"
-const CLIFF_NORMAL := "res://assets/external/polyhaven/coastal_cliff_01/textures/coastal_cliff_01_nor_gl_1k.jpg"
+const Art := preload("res://gameplay/opening/opening_art.gd")
+const SLICE_SCENE := preload("res://scenes/realistic_coastal_slice.tscn")
+const HUT := preload("res://assets/ashore/library/hut_hy3d/hut_hy3d.glb")
+const FIRE_PIT := preload("res://assets/ashore/library/stone_fire_pit/stone_fire_pit.glb")
+const DEAD_LOG := preload("res://assets/ashore/library/log_dead_trunk_02/log_dead_trunk_02.glb")
+const ASHORE_STONE := preload("res://assets/ashore/library/stone_01/stone_01.glb")
 const MODELS := "res://assets/ashore/models/"
+## Landing spot on the slice's south beach. The beach is a narrow strip
+## (z 2..7) under the jungle slope, so the castaway wakes facing east along
+## it: sea on screen left, jungle slope on screen right, wreck ahead.
+const START := Vector3(-10.0, 0.0, 4.5)
+const INTRO_FACING := Vector3(0.94, 0.0, 0.34)
+## Bay dressing hidden for the landing: shore rock piles, the settlement dock
+## and stock wreckage would read as a pier next to the wreck.
+const HIDDEN_DRESSING := ["coast_rocks_05_1k", "@Node3D@3", "CoastalPBRDepthLayer/coast_rocks_05_1k",
+	"VerifiedTropicalContentLayer/rock_moss_set_01_1k", "TropicalBayDressing/ShoreBoulders",
+	"TropicalBayDressing/ShoreRocks07", "TropicalBayDressing/ShoreMossRocks", "TropicalBayDressing/BeachScatterRocks",
+	"TropicalBayDressing/BeachWreckage", "TropicalBayDressing/BeachSettlement", "TropicalBayDressing/BeachDriftwood"]
+const LAND_MARGIN := 0.22
+const FOLLOW_BACK := 7.0
+const FOLLOW_UP := 4.2
+const INTRO_BACK := 4.4
+const INTRO_UP := 2.3
+const INTRO_LOOK_UP := 1.15
+const INTRO_FOV := 52.0
+## Intro layout in (ahead, right) metres from START.
+const PET_REST := Vector2(-0.6, 1.1)
+## Holder yaw (model faces +Z, inner flip PI): three-quarter to the camera
+## with the bandaged front flipper (model +X) toward it.
+const PET_REST_YAW := 50.0
+const PET_SCALE := 1.1
+const CUTLASS_AT := Vector2(-0.3, -1.1)
 const FONT_PATH := "res://assets/fonts/PirataOne-Regular.ttf"
 
 const AUDIO := "res://assets/ashore/audio/"
@@ -134,7 +158,12 @@ var _voices: Array[AudioStreamPlayer] = []
 var _voice_i := 0
 var _font: Font
 var _env: Environment
-var _sky: ShaderMaterial
+var _slice: Node3D
+var _water_y := -0.35
+var _base_exposure := 1.0
+var _terrain_tm: TriangleMesh
+var _terrain_xf := Transform3D.IDENTITY
+var _intro_k := 1.0
 var _sun: DirectionalLight3D
 var _nodes_root: Node3D
 var _sharks: Array[Node3D] = []
@@ -194,7 +223,6 @@ func _ready() -> void:
 	_build_beast()
 	_build_props()
 	_build_nodes()
-	_scatter()
 	_hud = CanvasLayer.new()
 	_hud.set_script(load("res://gameplay/ashore/ashore_hud.gd"))
 	_hud.world = self
@@ -434,7 +462,7 @@ func _enter(step: String) -> void:
 		_cinematic = "wake"
 		_cine_age = 0.0
 		if _player:
-			_player.rotation.x = 1.05
+			_play_clip("Kneel")
 		return
 	if step == "axe" and bool(_tools.get("axe", false)):
 		_note_burst("Axe")
@@ -488,9 +516,12 @@ func _finish_wake() -> void:
 	_cinematic = ""
 	if _player:
 		_player.rotation.x = 0.0
-		var wreck := _landmark_position("wreck")
-		_player.look_at(Vector3(wreck.x, _player.position.y, wreck.z), Vector3.UP)
+		# Stand facing east along the beach toward the wreck.
+		_player.look_at(_player.position + INTRO_FACING, Vector3.UP)
 		_cam_yaw = _player.rotation.y
+		_play_clip("Idle")
+	_intro_k = 1.0
+	snap_intro_camera()
 	_note_burst("Up")
 	_enter("scavenge")
 
@@ -515,19 +546,30 @@ func _tick_cine(delta: float) -> void:
 			_end_tame_cine()
 
 
+## Wake: drift in from over the surf to the close intro framing on the
+## castaway, who kneels in the wet sand and then stands.
 func _wake_camera() -> void:
 	var u := clampf(_cine_age / 8.2, 0.0, 1.0)
+	var close := _intro_eye(1.0)
+	var target := _player.global_position + Vector3.UP * INTRO_LOOK_UP
 	if u < 0.62:
 		var t := u / 0.62
-		_camera.fov = 56.0
-		_camera.global_position = Vector3(28, 18, 64).lerp(Vector3(-6, 8, 24), t)
-		_camera.look_at(Vector3(8, 1.0, 48).lerp(_landmark_position("wreck"), t), Vector3.UP)
+		t = t * t * (3.0 - 2.0 * t)
+		_camera.fov = lerpf(50.0, INTRO_FOV, t)
+		_camera.global_position = Vector3(START.x - 12.0, 14.0, START.z - 22.0).lerp(close, t)
+		_camera.look_at(target.lerp(target, t), Vector3.UP)
 	else:
-		_camera.fov = 38.0
-		var eye := _player.global_position + Vector3(0, 1.45, 0.2)
-		_camera.global_position = eye
-		var look := _landmark_position("wreck") + Vector3(0, 1.2, 0) if _cine_age < 7.1 else _landmark_position("offshore")
-		_camera.look_at(look, Vector3.UP)
+		_camera.fov = INTRO_FOV
+		_camera.global_position = close
+		_camera.look_at(target, Vector3.UP)
+
+
+## Follow-camera eye at intro closeness `k` (1 close intro, 0 regular follow).
+func _intro_eye(k: float) -> Vector3:
+	var back := Basis(Vector3.UP, _cam_yaw).z
+	var dist := lerpf(FOLLOW_BACK, INTRO_BACK, k)
+	var up := lerpf(FOLLOW_UP, INTRO_UP, k)
+	return _player.global_position + back * dist + Vector3.UP * up
 
 
 func _kill_camera() -> void:
@@ -620,7 +662,7 @@ func _slide(dir: Vector3, delta: float, face: bool) -> void:
 	dir = dir.normalized()
 	var next := _player.position + dir * 5.3 * delta
 	var y := _ground_y(next.x, next.z)
-	if y < 0.22:
+	if y < _water_y + LAND_MARGIN:
 		_show_hint(OFFSHORE_WARNING)
 		return
 	next.y = y
@@ -649,15 +691,27 @@ func _keyboard() -> Vector2:
 func _follow_camera(delta: float) -> void:
 	if _camera == null or _player == null:
 		return
-	_camera.fov = lerpf(_camera.fov, 58.0, clampf(delta * 3.0, 0.0, 1.0))
-	var back := Basis(Vector3.UP, _cam_yaw).z
-	var want := _player.global_position + back * 7.0 + Vector3.UP * 4.2
+	# Intro beat: stay close until the castaway walks off the landing spot.
+	if _intro_k > 0.0 and (_step != "scavenge" or _flat(_player.global_position, START) > 2.5):
+		_intro_k = maxf(_intro_k - delta / 1.6, 0.0)
+	_camera.fov = lerpf(_camera.fov, lerpf(58.0, INTRO_FOV, _intro_k), clampf(delta * 3.0, 0.0, 1.0))
+	var want := _intro_eye(_intro_k)
 	var gy := maxf(_ground_y(want.x, want.z), _ground_y(lerpf(want.x, _player.global_position.x, 0.5), lerpf(want.z, _player.global_position.z, 0.5)))
+	gy = maxf(gy, _water_y)
 	if want.y < gy + 1.8:
 		want.y = gy + 1.8
 	var blend := 1.0 - exp(-delta * 4.0)
 	_camera.global_position = _camera.global_position.lerp(want, blend)
-	_camera.look_at(_player.global_position + Vector3.UP * 2.0, Vector3.UP)
+	_camera.look_at(_player.global_position + Vector3.UP * lerpf(2.0, INTRO_LOOK_UP, _intro_k), Vector3.UP)
+
+
+## Snap straight to the post-wake intro framing (skip button and captures).
+func snap_intro_camera() -> void:
+	if _camera == null or _player == null:
+		return
+	_camera.fov = INTRO_FOV
+	_camera.global_position = _intro_eye(_intro_k)
+	_camera.look_at(_player.global_position + Vector3.UP * INTRO_LOOK_UP, Vector3.UP)
 
 
 func _tap(screen: Vector2) -> void:
@@ -711,7 +765,7 @@ func _act_on_node(node: Dictionary) -> void:
 		_play(AUDIO + "squeak.ogg", -10.0, 1.0)
 		return
 	_swing = 0.45
-	_play_clip("Jump")
+	_play_clip("Jump" if str(node.get("tool", "")) != "" else "Gather")
 	var kind := str(node.get("kind", ""))
 	_play(AUDIO + ("chop.ogg" if kind == "tree" else "punch.ogg"), -4.0, 1.0)
 	_shake(node.get("root"))
@@ -871,7 +925,7 @@ func _begin_dusk() -> void:
 	_creature_hp = 8
 	_stagger = false
 	_beast.visible = true
-	var from := _landmark_position("camp") if not _guard_down else Vector3(-20, 0, -8)
+	var from := _landmark_position("camp") if not _guard_down else _landmark_position("grove")
 	from.y = _ground_y(from.x, from.z)
 	_beast.global_position = from
 	_apply_dusk_look()
@@ -911,7 +965,7 @@ func _hurt_player(amount: int) -> void:
 	if _health <= 0:
 		_health = 5
 		_warmth = maxf(_warmth, 34.0)
-		var spawn := Vector3(0, 0, 9)
+		var spawn := Vector3(START.x, 0, START.z)
 		spawn.y = _ground_y(spawn.x, spawn.z)
 		_player.position = spawn
 		_show_hint("Cold.")
@@ -1359,15 +1413,13 @@ func _beast_wobble() -> void:
 
 
 func _apply_dusk_look() -> void:
-	if _sky:
-		_sky.set_shader_parameter("storm", 0.62)
 	if _sun:
 		_sun.light_energy = 0.62
-		_sun.light_color = Color(1.0, 0.58, 0.32)
+		_sun.light_color = Color(1.0, 0.62, 0.4)
 	if _env:
-		_env.fog_light_color = Color(0.45, 0.32, 0.28)
-		_env.tonemap_exposure = 0.82
-		_env.adjustment_saturation = 1.05
+		_env.fog_light_color = Color(0.45, 0.34, 0.3)
+		_env.tonemap_exposure = _base_exposure * 0.85
+		_env.adjustment_saturation = 0.86
 
 
 func _wet_tint() -> void:
@@ -1536,7 +1588,7 @@ func _gain_xp(amount: int) -> void:
 
 func _landmark_position(id: String) -> Vector3:
 	var pair: Array = _catalog.get("landmarks", {}).get(id, [0, 0])
-	return _on_land(float(pair[0]), float(pair[1])) if id != "offshore" else Vector3(float(pair[0]), -0.6, float(pair[1]))
+	return _on_land(float(pair[0]), float(pair[1])) if id != "offshore" else Vector3(float(pair[0]), _water_y - 0.25, float(pair[1]))
 
 
 func _pad_position(index: int) -> Vector3:
@@ -1585,35 +1637,26 @@ func _point_position() -> Vector3:
 	return _landmark_position("wreck")
 
 
+## Nudge a point inland (+z, away from the south sea) until it is dry sand.
 func _on_land(x: float, z: float) -> Vector3:
 	var y := _ground_y(x, z)
 	var guard := 0
-	while y < 0.28 and guard < 10:
-		z -= 1.4
+	while y < _water_y + LAND_MARGIN and guard < 12:
+		z += 1.0
 		y = _ground_y(x, z)
 		guard += 1
 	return Vector3(x, y, z)
 
 
 func _ground_y(x: float, z: float) -> float:
-	var dx := x / 36.0
-	var dz := (z - 4.0) / 32.0
-	var e := dx * dx + dz * dz
-	if e > 1.28:
-		return -2.2
-	var inland := clampf((18.0 - z) / 24.0, 0.0, 1.0)
-	var h := 0.22 + inland * 1.15
-	var ridge := clampf((z + 2.0) / -22.0, 0.0, 1.0) * 6.5
-	h += ridge * clampf(1.2 - e, 0.0, 1.0)
-	var clear := Vector2(x - 1.0, z + 13.0).length()
-	if clear < 10.0:
-		h = lerpf(h, 1.62, clampf((10.0 - clear) / 6.0, 0.0, 1.0))
-	var camp := Vector2(x - 17.0, z + 7.0).length()
-	if camp < 8.0:
-		h = lerpf(h, 2.55, clampf((8.0 - camp) / 5.0, 0.0, 1.0))
-	if e > 0.55:
-		h = lerpf(h, -1.2, clampf((e - 0.55) / 0.57, 0.0, 1.0))
-	return h
+	if _terrain_tm:
+		var inv := _terrain_xf.affine_inverse()
+		var hit := _terrain_tm.intersect_ray(inv * Vector3(x, 80.0, z), (inv.basis * Vector3.DOWN).normalized())
+		if not hit.is_empty():
+			return (_terrain_xf * (hit["position"] as Vector3)).y
+	if _slice and _slice.has_method("terrain_height_at"):
+		return float(_slice.terrain_height_at(x, z))
+	return 0.0
 
 
 func _load_catalog() -> void:
@@ -1828,174 +1871,58 @@ func _build_audio() -> void:
 	add_child(_fire_loop)
 
 
+## The realistic coastal slice is the island. Mount it at the origin, keep its
+## own sky, water, terrain and foliage, and hide the bay dressing that would
+## crowd the south-beach landing (shore rock piles, the settlement dock and
+## its stock wreckage). The slice's ship and debug cameras stay off.
 func _build_world() -> void:
-	var world := WorldEnvironment.new()
-	world.name = "World"
-	_env = Environment.new()
-	_sky = ShaderMaterial.new()
-	_sky.shader = load("res://shaders/ashore_sky.gdshader")
-	_sky.set_shader_parameter("storm", 0.0)
-	_sky.set_shader_parameter("sun_direction", Vector3(0.42, 0.62, 0.28))
-	var sky := Sky.new()
-	sky.sky_material = _sky
-	_env.background_mode = Environment.BG_SKY
-	_env.sky = sky
-	_env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-	_env.ambient_light_energy = 0.75
-	_env.ambient_light_sky_contribution = 0.75
-	_env.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
-	_env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
-	_env.tonemap_exposure = 0.9
-	_env.tonemap_white = 6.0
-	_env.adjustment_enabled = true
-	_env.adjustment_saturation = 1.22
-	_env.adjustment_contrast = 1.1
-	_env.adjustment_brightness = 1.0
-	_env.glow_enabled = true
-	_env.glow_intensity = 0.22
-	_env.glow_strength = 0.6
-	_env.glow_bloom = 0.04
-	_env.glow_hdr_threshold = 1.3
-	_env.fog_enabled = true
-	_env.fog_mode = Environment.FOG_MODE_DEPTH
-	_env.fog_light_color = Color(0.66, 0.84, 1.0)
-	_env.fog_density = 0.0009
-	_env.fog_depth_begin = 55.0
-	_env.fog_depth_end = 260.0
-	_env.fog_depth_curve = 1.6
-	_env.fog_sky_affect = 0.15
-	world.environment = _env
-	add_child(world)
-	_sun = DirectionalLight3D.new()
-	_sun.name = "Sun"
-	_sun.rotation_degrees = Vector3(-48, -36, 0)
-	_sun.light_color = Color(1.0, 0.86, 0.64)
-	_sun.light_energy = 1.05
-	_sun.shadow_enabled = true
-	_sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
-	_sun.directional_shadow_max_distance = 80.0
-	_sun.shadow_bias = 0.08
-	_sun.light_angular_distance = 0.5
-	add_child(_sun)
-	var fill := DirectionalLight3D.new()
-	fill.name = "Fill"
-	fill.rotation_degrees = Vector3(-28, 140, 0)
-	fill.light_color = Color(0.55, 0.75, 1.0)
-	fill.light_energy = 0.28
-	fill.shadow_enabled = false
-	add_child(fill)
-	var water := MeshInstance3D.new()
-	water.name = "Ocean"
-	var plane := PlaneMesh.new()
-	plane.size = Vector2(240, 240)
-	plane.subdivide_width = 32
-	plane.subdivide_depth = 32
-	water.mesh = plane
-	var water_mat := ShaderMaterial.new()
-	water_mat.shader = load("res://shaders/ashore_water.gdshader")
-	water.material_override = water_mat
-	water.position = Vector3(0, -0.12, 16)
-	water.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	add_child(water)
-	var sand := MeshInstance3D.new()
-	sand.name = "Island"
-	sand.mesh = _island_mesh()
-	var ground := ShaderMaterial.new()
-	ground.shader = load("res://shaders/ashore_ground.gdshader")
-	ground.set_shader_parameter("albedo_tex", load(SAND_ALBEDO))
-	ground.set_shader_parameter("normal_tex", load(SAND_NORMAL))
-	ground.set_shader_parameter("uv_scale", 9.0)
-	sand.material_override = ground
-	sand.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	add_child(sand)
-	water_mat.set_shader_parameter("shallow_color", Color(0.22, 0.9, 0.84))
-	water_mat.set_shader_parameter("deep_color", Color(0.02, 0.2, 0.5))
+	_slice = SLICE_SCENE.instantiate()
+	_slice.name = "CoastalWorld"
+	add_child(_slice)
+	for key in ["gameplay_camera", "cinematic_camera"]:
+		var cam = _slice.get(key)
+		if cam is Camera3D:
+			(cam as Camera3D).current = false
+	var focal = _slice.get("ship_focal")
+	if focal is Node3D:
+		(focal as Node3D).visible = false
+		(focal as Node3D).process_mode = Node.PROCESS_MODE_DISABLED
+	for path in HIDDEN_DRESSING:
+		var dressing := _slice.get_node_or_null(NodePath(path)) as Node3D
+		if dressing:
+			dressing.visible = false
+			dressing.process_mode = Node.PROCESS_MODE_DISABLED
+	var world := _slice.get_node_or_null("CoastalAtmosphere") as WorldEnvironment
+	if world and world.environment:
+		world.environment = world.environment.duplicate() as Environment
+		_env = world.environment
+		_base_exposure = _env.tonemap_exposure
+	_sun = _slice.get_node_or_null("WarmSun") as DirectionalLight3D
+	if _slice.has_method("water_level"):
+		_water_y = float(_slice.water_level())
+	var terrain := _slice.get_node_or_null("IrregularCoastalTerrain") as MeshInstance3D
+	if terrain and terrain.mesh:
+		_terrain_tm = terrain.mesh.generate_triangle_mesh()
+		_terrain_xf = terrain.global_transform
 	_camera = Camera3D.new()
 	_camera.name = "Camera"
-	_camera.current = true
 	_camera.fov = 56.0
 	_camera.near = 0.12
 	_camera.far = 420.0
 	add_child(_camera)
-	_camera.global_position = Vector3(22, 14, 58)
-	_camera.look_at(Vector3(8, 1, 40), Vector3.UP)
-
-
-func _island_mesh() -> ArrayMesh:
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var n := 36
-	var span := 78.0
-	var rows: Array = []
-	for z in n + 1:
-		var row: Array = []
-		for x in n + 1:
-			var wx := lerpf(-span, span, float(x) / float(n))
-			var wz := lerpf(-span * 0.78, span * 0.95, float(z) / float(n))
-			row.append(Vector3(wx, _ground_y(wx, wz), wz))
-		rows.append(row)
-	for z in n:
-		for x in n:
-			var a: Vector3 = rows[z][x]
-			var b: Vector3 = rows[z][x + 1]
-			var c: Vector3 = rows[z + 1][x]
-			var d: Vector3 = rows[z + 1][x + 1]
-			if a.y < -1.5 and b.y < -1.5 and c.y < -1.5 and d.y < -1.5:
-				continue
-			_tri(st, a, b, c, span)
-			_tri(st, b, d, c, span)
-	st.generate_normals()
-	st.generate_tangents()
-	return st.commit()
-
-
-func _tri(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, span: float) -> void:
-	for p in [a, b, c]:
-		st.set_uv(Vector2(p.x / span + 0.5, p.z / span + 0.5))
-		st.add_vertex(p)
+	_camera.make_current()
+	_camera.global_position = Vector3(-4, 14, -30)
+	_camera.look_at(START + Vector3(0, 1, 0), Vector3.UP)
 
 
 func _build_props() -> void:
-	_place_model(self, CLIFF_SCENE, "Cliff", Vector3(-2, _ground_y(-2, -20), -20), Vector3(0, 0.4, 0), 1.35, true)
-	var falls := MeshInstance3D.new()
-	falls.name = "Waterfall"
-	var sheet := PlaneMesh.new()
-	sheet.size = Vector2(7.0, 12.0)
-	sheet.orientation = PlaneMesh.FACE_Z
-	falls.mesh = sheet
-	var fall_mat := ShaderMaterial.new()
-	fall_mat.shader = load("res://shaders/opening_falls.gdshader")
-	falls.material_override = fall_mat
-	falls.position = Vector3(-1.5, 7.2, -16.5)
-	falls.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	add_child(falls)
-	var cone := MeshInstance3D.new()
-	cone.name = "Volcano"
-	var shape := CylinderMesh.new()
-	shape.top_radius = 2.2
-	shape.bottom_radius = 16.0
-	shape.height = 28.0
-	shape.radial_segments = 20
-	cone.mesh = shape
-	var lava := ShaderMaterial.new()
-	lava.shader = load("res://shaders/opening_lava.gdshader")
-	lava.set_shader_parameter("rock_tex", load(CLIFF_ALBEDO))
-	lava.set_shader_parameter("rock_normal", load(CLIFF_NORMAL))
-	cone.material_override = lava
-	cone.position = Vector3(-16, 12.0, -34)
-	add_child(cone)
 	_dress_landmark("LandmarkWreck", "wreck")
 	_dress_landmark("LandmarkGrove", "grove")
 	_dress_landmark("LandmarkClearing", "clearing")
 	_dress_landmark("LandmarkCamp", "camp")
 	_build_offshore()
-	_place_model(get_node("LandmarkWreck"), KENNEY + "ship-pirate-large.glb", "BeachedHull", Vector3(3.5, -0.3, 1.5), Vector3(0.25, 2.4, 0.2), 1.0, true)
-	_place_model(get_node("LandmarkWreck"), KENNEY + "flag-pirate.glb", "WreckFlag", Vector3(-1.2, 0.4, -1.0), Vector3.ZERO, 2.2, false)
-	_place_model(get_node("LandmarkGrove"), KENNEY + "palm-detailed-straight.glb", "GrovePalm", Vector3(-1.0, 0, -1.0), Vector3(0, 0.4, 0), 2.1, true)
-	_place_model(get_node("LandmarkGrove"), KENNEY + "palm-bend.glb", "GroveBend", Vector3(2.2, 0, 1.1), Vector3(0, 1.2, 0), 1.8, true)
-	_place_model(self, KENNEY + "palm-detailed-straight.glb", "PalmBeach", _on_land(-8, 12), Vector3(0, 0.8, 0), 1.7, true)
-	_place_model(self, KENNEY + "palm-bend.glb", "PalmEast", _on_land(18, 8), Vector3(0, 2.0, 0), 1.6, true)
-	_place_model(get_node("LandmarkClearing"), KENNEY + "flag.glb", "ClearFlag", Vector3(0, 0.2, 0), Vector3.ZERO, 2.4, false)
+	_build_landing()
+	var clearing := get_node("LandmarkClearing")
 	for i in 3:
 		var pad := MeshInstance3D.new()
 		pad.name = "Pad%d" % i
@@ -2004,65 +1931,131 @@ func _build_props() -> void:
 		disc.bottom_radius = 1.7
 		disc.height = 0.12
 		pad.mesh = disc
-		pad.material_override = _mat(Color(0.86, 0.78, 0.58), 0.9)
-		pad.position = _pad_position(i) - _landmark_position("clearing")
-		pad.position.y = 0.08
+		var dirt := _mat(Color(0.5, 0.42, 0.3, 0.55), 1.0)
+		dirt.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		pad.material_override = dirt
+		var at := _pad_position(i)
+		pad.position = at - _landmark_position("clearing")
+		pad.position.y = at.y - _landmark_position("clearing").y + 0.02
 		pad.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		get_node("LandmarkClearing").add_child(pad)
+		clearing.add_child(pad)
 	_hut = Node3D.new()
 	_hut.name = "Hut"
 	_hut.visible = false
-	get_node("LandmarkClearing").add_child(_hut)
+	clearing.add_child(_hut)
 	_build_hut_pieces()
+	# Camp: a cold stone ring with a low torch flame (fire is the only light).
+	var camp := get_node("LandmarkCamp") as Node3D
+	var ring := Art.put(camp, FIRE_PIT, "CampStones", Vector3(0, 0, 0), Vector3(0, 30, 0), 1.0)
+	Art.fit_height(ring, 0.5)
+	_sit(ring)
 	_camp_flame = _flame_mesh()
 	_camp_flame.name = "CampTorch"
-	_camp_flame.position = Vector3(0, 2.4, 0)
-	get_node("LandmarkCamp").add_child(_camp_flame)
+	_camp_flame.position = Vector3(0, 0.45, 0)
+	_camp_flame.scale = Vector3.ONE * 0.7
+	camp.add_child(_camp_flame)
 	_flame = Node3D.new()
 	_flame.name = "PlayerFire"
 	_flame.visible = false
-	var pit := _flame_mesh()
-	_flame.add_child(pit)
-	var logs := MeshInstance3D.new()
-	var log := CylinderMesh.new()
-	log.top_radius = 0.12
-	log.bottom_radius = 0.14
-	log.height = 1.4
-	logs.mesh = log
-	logs.rotation.z = PI * 0.5
-	logs.material_override = _mat(Color(0.35, 0.2, 0.1), 0.8)
-	_flame.add_child(logs)
 	add_child(_flame)
+	var pit := Art.put(_flame, FIRE_PIT, "Stones", Vector3.ZERO, Vector3.ZERO, 1.0)
+	Art.fit_height(pit, 0.55)
+	var logs := Art.put(_flame, DEAD_LOG, "Logs", Vector3(0, 0.05, 0), Vector3(0, 40, 0), 1.0)
+	_fit_long(logs, 1.1)
+	var fire := _flame_mesh()
+	fire.position = Vector3(0, 0.35, 0)
+	_flame.add_child(fire)
 	_sack = Node3D.new()
 	_sack.name = "IdleSack"
 	_sack.visible = false
-	var bundle := MeshInstance3D.new()
-	var ball := SphereMesh.new()
-	ball.radius = 0.72
-	ball.height = 1.3
-	bundle.mesh = ball
-	bundle.material_override = _mat(Color(0.62, 0.36, 0.18), 0.85)
-	_sack.add_child(bundle)
+	add_child(_sack)
+	var bundle := Art.put(_sack, Art.CRATE_B, "Bundle", Vector3.ZERO, Vector3(0, 20, 0), 1.0)
+	Art.fit_height(bundle, 0.7)
 	var tag := _label3("Supplies", 1.5)
 	_prompt_style(tag, 1.0)
 	_sack.add_child(tag)
-	add_child(_sack)
 	_ring = MeshInstance3D.new()
 	_ring.name = "TargetRing"
 	var torus := TorusMesh.new()
-	torus.inner_radius = 0.82
-	torus.outer_radius = 1.05
-	torus.rings = 10
-	torus.ring_segments = 8
+	torus.inner_radius = 0.9
+	torus.outer_radius = 1.0
+	torus.rings = 24
+	torus.ring_segments = 6
 	_ring.mesh = torus
-	var ring_mat := _mat(Color(0.95, 0.84, 0.42), 0.55)
+	var ring_mat := _mat(Color(0.95, 0.9, 0.72, 0.35), 0.9)
 	ring_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	ring_mat.albedo_color = Color(0.95, 0.84, 0.42, 0.45)
-	ring_mat.emission_enabled = false
+	ring_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_ring.material_override = ring_mat
 	_ring.visible = false
 	_ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(_ring)
+
+
+## The approved stills-v2 landing, laid out around START facing inland (+z):
+## both hull halves of the player's galleon, cargo, driftwood and jungle edge.
+## Nothing here is a dock: the bow half lies rolled onto its side so it reads
+## as broken hull, not as a deck of planks.
+func _build_landing() -> void:
+	var root := Node3D.new()
+	root.name = "Landing"
+	add_child(root)
+	# Bow half lies along the beach ahead, rolled seaward so its keel faces the
+	# path and its deck does not read as a jetty. Mesh centre is local z +4.3.
+	var yaw := rad_to_deg(atan2(INTRO_FACING.x, INTRO_FACING.z))
+	var bow := _on_sand(root, Art.HULL_BOW, "BowHalf", _intro_at(7.5, -2.6) - INTRO_FACING * 4.3, Vector3(0, yaw, -42), 0.46, 0.9)
+	_tone_wreck(bow)
+	# Stern half heeled over in the surf behind, sails furled and wet.
+	var stern_yaw := yaw + 150.0
+	var stern_dir := Vector3(sin(deg_to_rad(stern_yaw)), 0, cos(deg_to_rad(stern_yaw)))
+	var stern := _on_sand(root, Art.HULL_STERN, "SternHalf", _intro_at(7.0, -9.0) + stern_dir * 2.0, Vector3(0, stern_yaw, -18), 0.46, 1.3)
+	_tone_wreck(stern)
+	for item in [[Art.CRATE_A, 4.2, -1.6, Vector3(0, 25, 0)], [Art.WINE_BARREL, 3.0, -2.6, Vector3(90, 40, 0)],
+			[Art.BARRELS, 5.4, 2.2, Vector3(0, 70, 0)], [Art.DRIFT_TRUNK, -1.0, 2.2, Vector3(0, 100, 0)],
+			[Art.DRIFT_BRANCHES, 3.4, 3.0, Vector3(0, 30, 0)], [Art.CHEST, 6.2, -0.6, Vector3(0, -40, 0)]]:
+		_on_sand(root, item[0], "Cargo", _intro_at(item[1], item[2]), item[3], 1.0, 0.06)
+	var sail := _on_sand(root, Art.TORN_SAIL, "TornSail", _intro_at(2.4, -3.6), Vector3(0, 30, 0), 0.4, 0.0)
+	Art.tone(sail, Color(0.5, 0.46, 0.4))
+	for clump in [[4.0, 3.6, 2.4], [7.0, 4.2, 2.6], [10.0, 4.0, 2.4], [1.0, 3.8, 2.2]]:
+		var bush := _on_sand(root, Art.JUNGLE_CLUMP, "JungleEdge", _intro_at(clump[0], clump[1]), Vector3(0, clump[0] * 37.0, 0), clump[2], 0.05)
+		for mesh in Art.meshes(bush):
+			mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
+
+## START + INTRO_FACING * ahead + player-right * right (right is inland).
+func _intro_at(ahead: float, right: float) -> Vector3:
+	var side := Vector3(-INTRO_FACING.z, 0.0, INTRO_FACING.x)
+	var at := START + INTRO_FACING * ahead + side * right
+	at.y = 0.0
+	return at
+
+
+## Wet, sun-bleached wreck: tone the torn sails and rigging down so the
+## halves read as hull, not as bright sheets.
+func _tone_wreck(node: Node) -> void:
+	Art.tone_matching(node, "sail", Color(0.36, 0.33, 0.29), 1.0)
+	Art.tone_matching(node, "plane", Color(0.36, 0.33, 0.29), 1.0)
+	Art.tone_matching(node, "rigging", Color(0.46, 0.43, 0.38), 1.0)
+
+
+func _on_sand(parent: Node, scene: PackedScene, node_name: String, at: Vector3, rot_deg: Vector3, scale: float, sink: float) -> Node3D:
+	at.y = _ground_y(at.x, at.z) - sink
+	return Art.put(parent, scene, node_name, at, rot_deg, scale)
+
+
+func _fit_long(node: Node3D, meters: float) -> void:
+	var box := Art.world_aabb(node)
+	var longest := maxf(box.size.x, maxf(box.size.y, box.size.z))
+	if longest > 0.001:
+		node.scale *= meters / longest
+
+
+## Drop `node` so the bottom of its mesh bounds sits at its parent's origin.
+func _sit(node: Node3D) -> void:
+	var parent := node.get_parent() as Node3D
+	if parent == null:
+		return
+	var box := Art.world_aabb(node)
+	node.global_position.y += parent.global_position.y - box.position.y
 
 
 func _dress_landmark(node_name: String, id: String) -> void:
@@ -2076,101 +2069,66 @@ func _dress_landmark(node_name: String, id: String) -> void:
 func _build_offshore() -> void:
 	var root := Node3D.new()
 	root.name = "LandmarkOffshore"
-	var at: Array = _catalog.get("landmarks", {}).get("offshore", [8, 48])
-	root.position = Vector3(float(at[0]), -0.4, float(at[1]))
+	var at: Array = _catalog.get("landmarks", {}).get("offshore", [-6, -32])
+	root.position = Vector3(float(at[0]), _water_y, float(at[1]))
 	add_child(root)
-	_place_model(root, SHIP_SCENE, "BrokenHull", Vector3(10, -2.2, 2), Vector3(0.28, 2.2, 0.35), 1.05, true)
+	# The enemy galleon's stern half, settled on the reef past the surf.
+	var hull := Art.put(root, Art.HULL_STERN, "BrokenHull", Vector3(9, -1.6, 3), Vector3(-8, 120, 24), 0.42)
+	Art.tone_matching(hull, "sail", Color(0.42, 0.39, 0.34), 1.0)
+	Art.tone_matching(hull, "rigging", Color(0.5, 0.47, 0.42), 1.0)
+	# The leviathan's severed tentacle drifting awash, in the approved creature grade.
 	var carcass := Node3D.new()
 	carcass.name = "Leviathan"
-	for i in 7:
-		var seg := MeshInstance3D.new()
-		var body := CapsuleMesh.new()
-		body.radius = lerpf(1.5, 0.45, float(i) / 6.0)
-		body.height = 3.4
-		seg.mesh = body
-		seg.position = Vector3(-8.0 + float(i) * 2.3, -0.3, sin(float(i)) * 0.8)
-		seg.rotation.z = PI * 0.5
-		seg.material_override = _mat(Color(0.04, 0.07, 0.08), 0.55)
-		carcass.add_child(seg)
 	root.add_child(carcass)
+	var limb := Art.put(carcass, Art.LEVIATHAN_TENTACLE, "Tentacle", Vector3(-6, -0.5, 0), Vector3(84, 30, 0), 1.0)
+	_fit_long(limb, 13.0)
+	Art.grade_creature(limb)
+	Art.foam_ring(self, root.position + Vector3(-6, 0, 0), 4.0, _water_y)
+	var fin_mat := _mat(Color(0.16, 0.18, 0.19), 0.55)
 	for i in 3:
 		var fin := MeshInstance3D.new()
 		var prism := PrismMesh.new()
-		prism.size = Vector3(0.18, 0.85, 1.05)
+		prism.size = Vector3(0.08, 0.62, 0.7)
+		prism.left_to_right = 0.2
 		fin.mesh = prism
-		fin.material_override = _mat(Color(0.08, 0.1, 0.12), 0.4)
+		fin.material_override = fin_mat
 		fin.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		root.add_child(fin)
 		_sharks.append(fin)
-	var storm := MeshInstance3D.new()
-	var disc := CylinderMesh.new()
-	disc.top_radius = 16.0
-	disc.bottom_radius = 16.0
-	disc.height = 0.2
-	storm.mesh = disc
-	var shade := _mat(Color(0.05, 0.07, 0.12, 0.4), 1.0)
-	shade.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	shade.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	shade.emission_enabled = false
-	storm.material_override = shade
-	storm.position = Vector3(2, 6.5, 0)
-	storm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	root.add_child(storm)
 	var warning := _label3(OFFSHORE_WARNING, 4.5)
 	warning.name = "Warning"
 	warning.visible = false
 	root.add_child(warning)
 	var sign := Node3D.new()
 	sign.name = "BeachSign"
-	var sign_at := _on_land(0.5, 17.5)
-	sign.position = sign_at
-	var post := MeshInstance3D.new()
-	var post_mesh := CylinderMesh.new()
-	post_mesh.top_radius = 0.08
-	post_mesh.bottom_radius = 0.1
-	post_mesh.height = 1.8
-	post.mesh = post_mesh
-	post.position.y = 0.9
-	post.material_override = _mat(Color(0.4, 0.26, 0.12), 0.8)
-	sign.add_child(post)
+	sign.position = _on_land(-3.0, 0.5)
+	add_child(sign)
+	var post := Art.put(sign, Art.DRIFT_TRUNK, "Post", Vector3.ZERO, Vector3(0, 0, 90), 1.0)
+	_fit_long(post, 1.7)
+	post.position.y = 0.85
 	var board := _label3("Sharks!", 1.95)
 	board.pixel_size = 0.006
 	board.modulate = Color(0.95, 0.85, 0.6)
 	sign.add_child(board)
-	add_child(sign)
 
 
+## Hut stages: 1 frame of driftwood posts, 2 plank walls going up, 3 the
+## finished thatched hut (Hunyuan3D mesh, see assets/ashore/PROVENANCE.md).
 func _build_hut_pieces() -> void:
 	var frame := Node3D.new()
 	frame.name = "Frame"
-	for i in 4:
-		var post := MeshInstance3D.new()
-		var mesh := BoxMesh.new()
-		mesh.size = Vector3(0.18, 2.3, 0.18)
-		post.mesh = mesh
-		post.position = Vector3(-1.3 if i % 2 == 0 else 1.3, 1.15, -1.0 if i < 2 else 1.0)
-		post.material_override = _mat(Color(0.5, 0.32, 0.16), 0.78)
-		frame.add_child(post)
 	_hut.add_child(frame)
+	for i in 4:
+		var post := Art.put(frame, Art.DRIFT_TRUNK, "Post%d" % i, Vector3(-1.3 if i % 2 == 0 else 1.3, 1.1, -1.0 if i < 2 else 1.0), Vector3(0, float(i) * 50.0, 90), 1.0)
+		_fit_long(post, 2.3)
 	var walls := Node3D.new()
 	walls.name = "Walls"
-	for spec in [Vector3(0, 1.05, -1.0), Vector3(-1.3, 1.05, 0), Vector3(1.3, 1.05, 0)]:
-		var wall := MeshInstance3D.new()
-		var box := BoxMesh.new()
-		box.size = Vector3(2.4, 1.8, 0.12) if absf(spec.z) > 0.5 else Vector3(0.12, 1.8, 1.8)
-		wall.mesh = box
-		wall.position = spec
-		wall.material_override = _mat(Color(0.62, 0.44, 0.24), 0.84)
-		walls.add_child(wall)
 	_hut.add_child(walls)
-	var roof := MeshInstance3D.new()
-	roof.name = "Roof"
-	var prism := PrismMesh.new()
-	prism.size = Vector3(3.1, 1.15, 2.8)
-	roof.mesh = prism
-	roof.position = Vector3(0, 2.55, 0)
-	roof.material_override = _mat(Color(0.18, 0.45, 0.22), 0.7)
-	_hut.add_child(roof)
+	for spec in [[Vector3(0, 0, -1.0), 0.0], [Vector3(-1.3, 0, 0), 90.0], [Vector3(1.3, 0, 0), -90.0]]:
+		var stack := Art.put(walls, Art.PLANKS, "Planks", spec[0], Vector3(0, spec[1], 0), 1.0)
+		_fit_long(stack, 2.4)
+	var roof := Art.put(_hut, HUT, "Roof", Vector3.ZERO, Vector3(0, 180, 0), 1.0)
+	Art.fit_height(roof, 3.0)
 	frame.visible = false
 	walls.visible = false
 	roof.visible = false
@@ -2184,9 +2142,9 @@ func _show_hut(stage: int) -> void:
 	var walls := _hut.get_node_or_null("Walls")
 	var roof := _hut.get_node_or_null("Roof")
 	if frame:
-		frame.visible = stage >= 1
+		frame.visible = stage >= 1 and stage < 3
 	if walls:
-		walls.visible = stage >= 2
+		walls.visible = stage == 2
 	if roof:
 		roof.visible = stage >= 3
 
@@ -2241,46 +2199,114 @@ func _build_nodes() -> void:
 		_nodes.append(node)
 
 
+## Resource-node visuals: real-scale library meshes (CC0 Poly Haven and
+## Quaternius, plus the provenance-tracked Hunyuan3D clumps). Sizes are world
+## metres; _prop undoes the node root's gameplay scale.
 func _visual_for(kind: String, root: Node3D) -> void:
 	match kind:
 		"hull":
-			_prop(root, MODELS + "dock_broken.glb", "Planks", Vector3(0, 0, 0), 0.55, 0.4, 1.6)
-			_prop(root, MODELS + "wood.glb", "Beam", Vector3(0.5, 0, 0.3), 0.22, 1.3, 0.0)
+			_prop(root, Art.PLANKS, "Planks", Vector3.ZERO, 0.5, 0.4, 2.0)
+			_prop(root, Art.SNAPPED_MAST, "Beam", Vector3(0.45, 0, 0.3), 0.35, 1.3, 2.6)
 		"rigging":
-			_prop(root, MODELS + "wood.glb", "Spar", Vector3(0, 0, 0), 0.25, 0.3, 0.0)
-			_chunk(root, Vector3(0.09, 1.2, 0.09), Color(0.42, 0.27, 0.14), Vector3(0.1, 0.5, 0.1))
-			_chunk(root, Vector3(0.9, 0.06, 0.06), Color(0.78, 0.66, 0.42), Vector3(0, 0.9, 0.1))
+			_prop(root, Art.ROPE, "Rope", Vector3.ZERO, 0.12, 0.3, 1.0)
+			_prop(root, Art.DRIFT_TRUNK, "Spar", Vector3(0.1, 0, 0.35), 0.25, 1.1, 2.4)
 		"cargo":
-			_prop(root, MODELS + "chest.glb", "Chest", Vector3(0, 0, 0), 0.38, 0.5, 0.0)
-			_prop(root, MODELS + "barrel.glb", "Barrel", Vector3(0.55, 0, 0.3), 0.42, 0.2, 0.0)
+			_prop(root, Art.CRATE_A, "Chest", Vector3.ZERO, 0.55, 0.5, 0.0)
+			_prop(root, Art.WINE_BARREL, "Barrel", Vector3(0.5, 0, 0.3), 0.8, 0.2, 0.0)
 		"pile":
-			_prop(root, MODELS + "barrel.glb", "BarrelA", Vector3(-0.35, 0, 0), 0.4, 0.2, 0.0)
-			_prop(root, MODELS + "dock_broken.glb", "Planks", Vector3(0.3, 0, 0.1), 0.3, 1.1, 1.2)
-			_chunk(root, Vector3(0.8, 0.25, 0.4), Color(0.4, 0.26, 0.14), Vector3(0, 0.45, -0.2))
+			_prop(root, Art.CRATE_B, "Crate", Vector3(-0.3, 0, 0.1), 0.45, 0.4, 0.0)
+			_prop(root, Art.ROPE, "Rope", Vector3(0.25, 0, -0.2), 0.1, 1.1, 0.9)
+			_prop(root, Art.DRIFT_BRANCHES, "Branches", Vector3(0.1, 0, 0.3), 0.35, 2.0, 1.8)
 		"bush":
-			_prop(root, MODELS + "bush_flowers.glb", "Bush", Vector3.ZERO, 0.65, 0.0, 1.5)
-			_fruit(root, Vector3(0.25, 0.5, 0.2))
-			_fruit(root, Vector3(-0.3, 0.6, -0.1))
+			_prop(root, Art.JUNGLE_CLUMP, "Bush", Vector3.ZERO, 1.4, 0.0, 0.0)
+			_fruit(root, Vector3(0.12, 0.42, 0.1))
+			_fruit(root, Vector3(-0.14, 0.48, -0.06))
 		"crab":
-			_chunk(root, Vector3(0.7, 0.22, 0.5), Color(0.72, 0.22, 0.16), Vector3(0, 0.2, 0))
-			_chunk(root, Vector3(0.45, 0.16, 0.32), Color(0.8, 0.3, 0.18), Vector3(0.45, 0.16, 0.2))
+			_prop(root, ASHORE_STONE, "Stones", Vector3.ZERO, 0.12, 0.6, 0.0)
+			_crab(root)
 		"tree":
-			_prop(root, MODELS + ("palm_a.glb" if root.name.ends_with("a") else "palm_b.glb"), "Tree", Vector3.ZERO, 3.2, 0.6, 0.0)
+			if not _palm(root, 6.5 if root.name.ends_with("a") else 5.2):
+				_prop(root, DEAD_LOG, "Tree", Vector3.ZERO, 0.9, 0.6, 0.0)
 		"rock":
-			_prop(root, MODELS + "rock_med_a.glb", "Rocks", Vector3.ZERO, 0.6, 0.3, 1.3)
+			_prop(root, Art.DARK_BOULDER, "Rocks", Vector3.ZERO, 0.9, 0.3, 1.6)
 		"flint":
-			_prop(root, MODELS + "rocks_a.glb", "Rocks", Vector3.ZERO, 0.35, 0.9, 0.0)
+			_prop(root, ASHORE_STONE, "Rocks", Vector3.ZERO, 0.14, 0.9, 0.0)
+			_prop(root, ASHORE_STONE, "RocksB", Vector3(0.12, 0, 0.08), 0.1, 2.1, 0.0)
 		"fish":
-			_chunk(root, Vector3(0.7, 0.18, 0.28), Color(0.2, 0.55, 0.62), Vector3(0, 0.2, 0))
-			_chunk(root, Vector3(0.45, 0.14, 0.2), Color(0.85, 0.55, 0.2), Vector3(0.35, 0.18, 0.1))
+			_fish(root)
 		"drift":
-			_prop(root, MODELS + "wood.glb", "Drift", Vector3.ZERO, 0.2, 0.7, 0.0)
+			_prop(root, Art.DRIFT_TRUNK, "Drift", Vector3.ZERO, 0.26, 0.7, 2.6)
 		_:
-			_chunk(root, Vector3(0.8, 0.8, 0.8), Color(0.7, 0.6, 0.4), Vector3(0, 0.4, 0))
+			_prop(root, Art.CRATE_A, "Crate", Vector3.ZERO, 0.6, 0.0, 0.0)
 
 
-func _prop(parent: Node3D, path: String, node_name: String, at: Vector3, height: float, yaw: float, width: float) -> Node3D:
-	var packed = load(path)
+func _crab(root: Node3D) -> void:
+	var shell := _mat(Color(0.55, 0.24, 0.16), 0.62)
+	var body := MeshInstance3D.new()
+	var dome := SphereMesh.new()
+	dome.radius = 0.16
+	dome.height = 0.14
+	dome.radial_segments = 16
+	dome.rings = 8
+	body.mesh = dome
+	body.material_override = shell
+	_unscaled(root, body, Vector3(0.18, 0.06, 0.1))
+	for side in [-1.0, 1.0]:
+		var claw := MeshInstance3D.new()
+		var pincer := SphereMesh.new()
+		pincer.radius = 0.06
+		pincer.height = 0.09
+		pincer.radial_segments = 10
+		pincer.rings = 5
+		claw.mesh = pincer
+		claw.material_override = shell
+		_unscaled(root, claw, Vector3(0.18 + side * 0.14, 0.05, -0.05))
+
+
+func _fish(root: Node3D) -> void:
+	var skin := _mat(Color(0.42, 0.5, 0.52), 0.42)
+	for i in 2:
+		var fish := MeshInstance3D.new()
+		var capsule := CapsuleMesh.new()
+		capsule.radius = 0.06
+		capsule.height = 0.42
+		capsule.radial_segments = 12
+		capsule.rings = 4
+		fish.mesh = capsule
+		fish.material_override = skin
+		fish.rotation_degrees = Vector3(0, 30.0 + float(i) * 70.0, 90)
+		_unscaled(root, fish, Vector3(float(i) * 0.22 - 0.1, 0.05, float(i) * 0.12))
+
+
+## Add a small hand-sized mesh under a scaled node root at true world size.
+func _unscaled(root: Node3D, mesh: MeshInstance3D, at_world: Vector3) -> void:
+	var k := 1.0 / maxf(root.global_transform.basis.get_scale().y, 0.001)
+	mesh.position = at_world * k
+	mesh.scale = Vector3.ONE * k
+	mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	root.add_child(mesh)
+
+
+## Choppable palms reuse the island grove's own palm mesh so they match it.
+func _palm(root: Node3D, height: float) -> bool:
+	var grove := _slice.get_node_or_null("TropicalBayDressing/TropicalPalmGrove") as MultiMeshInstance3D if _slice else null
+	if grove == null or grove.multimesh == null or grove.multimesh.mesh == null:
+		return false
+	var tree := MeshInstance3D.new()
+	tree.name = "Tree"
+	tree.mesh = grove.multimesh.mesh
+	tree.material_override = grove.material_override
+	var box := tree.mesh.get_aabb()
+	var k := height / maxf(box.size.y, 0.01) / maxf(root.global_transform.basis.get_scale().y, 0.001)
+	tree.scale = Vector3.ONE * k
+	tree.position.y = -box.position.y * k
+	tree.rotation.y = 0.6
+	root.add_child(tree)
+	return true
+
+
+func _prop(parent: Node3D, path: Variant, node_name: String, at: Vector3, height: float, yaw: float, width: float) -> Node3D:
+	var packed = load(path) if path is String else path
 	if packed == null:
 		return null
 	var model = packed.instantiate() as Node3D
@@ -2292,147 +2318,99 @@ func _prop(parent: Node3D, path: String, node_name: String, at: Vector3, height:
 	parent.add_child(model)
 	var box := _merged_aabb(model)
 	if box.size.y > 0.001:
-		var sy := parent.global_transform.basis.get_scale().y
-		var k := height * sy / box.size.y
+		var k := height / box.size.y
 		if width > 0.0:
-			k = minf(k, width * sy / maxf(maxf(box.size.x, box.size.z), 0.001))
-		model.scale = Vector3.ONE * k
+			k = minf(k, width / maxf(maxf(box.size.x, box.size.z), 0.001))
+		model.scale *= k
 		var fitted := _merged_aabb(model)
 		var bottom := (parent.global_transform * at).y
 		model.global_position.y += bottom - fitted.position.y
 	return model
 
 
-func _scatter() -> void:
-	var root := Node3D.new()
-	root.name = "Foliage"
-	add_child(root)
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 7341
-	var avoid: Array = []
-	for id in ["wreck", "grove", "clearing", "camp"]:
-		avoid.append([_landmark_position(id), 8.0])
-	for node in _nodes:
-		avoid.append([(node.get("root") as Node3D).global_position, 3.2])
-	avoid.append([Vector3(0.2, 0, 9.0), 5.0])
-	var palms := ["palm_a.glb", "palm_b.glb", "palm_c.glb"]
-	var green := ["plant_big_b.glb", "fern.glb", "plant_a.glb", "bush_flowers.glb", "fern.glb", "flowers_a.glb", "plant_big_b.glb", "flowers_b.glb", "bush.glb"]
-	var stones := ["rocks_b.glb", "rocks_c.glb", "rock_a.glb", "rock_b.glb", "rock_med_b.glb"]
-	var x := -36.0
-	while x <= 36.0:
-		var z := -30.0
-		while z <= 34.0:
-			var px := x + rng.randf_range(-1.4, 1.4)
-			var pz := z + rng.randf_range(-1.4, 1.4)
-			var e := pow(px / 36.0, 2) + pow((pz - 4.0) / 32.0, 2)
-			var y := _ground_y(px, pz)
-			var ok := y > 0.25
-			for a in avoid:
-				if Vector2(px - a[0].x, pz - a[0].z).length() < a[1]:
-					ok = false
-			if ok:
-				var at := Vector3(px, y - 0.05, pz)
-				var roll := rng.randf()
-				if e > 0.5 and e < 0.75 and roll < 0.28:
-					_prop(root, MODELS + stones[rng.randi() % stones.size()], "Stone", at, rng.randf_range(0.8, 2.6), rng.randf() * TAU, 0.0)
-				elif y > 0.9 and roll < 0.42:
-					_prop(root, MODELS + palms[rng.randi() % palms.size()], "Palm", at, rng.randf_range(5.5, 8.5), rng.randf() * TAU, 0.0)
-				elif y > 1.25 and roll < 0.95:
-					_prop(root, MODELS + green[rng.randi() % green.size()], "Green", at, rng.randf_range(0.7, 1.6), rng.randf() * TAU, 0.0)
-			z += 3.4
-		x += 3.4
-	for mesh in _meshes(root):
-		if mesh.get_aabb().size.y * mesh.global_transform.basis.get_scale().y < 2.0:
-			mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+func _fruit(root: Node3D, at_world: Vector3) -> void:
+	for i in 3:
+		var mesh := MeshInstance3D.new()
+		var sphere := SphereMesh.new()
+		sphere.radius = 0.035
+		sphere.height = 0.07
+		sphere.radial_segments = 8
+		sphere.rings = 4
+		mesh.mesh = sphere
+		mesh.material_override = _mat(Color(0.48, 0.12, 0.16), 0.5)
+		_unscaled(root, mesh, at_world + Vector3(float(i) * 0.05, float(i % 2) * 0.04, 0.0))
 
 
-func _chunk(root: Node3D, size: Vector3, color: Color, at: Vector3) -> void:
-	var mesh := MeshInstance3D.new()
-	var box := BoxMesh.new()
-	box.size = size
-	mesh.mesh = box
-	mesh.position = at
-	mesh.material_override = _mat(color, 0.78)
-	mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	root.add_child(mesh)
-
-
-func _fruit(root: Node3D, at: Vector3) -> void:
-	var mesh := MeshInstance3D.new()
-	var sphere := SphereMesh.new()
-	sphere.radius = 0.16
-	sphere.height = 0.32
-	mesh.mesh = sphere
-	mesh.position = at
-	mesh.material_override = _mat(Color(0.86, 0.16, 0.12), 0.45)
-	mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	root.add_child(mesh)
-
-
+## Small low fire: two crossed soft flame cards over the stones. Fire is the
+## only emissive surface on the island.
 func _flame_mesh() -> MeshInstance3D:
 	var mesh := MeshInstance3D.new()
-	var cone := CylinderMesh.new()
-	cone.top_radius = 0.02
-	cone.bottom_radius = 0.28
-	cone.height = 0.9
-	mesh.mesh = cone
-	var mat := _mat(Color(1.0, 0.55, 0.12), 0.4)
-	mat.emission_enabled = true
-	mat.emission = Color(1.0, 0.45, 0.08)
-	mat.emission_energy_multiplier = 2.0
+	var card := QuadMesh.new()
+	card.size = Vector2(0.55, 0.75)
+	mesh.mesh = card
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	mat.billboard_mode = BaseMaterial3D.BILLBOARD_FIXED_Y
+	mat.albedo_texture = Art.SOFT
+	mat.albedo_color = Color(1.0, 0.5, 0.16, 0.85)
 	mesh.material_override = mat
 	mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var light := OmniLight3D.new()
+	light.light_color = Color(1.0, 0.6, 0.3)
+	light.light_energy = 1.2
+	light.omni_range = 5.0
+	light.light_specular = 0.0
+	mesh.add_child(light)
 	return mesh
 
 
+## Castaway: rigged Quaternius UBC body with UAL clips (CC0), wet linen shirt.
 func _build_player() -> void:
 	_player = Node3D.new()
 	_player.name = "Player"
-	var at := _on_land(0.2, 9.0)
-	_player.position = at
+	_player.position = _on_land(START.x, START.z)
 	add_child(_player)
-	var rig := _instance_rig()
+	var rig := _rig(Art.CASTAWAY, {"Idle": "|Idle", "Walk": "|Walk", "Run": "|Run", "Jump": "|Attack", "Gather": "|Interact", "Kneel": "|Kneel"})
 	if rig:
 		rig.name = "Rig"
 		_player.add_child(rig)
-		_fit(rig, 1.72)
-		if rig.has_meta("clips"):
-			_collect_skin(rig)
-		else:
-			_paint_actor(rig)
-	else:
-		var cap := MeshInstance3D.new()
-		var mesh := CapsuleMesh.new()
-		mesh.radius = 0.32
-		mesh.height = 1.7
-		cap.mesh = mesh
-		cap.position.y = 0.85
-		cap.material_override = _mat(Color(0.85, 0.7, 0.45), 0.6)
-		_player.add_child(cap)
-	var wreck := _landmark_position("wreck")
-	_player.look_at(Vector3(wreck.x, _player.position.y, wreck.z), Vector3.UP)
+		_fit(rig, 1.78)
+		_anim = rig.get_meta("clips") as AnimationPlayer
+		_collect_skin(rig)
+	_player.look_at(_player.position + INTRO_FACING, Vector3.UP)
+	_cam_yaw = _player.rotation.y
 
 
+## Tide-Puck: Hunyuan3D seal pup with the bandaged front flipper (model +X).
+## Visible from the first frame, pinned beside the wreck pile.
 func _build_pet() -> void:
 	_pet = Node3D.new()
 	_pet.name = "Pet"
-	_pet.visible = false
 	add_child(_pet)
-	var cat := _rig(MODELS + "cat.glb", {"Idle": "|Idle", "Walk": "|Walk", "Yes": "|Yes", "Jump": "|Jump"})
-	if cat:
-		cat.name = "Body"
-		_pet.add_child(cat)
-		_fit(cat, 0.78)
-		_pet_anim = cat.get_meta("clips") as AnimationPlayer
+	var body := Art.spawn(Art.TIDEPUCK, "Body")
+	body.rotation.y = PI
+	body.scale = Vector3.ONE * PET_SCALE
+	_pet.add_child(body)
 	_pet_head = Node3D.new()
 	_pet_head.name = "Head"
-	_pet_head.position = Vector3(0, 0.55, -0.2)
+	_pet_head.position = Vector3(0, 0.3, -0.45)
 	_pet.add_child(_pet_head)
-	var name_label := _label3("Tide-Puck", 1.05)
+	var name_label := _label3("Tide-Puck", 0.75)
 	name_label.name = "Name"
-	name_label.pixel_size = 0.0035
+	name_label.pixel_size = 0.0032
 	name_label.modulate = Color(1, 0.95, 0.8, 0.9)
 	_pet.add_child(name_label)
+	_pet.position = _pet_rest()
+	# Face the camera three-quarter so the bandage reads (see PROVENANCE.md render).
+	_pet.rotation_degrees.y = PET_REST_YAW
+
+
+func _pet_rest() -> Vector3:
+	var at := _intro_at(PET_REST.x, PET_REST.y)
+	at.y = _ground_y(at.x, at.z)
+	return at
 
 
 func _build_beast() -> void:
@@ -2504,32 +2482,11 @@ func _apply_stage(node: Dictionary) -> void:
 
 
 func _instance_rig() -> Node3D:
-	var captain := _rig(MODELS + "captain.glb", {"Idle": "|Idle", "Run": "|Run", "Jump": "|Sword", "Walk": "|Walk"})
-	if captain:
-		_anim = captain.get_meta("clips") as AnimationPlayer
-		return captain
-	var packed = load("res://assets/opening/kenney/characterMedium.fbx")
-	if packed == null:
-		return null
-	var node = packed.instantiate()
-	if not (node is Node3D):
-		return null
-	var player := AnimationPlayer.new()
-	player.name = "Clips"
-	node.add_child(player)
-	var library := AnimationLibrary.new()
-	player.add_animation_library("", library)
-	_copy_longest(library, "res://assets/opening/kenney/idle.fbx", "Idle")
-	_copy_longest(library, "res://assets/opening/kenney/run.fbx", "Run")
-	_copy_longest(library, "res://assets/opening/kenney/jump.fbx", "Jump")
-	_anim = player
-	if player.has_animation("Idle"):
-		player.play("Idle")
-	return node
+	return _rig(Art.CASTAWAY, {"Idle": "|Idle", "Run": "|Run", "Jump": "|Attack", "Walk": "|Walk"})
 
 
-func _rig(path: String, clips: Dictionary) -> Node3D:
-	var packed = load(path)
+func _rig(path: Variant, clips: Dictionary) -> Node3D:
+	var packed = load(path) if path is String else path
 	if packed == null:
 		return null
 	var model = packed.instantiate()
@@ -2548,7 +2505,7 @@ func _rig(path: String, clips: Dictionary) -> Node3D:
 				var nm := str(anim_name)
 				if nm.ends_with(key) or nm.contains(key + "|") or nm == key.trim_prefix("|"):
 					var anim := source.get_animation(anim_name).duplicate() as Animation
-					anim.loop_mode = Animation.LOOP_NONE if alias in ["Jump", "Death", "Bite", "Punch"] else Animation.LOOP_LINEAR
+					anim.loop_mode = Animation.LOOP_NONE if alias in ["Jump", "Death", "Bite", "Punch", "Gather"] else Animation.LOOP_LINEAR
 					library.add_animation(alias, anim)
 					break
 		source.add_animation_library("ashore", library)
@@ -2580,25 +2537,6 @@ func _collect_skin(actor: Node) -> void:
 				_skin.append(mat)
 
 
-func _copy_longest(library: AnimationLibrary, path: String, alias: String) -> void:
-	var packed = load(path)
-	if packed == null:
-		return
-	var temp = packed.instantiate()
-	var source := temp.find_child("AnimationPlayer", true, false) as AnimationPlayer
-	var best: Animation = null
-	var best_length := -1.0
-	if source:
-		for anim_name in source.get_animation_list():
-			var anim := source.get_animation(anim_name)
-			if anim != null and anim.length >= best_length:
-				best = anim
-				best_length = anim.length
-	if best != null:
-		library.add_animation(alias, best.duplicate())
-	temp.free()
-
-
 func _fit(actor: Node3D, meters: float) -> void:
 	var box := _merged_aabb(actor)
 	if box.size.y < 0.05:
@@ -2609,36 +2547,6 @@ func _fit(actor: Node3D, meters: float) -> void:
 	if actor.get_parent() is Node3D and actor.is_inside_tree():
 		base_y = (actor.get_parent() as Node3D).global_position.y
 	actor.position.y -= fitted.position.y - base_y
-
-
-func _paint_actor(actor: Node) -> void:
-	var skin = load("res://assets/opening/kenney/criminalMaleA.png")
-	for mesh in _meshes(actor):
-		var mat := StandardMaterial3D.new()
-		mat.albedo_texture = skin
-		mat.albedo_color = Color(1, 1, 1)
-		mat.roughness = 0.62
-		mat.metallic = 0.0
-		mat.emission_enabled = false
-		mesh.material_override = mat
-		_skin.append(mat)
-
-
-func _place_model(parent: Node, path: String, node_name: String, at: Vector3, rotation: Vector3, scale: float, shadows: bool) -> Node3D:
-	var holder := Node3D.new()
-	holder.name = node_name
-	holder.position = at
-	holder.rotation = rotation
-	holder.scale = Vector3.ONE * scale
-	parent.add_child(holder)
-	var packed = load(path)
-	if packed != null:
-		var model = packed.instantiate()
-		holder.add_child(model)
-		if not shadows:
-			for mesh in _meshes(model):
-				mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	return holder
 
 
 func _no_glow(node: Node) -> void:
@@ -2905,80 +2813,44 @@ func _boost_node_loot(node_id: String, item_id: String, extra: int) -> void:
 			first.append({"id": item_id, "amount": extra})
 
 
+## Path-dependent flotsam. Mast ending: the reef wreck's spars and planks wash
+## up. Hull ending: the sunk ship's cargo floats in. Both sit on the open sand
+## left of the landing (player's left, toward the bow half), clear of nodes.
 func _place_outcome_props(mast: bool) -> void:
-	var wreck := _landmark_position("wreck")
 	if mast:
 		for i in 3:
-			var at := wreck + Vector3(-1.8 + float(i) * 1.1, 0, 2.4 + float(i % 2) * 0.6)
-			at.y = _ground_y(at.x, at.z)
-			_place_model(self, MODELS + "wood.glb", "MastPlank%d" % i, at, Vector3(0.1, float(i), 0.2), 0.7, true)
-		_place_model(self, MODELS + "wood.glb", "MastRopeSpar", wreck + Vector3(2.2, 0, 1.8), Vector3(0.2, 0.8, 0.1), 0.55, true)
+			var at := _intro_at(4.6 + float(i) * 1.5, -1.0 - float(i % 2) * 1.1)
+			var plank := _on_sand(self, Art.PLANKS if i != 1 else Art.DRIFT_TRUNK, "MastPlank%d" % i, at, Vector3(0, float(i) * 55.0, 0), 1.0, 0.04)
+			_fit_long(plank, 1.9 if i != 1 else 2.6)
+		var spar := _on_sand(self, Art.SNAPPED_MAST, "MastRopeSpar", _intro_at(9.4, 0.6), Vector3(0, 80, 82), 1.0, 0.1)
+		_fit_long(spar, 3.4)
 	else:
 		for i in 3:
-			var at := wreck + Vector3(2.4 + float(i) * 0.9, 0, -1.2 + float(i % 2) * 0.8)
-			at.y = _ground_y(at.x, at.z)
-			var path := MODELS + ("chest.glb" if i != 1 else "barrel.glb")
-			_place_model(self, path, "SinkCargo%d" % i, at, Vector3(0, float(i) * 0.7, 0), 0.7, true)
+			var at := _intro_at(4.4 + float(i) * 1.4, -0.8 - float(i % 2) * 1.2)
+			var scene: PackedScene = [Art.CRATE_B, Art.WINE_BARREL, Art.CRATE_A][i]
+			var rot := Vector3(90, 0, float(i) * 40.0) if i == 1 else Vector3(0, float(i) * 35.0, 0)
+			_on_sand(self, scene, "SinkCargo%d" % i, at, rot, 1.0, 0.05)
 
 
+## Silas's cutlass, driven point-down into the sand beside the landing: the
+## Quaternius-style saber mesh at real size, a third of the blade buried.
 func _place_silas_cutlass() -> void:
 	if get_node_or_null("SilasCutlass"):
 		return
-	var wreck := _landmark_position("wreck")
-	# Open sand away from the Tools bench (wreck-2,+4) and cargo piles.
-	var at := wreck + Vector3(-5.2, 0, -3.4)
+	var at := _intro_at(CUTLASS_AT.x, CUTLASS_AT.y)
 	at.y = _ground_y(at.x, at.z)
 	var holder := Node3D.new()
 	holder.name = "SilasCutlass"
 	holder.position = at
-	# Lay the blade across the sand so a 3/4 beach shot can read it as a sword.
-	holder.rotation_degrees = Vector3(0, 15, 0)
 	add_child(holder)
-	var steel := StandardMaterial3D.new()
-	steel.albedo_color = Color(0.86, 0.88, 0.92)
-	steel.metallic = 0.35
-	steel.roughness = 0.42
-	steel.emission_enabled = false
-	var blade := MeshInstance3D.new()
-	blade.name = "Blade"
-	var blade_mesh := BoxMesh.new()
-	blade_mesh.size = Vector3(1.7, 0.07, 0.2)
-	blade.mesh = blade_mesh
-	blade.material_override = steel
-	blade.position = Vector3(0.55, 0.07, 0)
-	blade.rotation_degrees = Vector3(4, 0, 8)
-	holder.add_child(blade)
-	var tip := MeshInstance3D.new()
-	var tip_mesh := PrismMesh.new()
-	tip_mesh.size = Vector3(0.16, 0.22, 0.055)
-	tip.mesh = tip_mesh
-	tip.material_override = steel
-	tip.position = Vector3(1.42, 0.08, 0)
-	tip.rotation_degrees = Vector3(90, 0, 90)
-	holder.add_child(tip)
-	var guard := MeshInstance3D.new()
-	var guard_mesh := BoxMesh.new()
-	guard_mesh.size = Vector3(0.08, 0.07, 0.36)
-	guard.mesh = guard_mesh
-	guard.material_override = steel
-	guard.position = Vector3(-0.22, 0.07, 0)
-	holder.add_child(guard)
-	var hilt := MeshInstance3D.new()
-	var hilt_mesh := CylinderMesh.new()
-	hilt_mesh.top_radius = 0.04
-	hilt_mesh.bottom_radius = 0.05
-	hilt_mesh.height = 0.36
-	hilt.mesh = hilt_mesh
-	var wood := StandardMaterial3D.new()
-	wood.albedo_color = Color(0.32, 0.18, 0.08)
-	wood.roughness = 0.85
-	hilt.material_override = wood
-	hilt.position = Vector3(-0.42, 0.07, 0)
-	hilt.rotation_degrees = Vector3(0, 0, 90)
-	holder.add_child(hilt)
-	var label := _label3("Silas's cutlass", 0.55)
+	# Native saber stands 0.94 m on +Y, grip at the origin. Flip it point-down,
+	# lean it 14 degrees and sink 0.3 m of blade into the sand.
+	var blade := Art.put(holder, Art.CUTLASS, "Blade", Vector3.ZERO, Vector3(180 + 12, 60, -10), 1.3)
+	blade.position.y = 0.84 * 1.3 - 0.32
+	var mound := Art.soft_disc(holder, at + Vector3(0, 0.02, 0), 0.7, Color(0.42, 0.34, 0.24, 0.6), false)
+	mound.name = "WetSand"
+	var label := _label3("Silas's cutlass", 0.95)
 	label.name = "Title"
-	label.position = Vector3(0.2, 0.42, 0)
 	label.pixel_size = 0.003
 	label.modulate = Color(1, 0.95, 0.8, 0.9)
 	holder.add_child(label)
@@ -2992,6 +2864,6 @@ func _tick_silas_hint() -> void:
 		return
 	if _flat(_player.global_position, blade.global_position) < 3.2:
 		_silas_shown = true
-		_line = "Silas's cutlass... no sign of him"
-		_show_hint(_line)
+		# A hint, not the quest tracker: the tracker stays one short goal.
+		_show_hint("Silas's cutlass... no sign of him")
 		_push_hud()
