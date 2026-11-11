@@ -137,6 +137,7 @@ func _run() -> void:
 	camera._set_zoom(0.0)
 	camera._rendered_distance = Controller.NEAR_DISTANCE
 	camera._rendered_pitch = Controller.NEAR_PITCH
+	camera.terrain_collision_mask = 1 # Restore physics collision for the real-tick terrain regression.
 	await physics_frame
 	await physics_frame
 	assert(camera.global_position.y > 8.0 + camera.collision_clearance, "Raised terrain must not clip camera")
