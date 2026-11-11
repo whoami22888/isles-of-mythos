@@ -10,6 +10,16 @@ from pathlib import Path
 SHADER = Path(__file__).resolve().parents[1] / "shaders" / "ocean_surface.gdshader"
 
 
+def strip_shader_comments(source: str) -> str:
+    """Remove GLSL comments without truncating quoted include paths."""
+    return re.sub(
+        r'("(?:\\.|[^"\\])*")|/\*.*?\*/|//[^\n]*',
+        lambda match: match.group(1) or "",
+        source,
+        flags=re.DOTALL,
+    )
+
+
 class OceanShaderContractTests(unittest.TestCase):
     """Guard production ocean features against accidental shader replacement."""
 
@@ -17,9 +27,22 @@ class OceanShaderContractTests(unittest.TestCase):
     def setUpClass(cls):
         """Read the production shader and strip comments before matching code."""
         cls.source = SHADER.read_text(encoding="utf-8")
-        cls.code = re.sub(
-            r"/\*.*?\*/|//[^\n]*", "", cls.source, flags=re.DOTALL
+        cls.code = strip_shader_comments(cls.source)
+
+    def test_comment_strip_preserves_shader_include_paths(self):
+        """Keep quoted res:// paths while removing actual GLSL comments."""
+        sample = (
+            '#include "res://shaders/coastal_shore_sampler.gdshaderinc"\n'
+            '// NORMAL_MAP = vec3(0.0);\n'
+            '/* ALPHA = 0.0; */\n'
+            'uniform float foam_amount = 0.7; // example comment\n'
         )
+        cleaned = strip_shader_comments(sample)
+        self.assertIn('#include "res://shaders/coastal_shore_sampler.gdshaderinc"', cleaned)
+        self.assertIn('uniform float foam_amount = 0.7;', cleaned)
+        self.assertNotIn('NORMAL_MAP = vec3(0.0);', cleaned)
+        self.assertNotIn('ALPHA = 0.0;', cleaned)
+        self.assertNotIn('example comment', cleaned)
 
     def test_mobile_opaque_depth_path_is_preserved(self):
         """Keep the mobile opaque depth path without fragment alpha writes."""
