@@ -5,7 +5,7 @@ signal camera_mode_changed(is_top_down: bool)
 @export var focus_point: Vector3 = Vector3.ZERO
 @export_range(1.0, 100.0) var smoothing: float = 10.0
 @export_range(0.001, 0.2) var zoom_sensitivity: float = 0.015
-@export_range(0.001, 1.0) var pan_sensitivity: float = 0.025
+@export_range(0.001, 1.0) var pan_sensitivity: float = 1.0
 @export_range(0.1, 10.0) var collision_clearance: float = 0.5
 @export_flags_3d_physics var terrain_collision_mask: int = 1
 
@@ -74,7 +74,15 @@ func _set_zoom(value: float) -> void:
 
 
 func _pan(motion: Vector2) -> void:
-	var scale_factor: float = pan_sensitivity * _rendered_distance
+	# Convert viewport pixels to world metres at the current orbit distance.
+	var viewport_size: Vector2 = get_viewport().get_visible_rect().size
+	if viewport_size.x < 1.0 or viewport_size.y < 1.0:
+		viewport_size = Vector2(1280.0, 720.0)
+	var half_fov: float = deg_to_rad(fov) * 0.5
+	if keep_aspect == Camera3D.KEEP_WIDTH:
+		half_fov = atan(tan(half_fov) * viewport_size.y / viewport_size.x)
+	var metres_per_pixel: float = 2.0 * _rendered_distance * tan(half_fov) / viewport_size.y
+	var scale_factor: float = pan_sensitivity * metres_per_pixel
 	var yaw: float = rotation.y
 	var right: Vector3 = Vector3(cos(yaw), 0.0, -sin(yaw))
 	var forward: Vector3 = Vector3(-sin(yaw), 0.0, -cos(yaw))
