@@ -696,6 +696,13 @@ func _follow_camera(delta: float) -> void:
 		_intro_k = maxf(_intro_k - delta / 1.6, 0.0)
 	_camera.fov = lerpf(_camera.fov, lerpf(58.0, INTRO_FOV, _intro_k), clampf(delta * 3.0, 0.0, 1.0))
 	var want := _intro_eye(_intro_k)
+	# The south beach is a narrow strip under a steep jungle slope. Pull the
+	# camera in when the ground behind rises, so it stays on the sand instead
+	# of climbing into the palm canopy.
+	var pull := 1.0
+	while pull > 0.4 and _ground_y(want.x, want.z) > _player.global_position.y + 1.1:
+		pull -= 0.15
+		want = _player.global_position + (want - _player.global_position) * (pull / (pull + 0.15))
 	var gy := maxf(_ground_y(want.x, want.z), _ground_y(lerpf(want.x, _player.global_position.x, 0.5), lerpf(want.z, _player.global_position.z, 0.5)))
 	gy = maxf(gy, _water_y)
 	if want.y < gy + 1.8:
@@ -1999,10 +2006,10 @@ func _build_landing() -> void:
 	var root := Node3D.new()
 	root.name = "Landing"
 	add_child(root)
-	# Bow half lies along the beach ahead, rolled seaward so its keel faces the
+	# Bow half lies at the waterline ahead (clear of the walk east), rolled seaward so its keel faces the
 	# path and its deck does not read as a jetty. Mesh centre is local z +4.3.
 	var yaw := rad_to_deg(atan2(INTRO_FACING.x, INTRO_FACING.z))
-	var bow := _on_sand(root, Art.HULL_BOW, "BowHalf", _intro_at(7.5, -2.6) - INTRO_FACING * 4.3, Vector3(0, yaw, -42), 0.46, 0.9)
+	var bow := _on_sand(root, Art.HULL_BOW, "BowHalf", _intro_at(7.5, -4.4) - INTRO_FACING * 4.3, Vector3(0, yaw, -42), 0.46, 0.9)
 	_tone_wreck(bow)
 	# Stern half heeled over in the surf behind, sails furled and wet.
 	var stern_yaw := yaw + 150.0

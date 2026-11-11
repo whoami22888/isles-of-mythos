@@ -29,17 +29,18 @@ func run() -> void:
 		scene.skip_cinematic()
 	match pose:
 		"follow":
-			_walk(scene, Vector3(1.0, 0, 8.6), Vector3(1, 0, 0.15))
+			_walk(scene, Vector3(0.5, 0, 4.8), Vector3(1, 0, 0.25))
 		"hut":
 			scene._spot = 1
 			scene._move_hut()
 			scene._show_hut(3)
 			_walk(scene, scene._pad_position(1) + Vector3(-2.0, 0, -5.0), Vector3(0.35, 0, 1))
 		"dusk":
+			scene._health = 999
 			scene._begin_dusk()
 			_walk(scene, scene._landmark_position("camp") + Vector3(-3.5, 0, -3.5), Vector3(1, 0, 1))
 		"offshore":
-			_walk(scene, Vector3(-6.0, 0, 2.2), Vector3(0, 0, -1))
+			_walk(scene, Vector3(-5.0, 0, 2.6), Vector3(-0.1, 0, -1))
 	for _i in 30:
 		await process_frame
 		if pose == "wake":
