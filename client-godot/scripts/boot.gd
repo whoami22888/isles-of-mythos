@@ -1346,13 +1346,18 @@ func _launch_internal_gameplay(message: Dictionary) -> void:
         return
     _release_title_media()
     var scene_path := "res://gameplay/vertical_slice.tscn"
-    if not _opening_battle_done():
+    if _should_launch_opening_battle():
         scene_path = "res://gameplay/opening_battle.tscn"
     var gameplay = load(scene_path).instantiate()
     gameplay.begin_authenticated_session(_adapter._url, _adapter._token, _refresh_token)
     get_tree().root.add_child(gameplay)
     get_tree().current_scene = gameplay
     queue_free()
+
+## Unaccepted cinematic gameplay must never become a default onboarding path.
+## Only an explicit developer override in a debug build may run it.
+func _should_launch_opening_battle() -> bool:
+    return OS.has_feature("debug") and bool(ProjectSettings.get_setting("application/config/dev_opening_battle_enabled", false)) and not _opening_battle_done()
 
 func _opening_battle_done() -> bool:
     var cfg := ConfigFile.new()

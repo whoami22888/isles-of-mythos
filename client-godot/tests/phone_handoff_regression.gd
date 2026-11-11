@@ -28,9 +28,15 @@ func run() -> void:
 	default_boot._adapter.configure("ws://127.0.0.1:9/ws", "test-session")
 	default_boot._adapter._attempt_active = true
 	default_boot._adapter._auth_sent = true
+	ProjectSettings.set_setting("application/config/dev_opening_battle_enabled", false)
+	check(not default_boot._should_launch_opening_battle(), "Unaccepted opening must stay disabled by default")
+	ProjectSettings.set_setting("application/config/dev_opening_battle_enabled", true)
+	check(default_boot._should_launch_opening_battle() == (OS.has_feature("debug") and not default_boot._opening_battle_done()), "Developer opt-in must require a debug build and unfinished opening")
+	ProjectSettings.set_setting("application/config/dev_opening_battle_enabled", false)
 	ProjectSettings.set_setting("application/config/internal_gameplay_handoff", true)
 	default_boot._on_message({"type": "auth_ok", "userId": "test-user"})
 	check(current_scene != null and current_scene.has_method("begin_authenticated_session"), "Default phone boot must enter the gameplay world")
+	check(current_scene != null and current_scene.scene_file_path == "res://gameplay/vertical_slice.tscn", "Default phone login must not launch the unverified opening battle")
 	# The handoff frees the boot scene itself. Do not free it again.
 	var entered = current_scene
 	await process_frame
