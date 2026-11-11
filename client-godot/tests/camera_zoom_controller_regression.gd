@@ -132,8 +132,8 @@ func _run() -> void:
 	root.add_child(terrain)
 	camera.focus_point = Vector3.ZERO
 	camera._set_zoom(0.0)
-	camera._rendered_distance = camera.NEAR_DISTANCE
-	camera._rendered_pitch = camera.NEAR_PITCH
+	camera._rendered_distance = Controller.NEAR_DISTANCE
+	camera._rendered_pitch = Controller.NEAR_PITCH
 	await physics_frame
 	await physics_frame
 	assert(camera.global_position.y > 8.0 + camera.collision_clearance, "Raised terrain must not clip camera")
