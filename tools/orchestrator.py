@@ -39,6 +39,7 @@ import tempfile
 import threading
 import time
 from datetime import datetime, timezone
+from urllib.error import HTTPError, URLError
 
 try:
     import fcntl
@@ -69,6 +70,12 @@ _RATE_LIMIT = re.compile(
     r"\bhttp(?:/\d(?:\.\d)?)?\s*:?\s*429(?!\d)|\bstatus(?:[ _-]?code)?[\"']?\s*[:=]?\s*429(?!\d)|"
     r"\bcode[\"']?\s*[:=]?\s*429(?!\d)")
 _RETRY_AFTER = re.compile(r"(?i)retry[-_ ]?after[\"']?\s*[:=]\s*(\d+(?:\.\d+)?)")
+_NETWORK_FAILURE = re.compile(
+    r"(?i)\b(?:ECONNRESET|ECONNREFUSED|ENETUNREACH|EHOSTUNREACH|ETIMEDOUT|EAI_AGAIN)\b|"
+    r"\b(?:connection reset by peer|connection timed out|temporary failure in name resolution|"
+    r"network is unreachable|name or service not known)\b|"
+    r"\bcurl:\s*\((?:6|7|28|52|56)\)"
+)
 _VALUE = r"(?:\"[^\"\n]*\"|'[^'\n]*'|\S+)"
 _REDACTIONS = [
     # the whole Authorization value (scheme + credentials), quoted or not
@@ -149,6 +156,11 @@ def detect_rate_limit(returncode: int, output: str) -> tuple[bool, float | None]
         return False, None
     match = _RETRY_AFTER.search(output)
     return True, (min(float(match.group(1)), MAX_RETRY_AFTER) if match else None)
+
+
+def detect_network_dropout(returncode: int, output: str) -> bool:
+    """Only explicit network failures on non-successful commands are retryable."""
+    return returncode != 0 and bool(_NETWORK_FAILURE.search(output or ""))
 
 
 def redact(text: str) -> str:
@@ -531,6 +543,34 @@ class Orchestrator:
                     if self._head_moved(plan, completed, baseline, step["id"]):
                         return EXIT_FAILED
                     return self._rate_limited(plan, completed, step["id"], limited.retry_after, str(limited))
+                except HTTPError as response:
+                    if self._head_moved(plan, completed, baseline, step["id"]):
+                        return EXIT_FAILED
+                    if response.code == 429:
+                        raw_retry = (
+                            response.headers.get("Retry-After")
+                            if response.headers else None
+                        )
+                        try:
+                            delay = (
+                                min(max(float(raw_retry), 0.0), MAX_RETRY_AFTER)
+                                if raw_retry else None
+                            )
+                        except (ValueError, TypeError):
+                            delay = None
+                        return self._rate_limited(plan, completed, step["id"], delay, "HTTP 429")
+                    self._save(
+                        plan, completed, step["id"], "failed",
+                        reason=f"HTTP {response.code}",
+                    )
+                    return EXIT_FAILED
+                except (URLError, ConnectionError, TimeoutError) as interruption:
+                    if self._head_moved(plan, completed, baseline, step["id"]):
+                        return EXIT_FAILED
+                    return self._network_interrupted(
+                        plan, completed, step["id"],
+                        type(interruption).__name__,
+                    )
                 if self._head_moved(plan, completed, baseline, step["id"]):
                     return EXIT_FAILED
                 if code == 0:
@@ -551,6 +591,8 @@ class Orchestrator:
                 throttled, retry_after = detect_rate_limit(code, output)
                 if throttled:
                     return self._rate_limited(plan, completed, step["id"], retry_after, output)
+                if detect_network_dropout(code, output):
+                    return self._network_interrupted(plan, completed, step["id"], output)
                 self._save(plan, completed, step["id"], "failed", reason=f"step {step['id']} exited {code}", tail=output)
                 self.log(f"step {step['id']} failed (exit {code}); checkpoint kept for diagnosis")
                 return EXIT_FAILED
@@ -559,6 +601,17 @@ class Orchestrator:
         self.checkpoint.unlink(missing_ok=True)
         self.log("all steps complete")
         return EXIT_OK
+
+    def _network_interrupted(self, plan, completed, pending, tail) -> int:
+        self._save(
+            plan, completed, pending, "checkpointed",
+            reason="network_interruption", tail=tail,
+        )
+        self.log(
+            f"network interruption at step {pending}; "
+            "checkpoint written; resume with --resume"
+        )
+        return EXIT_RATE_LIMITED
 
     def _rate_limited(self, plan, completed, pending, retry_after, tail) -> int:
         self._save(plan, completed, pending, "checkpointed", reason="rate_limited", retry_after=retry_after, tail=tail)
