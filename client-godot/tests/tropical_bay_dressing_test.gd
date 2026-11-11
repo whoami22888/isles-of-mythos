@@ -18,6 +18,29 @@ func run() -> void:
 	if palms and palms.multimesh:
 		ok = _check(palms.multimesh.visible_instance_count >= 24, "enough palms for a grove") and ok
 		ok = _check(palms.multimesh.visible_instance_count <= 96, "palm instance cap") and ok
+	# Shader-bound foliage must preserve instance budgets, use the same
+	# first-party shader for both types and keep a zero-displacement root.
+	var foliage_shader := load("res://shaders/tropical_foliage_wind.gdshader")
+	for case in [[palms, 3.4, 0.13], [grass, 0.55, 0.065]]:
+		var foliage: MultiMeshInstance3D = case[0]
+		if foliage == null:
+			continue
+		var shader_material := foliage.material_override as ShaderMaterial
+		ok = _check(shader_material != null, "foliage has animated material") and ok
+		if shader_material:
+			ok = _check(shader_material.shader == foliage_shader, "foliage shares wind shader") and ok
+			ok = _check(is_equal_approx(float(shader_material.get_shader_parameter("canopy_height")), float(case[1])),
+				"foliage height is configured") and ok
+			ok = _check(is_equal_approx(float(shader_material.get_shader_parameter("wind_strength")), float(case[2])),
+				"foliage wind amplitude is bounded") and ok
+			ok = _check(is_equal_approx(float(shader_material.get_shader_parameter("capture_time_seconds")), -1.0),
+				"foliage defaults to live engine time") and ok
+			# Capture time must be writable without swapping shaders or altering
+			# the runtime wind-strength setting; the renderer drives logical FPS.
+			shader_material.set_shader_parameter("capture_time_seconds", 1.25)
+			ok = _check(is_equal_approx(float(shader_material.get_shader_parameter("capture_time_seconds")), 1.25),
+				"foliage accepts a deterministic capture clock") and ok
+			shader_material.set_shader_parameter("capture_time_seconds", -1.0)
 	var dressing_script = load("res://scripts/tropical_bay_dressing.gd")
 	ok = _check(dressing_script.palm_triangle_count() < 120, "palm mesh stays cheap") and ok
 	ok = _check(scene.get_node_or_null("TropicalBayDressing/DistantVolcano") != null, "volcano landmark") and ok
