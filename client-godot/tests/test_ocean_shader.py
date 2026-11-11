@@ -82,11 +82,11 @@ class OceanShaderContractTests(unittest.TestCase):
         """Prevent signed tangent normals from corrupting mobile water lighting."""
         self.assertRegex(
             self.code,
-            r"NORMAL_MAP\\s*=\\s*normalize\\s*\\(\\s*vec3\\s*\\(",
+            r"NORMAL_MAP\s*=\s*normalize\s*\(\s*vec3\s*\(",
         )
         self.assertRegex(
             self.code,
-            r"\\)\\s*\\)\\s*\\*\\s*0\\.5\\s*\\+\\s*0\\.5\\s*;",
+            r"\)\s*\)\s*\*\s*0\.5\s*\+\s*0\.5\s*;",
         )
 
     def test_foam_is_bounded(self):
