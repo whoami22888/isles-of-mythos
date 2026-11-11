@@ -1,0 +1,43 @@
+name: IOM Bow Contact VFX
+
+on:
+  pull_request:
+    paths:
+      - "client-godot/scripts/ship_bow_spray_effect.gd"
+      - "client-godot/shaders/ship_bow_spray.gdshader"
+      - "client-godot/tests/ship_bow_spray_test.gd"
+      - ".github/workflows/iom-bow-contact.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bow-contact:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: Check out exact PR head
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Install checksum-pinned Godot 4.7.2
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 -o "$RUNNER_TEMP/godot.zip" "https://github.com/godotengine/godot/releases/download/4.7.2-stable/Godot_v4.7.2-stable_linux.x86_64.zip"
+          echo "cadd3204e728a35d3f13adb7fd0d7902636b79f6b95c40c265eb73b6c35329e4  $RUNNER_TEMP/godot.zip" | sha256sum --check
+          unzip -q "$RUNNER_TEMP/godot.zip" -d "$RUNNER_TEMP"
+          install "$RUNNER_TEMP/Godot_v4.7.2-stable_linux.x86_64" "$RUNNER_TEMP/godot"
+      - name: Import scene and run focused bow-spray contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout --signal=TERM --kill-after=10s 150s "$RUNNER_TEMP/godot" --headless --editor --path client-godot --quit --import
+          timeout --signal=TERM --kill-after=10s 150s "$RUNNER_TEMP/godot" --headless --path client-godot --script res://tests/ship_bow_spray_test.gd
+      - name: Baseline Android client smoke contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout --signal=TERM --kill-after=10s 150s "$RUNNER_TEMP/godot" --headless --path client-godot --script res://tests/island_preview_smoke.gd
