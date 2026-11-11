@@ -12,6 +12,9 @@ func _run() -> void:
 	camera.terrain_collision_mask = 1 # _ready must not query a locked physics space
 	root.add_child(camera)
 	await process_frame
+	# Manual interpolation calls below are not physics callbacks; keep raycasts off.
+	# The raised-terrain test at the end re-enables the mask on real physics ticks.
+	camera.terrain_collision_mask = 0
 	assert(is_equal_approx(camera.global_position.distance_to(camera.focus_point), 10.0), "Near camera distance")
 	assert(is_equal_approx(rad_to_deg(camera.rotation.x), -45.0), "Near camera pitch")
 	var transitions: Array[bool] = []
