@@ -460,11 +460,15 @@ func _follow_camera() -> void:
 	var ground_y := _surface_height(wanted.x, wanted.z) + 2.2
 	if wanted.y < ground_y:
 		wanted.y = ground_y
-	if not _camera_ready_follow:
+	if not _camera_ready_follow or _camera_smoothed.distance_to(wanted) > 8.0:
 		_camera_smoothed = wanted
 		_camera_ready_follow = true
 	else:
-		_camera_smoothed = _camera_smoothed.lerp(wanted, 1.0 - exp(-CAMERA_FOLLOW_RATE * get_process_delta_time()))
+		var dt := get_process_delta_time()
+		if dt <= 0.0001:
+			_camera_smoothed = wanted
+		else:
+			_camera_smoothed = _camera_smoothed.lerp(wanted, 1.0 - exp(-CAMERA_FOLLOW_RATE * dt))
 	camera.look_at_from_position(_camera_smoothed, target + Vector3(0, 1.0, 0))
 	_frame_player_in_play_area(camera)
 	_fade_occluders(camera.global_position, target + Vector3(0, 1.2, 0))

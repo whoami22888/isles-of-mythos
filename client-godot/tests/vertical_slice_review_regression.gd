@@ -61,6 +61,10 @@ func run() -> void:
 	var cam_offset: Vector3 = cam.position - world._player
 	check(cam_offset.is_equal_approx(expected_offset), "camera follows the authoritative player (offset from player), got %s" % [cam_offset])
 	world._on_player_state({"x": 101.0, "y": -41.0})
+	# A 1 m server step is inside the lerp window; snap so this frame-level
+	# assertion still sees the follow offset.
+	world._camera_ready_follow = false
+	world._follow_camera()
 	check((cam.position - world._player).is_equal_approx(expected_offset), "camera keeps following on every player_state")
 	world._on_player_state({"x": 101.0, "y": -41.0})
 	check(stub.chunk_requests.size() == 1, "same chunk is not re-requested on every state")
