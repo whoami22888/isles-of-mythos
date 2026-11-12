@@ -174,7 +174,7 @@ test("a stale source lock entry fails despite another valid import", () => {
   const files = { "assets-src/H01/palm.glb": "palm", "vendor/kit/LICENSE.txt": "CC0" };
   const stale = sourceEntry({ path: "assets-src/H01/deleted.glb" });
   const errs = validateVendorLock(repo(files, { version: "1.0.0", assets: [sourceEntry(), stale] })).join("\\n");
-  assert.match(errs, /locked import missing assets-src\\/H01\\/deleted\\.glb/);
+  assert.ok(errs.includes("locked import missing assets-src/H01/deleted.glb"));
 });
 test("all present locked source imports continue to pass", () => {
   const files = { "assets-src/H01/palm.glb": "palm", "vendor/kit/LICENSE.txt": "CC0" };
