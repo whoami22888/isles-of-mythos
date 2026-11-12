@@ -24,7 +24,8 @@ function repo(files = {}, lock, manifest) {
 }
 const entry = (over = {}) => ({
   path: "vendor/kit/palm.glb", sha256: sha("palm"), license: "CC0-1.0",
-  license_path: "vendor/kit/LICENSE.txt", source_url: "https://polyhaven.com/a/palm", ...over
+  license_path: "vendor/kit/LICENSE.txt", source_url: "https://polyhaven.com/a/palm",
+  vendor: "Test Fixture Vendor", source_revision: "1234567890abcdef1234567890abcdef12345678", ...over
 });
 const good = { "vendor/kit/palm.glb": "palm", "vendor/kit/LICENSE.txt": "CC0" };
 
