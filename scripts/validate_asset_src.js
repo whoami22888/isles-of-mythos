@@ -17,7 +17,10 @@ function fileHash(path) {
 function validateAssetSourceTree(repositoryRoot, lockEntries) {
   const root = resolve(repositoryRoot);
   const sourceRoot = join(root, "assets-src");
-  if (!existsSync(sourceRoot)) return [];
+  const sourceLocks = lockEntries.filter((entry) => entry && typeof entry.path === "string" && entry.path.startsWith("assets-src/"));
+  if (!existsSync(sourceRoot)) {
+    return sourceLocks.map((entry) => "assets-src: locked import missing " + entry.path);
+  }
   const errors = [];
   const stat = lstatSync(sourceRoot);
   if (stat.isSymbolicLink() || !stat.isDirectory()) {
@@ -31,6 +34,7 @@ function validateAssetSourceTree(repositoryRoot, lockEntries) {
     entries.set(entry.path, entry);
   }
 
+  const observed = new Set();
   function inspect(directory) {
     for (const filename of readdirSync(directory).sort()) {
       const absolute = join(directory, filename);
@@ -48,6 +52,7 @@ function validateAssetSourceTree(repositoryRoot, lockEntries) {
         errors.push("assets-src: non-regular file rejected: " + rel);
         continue;
       }
+      observed.add(rel);
       const actual = fileHash(absolute);
       const record = entries.get(rel);
       if (!record) {
@@ -66,6 +71,9 @@ function validateAssetSourceTree(repositoryRoot, lockEntries) {
     }
   }
   inspect(sourceRoot);
+  for (const path of entries.keys()) {
+    if (!observed.has(path)) errors.push("assets-src: locked import missing " + path);
+  }
   return errors;
 }
 
