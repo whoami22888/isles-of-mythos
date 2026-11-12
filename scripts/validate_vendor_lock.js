@@ -105,6 +105,8 @@ function validateVendorLock(root = resolve(__dirname, "..")) {
     if (typeof asset.sha256 !== "string" || !HASH.test(asset.sha256)) errors.push(`${at}: sha256 must be 64 lowercase hex characters`);
     if (!LICENSES.has(asset.license)) errors.push(`${at}: license "${asset.license}" is not allowlisted; review before admission`);
     if (typeof asset.source_url !== "string" || !asset.source_url.startsWith("https://")) errors.push(`${at}: source_url must be https`);
+    if (typeof asset.vendor !== "string" || !asset.vendor.trim()) errors.push(`${at}: vendor must be a non-empty string`);
+    if (typeof asset.source_revision !== "string" || !/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/.test(asset.source_revision)) errors.push(`${at}: source_revision must be an immutable 40/64-character lowercase hex revision`);
     if (typeof asset.license_path !== "string" || !asset.license_path.trim()) {
       errors.push(`${at}: license_path is required`);
     } else {
