@@ -23,6 +23,10 @@ var vol_inside_frames := 0
 var vol_blocked_frames := 0
 var vol_visible_block_frames := 0
 var vol_head_inside_frames := 0
+var section := "start"
+var sec_frames := {}
+var sec_block := {}
+var sec_inside := {}
 var steps_seen: Dictionary = {}
 var shot_i := 0
 
@@ -101,6 +105,11 @@ func _watch_camera() -> void:
 		if (b2 as AABB).has_point(head):
 			vol_head_inside_frames += 1
 			break
+	sec_frames[section] = int(sec_frames.get(section, 0)) + 1
+	if v_block:
+		sec_block[section] = int(sec_block.get(section, 0)) + 1
+	if v_inside:
+		sec_inside[section] = int(sec_inside.get(section, 0)) + 1
 	if v_inside:
 		vol_inside_frames += 1
 	if v_block:
@@ -254,6 +263,7 @@ func run() -> void:
 	var pc := func(n: int) -> float: return 100.0 * n / maxf(cam_frames, 1)
 	say("CAMERA (scene foliage volumes): camera inside %d (%.1f%%), between camera and player %d (%.1f%%), still opaque after canopy fade %d (%.1f%%)" % [
 		vol_inside_frames, pc.call(vol_inside_frames), vol_blocked_frames, pc.call(vol_blocked_frames), vol_visible_block_frames, pc.call(vol_visible_block_frames)])
+	say("CAMERA by section (frames / scene-volume blocked / camera inside): %s / %s / %s" % [sec_frames, sec_block, sec_inside])
 	say("CAMERA: castaway's own head inside a foliage volume (walking through shrubs) %d (%.1f%%)" % [vol_head_inside_frames, pc.call(vol_head_inside_frames)])
 	say("final step=%s inventory=%s" % [g("_step"), inv()])
 	var path := OS.get_environment("IOM_BOT_LOG")
@@ -268,6 +278,7 @@ func run() -> void:
 	quit(0)
 
 func test_tap_gather() -> void:
+	section = "tap"
 	say("--- TAP-TO-GATHER on visible models")
 	var nodes: Array = g("_nodes", [])
 	var player: Node3D = g("_player")
@@ -304,6 +315,7 @@ func test_tap_gather() -> void:
 			break
 
 func test_follow_quest(budget: float) -> void:
+	section = "quest"
 	say("--- FOLLOW THE QUEST (budget %.0fs)" % budget)
 	var start := t
 	var last_step := ""
@@ -364,6 +376,7 @@ func test_follow_quest(budget: float) -> void:
 	say("quest run: %d action presses, steps reached %s" % [acts, steps_seen])
 
 func test_pet() -> void:
+	section = "pet"
 	say("--- PET")
 	var pet: Node3D = g("_pet")
 	if pet == null or not bool(g("_pet_freed", false)):
@@ -403,6 +416,7 @@ func test_pet() -> void:
 		dist_sum / maxf(n, 1), int(g("_pet_finds", 0)) - found_before, before, after, g("_pet_stats")])
 
 func test_cliff() -> void:
+	section = "cliff"
 	say("--- CLIFF CLIMB (walk straight at the summit for 40s)")
 	var player: Node3D = g("_player")
 	var summit := Vector3(-4, 0, 16)

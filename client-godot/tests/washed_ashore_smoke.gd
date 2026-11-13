@@ -81,7 +81,10 @@ func run() -> void:
 	scene._player.global_position = (hull["root"] as Node3D).global_position
 	var before := int(scene._inv.get("planks", 0))
 	scene.on_action()
-	check(int(scene._inv.get("planks", 0)) > before, "Hull sections drop planks")
+	check(int(scene._inv.get("planks", 0)) == before, "First hull hit only cracks it (multi-hit gathering)")
+	scene._gather_lock = 0.0
+	scene.on_action()
+	check(int(scene._inv.get("planks", 0)) > before, "Second hull hit breaks off planks")
 	await build_and_pet_checks(scene)
 	scene._fire_lit = false
 	scene._dusk_active = true
@@ -152,10 +155,11 @@ func build_and_pet_checks(scene) -> void:
 	scene._pet.visible = true
 	scene._enter("gather")
 	check(scene.quest_line().begins_with("Gather"), "Gather goal shows counts")
-	scene._inv["wood"] = 9
-	scene._inv["stone"] = 9
+	scene._inv["wood"] = 14
+	scene._inv["stone"] = 12
 	scene._inv["fibre"] = 9
 	scene._inv["planks"] = 9
+	scene._inv["rope"] = 9
 	scene._tick_quest(0.1)
 	check(scene._step == "fire", "Enough wood and stone moves on to the campfire")
 	# Build menu -> ghost -> place.
@@ -168,14 +172,25 @@ func build_and_pet_checks(scene) -> void:
 	var wood_before := int(scene._inv["wood"])
 	scene.on_build_place()
 	check(scene._fire_lit, "Placing the campfire lights it")
-	check(int(scene._inv["wood"]) == wood_before - 3, "Campfire costs wood")
-	check(scene._step == "shelter" and scene._storm_left > 100.0, "Fire leads to the lean-to with a storm timer")
+	check(int(scene._inv["wood"]) == wood_before - 4, "Campfire costs wood")
+	check(scene._step == "cook", "Fire leads to catching and cooking fish")
+	scene._inv["fish"] = 2
+	scene._player.global_position = scene._pit_position() + Vector3(1.0, 0, 0)
+	scene._cook()
+	scene._cook()
+	check(scene._fish_cooked == 2 and int(scene._inv.get("cooked", 0)) >= 2, "Two fish cooked at the fire")
+	var bond_before := int(scene._pet_stats.get("bond", 0))
+	scene._pet.global_position = scene._player.global_position + Vector3(0.8, 0, 0)
+	scene.on_action()
+	check(int(scene._pet_stats.get("bond", 0)) >= bond_before + 20, "Feeding Tide-Puck a cooked fish builds the bond")
+	check(scene._bond_level() >= 2, "Bond Lv 2 unlocks Fetch")
+	check(scene._step == "shelter" and scene._storm_left > 100.0, "Feeding leads to the lean-to with a storm timer")
 	scene.on_build_pick("lean_to")
 	scene._ghost_pin = scene._build_spot()
 	scene._tick_ghost()
 	scene.on_build_place()
 	check(scene._building, "The lean-to goes up in stages")
-	for i in 10:
+	for i in 16:
 		scene._tick_build(0.5)
 	check(scene._shelter and scene._hut_stage == 3, "The lean-to finishes")
 	check(scene._step == "dusk", "Shelter before the storm leads to dusk")

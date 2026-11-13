@@ -353,12 +353,12 @@ func on_action() -> void:
 		if not pile.is_empty() and _near((pile.get("root") as Node3D).global_position, 3.5):
 			_free_pet()
 			return
+	if _step == "cook" and _fish_cooked >= COOK_FISH and _pet_freed and _near(_pet.global_position, 2.8) and int(_inv.get("cooked", 0)) > 0:
+		_feed_cooked_fish()
+		return
 	var node := _nearest_node(3.5)
 	if not node.is_empty():
 		_act_on_node(node)
-		return
-	if _step == "cook" and _fish_cooked >= COOK_FISH and _pet_freed and _near(_pet.global_position, 2.8) and int(_inv.get("cooked", 0)) > 0:
-		_feed_cooked_fish()
 		return
 	if _fire_lit and _near(_pit_position(), 3.4) and _raw_food() != "":
 		_cook()

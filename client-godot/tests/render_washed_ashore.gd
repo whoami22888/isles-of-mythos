@@ -66,7 +66,7 @@ func run() -> void:
 				scene._ghost_pin = scene._nearest_site("lean_to", scene._player.global_position + Vector3(2.5, 0, 2.5), 6.0)
 				scene._tick_ghost()
 				scene.on_build_place()
-				for i in 10:
+				for i in 16:
 					scene._tick_build(0.5)
 				scene._cam_yaw += 0.35
 		"pet_point":
