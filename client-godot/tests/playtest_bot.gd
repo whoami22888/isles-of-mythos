@@ -17,6 +17,11 @@ var cam_blocked_frames := 0
 var cam_inside_frames := 0
 var cam_hard_frames := 0
 var cam_frames := 0
+var vol_boxes: Array = []
+var vol_mats: Array = []
+var vol_inside_frames := 0
+var vol_blocked_frames := 0
+var vol_visible_block_frames := 0
 var steps_seen: Dictionary = {}
 var shot_i := 0
 
@@ -71,6 +76,32 @@ func _watch_camera() -> void:
 			var far_end: Vector3 = hit if exit_hit == null else exit_hit
 			if eye.distance_to(far_end) > 2.8:
 				hard = true
+	# The scene's own foliage volumes (palm trunk + crown split, shrubs) and
+	# whether a block is still opaque after the canopy fade.
+	var v_inside := false
+	var v_block := false
+	var v_vis := false
+	for k in vol_boxes.size():
+		var b: AABB = vol_boxes[k]
+		if b.has_point(eye):
+			v_inside = true
+		var h = b.intersects_segment(eye, head)
+		if h == null or b.has_point(head):
+			continue
+		v_block = true
+		var ex = b.intersects_segment(head, eye)
+		var far_pt: Vector3 = h if ex == null else ex
+		var reach := 0.0
+		for m in vol_mats[k]:
+			reach = maxf(reach, float(scene.foliage_fade_reach(m)))
+		if eye.distance_to(far_pt) > reach:
+			v_vis = true
+	if v_inside:
+		vol_inside_frames += 1
+	if v_block:
+		vol_blocked_frames += 1
+	if v_vis:
+		vol_visible_block_frames += 1
 	if inside:
 		cam_inside_frames += 1
 	if blocked:
@@ -101,7 +132,9 @@ func collect_foliage() -> void:
 			var box: AABB = mi.global_transform * mi.get_aabb()
 			if box.size.y > 0.9:
 				foliage.append(box)
-	say("foliage volumes tracked: %d" % foliage.size())
+	vol_boxes = (g("_foliage_boxes", []) as Array).duplicate()
+	vol_mats = (g("_foliage_mats", []) as Array).duplicate()
+	say("foliage volumes tracked: %d raw AABBs, %d scene volumes" % [foliage.size(), vol_boxes.size()])
 
 # --- input helpers -------------------------------------------------------
 func touch(pos: Vector2, pressed: bool, index: int = 0) -> void:
@@ -213,6 +246,9 @@ func run() -> void:
 		cam_frames, cam_inside_frames, 100.0 * cam_inside_frames / maxf(cam_frames, 1),
 		cam_blocked_frames, 100.0 * cam_blocked_frames / maxf(cam_frames, 1)])
 	say("CAMERA: foliage bounding box blocking beyond the 2.8 m near-lens dither %d frames (%.1f%%)" % [cam_hard_frames, 100.0 * cam_hard_frames / maxf(cam_frames, 1)])
+	var pc := func(n: int) -> float: return 100.0 * n / maxf(cam_frames, 1)
+	say("CAMERA (scene foliage volumes): camera inside %d (%.1f%%), between camera and player %d (%.1f%%), still opaque after canopy fade %d (%.1f%%)" % [
+		vol_inside_frames, pc.call(vol_inside_frames), vol_blocked_frames, pc.call(vol_blocked_frames), vol_visible_block_frames, pc.call(vol_visible_block_frames)])
 	say("final step=%s inventory=%s" % [g("_step"), inv()])
 	var path := OS.get_environment("IOM_BOT_LOG")
 	if path != "":

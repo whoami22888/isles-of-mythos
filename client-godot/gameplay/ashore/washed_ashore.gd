@@ -70,6 +70,8 @@ const DYNAMIC_STEPS := ["scavenge", "gather", "fire", "shelter"]
 const FOLIAGE_WORDS := ["Palm", "Canopy", "Shrub", "Cover", "Understory", "Calathea"]
 const GATHER_WOOD := 5
 const GATHER_STONE := 4
+const NEAR_FADE_MIN := 0.9
+const NEAR_FADE_MAX := 2.8
 
 var _endpoint := ""
 var _token := ""
@@ -178,6 +180,14 @@ var _dig_serial := 0
 var _steep_t := 0.0
 var _foliage_boxes: Array = []
 var _cam_pull := 1.0
+var _cam_probe_t := 0.0
+var _cam_yaw_goal := 0.0
+var _cam_lift := 0.0
+var _cam_lift_goal := 0.0
+var _cam_orbit_hold := 0.0
+var _foliage_mats: Array = []
+var _fade_mats: Array = []
+var _occluding: Dictionary = {}
 var _drag_id := -2
 var _drag_from := Vector2.ZERO
 var _drag_moved := false
@@ -857,14 +867,32 @@ func _follow_camera(delta: float) -> void:
 	while pull > 0.4 and _ground_y(want.x, want.z) > _player.global_position.y + 1.1:
 		pull -= 0.15
 		want = _player.global_position + (want - _player.global_position) * (pull / (pull + 0.15))
-	# Foliage between the castaway and the lens pulls the camera in (fast),
-	# then it eases back out (slow) once the line of sight is clear.
+	# Foliage between the castaway and the lens: first swing/raise the
+	# camera toward a clear view (eased), then pull in (fast) for whatever
+	# still blocks, easing back out (slow) once the line of sight is clear.
 	var head := _player.global_position + Vector3.UP * 1.5
+	_cam_probe_t -= delta
+	if _cam_probe_t <= 0.0:
+		_cam_probe_t = 0.12
+		_probe_clear_view(head)
+	if _cam_orbit_hold > 0.0:
+		_cam_orbit_hold -= delta
+		_cam_yaw_goal = 0.0
+	if absf(_cam_yaw_goal) > 0.001:
+		var turn := clampf(_cam_yaw_goal, -delta * 2.2, delta * 2.2)
+		_cam_yaw += turn
+		_cam_yaw_goal -= turn
+	_cam_lift = lerpf(_cam_lift, _cam_lift_goal, 1.0 - exp(-delta * 3.0))
+	want = _intro_eye(_intro_k) + Vector3.UP * _cam_lift
+	pull = 1.0
+	while pull > 0.4 and _ground_y(want.x, want.z) > _player.global_position.y + 1.1:
+		pull -= 0.15
+		want = _player.global_position + (want - _player.global_position) * (pull / (pull + 0.15))
 	var full := head.distance_to(want)
 	var hit := _foliage_hit(head, want)
 	var target := 1.0
 	if hit < 1.0 and full > 0.1:
-		target = clampf((hit * full - 0.4) / full, 2.3 / full, 1.0)
+		target = clampf((hit * full - 0.4) / full, 2.0 / full, 1.0)
 	if target < _cam_pull:
 		_cam_pull = lerpf(_cam_pull, target, 1.0 - exp(-delta * 14.0))
 	else:
@@ -876,8 +904,14 @@ func _follow_camera(delta: float) -> void:
 		want.y = gy + 1.8
 	var rate := 4.0 if _cam_pull > 0.98 else 10.0
 	var blend := 1.0 - exp(-delta * rate)
-	_camera.global_position = _camera.global_position.lerp(want, blend)
+	var eye := _camera.global_position.lerp(want, blend)
+	var tries := 0
+	while _foliage_inside(eye) and tries < 8 and eye.distance_to(head) > 1.6:
+		eye = head + (eye - head) * 0.85
+		tries += 1
+	_camera.global_position = eye
 	_camera.look_at(_player.global_position + Vector3.UP * lerpf(2.0, INTRO_LOOK_UP, _intro_k), Vector3.UP)
+	_fade_occluders(eye, head, delta)
 
 
 ## Snap straight to the post-wake intro framing (skip button and captures).
@@ -3366,6 +3400,7 @@ func _orbit_drag(pos: Vector2, relative: Vector2) -> void:
 		_drag_moved = true
 	if _drag_moved and _cinematic == "" and not _fork and not _qte:
 		_cam_yaw -= relative.x * 0.0065
+		_cam_orbit_hold = 2.0
 
 
 func _slope_at(x: float, z: float, r: float) -> float:
@@ -3981,6 +4016,8 @@ func bot_goal() -> Dictionary:
 ## the lens dissolve instead of filling the frame.
 func _prepare_foliage() -> void:
 	_foliage_boxes.clear()
+	_foliage_mats.clear()
+	_fade_mats.clear()
 	if _slice:
 		for mmi in _slice.find_children("*", "MultiMeshInstance3D", true, false):
 			var n := str(mmi.name)
@@ -3993,11 +4030,11 @@ func _prepare_foliage() -> void:
 			var mm: MultiMesh = (mmi as MultiMeshInstance3D).multimesh
 			if mm == null or mm.mesh == null:
 				continue
-			_dither(mm.mesh)
+			var mats := _dither(mm.mesh)
 			var local := mm.mesh.get_aabb()
 			for i in mm.instance_count:
 				var box: AABB = ((mmi as Node3D).global_transform * mm.get_instance_transform(i)) * local
-				_add_foliage_box(box, "Palm" in n)
+				_add_foliage_box(box, "Palm" in n, mats)
 	for mi in find_children("*", "MeshInstance3D", true, false):
 		var path := str(get_path_to(mi)).to_lower()
 		if path.begins_with("nodes") or path.begins_with("buildghost"):
@@ -4009,32 +4046,108 @@ func _prepare_foliage() -> void:
 		var m := mi as MeshInstance3D
 		if m.mesh == null:
 			continue
-		_dither(m.mesh)
+		var mats := _dither(m.mesh)
 		var box: AABB = m.global_transform * m.get_aabb()
-		_add_foliage_box(box, box.size.y > 2.6)
+		_add_foliage_box(box, box.size.y > 2.6, mats)
 
 
-func _add_foliage_box(box: AABB, tree: bool) -> void:
+func _add_foliage_box(box: AABB, tree: bool, mats: Array = []) -> void:
 	if box.size.y < 1.1:
 		return
 	if not tree:
 		_foliage_boxes.append(box.grow(-0.12))
+		_foliage_mats.append(mats)
 		return
 	var c := box.position + box.size * 0.5
 	var trunk_h := box.size.y * 0.6
 	_foliage_boxes.append(AABB(Vector3(c.x - 0.3, box.position.y, c.z - 0.3), Vector3(0.6, trunk_h, 0.6)))
+	_foliage_mats.append(mats)
 	_foliage_boxes.append(AABB(Vector3(box.position.x, box.position.y + trunk_h, box.position.z), Vector3(box.size.x, box.size.y - trunk_h, box.size.z)).grow(-0.2))
+	_foliage_mats.append(mats)
 
 
-func _dither(mesh: Mesh) -> void:
+## Near-lens dither on every foliage material; returns the materials so the
+## canopy fade can widen the dither on whatever blocks the castaway.
+func _dither(mesh: Mesh) -> Array:
+	var out: Array = []
 	for i in mesh.get_surface_count():
 		var mat := mesh.surface_get_material(i)
-		if mat is StandardMaterial3D and not mat.has_meta("iom_dither"):
-			var std := mat as StandardMaterial3D
+		if not (mat is StandardMaterial3D):
+			continue
+		var std := mat as StandardMaterial3D
+		if not std.has_meta("iom_dither"):
 			std.set_meta("iom_dither", true)
 			std.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_PIXEL_DITHER
-			std.distance_fade_min_distance = 0.9
-			std.distance_fade_max_distance = 2.8
+			std.distance_fade_min_distance = NEAR_FADE_MIN
+			std.distance_fade_max_distance = NEAR_FADE_MAX
+			_fade_mats.append(std)
+		out.append(std)
+	return out
+
+
+func _foliage_inside(p: Vector3) -> bool:
+	for box in _foliage_boxes:
+		var b: AABB = box
+		if b.has_point(p):
+			return true
+	return false
+
+
+## Look for a clear line to the castaway: the current yaw, then small swings
+## either side, then a higher lift that looks over the shrubs. The camera
+## eases toward the first clear option; no option means pull-in only.
+func _probe_clear_view(head: Vector3) -> void:
+	if _intro_k > 0.0 or _foliage_boxes.is_empty():
+		_cam_yaw_goal = 0.0
+		_cam_lift_goal = 0.0
+		return
+	for lift in [0.0, 1.6, 3.0]:
+		for off in [0.0, 0.3, -0.3, 0.6, -0.6, 0.9, -0.9]:
+			if _cam_orbit_hold > 0.0 and absf(off) > 0.0:
+				continue
+			var back := Basis(Vector3.UP, _cam_yaw + off).z
+			var eye: Vector3 = _player.global_position + back * FOLLOW_BACK + Vector3.UP * (FOLLOW_UP + lift)
+			if _ground_y(eye.x, eye.z) > _player.global_position.y + 1.1:
+				continue
+			if _foliage_inside(eye) or _foliage_hit(head, eye) < 1.0:
+				continue
+			_cam_yaw_goal = off
+			_cam_lift_goal = lift
+			return
+	_cam_yaw_goal = 0.0
+	_cam_lift_goal = 1.6
+
+
+## Canopy fade: foliage that still sits between the lens and the castaway
+## gets its pixel dither widened out to just short of the player, so the
+## leaves dissolve instead of hiding them. Eases back when clear.
+func _fade_occluders(eye: Vector3, head: Vector3, delta: float) -> void:
+	_occluding.clear()
+	var reach := eye.distance_to(head) - 0.9
+	for i in _foliage_boxes.size():
+		var b: AABB = _foliage_boxes[i]
+		var c := b.position + b.size * 0.5
+		if absf(c.x - head.x) > 14.0 or absf(c.z - head.z) > 14.0:
+			continue
+		if b.has_point(head):
+			continue
+		if b.intersects_segment(eye, head) != null:
+			for m in _foliage_mats[i]:
+				_occluding[m] = true
+	var k := 1.0 - exp(-delta * 6.0)
+	for m in _fade_mats:
+		var std := m as StandardMaterial3D
+		var goal := maxf(reach, NEAR_FADE_MAX) if _occluding.has(std) else NEAR_FADE_MAX
+		std.distance_fade_max_distance = lerpf(std.distance_fade_max_distance, goal, k)
+		std.distance_fade_min_distance = minf(NEAR_FADE_MIN + (std.distance_fade_max_distance - NEAR_FADE_MAX) * 0.8, std.distance_fade_max_distance - 0.6)
+
+
+## How far from the lens a foliage material dissolves right now (the canopy
+## fade widens this while the material blocks the castaway).
+func foliage_fade_reach(mat: Material) -> float:
+	if mat is StandardMaterial3D and (mat as StandardMaterial3D).has_meta("iom_dither"):
+		return (mat as StandardMaterial3D).distance_fade_max_distance
+	return 0.0
 
 
 ## Fraction along head->eye of the first foliage hit (1.0 = clear).
