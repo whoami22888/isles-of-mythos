@@ -192,6 +192,7 @@ var _cam_orbit_hold := 0.0
 var _foliage_mats: Array = []
 var _fade_mats: Array = []
 var _occluding: Dictionary = {}
+var _foliage_links: Array = []
 var _drag_id := -2
 var _drag_from := Vector2.ZERO
 var _drag_moved := false
@@ -4121,6 +4122,7 @@ func bot_goal() -> Dictionary:
 func _prepare_foliage() -> void:
 	_foliage_boxes.clear()
 	_foliage_mats.clear()
+	_foliage_links.clear()
 	_fade_mats.clear()
 	if _slice:
 		for mmi in _slice.find_children("*", "MultiMeshInstance3D", true, false):
@@ -4141,7 +4143,7 @@ func _prepare_foliage() -> void:
 				_add_foliage_box(box, "Palm" in n, mats)
 	for mi in find_children("*", "MeshInstance3D", true, false):
 		var path := str(get_path_to(mi)).to_lower()
-		if path.begins_with("nodes") or path.begins_with("buildghost"):
+		if path.begins_with("buildghost"):
 			continue
 		if not ("tree" in path or "palm" in path or "jungle" in path or "canopy" in path or "bush" in path):
 			continue
@@ -4151,25 +4153,34 @@ func _prepare_foliage() -> void:
 		if m.mesh == null:
 			continue
 		var mats := _dither(m.mesh)
+		for extra in [m.material_override] + range(m.get_surface_override_material_count()).map(func(i): return m.get_surface_override_material(i)):
+			if extra is StandardMaterial3D:
+				mats.append_array(_dither_mat(extra))
 		var box: AABB = m.global_transform * m.get_aabb()
-		_add_foliage_box(box, box.size.y > 2.6, mats)
+		# Gatherable trees and bushes come and go (respawn), so they keep a
+		# link to their mesh and only count while it is visible.
+		var link: Node3D = m if path.begins_with("nodes") else null
+		_add_foliage_box(box, box.size.y > 2.6, mats, link)
 
 
-func _add_foliage_box(box: AABB, tree: bool, mats: Array = []) -> void:
+func _add_foliage_box(box: AABB, tree: bool, mats: Array = [], link: Node3D = null) -> void:
 	if box.size.y < 1.1:
 		return
 	if not tree:
 		_foliage_boxes.append(box.grow(-0.12))
 		_foliage_mats.append(mats)
+		_foliage_links.append(link)
 		return
 	var c := box.position + box.size * 0.5
 	# Palm fronds droop well below the crown, so the crown volume starts at
 	# 45% of the height and keeps its full spread.
-	var trunk_h := box.size.y * 0.45
-	_foliage_boxes.append(AABB(Vector3(c.x - 0.3, box.position.y, c.z - 0.3), Vector3(0.6, trunk_h, 0.6)))
+	var trunk_h := box.size.y * (0.35 if link else 0.45)
+	_foliage_boxes.append(AABB(Vector3(c.x - 0.35, box.position.y, c.z - 0.35), Vector3(0.7, trunk_h, 0.7)))
 	_foliage_mats.append(mats)
+	_foliage_links.append(link)
 	_foliage_boxes.append(AABB(Vector3(box.position.x, box.position.y + trunk_h, box.position.z), Vector3(box.size.x, box.size.y - trunk_h, box.size.z)))
 	_foliage_mats.append(mats)
+	_foliage_links.append(link)
 
 
 ## Near-lens dither on every foliage material; returns the materials so the
@@ -4177,24 +4188,33 @@ func _add_foliage_box(box: AABB, tree: bool, mats: Array = []) -> void:
 func _dither(mesh: Mesh) -> Array:
 	var out: Array = []
 	for i in mesh.get_surface_count():
-		var mat := mesh.surface_get_material(i)
-		if not (mat is StandardMaterial3D):
-			continue
-		var std := mat as StandardMaterial3D
-		if not std.has_meta("iom_dither"):
-			std.set_meta("iom_dither", true)
-			std.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_PIXEL_DITHER
-			std.distance_fade_min_distance = NEAR_FADE_MIN
-			std.distance_fade_max_distance = NEAR_FADE_MAX
-			_fade_mats.append(std)
-		out.append(std)
+		out.append_array(_dither_mat(mesh.surface_get_material(i)))
 	return out
 
 
+func _dither_mat(mat: Material) -> Array:
+	if not (mat is StandardMaterial3D):
+		return []
+	var std := mat as StandardMaterial3D
+	if not std.has_meta("iom_dither"):
+		std.set_meta("iom_dither", true)
+		std.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_PIXEL_DITHER
+		std.distance_fade_min_distance = NEAR_FADE_MIN
+		std.distance_fade_max_distance = NEAR_FADE_MAX
+	if not _fade_mats.has(std):
+		_fade_mats.append(std)
+	return [std]
+
+
+func _foliage_live(i: int) -> bool:
+	var link = _foliage_links[i] if i < _foliage_links.size() else null
+	return link == null or not is_instance_valid(link) or (link as Node3D).is_visible_in_tree()
+
+
 func _foliage_inside(p: Vector3) -> bool:
-	for box in _foliage_boxes:
-		var b: AABB = box
-		if b.has_point(p):
+	for i in _foliage_boxes.size():
+		var b: AABB = _foliage_boxes[i]
+		if b.has_point(p) and _foliage_live(i):
 			return true
 	return false
 
@@ -4207,8 +4227,8 @@ func _probe_clear_view(head: Vector3) -> void:
 		_cam_yaw_goal = 0.0
 		_cam_lift_goal = 0.0
 		return
-	for lift in [0.0, -1.5, 1.6, 3.0]:
-		for off in [0.0, 0.3, -0.3, 0.6, -0.6, 0.9, -0.9]:
+	for off in [0.0, 0.3, -0.3, 0.6, -0.6, 0.9, -0.9, 1.25, -1.25, 1.6, -1.6]:
+		for lift in [0.0, -1.5, 1.6, 3.0]:
 			if _cam_orbit_hold > 0.0 and absf(off) > 0.0:
 				continue
 			var back := Basis(Vector3.UP, _cam_yaw + off).z
@@ -4233,7 +4253,7 @@ func _fade_occluders(eye: Vector3, head: Vector3, delta: float) -> void:
 	for i in _foliage_boxes.size():
 		var b: AABB = _foliage_boxes[i]
 		var c := b.position + b.size * 0.5
-		if absf(c.x - head.x) > 14.0 or absf(c.z - head.z) > 14.0:
+		if absf(c.x - head.x) > 14.0 or absf(c.z - head.z) > 14.0 or not _foliage_live(i):
 			continue
 		if b.has_point(eye) or b.has_point(head) or b.intersects_segment(eye, head) != null:
 			for m in _foliage_mats[i]:
@@ -4260,12 +4280,12 @@ func _foliage_hit(head: Vector3, eye: Vector3) -> float:
 	var length := head.distance_to(eye)
 	if length < 0.01:
 		return 1.0
-	for box in _foliage_boxes:
-		var b: AABB = box
+	for i in _foliage_boxes.size():
+		var b: AABB = _foliage_boxes[i]
 		var c := b.position + b.size * 0.5
 		if absf(c.x - head.x) > 14.0 or absf(c.z - head.z) > 14.0:
 			continue
-		if b.has_point(head):
+		if b.has_point(head) or not _foliage_live(i):
 			continue
 		var hit = b.intersects_segment(head, eye)
 		if hit != null:
