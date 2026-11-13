@@ -349,16 +349,19 @@ func _enter_rise() -> void:
 	_clear_stage()
 	_stage_two_ships(Vector3(-4.0, -0.05, -24.0), Vector3(20.0, -0.4, -20.0), Color(0.72, 0.72, 0.7), false)
 	_set_wake(0.0)
-	_darken(1.0, 1.25, 0.55, 0.8, Color(0.9, 0.88, 0.82))
-	# Low over the water off our quarter, looking along the hull: the head
-	# breaks the surface ~17 m out, between the camera and the bow.
+	_darken(0.86, 0.85, 0.5, 0.62, Color(0.78, 0.84, 0.9))
+	# The head erupts 21 m off our beam, rears over the galleon and slams
+	# down onto her. Camera low on the water, side-on, so both read.
 	var ship := _player_ship.global_position
-	_scare_eye = ship + Vector3(-14.0, 1.9, 9.0)
-	_scare_at = ship + Vector3(2.0, 0.0, 6.5)
+	var lean := Vector3(0, 0, 1)
+	_scare_at = ship - lean * 21.0
 	_scare_at.y = _water_y
-	_scare_look = _scare_at + Vector3(0, 7.5, 0)
-	var to_cam := _scare_eye - _scare_at
-	_scare_face = atan2(to_cam.x, to_cam.z)
+	var side := Vector3.UP.cross(lean).normalized()
+	_scare_eye = _scare_at + lean * 8.0 + side * 24.0 + Vector3(0, 2.6, 0)
+	_scare_look = _scare_at + lean * 10.0 + Vector3(0, 9.0, 0)
+	# The HY3D head leans its snout ~47 deg left of its local +Z; turn it so
+	# the snout leans toward the ship.
+	_scare_face = atan2(lean.x, lean.z) + 0.82
 	_shot = [_scare_eye, _scare_look]
 	_leviathan_rise = 0.0
 	_snapped = false
@@ -373,8 +376,8 @@ func _enter_rise() -> void:
 	_shake = 2.4
 	_punch(1.0)
 	_vibrate(480, 1.0)
-	_burst(_scare_at + Vector3(0, 1.0, 0), Color(0.86, 0.94, 1.0), 70, Vector3(0, -9.0, 0), 16.0, 1.6, 1.8)
-	_burst(_scare_at + Vector3(0, 0.5, 0), Color(0.75, 0.86, 0.92, 0.9), 40, Vector3(0, -6.0, 0), 9.0, 2.6, 2.2)
+	_burst(_scare_at + Vector3(0, 1.0, 0), Color(0.86, 0.94, 1.0, 0.8), 200, Vector3(0, -9.0, 0), 17.0, 0.28, 1.8)
+	_burst(_scare_at + Vector3(0, 0.5, 0), Color(0.8, 0.88, 0.92, 0.55), 60, Vector3(0, -5.0, 0), 8.0, 0.9, 2.2)
 	Art.foam_ring(_stage, _scare_at, 9.0, _water_y)
 	Art.spray(_stage, _scare_at + Vector3(0, 0.2, 0), 18, 8.0, 3.0, 0.4)
 
@@ -385,31 +388,33 @@ func _enter_rise() -> void:
 func _tick_scare(t: float) -> void:
 	if _leviathan == null:
 		return
-	var pos := _scare_at
-	var pitch := 0.0
+	var ship := _player_ship.global_position
+	var lean := ship - _scare_at
+	lean.y = 0.0
+	lean = lean.normalized()
+	var axis := lean.cross(Vector3.UP).normalized()
+	var lift := 0.0
+	var tilt := 0.0
 	if t < 0.4:
-		var u := t / 0.4
-		u = 1.0 - pow(1.0 - u, 3.0)
-		pos.y = lerpf(_scare_at.y - 24.0, _scare_at.y + 1.5, u)
-		pitch = lerpf(-0.35, -0.15, u)
+		var u := 1.0 - pow(1.0 - t / 0.4, 3.0)
+		lift = lerpf(-24.0, 0.6, u)
+		tilt = lerpf(0.05, 0.16, u)
 	elif t < 1.25:
 		var u := (t - 0.4) / 0.85
-		pos.y = _scare_at.y + 1.5 + sin(u * PI) * 1.2
-		pitch = lerpf(-0.15, -0.42, u)
+		lift = 0.6 + sin(u * PI) * 0.8
+		tilt = lerpf(0.16, 0.3, u) + sin(t * 9.0) * 0.015
 	else:
 		var u := clampf((t - 1.25) / 0.5, 0.0, 1.0)
 		u = u * u
-		var ship := _player_ship.global_position + Vector3(0, 2.0, 0)
-		pos = (_scare_at + Vector3(0, 1.5, 0)).lerp(ship + (_scare_at - ship).normalized() * 6.0, u)
-		pitch = lerpf(-0.42, 0.62, u)
+		lift = 0.6
+		tilt = lerpf(0.3, -0.85, u)
 		if u >= 1.0 and not _snapped:
 			_snapped = true
 			_jaws_hit()
-	_leviathan.global_position = pos
-	_leviathan.rotation = Vector3(pitch, _scare_face, 0)
-	# Handheld push-in toward the head while it towers over the camera.
-	var push := clampf(t / 1.6, 0.0, 1.0)
-	_shot = [_scare_eye + (_scare_look - _scare_eye).normalized() * push * 2.5, _scare_look.lerp(pos + Vector3(0, 4.0, 0), 0.5)]
+	# +tilt rears back (away from the ship), -tilt slams toward it.
+	_leviathan.global_transform = Transform3D(Basis(axis, tilt) * Basis(Vector3.UP, _scare_face), _scare_at + Vector3(0, lift, 0))
+	var push := clampf(t / 1.75, 0.0, 1.0)
+	_shot = [_scare_eye + (_scare_look - _scare_eye).normalized() * push * 3.0, _scare_look + Vector3(0, 2.0 * (1.0 - push), 0)]
 
 
 func _jaws_hit() -> void:
@@ -418,8 +423,8 @@ func _jaws_hit() -> void:
 	_punch(0.8)
 	_vibrate(320, 1.0)
 	var ship := _player_ship.global_position
-	_burst(ship + Vector3(0, 3, 0), Color(0.5, 0.36, 0.22), 40, Vector3(0, -6, 0), 10.0, 0.6, 1.4)
-	_burst(ship + Vector3(0, 0.5, 0), Color(0.85, 0.93, 1.0), 50, Vector3(0, -8, 0), 12.0, 1.4, 1.6)
+	_burst(ship + Vector3(0, 3, 0), Color(0.5, 0.36, 0.22), 60, Vector3(0, -6, 0), 10.0, 0.35, 1.4)
+	_burst(ship + Vector3(0, 0.5, 0), Color(0.85, 0.93, 1.0, 0.75), 160, Vector3(0, -8, 0), 12.0, 0.3, 1.6)
 
 
 ## Short contrast/brightness punch through the environment adjustments.
@@ -1276,13 +1281,23 @@ func _burst(at: Vector3, color: Color, amount: int, gravity: Vector3, speed: flo
 	process.scale_min = size * 0.35
 	process.scale_max = size
 	process.color = color
+	# Droplets stretch along their velocity and thin out as they fall, so spray
+	# reads as wet streaks instead of floating orbs.
+	process.particle_flag_align_y = true
+	var ramp := Gradient.new()
+	ramp.set_color(0, Color(1, 1, 1, 1))
+	ramp.set_color(1, Color(1, 1, 1, 0))
+	var ramp_tex := GradientTexture1D.new()
+	ramp_tex.gradient = ramp
+	process.color_ramp = ramp_tex
 	particles.process_material = process
 	var quad := QuadMesh.new()
-	quad.size = Vector2(1, 1)
+	quad.size = Vector2(0.32, 1.4)
 	var mat := StandardMaterial3D.new()
 	mat.albedo_texture = _soft
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	mat.billboard_mode = BaseMaterial3D.BILLBOARD_FIXED_Y
+	mat.billboard_keep_scale = true
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.vertex_color_use_as_albedo = true
 	quad.material = mat
@@ -1694,27 +1709,24 @@ func _tick_sink(t: float) -> void:
 		var drift := fwd * away * minf(k * 1.1, 3.6)
 		var turn := Basis(fwd.cross(Vector3.UP).normalized(), pitch * away) * Basis(fwd, roll)
 		half.global_transform = Transform3D(turn * rest.basis, rest.origin + drift + Vector3(0, -sink, 0))
-	var mast := _sink_parts.get("mast") as Node3D
-	if mast and is_instance_valid(mast):
-		var fall := clampf((k - 0.35) / 1.25, 0.0, 1.0)
-		fall = fall * fall
-		var rest_m: Transform3D = mast.get_meta("rest")
-		var axis: Vector3 = mast.get_meta("axis")
-		mast.global_transform = Transform3D(Basis(axis, fall * deg_to_rad(84.0)) * rest_m.basis, rest_m.origin + Vector3(0, -0.6 * fall - maxf(k - 3.5, 0.0) * 0.6, 0))
-		if fall >= 1.0 and not bool(_sink_parts["mast_down"]):
-			_sink_parts["mast_down"] = true
-			var tip: Vector3 = mast.get_meta("tip")
-			_play(AUDIO_MAST_FALL, -1.0)
-			_shake = maxf(_shake, 0.7)
-			_burst(tip + Vector3(0, 0.4, 0), Color(0.86, 0.94, 1.0), 46, Vector3(0, -9, 0), 11.0, 1.2, 1.5)
-			Art.foam_ring(_stage, tip, 5.0, _water_y)
+	# The stern half's masts go over as she rolls: crash and splash where
+	# the tops hit the water.
+	if k > 1.7 and not bool(_sink_parts["mast_down"]):
+		_sink_parts["mast_down"] = true
+		var side := fwd.cross(Vector3.UP).normalized()
+		var tip := at - fwd * 5.0 + side * 13.0
+		tip.y = _water_y
+		_play(AUDIO_MAST_FALL, -1.0)
+		_shake = maxf(_shake, 0.7)
+		_burst(tip + Vector3(0, 0.4, 0), Color(0.86, 0.94, 1.0, 0.8), 90, Vector3(0, -9, 0), 11.0, 0.45, 1.5)
+		Art.foam_ring(_stage, tip, 5.0, _water_y)
 	if k > 2.0 and not bool(_sink_parts["creak"]):
 		_sink_parts["creak"] = true
 		_play(AUDIO_CREAK, -2.0)
 	if k > 3.1 and not bool(_sink_parts["crack2"]):
 		_sink_parts["crack2"] = true
 		_play(AUDIO_CRACK, -5.0)
-		_burst(at + Vector3(0, 0.3, 0), Color(0.86, 0.94, 1.0), 30, Vector3(0, -7, 0), 8.0, 1.0, 1.3)
+		_burst(at + Vector3(0, 0.3, 0), Color(0.86, 0.94, 1.0, 0.75), 70, Vector3(0, -7, 0), 8.0, 0.4, 1.3)
 	if k > 2.4 and not bool(_sink_parts["cargo"]):
 		_sink_parts["cargo"] = true
 		_surface_cargo(at, fwd)
@@ -1742,28 +1754,10 @@ func _crack_hull(basis: Basis, at: Vector3) -> void:
 		_wreck_halves.append(half)
 		i += 1
 	_sink_parts["halves"] = halves
-	# Mainmast with its yard: stands at the break, then topples seaward.
 	var fwd := -basis.x
-	var side := fwd.cross(Vector3.UP).normalized()
-	var mast := Art.put(_stage, Art.SNAPPED_MAST, "FallingMast", at + Vector3(0, 1.0, 0), Vector3.ZERO, 1.0)
-	var mbox := Art.world_aabb(mast)
-	var longest := maxf(mbox.size.x, maxf(mbox.size.y, mbox.size.z))
-	if longest > 0.01:
-		mast.scale = Vector3.ONE * (16.0 / longest)
-	# Stand it upright on its longest axis.
-	if mbox.size.x >= mbox.size.y and mbox.size.x >= mbox.size.z:
-		mast.rotation = Vector3(0, 0, PI * 0.5)
-	elif mbox.size.z >= mbox.size.y:
-		mast.rotation = Vector3(PI * 0.5, 0, 0)
-	mbox = Art.world_aabb(mast)
-	mast.global_position += Vector3(at.x - (mbox.position.x + mbox.size.x * 0.5), at.y + 0.8 - mbox.position.y, at.z - (mbox.position.z + mbox.size.z * 0.5))
-	mast.set_meta("rest", mast.global_transform)
-	mast.set_meta("axis", fwd)
-	mast.set_meta("tip", at + side * -15.0)
-	_sink_parts["mast"] = mast
 	# Water rushing in at the break, splinters and the first boil of foam.
-	_burst(at + Vector3(0, 0.6, 0), Color(0.55, 0.38, 0.22), 42, Vector3(0, -6, 0), 9.0, 0.5, 1.6)
-	_burst(at + Vector3(0, 0.2, 0), Color(0.88, 0.95, 1.0), 60, Vector3(0, -8, 0), 10.0, 1.3, 1.6)
+	_burst(at + Vector3(0, 0.6, 0), Color(0.55, 0.38, 0.22), 60, Vector3(0, -6, 0), 9.0, 0.3, 1.6)
+	_burst(at + Vector3(0, 0.2, 0), Color(0.88, 0.95, 1.0, 0.75), 120, Vector3(0, -8, 0), 10.0, 0.45, 1.6)
 	_bubbles(at + Vector3(0, -0.2, 0), 6.5, 7.0)
 	_bubbles(at + fwd * 8.0, 3.5, 6.0)
 	_bubbles(at - fwd * 8.0, 3.5, 6.0)
@@ -1773,7 +1767,7 @@ func _crack_hull(basis: Basis, at: Vector3) -> void:
 ## Long-lived boil of small pale bubbles/foam flecks over a sinking hull.
 func _bubbles(at: Vector3, radius: float, seconds: float) -> void:
 	var particles := GPUParticles3D.new()
-	particles.amount = 48
+	particles.amount = 90
 	particles.lifetime = 1.4
 	particles.visibility_aabb = AABB(Vector3(-12, -4, -12), Vector3(24, 10, 24))
 	_stage.add_child(particles)
@@ -1786,9 +1780,9 @@ func _bubbles(at: Vector3, radius: float, seconds: float) -> void:
 	process.initial_velocity_min = 0.4
 	process.initial_velocity_max = 1.6
 	process.gravity = Vector3(0, -1.2, 0)
-	process.scale_min = 0.25
-	process.scale_max = 0.7
-	process.color = Color(0.9, 0.96, 1.0, 0.75)
+	process.scale_min = 0.08
+	process.scale_max = 0.26
+	process.color = Color(0.92, 0.96, 1.0, 0.6)
 	particles.process_material = process
 	var quad := QuadMesh.new()
 	quad.size = Vector2(1, 1)
@@ -1831,7 +1825,7 @@ func _tick_reef(t: float) -> void:
 		_sink_parts["mast_down"] = true
 		_play(AUDIO_MAST_FALL, -1.0)
 		var tip: Vector3 = mast.get_meta("tip")
-		_burst(tip + Vector3(0, 0.4, 0), Color(0.86, 0.94, 1.0), 40, Vector3(0, -9, 0), 10.0, 1.1, 1.4)
+		_burst(tip + Vector3(0, 0.4, 0), Color(0.86, 0.94, 1.0, 0.8), 80, Vector3(0, -9, 0), 10.0, 0.4, 1.4)
 		_vibrate(150, 0.5)
 
 
