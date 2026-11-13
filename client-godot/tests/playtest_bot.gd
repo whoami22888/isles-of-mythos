@@ -15,6 +15,7 @@ var joy_origin := Vector2(190, 560)
 var foliage: Array[AABB] = []
 var cam_blocked_frames := 0
 var cam_inside_frames := 0
+var cam_hard_frames := 0
 var cam_frames := 0
 var steps_seen: Dictionary = {}
 var shot_i := 0
@@ -58,15 +59,24 @@ func _watch_camera() -> void:
 	var head := player.global_position + Vector3.UP * 1.4
 	var inside := false
 	var blocked := false
+	var hard := false
 	for box in foliage:
 		if box.has_point(eye):
 			inside = true
-		if box.intersects_segment(eye, head):
+		var hit = box.intersects_segment(eye, head)
+		if hit != null:
 			blocked = true
+			# Leaves within 2.8 m of the lens are dithered out by the scene.
+			var exit_hit = box.intersects_segment(head, eye)
+			var far_end: Vector3 = hit if exit_hit == null else exit_hit
+			if eye.distance_to(far_end) > 2.8:
+				hard = true
 	if inside:
 		cam_inside_frames += 1
 	if blocked:
 		cam_blocked_frames += 1
+	if hard:
+		cam_hard_frames += 1
 
 func collect_foliage() -> void:
 	var slice: Node = g("_slice")
@@ -202,6 +212,7 @@ func run() -> void:
 	say("CAMERA: %d play frames, camera inside foliage %d (%.1f%%), foliage between camera and player %d (%.1f%%)" % [
 		cam_frames, cam_inside_frames, 100.0 * cam_inside_frames / maxf(cam_frames, 1),
 		cam_blocked_frames, 100.0 * cam_blocked_frames / maxf(cam_frames, 1)])
+	say("CAMERA: foliage bounding box blocking beyond the 2.8 m near-lens dither %d frames (%.1f%%)" % [cam_hard_frames, 100.0 * cam_hard_frames / maxf(cam_frames, 1)])
 	say("final step=%s inventory=%s" % [g("_step"), inv()])
 	var path := OS.get_environment("IOM_BOT_LOG")
 	if path != "":
@@ -230,6 +241,11 @@ func test_tap_gather() -> void:
 		var centre := box.position + box.size * 0.5
 		var cam: Camera3D = g("_camera")
 		if cam.is_position_behind(centre):
+			continue
+		var sp := screen_of(centre)
+		var vp2 := root.get_viewport().get_visible_rect().size
+		if sp.x < vp2.x * 0.42 and sp.y > vp2.y * 0.42:
+			say("skip %s: on screen under the joystick zone" % node.get("id"))
 			continue
 		var before := inv()
 		tap(screen_of(centre))
@@ -288,7 +304,11 @@ func test_follow_quest(budget: float) -> void:
 				continue
 		var target: Vector3 = scene._point_position()
 		var d := steer_toward(target)
-		if d < 2.6:
+		if step == "dusk" and d < 2.6 and press(hud_button("_attack")):
+			stick(Vector2.ZERO)
+			acts += 1
+			await frames(15)
+		elif d < 2.6:
 			stick(Vector2.ZERO)
 			press(hud_button("_action"))
 			acts += 1
@@ -317,6 +337,17 @@ func test_pet() -> void:
 	var i := 0
 	while t - start < 60.0:
 		var target: Vector3 = points[i % points.size()]
+		if str(g("_pet_mode", "")) == "point" and not scene._nearest_dig().is_empty():
+			var dig: Dictionary = scene._nearest_dig()
+			var spot: Vector3 = (dig["root"] as Node3D).global_position
+			if steer_toward(spot) < 2.2:
+				stick(Vector2.ZERO)
+				var got_before := inv()
+				press(hud_button("_action"))
+				await frames(8)
+				say("dug the spot Tide-Puck pointed at: inv %s -> %s" % [got_before, inv()])
+			await frame()
+			continue
 		if steer_toward(target) < 1.5:
 			i += 1
 		await frame()

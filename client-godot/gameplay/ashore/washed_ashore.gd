@@ -57,7 +57,19 @@ const CHEER := "res://assets/opening/audio/cheer.ogg"
 const FOOD_IDS := ["food", "fish", "meat", "cooked"]
 const RAW_IDS := ["food", "fish", "meat"]
 const TOOL_IDS := ["axe", "knife", "club", "pick"]
-const WRECK_IDS := ["hull", "rigging", "cargo_cloth"]
+const WRECK_IDS := ["hull", "rigging", "cargo_cloth", "cargo_tools"]
+## Walkable slope: rise/run above tan(40 deg) is a wall; above tan(45 deg) you slide.
+const SLOPE_MAX := 0.84
+const SLIDE_SLOPE := 1.0
+const STORM_SECONDS := 150.0
+const WAKE_SECONDS := 4.5
+const BUILD_IDS := ["campfire", "lean_to", "storage"]
+const BUILD_TITLES := {"campfire": "Campfire", "lean_to": "Lean-to", "storage": "Storage"}
+const BUILD_RADIUS := {"campfire": 0.9, "lean_to": 1.8, "storage": 0.8}
+const DYNAMIC_STEPS := ["scavenge", "gather", "fire", "shelter"]
+const FOLIAGE_WORDS := ["Palm", "Canopy", "Shrub", "Cover", "Understory", "Calathea"]
+const GATHER_WOOD := 5
+const GATHER_STONE := 4
 
 var _endpoint := ""
 var _token := ""
@@ -67,7 +79,7 @@ var _catalog: Dictionary = {}
 var _tuning: Dictionary = {}
 var _research: Array = []
 var _nodes: Array = []
-var _inv := {"planks": 0, "rope": 0, "cloth": 0, "wood": 0, "food": 0, "meat": 0, "flint": 0, "fish": 0, "cooked": 0}
+var _inv := {"planks": 0, "rope": 0, "cloth": 0, "wood": 0, "stone": 0, "fibre": 0, "food": 0, "meat": 0, "flint": 0, "fish": 0, "cooked": 0}
 var _tools := {"axe": false, "pick": false, "knife": false, "club": false}
 var _running := ""
 var _research_left := 0.0
@@ -136,7 +148,41 @@ var _cam_yaw := 0.0
 var _pet_anim: AnimationPlayer
 var _beast_anim: AnimationPlayer
 var _prompt: Label3D
-var _pet_stats := {"name": "Tide-Puck", "level": 1, "xp": 0, "hunger": 70, "mood": 65}
+var _pet_stats := {"name": "Tide-Puck", "level": 1, "xp": 0, "hunger": 70, "mood": 65, "bond": 0}
+var _scavenged := 0
+var _gather_lock := 0.0
+var _placing := ""
+var _ghost: Node3D
+var _ghost_mat: StandardMaterial3D
+var _ghost_ok := false
+var _ghost_why := ""
+var _ghost_pin := Vector3(INF, INF, INF)
+var _build_open := false
+var _fire_at := Vector3(INF, INF, INF)
+var _structures: Array = []
+var _storage: Node3D
+var _storm_left := -1.0
+var _storm_warned := false
+var _pet_mode := "follow"
+var _pet_goal := Vector3.ZERO
+var _pet_target: Dictionary = {}
+var _pet_carry := ""
+var _pet_timer := 0.0
+var _pet_hop := 0.0
+var _sniff_left := 6.0
+var _fetch_left := 24.0
+var _pet_finds := 0
+var _pet_fetches := 0
+var _pet_pet_cd := 0.0
+var _dig_serial := 0
+var _steep_t := 0.0
+var _foliage_boxes: Array = []
+var _cam_pull := 1.0
+var _drag_id := -2
+var _drag_from := Vector2.ZERO
+var _drag_moved := false
+var _haptics: Array = []
+var _sfx_log: Array = []
 
 var _camera: Camera3D
 var _player: Node3D
@@ -223,6 +269,7 @@ func _ready() -> void:
 	_build_beast()
 	_build_props()
 	_build_nodes()
+	_prepare_foliage()
 	_hud = CanvasLayer.new()
 	_hud.set_script(load("res://gameplay/ashore/ashore_hud.gd"))
 	_hud.world = self
@@ -260,6 +307,8 @@ func _process(delta: float) -> void:
 	_tick_sharks(delta)
 	_tick_ring()
 	_refresh_locks()
+	if _cinematic == "" and not _fork and not _qte and _step in DYNAMIC_STEPS:
+		_line = _line_for(_step)
 	_push_hud()
 	_save_clock += delta
 	if _save_clock > 5.0 and _cinematic == "":
@@ -282,25 +331,21 @@ func on_action() -> void:
 	if _collect_ready and _near(_sack.global_position, 3.4):
 		_take_collect()
 		return
+	if _placing != "":
+		on_build_place()
+		return
+	if not _pet_freed:
+		var pile := _node_by_id("pet_pile")
+		if not pile.is_empty() and _near((pile.get("root") as Node3D).global_position, 3.5):
+			_free_pet()
+			return
 	var node := _nearest_node(3.5)
 	if not node.is_empty():
 		_act_on_node(node)
 		return
-	if _step == "clearing":
-		var pad := _nearest_pad(3.4)
-		if pad >= 0:
-			_choose_pad(pad)
-			return
-	if _step == "build" and _spot >= 0 and _near(_pad_position(_spot), 4.2):
-		_try_start_build()
+	if _fire_lit and _near(_pit_position(), 3.4) and _raw_food() != "":
+		_cook()
 		return
-	if _near(_pit_position(), 3.4) or (_step == "cook" and _fire_lit):
-		if not _fire_lit and _research_done("fire"):
-			_try_craft_fire()
-			return
-		if _fire_lit and _research_done("cooking") and _cook_possible():
-			_cook()
-			return
 	if _food_total() > 0 and _hunger < 97.0:
 		_eat()
 		return
@@ -366,7 +411,9 @@ func on_name(text: String) -> void:
 	_pet_stats["name"] = cleaned.substr(0, 16)
 	_naming = false
 	_note_burst(str(_pet_stats["name"]))
-	_enter("eat")
+	_sniff_left = 6.0
+	_fetch_left = 24.0
+	_enter("gather")
 
 
 func on_end_closed() -> void:
@@ -398,18 +445,24 @@ func on_feed_pet() -> void:
 	_pet_stats["hunger"] = mini(100, int(_pet_stats["hunger"]) + 28)
 	_pet_stats["mood"] = mini(100, int(_pet_stats["mood"]) + 12)
 	_gain_xp(3)
+	_bond(12)
 	_play(AUDIO + "crunch.ogg", -6.0, 1.0)
-	_play(AUDIO + "bark.ogg", -8.0, 1.0)
-	_bounce(_pet)
+	_play(AUDIO + "bark.ogg", -10.0, 1.25)
+	_pet_hop = 0.5
+	_popup("Bond +12", _pet.global_position + Vector3.UP * 0.9, Color(1.0, 0.72, 0.78))
 
 
 func on_pet() -> void:
 	if not _pet_freed:
 		return
 	_pet_stats["mood"] = mini(100, int(_pet_stats["mood"]) + 14)
-	_gain_xp(1)
-	_play(AUDIO + "bark.ogg", -8.0, 1.0)
-	_bounce(_pet)
+	_pet_hop = 0.45
+	if _pet_pet_cd <= 0.0:
+		_pet_pet_cd = 6.0
+		_gain_xp(1)
+		_bond(3)
+		_play(AUDIO + "squeak.ogg", -12.0, 1.35)
+		_popup("♥", _pet.global_position + Vector3.UP * 0.9, Color(1.0, 0.6, 0.66))
 
 
 func _do_pet_alert() -> void:
@@ -417,7 +470,10 @@ func _do_pet_alert() -> void:
 	_alerted = true
 	_hint = PET_DEFENCE_LINE
 	_hint_t = 999.0
-	_play(AUDIO + "bark.ogg", -4.0, 1.0)
+	# A low growl (the bark pitched down) and a stiff stare at the threat.
+	_play(AUDIO + "bark.ogg", -4.0, 0.62)
+	_pet_mode = "warn"
+	_pet_timer = 0.0
 	_gain_xp(2)
 	_creature_hp = hp
 
@@ -444,10 +500,35 @@ func _unhandled_input(event: InputEvent) -> void:
 					on_qte_tap()
 				else:
 					on_feed_pet()
-	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		_tap(event.position)
-	elif event is InputEventScreenTouch and event.pressed:
-		_tap(event.position)
+			KEY_B:
+				on_build_toggle()
+			KEY_Q:
+				_cam_yaw += 0.4
+			KEY_R:
+				_cam_yaw -= 0.4
+	# Right-side drag orbits the camera; a press-release without much travel is a tap.
+	elif event is InputEventScreenTouch:
+		if event.pressed and _drag_id == -2:
+			_drag_id = event.index
+			_drag_from = event.position
+			_drag_moved = false
+		elif not event.pressed and event.index == _drag_id:
+			_drag_id = -2
+			if not _drag_moved:
+				_tap(event.position)
+	elif event is InputEventScreenDrag and event.index == _drag_id:
+		_orbit_drag(event.position, event.relative)
+	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		if event.pressed:
+			_drag_id = -1
+			_drag_from = event.position
+			_drag_moved = false
+		elif _drag_id == -1:
+			_drag_id = -2
+			if not _drag_moved:
+				_tap(event.position)
+	elif event is InputEventMouseMotion and _drag_id == -1 and (event.button_mask & MOUSE_BUTTON_MASK_LEFT) != 0:
+		_orbit_drag(event.position, event.relative)
 
 
 func _enter(step: String) -> void:
@@ -482,7 +563,15 @@ func _enter(step: String) -> void:
 			_start_research("foraging")
 	if step == "name_pet":
 		_naming = true
+	if step == "fire":
+		_build_open = _can_pay("campfire")
+	if step == "shelter":
+		_storm_left = STORM_SECONDS
+		_storm_warned = false
+		_build_open = _can_pay("lean_to")
 	if step == "dusk":
+		_storm_left = -1.0
+		_build_open = false
 		_begin_dusk()
 	if step == "epilogue":
 		_end_open = not _end_dismissed
@@ -492,12 +581,26 @@ func _enter(step: String) -> void:
 
 
 func _line_for(step: String) -> String:
-	if step == "research" and _research_done("foraging") and not _research_done("building"):
-		return "Build."
-	if step == "fire" and _research_done("fire") and not _fire_lit:
-		if int(_inv.get("flint", 0)) < 1 or int(_inv.get("wood", 0)) < 2:
-			return "Flint."
-		return "Pit."
+	match step:
+		"scavenge":
+			return "Search the wreck  %d/3" % mini(_scavenged, 3)
+		"gather":
+			return "Gather  Wood %d/%d  ·  Stone %d/%d" % [mini(int(_inv.get("wood", 0)), GATHER_WOOD), GATHER_WOOD, mini(int(_inv.get("stone", 0)), GATHER_STONE), GATHER_STONE]
+		"fire":
+			if _placing == "campfire":
+				return "Place the campfire on flat sand"
+			if _can_pay("campfire"):
+				return "Build a campfire  (tap Build)"
+			return "Campfire needs " + _shortfall_text("campfire")
+		"shelter":
+			var clock := "%d:%02d" % [int(maxf(_storm_left, 0.0)) / 60, int(maxf(_storm_left, 0.0)) % 60]
+			if _building:
+				return "Building the lean-to...  storm in " + clock
+			if _placing == "lean_to":
+				return "Place the lean-to  ·  storm in " + clock
+			if _can_pay("lean_to"):
+				return "Build a lean-to  ·  storm in " + clock
+			return "Lean-to needs %s  ·  %s" % [_shortfall_text("lean_to"), clock]
 	return str(_catalog.get("lines", {}).get(step, "Onward."))
 
 
@@ -507,7 +610,7 @@ func _herald(step: String) -> void:
 	_heralds += 1
 	_sniff_t = 1.25
 	if _pet_freed:
-		_play(AUDIO + "squeak.ogg", -10.0, 1.0)
+		_pet_hop = 0.45
 	else:
 		_play(AUDIO + "squeak.ogg", -8.0, 1.0)
 
@@ -530,7 +633,7 @@ func _tick_cine(delta: float) -> void:
 	_cine_age += delta
 	if _cinematic == "wake":
 		_wake_camera()
-		if _cine_age > 8.2:
+		if _cine_age > WAKE_SECONDS:
 			_finish_wake()
 	elif _cinematic == "kill":
 		var real := delta / maxf(Engine.time_scale, 0.05)
@@ -549,7 +652,7 @@ func _tick_cine(delta: float) -> void:
 ## Wake: drift in from over the surf to the close intro framing on the
 ## castaway, who kneels in the wet sand and then stands.
 func _wake_camera() -> void:
-	var u := clampf(_cine_age / 8.2, 0.0, 1.0)
+	var u := clampf(_cine_age / WAKE_SECONDS, 0.0, 1.0)
 	var close := _intro_eye(1.0)
 	var target := _player.global_position + Vector3.UP * INTRO_LOOK_UP
 	if u < 0.62:
@@ -620,10 +723,13 @@ func _tick_play(delta: float) -> void:
 	_tick_build(delta)
 	_tick_respawn(delta)
 	_tick_alert()
+	_tick_quest(delta)
+	_tick_ghost()
+	_gather_lock = maxf(_gather_lock - delta, 0.0)
 	_follow_camera(delta)
 	_refresh_locks()
-	if _step == "scavenge" and _step_time > 24.0:
-		_note_burst("Wreck")
+	if _step == "scavenge" and _step_time > 40.0:
+		_note_burst("Squeak!")
 		_enter("free_pet")
 	_wet_tint()
 
@@ -644,35 +750,83 @@ func _tick_move(delta: float) -> void:
 			if not goal.is_empty():
 				_act_on_node(goal)
 			return
-		_slide(Vector3(to.x, 0, to.z).normalized(), delta, true)
-		_play_clip("Run")
+		if input.length() > 0.2:
+			_move_goal = Vector3(INF, INF, INF)
+			_move_node = {}
+		elif not _slide(Vector3(to.x, 0, to.z).normalized(), delta, true):
+			_move_goal = Vector3(INF, INF, INF)
+			_move_node = {}
+		else:
+			_play_clip("Run")
+			return
+	if _slide_down(delta):
 		return
 	if input.length() < 0.12:
 		_play_clip("Idle")
 		_player.position.y = _ground_y(_player.position.x, _player.position.z)
 		return
 	var dir := Vector3(input.x, 0, input.y).rotated(Vector3.UP, _cam_yaw)
-	_slide(dir, delta, true)
-	_play_clip("Run")
+	if _slide(dir, delta, true):
+		_play_clip("Run")
+	else:
+		_play_clip("Idle")
 
 
-func _slide(dir: Vector3, delta: float, face: bool) -> void:
+## Ground movement with a 40 degree walk limit. Tries the wanted direction,
+## then deflects 35 and 70 degrees either way so the castaway slides along a
+## cliff foot instead of sticking or climbing it. Returns false when blocked.
+func _slide(dir: Vector3, delta: float, face: bool) -> bool:
 	if dir.length() < 0.01:
-		return
+		return false
 	dir = dir.normalized()
-	var next := _player.position + dir * 5.3 * delta
-	var y := _ground_y(next.x, next.z)
-	if y < _water_y + LAND_MARGIN:
+	var pos := _player.position
+	var here := _ground_y(pos.x, pos.z)
+	var step := 5.3 * delta
+	var wet := false
+	for ang in [0.0, 0.61, -0.61, 1.22, -1.22]:
+		var d := dir.rotated(Vector3.UP, ang)
+		var s := step * (1.0 if ang == 0.0 else cos(ang))
+		var next := pos + d * s
+		var y := _ground_y(next.x, next.z)
+		if y < _water_y + LAND_MARGIN:
+			wet = wet or ang == 0.0
+			continue
+		var probe := pos + d * 0.45
+		var ahead := _ground_y(probe.x, probe.z)
+		if (y - here) / maxf(s, 0.001) > SLOPE_MAX or (ahead - here) / 0.45 > SLOPE_MAX:
+			continue
+		next.y = y
+		if _warmth < 42.0:
+			next.y += sin(_age * 16.0) * 0.015
+		_player.position = next
+		if face:
+			var at := _player.global_position + d
+			at.y = _player.global_position.y
+			_player.look_at(at, Vector3.UP)
+		return true
+	if wet:
 		_show_hint(OFFSHORE_WARNING)
-		return
-	next.y = y
-	if _warmth < 42.0:
-		next.y += sin(_age * 16.0) * 0.015
+	elif _age - _steep_t > 2.5:
+		_steep_t = _age
+		_show_hint("Too steep to climb")
+	return false
+
+
+## Standing on a slope steeper than 45 degrees slides you back down.
+func _slide_down(delta: float) -> bool:
+	var p := _player.position
+	var gx := _ground_y(p.x + 0.3, p.z) - _ground_y(p.x - 0.3, p.z)
+	var gz := _ground_y(p.x, p.z + 0.3) - _ground_y(p.x, p.z - 0.3)
+	var grad := Vector2(gx, gz) / 0.6
+	if grad.length() <= SLIDE_SLOPE:
+		return false
+	var down := Vector3(-grad.x, 0, -grad.y).normalized()
+	var next := p + down * 3.2 * delta
+	next.y = _ground_y(next.x, next.z)
+	if next.y < _water_y + LAND_MARGIN:
+		return false
 	_player.position = next
-	if face:
-		var at := _player.global_position + dir
-		at.y = _player.global_position.y
-		_player.look_at(at, Vector3.UP)
+	return true
 
 
 func _keyboard() -> Vector2:
@@ -703,11 +857,25 @@ func _follow_camera(delta: float) -> void:
 	while pull > 0.4 and _ground_y(want.x, want.z) > _player.global_position.y + 1.1:
 		pull -= 0.15
 		want = _player.global_position + (want - _player.global_position) * (pull / (pull + 0.15))
+	# Foliage between the castaway and the lens pulls the camera in (fast),
+	# then it eases back out (slow) once the line of sight is clear.
+	var head := _player.global_position + Vector3.UP * 1.5
+	var full := head.distance_to(want)
+	var hit := _foliage_hit(head, want)
+	var target := 1.0
+	if hit < 1.0 and full > 0.1:
+		target = clampf((hit * full - 0.4) / full, 2.3 / full, 1.0)
+	if target < _cam_pull:
+		_cam_pull = lerpf(_cam_pull, target, 1.0 - exp(-delta * 14.0))
+	else:
+		_cam_pull = lerpf(_cam_pull, target, 1.0 - exp(-delta * 1.4))
+	want = head + (want - head) * _cam_pull
 	var gy := maxf(_ground_y(want.x, want.z), _ground_y(lerpf(want.x, _player.global_position.x, 0.5), lerpf(want.z, _player.global_position.z, 0.5)))
 	gy = maxf(gy, _water_y)
 	if want.y < gy + 1.8:
 		want.y = gy + 1.8
-	var blend := 1.0 - exp(-delta * 4.0)
+	var rate := 4.0 if _cam_pull > 0.98 else 10.0
+	var blend := 1.0 - exp(-delta * rate)
 	_camera.global_position = _camera.global_position.lerp(want, blend)
 	_camera.look_at(_player.global_position + Vector3.UP * lerpf(2.0, INTRO_LOOK_UP, _intro_k), Vector3.UP)
 
@@ -732,19 +900,29 @@ func _tap(screen: Vector2) -> void:
 		else:
 			_move_goal = _sack.global_position
 		return
-	if _pet_freed and _ray_dist(from, to, _pet.global_position) < 1.1:
+	if _placing != "":
+		var spot := _terrain_hit(from, to)
+		if spot.is_finite() and _flat(spot, _player.global_position) < 10.0:
+			_ghost_pin = spot
+		return
+	if _pet_freed and _ray_dist(from, to, _pet.global_position + Vector3.UP * 0.35) < 0.9:
 		on_pet()
 		return
 	var best: Dictionary = {}
-	var best_d := 1.8
+	var best_d := 99.0
 	for node in _nodes:
-		if bool(node.get("depleted", false)):
+		if bool(node.get("depleted", false)) or not (node.get("root") as Node3D).visible:
 			continue
-		var dist := _ray_dist(from, to, (node.get("root") as Node3D).global_position)
-		if dist < best_d:
+		var dist := _ray_dist(from, to, _node_aim(node)) / float(node.get("radius", 1.4))
+		if dist < 1.0 and dist < best_d:
 			best_d = dist
 			best = node
 	if best.is_empty():
+		# Tap the ground to walk there.
+		var ground := _terrain_hit(from, to)
+		if ground.is_finite() and ground.y > _water_y + LAND_MARGIN:
+			_move_goal = ground
+			_move_node = {}
 		return
 	if _flat(_player.global_position, (best.get("root") as Node3D).global_position) < 3.5:
 		_act_on_node(best)
@@ -753,6 +931,9 @@ func _tap(screen: Vector2) -> void:
 		_move_node = best
 
 
+## One tap or one Act press = one hit: swing, sound, chips, a rising "+N"
+## popup and the count ticking up in the HUD. Tools are a bonus (double
+## yield), never a lock.
 func _act_on_node(node: Dictionary) -> void:
 	if node.is_empty() or bool(node.get("depleted", false)):
 		return
@@ -761,38 +942,49 @@ func _act_on_node(node: Dictionary) -> void:
 		if not _pet_freed:
 			_free_pet()
 		return
-	var requires := str(node.get("requires", ""))
-	if requires != "" and not _research_done(requires):
-		_show_hint("Locked")
-		_play(AUDIO + "squeak.ogg", -10.0, 1.0)
+	if _gather_lock > 0.0:
 		return
-	var tool := str(node.get("tool", ""))
-	if tool != "" and not bool(_tools.get(tool, false)):
-		_show_hint("Needs an axe" if tool == "axe" else "Needs a pick")
-		_play(AUDIO + "squeak.ogg", -10.0, 1.0)
-		return
-	_swing = 0.45
-	_play_clip("Jump" if str(node.get("tool", "")) != "" else "Gather")
+	_gather_lock = 0.35
+	var root := node.get("root") as Node3D
+	var aim := _node_aim(node)
 	var kind := str(node.get("kind", ""))
-	_play(AUDIO + ("chop.ogg" if kind == "tree" else "punch.ogg"), -4.0, 1.0)
-	_shake(node.get("root"))
+	var bonus := str(node.get("tool", ""))
+	var mult := 2 if bonus != "" and bool(_tools.get(bonus, false)) else 1
+	_swing = 0.3
+	var face := root.global_position
+	face.y = _player.global_position.y
+	if _flat(face, _player.global_position) > 0.2:
+		_player.look_at(face, Vector3.UP)
+	_play_clip("Jump" if kind in ["tree", "rock", "stones", "hull", "rigging"] else "Gather")
+	_play(_hit_sound(kind), -3.0, randf_range(0.92, 1.08))
+	_shake(root)
+	_chips(aim, _chip_color(kind), 14)
+	_vibrate(18, 0.4)
 	var stage := int(node.get("stage", 0))
 	var loot: Array = node.get("loot", [])
 	if stage < loot.size() and loot[stage] is Array:
 		for item in loot[stage]:
-			_give(str(item.get("id", "")), int(item.get("amount", 1)), (node.get("root") as Node3D).global_position)
+			var item_id := str(item.get("id", ""))
+			var amount := int(item.get("amount", 1))
+			if item_id not in TOOL_IDS:
+				amount *= mult
+			_give(item_id, amount, aim)
 	node["stage"] = stage + 1
 	_apply_stage(node)
 	if int(node["stage"]) >= int(node.get("stages", 1)):
 		node["depleted"] = true
 		node["left"] = float(node.get("respawn", 42.0))
-		(node.get("root") as Node3D).visible = false
-	if _step == "scavenge" and id in WRECK_IDS:
-		_note_burst("Planks")
-		_enter("free_pet")
-	elif id == "cargo_tools" and _step == "axe" and bool(_tools.get("axe", false)):
-		_note_burst("Axe")
-		_enter("clearing")
+		root.visible = false
+		if float(node.get("respawn", 42.0)) < 0.0:
+			_nodes.erase(node)
+			root.queue_free()
+	if kind == "dig":
+		_on_dug(node)
+	if id in WRECK_IDS:
+		_scavenged += 1
+		if _step == "scavenge" and _scavenged >= 3:
+			_note_burst("Squeak!")
+			_enter("free_pet")
 
 
 func _free_pet() -> void:
@@ -800,6 +992,17 @@ func _free_pet() -> void:
 	_pet.visible = true
 	_pet.global_position = _player.global_position + Vector3(-1.1, 0, 0.8)
 	_pet.position.y = _ground_y(_pet.position.x, _pet.position.z)
+	var pile := _node_by_id("pet_pile")
+	if not pile.is_empty():
+		pile["depleted"] = true
+		pile["left"] = 0.0
+		var pile_root := pile.get("root") as Node3D
+		_chips(pile_root.global_position + Vector3.UP * 0.4, Color(0.55, 0.42, 0.28), 22)
+		pile_root.visible = false
+	_play(AUDIO + "punch.ogg", -4.0, 0.9)
+	_play(AUDIO + "bark.ogg", -6.0, 1.2)
+	_pet_hop = 0.6
+	_vibrate(60, 0.6)
 	_note_burst("Friend")
 	_enter("name_pet")
 
@@ -810,16 +1013,12 @@ func _give(id: String, amount: int, from: Vector3) -> void:
 			_tools[id] = true
 			_note_burst(id.capitalize())
 		_refresh_locks()
+		if id in ["axe", "pick"]:
+			_popup("Axe! Double wood" if id == "axe" else "Pick! Double stone", from + Vector3.UP * (0.4 if id == "axe" else 0.9), Color(1.0, 0.86, 0.45))
 	else:
 		_inv[id] = int(_inv.get(id, 0)) + amount
 		_fly(id, amount, from)
-	if _step == "eat" and id in FOOD_IDS:
-		if int(_inv.get(id, 0)) > 0:
-			_inv[id] = int(_inv[id]) - 1
-		_hunger = minf(100.0, _hunger + (40.0 if id == "cooked" else 22.0))
-		_play(AUDIO + "crunch.ogg", -5.0, 1.0)
-		_note_burst("+Hunger")
-		_enter("axe")
+		_popup("+%d %s" % [amount, _item_word(id)], from, _item_color(id))
 
 
 func _eat() -> bool:
@@ -905,9 +1104,7 @@ func _cook() -> bool:
 	_inv[raw] = int(_inv[raw]) - 1
 	_give("cooked", 1, _pit_position())
 	_play(AUDIO + "fire.ogg", -8.0, 1.0)
-	if _step == "cook":
-		_note_burst("Cooked")
-		_enter("dusk")
+	_popup("+1 Meal", _pit_position() + Vector3.UP * 0.6, _item_color("cooked"))
 	return true
 
 
@@ -917,7 +1114,7 @@ func _light_fire() -> void:
 	if _flame:
 		_flame.visible = true
 		_flame.global_position = _pit_position()
-		_flame.position.y = _ground_y(_flame.position.x, _flame.position.z) + 0.2
+		_flame.position.y = _ground_y(_flame.position.x, _flame.position.z) + (0.02 if _fire_at.is_finite() else 0.2)
 	if _guard_down and _camp_flame:
 		_camp_flame.visible = false
 	if _fire_loop and not _fire_loop.playing:
@@ -932,11 +1129,17 @@ func _begin_dusk() -> void:
 	_creature_hp = 8
 	_stagger = false
 	_beast.visible = true
-	var from := _landmark_position("camp") if not _guard_down else _landmark_position("grove")
-	from.y = _ground_y(from.x, from.z)
+	var from := _dusk_spawn()
 	_beast.global_position = from
+	var look := from - _player.global_position
+	look.y = 0.0
+	if look.length() > 0.5:
+		look = look.normalized()
+		_cam_yaw = atan2(-look.x, -look.z)
+		_player.look_at(_player.global_position + look, Vector3.UP)
 	_apply_dusk_look()
-	_play(ROAR, -6.0, 1.0)
+	_play(ROAR, -2.0, 1.0)
+	_vibrate(220, 0.8)
 
 
 func _tick_beast(delta: float) -> void:
@@ -1012,7 +1215,7 @@ func _open_fork() -> void:
 	_qte = false
 	_stagger = true
 	_step = "dusk"
-	_line = "Choose."
+	_line = "It's beaten. Tame it or finish it?"
 	_dusk_active = true
 	if _creature_max < 6:
 		_creature_max = 8
@@ -1044,8 +1247,8 @@ func _fail_tame() -> void:
 	_creature_hostile = true
 	_creature_hp = maxi(_creature_hp, int(round(float(_creature_max) * 0.62)))
 	_step = "dusk"
-	_line = "Dusk."
-	_show_hint("It fights.")
+	_line = "Something stalks the beach. Fight it off!"
+	_show_hint("It shakes free and fights on!")
 
 
 func _complete_tame(roll: float) -> void:
@@ -1117,7 +1320,7 @@ func _spawn_collect() -> void:
 		at.y = _ground_y(at.x, at.z)
 		_sack.global_position = at
 	_step = "collect"
-	_line = "Collect."
+	_line = "Collect the supplies"
 	_pointer_id = "collect"
 	_herald("collect")
 	_save()
@@ -1240,9 +1443,6 @@ func _finish_research(id: String) -> void:
 func _tick_build(delta: float) -> void:
 	if not _building:
 		return
-	if not _near(_pad_position(_spot), 4.6):
-		_show_hint("Hut.")
-		return
 	_build_left -= delta
 	var elapsed := _build_total - _build_left
 	var stage := clampi(int(elapsed / maxf(_build_total / 3.0, 0.1)) + 1, 1, 3)
@@ -1250,22 +1450,26 @@ func _tick_build(delta: float) -> void:
 		_hut_stage = stage
 		_show_hut(stage)
 		var words := ["Frame", "Walls", "Roof"]
-		_note_burst(words[stage - 1])
-		_play(AUDIO + "punch.ogg", -5.0, 1.0)
+		_popup(words[stage - 1], _hut.global_position + Vector3.UP * 2.6, Color(1.0, 0.9, 0.7))
+		_play(AUDIO + "build_place.ogg", -6.0, 1.1)
+		_chips(_hut.global_position + Vector3.UP * 0.5, Color(0.6, 0.5, 0.36), 16)
 	if _build_left <= 0.0:
 		_building = false
 		_shelter = true
 		_hut_stage = 3
 		_show_hut(3)
-		_note_burst("Shelter")
-		_enter("fire")
+		_pop(_hut)
+		_note_burst("Shelter!")
+		_vibrate(70, 0.7)
+		if _step == "shelter":
+			_enter("dusk")
 
 
 func _tick_respawn(delta: float) -> void:
 	for node in _nodes:
 		if not bool(node.get("depleted", false)):
 			continue
-		if str(node.get("id", "")) == "pet_pile":
+		if str(node.get("id", "")) == "pet_pile" or float(node.get("respawn", 42.0)) < 0.0:
 			continue
 		node["left"] = float(node.get("left", 0.0)) - delta
 		if float(node["left"]) <= 0.0:
@@ -1310,14 +1514,14 @@ func _tick_hunger(delta: float) -> void:
 func _tick_pet_needs(delta: float) -> void:
 	if not _pet_freed:
 		return
-	_pet_stats["hunger"] = maxi(0, int(_pet_stats["hunger"]) - (1 if _age - floor(_age) < delta else 0))
+	_pet_stats["hunger"] = maxi(0, int(_pet_stats["hunger"]) - (1 if fmod(_age, 6.0) < delta else 0))
 	if _sniff_t > 0.0 and _pet_head:
 		_sniff_t -= delta
 		_pet_head.rotation.x = sin(_age * 9.0) * 0.45
 	elif _pet_head:
 		_pet_head.rotation.x = 0.0
 	if _cinematic == "" and not _naming and _pet:
-		_follow_player(_pet, delta, 1.35)
+		_tick_pet(delta)
 
 
 func _follow_player(body: Node3D, delta: float, gap: float) -> void:
@@ -1341,11 +1545,11 @@ func _tick_pile(delta: float) -> void:
 		return
 	var root := pile.get("root") as Node3D
 	root.rotation.y = sin(_age * 11.0) * 0.12
-	if _step == "wake":
+	if _step != "free_pet":
 		return
 	_squeak_t -= delta
 	if _squeak_t <= 0.0:
-		_squeak_t = 2.6
+		_squeak_t = 5.0
 		_play(AUDIO + "squeak.ogg", -9.0, 1.0)
 
 
@@ -1367,7 +1571,7 @@ func _tick_ring() -> void:
 		return
 	var root := node.get("root") as Node3D
 	_ring.visible = true
-	_ring.global_position = root.global_position + Vector3(0, 0.15, 0)
+	_ring.global_position = Vector3(root.global_position.x, _ground_y(root.global_position.x, root.global_position.z) + 0.12, root.global_position.z)
 	var scale := float(node.get("scale", 2.0))
 	_ring.scale = Vector3(scale * 0.55, scale * 0.55, scale * 0.55)
 
@@ -1393,10 +1597,10 @@ func _refresh_locks() -> void:
 		var text := ""
 		var tool := str(node.get("tool", ""))
 		var requires := str(node.get("requires", ""))
-		if tool == "axe" and not bool(_tools.get("axe", false)):
-			text = "Needs an axe"
-		elif tool == "pick" and not bool(_tools.get("pick", false)):
-			text = "Needs a pick"
+		if tool == "axe" and bool(_tools.get("axe", false)):
+			text = "Axe: x2"
+		elif tool == "pick" and bool(_tools.get("pick", false)):
+			text = "Pick: x2"
 		elif requires != "" and not _research_done(requires):
 			text = "Locked"
 		lock.visible = text != "" and target_root != null and node.get("root") == target_root
@@ -1531,8 +1735,9 @@ func _consume_one() -> String:
 	return ""
 
 
+## Fists and a driftwood stick always work; found tools just hit harder.
 func _has_weapon() -> bool:
-	return bool(_tools.get("knife", false) or _tools.get("axe", false) or _tools.get("club", false))
+	return true
 
 
 func _can_pay(recipe_name: String) -> bool:
@@ -1618,6 +1823,8 @@ func _nearest_pad(radius: float) -> int:
 
 
 func _pit_position() -> Vector3:
+	if _fire_at.is_finite():
+		return _fire_at
 	if _spot >= 0:
 		var at := _pad_position(_spot) + Vector3(2.4, 0, 1.6)
 		at.y = _ground_y(at.x, at.z)
@@ -1628,6 +1835,20 @@ func _pit_position() -> Vector3:
 
 
 func _point_position() -> Vector3:
+	if _placing != "":
+		return _ghost.global_position if _ghost and _ghost_ok else _build_spot()
+	if _step in ["gather", "fire", "shelter"]:
+		var dig := _nearest_dig()
+		if not dig.is_empty() and _pet_mode == "point":
+			return (dig.get("root") as Node3D).global_position
+		var need := _needed_node()
+		if not need.is_empty():
+			return (need.get("root") as Node3D).global_position
+		if _building:
+			return _hut.global_position
+		return _player.global_position
+	if _step == "dusk" and _beast and _beast.visible:
+		return _beast.global_position
 	if _pointer_id == "pet" and _pet:
 		return _pet.global_position
 	if _pointer_id == "collect" and _sack:
@@ -1683,7 +1904,7 @@ func _load_catalog() -> void:
 			"seconds": float(row.get("seconds", 12.0)),
 			"requires": row.get("requires", []),
 			"locked": bool(row.get("locked", false)),
-			"done": false,
+			"done": bool(row.get("done", false)),
 		})
 
 
@@ -1740,6 +1961,9 @@ func _save() -> void:
 		"nodes": nodes,
 		"defeat_path": _defeat_path,
 		"silas_shown": _silas_shown,
+		"scavenged": _scavenged,
+		"storm_left": _storm_left,
+		"structures": _structures_state(),
 	}
 	var cfg := ConfigFile.new()
 	cfg.set_value("ashore", "state", JSON.stringify(state))
@@ -1796,6 +2020,11 @@ func _apply_save(state: Dictionary) -> void:
 	_kill_rewarded = bool(state.get("kill_rewarded", false))
 	_guard_down = bool(state.get("guard_down", false))
 	_dusk_active = bool(state.get("dusk", false))
+	_scavenged = int(state.get("scavenged", 0))
+	_storm_left = float(state.get("storm_left", -1.0))
+	for row in state.get("structures", []):
+		if row is Array and row.size() == 5:
+			_place_structure(str(row[0]), Vector3(float(row[1]), float(row[2]), float(row[3])), float(row[4]), false)
 	_cinematic = ""
 	var pos: Array = state.get("pos", [])
 	if pos.size() == 3:
@@ -1811,7 +2040,7 @@ func _apply_save(state: Dictionary) -> void:
 		_apply_stage(node)
 	if _pet_freed:
 		_pet.visible = true
-	if _spot >= 0:
+	if _spot >= 0 and not _has_structure("lean_to"):
 		_move_hut()
 	_show_hut(_hut_stage)
 	_shelter = _hut_stage >= 3
@@ -1829,7 +2058,7 @@ func _apply_save(state: Dictionary) -> void:
 	_pointer_id = str(_catalog.get("points", {}).get(_step, "wreck"))
 	_naming = _step == "name_pet"
 	_end_open = _step == "epilogue" and not _end_dismissed
-	_research_open = _step in ["research", "fire", "cook"]
+	_research_open = false
 	if _dusk_active and _choice == "":
 		_apply_dusk_look()
 		_creature_max = 8
@@ -1945,6 +2174,7 @@ func _build_props() -> void:
 		pad.position = at - _landmark_position("clearing")
 		pad.position.y = at.y - _landmark_position("clearing").y + 0.02
 		pad.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		pad.visible = false
 		clearing.add_child(pad)
 	_hut = Node3D.new()
 	_hut.name = "Hut"
@@ -2213,6 +2443,7 @@ func _build_nodes() -> void:
 		root.add_child(lock)
 		_no_glow(root)
 		node["root"] = root
+		_measure_node(node)
 		_nodes.append(node)
 
 
@@ -2253,6 +2484,12 @@ func _visual_for(kind: String, root: Node3D) -> void:
 			_fish(root)
 		"drift":
 			_prop(root, Art.DRIFT_TRUNK, "Drift", Vector3.ZERO, 0.26, 0.7, 2.6)
+		"stones":
+			_prop(root, ASHORE_STONE, "Rocks", Vector3.ZERO, 0.22, 0.4, 0.0)
+			_prop(root, ASHORE_STONE, "RocksB", Vector3(0.16, 0, 0.1), 0.16, 2.1, 0.0)
+			_prop(root, ASHORE_STONE, "RocksC", Vector3(-0.12, 0, 0.14), 0.12, 4.0, 0.0)
+		"fibre":
+			_prop(root, Art.JUNGLE_CLUMP, "Fibre", Vector3.ZERO, 0.75, 0.0, 0.0)
 		_:
 			_prop(root, Art.CRATE_A, "Crate", Vector3.ZERO, 0.6, 0.0, 0.0)
 
@@ -2694,7 +2931,7 @@ func _push_hud() -> void:
 		"show_health": _creature_hostile or _health < 5,
 		"counts": _inv,
 		"action": _action_caption(),
-		"attack": _has_weapon() and _beast != null and _beast.visible and _choice != "kill",
+		"attack": _beast != null and _beast.visible and _creature_hostile and _choice != "kill" and _flat(_player.global_position, _beast.global_position) < 16.0,
 		"skip": _cinematic != "",
 		"fork": _fork,
 		"qte": _qte,
@@ -2702,7 +2939,7 @@ func _push_hud() -> void:
 		"qte_a": 0.68,
 		"qte_b": 0.84,
 		"qte_ratio": clampf(_tame_left / maxf(_tame_total, 0.1), 0.0, 1.0),
-		"research_open": _research_open,
+		"research_open": false,
 		"research": rows,
 		"name_open": _naming,
 		"name_default": "Tide-Puck",
@@ -2715,40 +2952,61 @@ func _push_hud() -> void:
 		"pet_hunger": int(_pet_stats.get("hunger", 0)),
 		"pet_open": _pet_open,
 		"pet_cards": [
-			{"t": "Find food", "on": true},
-			{"t": "Track", "on": true},
-			{"t": "Alert", "on": true},
-			{"t": "Gathering", "on": false},
+			{"t": "Sniffs out buried loot", "on": true},
+			{"t": "Fetches wood and food", "on": true},
+			{"t": "Warns of danger", "on": true},
 			{"t": "Fighting", "on": false},
 		],
-		"spyglass": _cinematic == "wake" and _cine_age > 5.1,
+		"spyglass": false,
 		"letterbox": _cinematic != "",
 		"alert": _alerted and _choice == "",
 		"build_on": _building,
 		"build_ratio": 0.0 if _build_total <= 0.0 else clampf(1.0 - _build_left / _build_total, 0.0, 1.0),
 		"pointer": pointer_on,
 		"pointer_at": pointer_at,
+		"build_open": _build_open,
+		"build_rows": _build_rows(),
+		"placing": _placing != "",
+		"place_ok": _ghost_ok,
+		"build_hint": (_step == "fire" and not _fire_lit and _can_pay("campfire")) or (_step == "shelter" and _hut_stage == 0 and not _building and _can_pay("lean_to")),
+		"pet_bond": int(_pet_stats.get("bond", 0)),
+		"pet_finds": _pet_finds,
+		"pet_fetches": _pet_fetches,
+		"pet_mode": _pet_mode,
 	})
 
 
 func _action_caption() -> String:
+	if _placing != "":
+		return "Place"
 	if _collect_ready and _sack and _near(_sack.global_position, 3.4):
 		return "Take"
+	if not _pet_freed:
+		var pile := _node_by_id("pet_pile")
+		if not pile.is_empty() and _near((pile.get("root") as Node3D).global_position, 3.5):
+			return "Free"
 	var node := _nearest_node(3.5)
 	if not node.is_empty():
-		if str(node.get("id", "")) == "pet_pile":
-			return "Free"
-		return "Gather"
-	if _step == "clearing" and _nearest_pad(3.4) >= 0:
-		return "Camp"
-	if _step == "build":
-		return "Build"
-	if _step == "fire" or (_near(_pit_position(), 3.4) and _research_done("fire")):
-		return "Light" if not _fire_lit else "Cook"
-	if _step == "cook":
+		match str(node.get("kind", "")):
+			"tree", "drift":
+				return "Chop"
+			"rock", "stones", "flint":
+				return "Mine"
+			"dig":
+				return "Dig"
+			"fibre":
+				return "Cut"
+			"bush", "crab":
+				return "Forage"
+			"fish":
+				return "Fish"
+		return "Search"
+	if _fire_lit and _near(_pit_position(), 3.4) and _raw_food() != "":
 		return "Cook"
 	if _food_total() > 0 and _hunger < 97.0:
 		return "Eat"
+	if _pet_freed and _near(_pet.global_position, 2.4):
+		return "Pet"
 	return "Act"
 
 
@@ -2884,3 +3142,915 @@ func _tick_silas_hint() -> void:
 		# A hint, not the quest tracker: the tracker stays one short goal.
 		_show_hint("Silas's cutlass... no sign of him")
 		_push_hud()
+
+
+
+# ---------------------------------------------------------------------------
+# Rescue v2: quest pacing, building, pet behaviour, camera, feedback.
+# ---------------------------------------------------------------------------
+
+func _tick_quest(delta: float) -> void:
+	if _step == "gather":
+		if int(_inv.get("wood", 0)) >= GATHER_WOOD and int(_inv.get("stone", 0)) >= GATHER_STONE:
+			_note_burst("Ready to build!")
+			_play(AUDIO + "build_place.ogg", -8.0, 1.2)
+			_enter("fire")
+	elif _step == "fire" and _fire_lit:
+		_enter("shelter")
+	elif _step == "shelter" and _storm_left >= 0.0 and not _building:
+		_storm_left -= delta
+		if _storm_left < 40.0 and not _storm_warned:
+			_storm_warned = true
+			_show_hint("%s senses the storm. Hurry!" % str(_pet_stats.get("name", "Tide-Puck")))
+			_hint_t = 4.0
+			if _pet_freed:
+				_play(AUDIO + "bark.ogg", -6.0, 0.7)
+				_pet_hop = 0.5
+		if _storm_left <= 0.0:
+			_storm_left = -1.0
+			_show_hint("The storm hits. No shelter!")
+			_hint_t = 4.0
+			_warmth = maxf(_warmth - 20.0, 10.0)
+			_enter("dusk")
+	elif _step == "shelter" and _building:
+		_storm_left = maxf(_storm_left - delta * 0.25, 1.0)
+
+
+func _raw_food() -> String:
+	for id in RAW_IDS:
+		if int(_inv.get(id, 0)) > 0:
+			return id
+	return ""
+
+
+func _shortfall_text(recipe_name: String) -> String:
+	var recipe: Dictionary = _catalog.get("recipes", {}).get(recipe_name, {})
+	var parts: Array = []
+	for key in recipe.keys():
+		if str(key) == "seconds":
+			continue
+		var short := int(recipe[key]) - int(_inv.get(key, 0))
+		if short > 0:
+			parts.append("%d %s" % [short, _item_word(str(key)).to_lower()])
+	return ", ".join(parts) if not parts.is_empty() else "nothing"
+
+
+func _cost_text(recipe_name: String) -> String:
+	var recipe: Dictionary = _catalog.get("recipes", {}).get(recipe_name, {})
+	var parts: Array = []
+	for key in recipe.keys():
+		if str(key) == "seconds":
+			continue
+		parts.append("%d %s" % [int(recipe[key]), _item_word(str(key))])
+	return " · ".join(parts)
+
+
+func _item_word(id: String) -> String:
+	match id:
+		"planks":
+			return "Planks"
+		"fibre":
+			return "Fibre"
+		"cooked":
+			return "Meal"
+	return id.capitalize()
+
+
+func _item_color(id: String) -> Color:
+	match id:
+		"wood":
+			return Color(0.95, 0.72, 0.45)
+		"stone", "flint":
+			return Color(0.85, 0.88, 0.92)
+		"fibre":
+			return Color(0.7, 0.95, 0.45)
+		"food", "fish", "meat", "cooked":
+			return Color(1.0, 0.6, 0.5)
+		"planks", "rope", "cloth":
+			return Color(1.0, 0.86, 0.6)
+	return Color(1, 0.95, 0.8)
+
+
+func _hit_sound(kind: String) -> String:
+	match kind:
+		"tree", "drift":
+			return AUDIO + "chop.ogg"
+		"rock", "stones", "flint":
+			return AUDIO + "stone_hit.ogg"
+		"dig":
+			return AUDIO + "dig.ogg"
+		"bush", "fibre", "crab", "fish":
+			return AUDIO + "crunch.ogg"
+	return AUDIO + "punch.ogg"
+
+
+func _chip_color(kind: String) -> Color:
+	match kind:
+		"tree", "drift", "hull", "rigging", "cargo":
+			return Color(0.55, 0.38, 0.22)
+		"rock", "stones", "flint":
+			return Color(0.6, 0.6, 0.58)
+		"dig":
+			return Color(0.78, 0.68, 0.5)
+		"bush", "fibre":
+			return Color(0.35, 0.55, 0.2)
+	return Color(0.7, 0.6, 0.45)
+
+
+## Rising "+1 Wood" label in the world, fades out over a second.
+func _popup(text: String, at: Vector3, color: Color) -> void:
+	var label := Label3D.new()
+	label.text = text
+	if _font:
+		label.font = _font
+	label.font_size = 48
+	label.pixel_size = 0.0065
+	label.outline_size = 12
+	label.modulate = color
+	label.outline_modulate = Color(0.06, 0.04, 0.02, 0.9)
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.no_depth_test = true
+	label.fixed_size = false
+	add_child(label)
+	label.global_position = at + Vector3(randf_range(-0.15, 0.15), 0.9, 0)
+	var tween := create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(label, "global_position:y", label.global_position.y + 1.1, 1.0).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tween.tween_property(label, "modulate:a", 0.0, 0.45).set_delay(0.6)
+	tween.chain().tween_callback(label.queue_free)
+
+
+## Small shaded chips flying off a hit (wood splinters, stone grit, sand).
+func _chips(at: Vector3, color: Color, amount: int) -> void:
+	var particles := GPUParticles3D.new()
+	particles.one_shot = true
+	particles.explosiveness = 0.95
+	particles.amount = amount
+	particles.lifetime = 0.7
+	particles.visibility_aabb = AABB(Vector3(-3, -3, -3), Vector3(6, 6, 6))
+	add_child(particles)
+	particles.global_position = at
+	var process := ParticleProcessMaterial.new()
+	process.direction = Vector3(0, 1, 0)
+	process.spread = 70.0
+	process.initial_velocity_min = 1.6
+	process.initial_velocity_max = 3.6
+	process.gravity = Vector3(0, -11, 0)
+	process.angular_velocity_min = -360.0
+	process.angular_velocity_max = 360.0
+	process.scale_min = 0.6
+	process.scale_max = 1.3
+	particles.process_material = process
+	var box := BoxMesh.new()
+	box.size = Vector3(0.07, 0.05, 0.1)
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = color
+	mat.roughness = 0.9
+	box.material = mat
+	particles.draw_pass_1 = box
+	particles.emitting = true
+	get_tree().create_timer(1.2).timeout.connect(particles.queue_free)
+
+
+func _vibrate(ms: int, strength: float) -> void:
+	_haptics.append([snappedf(_age, 0.01), ms])
+	if OS.has_feature("mobile"):
+		Input.vibrate_handheld(ms, strength)
+
+
+func _pop(node: Node3D) -> void:
+	if node == null:
+		return
+	var base := node.scale
+	node.scale = base * 0.2
+	var tween := create_tween()
+	tween.tween_property(node, "scale", base * 1.08, 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.tween_property(node, "scale", base, 0.12)
+
+
+## Node interaction centre: the middle of its visible model, not its foot.
+func _node_aim(node: Dictionary) -> Vector3:
+	var root := node.get("root") as Node3D
+	var off: Vector3 = node.get("aim_off", Vector3(0, 0.5, 0))
+	var k := root.scale.x / maxf(float(node.get("scale", 1.0)), 0.01)
+	return root.global_position + off * k
+
+
+func _measure_node(node: Dictionary) -> void:
+	var root := node.get("root") as Node3D
+	var box := _merged_aabb(root)
+	var labels_free := box
+	if box.size.length() < 0.01:
+		node["aim_off"] = Vector3(0, 0.5, 0)
+		node["radius"] = 1.2
+		return
+	var centre := labels_free.position + labels_free.size * 0.5
+	node["aim_off"] = centre - root.global_position
+	var half := maxf(box.size.x, box.size.z) * 0.5
+	node["radius"] = clampf(maxf(half, box.size.y * 0.5) + 0.35, 0.9, 2.6)
+
+
+func _terrain_hit(from: Vector3, to: Vector3) -> Vector3:
+	if _terrain_tm == null:
+		return Vector3(INF, INF, INF)
+	var inv := _terrain_xf.affine_inverse()
+	var dir := (to - from).normalized()
+	var hit := _terrain_tm.intersect_ray(inv * from, (inv.basis * dir).normalized())
+	if hit.is_empty():
+		return Vector3(INF, INF, INF)
+	return _terrain_xf * (hit["position"] as Vector3)
+
+
+func _orbit_drag(pos: Vector2, relative: Vector2) -> void:
+	if pos.distance_to(_drag_from) > 14.0:
+		_drag_moved = true
+	if _drag_moved and _cinematic == "" and not _fork and not _qte:
+		_cam_yaw -= relative.x * 0.0065
+
+
+func _slope_at(x: float, z: float, r: float) -> float:
+	var gx := _ground_y(x + r, z) - _ground_y(x - r, z)
+	var gz := _ground_y(x, z + r) - _ground_y(x, z - r)
+	return Vector2(gx, gz).length() / (2.0 * r)
+
+
+# --- building --------------------------------------------------------------
+
+func on_build_toggle() -> void:
+	if _cinematic != "" or _fork or _qte or _naming:
+		return
+	if _placing != "":
+		on_build_cancel()
+		return
+	_build_open = not _build_open
+
+
+func on_build_pick(id: String) -> void:
+	if id == "campfire" and _fire_lit:
+		_show_hint("The campfire is already burning")
+		return
+	if id == "lean_to" and (_hut_stage > 0 or _building):
+		_show_hint("You already have a lean-to")
+		return
+	if id == "storage" and _has_structure("storage"):
+		_show_hint("You already have a storage crate")
+		return
+	if not _can_pay(id):
+		_show_hint("%s needs %s more" % [BUILD_TITLES.get(id, id), _shortfall_text(id)])
+		_hint_t = 2.6
+		_play(AUDIO + "punch.ogg", -12.0, 0.7)
+		return
+	_build_open = false
+	_placing = id
+	_ghost_pin = Vector3(INF, INF, INF)
+	_make_ghost(id)
+	_show_hint("Green = OK. Tap the ground to move it, then Place")
+	_hint_t = 3.0
+
+
+func on_build_place() -> void:
+	if _placing == "" or _ghost == null:
+		return
+	if not _ghost_ok:
+		# Snap to the nearest good ground within a few metres of the ghost.
+		var alt := _nearest_site(_placing, _ghost.global_position, 4.5)
+		if not alt.is_finite():
+			_show_hint(_ghost_why)
+			_play(AUDIO + "punch.ogg", -12.0, 0.7)
+			return
+		_ghost.global_position = alt
+	if not _can_pay(_placing):
+		_show_hint("Need " + _shortfall_text(_placing))
+		on_build_cancel()
+		return
+	_pay(_placing)
+	var at := _ghost.global_position
+	var yaw := _ghost.rotation.y
+	var id := _placing
+	on_build_cancel()
+	_place_structure(id, at, yaw, true)
+
+
+func on_build_cancel() -> void:
+	_placing = ""
+	_ghost_pin = Vector3(INF, INF, INF)
+	if _ghost:
+		_ghost.queue_free()
+		_ghost = null
+
+
+func _has_structure(id: String) -> bool:
+	for row in _structures:
+		if str(row.get("id", "")) == id:
+			return true
+	return false
+
+
+func _structures_state() -> Array:
+	var rows: Array = []
+	for row in _structures:
+		var at: Vector3 = row.get("at", Vector3.ZERO)
+		rows.append([str(row.get("id", "")), at.x, at.y, at.z, float(row.get("yaw", 0.0))])
+	return rows
+
+
+func _build_rows() -> Array:
+	var rows: Array = []
+	for id in BUILD_IDS:
+		var built: bool = (id == "campfire" and _fire_lit) or (id == "lean_to" and (_hut_stage > 0 or _building)) or (id == "storage" and _has_structure("storage"))
+		rows.append({"id": id, "title": BUILD_TITLES[id], "cost": _cost_text(id), "ok": _can_pay(id) and not built, "built": built})
+	return rows
+
+
+func _make_ghost(id: String) -> void:
+	if _ghost:
+		_ghost.queue_free()
+	_ghost = Node3D.new()
+	_ghost.name = "BuildGhost"
+	add_child(_ghost)
+	_ghost.global_position = _player.global_position
+	match id:
+		"campfire":
+			var pit := Art.put(_ghost, FIRE_PIT, "Stones", Vector3.ZERO, Vector3.ZERO, 1.0)
+			Art.fit_height(pit, 0.55)
+			var logs := Art.put(_ghost, DEAD_LOG, "Logs", Vector3(0, 0.05, 0), Vector3(0, 40, 0), 1.0)
+			_fit_long(logs, 1.1)
+		"lean_to":
+			var roof := Art.put(_ghost, HUT, "Roof", Vector3.ZERO, Vector3(0, 180, 0), 1.0)
+			Art.fit_height(roof, 3.0)
+		"storage":
+			var chest := Art.put(_ghost, Art.CHEST, "Chest", Vector3.ZERO, Vector3.ZERO, 1.0)
+			Art.fit_height(chest, 0.75)
+	_ghost_mat = StandardMaterial3D.new()
+	_ghost_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	_ghost_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_ghost_mat.albedo_color = Color(0.45, 0.95, 0.5, 0.45)
+	_ghost_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	for mesh in _meshes(_ghost):
+		mesh.material_override = _ghost_mat
+		mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var ring := MeshInstance3D.new()
+	var disc := CylinderMesh.new()
+	disc.top_radius = float(BUILD_RADIUS.get(id, 1.0))
+	disc.bottom_radius = disc.top_radius
+	disc.height = 0.04
+	ring.mesh = disc
+	ring.material_override = _ghost_mat
+	ring.position.y = 0.03
+	_ghost.add_child(ring)
+
+
+func _tick_ghost() -> void:
+	if _ghost == null:
+		return
+	var fwd := -_player.global_transform.basis.z
+	fwd.y = 0.0
+	fwd = fwd.normalized() if fwd.length() > 0.01 else Vector3.FORWARD
+	var r := float(BUILD_RADIUS.get(_placing, 1.0))
+	var at := _ghost_pin if _ghost_pin.is_finite() else _player.global_position + fwd * (r + 1.3)
+	at.y = _ground_y(at.x, at.z)
+	_ghost.global_position = at
+	var face := _player.global_position - at
+	face.y = 0.0
+	if face.length() > 0.1:
+		_ghost.rotation.y = atan2(face.x, face.z)
+	_ghost_why = _site_problem(_placing, at)
+	_ghost_ok = _ghost_why == ""
+	_ghost_mat.albedo_color = Color(0.45, 0.95, 0.5, 0.45) if _ghost_ok else Color(1.0, 0.36, 0.3, 0.45)
+
+
+## Why a structure cannot go at `at` ("" when the site is fine).
+func _site_problem(id: String, at: Vector3) -> String:
+	var r := float(BUILD_RADIUS.get(id, 1.0))
+	if at.y < _water_y + 0.3:
+		return "Too wet. Build on dry sand"
+	var lo := INF
+	var hi := -INF
+	for k in 6:
+		var a := TAU * float(k) / 6.0
+		var y := _ground_y(at.x + cos(a) * r, at.z + sin(a) * r)
+		if y < _water_y + 0.05:
+			return "Too close to the water"
+		lo = minf(lo, y)
+		hi = maxf(hi, y)
+	if (hi - lo) / (2.0 * r) > 0.62:
+		return "Too steep here. Find flat ground"
+	for row in _structures:
+		var other: Vector3 = row.get("at", Vector3.ZERO)
+		if _flat(other, at) < r + float(BUILD_RADIUS.get(str(row.get("id", "")), 1.0)) + 0.4:
+			return "Too close to your %s" % str(BUILD_TITLES.get(str(row.get("id", "")), "camp")).to_lower()
+	for node in _nodes:
+		if bool(node.get("depleted", false)):
+			continue
+		if _flat((node.get("root") as Node3D).global_position, at) < r + 0.5:
+			return "Something is in the way"
+	if _flat(_player.global_position, at) < r * 0.7:
+		return "Step back a little"
+	return ""
+
+
+func _nearest_site(id: String, around: Vector3, reach: float) -> Vector3:
+	var ring := 0.6
+	while ring <= reach:
+		for k in 12:
+			var a := TAU * float(k) / 12.0
+			var p := around + Vector3(cos(a), 0, sin(a)) * ring
+			p.y = _ground_y(p.x, p.z)
+			if _site_problem(id, p) == "":
+				return p
+		ring += 0.6
+	return Vector3(INF, INF, INF)
+
+
+## Nearest good build site around the player (bot and pointer fallback).
+func _build_spot() -> Vector3:
+	var id := _placing if _placing != "" else "lean_to"
+	var best := _player.global_position
+	var best_d := INF
+	for ring in [3.0, 5.0, 7.0, 9.0]:
+		for k in 12:
+			var a := TAU * float(k) / 12.0
+			var p: Vector3 = _player.global_position + Vector3(cos(a), 0, sin(a)) * ring
+			p.y = _ground_y(p.x, p.z)
+			if _site_problem(id, p) == "" and ring < best_d:
+				best_d = ring
+				best = p
+		if best_d < INF:
+			break
+	return best
+
+
+func _place_structure(id: String, at: Vector3, yaw: float, fresh: bool) -> void:
+	_structures.append({"id": id, "at": at, "yaw": yaw})
+	var shown: Node3D = null
+	match id:
+		"campfire":
+			_fire_at = at
+			_light_fire()
+			shown = _flame
+		"lean_to":
+			_hut.global_position = at
+			_hut.rotation.y = yaw
+			shown = _hut
+			if fresh:
+				_building = true
+				_build_total = float(_catalog.get("recipes", {}).get("lean_to", {}).get("seconds", 4.0))
+				_build_left = _build_total
+				_hut_stage = 1
+				_show_hut(1)
+		"storage":
+			if _storage == null:
+				_storage = Node3D.new()
+				_storage.name = "Storage"
+				add_child(_storage)
+				var chest := Art.put(_storage, Art.CHEST, "Chest", Vector3.ZERO, Vector3.ZERO, 1.0)
+				Art.fit_height(chest, 0.75)
+				var tag := _label3("Storage", 1.2)
+				_prompt_style(tag, 1.0)
+				_storage.add_child(tag)
+			_storage.global_position = at
+			_storage.rotation.y = yaw
+			shown = _storage
+	if not fresh:
+		return
+	_pop(shown)
+	_chips(at + Vector3.UP * 0.2, Color(0.72, 0.62, 0.45), 26)
+	_play(AUDIO + "build_place.ogg", -2.0, 1.0)
+	_vibrate(45, 0.6)
+	_popup("%s built!" % BUILD_TITLES.get(id, id), at + Vector3.UP * 1.2, Color(1.0, 0.9, 0.6))
+	_note_burst(str(BUILD_TITLES.get(id, id)))
+	if id == "campfire" and _step == "fire":
+		_enter("shelter")
+
+
+# --- the pet ---------------------------------------------------------------
+
+func _bond(amount: int) -> void:
+	var before := 1 + int(_pet_stats.get("bond", 0)) / 20
+	_pet_stats["bond"] = int(_pet_stats.get("bond", 0)) + amount
+	var level := 1 + int(_pet_stats["bond"]) / 20
+	_pet_stats["level"] = maxi(int(_pet_stats.get("level", 1)), level)
+	if level > before:
+		_note_burst("Bond Lv %d" % level)
+		if _pet:
+			_popup("Bond Lv %d!" % level, _pet.global_position + Vector3.UP * 1.0, Color(1.0, 0.65, 0.75))
+
+
+func _pet_busy_ok() -> bool:
+	return _step in ["gather", "fire", "shelter", "collect", "epilogue"] and not _fork and not _qte
+
+
+func _tick_pet(delta: float) -> void:
+	_pet_pet_cd = maxf(_pet_pet_cd - delta, 0.0)
+	_pet_hop = maxf(_pet_hop - delta, 0.0)
+	var moving := false
+	match _pet_mode:
+		"follow":
+			moving = _pet_follow(delta)
+			if _pet_busy_ok():
+				_sniff_left -= delta
+				_fetch_left -= delta
+				if _sniff_left <= 0.0:
+					_start_sniff()
+				elif _fetch_left <= 0.0:
+					_start_fetch()
+		"sniff":
+			moving = not _pet_walk(_pet_goal, 4.6, delta, 0.35)
+			if not moving:
+				_pet_mode = "point"
+				_pet_timer = 0.0
+				_play(AUDIO + "bark.ogg", -6.0, 1.15)
+				_show_hint("%s found something! Dig where he points" % str(_pet_stats.get("name", "Tide-Puck")))
+				_hint_t = 4.0
+				var dig := _nearest_dig()
+				if not dig.is_empty():
+					var mark := (dig.get("root") as Node3D).get_node_or_null("Mark") as Label3D
+					if mark:
+						mark.visible = true
+		"point":
+			_pet_timer += delta
+			var dig := _nearest_dig()
+			if dig.is_empty() or _pet_timer > 30.0:
+				_pet_mode = "follow"
+			else:
+				_pet_face((dig.get("root") as Node3D).global_position)
+		"fetch":
+			if _pet_target.is_empty() or bool(_pet_target.get("depleted", false)):
+				_pet_mode = "follow"
+			else:
+				moving = not _pet_walk((_pet_target.get("root") as Node3D).global_position, 5.0, delta, 1.2)
+				if not moving:
+					_shake(_pet_target.get("root"))
+					_play(_hit_sound(str(_pet_target.get("kind", ""))), -12.0, 1.2)
+					_pet_mode = "return"
+		"return":
+			moving = not _pet_walk(_player.global_position, 5.4, delta, 1.6)
+			if not moving:
+				_pet_fetches += 1
+				_give(_pet_carry, 1, _pet.global_position + Vector3.UP * 0.3)
+				_bond(1)
+				_pet_hop = 0.45
+				_pet_mode = "follow"
+				_fetch_left = 30.0
+		"warn":
+			_pet_timer += delta
+			if _beast and _beast.visible:
+				_pet_face(_beast.global_position)
+			if _pet_timer > 2.0:
+				_pet_mode = "follow"
+	_pet_animate(moving)
+
+
+func _pet_follow(delta: float) -> bool:
+	var back := _player.global_transform.basis.z * 1.5 + _player.global_transform.basis.x * 0.9
+	var goal := _player.position + back
+	if _pet.position.distance_to(goal) < 0.5:
+		return false
+	var far := _flat(_pet.position, _player.position)
+	return not _pet_walk(goal, clampf(far * 1.2, 2.0, 6.5), delta, 0.3)
+
+
+## Walk the pet toward `goal`; true once within `stop` metres.
+func _pet_walk(goal: Vector3, speed: float, delta: float, stop: float) -> bool:
+	var to := goal - _pet.position
+	to.y = 0.0
+	if to.length() <= stop:
+		return true
+	var step := to.normalized() * minf(speed * delta, to.length())
+	var next := _pet.position + step
+	next.y = _ground_y(next.x, next.z)
+	_pet.position = next
+	_pet_face(_pet.global_position + step)
+	return false
+
+
+func _pet_face(at: Vector3) -> void:
+	at.y = _pet.global_position.y
+	if _flat(at, _pet.global_position) > 0.05:
+		_pet.look_at(at, Vector3.UP)
+
+
+## Procedural life on the static seal model: waddle, breathing, hops,
+## and a nose-up point at buried loot.
+func _pet_animate(moving: bool) -> void:
+	var body := _pet.get_node_or_null("Body") as Node3D
+	if body == null:
+		return
+	var t := _age
+	var lift := 0.0
+	var roll := 0.0
+	var pitch := 0.0
+	var yaw := PI
+	var breathe := 1.0
+	if moving:
+		lift = absf(sin(t * 11.0)) * 0.07
+		roll = sin(t * 11.0) * 0.13
+	elif _pet_mode == "point":
+		pitch = -0.32 + sin(t * 3.0) * 0.04
+		yaw = PI + sin(t * 13.0) * 0.1
+		lift = absf(sin(t * 6.0)) * 0.03
+	elif _pet_mode == "warn":
+		pitch = 0.12
+		roll = sin(t * 30.0) * 0.03
+	else:
+		breathe = 1.0 + sin(t * 2.3) * 0.025
+		yaw = PI + sin(t * 0.6) * 0.25
+	if _pet_hop > 0.0:
+		lift += sin(clampf(_pet_hop / 0.5, 0.0, 1.0) * PI) * 0.32
+	body.position.y = lift
+	body.rotation = Vector3(pitch, yaw, roll)
+	body.scale = Vector3(PET_SCALE, PET_SCALE * breathe, PET_SCALE)
+
+
+func _start_sniff() -> void:
+	var level := int(_pet_stats.get("level", 1))
+	_sniff_left = maxf(12.0, 26.0 - 3.0 * float(level))
+	if not _nearest_dig().is_empty():
+		return
+	var spots: Array = []
+	for ring in [3.5, 4.5, 5.5, 6.5, 7.5, 8.5, 10.0]:
+		for k in 24:
+			var a := TAU * float(k) / 24.0
+			var p: Vector3 = _player.global_position + Vector3(cos(a), 0, sin(a)) * ring
+			p.y = _ground_y(p.x, p.z)
+			if p.y < _water_y + 0.25 or p.y - _player.global_position.y > 2.2 or _slope_at(p.x, p.z, 0.6) > 0.55:
+				continue
+			var clear := true
+			for node in _nodes:
+				if _flat((node.get("root") as Node3D).global_position, p) < 1.6:
+					clear = false
+					break
+			for row in _structures:
+				if _flat(row.get("at", Vector3.ZERO), p) < 2.4:
+					clear = false
+			if clear:
+				spots.append(p)
+	var spot := Vector3(INF, INF, INF)
+	if not spots.is_empty():
+		spot = spots[randi() % spots.size()]
+	if not spot.is_finite():
+		_sniff_left = 5.0
+		return
+	_spawn_dig(spot)
+	_pet_goal = spot + (_player.global_position - spot).normalized() * 0.7
+	_pet_mode = "sniff"
+	_sniff_t = 1.5
+
+
+func _dig_loot() -> Array:
+	var want := ""
+	if _step == "gather":
+		want = "wood" if int(_inv.get("wood", 0)) < GATHER_WOOD else ("stone" if int(_inv.get("stone", 0)) < GATHER_STONE else "")
+	elif _step == "fire":
+		for key in ["stone", "wood"]:
+			if int(_inv.get(key, 0)) < int(_catalog.get("recipes", {}).get("campfire", {}).get(key, 0)):
+				want = key
+				break
+	elif _step == "shelter":
+		for key in ["planks", "fibre", "wood"]:
+			var need := int(_catalog.get("recipes", {}).get("lean_to", {}).get(key, 0))
+			if int(_inv.get(key, 0)) < need:
+				want = key
+				break
+	var loot: Array = []
+	if want != "":
+		loot.append({"id": want, "amount": 2})
+	else:
+		var pick: String = ["food", "rope", "flint"][_dig_serial % 3]
+		loot.append({"id": pick, "amount": 2 if pick == "food" else 1})
+	if randf() < 0.35:
+		loot.append({"id": "food", "amount": 1})
+	return loot
+
+
+func _spawn_dig(at: Vector3) -> void:
+	_dig_serial += 1
+	var root := Node3D.new()
+	root.name = "dig_%d" % _dig_serial
+	_nodes_root.add_child(root)
+	root.global_position = at
+	var mound := MeshInstance3D.new()
+	var dome := SphereMesh.new()
+	dome.radius = 0.42
+	dome.height = 0.26
+	dome.radial_segments = 18
+	dome.rings = 6
+	mound.mesh = dome
+	mound.material_override = _mat(Color(0.6, 0.5, 0.34), 0.95)
+	mound.position.y = 0.02
+	root.add_child(mound)
+	var stone := Art.put(root, ASHORE_STONE, "Pebble", Vector3(0.22, 0.05, 0.1), Vector3(0, 30, 0), 1.0)
+	_fit_long(stone, 0.18)
+	var title := _label3("Dig", 0.9)
+	title.name = "Title"
+	title.visible = false
+	_prompt_style(title, 1.0)
+	root.add_child(title)
+	var mark := _label3("!", 1.35)
+	mark.name = "Mark"
+	mark.modulate = Color(1.0, 0.85, 0.3)
+	mark.visible = false
+	root.add_child(mark)
+	var node := {
+		"id": root.name, "kind": "dig", "title": "Dig", "scale": 1.0, "stages": 1, "stage": 0,
+		"tool": "", "requires": "", "respawn": -1.0, "left": 0.0, "depleted": false,
+		"loot": [_dig_loot()], "root": root,
+	}
+	_measure_node(node)
+	node["radius"] = 1.1
+	_nodes.append(node)
+
+
+func _on_dug(_node: Dictionary) -> void:
+	_pet_finds += 1
+	_bond(3)
+	_pet_hop = 0.5
+	if _pet_mode == "point":
+		_pet_mode = "follow"
+	if _pet:
+		_popup("Good find!", _pet.global_position + Vector3.UP * 0.9, Color(1.0, 0.8, 0.5))
+
+
+func _nearest_dig() -> Dictionary:
+	var best: Dictionary = {}
+	var best_d := INF
+	for node in _nodes:
+		if str(node.get("kind", "")) != "dig" or bool(node.get("depleted", false)):
+			continue
+		var d := _flat((node.get("root") as Node3D).global_position, _player.global_position)
+		if d < best_d:
+			best_d = d
+			best = node
+	return best
+
+
+func _start_fetch() -> void:
+	_fetch_left = 30.0
+	var best: Dictionary = {}
+	var best_d := 14.0
+	for node in _nodes:
+		if bool(node.get("depleted", false)) or str(node.get("kind", "")) not in ["tree", "drift", "bush", "fibre"]:
+			continue
+		var d := _flat((node.get("root") as Node3D).global_position, _pet.global_position)
+		if d < best_d:
+			best_d = d
+			best = node
+	if best.is_empty():
+		return
+	var kind := str(best.get("kind", ""))
+	_pet_carry = "food" if kind == "bush" else ("fibre" if kind == "fibre" else "wood")
+	_pet_target = best
+	_pet_mode = "fetch"
+
+
+## Closest standing node that still yields something the current goal needs.
+func _needed_node() -> Dictionary:
+	var want: Array = []
+	if _step == "gather":
+		if int(_inv.get("wood", 0)) < GATHER_WOOD:
+			want.append("wood")
+		if int(_inv.get("stone", 0)) < GATHER_STONE:
+			want.append("stone")
+	elif _step in ["fire", "shelter"]:
+		var recipe: Dictionary = _catalog.get("recipes", {}).get("campfire" if _step == "fire" else "lean_to", {})
+		for key in recipe.keys():
+			if str(key) != "seconds" and int(_inv.get(key, 0)) < int(recipe[key]):
+				want.append(str(key))
+	if want.is_empty():
+		return {}
+	var best: Dictionary = {}
+	var best_d := INF
+	for node in _nodes:
+		if bool(node.get("depleted", false)) or str(node.get("kind", "")) == "pile":
+			continue
+		var gives := false
+		for stage in node.get("loot", []):
+			if stage is Array:
+				for item in stage:
+					if str(item.get("id", "")) in want:
+						gives = true
+		if not gives:
+			continue
+		var d := _flat((node.get("root") as Node3D).global_position, _player.global_position)
+		if d < best_d:
+			best_d = d
+			best = node
+	return best
+
+
+func _dusk_spawn() -> Vector3:
+	var p := _player.global_position
+	for i in 24:
+		var a := TAU * float(i) / 24.0
+		var at := p + Vector3(cos(a), 0, sin(a)) * 11.0
+		at.y = _ground_y(at.x, at.z)
+		if at.y > _water_y + 0.4 and absf(at.y - p.y) < 2.0 and _slope_at(at.x, at.z, 0.8) < 0.6:
+			return at
+	var camp := _landmark_position("camp")
+	camp.y = _ground_y(camp.x, camp.z)
+	return camp
+
+
+## Bot / auto-play hint: which HUD button the next goal needs, if any.
+func bot_goal() -> Dictionary:
+	if _placing != "":
+		if _ghost_ok:
+			return {"press": "_place_btn"}
+		if not _ghost_pin.is_finite():
+			_ghost_pin = _build_spot()
+		return {}
+	if _building:
+		return {}
+	var want := ""
+	if _step == "fire" and not _fire_lit and _can_pay("campfire"):
+		want = "campfire"
+	elif _step == "shelter" and _hut_stage == 0 and _can_pay("lean_to"):
+		want = "lean_to"
+	if want == "":
+		return {}
+	if not _build_open:
+		return {"press": "_build_btn"}
+	return {"press": "_build_" + want}
+
+
+# --- camera vs foliage -----------------------------------------------------
+
+## Foliage volumes the follow camera must not look through (palm trunks and
+## crowns split so a crown does not block the open sand under it), plus a
+## near-camera dither fade on foliage materials so leaves that still brush
+## the lens dissolve instead of filling the frame.
+func _prepare_foliage() -> void:
+	_foliage_boxes.clear()
+	if _slice:
+		for mmi in _slice.find_children("*", "MultiMeshInstance3D", true, false):
+			var n := str(mmi.name)
+			var hit := false
+			for word in FOLIAGE_WORDS:
+				if word in n:
+					hit = true
+			if not hit:
+				continue
+			var mm: MultiMesh = (mmi as MultiMeshInstance3D).multimesh
+			if mm == null or mm.mesh == null:
+				continue
+			_dither(mm.mesh)
+			var local := mm.mesh.get_aabb()
+			for i in mm.instance_count:
+				var box: AABB = ((mmi as Node3D).global_transform * mm.get_instance_transform(i)) * local
+				_add_foliage_box(box, "Palm" in n)
+	for mi in find_children("*", "MeshInstance3D", true, false):
+		var path := str(get_path_to(mi)).to_lower()
+		if path.begins_with("nodes") or path.begins_with("buildghost"):
+			continue
+		if not ("tree" in path or "palm" in path or "jungle" in path or "canopy" in path or "bush" in path):
+			continue
+		if "dead_tree_trunk" in path:
+			continue
+		var m := mi as MeshInstance3D
+		if m.mesh == null:
+			continue
+		_dither(m.mesh)
+		var box: AABB = m.global_transform * m.get_aabb()
+		_add_foliage_box(box, box.size.y > 2.6)
+
+
+func _add_foliage_box(box: AABB, tree: bool) -> void:
+	if box.size.y < 1.1:
+		return
+	if not tree:
+		_foliage_boxes.append(box.grow(-0.12))
+		return
+	var c := box.position + box.size * 0.5
+	var trunk_h := box.size.y * 0.6
+	_foliage_boxes.append(AABB(Vector3(c.x - 0.3, box.position.y, c.z - 0.3), Vector3(0.6, trunk_h, 0.6)))
+	_foliage_boxes.append(AABB(Vector3(box.position.x, box.position.y + trunk_h, box.position.z), Vector3(box.size.x, box.size.y - trunk_h, box.size.z)).grow(-0.2))
+
+
+func _dither(mesh: Mesh) -> void:
+	for i in mesh.get_surface_count():
+		var mat := mesh.surface_get_material(i)
+		if mat is StandardMaterial3D and not mat.has_meta("iom_dither"):
+			var std := mat as StandardMaterial3D
+			std.set_meta("iom_dither", true)
+			std.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_PIXEL_DITHER
+			std.distance_fade_min_distance = 0.9
+			std.distance_fade_max_distance = 2.8
+
+
+## Fraction along head->eye of the first foliage hit (1.0 = clear).
+func _foliage_hit(head: Vector3, eye: Vector3) -> float:
+	var best := 1.0
+	var length := head.distance_to(eye)
+	if length < 0.01:
+		return 1.0
+	for box in _foliage_boxes:
+		var b: AABB = box
+		var c := b.position + b.size * 0.5
+		if absf(c.x - head.x) > 14.0 or absf(c.z - head.z) > 14.0:
+			continue
+		if b.has_point(head):
+			continue
+		var hit = b.intersects_segment(head, eye)
+		if hit != null:
+			best = minf(best, head.distance_to(hit) / length)
+	return best

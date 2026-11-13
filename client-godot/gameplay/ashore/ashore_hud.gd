@@ -49,6 +49,16 @@ var _bars: Array[ColorRect] = []
 var _build: ProgressBar
 var _health: Label
 var _draw: Control
+var _build_btn: Button
+var _build_panel: PanelContainer
+var _build_box: VBoxContainer
+var _build_sig := ""
+var _build_campfire: Button
+var _build_lean_to: Button
+var _build_storage: Button
+var _place_btn: Button
+var _cancel_btn: Button
+const ALWAYS_COUNTS := ["wood", "stone", "fibre", "planks", "rope"]
 
 
 func stick() -> Vector2:
@@ -77,6 +87,7 @@ func push_state(state: Dictionary) -> void:
 		_apply_pet()
 		_apply_name()
 		_apply_end()
+		_apply_build()
 		_spyglass.visible = bool(state.get("spyglass", false))
 		for bar in _bars:
 			bar.visible = bool(state.get("letterbox", false))
@@ -120,12 +131,12 @@ func _build_widgets() -> void:
 			bar.offset_top = -54
 		add_child(bar)
 		_bars.append(bar)
-	_line = _label(26)
+	_line = _label(25)
 	_line.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	_line.offset_top = 14
-	_line.offset_bottom = 50
-	_line.offset_left = -260
-	_line.offset_right = 260
+	_line.offset_bottom = 52
+	_line.offset_left = -330
+	_line.offset_right = 330
 	_line.add_theme_stylebox_override("normal", _pill(Color(0.03, 0.08, 0.12, 0.55), Color(0.98, 0.82, 0.45, 0.0)))
 	_line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	add_child(_line)
@@ -174,17 +185,18 @@ func _build_widgets() -> void:
 	_hunger.add_child(_hunger_fill)
 	_counts = HBoxContainer.new()
 	_counts.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	_counts.offset_top = 14
-	_counts.offset_bottom = 46
-	_counts.offset_left = -620
-	_counts.offset_right = -14
-	_counts.alignment = BoxContainer.ALIGNMENT_END
+	_counts.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	_counts.offset_top = 96
+	_counts.offset_bottom = 128
+	_counts.offset_left = 16
+	_counts.offset_right = 760
+	_counts.alignment = BoxContainer.ALIGNMENT_BEGIN
 	_counts.add_theme_constant_override("separation", 6)
 	add_child(_counts)
-	for kind in ["planks", "rope", "cloth", "wood", "food", "meat", "flint", "fish", "cooked"]:
+	for kind in ["wood", "stone", "fibre", "planks", "rope", "cloth", "food", "flint", "meat", "fish", "cooked"]:
 		var lab := _label(20)
 		lab.text = "0"
-		lab.custom_minimum_size = Vector2(52, 30)
+		lab.custom_minimum_size = Vector2(48, 30)
 		lab.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		lab.add_theme_stylebox_override("normal", _pill(Color(0.03, 0.08, 0.12, 0.6), _icon_color(kind)))
 		lab.visible = false
@@ -222,8 +234,8 @@ func _build_widgets() -> void:
 	_attack.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
 	_attack.offset_left = -210
 	_attack.offset_right = -28
-	_attack.offset_top = -250
-	_attack.offset_bottom = -164
+	_attack.offset_top = -350
+	_attack.offset_bottom = -264
 	_attack.visible = false
 	_attack.pressed.connect(_emit_attack)
 	add_child(_attack)
@@ -243,7 +255,52 @@ func _build_widgets() -> void:
 	_research_toggle.offset_top = 16
 	_research_toggle.offset_bottom = 68
 	_research_toggle.pressed.connect(_emit_research_toggle)
+	_research_toggle.visible = false
 	add_child(_research_toggle)
+	_build_btn = _button("Build", 24)
+	_build_btn.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	_build_btn.offset_left = -210
+	_build_btn.offset_right = -28
+	_build_btn.offset_top = -250
+	_build_btn.offset_bottom = -164
+	_build_btn.pressed.connect(_emit_build_toggle)
+	add_child(_build_btn)
+	_build_panel = _panel()
+	_build_panel.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	_build_panel.offset_left = -650
+	_build_panel.offset_right = -226
+	_build_panel.offset_top = -420
+	_build_panel.offset_bottom = -150
+	_build_panel.visible = false
+	add_child(_build_panel)
+	_build_box = VBoxContainer.new()
+	_build_box.add_theme_constant_override("separation", 8)
+	_build_panel.add_child(_build_box)
+	_build_campfire = _button("Campfire", 22)
+	_build_lean_to = _button("Lean-to", 22)
+	_build_storage = _button("Storage", 22)
+	for pair in [[_build_campfire, "campfire"], [_build_lean_to, "lean_to"], [_build_storage, "storage"]]:
+		var b: Button = pair[0]
+		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		b.custom_minimum_size = Vector2(400, 72)
+		b.pressed.connect(_emit_build_pick.bind(str(pair[1])))
+		_build_box.add_child(b)
+	_place_btn = _button("Place", 30)
+	_cancel_btn = _button("Cancel", 24)
+	for b in [_place_btn, _cancel_btn]:
+		b.visible = false
+		b.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+		add_child(b)
+	_place_btn.offset_left = -230
+	_place_btn.offset_right = -20
+	_place_btn.offset_top = -150
+	_place_btn.offset_bottom = -50
+	_cancel_btn.offset_left = 20
+	_cancel_btn.offset_right = 190
+	_cancel_btn.offset_top = -150
+	_cancel_btn.offset_bottom = -50
+	_place_btn.pressed.connect(_emit_place)
+	_cancel_btn.pressed.connect(_emit_cancel)
 	_pet_chip = _button("Pet", 20)
 	_pet_chip.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
 	_pet_chip.offset_left = -400
@@ -366,7 +423,7 @@ func _apply_counts() -> void:
 		var label: Label = _count_labels[kind]
 		var n := int(counts.get(kind, 0))
 		label.text = "%s %d" % [_short(kind), n]
-		label.visible = n > 0
+		label.visible = n > 0 or kind in ALWAYS_COUNTS
 
 
 func _apply_buttons() -> void:
@@ -427,7 +484,7 @@ func _apply_pet() -> void:
 	var freed := bool(_state.get("pet_freed", false))
 	_pet_chip.visible = freed
 	if freed:
-		_pet_chip.text = "%s  %d" % [str(_state.get("pet_name", "Tide-Puck")), int(_state.get("pet_level", 1))]
+		_pet_chip.text = "%s  ♥%d" % [str(_state.get("pet_name", "Tide-Puck")), int(_state.get("pet_level", 1))]
 	var open := bool(_state.get("pet_open", false))
 	_pet_panel.visible = open and freed
 	if _mood == null:
@@ -442,7 +499,8 @@ func _apply_pet() -> void:
 			_pet_box.add_child(lab)
 			_pet_sig += str(card.get("t", ""))
 	if _mood:
-		_mood.text = "Mood %d   Hunger %d" % [int(_state.get("pet_mood", 0)), int(_state.get("pet_hunger", 0))]
+		var bond := int(_state.get("pet_bond", 0))
+		_mood.text = "Bond Lv %d  (%d/%d)\nFinds %d   Fetches %d\nMood %d   Hunger %d\nFeed: +12 bond" % [1 + bond / 20, bond % 20, 20, int(_state.get("pet_finds", 0)), int(_state.get("pet_fetches", 0)), int(_state.get("pet_mood", 0)), int(_state.get("pet_hunger", 0))]
 
 
 func _apply_name() -> void:
@@ -551,6 +609,10 @@ func _draw_icon(at: Vector2, kind: String, s: float) -> void:
 			col = Color(0.7, 0.22, 0.24)
 		"flint":
 			col = Color(0.35, 0.38, 0.42)
+		"stone":
+			col = Color(0.55, 0.55, 0.52)
+		"fibre":
+			col = Color(0.45, 0.62, 0.22)
 		"fish":
 			col = Color(0.25, 0.65, 0.72)
 		"cooked":
@@ -574,6 +636,10 @@ func _icon_word(kind: String) -> String:
 			return "Meat"
 		"flint":
 			return "Flint"
+		"stone":
+			return "Stone"
+		"fibre":
+			return "Fibre"
 		"fish":
 			return "Fish"
 		"cooked":
@@ -617,6 +683,10 @@ func _icon_color(kind: String) -> Color:
 			return Color(0.78, 0.24, 0.26)
 		"flint":
 			return Color(0.55, 0.6, 0.66)
+		"stone":
+			return Color(0.66, 0.66, 0.62)
+		"fibre":
+			return Color(0.55, 0.78, 0.3)
 		"fish":
 			return Color(0.25, 0.72, 0.8)
 		"cooked":
@@ -779,3 +849,48 @@ func _emit_pet_toggle() -> void:
 func _emit_research(id: String) -> void:
 	if world:
 		world.on_research(id)
+
+
+func _apply_build() -> void:
+	var placing := bool(_state.get("placing", false))
+	var hidden := bool(_state.get("fork", false)) or bool(_state.get("qte", false)) or bool(_state.get("name_open", false)) or bool(_state.get("skip", false))
+	_build_btn.visible = not hidden and not placing
+	_place_btn.visible = placing and not hidden
+	_cancel_btn.visible = placing and not hidden
+	_place_btn.modulate = Color(1, 1, 1, 1) if bool(_state.get("place_ok", false)) else Color(1, 0.55, 0.5, 0.8)
+	_build_panel.visible = bool(_state.get("build_open", false)) and not placing and not hidden
+	if bool(_state.get("build_hint", false)) and not _build_panel.visible:
+		var pulse := 0.5 + 0.5 * sin(Time.get_ticks_msec() / 160.0)
+		_build_btn.modulate = Color(1, 1, 1).lerp(Color(1.0, 0.85, 0.4), pulse)
+	else:
+		_build_btn.modulate = Color(1, 1, 1)
+	var buttons := {"campfire": _build_campfire, "lean_to": _build_lean_to, "storage": _build_storage}
+	for row in _state.get("build_rows", []):
+		var b: Button = buttons.get(str(row.get("id", "")))
+		if b == null:
+			continue
+		var text := "%s   %s" % [str(row.get("title", "")), str(row.get("cost", ""))]
+		if bool(row.get("built", false)):
+			text = "%s   built" % str(row.get("title", ""))
+		b.text = text
+		b.modulate = Color(1, 1, 1) if bool(row.get("ok", false)) else Color(0.7, 0.66, 0.6, 0.85)
+
+
+func _emit_build_toggle() -> void:
+	if world:
+		world.on_build_toggle()
+
+
+func _emit_build_pick(id: String) -> void:
+	if world:
+		world.on_build_pick(id)
+
+
+func _emit_place() -> void:
+	if world:
+		world.on_build_place()
+
+
+func _emit_cancel() -> void:
+	if world:
+		world.on_build_cancel()

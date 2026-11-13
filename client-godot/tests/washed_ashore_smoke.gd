@@ -64,22 +64,25 @@ func run() -> void:
 			glowed = true
 	check(not glowed, "Resource nodes must not use emissive glow")
 	var tree_lock = scene.get_node_or_null("Nodes/tree_a/Lock")
-	check(tree_lock != null and str(tree_lock.text) == "Needs an axe", "Trees show the axe lock")
+	check(tree_lock != null and str(tree_lock.text) == "", "Trees are never tool-locked (the axe is a bonus)")
 	var rock_lock = scene.get_node_or_null("Nodes/rock_a/Lock")
-	check(rock_lock != null and str(rock_lock.text) == "Needs a pick", "Rocks show the pick lock")
+	check(rock_lock != null and str(rock_lock.text) == "", "Rocks are never tool-locked (the pick is a bonus)")
+	for needed in ["wood", "stone", "fibre", "planks"]:
+		check(scene._inv.has(needed), "Inventory tracks " + needed)
 	check(scene.get_node_or_null("LandmarkClearing/Hut/Frame") != null, "Hut frame piece exists")
 	check(scene.get_node_or_null("LandmarkClearing/Hut/Walls") != null, "Hut wall piece exists")
 	check(scene.get_node_or_null("LandmarkClearing/Hut/Roof") != null, "Hut roof piece exists")
 	scene.skip_cinematic()
 	await process_frame
-	check(scene.quest_line() == "Wreck.", "Quest tracker is a single short line")
-	check(scene.quest_line().length() < 24, "Quest line stays short")
+	check(scene.quest_line() == "Search the wreck  0/3", "Quest tracker says what to do with a counter, got '%s'" % scene.quest_line())
+	check(scene.quest_line().length() <= 48, "Quest line stays one line")
 	check(scene._heralds >= 1, "The pet or the pile heralds the next beat")
 	var hull = scene._node_by_id("hull")
 	scene._player.global_position = (hull["root"] as Node3D).global_position
 	var before := int(scene._inv.get("planks", 0))
 	scene.on_action()
 	check(int(scene._inv.get("planks", 0)) > before, "Hull sections drop planks")
+	await build_and_pet_checks(scene)
 	scene._fire_lit = false
 	scene._dusk_active = true
 	check(scene.creature_bold(), "No fire at dusk makes the creature bolder")
@@ -108,7 +111,7 @@ func run() -> void:
 	check(scene._collect_ready, "The first idle bundle is ready to collect")
 	scene._take_collect()
 	check(scene._collect_taken, "One tap collects the bundle")
-	check(scene.quest_line() == "Offshore.", "The next goal points offshore")
+	check(scene.quest_line() == "The leviathan wreck lies offshore", "The next goal points offshore")
 	check(scene._end_open, "The end panel follows the tame path")
 	var tame_lines := PackedStringArray(scene._end_lines())
 	check(tame_lines.has("RARE!"), "Rare tame has a RARE moment")
@@ -141,3 +144,68 @@ func run() -> void:
 	wipe_save()
 	print("Washed ashore smoke: %d failures" % failures)
 	quit(1 if failures else 0)
+
+
+func build_and_pet_checks(scene) -> void:
+	# Gather goal advances on counts.
+	scene._pet_freed = true
+	scene._pet.visible = true
+	scene._enter("gather")
+	check(scene.quest_line().begins_with("Gather"), "Gather goal shows counts")
+	scene._inv["wood"] = 9
+	scene._inv["stone"] = 9
+	scene._inv["fibre"] = 9
+	scene._inv["planks"] = 9
+	scene._tick_quest(0.1)
+	check(scene._step == "fire", "Enough wood and stone moves on to the campfire")
+	# Build menu -> ghost -> place.
+	scene.on_build_pick("campfire")
+	check(scene._placing == "campfire" and scene._ghost != null, "Picking a recipe shows a placement ghost")
+	var site: Vector3 = scene._build_spot()
+	scene._ghost_pin = site
+	scene._tick_ghost()
+	check(scene._ghost_ok, "Ghost turns green on flat sand (%s)" % scene._ghost_why)
+	var wood_before := int(scene._inv["wood"])
+	scene.on_build_place()
+	check(scene._fire_lit, "Placing the campfire lights it")
+	check(int(scene._inv["wood"]) == wood_before - 3, "Campfire costs wood")
+	check(scene._step == "shelter" and scene._storm_left > 100.0, "Fire leads to the lean-to with a storm timer")
+	scene.on_build_pick("lean_to")
+	scene._ghost_pin = scene._build_spot()
+	scene._tick_ghost()
+	scene.on_build_place()
+	check(scene._building, "The lean-to goes up in stages")
+	for i in 10:
+		scene._tick_build(0.5)
+	check(scene._shelter and scene._hut_stage == 3, "The lean-to finishes")
+	check(scene._step == "dusk", "Shelter before the storm leads to dusk")
+	# Wet ghost is rejected.
+	check(scene._site_problem("campfire", Vector3(-6, scene._water_y - 0.5, -10)) != "", "Cannot build in the sea")
+	# Cliffs: walking at the summit does not climb it.
+	var p: Node3D = scene._player
+	p.position = Vector3(-1.0, 0, 6.5)
+	p.position.y = scene._ground_y(-1.0, 6.5)
+	var start_y := p.position.y
+	for i in 120:
+		scene._slide(Vector3(-0.3, 0, 1).normalized(), 1.0 / 30.0, true)
+	check(p.position.y < start_y + 1.5, "Cliff slopes over 40 degrees are walls (rose %.1f m)" % (p.position.y - start_y))
+	# The pet sniffs out a dig spot and the player can dig it.
+	scene._step = "gather"
+	scene._pet_mode = "follow"
+	p.position = Vector3(-10, 0, 4.5)
+	p.position.y = scene._ground_y(-10, 4.5)
+	scene._start_sniff()
+	var dig: Dictionary = scene._nearest_dig()
+	check(not dig.is_empty() and scene._pet_mode == "sniff", "The pet heads for a dig spot")
+	if not dig.is_empty():
+		var finds := int(scene._pet_finds)
+		scene._gather_lock = 0.0
+		scene._act_on_node(dig)
+		check(int(scene._pet_finds) == finds + 1, "Digging the pointed spot counts as a pet find")
+	var bond := int(scene._pet_stats["bond"])
+	scene._pet_pet_cd = 0.0
+	scene.on_pet()
+	check(int(scene._pet_stats["bond"]) > bond, "Petting raises the bond")
+	# Back to a fresh state for the dusk checks below.
+	scene._dusk_active = false
+	scene._step = "scavenge"

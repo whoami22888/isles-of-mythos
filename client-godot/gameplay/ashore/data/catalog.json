@@ -13,76 +13,835 @@
     "warmth_drain_dusk": 0.55,
     "hunger_drain": 0.04,
     "respawn_seconds": 42,
-    "pacing": "Harvests and step changes pay off inside a minute. Axe, pet, research and fire are all in hand well before the 15-minute mark."
+    "pacing": "Wreck search, pet rescue and the first gather pay off inside two minutes; campfire by ~4, lean-to before the 2:30 storm, dusk creature by ~8."
   },
   "lines": {
-    "wake": "Cold.",
-    "scavenge": "Wreck.",
-    "free_pet": "Free it.",
-    "name_pet": "Name.",
-    "eat": "Food.",
-    "axe": "Axe.",
-    "clearing": "Clearing.",
-    "research": "Forage.",
-    "build": "Hut.",
-    "fire": "Fire.",
-    "cook": "Cook.",
-    "dusk": "Dusk.",
-    "collect": "Collect.",
-    "epilogue": "Offshore."
+    "wake": "Cold...",
+    "scavenge": "Search the wreck",
+    "free_pet": "Something squeaks under the wreckage. Free it!",
+    "name_pet": "Name your new friend",
+    "gather": "Gather wood and stone",
+    "fire": "Build a campfire",
+    "shelter": "Build a lean-to before the storm",
+    "dusk": "Something stalks the beach. Fight it off!",
+    "collect": "Collect the supplies",
+    "epilogue": "The leviathan wreck lies offshore"
   },
   "points": {
     "scavenge": "wreck",
     "free_pet": "pet_pile",
     "name_pet": "pet",
-    "eat": "bush",
-    "axe": "cargo_tools",
-    "clearing": "clearing",
-    "research": "clearing",
-    "build": "clearing",
-    "fire": "camp",
-    "cook": "camp",
+    "gather": "wreck",
+    "fire": "wreck",
+    "shelter": "wreck",
     "dusk": "camp",
     "collect": "collect",
     "epilogue": "offshore"
   },
   "landmarks": {
-    "wreck": [-6, 4.5],
-    "grove": [-12.5, 12],
-    "clearing": [9, 9],
-    "camp": [16, 10],
-    "offshore": [-6, -32]
+    "wreck": [
+      -6,
+      4.5
+    ],
+    "grove": [
+      -12.5,
+      12
+    ],
+    "clearing": [
+      9,
+      9
+    ],
+    "camp": [
+      16,
+      10
+    ],
+    "offshore": [
+      -6,
+      -32
+    ]
   },
   "research": [
-    {"id": "foraging", "title": "Foraging", "seconds": 16, "requires": [], "locked": false},
-    {"id": "building", "title": "Basic Building", "seconds": 18, "requires": ["foraging"], "locked": false},
-    {"id": "fire", "title": "Fire", "seconds": 14, "requires": ["building"], "locked": false},
-    {"id": "cooking", "title": "Cooking", "seconds": 12, "requires": ["fire"], "locked": false},
-    {"id": "pet_training", "title": "Pet Training I", "seconds": 20, "requires": ["foraging"], "locked": true},
-    {"id": "pet_defence", "title": "Pet Defence", "seconds": 20, "requires": ["pet_training"], "locked": true},
-    {"id": "fishing", "title": "Fishing", "seconds": 18, "requires": ["foraging"], "locked": true},
-    {"id": "storage", "title": "Storage", "seconds": 18, "requires": ["building"], "locked": true},
-    {"id": "creature_riding", "title": "Creature Riding", "seconds": 24, "requires": ["pet_training"], "locked": true}
+    {
+      "id": "foraging",
+      "title": "Foraging",
+      "seconds": 16,
+      "requires": [],
+      "locked": false,
+      "done": true
+    },
+    {
+      "id": "building",
+      "title": "Basic Building",
+      "seconds": 18,
+      "requires": [
+        "foraging"
+      ],
+      "locked": false,
+      "done": true
+    },
+    {
+      "id": "fire",
+      "title": "Fire",
+      "seconds": 14,
+      "requires": [
+        "building"
+      ],
+      "locked": false,
+      "done": true
+    },
+    {
+      "id": "cooking",
+      "title": "Cooking",
+      "seconds": 12,
+      "requires": [
+        "fire"
+      ],
+      "locked": false,
+      "done": true
+    },
+    {
+      "id": "pet_training",
+      "title": "Pet Training I",
+      "seconds": 20,
+      "requires": [
+        "foraging"
+      ],
+      "locked": true
+    },
+    {
+      "id": "pet_defence",
+      "title": "Pet Defence",
+      "seconds": 20,
+      "requires": [
+        "pet_training"
+      ],
+      "locked": true
+    },
+    {
+      "id": "fishing",
+      "title": "Fishing",
+      "seconds": 18,
+      "requires": [
+        "foraging"
+      ],
+      "locked": true
+    },
+    {
+      "id": "storage",
+      "title": "Storage",
+      "seconds": 18,
+      "requires": [
+        "building"
+      ],
+      "locked": true
+    },
+    {
+      "id": "creature_riding",
+      "title": "Creature Riding",
+      "seconds": 24,
+      "requires": [
+        "pet_training"
+      ],
+      "locked": true
+    }
   ],
   "recipes": {
-    "hut": {"planks": 3, "rope": 1, "cloth": 1, "seconds": 12},
-    "campfire": {"flint": 1, "wood": 2, "seconds": 4}
+    "campfire": {
+      "wood": 3,
+      "stone": 4,
+      "seconds": 2
+    },
+    "lean_to": {
+      "wood": 5,
+      "fibre": 4,
+      "planks": 3,
+      "seconds": 4
+    },
+    "storage": {
+      "planks": 3,
+      "rope": 2,
+      "seconds": 2
+    },
+    "hut": {
+      "planks": 3,
+      "rope": 1,
+      "cloth": 1,
+      "seconds": 12
+    }
   },
   "nodes": [
-    {"id": "hull", "kind": "hull", "title": "Hull", "at": [-6.5, 4.6], "scale": 2.8, "stages": 3, "tool": "", "requires": "", "respawn": 42, "loot": [[{"id": "planks", "amount": 2}], [{"id": "planks", "amount": 1}], [{"id": "planks", "amount": 1}]]},
-    {"id": "rigging", "kind": "rigging", "title": "Rigging", "at": [-7.0, 6.6], "scale": 2.4, "stages": 3, "tool": "", "requires": "", "respawn": 42, "loot": [[{"id": "rope", "amount": 1}], [{"id": "rope", "amount": 1}], [{"id": "rope", "amount": 1}]]},
-    {"id": "cargo_cloth", "kind": "cargo", "title": "Cargo", "at": [-1.5, 7.2], "scale": 2.6, "stages": 3, "tool": "", "requires": "", "respawn": 42, "loot": [[{"id": "cloth", "amount": 1}], [{"id": "cloth", "amount": 1}], [{"id": "rope", "amount": 1}]]},
-    {"id": "cargo_tools", "kind": "cargo", "title": "Tools", "at": [-4.5, 6.6], "scale": 2.7, "stages": 3, "tool": "", "requires": "", "respawn": 50, "loot": [[{"id": "cloth", "amount": 1}], [{"id": "planks", "amount": 1}], [{"id": "axe", "amount": 1}, {"id": "knife", "amount": 1}, {"id": "club", "amount": 1}, {"id": "pick", "amount": 1}]]},
-    {"id": "pet_pile", "kind": "pile", "title": "Pile", "at": [-11.6, 6.3], "scale": 2.5, "stages": 1, "tool": "", "requires": "", "respawn": 0, "loot": []},
-    {"id": "bush", "kind": "bush", "title": "Fruit", "at": [-12.5, 12.5], "scale": 2.4, "stages": 3, "tool": "", "requires": "", "respawn": 36, "loot": [[{"id": "food", "amount": 1}], [{"id": "food", "amount": 1}], [{"id": "food", "amount": 2}]]},
-    {"id": "crab", "kind": "crab", "title": "Crabs", "at": [-14.5, 11], "scale": 2.2, "stages": 2, "tool": "", "requires": "", "respawn": 36, "loot": [[{"id": "food", "amount": 1}], [{"id": "food", "amount": 1}]]},
-    {"id": "bush_b", "kind": "bush", "title": "Berries", "at": [-13, 16.5], "scale": 2.3, "stages": 3, "tool": "", "requires": "foraging", "respawn": 36, "loot": [[{"id": "food", "amount": 1}], [{"id": "food", "amount": 2}], [{"id": "food", "amount": 1}]]},
-    {"id": "fish", "kind": "fish", "title": "Fish", "at": [-11.2, 7.6], "scale": 2.2, "stages": 2, "tool": "", "requires": "foraging", "respawn": 40, "loot": [[{"id": "fish", "amount": 1}], [{"id": "fish", "amount": 1}]]},
-    {"id": "tree_a", "kind": "tree", "title": "Palm", "at": [-11, 10], "scale": 2.2, "stages": 3, "tool": "axe", "requires": "", "respawn": 48, "loot": [[{"id": "wood", "amount": 1}], [{"id": "wood", "amount": 1}], [{"id": "wood", "amount": 2}]]},
-    {"id": "tree_b", "kind": "tree", "title": "Tree", "at": [2.5, 9.5], "scale": 2.3, "stages": 3, "tool": "axe", "requires": "", "respawn": 48, "loot": [[{"id": "wood", "amount": 1}], [{"id": "wood", "amount": 2}], [{"id": "wood", "amount": 1}]]},
-    {"id": "rock_a", "kind": "rock", "title": "Rock", "at": [19, 9], "scale": 2.5, "stages": 3, "tool": "pick", "requires": "", "respawn": 48, "loot": [[{"id": "flint", "amount": 1}], [{"id": "flint", "amount": 1}], [{"id": "flint", "amount": 1}]]},
-    {"id": "rock_b", "kind": "rock", "title": "Rock", "at": [6.5, 4.5], "scale": 2.4, "stages": 3, "tool": "pick", "requires": "", "respawn": 48, "loot": [[{"id": "flint", "amount": 1}], [{"id": "flint", "amount": 1}], [{"id": "flint", "amount": 1}]]},
-    {"id": "flint", "kind": "flint", "title": "Flint", "at": [13, 5], "scale": 2.1, "stages": 2, "tool": "", "requires": "", "respawn": 40, "loot": [[{"id": "flint", "amount": 1}], [{"id": "flint", "amount": 1}]]},
-    {"id": "drift", "kind": "drift", "title": "Dry wood", "at": [-11.2, 6.4], "scale": 2.3, "stages": 2, "tool": "", "requires": "", "respawn": 40, "loot": [[{"id": "wood", "amount": 1}], [{"id": "wood", "amount": 2}]]}
+    {
+      "id": "hull",
+      "kind": "hull",
+      "title": "Hull",
+      "at": [
+        -6.5,
+        4.6
+      ],
+      "scale": 2.8,
+      "stages": 3,
+      "tool": "",
+      "requires": "",
+      "respawn": 42,
+      "loot": [
+        [
+          {
+            "id": "planks",
+            "amount": 2
+          }
+        ],
+        [
+          {
+            "id": "planks",
+            "amount": 1
+          }
+        ],
+        [
+          {
+            "id": "planks",
+            "amount": 1
+          }
+        ]
+      ]
+    },
+    {
+      "id": "rigging",
+      "kind": "rigging",
+      "title": "Rigging",
+      "at": [
+        -7.0,
+        6.6
+      ],
+      "scale": 2.4,
+      "stages": 3,
+      "tool": "",
+      "requires": "",
+      "respawn": 42,
+      "loot": [
+        [
+          {
+            "id": "rope",
+            "amount": 1
+          }
+        ],
+        [
+          {
+            "id": "rope",
+            "amount": 1
+          }
+        ],
+        [
+          {
+            "id": "rope",
+            "amount": 1
+          }
+        ]
+      ]
+    },
+    {
+      "id": "cargo_cloth",
+      "kind": "cargo",
+      "title": "Cargo",
+      "at": [
+        -1.5,
+        7.2
+      ],
+      "scale": 2.6,
+      "stages": 3,
+      "tool": "",
+      "requires": "",
+      "respawn": 42,
+      "loot": [
+        [
+          {
+            "id": "cloth",
+            "amount": 1
+          }
+        ],
+        [
+          {
+            "id": "cloth",
+            "amount": 1
+          }
+        ],
+        [
+          {
+            "id": "rope",
+            "amount": 1
+          }
+        ]
+      ]
+    },
+    {
+      "id": "cargo_tools",
+      "kind": "cargo",
+      "title": "Tools",
+      "at": [
+        -4.5,
+        6.6
+      ],
+      "scale": 2.7,
+      "stages": 3,
+      "tool": "",
+      "requires": "",
+      "respawn": 50,
+      "loot": [
+        [
+          {
+            "id": "cloth",
+            "amount": 1
+          }
+        ],
+        [
+          {
+            "id": "planks",
+            "amount": 1
+          }
+        ],
+        [
+          {
+            "id": "axe",
+            "amount": 1
+          },
+          {
+            "id": "knife",
+            "amount": 1
+          },
+          {
+            "id": "club",
+            "amount": 1
+          },
+          {
+            "id": "pick",
+            "amount": 1
+          }
+        ]
+      ]
+    },
+    {
+      "id": "pet_pile",
+      "kind": "pile",
+      "title": "Pile",
+      "at": [
+        -11.6,
+        6.3
+      ],
+      "scale": 2.5,
+      "stages": 1,
+      "tool": "",
+      "requires": "",
+      "respawn": 0,
+      "loot": []
+    },
+    {
+      "id": "bush",
+      "kind": "bush",
+      "title": "Fruit",
+      "at": [
+        -12.5,
+        12.5
+      ],
+      "scale": 2.4,
+      "stages": 3,
+      "tool": "",
+      "requires": "",
+      "respawn": 36,
+      "loot": [
+        [
+          {
+            "id": "food",
+            "amount": 1
+          }
+        ],
+        [
+          {
+            "id": "food",
+            "amount": 1
+          }
+        ],
+        [
+          {
+            "id": "food",
+            "amount": 2
+          }
+        ]
+      ]
+    },
+    {
+      "id": "crab",
+      "kind": "crab",
+      "title": "Crabs",
+      "at": [
+        -14.5,
+        11
+      ],
+      "scale": 2.2,
+      "stages": 2,
+      "tool": "",
+      "requires": "",
+      "respawn": 36,
+      "loot": [
+        [
+          {
+            "id": "food",
+            "amount": 1
+          }
+        ],
+        [
+          {
+            "id": "food",
+            "amount": 1
+          }
+        ]
+      ]
+    },
+    {
+      "id": "bush_b",
+      "kind": "bush",
+      "title": "Berries",
+      "at": [
+        -13,
+        16.5
+      ],
+      "scale": 2.3,
+      "stages": 3,
+      "tool": "",
+      "requires": "",
+      "respawn": 36,
+      "loot": [
+        [
+          {
+            "id": "food",
+            "amount": 1
+          }
+        ],
+        [
+          {
+            "id": "food",
+            "amount": 2
+          }
+        ],
+        [
+          {
+            "id": "food",
+            "amount": 1
+          }
+        ]
+      ]
+    },
+    {
+      "id": "fish",
+      "kind": "fish",
+      "title": "Fish",
+      "at": [
+        -10.5,
+        3.8
+      ],
+      "scale": 2.2,
+      "stages": 2,
+      "tool": "",
+      "requires": "",
+      "respawn": 40,
+      "loot": [
+        [
+          {
+            "id": "fish",
+            "amount": 1
+          }
+        ],
+        [
+          {
+            "id": "fish",
+            "amount": 1
+          }
+        ]
+      ]
+    },
+    {
+      "id": "tree_a",
+      "kind": "tree",
+      "title": "Palm",
+      "at": [
+        -11,
+        10
+      ],
+      "scale": 2.2,
+      "stages": 3,
+      "tool": "axe",
+      "requires": "",
+      "respawn": 48,
+      "loot": [
+        [
+          {
+            "id": "wood",
+            "amount": 1
+          }
+        ],
+        [
+          {
+            "id": "wood",
+            "amount": 1
+          }
+        ],
+        [
+          {
+            "id": "wood",
+            "amount": 2
+          }
+        ]
+      ]
+    },
+    {
+      "id": "tree_b",
+      "kind": "tree",
+      "title": "Tree",
+      "at": [
+        2.5,
+        9.5
+      ],
+      "scale": 2.3,
+      "stages": 3,
+      "tool": "axe",
+      "requires": "",
+      "respawn": 48,
+      "loot": [
+        [
+          {
+            "id": "wood",
+            "amount": 1
+          }
+        ],
+        [
+          {
+            "id": "wood",
+            "amount": 2
+          }
+        ],
+        [
+          {
+            "id": "wood",
+            "amount": 1
+          }
+        ]
+      ]
+    },
+    {
+      "id": "rock_a",
+      "kind": "rock",
+      "title": "Rock",
+      "at": [
+        19,
+        9
+      ],
+      "scale": 2.5,
+      "stages": 3,
+      "tool": "pick",
+      "requires": "",
+      "respawn": 48,
+      "loot": [
+        [
+          {
+            "id": "stone",
+            "amount": 2
+          },
+          {
+            "id": "flint",
+            "amount": 1
+          }
+        ],
+        [
+          {
+            "id": "stone",
+            "amount": 1
+          }
+        ],
+        [
+          {
+            "id": "stone",
+            "amount": 2
+          }
+        ]
+      ]
+    },
+    {
+      "id": "rock_b",
+      "kind": "rock",
+      "title": "Rock",
+      "at": [
+        6.5,
+        4.5
+      ],
+      "scale": 2.4,
+      "stages": 3,
+      "tool": "pick",
+      "requires": "",
+      "respawn": 48,
+      "loot": [
+        [
+          {
+            "id": "stone",
+            "amount": 2
+          },
+          {
+            "id": "flint",
+            "amount": 1
+          }
+        ],
+        [
+          {
+            "id": "stone",
+            "amount": 1
+          }
+        ],
+        [
+          {
+            "id": "stone",
+            "amount": 2
+          }
+        ]
+      ]
+    },
+    {
+      "id": "flint",
+      "kind": "flint",
+      "title": "Flint",
+      "at": [
+        13,
+        5
+      ],
+      "scale": 2.1,
+      "stages": 2,
+      "tool": "",
+      "requires": "",
+      "respawn": 40,
+      "loot": [
+        [
+          {
+            "id": "flint",
+            "amount": 1
+          }
+        ],
+        [
+          {
+            "id": "flint",
+            "amount": 1
+          }
+        ]
+      ]
+    },
+    {
+      "id": "drift",
+      "kind": "drift",
+      "title": "Dry wood",
+      "at": [
+        -7.8,
+        3.4
+      ],
+      "scale": 2.3,
+      "stages": 2,
+      "tool": "",
+      "requires": "",
+      "respawn": 40,
+      "loot": [
+        [
+          {
+            "id": "wood",
+            "amount": 1
+          }
+        ],
+        [
+          {
+            "id": "wood",
+            "amount": 2
+          }
+        ]
+      ]
+    },
+    {
+      "id": "stones_a",
+      "kind": "stones",
+      "title": "Stones",
+      "at": [
+        -3.0,
+        3.0
+      ],
+      "scale": 2.2,
+      "stages": 3,
+      "tool": "pick",
+      "requires": "",
+      "respawn": 40,
+      "loot": [
+        [
+          {
+            "id": "stone",
+            "amount": 1
+          }
+        ],
+        [
+          {
+            "id": "stone",
+            "amount": 2
+          }
+        ],
+        [
+          {
+            "id": "stone",
+            "amount": 1
+          }
+        ]
+      ]
+    },
+    {
+      "id": "stones_b",
+      "kind": "stones",
+      "title": "Stones",
+      "at": [
+        -13.6,
+        13.6
+      ],
+      "scale": 2.2,
+      "stages": 3,
+      "tool": "pick",
+      "requires": "",
+      "respawn": 40,
+      "loot": [
+        [
+          {
+            "id": "stone",
+            "amount": 1
+          }
+        ],
+        [
+          {
+            "id": "stone",
+            "amount": 2
+          }
+        ],
+        [
+          {
+            "id": "stone",
+            "amount": 1
+          }
+        ]
+      ]
+    },
+    {
+      "id": "fibre_a",
+      "kind": "fibre",
+      "title": "Fibre grass",
+      "at": [
+        -13.0,
+        9.2
+      ],
+      "scale": 2.0,
+      "stages": 2,
+      "tool": "",
+      "requires": "",
+      "respawn": 36,
+      "loot": [
+        [
+          {
+            "id": "fibre",
+            "amount": 1
+          }
+        ],
+        [
+          {
+            "id": "fibre",
+            "amount": 2
+          }
+        ]
+      ]
+    },
+    {
+      "id": "fibre_b",
+      "kind": "fibre",
+      "title": "Fibre grass",
+      "at": [
+        -14.0,
+        18.5
+      ],
+      "scale": 2.0,
+      "stages": 2,
+      "tool": "",
+      "requires": "",
+      "respawn": 36,
+      "loot": [
+        [
+          {
+            "id": "fibre",
+            "amount": 1
+          }
+        ],
+        [
+          {
+            "id": "fibre",
+            "amount": 2
+          }
+        ]
+      ]
+    },
+    {
+      "id": "fibre_c",
+      "kind": "fibre",
+      "title": "Fibre grass",
+      "at": [
+        -9.2,
+        7.2
+      ],
+      "scale": 2.0,
+      "stages": 2,
+      "tool": "",
+      "requires": "",
+      "respawn": 36,
+      "loot": [
+        [
+          {
+            "id": "fibre",
+            "amount": 1
+          }
+        ],
+        [
+          {
+            "id": "fibre",
+            "amount": 2
+          }
+        ]
+      ]
+    },
+    {
+      "id": "tree_c",
+      "kind": "tree",
+      "title": "Palm",
+      "at": [
+        -13.0,
+        20.5
+      ],
+      "scale": 2.2,
+      "stages": 3,
+      "tool": "axe",
+      "requires": "",
+      "respawn": 48,
+      "loot": [
+        [
+          {
+            "id": "wood",
+            "amount": 1
+          }
+        ],
+        [
+          {
+            "id": "wood",
+            "amount": 1
+          }
+        ],
+        [
+          {
+            "id": "wood",
+            "amount": 2
+          }
+        ]
+      ]
+    }
   ]
 }
