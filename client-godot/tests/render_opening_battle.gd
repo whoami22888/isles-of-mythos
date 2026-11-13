@@ -28,7 +28,10 @@ func run() -> void:
 		battle.capture_pose(pose)
 	for _i in 4:
 		await process_frame
-	if battle.has_method("settle_capture") and pose != "smash":
+	var hold := OS.get_environment("IOM_OPENING_T")
+	if hold != "" and battle.has_method("hold_clock"):
+		battle.hold_clock(float(hold))
+	elif battle.has_method("settle_capture") and pose != "smash":
 		battle.settle_capture()
 	for _i in 8:
 		await process_frame

@@ -32,6 +32,26 @@ const AUDIO_ROAR := "res://assets/opening/audio/roar.ogg"
 const AUDIO_CHEER := "res://assets/opening/audio/cheer.ogg"
 const AUDIO_SWING := "res://assets/opening/audio/swing.ogg"
 const AUDIO_HIT := "res://assets/opening/audio/hit.ogg"
+const AUDIO_SCARE := "res://assets/opening/audio/leviathan_scare.ogg"
+const AUDIO_JAWS := "res://assets/opening/audio/jaw_snap.ogg"
+const AUDIO_CRACK := "res://assets/opening/audio/hull_crack.ogg"
+const AUDIO_CREAK := "res://assets/opening/audio/hull_creak.ogg"
+const AUDIO_MAST_FALL := "res://assets/opening/audio/mast_fall.ogg"
+const AUDIO_RUSH := "res://assets/opening/audio/water_rush.ogg"
+const AUDIO_DRONE := "res://assets/opening/audio/tension_drone.ogg"
+## Beat lengths (seconds). The whole opening is ~40 s of cinematics plus the
+## player's own cannon / target / boarding turns; any cinematic beat can be
+## tapped past, and Skip intro jumps straight ashore.
+const T_ESTABLISH := 4.0
+const T_IMPACT := 2.8
+const T_VOLLEY := 3.0
+const T_CHEER := 2.0
+const T_SINK := 7.2
+const T_REEF := 4.6
+const T_CALM := 2.6
+const T_SCARE := 2.05
+const T_SMASH := 2.8
+const T_ASHORE := 1.8
 
 enum Beat { ESTABLISH, POWDER, BALL, TIMING, IMPACT, TARGET, VOLLEY, BOARDING, CHEER, DEFEAT, CALM, RISE, SMASH, ASHORE }
 
@@ -105,6 +125,16 @@ var _shot := []
 var _wreck_halves: Array[Node3D] = []
 var _head: Node3D
 var _tentacle: Node3D
+var _hold_clock := -1.0
+var _haptics: Array = []
+var _sfx_log: Array = []
+var _sink_parts: Dictionary = {}
+var _scare_eye := Vector3.ZERO
+var _scare_look := Vector3.ZERO
+var _scare_at := Vector3.ZERO
+var _scare_face := 0.0
+var _snapped := false
+var _skips := 0
 
 func begin_authenticated_session(endpoint: String, token: String, refresh_token: String = "") -> void:
 	_endpoint = endpoint
@@ -144,6 +174,8 @@ func _process(delta: float) -> void:
 	if _finished:
 		return
 	_clock += delta
+	if _hold_clock >= 0.0:
+		_clock = _hold_clock
 	if _beat < Beat.DEFEAT:
 		var step := Vector3(0.0, 0.0, -_sail_speed * delta)
 		if _player_ship:
@@ -157,6 +189,12 @@ func _process(delta: float) -> void:
 	_update_player(delta)
 	_update_boarders(delta)
 	_update_leviathan(delta)
+	if _beat == Beat.DEFEAT and not _chose_mast:
+		_tick_sink(_clock)
+	elif _beat == Beat.DEFEAT and _chose_mast:
+		_tick_reef(_clock)
+	elif _beat == Beat.RISE:
+		_tick_scare(_clock)
 	_update_beat(delta)
 
 func _update_beat(delta: float) -> void:
@@ -165,33 +203,33 @@ func _update_beat(delta: float) -> void:
 		return
 	match _beat:
 		Beat.ESTABLISH:
-			if _clock > 7.5:
+			if _clock > T_ESTABLISH:
 				_enter_powder()
 		Beat.IMPACT:
-			if _clock > 4.2:
+			if _clock > T_IMPACT:
 				_enter_target()
 		Beat.VOLLEY:
-			if _clock > 4.6:
+			if _clock > T_VOLLEY:
 				_enter_boarding()
 		Beat.CHEER:
-			if _clock > 4.0:
+			if _clock > T_CHEER:
 				_enter_defeat()
 		Beat.DEFEAT:
 			_tick_defeat(delta)
-			if _clock > 5.2:
+			if _clock > (T_REEF if _chose_mast else T_SINK):
 				_enter_calm()
 		Beat.CALM:
 			_tick_calm(delta)
-			if _clock > 3.6:
+			if _clock > T_CALM:
 				_enter_rise()
 		Beat.RISE:
-			if _clock > 6.0:
+			if _clock > T_SCARE:
 				_enter_smash()
 		Beat.SMASH:
-			if _clock > 3.4:
+			if _clock > T_SMASH:
 				_enter_ashore()
 		Beat.ASHORE:
-			if _clock > 3.2 and not _capture:
+			if _clock > T_ASHORE and not _capture:
 				_finish_opening()
 
 func _enter_powder() -> void:
@@ -292,11 +330,16 @@ func _enter_calm() -> void:
 	_clear_stage()
 	_stage_two_ships(Vector3(-2.0, -0.05, -28.0), Vector3(22.0, -0.4, -22.0), Color(0.17, 0.19, 0.22), true)
 	_set_wake(0.0)
-	_darken(0.98, 0.6, 0.5, 0.6, Color(0.72, 0.8, 0.9))
+	_darken(1.05, 0.75, 0.6, 0.7, Color(0.72, 0.8, 0.9))
 	var mid := (_player_ship.global_position + _enemy_ship.global_position) * 0.5
 	_glow = Art.calm_glow(_stage, mid, 1.1, 48.0, _water_y)
 	_shot = [mid + Vector3(-4.0, 20.0, -26.0), mid + Vector3(0, 0.2, 0)]
+	_play(AUDIO_DRONE, -8.0)
 
+## The jump scare. Dead calm, then the leviathan erupts out of the water a
+## stone's throw from the camera: loud roar + sub-bass + water crash, a hard
+## camera shake, a contrast punch (no glow) and phone vibration. It rears,
+## then its jaws slam down on our galleon, which is the cut to the smash.
 func _enter_rise() -> void:
 	_beat = Beat.RISE
 	_clock = 0.0
@@ -306,33 +349,116 @@ func _enter_rise() -> void:
 	_clear_stage()
 	_stage_two_ships(Vector3(-4.0, -0.05, -24.0), Vector3(20.0, -0.4, -20.0), Color(0.72, 0.72, 0.7), false)
 	_set_wake(0.0)
-	_darken(1.0, 1.35, 0.55, 0.8, Color(0.9, 0.88, 0.82))
-	_glow = Art.calm_glow(_stage, LEVIATHAN_AT, 0.5, 30.0, _water_y)
-	_play(AUDIO_ROAR, -4.0)
-	_shake = 0.85
+	_darken(1.0, 1.25, 0.55, 0.8, Color(0.9, 0.88, 0.82))
+	# Low over the water off our quarter, looking along the hull: the head
+	# breaks the surface ~17 m out, between the camera and the bow.
+	var ship := _player_ship.global_position
+	_scare_eye = ship + Vector3(-14.0, 1.9, 9.0)
+	_scare_at = ship + Vector3(2.0, 0.0, 6.5)
+	_scare_at.y = _water_y
+	_scare_look = _scare_at + Vector3(0, 7.5, 0)
+	var to_cam := _scare_eye - _scare_at
+	_scare_face = atan2(to_cam.x, to_cam.z)
+	_shot = [_scare_eye, _scare_look]
 	_leviathan_rise = 0.0
+	_snapped = false
 	if _leviathan:
 		_leviathan.visible = true
-		_leviathan.position = LEVIATHAN_AT + Vector3(0, -22.0, 0)
-		_leviathan.rotation_degrees = Vector3.ZERO
+		_leviathan.global_position = _scare_at + Vector3(0, -24.0, 0)
+		_leviathan.rotation = Vector3(0, _scare_face, 0)
+		if _tentacle:
+			_tentacle.visible = false
 	_foam_done = false
-	var deck := _player_ship.global_position + Vector3(0, 3.2, 0)
-	var aft := _player_ship.global_transform.basis.x
-	var side := _player_ship.global_transform.basis.z
-	_shot = [deck + aft * 22.0 + side * 12.0 + Vector3(0, 5.5, 0), LEVIATHAN_AT + Vector3(0, 8.0, 0)]
+	_play(AUDIO_SCARE, 4.0)
+	_shake = 2.4
+	_punch(1.0)
+	_vibrate(480, 1.0)
+	_burst(_scare_at + Vector3(0, 1.0, 0), Color(0.86, 0.94, 1.0), 70, Vector3(0, -9.0, 0), 16.0, 1.6, 1.8)
+	_burst(_scare_at + Vector3(0, 0.5, 0), Color(0.75, 0.86, 0.92, 0.9), 40, Vector3(0, -6.0, 0), 9.0, 2.6, 2.2)
+	Art.foam_ring(_stage, _scare_at, 9.0, _water_y)
+	Art.spray(_stage, _scare_at + Vector3(0, 0.2, 0), 18, 8.0, 3.0, 0.4)
+
+
+## Scare choreography as a pure function of the beat clock (captures can
+## hold any moment). 0-0.4 s erupt, 0.4-1.25 rear and hang, 1.25-1.75 jaws
+## slam down onto the galleon, 1.75 impact.
+func _tick_scare(t: float) -> void:
+	if _leviathan == null:
+		return
+	var pos := _scare_at
+	var pitch := 0.0
+	if t < 0.4:
+		var u := t / 0.4
+		u = 1.0 - pow(1.0 - u, 3.0)
+		pos.y = lerpf(_scare_at.y - 24.0, _scare_at.y + 1.5, u)
+		pitch = lerpf(-0.35, -0.15, u)
+	elif t < 1.25:
+		var u := (t - 0.4) / 0.85
+		pos.y = _scare_at.y + 1.5 + sin(u * PI) * 1.2
+		pitch = lerpf(-0.15, -0.42, u)
+	else:
+		var u := clampf((t - 1.25) / 0.5, 0.0, 1.0)
+		u = u * u
+		var ship := _player_ship.global_position + Vector3(0, 2.0, 0)
+		pos = (_scare_at + Vector3(0, 1.5, 0)).lerp(ship + (_scare_at - ship).normalized() * 6.0, u)
+		pitch = lerpf(-0.42, 0.62, u)
+		if u >= 1.0 and not _snapped:
+			_snapped = true
+			_jaws_hit()
+	_leviathan.global_position = pos
+	_leviathan.rotation = Vector3(pitch, _scare_face, 0)
+	# Handheld push-in toward the head while it towers over the camera.
+	var push := clampf(t / 1.6, 0.0, 1.0)
+	_shot = [_scare_eye + (_scare_look - _scare_eye).normalized() * push * 2.5, _scare_look.lerp(pos + Vector3(0, 4.0, 0), 0.5)]
+
+
+func _jaws_hit() -> void:
+	_play(AUDIO_JAWS, 3.0)
+	_shake = 2.8
+	_punch(0.8)
+	_vibrate(320, 1.0)
+	var ship := _player_ship.global_position
+	_burst(ship + Vector3(0, 3, 0), Color(0.5, 0.36, 0.22), 40, Vector3(0, -6, 0), 10.0, 0.6, 1.4)
+	_burst(ship + Vector3(0, 0.5, 0), Color(0.85, 0.93, 1.0), 50, Vector3(0, -8, 0), 12.0, 1.4, 1.6)
+
+
+## Short contrast/brightness punch through the environment adjustments.
+## Not glow, not bloom: it just crushes the grade for a few frames.
+func _punch(strength: float) -> void:
+	if _env == null:
+		return
+	_env.adjustment_enabled = true
+	var base_c := 1.0
+	var base_b := 1.0
+	_env.adjustment_contrast = base_c + 0.75 * strength
+	_env.adjustment_brightness = base_b + 0.4 * strength
+	var tween := create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(_env, "adjustment_contrast", base_c + 0.12, 0.45).set_trans(Tween.TRANS_EXPO).set_ease(Tween.EASE_OUT)
+	tween.tween_property(_env, "adjustment_brightness", base_b, 0.35).set_trans(Tween.TRANS_EXPO).set_ease(Tween.EASE_OUT)
+
+
+func _vibrate(ms: int, amplitude: float) -> void:
+	_haptics.append([ms, amplitude])
+	if OS.has_feature("mobile"):
+		Input.vibrate_handheld(ms, amplitude)
+
 
 func _enter_smash() -> void:
 	_beat = Beat.SMASH
 	_clock = 0.0
 	_play(AUDIO_BOOM, -2.0)
-	_shake = 1.6
+	_play(AUDIO_CRACK, 0.0)
+	_shake = 1.8
+	_vibrate(260, 0.8)
 	if _leviathan:
 		_leviathan_rise = 1.0
-		_leviathan.position = LEVIATHAN_AT
-		var lunge := create_tween()
-		lunge.set_parallel(true)
-		lunge.tween_property(_leviathan, "rotation_degrees:x", 28.0, 0.9).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-		lunge.tween_property(_leviathan, "position:y", LEVIATHAN_AT.y - 7.0, 1.6).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		if not _snapped:
+			_snapped = true
+		var dive := create_tween()
+		dive.set_parallel(true)
+		dive.tween_property(_leviathan, "rotation:x", 1.1, 0.9).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		dive.tween_property(_leviathan, "global_position:y", _leviathan.global_position.y - 16.0, 1.8).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	_snap_ship(_player_ship, 1.0)
 	_snap_ship(_enemy_ship, -1.0)
 	var debris := _player_ship.global_position
@@ -343,17 +469,19 @@ func _enter_smash() -> void:
 	Art.spray(_stage, _enemy_ship.global_position + Vector3(0, -0.2, 0), 8, 5.0, 2.2, 0.3, 5)
 	_burst(debris + Vector3(0, 2, 0), Color(0.75, 0.9, 1.0), 36, Vector3(0, -3, 0), 8.0, 0.8, 1.6)
 	_burst(_enemy_ship.global_position + Vector3(0, 3, 0), Color(0.55, 0.4, 0.28), 28, Vector3(0, 2, 0), 7.0, 0.55, 1.5)
-	_burst(LEVIATHAN_AT + Vector3(0, 4, 0), Color(0.55, 0.75, 0.8, 0.85), 40, Vector3(0, 2.5, 0), 7.0, 0.7, 1.4)
-	# Same framing as the rise, pulled back: the cut is the blow, not a new place.
-	var deck := debris + Vector3(0, 3.2, 0)
-	_shot = [deck + Vector3(0, 0, -26.0) + Vector3(14.0, 7.0, 0), LEVIATHAN_AT + Vector3(0, 5.0, 0)]
+	# Same framing as the scare, pulled back: the cut is the blow, not a new place.
+	if _scare_eye != Vector3.ZERO:
+		_shot = [_scare_eye + Vector3(-6.0, 3.0, 6.0), debris + Vector3(0, 2.5, 0)]
+	else:
+		var deck := debris + Vector3(0, 3.2, 0)
+		_shot = [deck + Vector3(0, 0, -26.0) + Vector3(14.0, 7.0, 0), LEVIATHAN_AT + Vector3(0, 5.0, 0)]
 	# Everything goes dark.
 	if _white:
 		_white.color = Color(0, 0, 0, 0)
 		_white.visible = true
 		var fade := create_tween()
-		fade.tween_interval(1.15)
-		fade.tween_property(_white, "color:a", 1.0, 0.85)
+		fade.tween_interval(1.3)
+		fade.tween_property(_white, "color:a", 1.0, 0.9)
 
 func _enter_ashore() -> void:
 	_beat = Beat.ASHORE
@@ -367,8 +495,8 @@ func _enter_ashore() -> void:
 		_ashore.visible = true
 		_ashore.modulate.a = 0.0
 		var tween := create_tween()
-		tween.tween_interval(0.4)
-		tween.tween_property(_ashore, "modulate:a", 1.0, 0.6)
+		tween.tween_interval(0.2)
+		tween.tween_property(_ashore, "modulate:a", 1.0, 0.5)
 
 func defeat_path() -> String:
 	return "mast" if _chose_mast else "hull"
@@ -630,7 +758,7 @@ func _update_camera(_delta: float) -> void:
 	_camera.look_at(focus, Vector3.UP)
 
 func _update_leviathan(delta: float) -> void:
-	if _leviathan == null or _beat != Beat.RISE:
+	if _leviathan == null or _beat != Beat.RISE or _scare_eye != Vector3.ZERO:
 		return
 	# Rise from deep water to the approved pose in about three seconds.
 	_leviathan_rise = move_toward(_leviathan_rise, 1.0, delta / 3.0)
@@ -735,6 +863,7 @@ func _restore_look() -> void:
 func _clear_stage() -> void:
 	_clear_bursts()
 	_glow = null
+	_sink_parts = {}
 	if _stage:
 		for child in _stage.get_children():
 			child.queue_free()
@@ -861,7 +990,15 @@ func _build_leviathan() -> void:
 	add_child(_leviathan)
 	_leviathan.position = LEVIATHAN_AT + Vector3(0, -22.0, 0)
 	_head = Art.put(_leviathan, Art.LEVIATHAN_HEAD, "Head", Vector3.ZERO, Vector3(0, 20, 0), 36.0)
-	Art.grade_creature(_head)
+	# Wet and menacing for the scare: darker, less teal, glossy (low
+	# roughness, high specular), deeper normals. Still no emission.
+	Art.grade(_head, 0.35, Color(0.78, 0.86, 0.84), 0.62, 0.08, 0.3)
+	for mesh in Art.meshes(_head):
+		for i in (mesh.mesh.get_surface_count() if mesh.mesh else 0):
+			var mat := mesh.get_surface_override_material(i) as ShaderMaterial
+			if mat:
+				mat.set_shader_parameter("wet_spec", 0.85)
+				mat.set_shader_parameter("normal_depth", 1.6)
 	_tentacle = Art.put(_leviathan, Art.LEVIATHAN_TENTACLE, "Tentacle", Vector3(-8.0, -0.2, -2.0), Vector3(0, 70, -8), 1.0)
 	var box := Art.world_aabb(_tentacle)
 	if box.size.y > 0.01:
@@ -1096,6 +1233,7 @@ func _looping(path: String) -> AudioStream:
 	return null
 
 func _play(path: String, db: float) -> void:
+	_sfx_log.append(path.get_file())
 	var loaded = load(path)
 	if not (loaded is AudioStream):
 		return
@@ -1297,7 +1435,46 @@ func _load_font(path: String) -> Font:
 		return loaded
 	return null
 
+const SKIPPABLE := [Beat.ESTABLISH, Beat.IMPACT, Beat.VOLLEY, Beat.CHEER, Beat.DEFEAT, Beat.CALM, Beat.SMASH, Beat.ASHORE]
+
+## Tap anywhere during a non-interactive beat to move on (the scare itself
+## always lands: it can be tapped past only after the jaws hit).
+func skip_beat() -> bool:
+	if _capture or _finished:
+		return false
+	if _beat == Beat.RISE:
+		if _clock < 1.8:
+			return false
+	elif not (_beat in SKIPPABLE) or _clock < 0.5:
+		return false
+	_skips += 1
+	match _beat:
+		Beat.ESTABLISH:
+			_enter_powder()
+		Beat.IMPACT:
+			_enter_target()
+		Beat.VOLLEY:
+			_enter_boarding()
+		Beat.CHEER:
+			_enter_defeat()
+		Beat.DEFEAT:
+			_enter_calm()
+		Beat.CALM:
+			_enter_rise()
+		Beat.RISE:
+			_enter_smash()
+		Beat.SMASH:
+			_enter_ashore()
+		Beat.ASHORE:
+			_finish_opening()
+	return true
+
 func _input(event: InputEvent) -> void:
+	if (event is InputEventScreenTouch or event is InputEventMouseButton) and event.pressed:
+		var over_skip := _skip_button != null and _skip_button.visible and _skip_button.get_global_rect().has_point(event.position)
+		if not over_skip and skip_beat():
+			get_viewport().set_input_as_handled()
+			return
 	if event is InputEventScreenTouch:
 		if event.pressed and event.position.x < 280.0 and event.position.y > get_viewport().get_visible_rect().size.y - 280.0 and _beat == Beat.BOARDING:
 			_stick_id = event.index
@@ -1441,27 +1618,221 @@ func _stage_mast_wreck() -> void:
 	Art.spray(_stage, Vector3(c.x - 1.9, -0.3, c.z + 7.0), 3, 1.5, 0.9, 0.2)
 	_burst(c + Vector3(0, 6, 0), Color(0.75, 0.7, 0.62), 18, Vector3(0, -1, 0), 3.0, 0.35, 0.9)
 	_shot = [c + Vector3(13.0, 6.5, 8.0), c + Vector3(0, 2.2, 0)]
+	_play(AUDIO_CRACK, 0.0)
+	_vibrate(160, 0.6)
+	var mast := Art.put(_stage, Art.SNAPPED_MAST, "FallingMast", c + Vector3(1.0, 1.0, 1.0), Vector3(0, 0, 0), 1.0)
+	var mbox := Art.world_aabb(mast)
+	var longest := maxf(mbox.size.x, maxf(mbox.size.y, mbox.size.z))
+	if longest > 0.01:
+		mast.scale = Vector3.ONE * (11.0 / longest)
+	if mbox.size.x >= mbox.size.y and mbox.size.x >= mbox.size.z:
+		mast.rotation = Vector3(0, 0, PI * 0.5)
+	elif mbox.size.z >= mbox.size.y:
+		mast.rotation = Vector3(PI * 0.5, 0, 0)
+	mbox = Art.world_aabb(mast)
+	mast.global_position += Vector3(c.x + 1.0 - (mbox.position.x + mbox.size.x * 0.5), c.y + 1.4 - mbox.position.y, c.z + 1.0 - (mbox.position.z + mbox.size.z * 0.5))
+	mast.set_meta("rest", mast.global_transform)
+	mast.set_meta("axis", Vector3(1, 0, 0))
+	mast.set_meta("tip", c + Vector3(1.0, 0, 11.0))
+	_sink_parts = {"mast": mast, "mast_down": false}
 
 
-## Hull path (stills v2 #2): sinking by the stern, cargo afloat.
+## Hull path: a break-and-sink over ~7 s. The galleon cracks amidships and
+## is swapped for the two authored hull halves; the bow rears up and slides
+## under, the stern rolls and follows, the mainmast topples into the sea,
+## water jets in at the break, bubbles and foam boil up and cargo surfaces.
+## Every transform is a function of the beat clock (see _tick_sink).
 func _stage_hull_sink() -> void:
 	_reset_ship(_enemy_ship)
 	_reset_ship(_player_ship)
 	var sunk := HULL_SUNK
 	_player_ship.global_position = Vector3(6.0, -0.05, -30.0)
-	_enemy_ship.global_position = Vector3(sunk.x, -0.6, sunk.z)
-	_enemy_ship.rotation_degrees = Vector3(-2.0, -90.0, -5.0)
-	var sink := create_tween()
-	sink.set_parallel(true)
-	sink.tween_property(_enemy_ship, "global_position:y", sunk.y, 3.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
-	sink.tween_property(_enemy_ship, "rotation_degrees", HULL_SUNK_ROT, 3.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
-	_set_wake(0.8, _enemy_ship)
-	Art.spray(_stage, Vector3(sunk.x + 4.5, -0.35, sunk.z), 6, 3.5, 1.2, 0.22)
-	Art.put(_stage, Art.WINE_BARREL, "FloatingBarrel", Vector3(sunk.x + 6.0, -0.6, sunk.z + 5.0), Vector3(80, 20, 0), 1.0)
-	Art.put(_stage, Art.CRATE_B, "FloatingCrate", Vector3(sunk.x + 2.0, -0.65, sunk.z + 6.5), Vector3(8, 30, 5), 1.0)
-	Art.put(_stage, Art.DRIFT_TRUNK, "FloatingSpar", Vector3(sunk.x + 8.0, -0.65, sunk.z + 2.0), Vector3(0, 60, 0), 1.0)
-	_burst(Vector3(sunk.x, 0.2, sunk.z), Color(0.7, 0.9, 1.0), 22, Vector3(0, -2, 0), 3.5, 0.4, 1.1)
-	_shot = [Vector3(sunk.x + 14.0, 7.2, sunk.z + 5.5), Vector3(sunk.x, 1.4, sunk.z)]
+	_enemy_ship.global_position = Vector3(sunk.x, -0.15, sunk.z)
+	_enemy_ship.rotation_degrees = Vector3(0, -90.0, 0)
+	_set_wake(0.0, _enemy_ship)
+	_sink_parts = {"start": _enemy_ship.global_transform, "cracked": false, "mast_down": false, "creak": false, "crack2": false, "cargo": false}
+	_play(AUDIO_CREAK, -4.0)
+	_shot = [Vector3(sunk.x + 17.0, 6.2, sunk.z + 13.0), Vector3(sunk.x - 1.0, 1.0, sunk.z)]
+
+
+func _tick_sink(t: float) -> void:
+	if _sink_parts.is_empty() or _enemy_ship == null:
+		return
+	var start: Transform3D = _sink_parts["start"]
+	var basis := start.basis.orthonormalized()
+	var at := start.origin
+	var fwd := -basis.x
+	if t < 0.55:
+		# Listing and groaning before she goes.
+		_enemy_ship.global_position = at + Vector3(0, -0.25 * t, 0)
+		_enemy_ship.rotation_degrees = Vector3(0, -90.0, -6.0 * t / 0.55)
+		return
+	if not bool(_sink_parts["cracked"]):
+		_sink_parts["cracked"] = true
+		_crack_hull(basis, at)
+	var halves: Array = _sink_parts.get("halves", [])
+	var k := t - 0.55
+	for i in halves.size():
+		var half := halves[i] as Node3D
+		if not is_instance_valid(half):
+			continue
+		var rest: Transform3D = half.get_meta("rest")
+		var away := 1.0 if i == 0 else -1.0
+		var sink := 0.0
+		var pitch := 0.0
+		var roll := 0.0
+		if i == 0:
+			# Bow: rears nose-up, hangs, then slides under.
+			pitch = deg_to_rad(34.0) * clampf(k / 2.6, 0.0, 1.0)
+			sink = 0.5 * k + 0.32 * pow(maxf(k - 2.4, 0.0), 2.0)
+			roll = deg_to_rad(8.0) * clampf(k / 3.0, 0.0, 1.0)
+		else:
+			# Stern: rolls onto her side and settles faster.
+			pitch = -deg_to_rad(22.0) * clampf(k / 2.2, 0.0, 1.0)
+			roll = deg_to_rad(38.0) * clampf(k / 3.2, 0.0, 1.0)
+			sink = 0.7 * k + 0.28 * pow(maxf(k - 2.0, 0.0), 2.0)
+		var drift := fwd * away * minf(k * 1.1, 3.6)
+		var turn := Basis(fwd.cross(Vector3.UP).normalized(), pitch * away) * Basis(fwd, roll)
+		half.global_transform = Transform3D(turn * rest.basis, rest.origin + drift + Vector3(0, -sink, 0))
+	var mast := _sink_parts.get("mast") as Node3D
+	if mast and is_instance_valid(mast):
+		var fall := clampf((k - 0.35) / 1.25, 0.0, 1.0)
+		fall = fall * fall
+		var rest_m: Transform3D = mast.get_meta("rest")
+		var axis: Vector3 = mast.get_meta("axis")
+		mast.global_transform = Transform3D(Basis(axis, fall * deg_to_rad(84.0)) * rest_m.basis, rest_m.origin + Vector3(0, -0.6 * fall - maxf(k - 3.5, 0.0) * 0.6, 0))
+		if fall >= 1.0 and not bool(_sink_parts["mast_down"]):
+			_sink_parts["mast_down"] = true
+			var tip: Vector3 = mast.get_meta("tip")
+			_play(AUDIO_MAST_FALL, -1.0)
+			_shake = maxf(_shake, 0.7)
+			_burst(tip + Vector3(0, 0.4, 0), Color(0.86, 0.94, 1.0), 46, Vector3(0, -9, 0), 11.0, 1.2, 1.5)
+			Art.foam_ring(_stage, tip, 5.0, _water_y)
+	if k > 2.0 and not bool(_sink_parts["creak"]):
+		_sink_parts["creak"] = true
+		_play(AUDIO_CREAK, -2.0)
+	if k > 3.1 and not bool(_sink_parts["crack2"]):
+		_sink_parts["crack2"] = true
+		_play(AUDIO_CRACK, -5.0)
+		_burst(at + Vector3(0, 0.3, 0), Color(0.86, 0.94, 1.0), 30, Vector3(0, -7, 0), 8.0, 1.0, 1.3)
+	if k > 2.4 and not bool(_sink_parts["cargo"]):
+		_sink_parts["cargo"] = true
+		_surface_cargo(at, fwd)
+
+
+func _crack_hull(basis: Basis, at: Vector3) -> void:
+	_play(AUDIO_CRACK, 2.0)
+	_play(AUDIO_RUSH, -2.0)
+	_shake = maxf(_shake, 1.0)
+	_vibrate(180, 0.6)
+	var length := 30.0
+	var box := _merged_local_aabb(_enemy_ship)
+	length = maxf(box.size.x, box.size.z)
+	_enemy_ship.visible = false
+	var scale := length / 37.4
+	var halves: Array = []
+	var i := 0
+	for scene in [Art.HULL_BOW, Art.HULL_STERN]:
+		var half := Art.spawn(scene, "SinkHalf%d" % i)
+		_stage.add_child(half)
+		half.global_transform = Transform3D(basis * Basis(Vector3.UP, -PI * 0.5), at + Vector3(0, -1.0, 0))
+		half.scale = Vector3.ONE * scale
+		half.set_meta("rest", half.global_transform)
+		halves.append(half)
+		_wreck_halves.append(half)
+		i += 1
+	_sink_parts["halves"] = halves
+	# Mainmast with its yard: stands at the break, then topples seaward.
+	var fwd := -basis.x
+	var side := fwd.cross(Vector3.UP).normalized()
+	var mast := Art.put(_stage, Art.SNAPPED_MAST, "FallingMast", at + Vector3(0, 1.0, 0), Vector3.ZERO, 1.0)
+	var mbox := Art.world_aabb(mast)
+	var longest := maxf(mbox.size.x, maxf(mbox.size.y, mbox.size.z))
+	if longest > 0.01:
+		mast.scale = Vector3.ONE * (16.0 / longest)
+	# Stand it upright on its longest axis.
+	if mbox.size.x >= mbox.size.y and mbox.size.x >= mbox.size.z:
+		mast.rotation = Vector3(0, 0, PI * 0.5)
+	elif mbox.size.z >= mbox.size.y:
+		mast.rotation = Vector3(PI * 0.5, 0, 0)
+	mbox = Art.world_aabb(mast)
+	mast.global_position += Vector3(at.x - (mbox.position.x + mbox.size.x * 0.5), at.y + 0.8 - mbox.position.y, at.z - (mbox.position.z + mbox.size.z * 0.5))
+	mast.set_meta("rest", mast.global_transform)
+	mast.set_meta("axis", fwd)
+	mast.set_meta("tip", at + side * -15.0)
+	_sink_parts["mast"] = mast
+	# Water rushing in at the break, splinters and the first boil of foam.
+	_burst(at + Vector3(0, 0.6, 0), Color(0.55, 0.38, 0.22), 42, Vector3(0, -6, 0), 9.0, 0.5, 1.6)
+	_burst(at + Vector3(0, 0.2, 0), Color(0.88, 0.95, 1.0), 60, Vector3(0, -8, 0), 10.0, 1.3, 1.6)
+	_bubbles(at + Vector3(0, -0.2, 0), 6.5, 7.0)
+	_bubbles(at + fwd * 8.0, 3.5, 6.0)
+	_bubbles(at - fwd * 8.0, 3.5, 6.0)
+	Art.foam_ring(_stage, at, 7.0, _water_y)
+
+
+## Long-lived boil of small pale bubbles/foam flecks over a sinking hull.
+func _bubbles(at: Vector3, radius: float, seconds: float) -> void:
+	var particles := GPUParticles3D.new()
+	particles.amount = 48
+	particles.lifetime = 1.4
+	particles.visibility_aabb = AABB(Vector3(-12, -4, -12), Vector3(24, 10, 24))
+	_stage.add_child(particles)
+	particles.global_position = Vector3(at.x, _water_y + 0.05, at.z)
+	var process := ParticleProcessMaterial.new()
+	process.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
+	process.emission_sphere_radius = radius
+	process.direction = Vector3(0, 1, 0)
+	process.spread = 25.0
+	process.initial_velocity_min = 0.4
+	process.initial_velocity_max = 1.6
+	process.gravity = Vector3(0, -1.2, 0)
+	process.scale_min = 0.25
+	process.scale_max = 0.7
+	process.color = Color(0.9, 0.96, 1.0, 0.75)
+	particles.process_material = process
+	var quad := QuadMesh.new()
+	quad.size = Vector2(1, 1)
+	var mat := StandardMaterial3D.new()
+	mat.albedo_texture = _soft
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.vertex_color_use_as_albedo = true
+	quad.material = mat
+	particles.draw_pass_1 = quad
+	particles.emitting = true
+	get_tree().create_timer(seconds).timeout.connect(func(): if is_instance_valid(particles): particles.emitting = false)
+
+
+func _surface_cargo(at: Vector3, fwd: Vector3) -> void:
+	var side := fwd.cross(Vector3.UP).normalized()
+	var items := [[Art.WINE_BARREL, 5.0, 4.0, Vector3(80, 20, 0)], [Art.CRATE_B, -3.0, 6.0, Vector3(8, 30, 5)], [Art.DRIFT_TRUNK, 7.0, -3.0, Vector3(0, 60, 0)], [Art.CRATE_A, -6.0, -4.5, Vector3(0, 15, 6)]]
+	for item in items:
+		var where: Vector3 = at + fwd * float(item[1]) + side * float(item[2])
+		var prop := Art.put(_stage, item[0], "SinkFlotsam", Vector3(where.x, _water_y - 2.2, where.z), item[3], 1.0)
+		var tween := create_tween()
+		tween.tween_property(prop, "global_position:y", _water_y - 0.35, 1.1).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		_burst(Vector3(where.x, _water_y + 0.2, where.z), Color(0.86, 0.94, 1.0), 12, Vector3(0, -6, 0), 4.0, 0.6, 0.9)
+
+
+## Mast path: the mainmast goes over the side as she drives onto the reef.
+func _tick_reef(t: float) -> void:
+	if _sink_parts.is_empty():
+		return
+	var mast := _sink_parts.get("mast") as Node3D
+	if mast == null or not is_instance_valid(mast):
+		return
+	var fall := clampf((t - 0.5) / 1.2, 0.0, 1.0)
+	fall = fall * fall
+	var rest_m: Transform3D = mast.get_meta("rest")
+	var axis: Vector3 = mast.get_meta("axis")
+	mast.global_transform = Transform3D(Basis(axis, fall * deg_to_rad(80.0)) * rest_m.basis, rest_m.origin + Vector3(0, -0.8 * fall, 0))
+	if fall >= 1.0 and not bool(_sink_parts.get("mast_down", false)):
+		_sink_parts["mast_down"] = true
+		_play(AUDIO_MAST_FALL, -1.0)
+		var tip: Vector3 = mast.get_meta("tip")
+		_burst(tip + Vector3(0, 0.4, 0), Color(0.86, 0.94, 1.0), 40, Vector3(0, -9, 0), 10.0, 1.1, 1.4)
+		_vibrate(150, 0.5)
 
 
 ## Calm and rise: both ships afloat bows to +z; the beaten ship shows its
@@ -1505,14 +1876,12 @@ func capture_pose(which: String) -> void:
 	elif which == "leviathan":
 		_enter_calm()
 		_enter_rise()
-		_leviathan_rise = 1.0
-		_update_leviathan(0.0)
-		_clock = 4.0
+		_tick_scare(0.9)
+		_clock = 0.9
 	elif which == "smash":
 		_enter_calm()
 		_enter_rise()
-		_leviathan_rise = 1.0
-		_update_leviathan(0.0)
+		_tick_scare(1.8)
 		_enter_smash()
 		_clock = 0.6
 		if _white:
@@ -1522,6 +1891,22 @@ func capture_pose(which: String) -> void:
 	else:
 		_enter_powder()
 		_clock = 0.2
+	_update_camera(1.0)
+
+
+## Capture harness: freeze the beat clock at `seconds` and run the beat's
+## choreography there (scare and sink are pure functions of the clock).
+func hold_clock(seconds: float) -> void:
+	_hold_clock = seconds
+	for step in int(seconds * 30.0):
+		_clock = float(step) / 30.0
+		if _beat == Beat.DEFEAT and not _chose_mast:
+			_tick_sink(_clock)
+		elif _beat == Beat.DEFEAT:
+			_tick_reef(_clock)
+		elif _beat == Beat.RISE:
+			_tick_scare(_clock)
+	_clock = seconds
 	_update_camera(1.0)
 
 

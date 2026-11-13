@@ -11,6 +11,8 @@ uniform float dark = 0.72;
 uniform float rough_lo = 0.34;
 uniform float rough_hi = 0.62;
 uniform float wet_height = 0.0;
+uniform float wet_spec = 0.42;
+uniform float normal_depth = 1.0;
 void fragment() {
 	vec3 c = texture(albedo_tex, UV).rgb;
 	float l = dot(c, vec3(0.299, 0.587, 0.114));
@@ -19,6 +21,6 @@ void fragment() {
 	float r = has_orm ? texture(orm_tex, UV).g : 0.5;
 	ROUGHNESS = mix(rough_lo, rough_hi, r);
 	METALLIC = 0.0;
-	SPECULAR = 0.42;
-	if (has_normal) { NORMAL_MAP = texture(normal_tex, UV).rgb; }
+	SPECULAR = wet_spec;
+	if (has_normal) { NORMAL_MAP = texture(normal_tex, UV).rgb; NORMAL_MAP_DEPTH = normal_depth; }
 }
