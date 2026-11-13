@@ -133,6 +133,8 @@ var _scare_eye := Vector3.ZERO
 var _scare_look := Vector3.ZERO
 var _scare_at := Vector3.ZERO
 var _scare_face := 0.0
+var _scare_pov := Vector3.ZERO
+var _scare_head := Vector3.ZERO
 var _snapped := false
 var _skips := 0
 
@@ -371,6 +373,19 @@ func _enter_rise() -> void:
 		_leviathan.rotation = Vector3(0, _scare_face, 0)
 		if _tentacle:
 			_tentacle.visible = false
+	# Jump-scare POV: low on the water on the lit side, a dozen metres from
+	# the eruption, looking up into the face as it bursts out and rears.
+	_scare_pov = _scare_at + side * 12.5 + lean * 4.5 + Vector3(0, 3.4, 0)
+	_scare_head = _scare_at + Vector3(0, 12.0, 0)
+	if _leviathan:
+		_tick_scare(1.0)
+		var box := _merged_box(_leviathan)
+		if box.size.length() > 0.1:
+			# Aim at the upper fifth (the head), biased toward the ship side.
+			var top := box.position + box.size * Vector3(0.5, 0.82, 0.5)
+			_scare_head = top + lean * minf(box.size.z, box.size.x) * 0.18
+		_leviathan.global_position = _scare_at + Vector3(0, -24.0, 0)
+		_leviathan.rotation = Vector3(0, _scare_face, 0)
 	_foam_done = false
 	_play(AUDIO_SCARE, 4.0)
 	_shake = 2.4
@@ -413,8 +428,28 @@ func _tick_scare(t: float) -> void:
 			_jaws_hit()
 	# +tilt rears back (away from the ship), -tilt slams toward it.
 	_leviathan.global_transform = Transform3D(Basis(axis, tilt) * Basis(Vector3.UP, _scare_face), _scare_at + Vector3(0, lift, 0))
-	var push := clampf(t / 1.75, 0.0, 1.0)
+	if t < 1.25 and _scare_pov != Vector3.ZERO:
+		# POV: the head bursts up into frame; the camera tips up after it.
+		var rise := clampf(t / 0.45, 0.0, 1.0)
+		var look := _scare_at.lerp(_scare_head - Vector3(0, 2.0, 0), 1.0 - pow(1.0 - rise, 2.0))
+		look.y = maxf(look.y, _water_y + 2.0)
+		_shot = [_scare_pov - Vector3(0, 0.6 * rise, 0), look]
+		return
+	var push := clampf((t - 1.25) / 0.5, 0.0, 1.0)
 	_shot = [_scare_eye + (_scare_look - _scare_eye).normalized() * push * 3.0, _scare_look + Vector3(0, 2.0 * (1.0 - push), 0)]
+
+
+func _merged_box(node: Node3D) -> AABB:
+	var box := AABB()
+	var first := true
+	for child in node.find_children("*", "MeshInstance3D", true, false):
+		var m := child as MeshInstance3D
+		if m.mesh == null or not m.is_visible_in_tree():
+			continue
+		var b: AABB = m.global_transform * m.get_aabb()
+		box = b if first else box.merge(b)
+		first = false
+	return box
 
 
 func _jaws_hit() -> void:
