@@ -22,6 +22,7 @@ var vol_mats: Array = []
 var vol_inside_frames := 0
 var vol_blocked_frames := 0
 var vol_visible_block_frames := 0
+var vol_head_inside_frames := 0
 var steps_seen: Dictionary = {}
 var shot_i := 0
 
@@ -96,6 +97,10 @@ func _watch_camera() -> void:
 			reach = maxf(reach, float(scene.foliage_fade_reach(m)))
 		if eye.distance_to(far_pt) > reach:
 			v_vis = true
+	for b2 in vol_boxes:
+		if (b2 as AABB).has_point(head):
+			vol_head_inside_frames += 1
+			break
 	if v_inside:
 		vol_inside_frames += 1
 	if v_block:
@@ -249,6 +254,7 @@ func run() -> void:
 	var pc := func(n: int) -> float: return 100.0 * n / maxf(cam_frames, 1)
 	say("CAMERA (scene foliage volumes): camera inside %d (%.1f%%), between camera and player %d (%.1f%%), still opaque after canopy fade %d (%.1f%%)" % [
 		vol_inside_frames, pc.call(vol_inside_frames), vol_blocked_frames, pc.call(vol_blocked_frames), vol_visible_block_frames, pc.call(vol_visible_block_frames)])
+	say("CAMERA: castaway's own head inside a foliage volume (walking through shrubs) %d (%.1f%%)" % [vol_head_inside_frames, pc.call(vol_head_inside_frames)])
 	say("final step=%s inventory=%s" % [g("_step"), inv()])
 	var path := OS.get_environment("IOM_BOT_LOG")
 	if path != "":

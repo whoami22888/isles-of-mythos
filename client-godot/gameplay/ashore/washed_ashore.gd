@@ -61,15 +61,18 @@ const WRECK_IDS := ["hull", "rigging", "cargo_cloth", "cargo_tools"]
 ## Walkable slope: rise/run above tan(40 deg) is a wall; above tan(45 deg) you slide.
 const SLOPE_MAX := 0.84
 const SLIDE_SLOPE := 1.0
-const STORM_SECONDS := 150.0
+const STORM_SECONDS := 120.0
 const WAKE_SECONDS := 4.5
 const BUILD_IDS := ["campfire", "lean_to", "storage"]
 const BUILD_TITLES := {"campfire": "Campfire", "lean_to": "Lean-to", "storage": "Storage"}
 const BUILD_RADIUS := {"campfire": 0.9, "lean_to": 1.8, "storage": 0.8}
-const DYNAMIC_STEPS := ["scavenge", "gather", "fire", "shelter"]
+const DYNAMIC_STEPS := ["scavenge", "gather", "fire", "cook", "shelter"]
 const FOLIAGE_WORDS := ["Palm", "Canopy", "Shrub", "Cover", "Understory", "Calathea"]
-const GATHER_WOOD := 5
-const GATHER_STONE := 4
+const GATHER_WOOD := 12
+const GATHER_STONE := 10
+const COOK_FISH := 2
+const BOND_STEPS := [0, 20, 50]
+const BOND_REWARDS := {2: "Fetch", 3: "Keen Nose"}
 const NEAR_FADE_MIN := 0.9
 const NEAR_FADE_MAX := 2.8
 
@@ -175,6 +178,7 @@ var _sniff_left := 6.0
 var _fetch_left := 24.0
 var _pet_finds := 0
 var _pet_fetches := 0
+var _fish_cooked := 0
 var _pet_pet_cd := 0.0
 var _dig_serial := 0
 var _steep_t := 0.0
@@ -352,6 +356,9 @@ func on_action() -> void:
 	var node := _nearest_node(3.5)
 	if not node.is_empty():
 		_act_on_node(node)
+		return
+	if _step == "cook" and _fish_cooked >= COOK_FISH and _pet_freed and _near(_pet.global_position, 2.8) and int(_inv.get("cooked", 0)) > 0:
+		_feed_cooked_fish()
 		return
 	if _fire_lit and _near(_pit_position(), 3.4) and _raw_food() != "":
 		_cook()
@@ -602,6 +609,10 @@ func _line_for(step: String) -> String:
 			if _can_pay("campfire"):
 				return "Build a campfire  (tap Build)"
 			return "Campfire needs " + _shortfall_text("campfire")
+		"cook":
+			if _fish_cooked >= COOK_FISH:
+				return "Feed %s a cooked fish  (tap him)" % str(_pet_stats.get("name", "Tide-Puck"))
+			return "Catch and cook fish  %d/%d" % [_fish_cooked, COOK_FISH]
 		"shelter":
 			var clock := "%d:%02d" % [int(maxf(_storm_left, 0.0)) / 60, int(maxf(_storm_left, 0.0)) % 60]
 			if _building:
@@ -906,7 +917,7 @@ func _follow_camera(delta: float) -> void:
 	var blend := 1.0 - exp(-delta * rate)
 	var eye := _camera.global_position.lerp(want, blend)
 	var tries := 0
-	while _foliage_inside(eye) and tries < 8 and eye.distance_to(head) > 1.6:
+	while _foliage_inside(eye) and tries < 12 and eye.distance_to(head) > 1.3:
 		eye = head + (eye - head) * 0.85
 		tries += 1
 	_camera.global_position = eye
@@ -965,9 +976,10 @@ func _tap(screen: Vector2) -> void:
 		_move_node = best
 
 
-## One tap or one Act press = one hit: swing, sound, chips, a rising "+N"
-## popup and the count ticking up in the HUD. Tools are a bonus (double
-## yield), never a lock.
+## One tap or one Act press = one hit: swing, sound, chips and a shake.
+## Trees and rocks take a few hits per piece (chop, chop, crack: +N popup and
+## the HUD count ticking up). A found tool means one hit fewer per piece and
+## an extra piece on the felling hit; tools are never a lock.
 func _act_on_node(node: Dictionary) -> void:
 	if node.is_empty() or bool(node.get("depleted", false)):
 		return
@@ -978,12 +990,13 @@ func _act_on_node(node: Dictionary) -> void:
 		return
 	if _gather_lock > 0.0:
 		return
-	_gather_lock = 0.35
+	_gather_lock = 0.5
 	var root := node.get("root") as Node3D
 	var aim := _node_aim(node)
 	var kind := str(node.get("kind", ""))
 	var bonus := str(node.get("tool", ""))
-	var mult := 2 if bonus != "" and bool(_tools.get(bonus, false)) else 1
+	# A found tool adds one extra piece on the final, felling/splitting hit.
+	var tool_bonus := 1 if bonus != "" and bool(_tools.get(bonus, false)) and int(node.get("stage", 0)) == int(node.get("stages", 1)) - 1 else 0
 	_swing = 0.3
 	var face := root.global_position
 	face.y = _player.global_position.y
@@ -994,6 +1007,12 @@ func _act_on_node(node: Dictionary) -> void:
 	_shake(root)
 	_chips(aim, _chip_color(kind), 14)
 	_vibrate(18, 0.4)
+	var need_hits := _hits_for(node)
+	node["hits"] = int(node.get("hits", 0)) + 1
+	if int(node["hits"]) < need_hits:
+		_crack_progress(node, aim, float(node["hits"]) / float(need_hits))
+		return
+	node["hits"] = 0
 	var stage := int(node.get("stage", 0))
 	var loot: Array = node.get("loot", [])
 	if stage < loot.size() and loot[stage] is Array:
@@ -1001,7 +1020,8 @@ func _act_on_node(node: Dictionary) -> void:
 			var item_id := str(item.get("id", ""))
 			var amount := int(item.get("amount", 1))
 			if item_id not in TOOL_IDS:
-				amount *= mult
+				amount += tool_bonus
+				tool_bonus = 0
 			_give(item_id, amount, aim)
 	node["stage"] = stage + 1
 	_apply_stage(node)
@@ -1019,6 +1039,23 @@ func _act_on_node(node: Dictionary) -> void:
 		if _step == "scavenge" and _scavenged >= 3:
 			_note_burst("Squeak!")
 			_enter("free_pet")
+
+
+const HITS_PER_PIECE := {"tree": 3, "rock": 3, "stones": 2, "hull": 2, "rigging": 2, "drift": 2}
+
+
+func _hits_for(node: Dictionary) -> int:
+	var hits := int(HITS_PER_PIECE.get(str(node.get("kind", "")), 1))
+	var tool := str(node.get("tool", ""))
+	if tool != "" and bool(_tools.get(tool, false)):
+		hits -= 1
+	return maxi(hits, 1)
+
+
+## In-between hit: a small "crack" tick so every tap still reads as progress.
+func _crack_progress(node: Dictionary, aim: Vector3, k: float) -> void:
+	var dots := "•".repeat(int(round(k * float(_hits_for(node)))))
+	_popup(dots, aim + Vector3.UP * 0.35, Color(0.95, 0.9, 0.75, 0.85))
 
 
 func _free_pet() -> void:
@@ -1127,7 +1164,7 @@ func _cook() -> bool:
 		_research_open = true
 		return false
 	var raw := ""
-	for id in RAW_IDS:
+	for id in (["fish", "meat", "food"] if _step == "cook" else RAW_IDS):
 		if int(_inv.get(id, 0)) > 0:
 			raw = id
 			break
@@ -1139,6 +1176,13 @@ func _cook() -> bool:
 	_give("cooked", 1, _pit_position())
 	_play(AUDIO + "fire.ogg", -8.0, 1.0)
 	_popup("+1 Meal", _pit_position() + Vector3.UP * 0.6, _item_color("cooked"))
+	if raw == "fish" and _step == "cook":
+		_fish_cooked += 1
+		_chips(_pit_position() + Vector3.UP * 0.4, Color(0.9, 0.55, 0.25), 10)
+		_line = _line_for("cook")
+		if _fish_cooked >= COOK_FISH:
+			_note_burst("Meal ready")
+			_pointer_id = "pet"
 	return true
 
 
@@ -1352,6 +1396,10 @@ func _spawn_collect() -> void:
 		_sack.visible = true
 		var at := _beast.global_position + Vector3(1.4, 0, 0.6) if _choice == "tame" and _beast else _pit_position()
 		at.y = _ground_y(at.x, at.z)
+		# Never drop the supplies on a slope, in the surf or up the bank.
+		if _player and (at.y < _water_y + 0.2 or absf(at.y - _player.global_position.y) > 0.9 or _slope_at(at.x, at.z, 0.6) > 0.5):
+			at = _player.global_position - _player.global_transform.basis.z * 1.4
+			at.y = _ground_y(at.x, at.z)
 		_sack.global_position = at
 	_step = "collect"
 	_line = "Collect the supplies"
@@ -1721,6 +1769,9 @@ func _nearest_node(radius: float) -> Dictionary:
 		if bool(node.get("depleted", false)):
 			continue
 		var dist := _flat(_player.global_position, (node.get("root") as Node3D).global_position)
+		# The spot Tide-Puck is pointing at wins over a rock or tree beside it.
+		if str(node.get("kind", "")) == "dig":
+			dist = maxf(dist - 1.2, 0.0)
 		if dist < best_d:
 			best_d = dist
 			best = node
@@ -1825,11 +1876,6 @@ func _mark_done(id: String) -> void:
 
 func _gain_xp(amount: int) -> void:
 	_pet_stats["xp"] = int(_pet_stats.get("xp", 0)) + amount
-	var need := 8 * int(_pet_stats.get("level", 1))
-	if int(_pet_stats["xp"]) >= need:
-		_pet_stats["xp"] = int(_pet_stats["xp"]) - need
-		_pet_stats["level"] = int(_pet_stats["level"]) + 1
-		_note_burst("Level %d" % int(_pet_stats["level"]))
 
 
 func _landmark_position(id: String) -> Vector3:
@@ -1871,6 +1917,18 @@ func _pit_position() -> Vector3:
 func _point_position() -> Vector3:
 	if _placing != "":
 		return _ghost.global_position if _ghost and _ghost_ok else _build_spot()
+	if _step == "cook":
+		var dig0 := _nearest_dig()
+		if not dig0.is_empty() and _pet_mode == "point":
+			return (dig0.get("root") as Node3D).global_position
+		if _fish_cooked >= COOK_FISH:
+			return _pet.global_position
+		if int(_inv.get("fish", 0)) > 0:
+			return _pit_position()
+		var fish := _needed_node()
+		if not fish.is_empty():
+			return (fish.get("root") as Node3D).global_position
+		return _pit_position()
 	if _step in ["gather", "fire", "shelter"]:
 		var dig := _nearest_dig()
 		if not dig.is_empty() and _pet_mode == "point":
@@ -1997,6 +2055,7 @@ func _save() -> void:
 		"silas_shown": _silas_shown,
 		"scavenged": _scavenged,
 		"storm_left": _storm_left,
+		"fish_cooked": _fish_cooked,
 		"structures": _structures_state(),
 	}
 	var cfg := ConfigFile.new()
@@ -2056,6 +2115,7 @@ func _apply_save(state: Dictionary) -> void:
 	_dusk_active = bool(state.get("dusk", false))
 	_scavenged = int(state.get("scavenged", 0))
 	_storm_left = float(state.get("storm_left", -1.0))
+	_fish_cooked = int(state.get("fish_cooked", 0))
 	for row in state.get("structures", []):
 		if row is Array and row.size() == 5:
 			_place_structure(str(row[0]), Vector3(float(row[1]), float(row[2]), float(row[3])), float(row[4]), false)
@@ -3655,24 +3715,56 @@ func _place_structure(id: String, at: Vector3, yaw: float, fresh: bool) -> void:
 	_popup("%s built!" % BUILD_TITLES.get(id, id), at + Vector3.UP * 1.2, Color(1.0, 0.9, 0.6))
 	_note_burst(str(BUILD_TITLES.get(id, id)))
 	if id == "campfire" and _step == "fire":
-		_enter("shelter")
+		_enter("cook")
 
 
 # --- the pet ---------------------------------------------------------------
 
+func _bond_level(bond: int = -1) -> int:
+	if bond < 0:
+		bond = int(_pet_stats.get("bond", 0))
+	var level := 1
+	for k in BOND_STEPS.size():
+		if bond >= int(BOND_STEPS[k]):
+			level = k + 1
+	return level
+
+
+## Bond levels each teach Tide-Puck something real: Lv2 fetches wood, fibre
+## and berries; Lv3 sniffs more often and digs up double.
 func _bond(amount: int) -> void:
-	var before := 1 + int(_pet_stats.get("bond", 0)) / 20
+	var before := _bond_level()
 	_pet_stats["bond"] = int(_pet_stats.get("bond", 0)) + amount
-	var level := 1 + int(_pet_stats["bond"]) / 20
-	_pet_stats["level"] = maxi(int(_pet_stats.get("level", 1)), level)
+	var level := _bond_level()
+	_pet_stats["level"] = level
 	if level > before:
+		var reward := str(BOND_REWARDS.get(level, ""))
+		var name := str(_pet_stats.get("name", "Tide-Puck"))
 		_note_burst("Bond Lv %d" % level)
+		if reward != "":
+			_show_hint("%s learned %s!" % [name, reward])
+			_hint_t = 4.5
+		_play(AUDIO + "bark.ogg", -6.0, 1.3)
 		if _pet:
+			_pet_hop = 0.6
 			_popup("Bond Lv %d!" % level, _pet.global_position + Vector3.UP * 1.0, Color(1.0, 0.65, 0.75))
+		if level >= 2:
+			_fetch_left = minf(_fetch_left, 4.0)
+
+
+func _feed_cooked_fish() -> void:
+	_inv["cooked"] = int(_inv.get("cooked", 0)) - 1
+	_pet_stats["hunger"] = 100
+	_pet_stats["mood"] = mini(100, int(_pet_stats["mood"]) + 20)
+	_play(AUDIO + "crunch.ogg", -4.0, 1.0)
+	_popup("Bond +20", _pet.global_position + Vector3.UP * 0.9, Color(1.0, 0.72, 0.78))
+	_bond(20)
+	_vibrate(30, 0.5)
+	_enter("shelter")
 
 
 func _pet_busy_ok() -> bool:
-	return _step in ["gather", "fire", "shelter", "collect", "epilogue"] and not _fork and not _qte
+	return _step in ["gather", "fire", "cook", "shelter", "collect", "epilogue"] and not _fork and not _qte
 
 
 func _tick_pet(delta: float) -> void:
@@ -3687,7 +3779,7 @@ func _tick_pet(delta: float) -> void:
 				_fetch_left -= delta
 				if _sniff_left <= 0.0:
 					_start_sniff()
-				elif _fetch_left <= 0.0:
+				elif _fetch_left <= 0.0 and _bond_level() >= 2:
 					_start_fetch()
 		"sniff":
 			moving = not _pet_walk(_pet_goal, 4.6, delta, 0.35)
@@ -3726,7 +3818,7 @@ func _tick_pet(delta: float) -> void:
 				_bond(1)
 				_pet_hop = 0.45
 				_pet_mode = "follow"
-				_fetch_left = 30.0
+				_fetch_left = 22.0
 		"warn":
 			_pet_timer += delta
 			if _beast and _beast.visible:
@@ -3798,10 +3890,14 @@ func _pet_animate(moving: bool) -> void:
 
 
 func _start_sniff() -> void:
-	var level := int(_pet_stats.get("level", 1))
-	_sniff_left = maxf(12.0, 26.0 - 3.0 * float(level))
-	if not _nearest_dig().is_empty():
-		return
+	_sniff_left = 14.0 if _bond_level() >= 3 else 24.0
+	var old := _nearest_dig()
+	if not old.is_empty():
+		if _flat((old.get("root") as Node3D).global_position, _player.global_position) < 12.0:
+			return
+		# A spot left far behind: let it sink back into the sand.
+		_nodes.erase(old)
+		(old.get("root") as Node3D).queue_free()
 	var spots: Array = []
 	for ring in [3.5, 4.5, 5.5, 6.5, 7.5, 8.5, 10.0]:
 		for k in 24:
@@ -3841,20 +3937,25 @@ func _dig_loot() -> Array:
 			if int(_inv.get(key, 0)) < int(_catalog.get("recipes", {}).get("campfire", {}).get(key, 0)):
 				want = key
 				break
+	elif _step == "cook" and _fish_cooked + int(_inv.get("fish", 0)) < COOK_FISH:
+		want = "fish"
 	elif _step == "shelter":
-		for key in ["planks", "fibre", "wood"]:
+		for key in ["planks", "fibre", "rope", "wood"]:
 			var need := int(_catalog.get("recipes", {}).get("lean_to", {}).get(key, 0))
 			if int(_inv.get(key, 0)) < need:
 				want = key
 				break
 	var loot: Array = []
 	if want != "":
-		loot.append({"id": want, "amount": 2})
+		loot.append({"id": want, "amount": 1 if want == "fish" else 2})
 	else:
 		var pick: String = ["food", "rope", "flint"][_dig_serial % 3]
 		loot.append({"id": pick, "amount": 2 if pick == "food" else 1})
 	if randf() < 0.35:
 		loot.append({"id": "food", "amount": 1})
+	if _bond_level() >= 3:
+		for item in loot:
+			item["amount"] = int(item["amount"]) * 2
 	return loot
 
 
@@ -3946,6 +4047,9 @@ func _needed_node() -> Dictionary:
 			want.append("wood")
 		if int(_inv.get("stone", 0)) < GATHER_STONE:
 			want.append("stone")
+	elif _step == "cook":
+		if _fish_cooked + int(_inv.get("fish", 0)) < COOK_FISH:
+			want.append("fish")
 	elif _step in ["fire", "shelter"]:
 		var recipe: Dictionary = _catalog.get("recipes", {}).get("campfire" if _step == "fire" else "lean_to", {})
 		for key in recipe.keys():
@@ -4059,10 +4163,12 @@ func _add_foliage_box(box: AABB, tree: bool, mats: Array = []) -> void:
 		_foliage_mats.append(mats)
 		return
 	var c := box.position + box.size * 0.5
-	var trunk_h := box.size.y * 0.6
+	# Palm fronds droop well below the crown, so the crown volume starts at
+	# 45% of the height and keeps its full spread.
+	var trunk_h := box.size.y * 0.45
 	_foliage_boxes.append(AABB(Vector3(c.x - 0.3, box.position.y, c.z - 0.3), Vector3(0.6, trunk_h, 0.6)))
 	_foliage_mats.append(mats)
-	_foliage_boxes.append(AABB(Vector3(box.position.x, box.position.y + trunk_h, box.position.z), Vector3(box.size.x, box.size.y - trunk_h, box.size.z)).grow(-0.2))
+	_foliage_boxes.append(AABB(Vector3(box.position.x, box.position.y + trunk_h, box.position.z), Vector3(box.size.x, box.size.y - trunk_h, box.size.z)))
 	_foliage_mats.append(mats)
 
 
@@ -4101,7 +4207,7 @@ func _probe_clear_view(head: Vector3) -> void:
 		_cam_yaw_goal = 0.0
 		_cam_lift_goal = 0.0
 		return
-	for lift in [0.0, 1.6, 3.0]:
+	for lift in [0.0, -1.5, 1.6, 3.0]:
 		for off in [0.0, 0.3, -0.3, 0.6, -0.6, 0.9, -0.9]:
 			if _cam_orbit_hold > 0.0 and absf(off) > 0.0:
 				continue
@@ -4129,9 +4235,7 @@ func _fade_occluders(eye: Vector3, head: Vector3, delta: float) -> void:
 		var c := b.position + b.size * 0.5
 		if absf(c.x - head.x) > 14.0 or absf(c.z - head.z) > 14.0:
 			continue
-		if b.has_point(head):
-			continue
-		if b.intersects_segment(eye, head) != null:
+		if b.has_point(eye) or b.has_point(head) or b.intersects_segment(eye, head) != null:
 			for m in _foliage_mats[i]:
 				_occluding[m] = true
 	var k := 1.0 - exp(-delta * 6.0)

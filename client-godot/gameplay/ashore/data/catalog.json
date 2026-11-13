@@ -12,8 +12,8 @@
     "warmth_drain_shelter": 0.03,
     "warmth_drain_dusk": 0.55,
     "hunger_drain": 0.04,
-    "respawn_seconds": 42,
-    "pacing": "Wreck search, pet rescue and the first gather pay off inside two minutes; campfire by ~4, lean-to before the 2:30 storm, dusk creature by ~8."
+    "respawn_seconds": 60,
+    "pacing": "Rescue v2: wreck + pet ~1.5 min, gather 10 wood/8 stone ~2 min, campfire, catch+cook 2 fish and feed Tide-Puck (Bond Lv2 Fetch), lean-to before a 3:00 storm, dusk creature. Target first session 6-10 min for a human."
   },
   "lines": {
     "wake": "Cold...",
@@ -25,7 +25,8 @@
     "shelter": "Build a lean-to before the storm",
     "dusk": "Something stalks the beach. Fight it off!",
     "collect": "Collect the supplies",
-    "epilogue": "The leviathan wreck lies offshore"
+    "epilogue": "The leviathan wreck lies offshore",
+    "cook": "Catch and cook fish"
   },
   "points": {
     "scavenge": "wreck",
@@ -36,7 +37,8 @@
     "shelter": "wreck",
     "dusk": "camp",
     "collect": "collect",
-    "epilogue": "offshore"
+    "epilogue": "offshore",
+    "cook": "fish"
   },
   "landmarks": {
     "wreck": [
@@ -147,15 +149,16 @@
   ],
   "recipes": {
     "campfire": {
-      "wood": 3,
-      "stone": 4,
-      "seconds": 2
+      "wood": 4,
+      "stone": 6,
+      "seconds": 3
     },
     "lean_to": {
-      "wood": 5,
-      "fibre": 4,
-      "planks": 3,
-      "seconds": 4
+      "wood": 8,
+      "fibre": 6,
+      "planks": 6,
+      "seconds": 6,
+      "rope": 3
     },
     "storage": {
       "planks": 3,
@@ -182,7 +185,7 @@
       "stages": 3,
       "tool": "",
       "requires": "",
-      "respawn": 42,
+      "respawn": 70,
       "loot": [
         [
           {
@@ -216,7 +219,7 @@
       "stages": 3,
       "tool": "",
       "requires": "",
-      "respawn": 42,
+      "respawn": 70,
       "loot": [
         [
           {
@@ -250,7 +253,7 @@
       "stages": 3,
       "tool": "",
       "requires": "",
-      "respawn": 42,
+      "respawn": 70,
       "loot": [
         [
           {
@@ -284,7 +287,7 @@
       "stages": 3,
       "tool": "",
       "requires": "",
-      "respawn": 50,
+      "respawn": 70,
       "loot": [
         [
           {
@@ -345,7 +348,7 @@
       "stages": 3,
       "tool": "",
       "requires": "",
-      "respawn": 36,
+      "respawn": 45,
       "loot": [
         [
           {
@@ -379,7 +382,7 @@
       "stages": 2,
       "tool": "",
       "requires": "",
-      "respawn": 36,
+      "respawn": 45,
       "loot": [
         [
           {
@@ -407,7 +410,7 @@
       "stages": 3,
       "tool": "",
       "requires": "",
-      "respawn": 36,
+      "respawn": 45,
       "loot": [
         [
           {
@@ -441,7 +444,7 @@
       "stages": 2,
       "tool": "",
       "requires": "",
-      "respawn": 40,
+      "respawn": 45,
       "loot": [
         [
           {
@@ -469,7 +472,7 @@
       "stages": 3,
       "tool": "axe",
       "requires": "",
-      "respawn": 48,
+      "respawn": 65,
       "loot": [
         [
           {
@@ -503,7 +506,7 @@
       "stages": 3,
       "tool": "axe",
       "requires": "",
-      "respawn": 48,
+      "respawn": 65,
       "loot": [
         [
           {
@@ -537,7 +540,7 @@
       "stages": 3,
       "tool": "pick",
       "requires": "",
-      "respawn": 48,
+      "respawn": 65,
       "loot": [
         [
           {
@@ -575,7 +578,7 @@
       "stages": 3,
       "tool": "pick",
       "requires": "",
-      "respawn": 48,
+      "respawn": 65,
       "loot": [
         [
           {
@@ -613,7 +616,7 @@
       "stages": 2,
       "tool": "",
       "requires": "",
-      "respawn": 40,
+      "respawn": 55,
       "loot": [
         [
           {
@@ -641,7 +644,7 @@
       "stages": 2,
       "tool": "",
       "requires": "",
-      "respawn": 40,
+      "respawn": 55,
       "loot": [
         [
           {
@@ -669,7 +672,7 @@
       "stages": 3,
       "tool": "pick",
       "requires": "",
-      "respawn": 40,
+      "respawn": 55,
       "loot": [
         [
           {
@@ -703,7 +706,7 @@
       "stages": 3,
       "tool": "pick",
       "requires": "",
-      "respawn": 40,
+      "respawn": 55,
       "loot": [
         [
           {
@@ -737,7 +740,7 @@
       "stages": 2,
       "tool": "",
       "requires": "",
-      "respawn": 36,
+      "respawn": 55,
       "loot": [
         [
           {
@@ -765,7 +768,7 @@
       "stages": 2,
       "tool": "",
       "requires": "",
-      "respawn": 36,
+      "respawn": 55,
       "loot": [
         [
           {
@@ -793,7 +796,7 @@
       "stages": 2,
       "tool": "",
       "requires": "",
-      "respawn": 36,
+      "respawn": 55,
       "loot": [
         [
           {
@@ -821,7 +824,7 @@
       "stages": 3,
       "tool": "axe",
       "requires": "",
-      "respawn": 48,
+      "respawn": 65,
       "loot": [
         [
           {
