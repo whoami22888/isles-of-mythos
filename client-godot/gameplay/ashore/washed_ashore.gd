@@ -4257,7 +4257,7 @@ func _probe_clear_view(head: Vector3) -> void:
 	var best_off := 0.0
 	var best_lift := 0.0
 	for off in [0.0, 0.3, -0.3, 0.6, -0.6, 0.9, -0.9, 1.25, -1.25, 1.6, -1.6]:
-		for lift in [0.0, 1.6, 3.0, -1.0]:
+		for lift in [0.0, 0.8, 1.4, -1.0]:
 			if _cam_orbit_hold > 0.0 and absf(off) > 0.0:
 				continue
 			var back := Basis(Vector3.UP, _cam_yaw + off).z
