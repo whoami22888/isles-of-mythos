@@ -77,6 +77,11 @@ func run() -> void:
 			scene._step = "gather"
 			scene._start_sniff()
 			var goal: Vector3 = scene._pet_goal
+			# Face the spot Tide-Puck is pointing at so the pet is in frame.
+			var here: Vector3 = (scene._player as Node3D).global_position
+			var to_goal := Vector3(goal.x - here.x, 0, goal.z - here.z)
+			if to_goal.length() > 0.5:
+				_walk(scene, here + to_goal * 0.3, to_goal.normalized())
 			scene._pet.global_position = goal
 			scene._pet.position.y = scene._ground_y(goal.x, goal.z)
 		"trees_a":

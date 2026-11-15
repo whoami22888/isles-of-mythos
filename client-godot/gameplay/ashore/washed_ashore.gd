@@ -227,6 +227,9 @@ var _water_y := -0.35
 var _base_exposure := 1.0
 var _terrain_tm: TriangleMesh
 var _terrain_xf := Transform3D.IDENTITY
+## No clear line anywhere (deep jungle): hold a tight over-the-shoulder
+## camera and dissolve every leaf between lens and castaway.
+var _cam_tight := false
 var _intro_k := 1.0
 var _sun: DirectionalLight3D
 var _nodes_root: Node3D
@@ -4244,6 +4247,7 @@ func _probe_clear_view(head: Vector3) -> void:
 	if _intro_k > 0.0 or _foliage_boxes.is_empty():
 		_cam_yaw_goal = 0.0
 		_cam_lift_goal = 0.0
+		_cam_tight = false
 		return
 	# First fully clear option wins; otherwise the option with the longest
 	# clear line (terrain and foliage), so the camera never settles in the
@@ -4265,14 +4269,18 @@ func _probe_clear_view(head: Vector3) -> void:
 			if clear >= 1.0 and not inside:
 				_cam_yaw_goal = off
 				_cam_lift_goal = lift
+				_cam_tight = false
 				return
 			var score := clear - absf(off) * 0.04 - absf(lift) * 0.03 - (0.35 if inside else 0.0)
 			if score > best:
 				best = score
 				best_off = off
 				best_lift = lift
+	# Nothing clear: stay low and close (never a high look-down through the
+	# crowns) and let the canopy fade open the view.
+	_cam_tight = true
 	_cam_yaw_goal = best_off if best > -INF else 0.0
-	_cam_lift_goal = best_lift if best > -INF else 0.0
+	_cam_lift_goal = minf(best_lift, 0.8) if best > -INF else 0.0
 
 
 ## Canopy fade: foliage that still sits between the lens and the castaway
@@ -4295,7 +4303,7 @@ func _fade_occluders(eye: Vector3, head: Vector3, delta: float) -> void:
 		# Every foliage material (ground grass and fern clumps included)
 		# dissolves nearer the lens than the castaway; whatever actually
 		# blocks the line of sight dissolves right up to them.
-		var goal := maxf(reach, NEAR_FADE_MAX) if _occluding.has(std) else maxf(reach - 0.8, NEAR_FADE_MAX)
+		var goal := maxf(reach, NEAR_FADE_MAX) if (_occluding.has(std) or _cam_tight) else maxf(reach - 0.8, NEAR_FADE_MAX)
 		std.distance_fade_max_distance = lerpf(std.distance_fade_max_distance, goal, k)
 		std.distance_fade_min_distance = maxf(std.distance_fade_max_distance - 1.1, NEAR_FADE_MIN)
 
