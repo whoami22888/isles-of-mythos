@@ -129,6 +129,65 @@ func run() -> void:
 				continue
 			if box.grow(0.6).has_point(cam_dbg.global_position) and box.size.length() < 60.0:
 				print("NEAR LENS: ", scene.get_path_to(gi), " ", box.size)
+	if OS.get_environment("IOM_ASHORE_PROBE") != "":
+		# Exact lens raycast: triangle hits from the camera through a grid of
+		# screen points, against every visible mesh (multimesh instances too).
+		var cpos: Vector3 = cam_dbg.global_position
+		var vp := root.get_viewport().get_visible_rect().size
+		var tally := {}
+		for gx in 9:
+			for gy in 5:
+				var sp := Vector2(vp.x * (gx + 0.5) / 9.0, vp.y * (gy + 0.5) / 5.0)
+				var dir := cam_dbg.project_ray_normal(sp)
+				var best_t := 1e9
+				var best_name := "sky"
+				for gi in scene.find_children("*", "GeometryInstance3D", true, false):
+					if not (gi as GeometryInstance3D).is_visible_in_tree():
+						continue
+					var mesh: Mesh = null
+					var xforms: Array = []
+					if gi is MeshInstance3D:
+						mesh = (gi as MeshInstance3D).mesh
+						xforms = [(gi as Node3D).global_transform]
+					elif gi is MultiMeshInstance3D and (gi as MultiMeshInstance3D).multimesh != null:
+						var mm: MultiMesh = (gi as MultiMeshInstance3D).multimesh
+						mesh = mm.mesh
+						for ii in mm.instance_count:
+							xforms.append((gi as Node3D).global_transform * mm.get_instance_transform(ii))
+					if mesh == null:
+						continue
+					var g := gi as GeometryInstance3D
+					var vr_ok := true
+					for xi in xforms.size():
+						var xf: Transform3D = xforms[xi]
+						var dcam := cpos.distance_to(xf.origin)
+						if g.visibility_range_end > 0.0 and dcam > g.visibility_range_end + g.visibility_range_end_margin:
+							continue
+						if g.visibility_range_begin > 0.0 and dcam < g.visibility_range_begin - g.visibility_range_begin_margin:
+							continue
+						var lo := xf.affine_inverse()
+						var o := lo * cpos
+						var e := lo * (cpos + dir * 40.0)
+						if not mesh.get_aabb().grow(0.05).intersects_segment(o, e):
+							continue
+						var tm := mesh.generate_triangle_mesh()
+						if tm == null:
+							continue
+						var hit: Dictionary = tm.intersect_segment(o, e)
+						if hit.is_empty():
+							continue
+						var t := cpos.distance_to(xf * (hit["position"] as Vector3))
+						if t < best_t:
+							best_t = t
+							best_name = "%s#%d [%s] vr=%.0f..%.0f" % [scene.get_path_to(gi), xi, mesh.resource_path.get_file(), g.visibility_range_begin, g.visibility_range_end]
+				var key := best_name
+				if not tally.has(key):
+					tally[key] = [0, 1e9]
+				tally[key][0] += 1
+				tally[key][1] = minf(tally[key][1], best_t)
+		print("cam ", cpos, " player ", pl_dbg)
+		for k in tally:
+			print("LENS RAY: %2d/45 cells, nearest %.2f m  %s" % [tally[k][0], tally[k][1], k])
 	print("Ashore capture wrote %s (%dx%d)" % [output, image.get_width(), image.get_height()])
 	quit(0)
 

@@ -208,11 +208,21 @@ var _cam_lift_goal := 0.0
 var _cam_ots := 0.0
 var _cam_ots_goal := 0.0
 var _cam_clear_for := 0.0
+## Yaw the automatic clear-view swing has added on top of the player's own
+## camera yaw (candidate swings are measured from that home yaw, so the
+## camera never wanders round in circles).
+var _cam_auto_off := 0.0
+## Extra field of view while the camera is pulled in close.
+var _cam_widen := 0.0
 ## Solid scenery the camera treats like terrain (the slice's cliff ridges):
 ## pairs of [TriangleMesh, Transform3D].
 var _cam_solids: Array = []
 var _cam_orbit_hold := 0.0
 var _foliage_mats: Array = []
+## Knee-to-waist plants (ferns, shrubs): fade-only volumes, so one right in
+## front of the castaway dissolves; they never steer the camera.
+var _small_boxes: Array = []
+var _small_mats: Array = []
 var _fade_mats: Array = []
 var _occluding: Dictionary = {}
 var _foliage_links: Array = []
@@ -896,7 +906,7 @@ func _follow_camera(delta: float) -> void:
 	# Intro beat: stay close until the castaway walks off the landing spot.
 	if _intro_k > 0.0 and (_step != "scavenge" or _flat(_player.global_position, START) > 2.5):
 		_intro_k = maxf(_intro_k - delta / 1.6, 0.0)
-	_camera.fov = lerpf(_camera.fov, lerpf(58.0, INTRO_FOV, _intro_k), clampf(delta * 3.0, 0.0, 1.0))
+	_camera.fov = lerpf(_camera.fov, lerpf(58.0, INTRO_FOV, _intro_k) + _cam_widen, clampf(delta * 3.0, 0.0, 1.0))
 	var want := _intro_eye(_intro_k)
 	var head := _player.global_position + Vector3.UP * 1.5
 	_cam_probe_t -= delta
@@ -910,6 +920,7 @@ func _follow_camera(delta: float) -> void:
 		var turn := clampf(_cam_yaw_goal, -delta * 2.2, delta * 2.2)
 		_cam_yaw += turn
 		_cam_yaw_goal -= turn
+		_cam_auto_off += turn
 	# Blocked view: ease in (quick) to an over-the-shoulder eye; ease back
 	# out (slow) once the regular view has been clear for a moment.
 	var ots_rate := 3.5 if _cam_ots_goal > _cam_ots else 1.2
@@ -944,6 +955,10 @@ func _follow_camera(delta: float) -> void:
 		eye = head + (eye - head) * 0.85
 		tries += 1
 	_camera.global_position = eye
+	# Pulled in close (hillside behind): widen the lens a little so the
+	# castaway does not fill the frame.
+	var near_d := Vector2(eye.x - _player.global_position.x, eye.z - _player.global_position.z).length()
+	_cam_widen = clampf((2.4 - near_d) / 1.4, 0.0, 1.0) * 14.0 * (1.0 - _intro_k)
 	var look := _player.global_position + Vector3.UP * lerpf(1.45, INTRO_LOOK_UP, _intro_k)
 	var fwd := -Basis(Vector3.UP, _cam_yaw).z
 	look = look.lerp(_player.global_position + Vector3.UP * 1.15 + fwd * 1.6, _cam_ots)
@@ -4205,6 +4220,8 @@ func bot_goal() -> Dictionary:
 func _prepare_foliage() -> void:
 	_foliage_boxes.clear()
 	_foliage_mats.clear()
+	_small_boxes.clear()
+	_small_mats.clear()
 	_foliage_links.clear()
 	_fade_mats.clear()
 	if _slice:
@@ -4248,6 +4265,9 @@ func _prepare_foliage() -> void:
 
 func _add_foliage_box(box: AABB, tree: bool, mats: Array = [], link: Node3D = null) -> void:
 	if box.size.y < 1.1:
+		if box.size.y >= 0.45:
+			_small_boxes.append(box)
+			_small_mats.append(mats)
 		return
 	if not tree:
 		_foliage_boxes.append(box.grow(-0.12))
@@ -4315,10 +4335,13 @@ func _probe_clear_view(head: Vector3, dt: float = 0.12) -> void:
 		return
 	var head_in := _foliage_inside(head)
 	_cam_lift_goal = 0.0
+	if _cam_orbit_hold > 0.0:
+		_cam_auto_off = 0.0
+	var home := _cam_yaw - _cam_auto_off
 	for off in [0.0, 0.3, -0.3, 0.6, -0.6]:
 		if _cam_orbit_hold > 0.0 and absf(off) > 0.0:
 			continue
-		var back := Basis(Vector3.UP, _cam_yaw + off).z
+		var back := Basis(Vector3.UP, home + off).z
 		var eye: Vector3 = _player.global_position + back * FOLLOW_BACK + Vector3.UP * FOLLOW_UP
 		if _ground_y(eye.x, eye.z) > eye.y - 1.2:
 			continue
@@ -4329,7 +4352,7 @@ func _probe_clear_view(head: Vector3, dt: float = 0.12) -> void:
 		_cam_clear_for += dt
 		if _cam_ots_goal > 0.0 and _cam_clear_for < 0.5:
 			return
-		_cam_yaw_goal = off
+		_cam_yaw_goal = off - _cam_auto_off
 		_cam_ots_goal = 0.0
 		_cam_tight = false
 		return
@@ -4338,22 +4361,25 @@ func _probe_clear_view(head: Vector3, dt: float = 0.12) -> void:
 	# Over the shoulder: pick the swing whose eye has clear terrain (no
 	# slope or cliff in the line or crowding the frame) and, ideally, a clear
 	# foliage line too; the canopy fade opens whatever leaves remain.
+	# Only swings whose eye has open terrain (no slope in the line or
+	# crowding the frame) count; none means stay home and pull in.
 	var best := -INF
 	var best_off := 0.0
 	var best_clear := false
-	for off in [0.0, 0.35, -0.35, 0.7, -0.7, 1.05, -1.05, 1.4, -1.4, 1.75, -1.75, 2.1, -2.1]:
+	for off in [0.0, 0.35, -0.35, 0.7, -0.7, 1.05, -1.05, 1.4, -1.4]:
 		if _cam_orbit_hold > 0.0 and absf(off) > 0.0:
 			continue
-		var ots := _ots_eye(_cam_yaw + off)
-		var score := -absf(off) * 0.25
-		var rock := _terrain_block(head, ots) >= 1.0 and not _slope_crowds(head, ots) and _ground_y(ots.x, ots.z) < ots.y - 0.7
+		var ots := _ots_eye(home + off)
+		if _terrain_block(head, ots) < 1.0 or _ground_y(ots.x, ots.z) > ots.y - 0.7 or _slope_crowds(head, ots):
+			continue
 		var leaf := not head_in and not _foliage_inside(ots) and _foliage_hit(head, ots) >= 1.0
-		score += (2.0 if rock else 0.0) + (1.0 if leaf else 0.0) + (0.0 if _foliage_inside(ots) else 0.5)
+		var ahead := head + (head - ots).normalized() * 7.0 + Vector3.DOWN * 0.4
+		var score := -absf(off) * 0.3 + (1.0 if leaf else 0.0) + (0.0 if _foliage_inside(ots) else 0.5) + _terrain_block(head, ahead) * 0.8
 		if score > best:
 			best = score
 			best_off = off
-			best_clear = rock and leaf
-	_cam_yaw_goal = best_off
+			best_clear = leaf
+	_cam_yaw_goal = best_off - _cam_auto_off
 	if best_clear:
 		_cam_tight = false
 		return
@@ -4401,11 +4427,34 @@ func _terrain_pull(head: Vector3, eye: Vector3) -> Vector3:
 		k = minf(k, maxf((th * d - 0.4) / d, minf(1.0 / d, 1.0)))
 		lo = minf(lo, k)
 	var out := head + to_eye * k
-	# Ground rising under the lens: keep pulling in rather than lifting.
+	# Ground rising under the lens: ride up to 1 m over the sand slope (never
+	# a look-down over the canopy), then keep pulling in rather than lifting.
+	var feet := _player.global_position.y
 	var tries := 0
-	while _ground_y(out.x, out.z) > out.y - 0.7 and k > lo and tries < 8:
+	while _ground_y(out.x, out.z) > out.y - 0.8 and tries < 10:
+		var gy := _ground_y(out.x, out.z)
+		if gy + 0.8 <= feet + OTS_UP + 1.0 and gy + 0.8 <= eye.y + 1.0:
+			var lifted := Vector3(out.x, gy + 0.8, out.z)
+			if _terrain_block(head, lifted) >= 1.0:
+				out = lifted
+				break
+		if k <= lo:
+			break
 		k = maxf(k - 0.1, lo)
 		out = head + to_eye * k
+		tries += 1
+	# Rock or slope brushing the lens (cliff ridge right beside it): ease in.
+	var flat_side := Vector3.UP.cross(to_eye).normalized()
+	tries = 0
+	while tries < 6 and k > lo:
+		var touching := false
+		for dir in [flat_side, -flat_side, Vector3.UP, to_eye.normalized()]:
+			if _terrain_block(out, out + dir * 0.9) < 1.0:
+				touching = true
+		if not touching:
+			break
+		k = maxf(k - 0.1, lo)
+		out = Vector3(head.x + to_eye.x * k, out.y, head.z + to_eye.z * k)
 		tries += 1
 	return out
 
@@ -4424,6 +4473,15 @@ func _fade_occluders(eye: Vector3, head: Vector3, delta: float) -> void:
 			continue
 		if b.has_point(eye) or b.has_point(head) or b.intersects_segment(eye, head) != null:
 			for m in _foliage_mats[i]:
+				_occluding[m] = true
+	# Low plants between the lens and the castaway's body.
+	var chest := head + Vector3.DOWN * 0.6
+	for i in _small_boxes.size():
+		var sb: AABB = _small_boxes[i]
+		if absf(sb.position.x - head.x) > 8.0 or absf(sb.position.z - head.z) > 8.0:
+			continue
+		if sb.intersects_segment(eye, chest) != null or sb.intersects_segment(eye, head) != null:
+			for m in _small_mats[i]:
 				_occluding[m] = true
 	var k := 1.0 - exp(-delta * 6.0)
 	for m in _fade_mats:
