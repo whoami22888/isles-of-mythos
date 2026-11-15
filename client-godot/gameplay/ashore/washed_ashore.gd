@@ -925,7 +925,7 @@ func _follow_camera(delta: float) -> void:
 	var head_in := _foliage_inside(head)
 	var hit := 1.0 if head_in else _foliage_hit(head, want)
 	var target := 1.0
-	var min_d := lerpf(CAM_MIN_DIST, 2.5, _cam_ots)
+	var min_d := lerpf(CAM_MIN_DIST, 2.0, _cam_ots)
 	if hit < 1.0 and full > 0.1:
 		target = clampf((hit * full - 0.4) / full, minf(min_d / full, 1.0), 1.0)
 	if target < _cam_pull:
@@ -940,7 +940,7 @@ func _follow_camera(delta: float) -> void:
 	var blend := 1.0 - exp(-delta * rate)
 	var eye := _camera.global_position.lerp(want, blend)
 	var tries := 0
-	while not head_in and _foliage_inside(eye) and tries < 12 and eye.distance_to(head) > min_d:
+	while not head_in and _foliage_inside(eye) and tries < 12 and eye.distance_to(head) > lerpf(min_d, 1.5, _cam_ots):
 		eye = head + (eye - head) * 0.85
 		tries += 1
 	_camera.global_position = eye
@@ -4362,7 +4362,7 @@ func _ots_eye(yaw: float) -> Vector3:
 func _slope_crowds(head: Vector3, eye: Vector3) -> bool:
 	var to_eye := eye - head
 	var side := Vector3.UP.cross(to_eye).normalized() * clampf(to_eye.length() * 0.45, 0.8, 2.2)
-	for p in [eye + side, eye - side, eye + Vector3.DOWN * 1.0]:
+	for p in [eye + side, eye - side]:
 		if _terrain_block(head, p) < 0.85:
 			return true
 	return false
@@ -4380,7 +4380,7 @@ func _terrain_pull(head: Vector3, eye: Vector3) -> Vector3:
 		k = minf(k, (th * d - 0.6) / d)
 	var to_eye := eye - head
 	var side := Vector3.UP.cross(to_eye).normalized() * clampf(d * 0.45, 0.8, 2.2)
-	for p in [eye + side, eye - side, eye + Vector3.DOWN * 1.0]:
+	for p in [eye + side, eye - side]:
 		var ts := _terrain_block(head, p)
 		if ts < 0.85:
 			k = minf(k, maxf(ts - 0.15, 0.0))
