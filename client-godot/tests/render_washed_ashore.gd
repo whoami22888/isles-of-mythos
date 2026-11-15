@@ -62,6 +62,8 @@ func run() -> void:
 				scene._tick_ghost()
 			if pose == "built":
 				scene.on_build_place()
+				scene._fish_cooked = 2
+				scene._enter("shelter")
 				scene.on_build_pick("lean_to")
 				scene._ghost_pin = scene._nearest_site("lean_to", scene._player.global_position + Vector3(2.5, 0, 2.5), 6.0)
 				scene._tick_ghost()

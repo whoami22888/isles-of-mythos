@@ -33,8 +33,11 @@ const HIDDEN_DRESSING := ["coast_rocks_05_1k", "@Node3D@3", "CoastalPBRDepthLaye
 	"TropicalBayDressing/ShoreRocks07", "TropicalBayDressing/ShoreMossRocks", "TropicalBayDressing/BeachScatterRocks",
 	"TropicalBayDressing/BeachWreckage", "TropicalBayDressing/BeachSettlement", "TropicalBayDressing/BeachDriftwood"]
 const LAND_MARGIN := 0.22
-const FOLLOW_BACK := 7.0
-const FOLLOW_UP := 4.2
+const FOLLOW_BACK := 5.2
+const FOLLOW_UP := 3.3
+## Closest the follow camera pulls in for foliage (keeps the castaway at
+## roughly a third of the screen height instead of filling it).
+const CAM_MIN_DIST := 3.4
 const INTRO_BACK := 4.4
 const INTRO_UP := 2.3
 const INTRO_LOOK_UP := 1.15
@@ -67,7 +70,7 @@ const BUILD_IDS := ["campfire", "lean_to", "storage"]
 const BUILD_TITLES := {"campfire": "Campfire", "lean_to": "Lean-to", "storage": "Storage"}
 const BUILD_RADIUS := {"campfire": 0.9, "lean_to": 1.8, "storage": 0.8}
 const DYNAMIC_STEPS := ["scavenge", "gather", "fire", "cook", "shelter"]
-const FOLIAGE_WORDS := ["Palm", "Canopy", "Shrub", "Cover", "Understory", "Calathea"]
+const FOLIAGE_WORDS := ["Palm", "Canopy", "Shrub", "Cover", "Understory", "Calathea", "Grass", "Fern", "Anthurium", "Ursinia", "Sorrel", "Vines"]
 const GATHER_WOOD := 12
 const GATHER_STONE := 10
 const COOK_FISH := 2
@@ -900,11 +903,20 @@ func _follow_camera(delta: float) -> void:
 	while pull > 0.4 and _ground_y(want.x, want.z) > _player.global_position.y + 1.1:
 		pull -= 0.15
 		want = _player.global_position + (want - _player.global_position) * (pull / (pull + 0.15))
+	# Terrain (jungle slope) between the castaway and the lens: pull in to
+	# just short of it rather than looking through the hillside.
+	var th := _terrain_block(head, want)
+	if th < 1.0:
+		var d := head.distance_to(want)
+		want = head + (want - head) * clampf((th * d - 0.6) / maxf(d, 0.01), minf(2.6 / maxf(d, 0.01), 1.0), 1.0)
 	var full := head.distance_to(want)
-	var hit := _foliage_hit(head, want)
+	# Castaway standing inside a shrub/crown volume: nothing is "clear", so
+	# hold a readable distance and let the canopy fade dissolve the leaves.
+	var head_in := _foliage_inside(head)
+	var hit := 1.0 if head_in else _foliage_hit(head, want)
 	var target := 1.0
 	if hit < 1.0 and full > 0.1:
-		target = clampf((hit * full - 0.4) / full, 2.0 / full, 1.0)
+		target = clampf((hit * full - 0.4) / full, minf(CAM_MIN_DIST / full, 1.0), 1.0)
 	if target < _cam_pull:
 		_cam_pull = lerpf(_cam_pull, target, 1.0 - exp(-delta * 14.0))
 	else:
@@ -918,11 +930,11 @@ func _follow_camera(delta: float) -> void:
 	var blend := 1.0 - exp(-delta * rate)
 	var eye := _camera.global_position.lerp(want, blend)
 	var tries := 0
-	while _foliage_inside(eye) and tries < 12 and eye.distance_to(head) > 1.3:
+	while not head_in and _foliage_inside(eye) and tries < 12 and eye.distance_to(head) > CAM_MIN_DIST:
 		eye = head + (eye - head) * 0.85
 		tries += 1
 	_camera.global_position = eye
-	_camera.look_at(_player.global_position + Vector3.UP * lerpf(2.0, INTRO_LOOK_UP, _intro_k), Vector3.UP)
+	_camera.look_at(_player.global_position + Vector3.UP * lerpf(1.45, INTRO_LOOK_UP, _intro_k), Vector3.UP)
 	_fade_occluders(eye, head, delta)
 
 
@@ -1660,8 +1672,12 @@ func _tick_ring() -> void:
 
 
 func _prompt_style(label: Label3D, scale: float) -> void:
+	# Constant small on-screen size, pinned just above the node, so a node
+	# right by the lens never paints a giant title across the frame.
 	label.font_size = 40
-	label.pixel_size = 0.0055 / maxf(scale, 0.4)
+	label.fixed_size = true
+	label.pixel_size = 0.00075
+	label.position.y = minf(label.position.y, 0.9)
 	label.outline_size = 10
 	label.outline_modulate = Color(0.02, 0.05, 0.08, 0.85)
 	label.no_depth_test = true
@@ -2748,7 +2764,8 @@ func _build_pet() -> void:
 	_pet.add_child(_pet_head)
 	var name_label := _label3("Tide-Puck", 0.75)
 	name_label.name = "Name"
-	name_label.pixel_size = 0.0032
+	name_label.fixed_size = true
+	name_label.pixel_size = 0.0006
 	name_label.modulate = Color(1, 0.95, 0.8, 0.9)
 	_pet.add_child(name_label)
 	_pet.position = _pet_rest()
@@ -3221,7 +3238,8 @@ func _place_silas_cutlass() -> void:
 	mound.name = "WetSand"
 	var label := _label3("Silas's cutlass", 0.95)
 	label.name = "Title"
-	label.pixel_size = 0.003
+	label.fixed_size = true
+	label.pixel_size = 0.0006
 	label.modulate = Color(1, 0.95, 0.8, 0.9)
 	holder.add_child(label)
 
@@ -4227,21 +4245,34 @@ func _probe_clear_view(head: Vector3) -> void:
 		_cam_yaw_goal = 0.0
 		_cam_lift_goal = 0.0
 		return
+	# First fully clear option wins; otherwise the option with the longest
+	# clear line (terrain and foliage), so the camera never settles in the
+	# hillside or a crown just because nothing was perfect.
+	var head_in := _foliage_inside(head)
+	var best := -INF
+	var best_off := 0.0
+	var best_lift := 0.0
 	for off in [0.0, 0.3, -0.3, 0.6, -0.6, 0.9, -0.9, 1.25, -1.25, 1.6, -1.6]:
-		for lift in [0.0, -1.5, 1.6, 3.0]:
+		for lift in [0.0, 1.6, 3.0, -1.0]:
 			if _cam_orbit_hold > 0.0 and absf(off) > 0.0:
 				continue
 			var back := Basis(Vector3.UP, _cam_yaw + off).z
 			var eye: Vector3 = _player.global_position + back * FOLLOW_BACK + Vector3.UP * (FOLLOW_UP + lift)
-			if _ground_y(eye.x, eye.z) > _player.global_position.y + 1.1:
+			if _ground_y(eye.x, eye.z) > eye.y - 1.2:
 				continue
-			if _foliage_inside(eye) or _foliage_hit(head, eye) < 1.0:
-				continue
-			_cam_yaw_goal = off
-			_cam_lift_goal = lift
-			return
-	_cam_yaw_goal = 0.0
-	_cam_lift_goal = 1.6
+			var clear := minf(_terrain_block(head, eye), 1.0 if head_in else _foliage_hit(head, eye))
+			var inside := _foliage_inside(eye)
+			if clear >= 1.0 and not inside:
+				_cam_yaw_goal = off
+				_cam_lift_goal = lift
+				return
+			var score := clear - absf(off) * 0.04 - absf(lift) * 0.03 - (0.35 if inside else 0.0)
+			if score > best:
+				best = score
+				best_off = off
+				best_lift = lift
+	_cam_yaw_goal = best_off if best > -INF else 0.0
+	_cam_lift_goal = best_lift if best > -INF else 0.0
 
 
 ## Canopy fade: foliage that still sits between the lens and the castaway
@@ -4261,9 +4292,12 @@ func _fade_occluders(eye: Vector3, head: Vector3, delta: float) -> void:
 	var k := 1.0 - exp(-delta * 6.0)
 	for m in _fade_mats:
 		var std := m as StandardMaterial3D
-		var goal := maxf(reach, NEAR_FADE_MAX) if _occluding.has(std) else NEAR_FADE_MAX
+		# Every foliage material (ground grass and fern clumps included)
+		# dissolves nearer the lens than the castaway; whatever actually
+		# blocks the line of sight dissolves right up to them.
+		var goal := maxf(reach, NEAR_FADE_MAX) if _occluding.has(std) else maxf(reach - 0.8, NEAR_FADE_MAX)
 		std.distance_fade_max_distance = lerpf(std.distance_fade_max_distance, goal, k)
-		std.distance_fade_min_distance = minf(NEAR_FADE_MIN + (std.distance_fade_max_distance - NEAR_FADE_MAX) * 0.8, std.distance_fade_max_distance - 0.6)
+		std.distance_fade_min_distance = maxf(std.distance_fade_max_distance - 1.1, NEAR_FADE_MIN)
 
 
 ## How far from the lens a foliage material dissolves right now (the canopy
@@ -4272,6 +4306,18 @@ func foliage_fade_reach(mat: Material) -> float:
 	if mat is StandardMaterial3D and (mat as StandardMaterial3D).has_meta("iom_dither"):
 		return (mat as StandardMaterial3D).distance_fade_max_distance
 	return 0.0
+
+
+## Fraction along head->eye where the terrain mesh first blocks (1.0 = clear).
+func _terrain_block(head: Vector3, eye: Vector3) -> float:
+	if _terrain_tm == null:
+		return 1.0
+	var inv := _terrain_xf.affine_inverse()
+	var hit := _terrain_tm.intersect_segment(inv * head, inv * eye)
+	if hit.is_empty():
+		return 1.0
+	var at: Vector3 = _terrain_xf * (hit["position"] as Vector3)
+	return clampf(head.distance_to(at) / maxf(head.distance_to(eye), 0.01), 0.0, 1.0)
 
 
 ## Fraction along head->eye of the first foliage hit (1.0 = clear).
