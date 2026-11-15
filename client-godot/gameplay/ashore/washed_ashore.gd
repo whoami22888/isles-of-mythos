@@ -4335,16 +4335,26 @@ func _probe_clear_view(head: Vector3, dt: float = 0.12) -> void:
 		return
 	_cam_clear_for = 0.0
 	_cam_ots_goal = 1.0
-	# Over the shoulder: prefer a small swing that gives a clear line too;
-	# otherwise the canopy fade opens whatever is left up to the castaway.
-	_cam_yaw_goal = 0.0
-	for off in [0.0, 0.35, -0.35, 0.7, -0.7]:
+	# Over the shoulder: pick the swing whose eye has clear terrain (no
+	# slope or cliff in the line or crowding the frame) and, ideally, a clear
+	# foliage line too; the canopy fade opens whatever leaves remain.
+	var best := -INF
+	var best_off := 0.0
+	var best_clear := false
+	for off in [0.0, 0.35, -0.35, 0.7, -0.7, 1.05, -1.05, 1.4, -1.4]:
 		if _cam_orbit_hold > 0.0 and absf(off) > 0.0:
 			continue
 		var ots := _ots_eye(_cam_yaw + off)
-		if head_in or _foliage_inside(ots) or _foliage_hit(head, ots) < 1.0 or _terrain_block(head, ots) < 1.0:
-			continue
-		_cam_yaw_goal = off
+		var score := -absf(off) * 0.25
+		var rock := _terrain_block(head, ots) >= 1.0 and not _slope_crowds(head, ots) and _ground_y(ots.x, ots.z) < ots.y - 0.7
+		var leaf := not head_in and not _foliage_inside(ots) and _foliage_hit(head, ots) >= 1.0
+		score += (2.0 if rock else 0.0) + (1.0 if leaf else 0.0) + (0.0 if _foliage_inside(ots) else 0.5)
+		if score > best:
+			best = score
+			best_off = off
+			best_clear = rock and leaf
+	_cam_yaw_goal = best_off
+	if best_clear:
 		_cam_tight = false
 		return
 	_cam_tight = true
@@ -4362,7 +4372,8 @@ func _ots_eye(yaw: float) -> Vector3:
 func _slope_crowds(head: Vector3, eye: Vector3) -> bool:
 	var to_eye := eye - head
 	var side := Vector3.UP.cross(to_eye).normalized() * clampf(to_eye.length() * 0.45, 0.8, 2.2)
-	for p in [eye + side, eye - side]:
+	var up := Vector3.UP * 0.9
+	for p in [eye + side, eye - side, eye + side * 0.7 + up, eye - side * 0.7 + up]:
 		if _terrain_block(head, p) < 0.85:
 			return true
 	return false
