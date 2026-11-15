@@ -116,6 +116,11 @@ func run() -> void:
 	var pl_dbg: Vector3 = (scene._player as Node3D).global_position
 	print("Ashore camera: dist %.2f m, up %.2f m, ots %.2f, pull %.2f" % [Vector2(cam_dbg.global_position.x - pl_dbg.x, cam_dbg.global_position.z - pl_dbg.z).length(), cam_dbg.global_position.y - pl_dbg.y, float(scene._cam_ots), float(scene._cam_pull)])
 	if OS.get_environment("IOM_ASHORE_PROBE") != "":
+		var hd: Vector3 = pl_dbg + Vector3.UP * 1.5
+		print("yaw %.2f ground at player %.2f" % [float(scene._cam_yaw), float(scene._ground_y(pl_dbg.x, pl_dbg.z))])
+		for off in [0.0, 0.7, -0.7, 1.4, -1.4, 2.1, -2.1, 3.14]:
+			var oe: Vector3 = scene._ots_eye(float(scene._cam_yaw) + off)
+			print("  off %.2f terrain %.2f crowd %s ground_rel %.2f foliage %.2f inside %s" % [off, float(scene._terrain_block(hd, oe)), scene._slope_crowds(hd, oe), float(scene._ground_y(oe.x, oe.z)) - oe.y, float(scene._foliage_hit(hd, oe)), scene._foliage_inside(oe)])
 		for gi in scene.find_children("*", "GeometryInstance3D", true, false):
 			if not (gi as GeometryInstance3D).is_visible_in_tree():
 				continue

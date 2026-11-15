@@ -4341,7 +4341,7 @@ func _probe_clear_view(head: Vector3, dt: float = 0.12) -> void:
 	var best := -INF
 	var best_off := 0.0
 	var best_clear := false
-	for off in [0.0, 0.35, -0.35, 0.7, -0.7, 1.05, -1.05, 1.4, -1.4]:
+	for off in [0.0, 0.35, -0.35, 0.7, -0.7, 1.05, -1.05, 1.4, -1.4, 1.75, -1.75, 2.1, -2.1]:
 		if _cam_orbit_hold > 0.0 and absf(off) > 0.0:
 			continue
 		var ots := _ots_eye(_cam_yaw + off)
