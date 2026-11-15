@@ -4376,8 +4376,6 @@ func _terrain_pull(head: Vector3, eye: Vector3) -> Vector3:
 		return eye
 	var k := 1.0
 	var th := _terrain_block(head, eye)
-	if th < 1.0:
-		k = minf(k, (th * d - 0.6) / d)
 	var to_eye := eye - head
 	var side := Vector3.UP.cross(to_eye).normalized() * clampf(d * 0.45, 0.8, 2.2)
 	for p in [eye + side, eye - side]:
@@ -4386,6 +4384,11 @@ func _terrain_pull(head: Vector3, eye: Vector3) -> Vector3:
 			k = minf(k, maxf(ts - 0.15, 0.0))
 	var lo := minf(CAM_TERRAIN_MIN / d, 1.0)
 	k = clampf(k, lo, 1.0)
+	# A slope or cliff actually blocking the line of sight always wins:
+	# come in front of it, closer than the usual minimum if need be.
+	if th < 1.0:
+		k = minf(k, maxf((th * d - 0.4) / d, minf(1.0 / d, 1.0)))
+		lo = minf(lo, k)
 	var out := head + to_eye * k
 	# Ground rising under the lens: keep pulling in rather than lifting.
 	var tries := 0

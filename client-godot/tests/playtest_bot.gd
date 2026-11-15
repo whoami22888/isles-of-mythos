@@ -101,6 +101,8 @@ func _watch_camera() -> void:
 			reach = maxf(reach, float(scene.foliage_fade_reach(m)))
 		if eye.distance_to(far_pt) > reach:
 			v_vis = true
+			if OS.get_environment("IOM_BOT_CAMDBG") != "" and vol_visible_block_frames % 30 == 0:
+				say("CAMDBG vis-block eye %s head %s box %s mats %d reach %.2f far %.2f ots %.2f tight %s goal %.1f" % [eye, head, b, (vol_mats[k] as Array).size(), reach, eye.distance_to(far_pt), float(scene._cam_ots), scene._cam_tight, float(scene._cam_ots_goal)])
 	for b2 in vol_boxes:
 		if (b2 as AABB).has_point(head):
 			vol_head_inside_frames += 1
