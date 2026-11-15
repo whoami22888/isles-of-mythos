@@ -50,6 +50,9 @@ const T_SINK := 7.2
 const T_REEF := 4.6
 const T_CALM := 2.6
 const T_SCARE := 2.05
+## Render layer only the leviathan sits on, so its key and rim lights do
+## not touch the approved water or the galleons.
+const LEV_LIGHT_LAYER := 1 << 19
 const T_SMASH := 2.8
 const T_ASHORE := 1.8
 
@@ -351,12 +354,12 @@ func _enter_rise() -> void:
 	_clear_stage()
 	_stage_two_ships(Vector3(-4.0, -0.05, -24.0), Vector3(20.0, -0.4, -20.0), Color(0.72, 0.72, 0.7), false)
 	_set_wake(0.0)
-	_darken(0.86, 0.85, 0.5, 0.62, Color(0.78, 0.84, 0.9))
+	_darken(0.86, 0.85, 0.5, 0.42, Color(0.78, 0.84, 0.9))
 	# The head erupts 21 m off our beam, rears over the galleon and slams
 	# down onto her. Camera low on the water, side-on, so both read.
 	var ship := _player_ship.global_position
 	var lean := Vector3(0, 0, 1)
-	_scare_at = ship - lean * 21.0
+	_scare_at = ship - lean * 18.0
 	_scare_at.y = _water_y
 	var side := Vector3.UP.cross(lean).normalized()
 	_scare_eye = _scare_at + lean * 8.0 + side * 24.0 + Vector3(0, 2.6, 0)
@@ -375,7 +378,7 @@ func _enter_rise() -> void:
 			_tentacle.visible = false
 	# Jump-scare POV: low on the water on the lit side, a dozen metres from
 	# the eruption, looking up into the face as it bursts out and rears.
-	_scare_pov = _scare_at + side * 12.5 + lean * 4.5 + Vector3(0, 3.4, 0)
+	_scare_pov = _scare_at + side * 20.0 + lean * 9.0 + Vector3(0, 8.5, 0)
 	_scare_head = _scare_at + Vector3(0, 12.0, 0)
 	if _leviathan:
 		_tick_scare(1.0)
@@ -386,6 +389,7 @@ func _enter_rise() -> void:
 			_scare_head = top + lean * minf(box.size.z, box.size.x) * 0.18
 		_leviathan.global_position = _scare_at + Vector3(0, -24.0, 0)
 		_leviathan.rotation = Vector3(0, _scare_face, 0)
+	_light_leviathan(side, lean)
 	_foam_done = false
 	_play(AUDIO_SCARE, 4.0)
 	_shake = 2.4
@@ -422,7 +426,7 @@ func _tick_scare(t: float) -> void:
 		var u := clampf((t - 1.25) / 0.5, 0.0, 1.0)
 		u = u * u
 		lift = 0.6
-		tilt = lerpf(0.3, -0.85, u)
+		tilt = lerpf(0.3, -0.95, u)
 		if u >= 1.0 and not _snapped:
 			_snapped = true
 			_jaws_hit()
@@ -437,6 +441,30 @@ func _tick_scare(t: float) -> void:
 		return
 	var push := clampf((t - 1.25) / 0.5, 0.0, 1.0)
 	_shot = [_scare_eye + (_scare_look - _scare_eye).normalized() * push * 3.0, _scare_look + Vector3(0, 2.0 * (1.0 - push), 0)]
+
+
+## Creature-only key (front/side, from the camera's side) and a cold rim
+## from behind, so the head reads as wet skin, eye and teeth instead of a
+## backlit silhouette. Directional, shadowless, cull-masked to the head.
+func _light_leviathan(side: Vector3, lean: Vector3) -> void:
+	if _stage == null:
+		return
+	var head := _scare_head
+	var rigs := [
+		["LevKey", head + side * 30.0 + lean * 14.0 + Vector3(0, 10.0, 0), Color(0.86, 0.95, 1.0), 1.5, 0.6],
+		["LevRim", head - side * 26.0 - lean * 10.0 + Vector3(0, 16.0, 0), Color(0.7, 0.9, 1.0), 3.2, 1.0],
+		["LevFill", head + side * 20.0 - lean * 18.0 - Vector3(0, 6.0, 0), Color(0.45, 0.62, 0.66), 0.8, 0.0],
+	]
+	for r in rigs:
+		var light := DirectionalLight3D.new()
+		light.name = r[0]
+		light.light_color = r[2]
+		light.light_energy = r[3]
+		light.light_specular = 1.0 + float(r[4])
+		light.shadow_enabled = false
+		light.light_cull_mask = LEV_LIGHT_LAYER
+		_stage.add_child(light)
+		light.look_at_from_position(r[1], head, Vector3.UP)
 
 
 func _merged_box(node: Node3D) -> AABB:
@@ -1032,7 +1060,7 @@ func _build_leviathan() -> void:
 	_head = Art.put(_leviathan, Art.LEVIATHAN_HEAD, "Head", Vector3.ZERO, Vector3(0, 20, 0), 36.0)
 	# Wet and menacing for the scare: darker, less teal, glossy (low
 	# roughness, high specular), deeper normals. Still no emission.
-	Art.grade(_head, 0.35, Color(0.78, 0.86, 0.84), 0.62, 0.08, 0.3)
+	Art.grade(_head, 0.42, Color(0.66, 0.84, 0.84), 0.62, 0.06, 0.26)
 	for mesh in Art.meshes(_head):
 		for i in (mesh.mesh.get_surface_count() if mesh.mesh else 0):
 			var mat := mesh.get_surface_override_material(i) as ShaderMaterial
@@ -1046,6 +1074,7 @@ func _build_leviathan() -> void:
 	Art.grade_creature(_tentacle)
 	for mesh in Art.meshes(_leviathan):
 		mesh.extra_cull_margin = 4.0
+		mesh.layers |= LEV_LIGHT_LAYER
 
 func _build_ui() -> void:
 	var layer := CanvasLayer.new()
