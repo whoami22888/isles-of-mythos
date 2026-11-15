@@ -38,6 +38,19 @@ const FOLLOW_UP := 3.3
 ## Closest the follow camera pulls in for foliage (keeps the castaway at
 ## roughly a third of the screen height instead of filling it).
 const CAM_MIN_DIST := 3.4
+## Over-the-shoulder framing the follow camera eases into when foliage or
+## terrain blocks the regular view (instead of lifting over the canopy).
+const OTS_BACK := 2.5
+const OTS_UP := 1.8
+const OTS_SIDE := 0.45
+## Closest the camera comes while terrain pushes it in.
+const CAM_TERRAIN_MIN := 1.6
+## Near trees draw the detailed bounded mesh; the 14k LOD2 only past this.
+const TREE_DETAIL_RANGE := 30.0
+const TREE_DETAIL := {
+	"res://assets/external/generated/foliage/island_tree_01_lod2.glb": "res://assets/external/generated/bounded_lods/island_tree_01.glb",
+	"res://assets/external/generated/foliage/island_tree_02_lod2.glb": "res://assets/external/generated/bounded_lods/island_tree_02.glb",
+}
 const INTRO_BACK := 4.4
 const INTRO_UP := 2.3
 const INTRO_LOOK_UP := 1.15
@@ -191,6 +204,10 @@ var _cam_probe_t := 0.0
 var _cam_yaw_goal := 0.0
 var _cam_lift := 0.0
 var _cam_lift_goal := 0.0
+## 0 regular follow view, 1 over-the-shoulder (eased).
+var _cam_ots := 0.0
+var _cam_ots_goal := 0.0
+var _cam_clear_for := 0.0
 var _cam_orbit_hold := 0.0
 var _foliage_mats: Array = []
 var _fade_mats: Array = []
@@ -878,21 +895,11 @@ func _follow_camera(delta: float) -> void:
 		_intro_k = maxf(_intro_k - delta / 1.6, 0.0)
 	_camera.fov = lerpf(_camera.fov, lerpf(58.0, INTRO_FOV, _intro_k), clampf(delta * 3.0, 0.0, 1.0))
 	var want := _intro_eye(_intro_k)
-	# The south beach is a narrow strip under a steep jungle slope. Pull the
-	# camera in when the ground behind rises, so it stays on the sand instead
-	# of climbing into the palm canopy.
-	var pull := 1.0
-	while pull > 0.4 and _ground_y(want.x, want.z) > _player.global_position.y + 1.1:
-		pull -= 0.15
-		want = _player.global_position + (want - _player.global_position) * (pull / (pull + 0.15))
-	# Foliage between the castaway and the lens: first swing/raise the
-	# camera toward a clear view (eased), then pull in (fast) for whatever
-	# still blocks, easing back out (slow) once the line of sight is clear.
 	var head := _player.global_position + Vector3.UP * 1.5
 	_cam_probe_t -= delta
 	if _cam_probe_t <= 0.0:
+		_probe_clear_view(head, 0.12 - _cam_probe_t)
 		_cam_probe_t = 0.12
-		_probe_clear_view(head)
 	if _cam_orbit_hold > 0.0:
 		_cam_orbit_hold -= delta
 		_cam_yaw_goal = 0.0
@@ -900,44 +907,44 @@ func _follow_camera(delta: float) -> void:
 		var turn := clampf(_cam_yaw_goal, -delta * 2.2, delta * 2.2)
 		_cam_yaw += turn
 		_cam_yaw_goal -= turn
-	_cam_lift = lerpf(_cam_lift, _cam_lift_goal, 1.0 - exp(-delta * 3.0))
-	want = _intro_eye(_intro_k) + Vector3.UP * _cam_lift
-	pull = 1.0
-	while pull > 0.4 and _ground_y(want.x, want.z) > _player.global_position.y + 1.1:
-		pull -= 0.15
-		want = _player.global_position + (want - _player.global_position) * (pull / (pull + 0.15))
-	# Terrain (jungle slope) between the castaway and the lens: pull in to
-	# just short of it rather than looking through the hillside.
-	var th := _terrain_block(head, want)
-	if th < 1.0:
-		var d := head.distance_to(want)
-		want = head + (want - head) * clampf((th * d - 0.6) / maxf(d, 0.01), minf(2.6 / maxf(d, 0.01), 1.0), 1.0)
+	# Blocked view: ease in (quick) to an over-the-shoulder eye; ease back
+	# out (slow) once the regular view has been clear for a moment.
+	var ots_rate := 3.5 if _cam_ots_goal > _cam_ots else 1.2
+	_cam_ots = lerpf(_cam_ots, _cam_ots_goal, 1.0 - exp(-delta * ots_rate))
+	_cam_lift = lerpf(_cam_lift, 0.0, 1.0 - exp(-delta * 3.0))
+	want = _intro_eye(_intro_k).lerp(_ots_eye(_cam_yaw), _cam_ots)
+	# Terrain never lifts the camera: a rising slope behind or beside the
+	# lens pulls it in toward the castaway (and down to their level).
+	want = _terrain_pull(head, want)
 	var full := head.distance_to(want)
 	# Castaway standing inside a shrub/crown volume: nothing is "clear", so
 	# hold a readable distance and let the canopy fade dissolve the leaves.
 	var head_in := _foliage_inside(head)
 	var hit := 1.0 if head_in else _foliage_hit(head, want)
 	var target := 1.0
+	var min_d := lerpf(CAM_MIN_DIST, 2.0, _cam_ots)
 	if hit < 1.0 and full > 0.1:
-		target = clampf((hit * full - 0.4) / full, minf(CAM_MIN_DIST / full, 1.0), 1.0)
+		target = clampf((hit * full - 0.4) / full, minf(min_d / full, 1.0), 1.0)
 	if target < _cam_pull:
 		_cam_pull = lerpf(_cam_pull, target, 1.0 - exp(-delta * 14.0))
 	else:
 		_cam_pull = lerpf(_cam_pull, target, 1.0 - exp(-delta * 1.4))
 	want = head + (want - head) * _cam_pull
-	var gy := maxf(_ground_y(want.x, want.z), _ground_y(lerpf(want.x, _player.global_position.x, 0.5), lerpf(want.z, _player.global_position.z, 0.5)))
-	gy = maxf(gy, _water_y)
-	if want.y < gy + 1.8:
-		want.y = gy + 1.8
-	var rate := 4.0 if _cam_pull > 0.98 else 10.0
+	var gy := maxf(_ground_y(want.x, want.z), _water_y)
+	if want.y < gy + 0.7:
+		want.y = gy + 0.7
+	var rate := 4.0 if (_cam_pull > 0.98 and _cam_ots < 0.05) else 9.0
 	var blend := 1.0 - exp(-delta * rate)
 	var eye := _camera.global_position.lerp(want, blend)
 	var tries := 0
-	while not head_in and _foliage_inside(eye) and tries < 12 and eye.distance_to(head) > CAM_MIN_DIST:
+	while not head_in and _foliage_inside(eye) and tries < 12 and eye.distance_to(head) > min_d:
 		eye = head + (eye - head) * 0.85
 		tries += 1
 	_camera.global_position = eye
-	_camera.look_at(_player.global_position + Vector3.UP * lerpf(1.45, INTRO_LOOK_UP, _intro_k), Vector3.UP)
+	var look := _player.global_position + Vector3.UP * lerpf(1.45, INTRO_LOOK_UP, _intro_k)
+	var fwd := -Basis(Vector3.UP, _cam_yaw).z
+	look = look.lerp(_player.global_position + Vector3.UP * 1.3 + fwd * 1.2, _cam_ots)
+	_camera.look_at(look, Vector3.UP)
 	_fade_occluders(eye, head, delta)
 
 
@@ -1679,7 +1686,7 @@ func _prompt_style(label: Label3D, scale: float) -> void:
 	# right by the lens never paints a giant title across the frame.
 	label.font_size = 40
 	label.fixed_size = true
-	label.pixel_size = 0.00075
+	label.pixel_size = 0.00064
 	label.position.y = minf(label.position.y, 0.9)
 	label.outline_size = 10
 	label.outline_modulate = Color(0.02, 0.05, 0.08, 0.85)
@@ -2254,6 +2261,7 @@ func _build_world() -> void:
 	if terrain and terrain.mesh:
 		_terrain_tm = terrain.mesh.generate_triangle_mesh()
 		_terrain_xf = terrain.global_transform
+	_detail_near_trees()
 	_camera = Camera3D.new()
 	_camera.name = "Camera"
 	_camera.fov = 56.0
@@ -2263,6 +2271,52 @@ func _build_world() -> void:
 	_camera.make_current()
 	_camera.global_position = Vector3(-4, 14, -30)
 	_camera.look_at(START + Vector3(0, 1, 0), Vector3.UP)
+
+
+## The slice draws its island trees with the 14k-triangle LOD2 mesh at every
+## distance, which reads blocky right by the follow camera. Give each one a
+## detailed (72k bounded) twin that draws up close, and hand over to the
+## LOD2 only past TREE_DETAIL_RANGE (Godot visibility-range HLOD).
+func _detail_near_trees() -> void:
+	var swaps := {}
+	for far_path in TREE_DETAIL:
+		var far_mesh := _scene_mesh(far_path)
+		var near_mesh := _scene_mesh(str(TREE_DETAIL[far_path]))
+		if far_mesh and near_mesh:
+			swaps[far_mesh] = near_mesh
+	if swaps.is_empty() or _slice == null:
+		return
+	for node in _slice.find_children("*", "MeshInstance3D", true, false):
+		var far := node as MeshInstance3D
+		if far.mesh == null or not swaps.has(far.mesh) or far.has_meta("iom_near_twin"):
+			continue
+		var near := MeshInstance3D.new()
+		near.name = str(far.name) + "NearDetail"
+		near.mesh = swaps[far.mesh]
+		near.transform = far.transform
+		near.cast_shadow = far.cast_shadow
+		near.material_override = far.material_override
+		for i in mini(far.get_surface_override_material_count(), near.get_surface_override_material_count()):
+			near.set_surface_override_material(i, far.get_surface_override_material(i))
+		near.lod_bias = 2.0
+		near.visibility_range_end = TREE_DETAIL_RANGE
+		near.visibility_range_end_margin = 4.0
+		near.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED
+		far.get_parent().add_child(near)
+		far.set_meta("iom_near_twin", true)
+		far.visibility_range_begin = TREE_DETAIL_RANGE
+		far.visibility_range_begin_margin = 4.0
+
+
+func _scene_mesh(path: String) -> Mesh:
+	var packed := load(path) as PackedScene
+	if packed == null:
+		return null
+	var inst := packed.instantiate()
+	var found := inst.find_children("*", "MeshInstance3D", true, false)
+	var mesh: Mesh = (found[0] as MeshInstance3D).mesh if found.size() > 0 else null
+	inst.free()
+	return mesh
 
 
 func _build_props() -> void:
@@ -4240,47 +4294,90 @@ func _foliage_inside(p: Vector3) -> bool:
 	return false
 
 
-## Look for a clear line to the castaway: the current yaw, then small swings
-## either side, then a higher lift that looks over the shrubs. The camera
-## eases toward the first clear option; no option means pull-in only.
-func _probe_clear_view(head: Vector3) -> void:
+## Look for a clear line to the castaway from the regular follow eye: the
+## current yaw, then small swings either side (never a lift over the
+## canopy). Nothing clear means the camera eases in over the shoulder; it
+## eases back out once the regular view has stayed clear for a moment.
+func _probe_clear_view(head: Vector3, dt: float = 0.12) -> void:
 	if _intro_k > 0.0 or _foliage_boxes.is_empty():
 		_cam_yaw_goal = 0.0
 		_cam_lift_goal = 0.0
+		_cam_ots_goal = 0.0
 		_cam_tight = false
 		return
-	# First fully clear option wins; otherwise the option with the longest
-	# clear line (terrain and foliage), so the camera never settles in the
-	# hillside or a crown just because nothing was perfect.
 	var head_in := _foliage_inside(head)
-	var best := -INF
-	var best_off := 0.0
-	var best_lift := 0.0
-	for off in [0.0, 0.3, -0.3, 0.6, -0.6, 0.9, -0.9, 1.25, -1.25, 1.6, -1.6]:
-		for lift in [0.0, 0.8, 1.4, -1.0]:
-			if _cam_orbit_hold > 0.0 and absf(off) > 0.0:
-				continue
-			var back := Basis(Vector3.UP, _cam_yaw + off).z
-			var eye: Vector3 = _player.global_position + back * FOLLOW_BACK + Vector3.UP * (FOLLOW_UP + lift)
-			if _ground_y(eye.x, eye.z) > eye.y - 1.2:
-				continue
-			var clear := minf(_terrain_block(head, eye), 1.0 if head_in else _foliage_hit(head, eye))
-			var inside := _foliage_inside(eye)
-			if clear >= 1.0 and not inside:
-				_cam_yaw_goal = off
-				_cam_lift_goal = lift
-				_cam_tight = false
-				return
-			var score := clear - absf(off) * 0.04 - absf(lift) * 0.03 - (0.35 if inside else 0.0)
-			if score > best:
-				best = score
-				best_off = off
-				best_lift = lift
-	# Nothing clear: stay low and close (never a high look-down through the
-	# crowns) and let the canopy fade open the view.
-	_cam_tight = true
-	_cam_yaw_goal = best_off if best > -INF else 0.0
-	_cam_lift_goal = minf(best_lift, 0.8) if best > -INF else 0.0
+	_cam_lift_goal = 0.0
+	for off in [0.0, 0.3, -0.3, 0.6, -0.6]:
+		if _cam_orbit_hold > 0.0 and absf(off) > 0.0:
+			continue
+		var back := Basis(Vector3.UP, _cam_yaw + off).z
+		var eye: Vector3 = _player.global_position + back * FOLLOW_BACK + Vector3.UP * FOLLOW_UP
+		if _ground_y(eye.x, eye.z) > eye.y - 1.2:
+			continue
+		if head_in or _foliage_inside(eye):
+			continue
+		if _terrain_block(head, eye) < 1.0 or _foliage_hit(head, eye) < 1.0 or _slope_crowds(head, eye):
+			continue
+		_cam_clear_for += dt
+		if _cam_ots_goal > 0.0 and _cam_clear_for < 0.5:
+			return
+		_cam_yaw_goal = off
+		_cam_ots_goal = 0.0
+		_cam_tight = false
+		return
+	_cam_clear_for = 0.0
+	_cam_yaw_goal = 0.0
+	_cam_ots_goal = 1.0
+	# Even over the shoulder something may still sit in the line of sight:
+	# let the canopy fade open it right up to the castaway.
+	var ots := _ots_eye(_cam_yaw)
+	_cam_tight = head_in or _foliage_hit(head, ots) < 1.0 or _foliage_inside(ots)
+
+
+## Over-the-shoulder eye for a camera yaw: close behind, head height, a
+## touch to the right so the castaway sits left of centre.
+func _ots_eye(yaw: float) -> Vector3:
+	var b := Basis(Vector3.UP, yaw)
+	return _player.global_position + b.z * OTS_BACK + b.x * OTS_SIDE + Vector3.UP * OTS_UP
+
+
+## Terrain beside the line of sight (a slope that would fill one side of
+## the frame): probes from the head to points either side of the eye.
+func _slope_crowds(head: Vector3, eye: Vector3) -> bool:
+	var to_eye := eye - head
+	var side := Vector3.UP.cross(to_eye).normalized() * clampf(to_eye.length() * 0.45, 0.8, 2.2)
+	for p in [eye + side, eye - side, eye + Vector3.DOWN * 1.0]:
+		if _terrain_block(head, p) < 0.85:
+			return true
+	return false
+
+
+## Pull the eye in toward the head (never up) until terrain neither blocks
+## the line of sight, crowds one side of the frame nor rises under the lens.
+func _terrain_pull(head: Vector3, eye: Vector3) -> Vector3:
+	var d := head.distance_to(eye)
+	if d < 0.01:
+		return eye
+	var k := 1.0
+	var th := _terrain_block(head, eye)
+	if th < 1.0:
+		k = minf(k, (th * d - 0.6) / d)
+	var to_eye := eye - head
+	var side := Vector3.UP.cross(to_eye).normalized() * clampf(d * 0.45, 0.8, 2.2)
+	for p in [eye + side, eye - side, eye + Vector3.DOWN * 1.0]:
+		var ts := _terrain_block(head, p)
+		if ts < 0.85:
+			k = minf(k, maxf(ts - 0.15, 0.0))
+	var lo := minf(CAM_TERRAIN_MIN / d, 1.0)
+	k = clampf(k, lo, 1.0)
+	var out := head + to_eye * k
+	# Ground rising under the lens: keep pulling in rather than lifting.
+	var tries := 0
+	while _ground_y(out.x, out.z) > out.y - 0.7 and k > lo and tries < 8:
+		k = maxf(k - 0.1, lo)
+		out = head + to_eye * k
+		tries += 1
+	return out
 
 
 ## Canopy fade: foliage that still sits between the lens and the castaway
@@ -4289,6 +4386,7 @@ func _probe_clear_view(head: Vector3) -> void:
 func _fade_occluders(eye: Vector3, head: Vector3, delta: float) -> void:
 	_occluding.clear()
 	var reach := eye.distance_to(head) - 0.9
+	var reach_block := eye.distance_to(head) - 0.45
 	for i in _foliage_boxes.size():
 		var b: AABB = _foliage_boxes[i]
 		var c := b.position + b.size * 0.5
@@ -4303,7 +4401,7 @@ func _fade_occluders(eye: Vector3, head: Vector3, delta: float) -> void:
 		# Every foliage material (ground grass and fern clumps included)
 		# dissolves nearer the lens than the castaway; whatever actually
 		# blocks the line of sight dissolves right up to them.
-		var goal := maxf(reach, NEAR_FADE_MAX) if (_occluding.has(std) or _cam_tight) else maxf(reach - 0.8, NEAR_FADE_MAX)
+		var goal := maxf(reach_block, NEAR_FADE_MAX) if (_occluding.has(std) or _cam_tight) else maxf(reach - 0.8, NEAR_FADE_MAX)
 		std.distance_fade_max_distance = lerpf(std.distance_fade_max_distance, goal, k)
 		std.distance_fade_min_distance = maxf(std.distance_fade_max_distance - 1.1, NEAR_FADE_MIN)
 
