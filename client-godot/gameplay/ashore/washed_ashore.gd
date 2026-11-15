@@ -4328,15 +4328,6 @@ func _solid_frac(head: Vector3, eye: Vector3, margin: float = SOLID_LENS_MARGIN)
 	return best
 
 
-## Lens inside any solid blob, including one the castaway stands in (the
-## pull-in cannot escape that one, only a swing can).
-func _eye_in_solid(eye: Vector3) -> bool:
-	for b in _solid_boxes:
-		if (b as AABB).grow(0.3).has_point(eye):
-			return true
-	return false
-
-
 func _add_foliage_box(box: AABB, tree: bool, mats: Array = [], link: Node3D = null) -> void:
 	if box.size.y < 1.1:
 		if box.size.y >= 0.45:
@@ -4450,7 +4441,7 @@ func _probe_clear_view(head: Vector3, dt: float = 0.12) -> void:
 		var ahead := head + (head - ots).normalized() * 7.0 + Vector3.DOWN * 0.4
 		var solid := _solid_frac(head, ots)
 		leaf = leaf and solid >= 1.0
-		var score := -absf(off) * 0.3 - (1.0 - solid) * 2.0 + (1.0 if leaf else 0.0) - (1.5 if _eye_in_solid(ots) else 0.0) + (0.0 if _foliage_inside(ots) else 0.5) + _terrain_block(head, ahead) * 0.8
+		var score := -absf(off) * 0.3 - (1.0 - solid) * 2.0 + (1.0 if leaf else 0.0) + (0.0 if _foliage_inside(ots) else 0.5) + _terrain_block(head, ahead) * 0.8
 		if score > best:
 			best = score
 			best_off = off
