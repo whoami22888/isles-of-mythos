@@ -83,6 +83,7 @@ const BUILD_IDS := ["campfire", "lean_to", "storage"]
 const BUILD_TITLES := {"campfire": "Campfire", "lean_to": "Lean-to", "storage": "Storage"}
 const BUILD_RADIUS := {"campfire": 0.9, "lean_to": 1.8, "storage": 0.8}
 const DYNAMIC_STEPS := ["scavenge", "gather", "fire", "cook", "shelter"]
+const SOLID_LENS_MARGIN := 0.6
 const FOLIAGE_WORDS := ["Palm", "Canopy", "Shrub", "Cover", "Understory", "Calathea", "Grass", "Fern", "Anthurium", "Ursinia", "Sorrel", "Vines"]
 const GATHER_WOOD := 12
 const GATHER_STONE := 10
@@ -223,6 +224,11 @@ var _foliage_mats: Array = []
 ## front of the castaway dissolves; they never steer the camera.
 var _small_boxes: Array = []
 var _small_mats: Array = []
+## Opaque scenery the lens must never sit in or behind: the slice's solid
+## canopy bush blobs, shore boulders and the landing's jungle clumps. Unlike
+## leafy foliage these cannot be faded, so the camera pulls in front of them.
+var _solid_boxes: Array = []
+var _landing_solids: Array = []
 var _fade_mats: Array = []
 var _occluding: Dictionary = {}
 var _foliage_links: Array = []
@@ -944,6 +950,12 @@ func _follow_camera(delta: float) -> void:
 	else:
 		_cam_pull = lerpf(_cam_pull, target, 1.0 - exp(-delta * 1.4))
 	want = head + (want - head) * _cam_pull
+	# Opaque bush blob or boulder in the line or within ~0.6 m of the lens:
+	# come in front of it (it cannot be faded like leaves).
+	var sf := _solid_frac(head, want)
+	if sf < 1.0:
+		var wd := head.distance_to(want)
+		want = head + (want - head) * clampf(sf, minf(0.85 / maxf(wd, 0.01), 1.0), 1.0)
 	var gy := maxf(_ground_y(want.x, want.z), _water_y)
 	if want.y < gy + 0.7:
 		want.y = gy + 0.7
@@ -952,6 +964,11 @@ func _follow_camera(delta: float) -> void:
 	var eye := _camera.global_position.lerp(want, blend)
 	var tries := 0
 	while not head_in and _foliage_inside(eye) and tries < 12 and eye.distance_to(head) > lerpf(min_d, 1.5, _cam_ots):
+		eye = head + (eye - head) * 0.85
+		tries += 1
+	# The eased eye can still trail inside a blob for a few frames: snap it out.
+	tries = 0
+	while _solid_frac(head, eye, 0.35) < 1.0 and tries < 10 and eye.distance_to(head) > 0.85:
 		eye = head + (eye - head) * 0.85
 		tries += 1
 	_camera.global_position = eye
@@ -2447,6 +2464,7 @@ func _build_landing() -> void:
 		var bush := _on_sand(root, Art.JUNGLE_CLUMP, "JungleEdge", _intro_at(clump[0], clump[1]), Vector3(0, clump[0] * 37.0, 0), clump[2], 0.05)
 		for mesh in Art.meshes(bush):
 			mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_landing_solids.append(Art.world_aabb(bush))
 
 
 ## START + INTRO_FACING * ahead + player-right * right (right is inland).
@@ -4224,7 +4242,20 @@ func _prepare_foliage() -> void:
 	_small_mats.clear()
 	_foliage_links.clear()
 	_fade_mats.clear()
+	_solid_boxes.clear()
+	for lb in _landing_solids:
+		_add_solid_box(lb)
 	if _slice:
+		for mmi in _slice.find_children("*", "MultiMeshInstance3D", true, false):
+			var sn := str(mmi.name)
+			if not ("SolidCanopy" in sn or "Boulder" in sn or "ShoreRocks" in sn or "MossRocks" in sn):
+				continue
+			var smm: MultiMesh = (mmi as MultiMeshInstance3D).multimesh
+			if smm == null or smm.mesh == null:
+				continue
+			var slocal := smm.mesh.get_aabb()
+			for i in smm.instance_count:
+				_add_solid_box(((mmi as Node3D).global_transform * smm.get_instance_transform(i)) * slocal)
 		for mmi in _slice.find_children("*", "MultiMeshInstance3D", true, false):
 			var n := str(mmi.name)
 			var hit := false
@@ -4261,6 +4292,40 @@ func _prepare_foliage() -> void:
 		# link to their mesh and only count while it is visible.
 		var link: Node3D = m if path.begins_with("nodes") else null
 		_add_foliage_box(box, box.size.y > 2.6, mats, link)
+
+
+## Blob meshes are rounded, so the solid volume is the AABB pulled in 15%
+## sideways (and off the top) before the lens margin is added.
+func _add_solid_box(box: AABB) -> void:
+	if box.size.y < 0.5 or box.size.length() > 40.0:
+		return
+	var ix := box.size.x * 0.15
+	var iz := box.size.z * 0.15
+	_solid_boxes.append(AABB(box.position + Vector3(ix, 0.0, iz), Vector3(box.size.x - ix * 2.0, box.size.y * 0.9, box.size.z - iz * 2.0)))
+
+
+## Fraction of the way from `head` to `eye` at which the lens (with a
+## `margin` clearance) would touch a solid blob; 1.0 = clear. Solids the
+## castaway is standing inside are ignored.
+func _solid_frac(head: Vector3, eye: Vector3, margin: float = SOLID_LENS_MARGIN) -> float:
+	var best := 1.0
+	var seg := eye - head
+	var seg_len := seg.length()
+	if seg_len < 0.01:
+		return 1.0
+	for b in _solid_boxes:
+		var bb: AABB = b
+		if absf(bb.position.x - head.x) > 12.0 or absf(bb.position.z - head.z) > 12.0:
+			continue
+		var g := bb.grow(margin)
+		if bb.grow(0.15).has_point(head):
+			continue
+		var at = g.intersects_segment(head, eye)
+		if at != null:
+			best = minf(best, head.distance_to(at) / seg_len)
+		elif g.has_point(eye):
+			best = 0.0
+	return best
 
 
 func _add_foliage_box(box: AABB, tree: bool, mats: Array = [], link: Node3D = null) -> void:
@@ -4347,7 +4412,7 @@ func _probe_clear_view(head: Vector3, dt: float = 0.12) -> void:
 			continue
 		if head_in or _foliage_inside(eye):
 			continue
-		if _terrain_block(head, eye) < 1.0 or _foliage_hit(head, eye) < 1.0 or _slope_crowds(head, eye):
+		if _terrain_block(head, eye) < 1.0 or _foliage_hit(head, eye) < 1.0 or _slope_crowds(head, eye) or _solid_frac(head, eye) < 1.0:
 			continue
 		_cam_clear_for += dt
 		if _cam_ots_goal > 0.0 and _cam_clear_for < 0.5:
@@ -4374,7 +4439,9 @@ func _probe_clear_view(head: Vector3, dt: float = 0.12) -> void:
 			continue
 		var leaf := not head_in and not _foliage_inside(ots) and _foliage_hit(head, ots) >= 1.0
 		var ahead := head + (head - ots).normalized() * 7.0 + Vector3.DOWN * 0.4
-		var score := -absf(off) * 0.3 + (1.0 if leaf else 0.0) + (0.0 if _foliage_inside(ots) else 0.5) + _terrain_block(head, ahead) * 0.8
+		var solid := _solid_frac(head, ots)
+		leaf = leaf and solid >= 1.0
+		var score := -absf(off) * 0.3 - (1.0 - solid) * 2.0 + (1.0 if leaf else 0.0) + (0.0 if _foliage_inside(ots) else 0.5) + _terrain_block(head, ahead) * 0.8
 		if score > best:
 			best = score
 			best_off = off
