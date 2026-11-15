@@ -112,6 +112,18 @@ func run() -> void:
 		quit(1)
 		return
 	image.save_png(output)
+	var cam_dbg: Camera3D = scene._camera
+	var pl_dbg: Vector3 = (scene._player as Node3D).global_position
+	print("Ashore camera: dist %.2f m, up %.2f m, ots %.2f, pull %.2f" % [Vector2(cam_dbg.global_position.x - pl_dbg.x, cam_dbg.global_position.z - pl_dbg.z).length(), cam_dbg.global_position.y - pl_dbg.y, float(scene._cam_ots), float(scene._cam_pull)])
+	if OS.get_environment("IOM_ASHORE_PROBE") != "":
+		for gi in scene.find_children("*", "GeometryInstance3D", true, false):
+			if not (gi as GeometryInstance3D).is_visible_in_tree():
+				continue
+			var box: AABB = (gi as GeometryInstance3D).global_transform * (gi as GeometryInstance3D).get_aabb()
+			if gi is MultiMeshInstance3D:
+				continue
+			if box.grow(0.6).has_point(cam_dbg.global_position) and box.size.length() < 60.0:
+				print("NEAR LENS: ", scene.get_path_to(gi), " ", box.size)
 	print("Ashore capture wrote %s (%dx%d)" % [output, image.get_width(), image.get_height()])
 	quit(0)
 

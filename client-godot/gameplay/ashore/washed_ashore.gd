@@ -40,11 +40,11 @@ const FOLLOW_UP := 3.3
 const CAM_MIN_DIST := 3.4
 ## Over-the-shoulder framing the follow camera eases into when foliage or
 ## terrain blocks the regular view (instead of lifting over the canopy).
-const OTS_BACK := 2.5
-const OTS_UP := 1.8
+const OTS_BACK := 2.8
+const OTS_UP := 1.85
 const OTS_SIDE := 0.45
 ## Closest the camera comes while terrain pushes it in.
-const CAM_TERRAIN_MIN := 1.6
+const CAM_TERRAIN_MIN := 2.2
 ## Near trees draw the detailed bounded mesh; the 14k LOD2 only past this.
 const TREE_DETAIL_RANGE := 30.0
 const TREE_DETAIL := {
@@ -208,6 +208,9 @@ var _cam_lift_goal := 0.0
 var _cam_ots := 0.0
 var _cam_ots_goal := 0.0
 var _cam_clear_for := 0.0
+## Solid scenery the camera treats like terrain (the slice's cliff ridges):
+## pairs of [TriangleMesh, Transform3D].
+var _cam_solids: Array = []
 var _cam_orbit_hold := 0.0
 var _foliage_mats: Array = []
 var _fade_mats: Array = []
@@ -922,7 +925,7 @@ func _follow_camera(delta: float) -> void:
 	var head_in := _foliage_inside(head)
 	var hit := 1.0 if head_in else _foliage_hit(head, want)
 	var target := 1.0
-	var min_d := lerpf(CAM_MIN_DIST, 2.0, _cam_ots)
+	var min_d := lerpf(CAM_MIN_DIST, 2.5, _cam_ots)
 	if hit < 1.0 and full > 0.1:
 		target = clampf((hit * full - 0.4) / full, minf(min_d / full, 1.0), 1.0)
 	if target < _cam_pull:
@@ -943,7 +946,7 @@ func _follow_camera(delta: float) -> void:
 	_camera.global_position = eye
 	var look := _player.global_position + Vector3.UP * lerpf(1.45, INTRO_LOOK_UP, _intro_k)
 	var fwd := -Basis(Vector3.UP, _cam_yaw).z
-	look = look.lerp(_player.global_position + Vector3.UP * 1.3 + fwd * 1.2, _cam_ots)
+	look = look.lerp(_player.global_position + Vector3.UP * 1.15 + fwd * 1.6, _cam_ots)
 	_camera.look_at(look, Vector3.UP)
 	_fade_occluders(eye, head, delta)
 
@@ -2262,6 +2265,11 @@ func _build_world() -> void:
 		_terrain_tm = terrain.mesh.generate_triangle_mesh()
 		_terrain_xf = terrain.global_transform
 	_detail_near_trees()
+	_cam_solids.clear()
+	for node in _slice.find_children("coastal_cliff*", "MeshInstance3D", true, false):
+		var cliff := node as MeshInstance3D
+		if cliff.mesh and cliff.is_visible_in_tree():
+			_cam_solids.append([cliff.mesh.generate_triangle_mesh(), cliff.global_transform])
 	_camera = Camera3D.new()
 	_camera.name = "Camera"
 	_camera.fov = 56.0
@@ -4326,12 +4334,20 @@ func _probe_clear_view(head: Vector3, dt: float = 0.12) -> void:
 		_cam_tight = false
 		return
 	_cam_clear_for = 0.0
-	_cam_yaw_goal = 0.0
 	_cam_ots_goal = 1.0
-	# Even over the shoulder something may still sit in the line of sight:
-	# let the canopy fade open it right up to the castaway.
-	var ots := _ots_eye(_cam_yaw)
-	_cam_tight = head_in or _foliage_hit(head, ots) < 1.0 or _foliage_inside(ots)
+	# Over the shoulder: prefer a small swing that gives a clear line too;
+	# otherwise the canopy fade opens whatever is left up to the castaway.
+	_cam_yaw_goal = 0.0
+	for off in [0.0, 0.35, -0.35, 0.7, -0.7]:
+		if _cam_orbit_hold > 0.0 and absf(off) > 0.0:
+			continue
+		var ots := _ots_eye(_cam_yaw + off)
+		if head_in or _foliage_inside(ots) or _foliage_hit(head, ots) < 1.0 or _terrain_block(head, ots) < 1.0:
+			continue
+		_cam_yaw_goal = off
+		_cam_tight = false
+		return
+	_cam_tight = true
 
 
 ## Over-the-shoulder eye for a camera yaw: close behind, head height, a
@@ -4416,13 +4432,20 @@ func foliage_fade_reach(mat: Material) -> float:
 
 ## Fraction along head->eye where the terrain mesh first blocks (1.0 = clear).
 func _terrain_block(head: Vector3, eye: Vector3) -> float:
-	if _terrain_tm == null:
+	var best := _mesh_block(_terrain_tm, _terrain_xf, head, eye)
+	for solid in _cam_solids:
+		best = minf(best, _mesh_block(solid[0], solid[1], head, eye))
+	return best
+
+
+func _mesh_block(tm: TriangleMesh, xf: Transform3D, head: Vector3, eye: Vector3) -> float:
+	if tm == null:
 		return 1.0
-	var inv := _terrain_xf.affine_inverse()
-	var hit := _terrain_tm.intersect_segment(inv * head, inv * eye)
+	var inv := xf.affine_inverse()
+	var hit := tm.intersect_segment(inv * head, inv * eye)
 	if hit.is_empty():
 		return 1.0
-	var at: Vector3 = _terrain_xf * (hit["position"] as Vector3)
+	var at: Vector3 = xf * (hit["position"] as Vector3)
 	return clampf(head.distance_to(at) / maxf(head.distance_to(eye), 0.01), 0.0, 1.0)
 
 
