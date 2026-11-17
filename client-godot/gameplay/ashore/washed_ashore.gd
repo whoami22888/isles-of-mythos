@@ -1523,6 +1523,14 @@ func _take_collect() -> void:
 	var at := _sack.global_position if _sack else _player.global_position
 	if _dawn_chest:
 		_dawn_chest = false
+		if _sack:
+			for pair in [["Bundle", true], ["SeaChest", false]]:
+				var n := _sack.get_node_or_null(pair[0]) as Node3D
+				if n:
+					n.visible = pair[1]
+			var tag := _sack.get_node_or_null("Tag") as Label3D
+			if tag:
+				tag.text = "Supplies"
 		_give("planks", 4, at)
 		_give("rope", 3, at)
 		_give("cloth", 2, at)
@@ -1550,6 +1558,21 @@ func _dawn_reward() -> void:
 	_note_burst("Dawn")
 	_vibrate(60, 0.4)
 	_spawn_collect()
+	if _sack:
+		# Wood-and-iron sea chest beside the castaway, not a crate on the lens.
+		var bundle := _sack.get_node_or_null("Bundle") as Node3D
+		var chest := _sack.get_node_or_null("SeaChest") as Node3D
+		if bundle and chest:
+			bundle.visible = false
+			chest.visible = true
+		var tag := _sack.get_node_or_null("Tag") as Label3D
+		if tag:
+			tag.text = "Sea chest"
+		if _player:
+			var at := _player.global_position + _player.global_transform.basis.x * 1.3 - _player.global_transform.basis.z * 0.3
+			at.y = _ground_y(at.x, at.z)
+			if at.y > _water_y + 0.2 and absf(at.y - _player.global_position.y) < 0.6:
+				_sack.global_position = at
 	_line = "Dawn. The tide left a sea chest. Open it"
 	_pointer_id = "collect"
 
@@ -1779,7 +1802,7 @@ func _tick_ring() -> void:
 		return
 	var node := _nearest_node(3.6)
 	# No action ring in the storm: the night frame is fire, rain and shelter.
-	if node.is_empty() or bool(node.get("depleted", false)) or _cinematic != "" or _step == "storm" or _step == "night":
+	if node.is_empty() or bool(node.get("depleted", false)) or _cinematic != "" or _step == "storm" or _step == "night" or _dawn_chest:
 		_ring.visible = false
 		return
 	var root := node.get("root") as Node3D
@@ -2518,7 +2541,11 @@ func _build_props() -> void:
 	add_child(_sack)
 	var bundle := Art.put(_sack, Art.CRATE_B, "Bundle", Vector3.ZERO, Vector3(0, 20, 0), 1.0)
 	Art.fit_height(bundle, 0.7)
+	var chest := Art.put(_sack, Art.CHEST, "SeaChest", Vector3.ZERO, Vector3(0, 20, 0), 1.0)
+	Art.fit_height(chest, 0.42)
+	chest.visible = false
 	var tag := _label3("Supplies", 1.5)
+	tag.name = "Tag"
 	_prompt_style(tag, 1.0)
 	_sack.add_child(tag)
 	_ring = MeshInstance3D.new()
@@ -3688,6 +3715,47 @@ func _orbit_drag(pos: Vector2, relative: Vector2) -> void:
 		_cam_orbit_hold = 2.0
 
 
+## The camp backs onto a steep bank that renders as a bare orange wedge in the
+## firelight: break it up with rocks and jungle clumps on the steep cells.
+var _slope_dressing: Node3D
+
+func _dress_slope(center: Vector3) -> void:
+	if _slope_dressing:
+		_slope_dressing.queue_free()
+	_slope_dressing = Node3D.new()
+	_slope_dressing.name = "CampSlopeDressing"
+	add_child(_slope_dressing)
+	var placed: Array[Vector3] = []
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 4711
+	for ri in range(5):
+		var rad := 2.6 + float(ri) * 1.1
+		for ai in 18:
+			var ang := float(ai) / 18.0 * TAU + float(ri) * 0.3
+			var x := center.x + cos(ang) * rad
+			var z := center.z + sin(ang) * rad
+			if _slope_at(x, z, 0.6) < 0.5:
+				continue
+			var y := _ground_y(x, z)
+			if y < _water_y + 0.3:
+				continue
+			var at := Vector3(x, y, z)
+			var clash := false
+			for q in placed:
+				if q.distance_to(at) < 1.7:
+					clash = true
+					break
+			if clash:
+				continue
+			placed.append(at)
+			var rock := placed.size() % 2 == 1
+			var n := Art.put(_slope_dressing, Art.COAST_ROCKS_03 if rock else Art.JUNGLE_CLUMP, "Slope%d" % placed.size(), Vector3.ZERO, Vector3(0, rng.randf_range(0, 360), 0), 1.0)
+			Art.fit_height(n, rng.randf_range(1.0, 1.5) if rock else rng.randf_range(1.3, 1.8))
+			n.global_position = at - Vector3.UP * (0.25 if rock else 0.1)
+			if placed.size() >= 9:
+				return
+
+
 func _slope_at(x: float, z: float, r: float) -> float:
 	var gx := _ground_y(x + r, z) - _ground_y(x - r, z)
 	var gz := _ground_y(x, z + r) - _ground_y(x, z - r)
@@ -3907,6 +3975,7 @@ func _place_structure(id: String, at: Vector3, yaw: float, fresh: bool) -> void:
 		"campfire":
 			_fire_at = at
 			_light_fire()
+			_dress_slope(at)
 			shown = _flame
 		"lean_to":
 			_hut.global_position = at

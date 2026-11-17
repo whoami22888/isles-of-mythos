@@ -202,19 +202,84 @@ func _apply_night(flash: float) -> void:
 	var sun: DirectionalLight3D = host._sun
 	var env: Environment = host._env
 	if sun:
-		sun.light_energy = lerpf(0.7, 1.3, flash)
-		sun.light_color = Color(0.55, 0.64, 0.78).lerp(Color(0.74, 0.82, 1.0), flash)
+		# A strike is a cold rim, not daylight: modest energy, blue-white.
+		sun.light_energy = lerpf(0.7, 1.05, flash)
+		sun.light_color = Color(0.55, 0.64, 0.78).lerp(Color(0.7, 0.8, 1.0), flash)
 	if env:
-		env.fog_light_color = Color(0.2, 0.24, 0.3).lerp(Color(0.4, 0.46, 0.56), flash)
+		env.fog_light_color = Color(0.2, 0.24, 0.3).lerp(Color(0.3, 0.36, 0.46), flash)
 		env.fog_density = float(_base.get("fog_d", 0.01)) * 2.2 + 0.004
-		env.ambient_light_energy = float(_base.get("amb_e", 1.0)) * lerpf(0.95, 0.8, flash)
-		env.tonemap_exposure = float(_base.get("exp", 1.0)) * lerpf(0.8, 0.86, flash)
+		env.ambient_light_energy = float(_base.get("amb_e", 1.0)) * 0.95
+		env.tonemap_exposure = float(_base.get("exp", 1.0)) * 0.8
 		env.adjustment_enabled = true
 		env.adjustment_saturation = lerpf(0.62, 0.35, flash)
 		env.adjustment_brightness = float(_base.get("bright", 1.0)) * lerpf(0.9, 0.95, flash)
-		env.background_energy_multiplier = float(_base.get("bg", 1.0)) * lerpf(0.2, 0.42, flash)
+		env.background_energy_multiplier = float(_base.get("bg", 1.0)) * lerpf(0.2, 0.3, flash)
 		env.fog_depth_begin = 6.0
-		env.fog_depth_end = lerpf(70.0, 100.0, flash)
+		env.fog_depth_end = lerpf(70.0, 85.0, flash)
+	_show_bolt(flash)
+
+
+var _bolt: MeshInstance3D
+
+## A jagged fork in the sky during a strike: a thin unshaded ribbon (no glow,
+## no emission), placed out over the sea in front of the camera.
+func _build_bolt() -> void:
+	_bolt = MeshInstance3D.new()
+	_bolt.name = "LightningBolt"
+	_bolt.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 909
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var branches := [[Vector2(0, 60), 14, 1.4, Vector2(0, -4.3)]]
+	var bi := 0
+	while bi < branches.size():
+		var b: Array = branches[bi]
+		var p: Vector2 = b[0]
+		var w: float = b[2]
+		for i in int(b[1]):
+			var q: Vector2 = p + Vector2(rng.randf_range(-3.2, 3.2), 0) + b[3]
+			var side := Vector2(-(q - p).y, (q - p).x).normalized() * w * 0.5
+			st.add_vertex(Vector3(p.x - side.x, p.y - side.y, 0))
+			st.add_vertex(Vector3(p.x + side.x, p.y + side.y, 0))
+			st.add_vertex(Vector3(q.x + side.x, q.y + side.y, 0))
+			st.add_vertex(Vector3(p.x - side.x, p.y - side.y, 0))
+			st.add_vertex(Vector3(q.x + side.x, q.y + side.y, 0))
+			st.add_vertex(Vector3(q.x - side.x, q.y - side.y, 0))
+			if bi == 0 and (i == 4 or i == 8):
+				branches.append([q, 5, 0.7, Vector2(3.5 if i == 4 else -3.5, -3.6)])
+			p = q
+		bi += 1
+	_bolt.mesh = st.commit()
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.albedo_color = Color(0.86, 0.9, 1.0)
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	m.disable_fog = true
+	_bolt.material_override = m
+	_bolt.visible = false
+	host.add_child(_bolt)
+
+
+func _show_bolt(flash: float) -> void:
+	if flash <= 0.01:
+		if _bolt:
+			_bolt.visible = false
+		return
+	if _bolt == null:
+		_build_bolt()
+	var cam: Camera3D = host._camera
+	if cam == null:
+		return
+	var fwd := -cam.global_transform.basis.z
+	fwd.y = 0.0
+	fwd = fwd.normalized()
+	var right := fwd.cross(Vector3.UP)
+	var at := cam.global_position + fwd * 120.0 - right * 30.0
+	at.y = float(host._water_y) + 12.0
+	_bolt.global_position = at
+	_bolt.look_at(cam.global_position * Vector3(1, 0, 1) + Vector3(0, at.y, 0), Vector3.UP)
+	_bolt.visible = true
 
 
 func _tick_fire(delta: float) -> void:
@@ -388,7 +453,7 @@ func _tick_dawn(delta: float) -> void:
 	var sun: DirectionalLight3D = host._sun
 	var env: Environment = host._env
 	var night := Color(0.55, 0.64, 0.78)
-	var warm := Color(1.0, 0.72, 0.5)
+	var warm := Color(0.95, 0.85, 0.75)
 	var fog_d := float(_base.get("fog_d", 0.01))
 	if sun:
 		sun.light_energy = lerpf(lerpf(0.7, 1.0, a), float(_base.get("sun_e", 1.0)), b)
@@ -397,7 +462,7 @@ func _tick_dawn(delta: float) -> void:
 		var low := Vector3(-9.0, day_r.y, day_r.z)
 		sun.rotation_degrees = low.lerp(day_r, b)
 	if env:
-		var dawn_fog := Color(0.86, 0.66, 0.54)
+		var dawn_fog := Color(0.7, 0.67, 0.65)
 		env.fog_light_color = Color(0.13, 0.16, 0.2).lerp(dawn_fog, a).lerp(_base.get("fog_c", dawn_fog), b)
 		env.fog_density = lerpf(lerpf(fog_d * 2.2 + 0.004, fog_d * 1.5, a), fog_d, b)
 		env.ambient_light_energy = float(_base.get("amb_e", 1.0)) * lerpf(lerpf(0.95, 0.75, a), 1.0, b)

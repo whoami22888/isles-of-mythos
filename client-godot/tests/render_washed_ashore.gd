@@ -114,7 +114,7 @@ func run() -> void:
 					# Beast between the castaway and the lean-to, lit by the fire behind
 					# the castaway; over-the-shoulder camera (side-on put the beast on the lens).
 					var pl: Vector3 = scene._player.global_position
-					var bp: Vector3 = pl.lerp(hut, 0.55) + side * 0.4
+					var bp: Vector3 = pl.lerp(hut, 0.85) + side * 0.5
 					bp.y = scene._ground_y(bp.x, bp.z)
 					scene._beast.global_position = bp
 					(scene._player as Node3D).look_at(Vector3(bp.x, pl.y, bp.z), Vector3.UP)
@@ -184,6 +184,17 @@ func run() -> void:
 			scene.snap_intro_camera()
 		else:
 			scene._follow_camera(1.0 / 30.0 if pose.begins_with("trees") else 10.0)
+		if pose == "storm_threat":
+			# Pulled back past the fire so the beast stands 3-4 m off the lens,
+			# between the castaway and the lean-to, lit by the fire.
+			var cam_t: Camera3D = scene._camera
+			var plt: Vector3 = scene._player.global_position
+			var bkt: Vector3 = scene._beast.global_position
+			var dir_t := Vector3(bkt.x - plt.x, 0, bkt.z - plt.z).normalized()
+			var side_t := dir_t.cross(Vector3.UP)
+			cam_t.global_position = plt - dir_t * 2.0 + side_t * 0.9 + Vector3.UP * 1.9
+			cam_t.look_at(bkt.lerp(plt, 0.35) + Vector3.UP * 0.8, Vector3.UP)
+			cam_t.fov = 58.0
 		await RenderingServer.frame_post_draw
 	var image: Image = root.get_viewport().get_texture().get_image()
 	if image == null or image.is_empty():

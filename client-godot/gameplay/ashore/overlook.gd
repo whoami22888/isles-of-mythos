@@ -154,7 +154,13 @@ func _clear_view() -> void:
 		if not g.is_visible_in_tree():
 			continue
 		var n := str(g.name).to_lower()
-		if not ("cliff" in n or "rock" in n or "boulder" in n or "crag" in n):
+		var plant := "palm" in n or "tree" in n or "grove" in n or "frond" in n or "fern" in n or "bush" in n
+		if not ("cliff" in n or "rock" in n or "boulder" in n or "crag" in n or plant):
+			continue
+		if plant and g is MultiMeshInstance3D:
+			# Bay-wide palm groves: their trunks fill the lookout frame.
+			g.visible = false
+			_hidden.append(g)
 			continue
 		var box: AABB = g.global_transform * g.get_aabb()
 		var c := box.get_center()
@@ -185,9 +191,13 @@ func reveal_camera(age: float) -> void:
 	var fwd := Vector3(look_far.x - pl.x, 0, look_far.z - pl.z).normalized()
 	var side := fwd.cross(Vector3.UP)
 	var start := pl - fwd * 3.6 + side * 0.6 + Vector3.UP * 2.0
-	var finish := pl - fwd * 3.2 + side * 1.4 + Vector3.UP * 6.5
+	# Lower, further back and pitched down so the castaway stands in the
+	# lower foreground with the horizon in the upper third.
+	var finish := pl - fwd * 4.6 + side * 1.2 + Vector3.UP * 3.4
 	cam.global_position = start.lerp(finish, k)
-	var aim := (pl + fwd * 6.0 + Vector3.UP * 1.2).lerp(look_far, k)
+	var near_aim := pl + fwd * 6.0 + Vector3.UP * 1.2
+	var far_aim := finish + (fwd * cos(deg_to_rad(16.0)) - Vector3.UP * sin(deg_to_rad(16.0))) * 50.0
+	var aim := near_aim.lerp(far_aim, k)
 	cam.look_at(aim, Vector3.UP)
 	cam.fov = lerpf(54.0, 60.0, k)
 	if host._player:
@@ -254,25 +264,20 @@ func _build_vista() -> void:
 		_vista.add_child(pillar)
 	_smoke(camp_top + Vector3(-3, 0.5, 2))
 	_smoke(camp_top + Vector3(4, 0.5, -3))
-	# The Leviathan's tempest: a dark wall of cloud on the horizon beyond the wreck.
-	var storm := MeshInstance3D.new()
-	var cone := CylinderMesh.new()
-	cone.top_radius = 150.0
-	cone.bottom_radius = 70.0
-	cone.height = 220.0
-	cone.radial_segments = 16
-	var cm := StandardMaterial3D.new()
-	cm.albedo_color = Color(0.2, 0.22, 0.26, 0.72)
-	cm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	cm.roughness = 1.0
-	cm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	# Fog washed the cone out to a pale lampshade (reads as glow): keep it
-	# out of the fog so it stays a dark storm wall. Unverified in a render.
-	cm.disable_fog = true
-	cone.material = cm
-	storm.mesh = cone
-	storm.position = Vector3(-60, sea_y + 100.0, -720)
-	_vista.add_child(storm)
+	# The Leviathan's tempest: a low, darker band of cloud on the horizon
+	# (the old cone read as a floating trapezoid). A thin wide strip, fogged.
+	var band := MeshInstance3D.new()
+	var bq := QuadMesh.new()
+	bq.size = Vector2(900.0, 26.0)
+	var bm := StandardMaterial3D.new()
+	bm.albedo_texture = _band_tex()
+	bm.albedo_color = Color(0.3, 0.32, 0.36, 0.8)
+	bm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	bm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	bq.material = bm
+	band.mesh = bq
+	band.position = Vector3(-60, sea_y + 12.0, -760)
+	_vista.add_child(band)
 
 
 ## One island: two library cliffs back to back, plus palms on the crown.
@@ -334,22 +339,37 @@ func _island(at: Vector3, radius: float, height: float, seed_i: int, mat: Materi
 	_vista.add_child(mi)
 
 
+func _band_tex() -> GradientTexture2D:
+	var g := Gradient.new()
+	g.set_color(0, Color(1, 1, 1, 0))
+	g.set_color(1, Color(1, 1, 1, 0))
+	g.add_point(0.55, Color(1, 1, 1, 1))
+	var t := GradientTexture2D.new()
+	t.gradient = g
+	t.fill_from = Vector2(0, 0)
+	t.fill_to = Vector2(0, 1)
+	t.width = 8
+	t.height = 64
+	return t
+
+
 func _smoke(at: Vector3) -> void:
 	var p := CPUParticles3D.new()
-	p.amount = 24
-	p.lifetime = 9.0
-	p.preprocess = 9.0
+	p.amount = 30
+	p.lifetime = 11.0
+	p.preprocess = 11.0
 	p.direction = Vector3(0.25, 1, 0)
 	p.spread = 8.0
 	p.gravity = Vector3(0.6, 1.2, 0)
 	p.initial_velocity_min = 1.5
 	p.initial_velocity_max = 2.5
-	p.scale_amount_min = 4.0
-	p.scale_amount_max = 9.0
+	p.scale_amount_min = 9.0
+	p.scale_amount_max = 20.0
 	var q := QuadMesh.new()
 	q.size = Vector2(1, 1)
 	var m := StandardMaterial3D.new()
-	m.albedo_color = Color(0.52, 0.52, 0.5, 0.35)
+	m.albedo_color = Color(0.24, 0.23, 0.22, 0.6)
+	m.albedo_texture = Art.SOFT
 	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	m.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
