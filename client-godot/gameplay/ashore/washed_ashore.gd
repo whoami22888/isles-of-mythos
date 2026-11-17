@@ -16,6 +16,7 @@ const PET_DEFENCE_LINE := "Needs Pet Defence research and training"
 
 const Art := preload("res://gameplay/opening/opening_art.gd")
 const StormNight := preload("res://gameplay/ashore/storm_night.gd")
+const Overlook := preload("res://gameplay/ashore/overlook.gd")
 const SLICE_SCENE := preload("res://scenes/realistic_coastal_slice.tscn")
 const HUT := preload("res://assets/ashore/library/hut_hy3d/hut_hy3d.glb")
 const FIRE_PIT := preload("res://assets/ashore/library/stone_fire_pit/stone_fire_pit.glb")
@@ -83,7 +84,7 @@ const WAKE_SECONDS := 4.5
 const BUILD_IDS := ["campfire", "lean_to", "storage"]
 const BUILD_TITLES := {"campfire": "Campfire", "lean_to": "Lean-to", "storage": "Storage"}
 const BUILD_RADIUS := {"campfire": 0.9, "lean_to": 1.8, "storage": 0.8}
-const DYNAMIC_STEPS := ["scavenge", "gather", "fire", "cook", "shelter", "storm", "night"]
+const DYNAMIC_STEPS := ["scavenge", "gather", "fire", "cook", "shelter", "storm", "night", "climb"]
 const SOLID_LENS_MARGIN := 0.6
 const FOLIAGE_WORDS := ["Palm", "Canopy", "Shrub", "Cover", "Understory", "Calathea", "Grass", "Fern", "Anthurium", "Ursinia", "Sorrel", "Vines"]
 const GATHER_WOOD := 12
@@ -273,6 +274,7 @@ var _nodes_root: Node3D
 var _sharks: Array[Node3D] = []
 var _saved: Dictionary = {}
 var _storm_night: Node
+var _overlook: Node
 var _dawn_chest := false
 
 
@@ -325,6 +327,10 @@ func _ready() -> void:
 	_storm_night.name = "StormNight"
 	_storm_night.host = self
 	add_child(_storm_night)
+	_overlook = Overlook.new()
+	_overlook.name = "Overlook"
+	_overlook.host = self
+	add_child(_overlook)
 	_read_save()
 	_build_audio()
 	_build_world()
@@ -334,6 +340,7 @@ func _ready() -> void:
 	_build_props()
 	_build_nodes()
 	_prepare_foliage()
+	_overlook.setup()
 	_hud = CanvasLayer.new()
 	_hud.set_script(load("res://gameplay/ashore/ashore_hud.gd"))
 	_hud.world = self
@@ -388,6 +395,16 @@ func skip_cinematic() -> void:
 		_end_kill()
 	elif _cinematic == "tame":
 		_end_tame_cine()
+	elif _cinematic == "reveal":
+		_end_reveal()
+
+
+func _end_reveal() -> void:
+	_cinematic = ""
+	_overlook.end_reveal()
+	_note_burst("World revealed")
+	_enter("epilogue")
+	_line = "Next: reach the survivor camp's smoke across the strait"
 
 
 func on_action() -> void:
@@ -685,6 +702,8 @@ func _line_for(step: String) -> String:
 			return "Lean-to needs %s  ·  %s" % [_shortfall_text("lean_to"), clock]
 		"storm", "night":
 			return _storm_night.line(step)
+		"climb":
+			return "Climb to the ridge  ·  follow the cairns  ·  %d m" % int(_overlook.metres_left())
 	return str(_catalog.get("lines", {}).get(step, "Onward."))
 
 
@@ -726,6 +745,10 @@ func _tick_cine(delta: float) -> void:
 		_cine_left -= real
 		if _cine_left <= 0.0:
 			_end_kill()
+	elif _cinematic == "reveal":
+		_overlook.reveal_camera(_cine_age)
+		if _cine_age > _overlook.REVEAL_SECONDS:
+			_end_reveal()
 	elif _cinematic == "tame":
 		_tame_camera()
 		_cine_left -= delta
@@ -877,7 +900,9 @@ func _slide(dir: Vector3, delta: float, face: bool) -> bool:
 			continue
 		var probe := pos + d * 0.45
 		var ahead := _ground_y(probe.x, probe.z)
-		if (y - here) / maxf(s, 0.001) > SLOPE_MAX or (ahead - here) / 0.45 > SLOPE_MAX:
+		# The ridge trail is graded under the slope limit by construction.
+		var trail_ok: bool = _overlook != null and _overlook.on_trail(pos.x, pos.z) and _overlook.on_trail(next.x, next.z)
+		if not trail_ok and (y - here) / maxf(s, 0.001) > SLOPE_MAX or (ahead - here) / 0.45 > SLOPE_MAX:
 			continue
 		next.y = y
 		if _warmth < 42.0:
@@ -899,6 +924,8 @@ func _slide(dir: Vector3, delta: float, face: bool) -> bool:
 ## Standing on a slope steeper than 45 degrees slides you back down.
 func _slide_down(delta: float) -> bool:
 	var p := _player.position
+	if _overlook and _overlook.on_trail(p.x, p.z):
+		return false
 	var gx := _ground_y(p.x + 0.3, p.z) - _ground_y(p.x - 0.3, p.z)
 	var gz := _ground_y(p.x, p.z + 0.3) - _ground_y(p.x, p.z - 0.3)
 	var grad := Vector2(gx, gz) / 0.6
@@ -1503,7 +1530,9 @@ func _take_collect() -> void:
 		_bond(5)
 		_note_burst("Sea chest!")
 		_play(CHEER, -6.0, 1.0)
-		_enter("epilogue")
+		_show_hint("A spyglass in the chest. Climb the ridge and look out")
+		_hint_t = 4.0
+		_enter("climb")
 		return
 	if _choice == "tame":
 		_give("wood", 3, at)
@@ -2036,6 +2065,8 @@ func _point_position() -> Vector3:
 		return _pit_position()
 	if _step in ["storm", "night"]:
 		return _storm_night.point()
+	if _step == "climb":
+		return _overlook.point()
 	if _step in ["gather", "fire", "shelter"]:
 		var dig := _nearest_dig()
 		if not dig.is_empty() and _pet_mode == "point":
@@ -2076,6 +2107,14 @@ func _on_land(x: float, z: float) -> Vector3:
 
 
 func _ground_y(x: float, z: float) -> float:
+	if _overlook:
+		var trail: float = _overlook.trail_y(x, z)
+		if not is_nan(trail):
+			return trail
+	return _terrain_y(x, z)
+
+
+func _terrain_y(x: float, z: float) -> float:
 	if _terrain_tm:
 		var inv := _terrain_xf.affine_inverse()
 		var hit := _terrain_tm.intersect_ray(inv * Vector3(x, 80.0, z), (inv.basis * Vector3.DOWN).normalized())
@@ -3411,6 +3450,12 @@ func _tick_silas_hint() -> void:
 # ---------------------------------------------------------------------------
 
 func _tick_quest(delta: float) -> void:
+	if _step == "climb" and _overlook.at_top():
+		_cinematic = "reveal"
+		_cine_age = 0.0
+		_move_goal = Vector3(INF, INF, INF)
+		_overlook.begin_reveal()
+		return
 	if _step == "gather":
 		if int(_inv.get("wood", 0)) >= GATHER_WOOD and int(_inv.get("stone", 0)) >= GATHER_STONE:
 			_note_burst("Ready to build!")

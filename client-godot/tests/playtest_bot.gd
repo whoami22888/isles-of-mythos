@@ -361,6 +361,13 @@ func test_follow_quest(budget: float) -> void:
 				press(hud_button("_qte"))
 			await frame()
 			continue
+		if str(g("_cinematic", "")) == "reveal":
+			if not steps_seen.has("reveal"):
+				steps_seen["reveal"] = snappedf(t, 0.1)
+				var pr: Node3D = g("_player")
+				say("REVEAL at ridge pos=%s (top %s)" % [pr.global_position, scene._overlook.top()])
+			await frame()
+			continue
 		if str(g("_cinematic", "")) != "":
 			press(hud_button("_skip"))
 			await frames(2)
@@ -377,6 +384,11 @@ func test_follow_quest(budget: float) -> void:
 			stick(Vector2.ZERO)
 			acts += 1
 			await frames(15)
+		elif step == "climb":
+			if int(t * 30.0) % 150 == 0:
+				var pl: Node3D = g("_player")
+				say("  CLIMB pos=%s ground=%.1f left=%.0fm hint='%s'" % [pl.global_position, pl.global_position.y, float(scene._overlook.metres_left()), g("_hint")])
+			await frame()
 		elif d < 2.6:
 			stick(Vector2.ZERO)
 			press(hud_button("_action"))

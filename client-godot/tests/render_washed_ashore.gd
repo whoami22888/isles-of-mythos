@@ -49,7 +49,7 @@ func run() -> void:
 			var at: Vector3 = (tree["root"] as Node3D).global_position
 			_walk(scene, at + Vector3(-0.6, 0, -2.2), Vector3(0.25, 0, 1))
 			scene._cam_yaw += 0.5
-		"ghost", "built":
+		"ghost", "built", "storm_fire", "storm_flash", "storm_threat", "dawn":
 			_free_pet(scene)
 			_walk(scene, Vector3(-9.6, 0, 4.4), Vector3(-0.6, 0, 1))
 			scene._step = "fire"
@@ -60,7 +60,7 @@ func run() -> void:
 			if not scene._ghost_ok:
 				scene._ghost_pin = scene._nearest_site("campfire", scene._ghost.global_position, 4.0)
 				scene._tick_ghost()
-			if pose == "built":
+			if pose != "ghost":
 				scene.on_build_place()
 				scene._fish_cooked = 2
 				scene._enter("shelter")
@@ -71,6 +71,31 @@ func run() -> void:
 				for i in 16:
 					scene._tick_build(0.5)
 				scene._cam_yaw += 0.35
+			if pose.begins_with("storm") or pose == "dawn":
+				scene._health = 999
+				# Stand at the lean-to beside the fire, looking past the fire.
+				var hut: Vector3 = scene._hut.global_position
+				var pit: Vector3 = scene._pit_position()
+				var to_pit := Vector3(pit.x - hut.x, 0, pit.z - hut.z).normalized()
+				# Stand on the far side of the fire looking at the lean-to:
+				# castaway, fire and shelter all in the follow camera.
+				_walk(scene, pit + to_pit * 1.6, -to_pit)
+				print("storm pose hut %s pit %s" % [hut, pit])
+				scene._enter("storm")
+				scene._storm_night.age = 12.0
+				scene._storm_night._next_flash = 99.0
+				if pose == "storm_threat":
+					scene._storm_night.threat_sent = true
+					scene._enter("dusk")
+					var pl: Vector3 = scene._player.global_position
+					var bp: Vector3 = pl + to_pit * 5.0 + Vector3(-to_pit.z, 0, to_pit.x) * 0.8
+					bp.y = scene._ground_y(bp.x, bp.z)
+					scene._beast.global_position = bp
+				if pose == "dawn":
+					scene._step = "night"
+					scene._storm_night.age = 200.0
+					scene._storm_night._begin_dawn()
+					scene._storm_night._dawn_k = 0.62
 		"pet_point":
 			_free_pet(scene)
 			_walk(scene, Vector3(-10.5, 0, 6.5), Vector3(0.1, 0, 1))
@@ -97,6 +122,12 @@ func run() -> void:
 			for _h in scene._hits_for(tree_node):
 				scene._gather_lock = 0.0
 				scene._act_on_node(tree_node)
+		if pose == "storm_threat" and _i < 29:
+			var bpos: Vector3 = scene._player.global_position
+			var bk: Vector3 = scene._beast.global_position
+			scene._beast.look_at(Vector3(bpos.x, bk.y, bpos.z), Vector3.UP)
+		if pose == "storm_flash" and _i == 24:
+			scene._storm_night.hold_flash = true
 		if pose == "dusk" and _i < 29:
 			scene._beast.global_position = scene._beast.global_position
 		if pose == "wake":

@@ -37,6 +37,8 @@ var _rain: CPUParticles3D
 var _rain_audio: AudioStreamPlayer
 var _base := {}
 var _rng := RandomNumberGenerator.new()
+## Capture-only: hold the lightning strobe on (renders from tests).
+var hold_flash := false
 
 
 func begin() -> void:
@@ -189,21 +191,29 @@ func _capture_base() -> void:
 		_base["amb_e"] = env.ambient_light_energy
 		_base["sat"] = env.adjustment_saturation
 		_base["adj"] = env.adjustment_enabled
+		_base["bg"] = env.background_energy_multiplier
+		_base["fog_end"] = env.fog_depth_end
+		_base["fog_begin"] = env.fog_depth_begin
+		_base["bright"] = env.adjustment_brightness
 
 
 func _apply_night(flash: float) -> void:
 	var sun: DirectionalLight3D = host._sun
 	var env: Environment = host._env
 	if sun:
-		sun.light_energy = lerpf(0.16, 2.6, flash)
+		sun.light_energy = lerpf(0.4, 2.6, flash)
 		sun.light_color = Color(0.55, 0.64, 0.78).lerp(Color(0.86, 0.9, 1.0), flash)
 	if env:
-		env.fog_light_color = Color(0.13, 0.16, 0.2).lerp(Color(0.6, 0.66, 0.76), flash)
+		env.fog_light_color = Color(0.2, 0.24, 0.3).lerp(Color(0.6, 0.66, 0.76), flash)
 		env.fog_density = float(_base.get("fog_d", 0.01)) * 2.2 + 0.004
-		env.ambient_light_energy = float(_base.get("amb_e", 1.0)) * lerpf(0.32, 1.1, flash)
-		env.tonemap_exposure = float(_base.get("exp", 1.0)) * lerpf(0.62, 1.15, flash)
+		env.ambient_light_energy = float(_base.get("amb_e", 1.0)) * lerpf(0.6, 1.1, flash)
+		env.tonemap_exposure = float(_base.get("exp", 1.0)) * lerpf(0.8, 1.2, flash)
 		env.adjustment_enabled = true
 		env.adjustment_saturation = lerpf(0.62, 0.35, flash)
+		env.adjustment_brightness = float(_base.get("bright", 1.0)) * lerpf(0.9, 1.05, flash)
+		env.background_energy_multiplier = float(_base.get("bg", 1.0)) * lerpf(0.2, 0.85, flash)
+		env.fog_depth_begin = 6.0
+		env.fog_depth_end = lerpf(70.0, 140.0, flash)
 
 
 func _tick_fire(delta: float) -> void:
@@ -251,6 +261,8 @@ func _tick_lightning(delta: float) -> void:
 			punch = 0.75
 		elif _flash_t > 0.4:
 			_flash_t = -1.0
+	if hold_flash:
+		punch = 1.0
 	_apply_night(punch)
 	if _thunder_in >= 0.0:
 		_thunder_in -= delta
@@ -373,15 +385,19 @@ func _tick_dawn(delta: float) -> void:
 	var env: Environment = host._env
 	var warm := Color(1.0, 0.72, 0.5)
 	if sun:
-		sun.light_energy = lerpf(0.16, float(_base.get("sun_e", 1.0)), k)
+		sun.light_energy = lerpf(0.4, float(_base.get("sun_e", 1.0)), k)
 		var mid := Color(0.55, 0.64, 0.78).lerp(warm, minf(k * 2.0, 1.0))
 		sun.light_color = mid.lerp(_base.get("sun_c", Color.WHITE), maxf(k * 2.0 - 1.0, 0.0) * 0.6)
 	if env:
 		env.fog_light_color = Color(0.13, 0.16, 0.2).lerp(Color(0.85, 0.66, 0.52), k)
 		env.fog_density = lerpf(float(_base.get("fog_d", 0.01)) * 2.2 + 0.004, float(_base.get("fog_d", 0.01)), k)
-		env.ambient_light_energy = float(_base.get("amb_e", 1.0)) * lerpf(0.32, 1.0, k)
-		env.tonemap_exposure = float(_base.get("exp", 1.0)) * lerpf(0.62, 1.0, k)
+		env.ambient_light_energy = float(_base.get("amb_e", 1.0)) * lerpf(0.6, 1.0, k)
+		env.tonemap_exposure = float(_base.get("exp", 1.0)) * lerpf(0.8, 1.0, k)
 		env.adjustment_saturation = lerpf(0.62, float(_base.get("sat", 1.0)), k)
+		env.adjustment_brightness = float(_base.get("bright", 1.0)) * lerpf(0.9, 1.0, k)
+		env.background_energy_multiplier = float(_base.get("bg", 1.0)) * lerpf(0.2, 1.0, k)
+		env.fog_depth_begin = lerpf(6.0, float(_base.get("fog_begin", 32.0)), k)
+		env.fog_depth_end = lerpf(70.0, float(_base.get("fog_end", 180.0)), k)
 	if k >= 1.0:
 		_dawn_k = -1.0
 		active = false
