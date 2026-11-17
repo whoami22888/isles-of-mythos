@@ -404,7 +404,7 @@ func _end_reveal() -> void:
 	_overlook.end_reveal()
 	_note_burst("World revealed")
 	_enter("epilogue")
-	_line = "Next: reach the survivor camp's smoke across the strait"
+	_line = "Next: the survivor camp across the strait"
 
 
 func on_action() -> void:
@@ -703,7 +703,7 @@ func _line_for(step: String) -> String:
 		"storm", "night":
 			return _storm_night.line(step)
 		"climb":
-			return "Climb to the ridge  ·  follow the cairns  ·  %d m" % int(_overlook.metres_left())
+			return "Climb the ridge  ·  follow the cairns  ·  %d m" % int(_overlook.metres_left())
 	return str(_catalog.get("lines", {}).get(step, "Onward."))
 
 

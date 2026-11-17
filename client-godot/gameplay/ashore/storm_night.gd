@@ -135,7 +135,7 @@ func line(step: String) -> String:
 	var clock := "%d:%02d" % [int(dawn_left()) / 60, int(dawn_left()) % 60]
 	var fire := "Fire %d%%" % int(round(fuel))
 	if not host._fire_lit:
-		fire = "Fire OUT, add wood"
+		fire = "Fire out!"
 	if step == "storm":
 		return "Storm night  ·  %s  ·  dawn in %s" % [fire, clock]
 	return "Hold out till dawn  ·  %s  ·  %s" % [fire, clock]

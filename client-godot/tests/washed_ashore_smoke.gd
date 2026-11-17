@@ -114,7 +114,33 @@ func run() -> void:
 	check(scene._collect_ready, "The first idle bundle is ready to collect")
 	scene._take_collect()
 	check(scene._collect_taken, "One tap collects the bundle")
-	check(scene.quest_line() == "The leviathan wreck lies offshore", "The next goal points offshore")
+	check(scene._step == "night", "After the fight the storm night goes on until dawn")
+	check(scene.quest_line().length() <= 48, "Night line stays one line")
+	var sn = scene._storm_night
+	var fuel_before: float = sn.fuel
+	scene._inv["wood"] = 3
+	scene._player.global_position = scene._pit_position() + Vector3(1.0, 0, 0)
+	sn.fuel = 30.0
+	check(sn.can_feed(), "A dying fire can be fed wood")
+	scene.on_action()
+	check(sn.fuel > 60.0 and int(scene._inv["wood"]) == 2, "Feeding the fire costs one wood and adds fuel")
+	sn.fuel = 0.4
+	sn.tick(1.0)
+	check(not scene._fire_lit, "An unfed fire dies out")
+	scene.on_action()
+	check(scene._fire_lit, "Wood relights a dead fire")
+	sn.age = sn.NIGHT_SECONDS + 1.0
+	sn.tick(0.1)
+	check(sn.dawn and scene._collect_ready, "Dawn arrives with a sea chest")
+	scene._take_collect()
+	check(scene._step == "climb", "The sea chest sends you up the ridge")
+	check(scene.quest_line().length() <= 48, "Climb line stays one line")
+	scene._player.global_position = scene._overlook.top()
+	scene._tick_quest(0.1)
+	check(scene._cinematic == "reveal", "Reaching the lookout plays the world reveal")
+	scene.skip_cinematic()
+	check(scene._step == "epilogue", "The reveal leads to the epilogue")
+	check(scene.quest_line() == "Next: the survivor camp across the strait", "The next goal points across the strait")
 	check(scene._end_open, "The end panel follows the tame path")
 	var tame_lines := PackedStringArray(scene._end_lines())
 	check(tame_lines.has("RARE!"), "Rare tame has a RARE moment")
@@ -193,7 +219,7 @@ func build_and_pet_checks(scene) -> void:
 	for i in 16:
 		scene._tick_build(0.5)
 	check(scene._shelter and scene._hut_stage == 3, "The lean-to finishes")
-	check(scene._step == "dusk", "Shelter before the storm leads to dusk")
+	check(scene._step == "storm" and scene._storm_night.is_night(), "Shelter before the storm leads to the storm night")
 	# Wet ghost is rejected.
 	check(scene._site_problem("campfire", Vector3(-6, scene._water_y - 0.5, -10)) != "", "Cannot build in the sea")
 	# Cliffs: walking at the summit does not climb it.
