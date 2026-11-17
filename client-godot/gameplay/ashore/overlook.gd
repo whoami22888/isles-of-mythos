@@ -227,11 +227,13 @@ func _build_vista() -> void:
 	cone.height = 220.0
 	cone.radial_segments = 16
 	var cm := StandardMaterial3D.new()
-	cm.albedo_color = Color(0.16, 0.18, 0.22, 0.86)
+	cm.albedo_color = Color(0.2, 0.22, 0.26, 0.72)
 	cm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	cm.roughness = 1.0
 	cm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	cm.disable_fog = false
+	# Fog washed the cone out to a pale lampshade (reads as glow): keep it
+	# out of the fog so it stays a dark storm wall. Unverified in a render.
+	cm.disable_fog = true
 	cone.material = cm
 	storm.mesh = cone
 	storm.position = Vector3(-60, sea_y + 100.0, -720)
