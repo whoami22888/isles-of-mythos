@@ -201,17 +201,17 @@ func _apply_night(flash: float) -> void:
 	var sun: DirectionalLight3D = host._sun
 	var env: Environment = host._env
 	if sun:
-		sun.light_energy = lerpf(0.7, 2.6, flash)
+		sun.light_energy = lerpf(0.7, 1.6, flash)
 		sun.light_color = Color(0.55, 0.64, 0.78).lerp(Color(0.86, 0.9, 1.0), flash)
 	if env:
 		env.fog_light_color = Color(0.2, 0.24, 0.3).lerp(Color(0.6, 0.66, 0.76), flash)
 		env.fog_density = float(_base.get("fog_d", 0.01)) * 2.2 + 0.004
-		env.ambient_light_energy = float(_base.get("amb_e", 1.0)) * lerpf(0.95, 1.3, flash)
-		env.tonemap_exposure = float(_base.get("exp", 1.0)) * lerpf(0.8, 1.2, flash)
+		env.ambient_light_energy = float(_base.get("amb_e", 1.0)) * lerpf(0.95, 1.0, flash)
+		env.tonemap_exposure = float(_base.get("exp", 1.0)) * lerpf(0.8, 0.95, flash)
 		env.adjustment_enabled = true
 		env.adjustment_saturation = lerpf(0.62, 0.35, flash)
 		env.adjustment_brightness = float(_base.get("bright", 1.0)) * lerpf(0.9, 1.05, flash)
-		env.background_energy_multiplier = float(_base.get("bg", 1.0)) * lerpf(0.2, 0.85, flash)
+		env.background_energy_multiplier = float(_base.get("bg", 1.0)) * lerpf(0.2, 0.6, flash)
 		env.fog_depth_begin = 6.0
 		env.fog_depth_end = lerpf(70.0, 140.0, flash)
 
