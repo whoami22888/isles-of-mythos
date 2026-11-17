@@ -76,8 +76,21 @@ func run() -> void:
 				# Stand at the lean-to beside the fire, looking past the fire.
 				var pit: Vector3 = scene._pit_position()
 				# Lean-to finished, pitched 3.7 m behind the fire.
+				# Flattest spot on a 3.7 m ring round the fire (the camp backs
+				# onto a steep slope that reads as a bare wedge).
 				var hut_at: Vector3 = pit + Vector3(3.0, 0, 2.2)
-				hut_at.y = scene._ground_y(hut_at.x, hut_at.z)
+				var best_dy := 1e9
+				for ai in 16:
+					var ang := float(ai) / 16.0 * TAU
+					var c: Vector3 = pit + Vector3(cos(ang), 0, sin(ang)) * 3.7
+					var cy: float = scene._ground_y(c.x, c.z)
+					var dy := absf(cy - pit.y)
+					for ri in 4:
+						var r := Vector3(cos(ang + ri * 1.57), 0, sin(ang + ri * 1.57)) * 1.4
+						dy += absf(float(scene._ground_y(c.x + r.x, c.z + r.z)) - cy)
+					if cy > float(scene._water_y) + 0.3 and dy < best_dy:
+						best_dy = dy
+						hut_at = Vector3(c.x, cy, c.z)
 				scene._hut.global_position = hut_at
 				scene._hut.look_at(Vector3(pit.x, hut_at.y, pit.z), Vector3.UP)
 				scene._hut_stage = 3
@@ -92,7 +105,7 @@ func run() -> void:
 				_walk(scene, pit - to_pit * 1.1, to_pit)
 				print("storm pose hut %s pit %s" % [hut, pit])
 				scene._enter("storm")
-				scene._cam_yaw = (scene._player as Node3D).rotation.y + PI + 0.55
+				scene._cam_yaw = (scene._player as Node3D).rotation.y + PI + 0.25
 				scene._storm_night.age = 12.0
 				scene._storm_night._next_flash = 99.0
 				if pose == "storm_threat":
