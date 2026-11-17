@@ -184,6 +184,17 @@ func run() -> void:
 			scene.snap_intro_camera()
 		else:
 			scene._follow_camera(1.0 / 30.0 if pose.begins_with("trees") else 10.0)
+		if pose == "storm_fire" or pose == "dawn":
+			# Back off past the fire so the whole flame sits inside the frame
+			# (no clipped flame, no edge pointer) with the castaway and lean-to.
+			var cam_f: Camera3D = scene._camera
+			var plf: Vector3 = scene._player.global_position
+			var pitf: Vector3 = scene._pit_position()
+			var away := Vector3(pitf.x - plf.x, 0, pitf.z - plf.z).normalized()
+			var side_f := away.cross(Vector3.UP)
+			cam_f.global_position = pitf + away * 2.6 + side_f * 0.9 + Vector3.UP * 1.7
+			cam_f.look_at(pitf.lerp(plf, 0.6) + Vector3.UP * 0.75, Vector3.UP)
+			cam_f.fov = 58.0
 		if pose == "storm_threat":
 			# Pulled back past the fire so the beast stands 3-4 m off the lens,
 			# between the castaway and the lean-to, lit by the fire.
@@ -192,8 +203,11 @@ func run() -> void:
 			var bkt: Vector3 = scene._beast.global_position
 			var dir_t := Vector3(bkt.x - plt.x, 0, bkt.z - plt.z).normalized()
 			var side_t := dir_t.cross(Vector3.UP)
-			cam_t.global_position = plt - dir_t * 2.0 + side_t * 0.9 + Vector3.UP * 1.9
-			cam_t.look_at(bkt.lerp(plt, 0.35) + Vector3.UP * 0.8, Vector3.UP)
+			# Side-on, 3.6 m off the line: castaway and beast face each other,
+			# both lit by the fire on the castaway's side.
+			var mid_t := plt.lerp(bkt, 0.55)
+			cam_t.global_position = mid_t - dir_t * 1.2 + side_t * 3.4 + Vector3.UP * 1.7
+			cam_t.look_at(mid_t + Vector3.UP * 0.8, Vector3.UP)
 			cam_t.fov = 58.0
 		await RenderingServer.frame_post_draw
 	var image: Image = root.get_viewport().get_texture().get_image()

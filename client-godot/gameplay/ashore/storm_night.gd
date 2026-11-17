@@ -203,7 +203,7 @@ func _apply_night(flash: float) -> void:
 	var env: Environment = host._env
 	if sun:
 		# A strike is a cold rim, not daylight: modest energy, blue-white.
-		sun.light_energy = lerpf(0.7, 1.05, flash)
+		sun.light_energy = lerpf(0.7, 1.15, flash)
 		sun.light_color = Color(0.55, 0.64, 0.78).lerp(Color(0.7, 0.8, 1.0), flash)
 	if env:
 		env.fog_light_color = Color(0.2, 0.24, 0.3).lerp(Color(0.3, 0.36, 0.46), flash)
@@ -213,7 +213,7 @@ func _apply_night(flash: float) -> void:
 		env.adjustment_enabled = true
 		env.adjustment_saturation = lerpf(0.62, 0.35, flash)
 		env.adjustment_brightness = float(_base.get("bright", 1.0)) * lerpf(0.9, 0.95, flash)
-		env.background_energy_multiplier = float(_base.get("bg", 1.0)) * lerpf(0.2, 0.3, flash)
+		env.background_energy_multiplier = float(_base.get("bg", 1.0)) * lerpf(0.2, 0.36, flash)
 		env.fog_depth_begin = 6.0
 		env.fog_depth_end = lerpf(70.0, 85.0, flash)
 	_show_bolt(flash)
@@ -275,8 +275,8 @@ func _show_bolt(flash: float) -> void:
 	fwd.y = 0.0
 	fwd = fwd.normalized()
 	var right := fwd.cross(Vector3.UP)
-	var at := cam.global_position + fwd * 120.0 - right * 30.0
-	at.y = float(host._water_y) + 12.0
+	var at := cam.global_position + fwd * 85.0 - right * 50.0
+	at.y = float(host._water_y) + 2.0
 	_bolt.global_position = at
 	_bolt.look_at(cam.global_position * Vector3(1, 0, 1) + Vector3(0, at.y, 0), Vector3.UP)
 	_bolt.visible = true
