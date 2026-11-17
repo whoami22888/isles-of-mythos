@@ -388,21 +388,21 @@ func _tick_dawn(delta: float) -> void:
 	var sun: DirectionalLight3D = host._sun
 	var env: Environment = host._env
 	var night := Color(0.55, 0.64, 0.78)
-	var warm := Color(1.0, 0.6, 0.36)
+	var warm := Color(1.0, 0.72, 0.5)
 	var fog_d := float(_base.get("fog_d", 0.01))
 	if sun:
-		sun.light_energy = lerpf(lerpf(0.7, 1.15, a), float(_base.get("sun_e", 1.0)), b)
+		sun.light_energy = lerpf(lerpf(0.7, 1.0, a), float(_base.get("sun_e", 1.0)), b)
 		sun.light_color = night.lerp(warm, a).lerp(_base.get("sun_c", Color.WHITE), b)
 		var day_r: Vector3 = _base.get("sun_r", sun.rotation_degrees)
 		var low := Vector3(-9.0, day_r.y, day_r.z)
 		sun.rotation_degrees = low.lerp(day_r, b)
 	if env:
-		var dawn_fog := Color(0.92, 0.6, 0.44)
+		var dawn_fog := Color(0.86, 0.66, 0.54)
 		env.fog_light_color = Color(0.13, 0.16, 0.2).lerp(dawn_fog, a).lerp(_base.get("fog_c", dawn_fog), b)
 		env.fog_density = lerpf(lerpf(fog_d * 2.2 + 0.004, fog_d * 1.5, a), fog_d, b)
 		env.ambient_light_energy = float(_base.get("amb_e", 1.0)) * lerpf(lerpf(0.95, 0.75, a), 1.0, b)
 		env.tonemap_exposure = float(_base.get("exp", 1.0)) * lerpf(lerpf(0.8, 0.92, a), 1.0, b)
-		env.adjustment_saturation = lerpf(lerpf(0.62, float(_base.get("sat", 1.0)) * 1.08, a), float(_base.get("sat", 1.0)), b)
+		env.adjustment_saturation = lerpf(lerpf(0.62, float(_base.get("sat", 1.0)) * 0.9, a), float(_base.get("sat", 1.0)), b)
 		env.adjustment_brightness = float(_base.get("bright", 1.0)) * lerpf(0.9, 1.0, maxf(a * 0.5, b))
 		env.background_energy_multiplier = float(_base.get("bg", 1.0)) * lerpf(lerpf(0.2, 0.55, a), 1.0, b)
 		env.fog_depth_begin = lerpf(lerpf(6.0, 14.0, a), float(_base.get("fog_begin", 32.0)), b)

@@ -15,7 +15,7 @@ const Art := preload("res://gameplay/opening/opening_art.gd")
 const PALM := preload("res://assets/generated/palm_v2/palm_v2_mobile.glb")
 ## Reveal view: from the lookout south-west over open water (the slice's
 ## ridge rocks sit east of the lookout and stay out of frame).
-const LOOK_FAR := Vector3(-150.0, -6.0, -200.0)
+const LOOK_FAR := Vector3(-150.0, 2.0, -200.0)
 const TRAIL_HALF_WIDTH := 1.0
 const TOP_RADIUS := 2.4
 const REVEAL_SECONDS := 9.0
@@ -154,7 +154,7 @@ func _clear_view() -> void:
 		if not g.is_visible_in_tree():
 			continue
 		var n := str(g.name).to_lower()
-		if not ("cliff" in n or "rock" in n or "boulder" in n):
+		if not ("cliff" in n or "rock" in n or "boulder" in n or "crag" in n):
 			continue
 		var box: AABB = g.global_transform * g.get_aabb()
 		var c := box.get_center()
@@ -185,7 +185,7 @@ func reveal_camera(age: float) -> void:
 	var fwd := Vector3(look_far.x - pl.x, 0, look_far.z - pl.z).normalized()
 	var side := fwd.cross(Vector3.UP)
 	var start := pl - fwd * 3.6 + side * 0.6 + Vector3.UP * 2.0
-	var finish := pl - fwd * 6.5 + side * 1.6 + Vector3.UP * 4.2
+	var finish := pl - fwd * 3.2 + side * 1.4 + Vector3.UP * 6.5
 	cam.global_position = start.lerp(finish, k)
 	var aim := (pl + fwd * 6.0 + Vector3.UP * 1.2).lerp(look_far, k)
 	cam.look_at(aim, Vector3.UP)
