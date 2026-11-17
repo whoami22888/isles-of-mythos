@@ -194,8 +194,8 @@ func reveal_camera(age: float) -> void:
 	# Lower, further back and pitched down so the castaway stands in the
 	# lower foreground with the horizon in the upper third.
 	# Swing the end view off the ridge hump toward the open strait.
-	var fwd2 := fwd.rotated(Vector3.UP, 0.45)
-	var finish := pl - fwd2 * 3.6 + Vector3.UP * 5.4
+	var fwd2 := fwd
+	var finish := pl - fwd2 * 8.5 + side * 1.5 + Vector3.UP * 4.5
 	# Raise the end eye until the line to the castaway's head clears the ridge.
 	var head := pl + Vector3.UP * 1.6
 	for _r in 12:
@@ -210,7 +210,7 @@ func reveal_camera(age: float) -> void:
 		finish.y += 0.6
 	cam.global_position = start.lerp(finish, k)
 	var near_aim := pl + fwd * 6.0 + Vector3.UP * 1.2
-	var pitch := deg_to_rad(19.0)
+	var pitch := deg_to_rad(9.0 + maxf(finish.y - pl.y - 4.5, 0.0) * 2.0)
 	var far_aim := finish + (fwd2 * cos(pitch) - Vector3.UP * sin(pitch)) * 50.0
 	var aim := near_aim.lerp(far_aim, k)
 	cam.look_at(aim, Vector3.UP)
