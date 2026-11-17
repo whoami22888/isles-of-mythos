@@ -111,13 +111,14 @@ func run() -> void:
 				if pose == "storm_threat":
 					scene._storm_night.threat_sent = true
 					scene._enter("dusk")
-					# Beast between the castaway and the lean-to, seen side-on.
+					# Beast between the castaway and the lean-to, lit by the fire behind
+					# the castaway; over-the-shoulder camera (side-on put the beast on the lens).
 					var pl: Vector3 = scene._player.global_position
 					var bp: Vector3 = pl.lerp(hut, 0.55) + side * 0.4
 					bp.y = scene._ground_y(bp.x, bp.z)
 					scene._beast.global_position = bp
 					(scene._player as Node3D).look_at(Vector3(bp.x, pl.y, bp.z), Vector3.UP)
-					scene._cam_yaw = (scene._player as Node3D).rotation.y + PI * 0.5
+					scene._cam_yaw = (scene._player as Node3D).rotation.y + 0.55
 				if pose == "dawn":
 					scene._step = "night"
 					scene._storm_night.age = 200.0
