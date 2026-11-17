@@ -3237,6 +3237,10 @@ func _push_hud() -> void:
 		var rect := get_viewport().get_visible_rect()
 		var inside := Rect2(rect.position + Vector2(70, 70), rect.size - Vector2(140, 140)).has_point(screen)
 		pointer_on = behind or not inside
+		# Storm night: the goal is the camp you are standing in; an edge
+		# arrow there only lands on the fire.
+		if (_step == "storm" or _step == "night" or _dawn_chest) and _player and _flat(_player.global_position, point) < 4.0:
+			pointer_on = false
 		pointer_at = screen
 	var rows: Array = []
 	for row in _research:
@@ -3729,14 +3733,17 @@ func _dress_slope(center: Vector3) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 4711
 	for ri in range(5):
-		var rad := 2.6 + float(ri) * 1.1
+		var rad := 3.0 + float(ri) * 1.1
 		for ai in 18:
 			var ang := float(ai) / 18.0 * TAU + float(ri) * 0.3
 			var x := center.x + cos(ang) * rad
 			var z := center.z + sin(ang) * rad
-			if _slope_at(x, z, 0.6) < 0.5:
+			if _slope_at(x, z, 0.6) < 0.45:
 				continue
 			var y := _ground_y(x, z)
+			# Only the bank rising behind the camp, never the beach side.
+			if y < center.y + 0.35:
+				continue
 			if y < _water_y + 0.3:
 				continue
 			var at := Vector3(x, y, z)
@@ -3750,7 +3757,7 @@ func _dress_slope(center: Vector3) -> void:
 			placed.append(at)
 			var rock := placed.size() % 2 == 1
 			var n := Art.put(_slope_dressing, Art.COAST_ROCKS_03 if rock else Art.JUNGLE_CLUMP, "Slope%d" % placed.size(), Vector3.ZERO, Vector3(0, rng.randf_range(0, 360), 0), 1.0)
-			Art.fit_height(n, rng.randf_range(1.0, 1.5) if rock else rng.randf_range(1.3, 1.8))
+			Art.fit_height(n, rng.randf_range(1.4, 2.1) if rock else rng.randf_range(1.6, 2.3))
 			n.global_position = at - Vector3.UP * (0.25 if rock else 0.1)
 			if placed.size() >= 9:
 				return
