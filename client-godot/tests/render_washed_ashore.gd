@@ -72,7 +72,7 @@ func run() -> void:
 					scene._tick_build(0.5)
 				scene._cam_yaw += 0.35
 			if pose.begins_with("storm") or pose == "dawn":
-				scene._health = 999
+				scene._health = 5
 				# Stand at the lean-to beside the fire, looking past the fire.
 				var hut: Vector3 = scene._hut.global_position
 				var pit: Vector3 = scene._pit_position()

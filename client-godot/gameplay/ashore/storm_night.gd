@@ -201,12 +201,12 @@ func _apply_night(flash: float) -> void:
 	var sun: DirectionalLight3D = host._sun
 	var env: Environment = host._env
 	if sun:
-		sun.light_energy = lerpf(0.4, 2.6, flash)
+		sun.light_energy = lerpf(0.7, 2.6, flash)
 		sun.light_color = Color(0.55, 0.64, 0.78).lerp(Color(0.86, 0.9, 1.0), flash)
 	if env:
 		env.fog_light_color = Color(0.2, 0.24, 0.3).lerp(Color(0.6, 0.66, 0.76), flash)
 		env.fog_density = float(_base.get("fog_d", 0.01)) * 2.2 + 0.004
-		env.ambient_light_energy = float(_base.get("amb_e", 1.0)) * lerpf(0.6, 1.1, flash)
+		env.ambient_light_energy = float(_base.get("amb_e", 1.0)) * lerpf(0.95, 1.3, flash)
 		env.tonemap_exposure = float(_base.get("exp", 1.0)) * lerpf(0.8, 1.2, flash)
 		env.adjustment_enabled = true
 		env.adjustment_saturation = lerpf(0.62, 0.35, flash)
@@ -385,13 +385,13 @@ func _tick_dawn(delta: float) -> void:
 	var env: Environment = host._env
 	var warm := Color(1.0, 0.72, 0.5)
 	if sun:
-		sun.light_energy = lerpf(0.4, float(_base.get("sun_e", 1.0)), k)
+		sun.light_energy = lerpf(0.7, float(_base.get("sun_e", 1.0)), k)
 		var mid := Color(0.55, 0.64, 0.78).lerp(warm, minf(k * 2.0, 1.0))
 		sun.light_color = mid.lerp(_base.get("sun_c", Color.WHITE), maxf(k * 2.0 - 1.0, 0.0) * 0.6)
 	if env:
 		env.fog_light_color = Color(0.13, 0.16, 0.2).lerp(Color(0.85, 0.66, 0.52), k)
 		env.fog_density = lerpf(float(_base.get("fog_d", 0.01)) * 2.2 + 0.004, float(_base.get("fog_d", 0.01)), k)
-		env.ambient_light_energy = float(_base.get("amb_e", 1.0)) * lerpf(0.6, 1.0, k)
+		env.ambient_light_energy = float(_base.get("amb_e", 1.0)) * lerpf(0.95, 1.0, k)
 		env.tonemap_exposure = float(_base.get("exp", 1.0)) * lerpf(0.8, 1.0, k)
 		env.adjustment_saturation = lerpf(0.62, float(_base.get("sat", 1.0)), k)
 		env.adjustment_brightness = float(_base.get("bright", 1.0)) * lerpf(0.9, 1.0, k)
