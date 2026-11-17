@@ -184,6 +184,7 @@ func _capture_base() -> void:
 	if sun:
 		_base["sun_e"] = sun.light_energy
 		_base["sun_c"] = sun.light_color
+		_base["sun_r"] = sun.rotation_degrees
 	if env:
 		_base["exp"] = host._base_exposure
 		_base["fog_c"] = env.fog_light_color
@@ -379,25 +380,33 @@ func _begin_dawn() -> void:
 
 
 func _tick_dawn(delta: float) -> void:
-	_dawn_k = minf(_dawn_k + delta / 6.0, 1.0)
+	# Two beats: night -> warm low sunrise (held), then sunrise -> full day.
+	_dawn_k = minf(_dawn_k + delta / 16.0, 1.0)
 	var k := _dawn_k
+	var a := smoothstep(0.0, 0.4, k)
+	var b := smoothstep(0.62, 1.0, k)
 	var sun: DirectionalLight3D = host._sun
 	var env: Environment = host._env
-	var warm := Color(1.0, 0.72, 0.5)
+	var night := Color(0.55, 0.64, 0.78)
+	var warm := Color(1.0, 0.6, 0.36)
+	var fog_d := float(_base.get("fog_d", 0.01))
 	if sun:
-		sun.light_energy = lerpf(0.7, float(_base.get("sun_e", 1.0)), k)
-		var mid := Color(0.55, 0.64, 0.78).lerp(warm, minf(k * 2.0, 1.0))
-		sun.light_color = mid.lerp(_base.get("sun_c", Color.WHITE), maxf(k * 2.0 - 1.0, 0.0) * 0.6)
+		sun.light_energy = lerpf(lerpf(0.7, 1.15, a), float(_base.get("sun_e", 1.0)), b)
+		sun.light_color = night.lerp(warm, a).lerp(_base.get("sun_c", Color.WHITE), b)
+		var day_r: Vector3 = _base.get("sun_r", sun.rotation_degrees)
+		var low := Vector3(-9.0, day_r.y, day_r.z)
+		sun.rotation_degrees = low.lerp(day_r, b)
 	if env:
-		env.fog_light_color = Color(0.13, 0.16, 0.2).lerp(Color(0.85, 0.66, 0.52), k)
-		env.fog_density = lerpf(float(_base.get("fog_d", 0.01)) * 2.2 + 0.004, float(_base.get("fog_d", 0.01)), k)
-		env.ambient_light_energy = float(_base.get("amb_e", 1.0)) * lerpf(0.95, 1.0, k)
-		env.tonemap_exposure = float(_base.get("exp", 1.0)) * lerpf(0.8, 1.0, k)
-		env.adjustment_saturation = lerpf(0.62, float(_base.get("sat", 1.0)), k)
-		env.adjustment_brightness = float(_base.get("bright", 1.0)) * lerpf(0.9, 1.0, k)
-		env.background_energy_multiplier = float(_base.get("bg", 1.0)) * lerpf(0.2, 1.0, k)
-		env.fog_depth_begin = lerpf(6.0, float(_base.get("fog_begin", 32.0)), k)
-		env.fog_depth_end = lerpf(70.0, float(_base.get("fog_end", 180.0)), k)
+		var dawn_fog := Color(0.92, 0.6, 0.44)
+		env.fog_light_color = Color(0.13, 0.16, 0.2).lerp(dawn_fog, a).lerp(_base.get("fog_c", dawn_fog), b)
+		env.fog_density = lerpf(lerpf(fog_d * 2.2 + 0.004, fog_d * 1.5, a), fog_d, b)
+		env.ambient_light_energy = float(_base.get("amb_e", 1.0)) * lerpf(lerpf(0.95, 0.75, a), 1.0, b)
+		env.tonemap_exposure = float(_base.get("exp", 1.0)) * lerpf(lerpf(0.8, 0.92, a), 1.0, b)
+		env.adjustment_saturation = lerpf(lerpf(0.62, float(_base.get("sat", 1.0)) * 1.08, a), float(_base.get("sat", 1.0)), b)
+		env.adjustment_brightness = float(_base.get("bright", 1.0)) * lerpf(0.9, 1.0, maxf(a * 0.5, b))
+		env.background_energy_multiplier = float(_base.get("bg", 1.0)) * lerpf(lerpf(0.2, 0.55, a), 1.0, b)
+		env.fog_depth_begin = lerpf(lerpf(6.0, 14.0, a), float(_base.get("fog_begin", 32.0)), b)
+		env.fog_depth_end = lerpf(lerpf(70.0, 110.0, a), float(_base.get("fog_end", 180.0)), b)
 	if k >= 1.0:
 		_dawn_k = -1.0
 		active = false

@@ -1778,7 +1778,8 @@ func _tick_ring() -> void:
 	if _ring == null:
 		return
 	var node := _nearest_node(3.6)
-	if node.is_empty() or bool(node.get("depleted", false)) or _cinematic != "":
+	# No action ring in the storm: the night frame is fire, rain and shelter.
+	if node.is_empty() or bool(node.get("depleted", false)) or _cinematic != "" or _step == "storm" or _step == "night":
 		_ring.visible = false
 		return
 	var root := node.get("root") as Node3D
@@ -2492,9 +2493,25 @@ func _build_props() -> void:
 	Art.fit_height(pit, 0.55)
 	var logs := Art.put(_flame, DEAD_LOG, "Logs", Vector3(0, 0.05, 0), Vector3(0, 40, 0), 1.0)
 	_fit_long(logs, 1.1)
+	# Built campfire: a taller outer flame, a hot inner core and a face-height
+	# fill so the castaway reads in the storm (the only light on the beach).
 	var fire := _flame_mesh()
-	fire.position = Vector3(0, 0.35, 0)
+	fire.position = Vector3(0, 0.55, 0)
+	(fire.mesh as QuadMesh).size = Vector2(0.85, 1.25)
+	var fire_light := fire.get_child(0) as OmniLight3D
+	fire_light.light_energy = 2.0
+	fire_light.omni_range = 7.5
+	fire_light.position = Vector3(0, 0.5, 0)
 	_flame.add_child(fire)
+	var core := _flame_mesh()
+	core.name = "Core"
+	core.position = Vector3(0, 0.42, 0)
+	(core.mesh as QuadMesh).size = Vector2(0.42, 0.8)
+	var core_mat := (core.material_override as StandardMaterial3D).duplicate() as StandardMaterial3D
+	core_mat.albedo_color = Color(1.0, 0.78, 0.34, 0.9)
+	core.material_override = core_mat
+	core.get_child(0).queue_free()
+	_flame.add_child(core)
 	_sack = Node3D.new()
 	_sack.name = "IdleSack"
 	_sack.visible = false

@@ -74,28 +74,42 @@ func run() -> void:
 			if pose.begins_with("storm") or pose == "dawn":
 				scene._health = 5
 				# Stand at the lean-to beside the fire, looking past the fire.
-				var hut: Vector3 = scene._hut.global_position
 				var pit: Vector3 = scene._pit_position()
+				# Lean-to finished, pitched 3.7 m behind the fire.
+				var hut_at: Vector3 = pit + Vector3(3.0, 0, 2.2)
+				hut_at.y = scene._ground_y(hut_at.x, hut_at.z)
+				scene._hut.global_position = hut_at
+				scene._hut.look_at(Vector3(pit.x, hut_at.y, pit.z), Vector3.UP)
+				scene._hut_stage = 3
+				scene._building = false
+				scene._show_hut(3)
+				var hut: Vector3 = scene._hut.global_position
 				var to_pit := Vector3(pit.x - hut.x, 0, pit.z - hut.z).normalized()
-				# Stand on the far side of the fire looking at the lean-to:
-				# castaway, fire and shelter all in the follow camera.
-				_walk(scene, pit + to_pit * 1.6, -to_pit)
+				var side := Vector3(-to_pit.z, 0, to_pit.x)
+				# Castaway between shelter and fire, facing the flames; the
+				# camera sits on the dark side of the fire, three-quarter on,
+				# so the firelight is on the face and the lean-to is behind.
+				_walk(scene, pit - to_pit * 1.1, to_pit)
 				print("storm pose hut %s pit %s" % [hut, pit])
 				scene._enter("storm")
+				scene._cam_yaw = (scene._player as Node3D).rotation.y + PI + 0.55
 				scene._storm_night.age = 12.0
 				scene._storm_night._next_flash = 99.0
 				if pose == "storm_threat":
 					scene._storm_night.threat_sent = true
 					scene._enter("dusk")
+					# Beast between the castaway and the lean-to, seen side-on.
 					var pl: Vector3 = scene._player.global_position
-					var bp: Vector3 = pl + to_pit * 5.0 + Vector3(-to_pit.z, 0, to_pit.x) * 0.8
+					var bp: Vector3 = pl.lerp(hut, 0.55) + side * 0.4
 					bp.y = scene._ground_y(bp.x, bp.z)
 					scene._beast.global_position = bp
+					(scene._player as Node3D).look_at(Vector3(bp.x, pl.y, bp.z), Vector3.UP)
+					scene._cam_yaw = (scene._player as Node3D).rotation.y + PI * 0.5
 				if pose == "dawn":
 					scene._step = "night"
 					scene._storm_night.age = 200.0
 					scene._storm_night._begin_dawn()
-					scene._storm_night._dawn_k = 0.62
+					scene._storm_night._dawn_k = 0.3
 		"pet_point":
 			_free_pet(scene)
 			_walk(scene, Vector3(-10.5, 0, 6.5), Vector3(0.1, 0, 1))
