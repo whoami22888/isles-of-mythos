@@ -233,8 +233,8 @@ func _build_vista() -> void:
 	var sea_y: float = host._water_y
 	# Islands from the library: textured coastal cliffs (Hunyuan3D) with
 	# palms on top. Survivor camp (W), Tideborn ruins (S), far island.
-	var camp_top := _isle(Vector3(-175, sea_y, -120), 30.0, 11, 6)
-	var ruin_top := _isle(Vector3(-60, sea_y, -230), 26.0, 23, 3)
+	var camp_top := _isle(Vector3(-175, sea_y, -120), 42.0, 11, 7)
+	var ruin_top := _isle(Vector3(-60, sea_y, -230), 38.0, 23, 3)
 	_isle(Vector3(-250, sea_y, -330), 44.0, 37, 0)
 	var stone := StandardMaterial3D.new()
 	stone.albedo_color = Color(0.5, 0.47, 0.42)
@@ -242,14 +242,14 @@ func _build_vista() -> void:
 	for i in 6:
 		var pillar := MeshInstance3D.new()
 		var cyl := CylinderMesh.new()
-		cyl.top_radius = 0.9
-		cyl.bottom_radius = 1.1
-		cyl.height = 7.0 + float(i % 3) * 3.0
+		cyl.top_radius = 1.6
+		cyl.bottom_radius = 2.0
+		cyl.height = 12.0 + float(i % 3) * 5.0
 		cyl.radial_segments = 8
 		cyl.material = stone
 		pillar.mesh = cyl
 		var a := float(i) / 6.0 * TAU
-		pillar.position = ruin_top + Vector3(cos(a) * 7.0, cyl.height * 0.5 - 1.0, sin(a) * 4.5)
+		pillar.position = ruin_top + Vector3(cos(a) * 9.0, cyl.height * 0.5 - 1.5, sin(a) * 6.0)
 		pillar.rotation_degrees = Vector3(0, 0, -8.0 if i == 4 else 0.0)
 		_vista.add_child(pillar)
 	_smoke(camp_top + Vector3(-3, 0.5, 2))
@@ -285,7 +285,7 @@ func _isle(at: Vector3, height: float, seed_i: int, palms: int) -> Vector3:
 	isle.position = at
 	_vista.add_child(isle)
 	for c in 2:
-		var cliff := Art.put(isle, Art.CLIFF, "Cliff%d" % c, Vector3((c * 2 - 1) * height * 0.45, -height * 0.12, rng.randf_range(-4, 4)), Vector3(0, c * 180.0 + rng.randf_range(-25, 25), 0), 1.0)
+		var cliff := Art.put(isle, Art.CLIFF, "Cliff%d" % c, Vector3((c * 2 - 1) * height * 0.16, -height * 0.12, rng.randf_range(-3, 3)), Vector3(0, c * 180.0 + rng.randf_range(-25, 25), 0), 1.0)
 		Art.fit_height(cliff, height * (1.0 if c == 0 else 0.8))
 	var box := Art.world_aabb(isle)
 	var crown := Vector3(box.get_center().x, box.end.y - height * 0.14, box.get_center().z)
