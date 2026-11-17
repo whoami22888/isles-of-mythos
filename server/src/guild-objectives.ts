@@ -141,13 +141,14 @@ export class GuildObjectiveStore {
   }
 }
 
-async function verifyPlayer(request: FastifyRequest): Promise<boolean> {
+async function verifyPlayer(request: FastifyRequest): Promise<string | null> {
   try {
     await request.jwtVerify();
   } catch {
-    return false;
+    return null;
   }
-  return isGameplayAccessToken(request.user);
+  const userId = request.user.sub;
+  return isGameplayAccessToken(request.user) && typeof userId === "string" && userId.length > 0 ? userId : null;
 }
 
 const ERRORS: Record<string, number> = {
@@ -158,15 +159,18 @@ const ERRORS: Record<string, number> = {
   GUILD_CONTRIBUTION_REQUIRED: 409,
 };
 
-export function registerGuildObjectiveRoutes(app: FastifyInstance, db: Pool, players: PlayerStore): void {
+// `onEconomyChanged` lets the WebSocket layer push the refreshed player_state to an in-world
+// player, so the HUD shows the reward at once instead of on the next move.
+export function registerGuildObjectiveRoutes(app: FastifyInstance, db: Pool, players: PlayerStore, onEconomyChanged?: (userId: string) => void): void {
   const store = new GuildObjectiveStore(db);
 
   app.get("/guild-objectives", {
     schema: { tags: ["guilds"], security: [{ bearerAuth: [] }] },
     config: { rateLimit: { max: 60, timeWindow: "1 minute" } },
   }, async (request, reply) => {
-    if (!(await verifyPlayer(request))) return reply.code(401).send({ error: "UNAUTHORIZED" });
-    return store.list(request.user.sub);
+    const userId = await verifyPlayer(request);
+    if (!userId) return reply.code(401).send({ error: "UNAUTHORIZED" });
+    return store.list(userId);
   });
 
   app.post<{ Body: { objectiveId: string } }>("/guild-objectives/claim", {
@@ -177,13 +181,16 @@ export function registerGuildObjectiveRoutes(app: FastifyInstance, db: Pool, pla
     },
     config: { rateLimit: { max: 30, timeWindow: "1 minute" } },
   }, async (request, reply) => {
-    if (!(await verifyPlayer(request))) return reply.code(401).send({ error: "UNAUTHORIZED" });
-    const userId = request.user.sub;
+    const userId = await verifyPlayer(request);
+    if (!userId) return reply.code(401).send({ error: "UNAUTHORIZED" });
     try {
       return await players.runExclusive(userId, async () => {
         await players.ensureProfile(userId);
         const result = await store.claim(userId, request.body.objectiveId);
-        if (players.get(userId)) await players.reloadEconomy(userId);
+        if (players.get(userId)) {
+          await players.reloadEconomy(userId);
+          onEconomyChanged?.(userId);
+        }
         return result;
       });
     } catch (error) {
