@@ -24,6 +24,8 @@ uniform float rock_scale = 0.055;
 uniform float rock_bias = 0.0;
 uniform float sand_bias = 0.0;
 uniform float distant_cool = 0.0;
+// Optional grass patch (x, z, radius): no rock splat inside it (camp bank).
+uniform vec3 grass_zone = vec3(0.0, 0.0, 0.0);
 
 varying vec3 world_pos;
 varying vec3 world_nor;
@@ -40,6 +42,10 @@ void vertex() {
 	sand_weight = clamp(beach + sand_bias, 0.0, 1.0);
 	// Keep grass on mid slopes (the bare brown "back" lump); only steep faces go fully to rock.
 	rock_weight = clamp(smoothstep(0.38, 0.82, slope) * (1.0 - sand_weight * 0.65) + rock_bias, 0.0, 1.0);
+	if (grass_zone.z > 0.0) {
+		float gz = 1.0 - smoothstep(grass_zone.z * 0.6, grass_zone.z, distance(world_pos.xz, grass_zone.xy));
+		rock_weight *= 1.0 - gz;
+	}
 }
 
 vec3 triplanar_albedo(sampler2D tex, vec3 p, vec3 n, float scale) {

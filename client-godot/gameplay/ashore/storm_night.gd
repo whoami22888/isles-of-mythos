@@ -410,9 +410,19 @@ func _warn_threat() -> void:
 	if host._pet_freed:
 		host._pet_mode = "follow"
 	flash_now()
+	boost_fire(true)
 	host.get_tree().create_timer(2.2, false).timeout.connect(func():
 		if host._step == "storm":
 			host._enter("dusk"))
+
+
+## The threat stands across the fire: push the fire up so its front is lit warm.
+func boost_fire(on: bool) -> void:
+	var fl: OmniLight3D = host._fire_light
+	if fl == null:
+		return
+	fl.light_energy = 3.0 if on else 2.0
+	fl.omni_range = 9.5 if on else 7.5
 
 
 func _nearest_wood() -> Dictionary:
@@ -434,6 +444,7 @@ func _nearest_wood() -> Dictionary:
 func _begin_dawn() -> void:
 	dawn = true
 	_dawn_k = 0.0
+	boost_fire(false)
 	host._show_hint("Dawn. You survived the storm.")
 	host._hint_t = 4.0
 	if _rain:

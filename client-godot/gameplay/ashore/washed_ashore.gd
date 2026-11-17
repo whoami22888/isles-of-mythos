@@ -247,6 +247,8 @@ var _skin: Array[StandardMaterial3D] = []
 var _pet: Node3D
 var _pet_head: Node3D
 var _beast: Node3D
+## Built campfire's main light (the storm threat turns it up).
+var _fire_light: OmniLight3D
 var _beast_mats: Array[StandardMaterial3D] = []
 var _sack: Node3D
 var _hut: Node3D
@@ -1302,6 +1304,12 @@ func _light_fire() -> void:
 		_camp_flame.visible = false
 	if _fire_loop and not _fire_loop.playing:
 		_fire_loop.play()
+	# The camp bank is steep enough to splat as bare rock, which reads as a
+	# flat orange wedge in the firelight: keep it sand/grass round the fire.
+	var terrain := _slice.get_node_or_null("IrregularCoastalTerrain") as MeshInstance3D if _slice else null
+	if terrain and terrain.material_override is ShaderMaterial:
+		var pit := _pit_position()
+		(terrain.material_override as ShaderMaterial).set_shader_parameter("grass_zone", Vector3(pit.x, pit.z, 9.0))
 
 
 func _begin_dusk() -> void:
@@ -1313,6 +1321,15 @@ func _begin_dusk() -> void:
 	_stagger = false
 	_beast.visible = true
 	var from := _dusk_spawn()
+	# Storm night: it steps out of the dark across the fire, ~4 m in front
+	# of the castaway, so the boosted firelight is on its face.
+	if _storm_night and _storm_night.threat_sent and _fire_lit and _player:
+		var pit := _pit_position()
+		var to_pit := Vector3(pit.x - _player.global_position.x, 0, pit.z - _player.global_position.z)
+		if to_pit.length() > 0.3 and to_pit.length() < 6.0:
+			var at := _player.global_position + to_pit.normalized() * maxf(4.0, to_pit.length() + 1.8)
+			at.y = _ground_y(at.x, at.z)
+			from = at
 	_beast.global_position = from
 	var look := from - _player.global_position
 	look.y = 0.0
@@ -2525,6 +2542,7 @@ func _build_props() -> void:
 	fire_light.light_energy = 2.0
 	fire_light.omni_range = 7.5
 	fire_light.position = Vector3(0, 0.5, 0)
+	_fire_light = fire_light
 	_flame.add_child(fire)
 	var core := _flame_mesh()
 	core.name = "Core"
@@ -3050,6 +3068,17 @@ func _paint_beast(rare: bool) -> void:
 			var mat := (base as StandardMaterial3D).duplicate() as StandardMaterial3D
 			var orig: Color = base.get_meta("base", (base as StandardMaterial3D).albedo_color)
 			mat.set_meta("base", orig)
+			# The source rig is near-black, 40% metallic Phong: give it a real
+			# hide albedo and a damp, non-metal roughness so firelight shapes it.
+			var nm := str(base.resource_name)
+			if nm == "Dino_Main":
+				orig = Color(0.34, 0.27, 0.19)
+			elif nm == "Dino_Secondary":
+				orig = Color(0.58, 0.46, 0.30)
+			elif nm == "Dino_Teeth" or nm == "Eye_White":
+				orig = Color(0.80, 0.76, 0.64)
+			mat.metallic = 0.0
+			mat.roughness = 0.72
 			mat.albedo_color = orig * tint
 			if rare:
 				mat.emission_enabled = true
@@ -3719,50 +3748,6 @@ func _orbit_drag(pos: Vector2, relative: Vector2) -> void:
 		_cam_orbit_hold = 2.0
 
 
-## The camp backs onto a steep bank that renders as a bare orange wedge in the
-## firelight: break it up with rocks and jungle clumps on the steep cells.
-var _slope_dressing: Node3D
-
-func _dress_slope(center: Vector3) -> void:
-	if _slope_dressing:
-		_slope_dressing.queue_free()
-	_slope_dressing = Node3D.new()
-	_slope_dressing.name = "CampSlopeDressing"
-	add_child(_slope_dressing)
-	var placed: Array[Vector3] = []
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 4711
-	for ri in range(5):
-		var rad := 3.0 + float(ri) * 1.1
-		for ai in 18:
-			var ang := float(ai) / 18.0 * TAU + float(ri) * 0.3
-			var x := center.x + cos(ang) * rad
-			var z := center.z + sin(ang) * rad
-			if _slope_at(x, z, 0.6) < 0.45:
-				continue
-			var y := _ground_y(x, z)
-			# Only the bank rising behind the camp, never the beach side.
-			if y < center.y + 0.35:
-				continue
-			if y < _water_y + 0.3:
-				continue
-			var at := Vector3(x, y, z)
-			var clash := false
-			for q in placed:
-				if q.distance_to(at) < 1.7:
-					clash = true
-					break
-			if clash:
-				continue
-			placed.append(at)
-			var rock := placed.size() % 2 == 1
-			var n := Art.put(_slope_dressing, Art.COAST_ROCKS_03 if rock else Art.JUNGLE_CLUMP, "Slope%d" % placed.size(), Vector3.ZERO, Vector3(0, rng.randf_range(0, 360), 0), 1.0)
-			Art.fit_height(n, rng.randf_range(1.4, 2.1) if rock else rng.randf_range(1.6, 2.3))
-			n.global_position = at - Vector3.UP * (0.25 if rock else 0.1)
-			if placed.size() >= 9:
-				return
-
-
 func _slope_at(x: float, z: float, r: float) -> float:
 	var gx := _ground_y(x + r, z) - _ground_y(x - r, z)
 	var gz := _ground_y(x, z + r) - _ground_y(x, z - r)
@@ -3982,7 +3967,6 @@ func _place_structure(id: String, at: Vector3, yaw: float, fresh: bool) -> void:
 		"campfire":
 			_fire_at = at
 			_light_fire()
-			_dress_slope(at)
 			shown = _flame
 		"lean_to":
 			_hut.global_position = at
