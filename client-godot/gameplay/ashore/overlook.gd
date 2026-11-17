@@ -12,6 +12,10 @@ extends Node
 
 const ASHORE_STONE := preload("res://assets/ashore/library/stone_01/stone_01.glb")
 const Art := preload("res://gameplay/opening/opening_art.gd")
+const PALM := preload("res://assets/generated/palm_v2/palm_v2_mobile.glb")
+## Reveal view: from the lookout south-west over open water (the slice's
+## ridge rocks sit east of the lookout and stay out of frame).
+const LOOK_FAR := Vector3(-150.0, -6.0, -200.0)
 const TRAIL_HALF_WIDTH := 1.0
 const TOP_RADIUS := 2.4
 const REVEAL_SECONDS := 9.0
@@ -40,6 +44,7 @@ var _vista: Node3D
 var _cairns: Node3D
 var _far_before := 420.0
 var _fog_end := -1.0
+var _hidden: Array[Node3D] = []
 
 
 func setup() -> void:
@@ -132,30 +137,61 @@ func begin_reveal() -> void:
 		_fog_end = env.fog_depth_end
 		env.fog_depth_end = 650.0
 	host._play("res://assets/opening/audio/ocean.ogg", -8.0, 0.8)
+	_clear_view()
+
+
+## Ridge-top slice rocks right in front of the lookout would fill the reveal
+## frame; hide those (only for the cinematic) so the view is open water.
+func _clear_view() -> void:
+	_hidden.clear()
+	var slice: Node3D = host._slice
+	if slice == null:
+		return
+	var pl: Vector3 = host._player.global_position
+	var fwd := Vector3(LOOK_FAR.x - pl.x, 0, LOOK_FAR.z - pl.z).normalized()
+	for gi in slice.find_children("*", "GeometryInstance3D", true, false):
+		var g := gi as GeometryInstance3D
+		if not g.is_visible_in_tree():
+			continue
+		var n := str(g.name).to_lower()
+		if not ("cliff" in n or "rock" in n or "boulder" in n):
+			continue
+		var box: AABB = g.global_transform * g.get_aabb()
+		var c := box.get_center()
+		var to := Vector3(c.x - pl.x, 0, c.z - pl.z)
+		if to.length() < 70.0 and box.end.y > pl.y - 4.0 and (to.length() < 8.0 or to.normalized().dot(fwd) > 0.2):
+			g.visible = false
+			_hidden.append(g)
 
 
 func end_reveal() -> void:
+	for g in _hidden:
+		if is_instance_valid(g):
+			g.visible = true
+	_hidden.clear()
 	host._camera.far = maxf(_far_before, 420.0)
 	var env: Environment = host._env
 	if env and _fog_end > 0.0:
 		env.fog_depth_end = _fog_end
 
 
-## Crane up from behind the castaway to a high wide view south over the bay.
+## Crane up from behind the castaway: the castaway stays in the lower
+## foreground while the view opens over the strait to the islands.
 func reveal_camera(age: float) -> void:
 	var cam: Camera3D = host._camera
 	var pl: Vector3 = host._player.global_position
-	var look_far := Vector3(-30.0, -4.0, -240.0)
+	var look_far := LOOK_FAR
 	var k := smoothstep(0.0, 1.0, clampf(age / 6.5, 0.0, 1.0))
-	var start := pl + Vector3(0.6, 2.0, 4.2)
-	var finish := pl + Vector3(3.5, 9.0, 11.0)
+	var fwd := Vector3(look_far.x - pl.x, 0, look_far.z - pl.z).normalized()
+	var side := fwd.cross(Vector3.UP)
+	var start := pl - fwd * 3.6 + side * 0.6 + Vector3.UP * 2.0
+	var finish := pl - fwd * 6.5 + side * 1.6 + Vector3.UP * 4.2
 	cam.global_position = start.lerp(finish, k)
-	var aim := (pl + Vector3(0, 1.2, -6.0)).lerp(look_far, k)
+	var aim := (pl + fwd * 6.0 + Vector3.UP * 1.2).lerp(look_far, k)
 	cam.look_at(aim, Vector3.UP)
-	cam.fov = lerpf(54.0, 62.0, k)
+	cam.fov = lerpf(54.0, 60.0, k)
 	if host._player:
-		var f := Vector3(look_far.x - pl.x, 0, look_far.z - pl.z).normalized()
-		host._player.look_at(pl + f, Vector3.UP)
+		host._player.look_at(pl + fwd, Vector3.UP)
 	var lines := [
 		[0.6, "The ridge. The whole strait opens up."],
 		[2.6, "Smoke... survivors on the next island."],
@@ -194,31 +230,30 @@ func _build_vista() -> void:
 	_vista.name = "Vista"
 	_vista.visible = false
 	host.add_child(_vista)
-	var rock := StandardMaterial3D.new()
-	rock.vertex_color_use_as_albedo = true
-	rock.roughness = 0.95
 	var sea_y: float = host._water_y
-	# Survivor-camp island (SW), Tideborn ruins island (SE), far island (S).
-	_island(Vector3(-120, sea_y, -170), 70.0, 26.0, 11, rock)
-	_island(Vector3(95, sea_y, -210), 60.0, 34.0, 23, rock)
-	_island(Vector3(-15, sea_y, -340), 110.0, 30.0, 37, rock)
+	# Islands from the library: textured coastal cliffs (Hunyuan3D) with
+	# palms on top. Survivor camp (W), Tideborn ruins (S), far island.
+	var camp_top := _isle(Vector3(-175, sea_y, -120), 30.0, 11, 6)
+	var ruin_top := _isle(Vector3(-60, sea_y, -230), 26.0, 23, 3)
+	_isle(Vector3(-250, sea_y, -330), 44.0, 37, 0)
 	var stone := StandardMaterial3D.new()
-	stone.albedo_color = Color(0.46, 0.44, 0.4)
+	stone.albedo_color = Color(0.5, 0.47, 0.42)
 	stone.roughness = 0.9
 	for i in 6:
 		var pillar := MeshInstance3D.new()
 		var cyl := CylinderMesh.new()
-		cyl.top_radius = 1.3
-		cyl.bottom_radius = 1.6
-		cyl.height = 10.0 + float(i % 3) * 4.0
+		cyl.top_radius = 0.9
+		cyl.bottom_radius = 1.1
+		cyl.height = 7.0 + float(i % 3) * 3.0
 		cyl.radial_segments = 8
 		cyl.material = stone
 		pillar.mesh = cyl
-		pillar.position = Vector3(82 + i * 5.5, sea_y + 14.0 + cyl.height * 0.5, -205 + (i % 2) * 6.0)
-		pillar.rotation_degrees = Vector3(0, 0, -6.0 if i == 4 else 0.0)
+		var a := float(i) / 6.0 * TAU
+		pillar.position = ruin_top + Vector3(cos(a) * 7.0, cyl.height * 0.5 - 1.0, sin(a) * 4.5)
+		pillar.rotation_degrees = Vector3(0, 0, -8.0 if i == 4 else 0.0)
 		_vista.add_child(pillar)
-	_smoke(Vector3(-128, sea_y + 14.0, -165))
-	_smoke(Vector3(-110, sea_y + 12.0, -178))
+	_smoke(camp_top + Vector3(-3, 0.5, 2))
+	_smoke(camp_top + Vector3(4, 0.5, -3))
 	# The Leviathan's tempest: a dark wall of cloud on the horizon beyond the wreck.
 	var storm := MeshInstance3D.new()
 	var cone := CylinderMesh.new()
@@ -238,6 +273,29 @@ func _build_vista() -> void:
 	storm.mesh = cone
 	storm.position = Vector3(-60, sea_y + 100.0, -720)
 	_vista.add_child(storm)
+
+
+## One island: two library cliffs back to back, plus palms on the crown.
+## Returns a point on the crown (for ruins and smoke).
+func _isle(at: Vector3, height: float, seed_i: int, palms: int) -> Vector3:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_i
+	var isle := Node3D.new()
+	isle.name = "Isle%d" % seed_i
+	isle.position = at
+	_vista.add_child(isle)
+	for c in 2:
+		var cliff := Art.put(isle, Art.CLIFF, "Cliff%d" % c, Vector3((c * 2 - 1) * height * 0.45, -height * 0.12, rng.randf_range(-4, 4)), Vector3(0, c * 180.0 + rng.randf_range(-25, 25), 0), 1.0)
+		Art.fit_height(cliff, height * (1.0 if c == 0 else 0.8))
+	var box := Art.world_aabb(isle)
+	var crown := Vector3(box.get_center().x, box.end.y - height * 0.14, box.get_center().z)
+	for i in palms:
+		var at_p := crown + Vector3(rng.randf_range(-0.3, 0.3) * box.size.x, -rng.randf_range(0.0, 0.08) * height, rng.randf_range(-0.25, 0.25) * box.size.z)
+		var palm := Art.put(_vista, PALM, "Palm%d_%d" % [seed_i, i], at_p, Vector3(0, rng.randf_range(0, 360), 0), 1.0)
+		Art.fit_height(palm, rng.randf_range(9.0, 13.0))
+	for mi in Art.meshes(isle):
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return crown
 
 
 func _island(at: Vector3, radius: float, height: float, seed_i: int, mat: Material) -> void:
