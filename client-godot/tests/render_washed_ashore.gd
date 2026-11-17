@@ -171,7 +171,7 @@ func run() -> void:
 			var bpos: Vector3 = scene._player.global_position
 			var bk: Vector3 = scene._beast.global_position
 			scene._beast.look_at(Vector3(bpos.x, bk.y, bpos.z), Vector3.UP)
-		if pose == "storm_flash" and _i == 24:
+		if (pose == "storm_flash" or pose == "storm_threat") and _i == 24:
 			scene._storm_night.hold_flash = true
 		if pose == "dusk" and _i < 29:
 			scene._beast.global_position = scene._beast.global_position
@@ -207,7 +207,7 @@ func run() -> void:
 			# both lit by the fire on the castaway's side.
 			var mid_t := plt.lerp(bkt, 0.55)
 			cam_t.global_position = mid_t - dir_t * 1.2 + side_t * 3.4 + Vector3.UP * 1.7
-			cam_t.look_at(mid_t + Vector3.UP * 0.8, Vector3.UP)
+			cam_t.look_at(mid_t + Vector3.UP * 1.0, Vector3.UP)
 			cam_t.fov = 58.0
 		await RenderingServer.frame_post_draw
 	var image: Image = root.get_viewport().get_texture().get_image()
