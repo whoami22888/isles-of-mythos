@@ -4,18 +4,19 @@ extends Node
 ## a crane-up reveal: the bay and the leviathan wreck offshore, survivor-camp
 ## smoke on a near island, Tideborn ruins, and the Leviathan's tempest on the
 ## horizon. The trail is a real walkable route found on the terrain (every
-## 1 m step under the slope limit) and the ground along it is smoothed, so
-## the cliff slope limit never blocks it.
+## 1 m step under the slope limit); within a metre of it the movement slope
+## check is waived, so the cliff slope limit never blocks the trail while it
+## still blocks every other cliff face. The castaway walks on the real terrain.
 ## Mobile budget: ~20 cairns from one 1K stone, 3 distant island meshes
 ## (32x32 heightfields), 6 pillars, 2 smoke emitters (24 quads each), 1 cone.
 
 const ASHORE_STONE := preload("res://assets/ashore/library/stone_01/stone_01.glb")
 const Art := preload("res://gameplay/opening/opening_art.gd")
-const TRAIL_HALF_WIDTH := 1.4
+const TRAIL_HALF_WIDTH := 1.0
 const TOP_RADIUS := 2.4
 const REVEAL_SECONDS := 9.0
 ## Route found by a slope-limited search on the island heightfield (1 m grid,
-## rise/run <= 0.62), from the beach camp to the ridge at about 11 m.
+## rise/run <= 0.62), from the beach camp to the ridge lookout at about 8 m.
 const ROUTE := [
 	Vector2(-8, 7), Vector2(-9, 8), Vector2(-10, 9), Vector2(-11, 10), Vector2(-11, 11), Vector2(-11, 12),
 	Vector2(-12, 13), Vector2(-12, 14), Vector2(-12, 15), Vector2(-12, 16), Vector2(-12, 17), Vector2(-12, 18),
@@ -25,8 +26,7 @@ const ROUTE := [
 	Vector2(7, 25), Vector2(8, 25), Vector2(9, 25), Vector2(10, 25), Vector2(11, 25), Vector2(10, 24),
 	Vector2(11, 23), Vector2(10, 23), Vector2(9, 23), Vector2(8, 23), Vector2(7, 23), Vector2(6, 23),
 	Vector2(5, 23), Vector2(4, 23), Vector2(3, 22), Vector2(2, 21), Vector2(1, 20), Vector2(0, 19),
-	Vector2(-1, 18), Vector2(-2, 18), Vector2(-3, 19), Vector2(-4, 19), Vector2(-3, 18), Vector2(-2, 17),
-	Vector2(-1, 16), Vector2(0, 15), Vector2(1, 16),
+	Vector2(-1, 18),
 ]
 
 var host: Node3D

@@ -109,6 +109,23 @@ func run() -> void:
 				_walk(scene, here + to_goal * 0.3, to_goal.normalized())
 			scene._pet.global_position = goal
 			scene._pet.position.y = scene._ground_y(goal.x, goal.z)
+		"climb", "overlook":
+			_free_pet(scene)
+			var pts: Array = scene._overlook._pts
+			var i0 := 30 if pose == "climb" else pts.size() - 1
+			var here3: Vector3 = pts[i0]
+			var nxt: Vector3 = pts[mini(i0 + 2, pts.size() - 1)]
+			var fwd := Vector3(nxt.x - here3.x, 0, nxt.z - here3.z)
+			if fwd.length() < 0.1:
+				fwd = Vector3(0, 0, -1)
+			_walk(scene, here3, fwd.normalized())
+			scene._step = "climb"
+			scene._overlook.progress = i0
+			scene._overlook.point()
+			if pose == "overlook":
+				scene._cinematic = "reveal"
+				scene._overlook.begin_reveal()
+				scene._cine_age = 7.2
 		"trees_a":
 			_free_pet(scene)
 			_walk(scene, Vector3(-9.5, 0, 7.4), Vector3(0, 0, -1))
@@ -130,7 +147,10 @@ func run() -> void:
 			scene._storm_night.hold_flash = true
 		if pose == "dusk" and _i < 29:
 			scene._beast.global_position = scene._beast.global_position
-		if pose == "wake":
+		if pose == "overlook":
+			scene._cine_age = 7.2
+			scene._overlook.reveal_camera(7.2)
+		elif pose == "wake":
 			scene._cine_age = 1.6
 		elif pose.begins_with("intro"):
 			scene.snap_intro_camera()

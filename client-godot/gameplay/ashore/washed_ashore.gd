@@ -2107,10 +2107,6 @@ func _on_land(x: float, z: float) -> Vector3:
 
 
 func _ground_y(x: float, z: float) -> float:
-	if _overlook:
-		var trail: float = _overlook.trail_y(x, z)
-		if not is_nan(trail):
-			return trail
 	return _terrain_y(x, z)
 
 
