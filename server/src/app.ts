@@ -10,7 +10,7 @@ import { config } from "./config.js";
 import { recordHttpRequest, recordTick, renderPrometheusMetrics, setActivePlayers, setDatabaseUp, setWebSocketAuthenticated, setWebSocketConnections } from "./metrics.js";
 import { AUTHORITATIVE_SIMULATION_TICK_MS, nextAuthoritativeTickDelayMs } from "./simulation-cadence.js";
 import { createDbPool } from "./db.js";
-import { isGameplayAccessToken, registerAuthRoutes } from "./auth.js";
+import { isGameplayAccessToken, registerAuthRoutes, verifyGameplayRequest } from "./auth.js";
 import { registerCreatureResearchRoutes } from "./creature-research-routes.js";
 import { registerDailyObjectiveRoutes } from "./daily-objectives.js";
 import { registerExpeditionRoutes } from "./expeditions.js";
@@ -823,9 +823,14 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
 
   await registerAuthRoutes(app, db);
   registerCreatureResearchRoutes(app, db, players);
-  registerDailyObjectiveRoutes(app, db, players);
-  registerExpeditionRoutes(app, db, players);
-  registerGuildObjectiveRoutes(app, db, players);
+  const pushPlayerState = (userId: string): void => {
+    const player = players.get(userId);
+    if (!player) return;
+    for (const socket of userSockets.get(userId) ?? []) send(socket, { type: "player_state", state: serializePlayerState(player) });
+  };
+  registerDailyObjectiveRoutes(app, db, players, pushPlayerState);
+  registerExpeditionRoutes(app, db, players, pushPlayerState);
+  registerGuildObjectiveRoutes(app, db, players, pushPlayerState);
 
   app.get("/shop/catalog", { schema: { tags: ["shop"] } }, () => ({
     items: SHOP_ITEMS.map(serializeShopItem),
@@ -850,9 +855,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       },
     },
     async (request, reply) => {
-      try {
-        await request.jwtVerify();
-      } catch {
+      if (!(await verifyGameplayRequest(request))) {
         return reply.code(401).send({ error: "UNAUTHORIZED", message: "Invalid credentials" });
       }
 

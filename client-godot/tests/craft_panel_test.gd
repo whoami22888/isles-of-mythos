@@ -132,6 +132,11 @@ func run() -> void:
 	var mounted = world.get_node_or_null("Interface/Panel/Margin/Content/HudScroll/HudPanels/CraftPanel")
 	check(mounted != null, "world HUD contains the craft panel inside the scroll area")
 	# Overflow: however long the panels grow, the HUD stays within the viewport.
+	# The gameplay HUD starts collapsed; open the drawer so the bound is tested
+	# with the scroll area actually laid out.
+	check(world.has_method("set_drawer_open"), "world exposes the HUD drawer")
+	if world.has_method("set_drawer_open"):
+		world.set_drawer_open(true)
 	var hud_panels = world.get_node_or_null("Interface/Panel/Margin/Content/HudScroll/HudPanels")
 	if hud_panels != null:
 		for i in range(20):

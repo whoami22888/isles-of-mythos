@@ -56,10 +56,12 @@ func run() -> void:
 	# The default orbit yaw is PI (camera seaward of the player, looking inland over the coastal bay),
 	# so the fixed follow offset is mirrored on z.
 	var cam: Camera3D = world.get_node("Camera")
+	# Follow offset from the player's centre: CAMERA_OFFSET above the feet, mirrored on z.
+	var expected_offset := Vector3(0, world.CAMERA_OFFSET.y - world.PLAYER_HALF_HEIGHT, -world.CAMERA_OFFSET.z)
 	var cam_offset: Vector3 = cam.position - world._player
-	check(cam_offset.is_equal_approx(Vector3(0, 27.1, -24)), "camera follows the authoritative player (offset from player), got %s" % [cam_offset])
+	check(cam_offset.is_equal_approx(expected_offset), "camera follows the authoritative player (offset from player), got %s" % [cam_offset])
 	world._on_player_state({"x": 101.0, "y": -41.0})
-	check((cam.position - world._player).is_equal_approx(Vector3(0, 27.1, -24)), "camera keeps following on every player_state")
+	check((cam.position - world._player).is_equal_approx(expected_offset), "camera keeps following on every player_state")
 	world._on_player_state({"x": 101.0, "y": -41.0})
 	check(stub.chunk_requests.size() == 1, "same chunk is not re-requested on every state")
 	world._on_player_state({"x": 96.0, "y": -33.0})

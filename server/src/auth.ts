@@ -72,6 +72,19 @@ async function signPlayerRefreshToken(
   );
 }
 
+/**
+ * Player REST guard: verifies the JWT signature and, like the WebSocket gate,
+ * accepts only player access tokens. Admin and refresh JWTs are rejected.
+ */
+export async function verifyGameplayRequest(request: FastifyRequest): Promise<boolean> {
+  try {
+    await request.jwtVerify();
+  } catch {
+    return false;
+  }
+  return isGameplayAccessToken(request.user);
+}
+
 /** Gameplay sockets accept player access tokens only. Admin and refresh JWTs are not sessions. */
 export function isGameplayAccessToken(payload: { role?: unknown; typ?: unknown }): boolean {
   if (payload.role === "admin" || payload.typ === "refresh") return false;
