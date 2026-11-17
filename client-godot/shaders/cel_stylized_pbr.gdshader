@@ -129,7 +129,7 @@ void light() {
     float surface_roughness = clamp(ROUGHNESS, 0.04, 1.0);
     float specular_power = mix(128.0, 4.0, surface_roughness);
     float specular_lobe = pow(n_dot_h, specular_power)
-        * (1.0 - surface_roughness) * SPECULAR * SPECULAR_AMOUNT;
-    vec3 f0 = mix(vec3(0.04) * SPECULAR, ALBEDO, METALLIC);
+        * (1.0 - surface_roughness) * specular_amount * SPECULAR_AMOUNT;
+    vec3 f0 = mix(vec3(0.04) * specular_amount, ALBEDO, METALLIC);
     SPECULAR_LIGHT += f0 * LIGHT_COLOR * ATTENUATION * specular_lobe;
 }
