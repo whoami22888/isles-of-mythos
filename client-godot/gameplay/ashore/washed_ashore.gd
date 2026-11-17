@@ -15,6 +15,7 @@ const OFFSHORE_WARNING := "Too dangerous: sharks/storm"
 const PET_DEFENCE_LINE := "Needs Pet Defence research and training"
 
 const Art := preload("res://gameplay/opening/opening_art.gd")
+const StormNight := preload("res://gameplay/ashore/storm_night.gd")
 const SLICE_SCENE := preload("res://scenes/realistic_coastal_slice.tscn")
 const HUT := preload("res://assets/ashore/library/hut_hy3d/hut_hy3d.glb")
 const FIRE_PIT := preload("res://assets/ashore/library/stone_fire_pit/stone_fire_pit.glb")
@@ -82,7 +83,7 @@ const WAKE_SECONDS := 4.5
 const BUILD_IDS := ["campfire", "lean_to", "storage"]
 const BUILD_TITLES := {"campfire": "Campfire", "lean_to": "Lean-to", "storage": "Storage"}
 const BUILD_RADIUS := {"campfire": 0.9, "lean_to": 1.8, "storage": 0.8}
-const DYNAMIC_STEPS := ["scavenge", "gather", "fire", "cook", "shelter"]
+const DYNAMIC_STEPS := ["scavenge", "gather", "fire", "cook", "shelter", "storm", "night"]
 const SOLID_LENS_MARGIN := 0.6
 const FOLIAGE_WORDS := ["Palm", "Canopy", "Shrub", "Cover", "Understory", "Calathea", "Grass", "Fern", "Anthurium", "Ursinia", "Sorrel", "Vines"]
 const GATHER_WOOD := 12
@@ -271,6 +272,8 @@ var _sun: DirectionalLight3D
 var _nodes_root: Node3D
 var _sharks: Array[Node3D] = []
 var _saved: Dictionary = {}
+var _storm_night: Node
+var _dawn_chest := false
 
 
 func begin_authenticated_session(endpoint: String, token: String, refresh_token: String = "") -> void:
@@ -318,6 +321,10 @@ func _ready() -> void:
 	_warmth = float(_tuning.get("warmth_start", 58.0))
 	_hunger = float(_tuning.get("hunger_start", 78.0))
 	_tame_total = tame_window()
+	_storm_night = StormNight.new()
+	_storm_night.name = "StormNight"
+	_storm_night.host = self
+	add_child(_storm_night)
 	_read_save()
 	_build_audio()
 	_build_world()
@@ -349,6 +356,7 @@ func _process(delta: float) -> void:
 		_hint_t = maxf(_hint_t - delta, 0.0)
 		if _hint_t == 0.0 and not (_dusk_active and _alerted and _choice == ""):
 			_hint = ""
+	_storm_night.tick(delta)
 	_tick_warmth(delta)
 	_tick_hunger(delta)
 	_tick_pet_needs(delta)
@@ -390,6 +398,9 @@ func on_action() -> void:
 		return
 	if _placing != "":
 		on_build_place()
+		return
+	if _storm_night.can_feed():
+		_storm_night.feed()
 		return
 	if not _pet_freed:
 		var pile := _node_by_id("pet_pile")
@@ -629,10 +640,17 @@ func _enter(step: String) -> void:
 		_storm_left = STORM_SECONDS
 		_storm_warned = false
 		_build_open = _can_pay("lean_to")
+	if step == "storm":
+		_storm_left = -1.0
+		_build_open = false
+		_placing = ""
+		_storm_night.begin()
 	if step == "dusk":
 		_storm_left = -1.0
 		_build_open = false
 		_begin_dusk()
+		if _storm_night.is_night():
+			_line = "Something crawls out of the wreck. Fight it off!"
 	if step == "epilogue":
 		_end_open = not _end_dismissed
 		_pointer_id = "offshore"
@@ -665,6 +683,8 @@ func _line_for(step: String) -> String:
 			if _can_pay("lean_to"):
 				return "Build a lean-to  ·  storm in " + clock
 			return "Lean-to needs %s  ·  %s" % [_shortfall_text("lean_to"), clock]
+		"storm", "night":
+			return _storm_night.line(step)
 	return str(_catalog.get("lines", {}).get(step, "Onward."))
 
 
@@ -1474,6 +1494,17 @@ func _take_collect() -> void:
 	if _sack:
 		_sack.visible = false
 	var at := _sack.global_position if _sack else _player.global_position
+	if _dawn_chest:
+		_dawn_chest = false
+		_give("planks", 4, at)
+		_give("rope", 3, at)
+		_give("cloth", 2, at)
+		_give("food", 3, at)
+		_bond(5)
+		_note_burst("Sea chest!")
+		_play(CHEER, -6.0, 1.0)
+		_enter("epilogue")
+		return
 	if _choice == "tame":
 		_give("wood", 3, at)
 		_give("food", 2, at)
@@ -1481,7 +1512,17 @@ func _take_collect() -> void:
 		_give("planks", 2, at)
 		_give("food", 2, at)
 	_note_burst("Supplies")
-	_enter("epilogue")
+	_enter("night" if _storm_night.is_night() else "epilogue")
+
+
+## Dawn after the storm night: the tide leaves a sea chest from the wreck.
+func _dawn_reward() -> void:
+	_dawn_chest = true
+	_note_burst("Dawn")
+	_vibrate(60, 0.4)
+	_spawn_collect()
+	_line = "Dawn. The tide left a sea chest. Open it"
+	_pointer_id = "collect"
 
 
 func _tick_gatherer(delta: float) -> void:
@@ -1602,7 +1643,7 @@ func _tick_build(delta: float) -> void:
 		_note_burst("Shelter!")
 		_vibrate(70, 0.7)
 		if _step == "shelter":
-			_enter("dusk")
+			_enter("storm")
 
 
 func _tick_respawn(delta: float) -> void:
@@ -1629,6 +1670,8 @@ func _tick_alert() -> void:
 
 
 func _tick_warmth(delta: float) -> void:
+	if _storm_night and _storm_night.warmth(delta):
+		return
 	if _fire_lit and not (_dusk_active and false):
 		_warmth = minf(100.0, _warmth + 8.0 * delta)
 		return
@@ -1991,6 +2034,8 @@ func _point_position() -> Vector3:
 		if not fish.is_empty():
 			return (fish.get("root") as Node3D).global_position
 		return _pit_position()
+	if _step in ["storm", "night"]:
+		return _storm_night.point()
 	if _step in ["gather", "fire", "shelter"]:
 		var dig := _nearest_dig()
 		if not dig.is_empty() and _pet_mode == "point":
@@ -2117,6 +2162,8 @@ func _save() -> void:
 		"silas_shown": _silas_shown,
 		"scavenged": _scavenged,
 		"storm_left": _storm_left,
+		"storm_night": _storm_night.state() if _storm_night else {},
+		"dawn_chest": _dawn_chest,
 		"fish_cooked": _fish_cooked,
 		"structures": _structures_state(),
 	}
@@ -2177,6 +2224,9 @@ func _apply_save(state: Dictionary) -> void:
 	_dusk_active = bool(state.get("dusk", false))
 	_scavenged = int(state.get("scavenged", 0))
 	_storm_left = float(state.get("storm_left", -1.0))
+	_dawn_chest = bool(state.get("dawn_chest", false))
+	if _storm_night and state.get("storm_night", {}) is Dictionary:
+		_storm_night.restore(state.get("storm_night", {}))
 	_fish_cooked = int(state.get("fish_cooked", 0))
 	for row in state.get("structures", []):
 		if row is Array and row.size() == 5:
@@ -3382,7 +3432,7 @@ func _tick_quest(delta: float) -> void:
 			_show_hint("The storm hits. No shelter!")
 			_hint_t = 4.0
 			_warmth = maxf(_warmth - 20.0, 10.0)
-			_enter("dusk")
+			_enter("storm")
 	elif _step == "shelter" and _building:
 		_storm_left = maxf(_storm_left - delta * 0.25, 1.0)
 
@@ -3936,6 +3986,13 @@ func _tick_pet(delta: float) -> void:
 				_pet_hop = 0.45
 				_pet_mode = "follow"
 				_fetch_left = 22.0
+		"huddle":
+			moving = not _pet_walk(_pet_goal, 3.0, delta, 0.35)
+			if not moving:
+				_pet.rotation.z = sin(_age * 38.0) * 0.035
+			if not _storm_night.is_night() or _step == "dusk":
+				_pet.rotation.z = 0.0
+				_pet_mode = "follow"
 		"warn":
 			_pet_timer += delta
 			if _beast and _beast.visible:

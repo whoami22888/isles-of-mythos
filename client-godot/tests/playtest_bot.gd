@@ -29,6 +29,8 @@ var sec_block := {}
 var sec_inside := {}
 var steps_seen: Dictionary = {}
 var shot_i := 0
+var min_warmth := 100.0
+var min_fuel := 100.0
 
 func _init() -> void:
 	call_deferred("run")
@@ -327,11 +329,22 @@ func test_follow_quest(budget: float) -> void:
 		var step := str(g("_step"))
 		if step != last_step:
 			say("STEP -> %s  line='%s'  inv=%s" % [step, g("_line"), inv()])
+			var sn0 = g("_storm_night")
+			if sn0:
+				say("  storm=%s warmth=%.0f health=%d fire_lit=%s" % [sn0.state(), float(g("_warmth", 0.0)), int(g("_health", 0)), g("_fire_lit")])
 			steps_seen[step] = snappedf(t, 0.1)
 			last_step = step
 			stuck_since = t
 			await shot("step_" + step)
+		var sn = g("_storm_night")
+		if sn and sn.is_night():
+			min_warmth = minf(min_warmth, float(g("_warmth", 100.0)))
+			min_fuel = minf(min_fuel, float(sn.fuel))
+			if int(t * 30.0) % 300 == 0:
+				say("  NIGHT t=%.0f step=%s fuel=%.0f warmth=%.0f health=%d wood=%d pet=%s" % [sn.age, step, sn.fuel, float(g("_warmth", 0.0)), int(g("_health", 0)), int(inv().get("wood", 0)), g("_pet_mode")])
 		if step == "epilogue":
+			if sn:
+				say("STORM NIGHT: survived=%s feeds=%d flashes=%d thunders=%d whimpers=%d cold_hits=%d min_warmth=%.0f min_fuel=%.0f dawn=%s" % [sn.dawn, sn.feeds, sn.flashes, sn.thunders, sn.whimpers, sn.cold_ticks, min_warmth, min_fuel, sn.dawn])
 			break
 		if bool(g("_naming", false)):
 			scene.on_name("Tide-Puck")

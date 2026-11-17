@@ -65,3 +65,11 @@ Shaders `client-godot/shaders/ashore_ground.gdshader`, `ashore_sky.gdshader` and
 **Hunyuan3D (HY 3D) assets:** `*_hy3d.glb` were generated with Tencent HY 3D Global on its free tier from first-party concept images. The free tier's commercial-use terms are **not yet confirmed**. Treat these as placeholders until the terms are confirmed or the meshes are replaced.
 
 The Quaternius `models/` above stay in the tree for reference. Since the opening build v1, only `models/dino.glb` (the dusk creature) is still used: there is no realistic creature asset yet.
+
+# Storm night audio (`audio/`)
+
+| Shipped file | SHA-256 | Origin | Licence | Notes |
+| --- | --- | --- | --- | --- |
+| `audio/thunder_a.ogg` | `8f9939ef69b39670ac9b7b365598993c0c264c664572f4f0e84aa3d57ca0c47e` | Synthesised for this repository (filtered noise, numpy), no samples | CC0-1.0 (original work, dedicated) | Close strike: crack + rolling rumble, 5 s. |
+| `audio/thunder_b.ogg` | `53c221512038ac0af79682cf0f384c3982541533abdf22f838a0f8c556fa2962` | Synthesised for this repository | CC0-1.0 (original work, dedicated) | Distant rumble, 6.5 s. |
+| `audio/rain_loop.ogg` | `c0fcbd60fe6de7ee1690e6fa615213ce20a43787d7688db06a9a74067d0ead0b` | Synthesised for this repository | CC0-1.0 (original work, dedicated) | Rain hiss, drops and wind gusts; 7.5 s seamless loop (looped in code). |
