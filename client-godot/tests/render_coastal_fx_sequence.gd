@@ -27,8 +27,8 @@ func _record() -> void:
         return
     var start_frame := int(OS.get_environment("IOM_FX_START_FRAME")) if OS.has_environment("IOM_FX_START_FRAME") else 0
     var end_frame := int(OS.get_environment("IOM_FX_END_FRAME")) if OS.has_environment("IOM_FX_END_FRAME") else FRAME_COUNT
-    if start_frame < 0 or end_frame > FRAME_COUNT or start_frame >= end_frame:
-        _fail("Invalid capture frame range; expected 0 <= start < end <= 72")
+    if start_frame != 0 or end_frame != FRAME_COUNT:
+        _fail("Capture must use one renderer process for the complete 0..71 sequence; partitioned workers reset lighting state")
         return
     var packed: PackedScene = load("res://scenes/realistic_coastal_fx_slice.tscn")
     if packed == null:
@@ -107,31 +107,11 @@ func _record() -> void:
             if projected.x < 36.0 or projected.x > 1244.0 or projected.y < 36.0 or projected.y > 684.0:
                 _fail("Ship rigging/hull clips frame at %d corner %d: %s" % [frame_number, corner, projected])
                 return
-        # Pre-roll the complete vessel/wake/spray state without costly GPU
-        # readbacks. Each worker still starts from frame zero simulation state.
-        if frame_number < start_frame:
-            # This path has deterministic_capture enabled, particle/process updates
-            # disabled, and CPU-driven wake/spray state. The state above is the
-            # complete boundary state; rendering 48 discarded full-resolution
-            # frames only burned llvmpipe time and caused worker-2 watchdog exits.
-            # The first retained frame still fences normally below.
-            if frame_number % 6 == 0:
-                print("IOM_INTERNAL_STAGE preroll frame=%d state_ms=%d" % [
-                    frame_number, Time.get_ticks_msec() - render_start_msec
-                ])
-            continue
-        if frame_number >= end_frame:
-            break
-        if frame_number == start_frame and start_frame > 0:
-            var boundary_time: float = ocean_material.get_shader_parameter("capture_time_seconds")
-            if absf(boundary_time - float(start_frame) / 24.0) > 0.0001:
-                _fail("Partition boundary lost deterministic ocean time")
-            if integration.wake.get_sample_count() < 2:
-                _fail("Partition boundary lost CPU wake history")
-        if frame_number == start_frame:
-            # The camera preroll is CPU-only. Give Mobile Vulkan several real
-            # draw fences at its final pose before keeping the first frame;
-            # otherwise one llvmpipe worker can retain an unlit shadow state.
+        if frame_number == 0:
+            # Keep all 72 frames in this renderer process. Separate worker
+            # processes rebuilt camera-dependent directional shadow state and
+            # caused measurable lighting jumps at frames 23->24 and 47->48.
+            # Warm the one renderer before recording; do not partition capture.
             for _warmup in range(3):
                 await process_frame
                 await RenderingServer.frame_post_draw
@@ -154,10 +134,10 @@ func _record() -> void:
         if current_bytes.size() != 1280 * 720 * 4:
             _fail("Invalid RGBA8 capture byte count at frame %d" % frame_number)
             return
-        if frame_number > start_frame and current_bytes != _previous_bytes:
+        if frame_number > 0 and current_bytes != _previous_bytes:
             _changed_frames += 1
         _previous_bytes = current_bytes
-        if frame_number == start_frame:
+        if frame_number == 0:
             # Static land at this camera angle is a stable lighting probe.
             # A dark worker measured 82-85 luma here; lit runs measure 94+.
             # Fail that worker before it uploads a visually invalid segment.
@@ -194,7 +174,7 @@ func _record() -> void:
                 frame_number + 1, FRAME_COUNT, Time.get_ticks_msec() - render_start_msec,
                 fence_elapsed_msec
             ])
-    if _changed_frames < mini(12, end_frame - start_frame - 1):
+    if _changed_frames < mini(12, FRAME_COUNT - 1):
         _fail("Frame sequence is effectively static; no valid moving-engine evidence")
         return
     if not integration._demo_active:
@@ -209,8 +189,8 @@ func _record() -> void:
     if integration._demo_active or not scene.gameplay_camera.current:
         _fail("Cinematic capture failed to restore the gameplay camera and vessel")
         return
-    print("Genuine Godot cinematic FX frames: %d-%d, changed: %d, camera restored" % [
-        start_frame, end_frame, _changed_frames
+    print("Genuine Godot cinematic FX frames: 0-%d, changed: %d, camera restored" % [
+        FRAME_COUNT - 1, _changed_frames
     ])
     scene.queue_free()
     quit(0)
