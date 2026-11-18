@@ -1,0 +1,133 @@
+name: Prompt 005 Vulkan Mobile shader regression
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/godot-prompt-005.yml"
+      - "client-godot/shaders/cel_stylized_pbr.gdshader"
+      - "client-godot/shaders/cel_stylized_pbr_mobile.gdshader"
+      - "client-godot/shaders/cel_stylized_pbr_shared.gdshaderinc"
+      - "client-godot/tests/cel_stylized_pbr_shader_compile_test.gd"
+      - "client-godot/tests/cel_stylized_pbr_shader_test.tscn"
+      - "client-godot/tests/test_triplanar_normal_math.py"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prompt-005-vulkan-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  GODOT_VERSION: 4.7.2
+  GODOT_SHA256: cadd3204e728a35d3f13adb7fd0d7902636b79f6b95c40c265eb73b6c35329e4
+
+jobs:
+  shader:
+    name: Godot 4.7.2 Vulkan Mobile shader regression
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Install pinned Godot 4.7.2
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/godot"
+          curl --fail --location --retry 3 -o "$RUNNER_TEMP/godot/godot.zip" "https://github.com/godotengine/godot/releases/download/4.7.2-stable/Godot_v4.7.2-stable_linux.x86_64.zip"
+          echo "$GODOT_SHA256  $RUNNER_TEMP/godot/godot.zip" | sha256sum --check
+          unzip -q "$RUNNER_TEMP/godot/godot.zip" -d "$RUNNER_TEMP/godot/bin"
+          install "$RUNNER_TEMP/godot/bin/Godot_v4.7.2-stable_linux.x86_64" "$RUNNER_TEMP/godot/godot"
+          "$RUNNER_TEMP/godot/godot" --version | grep -F "4.7.2.stable"
+
+      - name: Run triplanar normal reference regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s client-godot/tests -p "test_triplanar_normal_math.py"
+
+      - name: Import Godot project
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$RUNNER_TEMP/godot/godot" --headless --editor --path client-godot --quit --import
+
+      - name: Install software Vulkan dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # Test both protocols; the runner may publish either in its deb822 source file.
+          for protocol in http https; do
+            sample_uri="URIs: ${protocol}://us-east-2.ec2.archive.ubuntu.com/ubuntu"
+            expected_uri="URIs: https://archive.ubuntu.com/ubuntu"
+            rewritten_uri="$(printf '%s\n' "$sample_uri" | sed -E 's|https?://[^[:space:]]*\.ec2\.archive\.ubuntu\.com/ubuntu/?|https://archive.ubuntu.com/ubuntu|g')"
+            if [ "$rewritten_uri" != "$expected_uri" ]; then
+              echo "::error::Ubuntu regional mirror rewrite regression: $rewritten_uri"
+              exit 1
+            fi
+          done
+
+          mapfile -d '' -t source_files < <(find /etc/apt/sources.list.d -maxdepth 1 -type f \( -name '*.sources' -o -name '*.list' \) -print0)
+          if [ "${#source_files[@]}" -eq 0 ]; then
+            echo "::error::No Ubuntu apt source files were found."
+            exit 1
+          fi
+
+          for source_file in "${source_files[@]}"; do
+            if grep -Eq 'https?://[^[:space:]]*\.ec2\.archive\.ubuntu\.com/ubuntu/?' "$source_file"; then
+              sudo sed -E -i 's|https?://[^[:space:]]*\.ec2\.archive\.ubuntu\.com/ubuntu/?|https://archive.ubuntu.com/ubuntu|g' "$source_file"
+            fi
+          done
+
+          echo "APT source URIs after regional-mirror rewrite:"
+          grep -h -E '^[[:space:]]*URIs:' /etc/apt/sources.list.d/* 2>/dev/null || true
+          if grep -R -Eq 'https?://[^[:space:]]*\.ec2\.archive\.ubuntu\.com/ubuntu/?' /etc/apt/sources.list.d; then
+            echo "::error::A regional EC2 Ubuntu mirror remains configured."
+            exit 1
+          fi
+          if ! grep -R -Eq 'https?://archive\.ubuntu\.com/ubuntu/?' /etc/apt/sources.list.d; then
+            echo "::error::Official Ubuntu archive mirror is not configured."
+            exit 1
+          fi
+
+          # The ubuntu-24.04 runner already supplies xvfb and xauth; assert rather than reinstall.
+          command -v xvfb-run >/dev/null
+          command -v xauth >/dev/null
+
+          # Preserve the 180s hard cap and bound each HTTP(S) request.
+          timeout 180s sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15 update
+          timeout 180s sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15 install --no-install-recommends -y mesa-vulkan-drivers
+
+          lvp_icd="$(find /usr/share/vulkan/icd.d -maxdepth 1 -type f -name 'lvp_icd*.json' -print -quit)"
+          if [ -z "$lvp_icd" ]; then
+            echo "::error::Mesa Lavapipe Vulkan ICD is unavailable."
+            exit 1
+          fi
+          echo "VK_ICD_FILENAMES=$lvp_icd" >> "$GITHUB_ENV"
+
+      - name: Compile and render with Vulkan Mobile
+        shell: bash
+        run: |
+          set -euo pipefail
+          capture="$RUNNER_TEMP/prompt-005-vulkan-mobile.png"
+          log="$RUNNER_TEMP/prompt-005-vulkan-mobile.log"
+          IOM_SHADER_CAPTURE_PATH="$capture" xvfb-run --auto-servernum --server-args="-screen 0 1280x720x24" \
+            "$RUNNER_TEMP/godot/godot" \
+            --path client-godot \
+            --display-driver x11 \
+            --rendering-method mobile \
+            --rendering-driver vulkan \
+            --audio-driver Dummy \
+            --script res://tests/cel_stylized_pbr_shader_compile_test.gd 2>&1 | tee "$log"
+          if grep -Eiq 'ERROR:|shader compilation failed|failed to compile shader' "$log"; then
+            echo "::error::Godot reported an error during the Vulkan Mobile shader render."
+            exit 1
+          fi
+          test -s "$capture"
+          sha256sum "$capture" > "$RUNNER_TEMP/prompt-005-vulkan-mobile.sha256"
+          echo "Godot Vulkan Mobile render completed. Internal capture SHA-256: $(cut -d' ' -f1 "$RUNNER_TEMP/prompt-005-vulkan-mobile.sha256")" >> "$GITHUB_STEP_SUMMARY"
