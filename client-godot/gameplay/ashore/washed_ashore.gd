@@ -399,6 +399,8 @@ func skip_cinematic() -> void:
 		_end_tame_cine()
 	elif _cinematic == "reveal":
 		_end_reveal()
+	elif _cinematic == "scare":
+		_end_scare()
 
 
 func _end_reveal() -> void:
@@ -751,6 +753,11 @@ func _tick_cine(delta: float) -> void:
 		_overlook.reveal_camera(_cine_age)
 		if _cine_age > _overlook.REVEAL_SECONDS:
 			_end_reveal()
+	elif _cinematic == "scare":
+		_scare_camera()
+		_cine_left -= delta
+		if _cine_left <= 0.0:
+			_end_scare()
 	elif _cinematic == "tame":
 		_tame_camera()
 		_cine_left -= delta
@@ -1320,6 +1327,19 @@ func _clear_camp_tufts() -> void:
 	if _slice == null:
 		return
 	var pit := _pit_position()
+	# The slice's cliff proxy behind the camp renders as flat untextured beige
+	# facets in firelight: give it the terrain's world-space rock/grass shader.
+	var terrain := _slice.get_node_or_null("IrregularCoastalTerrain") as MeshInstance3D
+	if terrain and terrain.material_override is ShaderMaterial:
+		var rock_mat := (terrain.material_override as ShaderMaterial).duplicate() as ShaderMaterial
+		rock_mat.set_shader_parameter("grass_zone", Vector3.ZERO)
+		rock_mat.set_shader_parameter("sink_on", 0.0)
+		for node in _slice.find_children("coastal_cliff*", "MeshInstance3D", true, false):
+			var cliff := node as MeshInstance3D
+			var box: AABB = cliff.global_transform * cliff.get_aabb()
+			var c := box.get_center()
+			if Vector2(c.x - pit.x, c.z - pit.z).length() < 12.0 + box.size.length() * 0.5:
+				cliff.material_override = rock_mat
 	for name in ["TropicalGrassTufts", "TropicalFernClumps", "CliffLedgeFerns"]:
 		for node in _slice.find_children(name, "MultiMeshInstance3D", true, false):
 			var mmi := node as MultiMeshInstance3D
@@ -1362,46 +1382,38 @@ func _begin_dusk() -> void:
 	_apply_dusk_look()
 	_play(ROAR, -2.0, 1.0)
 	_vibrate(220, 0.8)
+	if storm_spot:
+		_begin_scare()
 
 
 ## A clear spot across the fire, ~4 m in front of the castaway, that the
-## follow camera (behind the castaway, facing it) can see down to the chest:
-## no terrain, cliff, foliage or solid on the line, and clear of the fire pit.
+## scare camera (over the castaway's shoulder) sees down to the chest: no
+## terrain, cliff, foliage or solid on the line, and clear of the fire pit.
 func _storm_beast_spot(pit: Vector3, fwd: Vector3) -> Vector3:
 	var pl := _player.global_position
-	var yaw := atan2(-fwd.x, -fwd.z)
-	var eye := _ots_eye(yaw)
-	# The live follow camera (it settles off the camp bank, not always straight
-	# behind): put the beast across the fire from the lens so the fire is
-	# between them and lights its front, and keep that camera where it is.
-	if _camera and _flat(_camera.global_position, pl) < 8.0:
-		eye = _camera.global_position
-		fwd = Vector3(pit.x - eye.x, 0, pit.z - eye.z).normalized()
-		pl = Vector3(eye.x, pl.y, eye.z)
+	var base_d := maxf(4.0, _flat(pl, pit) + 1.8)
+	var best := pl + fwd * base_d
 	var best_score := -1e9
-	var base_d := _flat(eye, pit) + 2.2
-	# Fallback: straight across the fire from the lens.
-	var best := Vector3(eye.x, pl.y, eye.z) + fwd * base_d
-	for di in [base_d, base_d + 0.6, base_d - 0.4, base_d + 1.2]:
-		for ai in [0.0, 0.12, -0.12, 0.25, -0.25, 0.4, -0.4]:
+	for di in [base_d, base_d + 0.6, base_d - 0.3, base_d + 1.2]:
+		for ai in [0.0, 0.2, -0.2, 0.4, -0.4, 0.6, -0.6]:
 			var dir := fwd.rotated(Vector3.UP, ai)
 			var at: Vector3 = pl + dir * di
 			at.y = _ground_y(at.x, at.z)
-			if at.y < _water_y + 0.2 or at.y > pit.y + 0.8:
+			if at.y < _water_y + 0.2 or _flat(at, pit) < 1.4:
 				continue
-			if _flat(at, pit) < 1.4:
-				continue
+			var eye := _scare_eye(at)
 			var chest := at + Vector3.UP * 1.0
-			if _terrain_block(eye, chest) < 0.98 or _foliage_hit(eye, chest) < 0.98 or _solid_frac(eye, chest) < 0.98:
-				continue
-			# Keep the pit stones off the line of sight.
-			var seg := chest - eye
-			var t := clampf((pit + Vector3.UP * 0.3 - eye).dot(seg) / seg.length_squared(), 0.0, 1.0)
-			if (eye + seg * t).distance_to(pit + Vector3.UP * 0.3) < 0.7:
-				continue
-			var score := -absf(di - base_d) - absf(ai) * 3.0
-			if _camera and not _camera.is_position_in_frustum(chest):
-				score -= 10.0
+			var score := -absf(di - base_d) - absf(ai) * 2.0
+			# Soft penalties: anything between the lens and its chest, or a perch
+			# up on the bank, costs more than a wider angle.
+			if at.y > pit.y + 0.9:
+				score -= 4.0
+			if _terrain_block(eye, chest) < 0.98:
+				score -= 6.0
+			if _solid_frac(eye, chest) < 0.98:
+				score -= 3.0
+			if _foliage_hit(eye, chest) < 0.98:
+				score -= 1.5
 			if score > best_score:
 				best_score = score
 				best = at
@@ -1409,6 +1421,51 @@ func _storm_beast_spot(pit: Vector3, fwd: Vector3) -> Vector3:
 	if OS.get_environment("IOM_ASHORE_POSE") != "":
 		print("storm beast spot %s (score %.2f)" % [best, best_score])
 	return best
+
+
+## Jump-scare framing: 3/4 over the castaway's shoulder at the beast.
+func _scare_eye(beast_at: Vector3) -> Vector3:
+	var pl := _player.global_position
+	var dir := Vector3(beast_at.x - pl.x, 0, beast_at.z - pl.z).normalized()
+	var side := dir.cross(Vector3.UP)
+	var head := pl + Vector3.UP * 1.6
+	var eye := pl - dir * 1.7 + side * 0.85 + Vector3.UP * 1.75
+	if _terrain_block(head, eye) < 1.0:
+		eye = head.lerp(eye, maxf(_terrain_block(head, eye) - 0.1, 0.3))
+	return eye
+
+
+const SCARE_SECONDS := 2.5
+
+func _begin_scare() -> void:
+	_cinematic = "scare"
+	_cine_age = 0.0
+	_cine_left = SCARE_SECONDS
+	_play("res://assets/ashore/audio/thunder_a.ogg", 4.0, 0.8)
+	_vibrate(400, 1.0)
+	_scare_camera()
+
+
+func _scare_camera() -> void:
+	if _beast == null:
+		return
+	var at := _beast.global_position
+	var eye := _scare_eye(at)
+	# A hard jolt on the sting that settles over the first half second.
+	var jolt := maxf(0.0, 1.0 - _cine_age / 0.5)
+	eye += Vector3(sin(_cine_age * 61.0), cos(_cine_age * 47.0) * 0.6, 0) * 0.07 * jolt
+	_camera.global_position = eye
+	_camera.look_at(at + Vector3.UP * 0.95, Vector3.UP)
+	_camera.fov = lerpf(44.0, 50.0, clampf(_cine_age / SCARE_SECONDS, 0.0, 1.0))
+	var pl := _player.global_position
+	_player.look_at(Vector3(at.x, pl.y, at.z), Vector3.UP)
+
+
+func _end_scare() -> void:
+	_cinematic = ""
+	if _player and _beast:
+		var d := _beast.global_position - _player.global_position
+		_cam_yaw = atan2(-d.x, -d.z)
 
 
 func _tick_beast(delta: float) -> void:

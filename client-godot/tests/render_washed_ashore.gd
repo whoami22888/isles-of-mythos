@@ -176,7 +176,13 @@ func run() -> void:
 			scene._storm_night.hold_flash = true
 		if pose == "dusk" and _i < 29:
 			scene._beast.global_position = scene._beast.global_position
-		if pose == "overlook":
+		if pose == "storm_threat" and _i == 0:
+			print("threat cinematic: ", scene._cinematic)
+		if pose == "storm_threat" and scene._cinematic == "scare":
+			scene._cine_age = 0.7
+			scene._cine_left = 2.0
+			scene._scare_camera()
+		elif pose == "overlook":
 			scene._cine_age = 7.2
 			scene._overlook.reveal_camera(7.2)
 		elif pose == "wake":

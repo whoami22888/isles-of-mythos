@@ -149,12 +149,19 @@ func _clear_view() -> void:
 		return
 	var pl: Vector3 = host._player.global_position
 	var fwd := Vector3(LOOK_FAR.x - pl.x, 0, LOOK_FAR.z - pl.z).normalized()
+	# Lower the grassy humps ahead of the lookout (terrain shader, render only).
+	var terrain := slice.get_node_or_null("IrregularCoastalTerrain") as MeshInstance3D
+	if terrain and terrain.material_override is ShaderMaterial:
+		var m := terrain.material_override as ShaderMaterial
+		m.set_shader_parameter("sink_origin", Vector3(pl.x, pl.y - 0.4, pl.z))
+		m.set_shader_parameter("sink_dir", Vector2(fwd.x, fwd.z))
+		m.set_shader_parameter("sink_on", 1.0)
 	for gi in slice.find_children("*", "GeometryInstance3D", true, false):
 		var g := gi as GeometryInstance3D
 		if not g.is_visible_in_tree():
 			continue
 		var n := str(g.name).to_lower()
-		var plant := "palm" in n or "tree" in n or "grove" in n or "frond" in n or "fern" in n or "bush" in n
+		var plant := "palm" in n or "tree" in n or "grove" in n or "frond" in n or "fern" in n or "bush" in n or "grass" in n or "tuft" in n or "clump" in n
 		if not ("cliff" in n or "rock" in n or "boulder" in n or "crag" in n or plant):
 			continue
 		if plant and g is MultiMeshInstance3D:
@@ -171,6 +178,10 @@ func _clear_view() -> void:
 
 
 func end_reveal() -> void:
+	var slice: Node3D = host._slice
+	var terrain := slice.get_node_or_null("IrregularCoastalTerrain") as MeshInstance3D if slice else null
+	if terrain and terrain.material_override is ShaderMaterial:
+		(terrain.material_override as ShaderMaterial).set_shader_parameter("sink_on", 0.0)
 	for g in _hidden:
 		if is_instance_valid(g):
 			g.visible = true

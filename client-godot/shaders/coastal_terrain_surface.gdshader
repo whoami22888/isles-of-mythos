@@ -32,9 +32,24 @@ varying vec3 world_nor;
 varying float sand_weight;
 varying float rock_weight;
 varying float zone_k;
+// Overlook reveal only: sink land ahead of the lookout below eye level so the
+// view runs out over the strait (x, z = lookout, y = floor height; dir = xz).
+uniform vec3 sink_origin = vec3(0.0);
+uniform vec2 sink_dir = vec2(0.0, -1.0);
+uniform float sink_on = 0.0;
 
 void vertex() {
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	if (sink_on > 0.5) {
+		vec2 rel = world_pos.xz - sink_origin.xz;
+		float ahead = dot(rel, normalize(sink_dir));
+		float k = smoothstep(2.0, 5.0, ahead) * (1.0 - smoothstep(55.0, 70.0, length(rel)));
+		float floor_y = sink_origin.y - 0.6 * k;
+		if (world_pos.y > floor_y) {
+			world_pos.y = mix(world_pos.y, floor_y, k);
+			VERTEX = (inverse(MODEL_MATRIX) * vec4(world_pos, 1.0)).xyz;
+		}
+	}
 	world_nor = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
 	float slope = 1.0 - clamp(world_nor.y, 0.0, 1.0);
 	float height = world_pos.y - sea_level;
