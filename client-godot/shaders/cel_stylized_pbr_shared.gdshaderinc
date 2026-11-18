@@ -76,9 +76,11 @@ vec3 sample_triplanar_normal(vec3 p, vec3 geometric_normal) {
     vec3 ny = texture(normal_texture, uvw.xz).xyz * 2.0 - 1.0;
     vec3 nz = texture(normal_texture, uvw.xy).xyz * 2.0 - 1.0;
     vec3 face = mix(vec3(-1.0), vec3(1.0), step(vec3(0.0), n));
-    vec3 tx = vec3(nx.z * face.x, nx.x, nx.y);
-    vec3 ty = vec3(ny.x, ny.z * face.y, ny.y);
-    vec3 tz = vec3(nz.x, nz.y, nz.z * face.z);
+    // Preserve each projection's UV tangent-frame handedness on both face signs.
+    // U stays fixed; the face sign flips the bitangent so normal maps do not mirror.
+    vec3 tx = vec3(nx.z * face.x, nx.x, nx.y * face.x);
+    vec3 ty = vec3(ny.x, ny.z * face.y, -ny.y * face.y);
+    vec3 tz = vec3(nz.x, nz.y * face.z, nz.z * face.z);
     vec3 flat_x = vec3(face.x, 0.0, 0.0);
     vec3 flat_y = vec3(0.0, face.y, 0.0);
     vec3 flat_z = vec3(0.0, 0.0, face.z);
