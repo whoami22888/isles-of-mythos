@@ -117,6 +117,7 @@ func run() -> void:
 					scene._enter("dusk")
 				if pose != "storm_threat":
 					scene._cam_yaw = (scene._player as Node3D).rotation.y + 0.55
+					scene._follow_camera(10.0)
 				if pose == "dawn":
 					scene._step = "night"
 					scene._storm_night.age = 200.0

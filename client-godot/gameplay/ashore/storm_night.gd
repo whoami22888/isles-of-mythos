@@ -421,8 +421,8 @@ func boost_fire(on: bool) -> void:
 	var fl: OmniLight3D = host._fire_light
 	if fl == null:
 		return
-	fl.light_energy = 3.0 if on else 2.0
-	fl.omni_range = 9.5 if on else 7.5
+	fl.light_energy = 3.0 if on else (0.75 if dawn else 1.6)
+	fl.omni_range = 9.5 if on else (4.5 if dawn else 6.5)
 
 
 func _nearest_wood() -> Dictionary:
@@ -453,6 +453,7 @@ func _begin_dawn() -> void:
 		var tw := host.create_tween()
 		tw.tween_property(_rain_audio, "volume_db", -40.0, 4.0)
 	host._dawn_reward()
+	host._sync_fire_fx()
 
 
 func _tick_dawn(delta: float) -> void:

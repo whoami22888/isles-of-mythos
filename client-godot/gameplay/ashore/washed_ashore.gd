@@ -27,6 +27,9 @@ const FX_FLAME_SHEET_PATH := "res://assets/ashore/fx/flame_sheet.png"
 const FX_FIRE_PATH := "res://assets/ashore/fx/kenney/fire_01.png"
 const FX_FLAME_SPRITE_PATH := "res://assets/ashore/fx/kenney/flame_02.png"
 const FX_SMOKE_PATH := "res://assets/ashore/fx/kenney/smoke_01.png"
+## Night / storm flame height (metres). Dawn burns down to FIRE_FX_DAWN_HEIGHT.
+const FIRE_FX_HEIGHT := 0.6
+const FIRE_FX_DAWN_HEIGHT := 0.35
 const MODELS := "res://assets/ashore/models/"
 ## Landing spot on the slice's south beach. The beach is a narrow strip
 ## (z 2..7) under the jungle slope, so the castaway wakes facing east along
@@ -259,6 +262,7 @@ var _sack: Node3D
 var _hut: Node3D
 var _flame: Node3D
 var _camp_flame: Node3D
+var _fire_fx: Node3D
 var _flame_sheet_mats: Array[StandardMaterial3D] = []
 var _flame_frame := 20.0
 var _ring: MeshInstance3D
@@ -1746,21 +1750,38 @@ func _dawn_reward() -> void:
 		if tag:
 			tag.text = "Sea chest"
 		if _player:
-			# Keep the chest off the pit stones: 1.5 m from the ring centre, on
-			# the open sand beside the castaway (toward the camera, plus a side
-			# step so it is not under their feet).
+			# Open sand on the camera side, clear of the pit stones and the
+			# castaway (the previous 1.1 m offset landed under their hip).
 			var pit := _pit_position()
-			var toward := _player.global_position - pit
+			var toward := (_camera.global_position if _camera else _player.global_position) - pit
 			toward.y = 0.0
+			if toward.length() < 0.2:
+				toward = _player.global_position - pit
+				toward.y = 0.0
 			if toward.length() < 0.2:
 				toward = -_player.global_transform.basis.z
 			toward = toward.normalized()
 			var side := Vector3(-toward.z, 0.0, toward.x)
-			var at := pit + toward * 1.1 + side * 1.15
+			var a := pit + toward * 1.7 + side * 1.2
+			var b := pit + toward * 1.7 - side * 1.2
+			var at := b if _flat(a, _player.global_position) < _flat(b, _player.global_position) else a
+			if _flat(at, _player.global_position) < 1.05:
+				var away := at - _player.global_position
+				away.y = 0.0
+				if away.length() < 0.1:
+					away = side
+				at = _player.global_position + away.normalized() * 1.25
+				if _flat(at, pit) < 1.55:
+					var from_pit := at - pit
+					from_pit.y = 0.0
+					at = pit + from_pit.normalized() * 1.7
 			at.y = _ground_y(at.x, at.z)
 			if at.y <= _water_y + 0.2 or absf(at.y - _player.global_position.y) > 0.8:
-				at = _player.global_position + _player.global_transform.basis.x * 1.6
+				at = _player.global_position + side * 1.45 + toward * 0.35
 				at.y = _ground_y(at.x, at.z)
+				if at.y <= _water_y + 0.2 or absf(at.y - _player.global_position.y) > 0.8:
+					at = _player.global_position - side * 1.45 + toward * 0.35
+					at.y = _ground_y(at.x, at.z)
 			_sack.global_position = at
 	_line = "Dawn. The tide left a sea chest. Open it"
 	_pointer_id = "collect"
@@ -2709,9 +2730,10 @@ func _build_props() -> void:
 	var fire := _build_fire_fx(1.0)
 	fire.name = "FireFx"
 	fire.position = Vector3(0, 0.18, 0)
+	_fire_fx = fire
 	_fire_light = fire.get_node("FireLight") as OmniLight3D
-	_fire_light.light_energy = 2.0
-	_fire_light.omni_range = 7.5
+	_fire_light.light_energy = 1.6
+	_fire_light.omni_range = 6.5
 	_flame.add_child(fire)
 	_sack = Node3D.new()
 	_sack.name = "IdleSack"
@@ -3114,13 +3136,33 @@ func _fruit(root: Node3D, at_world: Vector3) -> void:
 ## Small low fire: two crossed soft flame cards over the stones. Fire is the
 ## only emissive surface on the island.
 func _tick_fire_fx(delta: float) -> void:
-	if _flame_sheet_mats.is_empty():
+	if not _flame_sheet_mats.is_empty():
+		_flame_frame = fmod(_flame_frame + delta * 18.0, 72.0)
+		var fi := int(_flame_frame)
+		for mat in _flame_sheet_mats:
+			mat.uv1_scale = Vector3(1.0 / 12.0, 1.0 / 6.0, 1.0)
+			mat.uv1_offset = Vector3(float(fi % 12) / 12.0, float(fi / 12) / 6.0, 0.0)
+	_sync_fire_fx()
+
+
+## Night flame sits at FIRE_FX_HEIGHT; at dawn it burns down to
+## FIRE_FX_DAWN_HEIGHT so the chest and shoreline still read.
+func _sync_fire_fx() -> void:
+	if _fire_fx == null:
 		return
-	_flame_frame = fmod(_flame_frame + delta * 18.0, 72.0)
-	var fi := int(_flame_frame)
-	for mat in _flame_sheet_mats:
-		mat.uv1_scale = Vector3(1.0 / 12.0, 1.0 / 6.0, 1.0)
-		mat.uv1_offset = Vector3(float(fi % 12) / 12.0, float(fi / 12) / 6.0, 0.0)
+	var h := FIRE_FX_HEIGHT
+	if _storm_night and _storm_night.dawn:
+		h = FIRE_FX_DAWN_HEIGHT
+	_fire_fx.scale = Vector3.ONE * (h / FIRE_FX_HEIGHT)
+	if _fire_light == null:
+		return
+	if _storm_night and _storm_night.dawn:
+		_fire_light.light_energy = 0.75
+		_fire_light.omni_range = 4.5
+	elif _fire_light.light_energy <= 1.61:
+		# Don't fight the threat boost (3.0); keep the calm night level.
+		_fire_light.light_energy = 1.6
+		_fire_light.omni_range = 6.5
 
 
 ## Campfire: a textured flipbook flame, GPU particles for flame and smoke, and
@@ -3134,32 +3176,35 @@ func _build_fire_fx(body_scale: float) -> Node3D:
 	light.light_energy = 1.2
 	light.omni_range = 5.0
 	light.light_specular = 0.0
-	light.position = Vector3(0, 0.55, 0)
+	light.position = Vector3(0, 0.28, 0)
 	light.shadow_enabled = false
 	root.add_child(light)
 	var sheet := MeshInstance3D.new()
 	sheet.name = "FlameSheet"
 	var card := QuadMesh.new()
-	card.size = Vector2(0.95, 1.35)
+	# 0.6 m tall at scale 1 (about 45% of the previous 1.35 m card).
+	card.size = Vector2(0.43, FIRE_FX_HEIGHT)
 	sheet.mesh = card
-	sheet.position = Vector3(0, 0.62, 0)
+	sheet.position = Vector3(0, FIRE_FX_HEIGHT * 0.5, 0)
 	sheet.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var sheet_mat := StandardMaterial3D.new()
 	sheet_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	sheet_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	sheet_mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	# Alpha-blend so the sheet's dark gaps read as tongues, not a white core.
+	sheet_mat.blend_mode = BaseMaterial3D.BLEND_MODE_MIX
 	sheet_mat.billboard_mode = BaseMaterial3D.BILLBOARD_FIXED_Y
 	sheet_mat.albedo_texture = load(FX_FLAME_SHEET_PATH) as Texture2D
-	sheet_mat.albedo_color = Color(1.15, 0.95, 0.7, 1.0)
+	sheet_mat.albedo_color = Color(1.0, 0.78, 0.42, 1.0)
 	sheet_mat.uv1_scale = Vector3(1.0 / 12.0, 1.0 / 6.0, 1.0)
 	sheet_mat.uv1_offset = Vector3(8.0 / 12.0, 1.0 / 6.0, 0.0)
 	sheet_mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR
 	sheet.material_override = sheet_mat
 	root.add_child(sheet)
 	_flame_sheet_mats.append(sheet_mat)
-	root.add_child(_gpu_fire("Flames", load(FX_FLAME_SPRITE_PATH) as Texture2D, Color(1.0, 0.55, 0.18, 0.9), 28, 0.65, 0.9, 1.6, true, 0.22))
-	root.add_child(_gpu_fire("FirePuffs", load(FX_FIRE_PATH) as Texture2D, Color(1.0, 0.45, 0.12, 0.7), 16, 0.8, 0.7, 1.1, true, 0.18))
-	root.add_child(_gpu_fire("Smoke", load(FX_SMOKE_PATH) as Texture2D, Color(0.22, 0.2, 0.18, 0.45), 14, 1.8, 0.35, 0.9, false, 0.16))
+	# Additive Kenney sparks: half the previous count and alpha, smaller lift.
+	root.add_child(_gpu_fire("Flames", load(FX_FLAME_SPRITE_PATH) as Texture2D, Color(1.0, 0.55, 0.18, 0.45), 14, 0.55, 0.5, 0.72, true, 0.10))
+	root.add_child(_gpu_fire("FirePuffs", load(FX_FIRE_PATH) as Texture2D, Color(1.0, 0.45, 0.12, 0.35), 8, 0.7, 0.4, 0.5, true, 0.08))
+	root.add_child(_gpu_fire("Smoke", load(FX_SMOKE_PATH) as Texture2D, Color(0.22, 0.2, 0.18, 0.4), 12, 1.4, 0.22, 0.55, false, 0.10))
 	return root
 
 
@@ -3189,7 +3234,7 @@ func _gpu_fire(node_name: String, tex: Texture2D, tint: Color, amount: int, life
 		proc.color_ramp = _smoke_ramp()
 	parts.process_material = proc
 	var quad := QuadMesh.new()
-	quad.size = Vector2(0.55, 0.7) if additive else Vector2(0.8, 0.8)
+	quad.size = Vector2(0.28, 0.35) if additive else Vector2(0.5, 0.5)
 	var mat := StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
