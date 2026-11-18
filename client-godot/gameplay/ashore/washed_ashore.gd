@@ -1734,6 +1734,61 @@ func _take_collect() -> void:
 
 
 ## Dawn after the storm night: the tide leaves a sea chest from the wreck.
+
+## Mid-ground sand beside the castaway, in frame, clear of the pit stones.
+## "Toward the camera" is only a side pick — pulling the chest straight at
+## the lens drops it into the near rock lip and hides the body.
+func _dawn_chest_at() -> Vector3:
+	var pit := _pit_position()
+	var feet := _player.global_position
+	var cam := _camera.global_position if _camera else feet + Vector3(0, 1.8, -2)
+	var look := Vector3(feet.x - cam.x, 0.0, feet.z - cam.z)
+	if look.length() < 0.2:
+		look = -_player.global_transform.basis.z
+		look.y = 0.0
+	look = look.normalized()
+	var cam_right := Vector3(-look.z, 0.0, look.x)
+	var ply_right := _player.global_transform.basis.x
+	ply_right.y = 0.0
+	if ply_right.length() > 0.1:
+		ply_right = ply_right.normalized()
+	var fwd := -_player.global_transform.basis.z
+	fwd.y = 0.0
+	if fwd.length() > 0.1:
+		fwd = fwd.normalized()
+	var candidates: Array[Vector3] = []
+	for s in [1.35, -1.35, 1.55, -1.55]:
+		for along in [0.0, 0.35, -0.25, 0.7]:
+			candidates.append(feet + cam_right * s + look * along)
+			candidates.append(feet + ply_right * s + fwd * along)
+	var best := feet + cam_right * -1.35
+	var best_score := -1e9
+	var found := false
+	for c in candidates:
+		var at := c
+		at.y = _ground_y(at.x, at.z)
+		if at.y <= _water_y + 0.2 or absf(at.y - feet.y) > 0.7:
+			continue
+		if _flat(at, pit) < 1.55 or _flat(at, feet) < 1.05:
+			continue
+		var dcam := _flat(at, cam)
+		if dcam < 2.6 or dcam > 7.5:
+			continue
+		var to := Vector3(at.x - cam.x, 0.0, at.z - cam.z)
+		if to.dot(look) < 0.4:
+			continue
+		var off_axis := absf(to.normalized().cross(look).y)
+		var score := -off_axis * 3.0 + _flat(at, pit) * 0.35 + absf((at - feet).dot(cam_right)) * 0.4
+		if score > best_score:
+			best_score = score
+			best = at
+			found = true
+	if not found:
+		best = feet + cam_right * -1.35
+		best.y = _ground_y(best.x, best.z)
+	return best
+
+
 func _dawn_reward() -> void:
 	_dawn_chest = true
 	_note_burst("Dawn")
@@ -1750,39 +1805,9 @@ func _dawn_reward() -> void:
 		if tag:
 			tag.text = "Sea chest"
 		if _player:
-			# Open sand on the camera side, clear of the pit stones and the
-			# castaway (the previous 1.1 m offset landed under their hip).
-			var pit := _pit_position()
-			var toward := (_camera.global_position if _camera else _player.global_position) - pit
-			toward.y = 0.0
-			if toward.length() < 0.2:
-				toward = _player.global_position - pit
-				toward.y = 0.0
-			if toward.length() < 0.2:
-				toward = -_player.global_transform.basis.z
-			toward = toward.normalized()
-			var side := Vector3(-toward.z, 0.0, toward.x)
-			var a := pit + toward * 1.7 + side * 1.2
-			var b := pit + toward * 1.7 - side * 1.2
-			var at := b if _flat(a, _player.global_position) < _flat(b, _player.global_position) else a
-			if _flat(at, _player.global_position) < 1.05:
-				var away := at - _player.global_position
-				away.y = 0.0
-				if away.length() < 0.1:
-					away = side
-				at = _player.global_position + away.normalized() * 1.25
-				if _flat(at, pit) < 1.55:
-					var from_pit := at - pit
-					from_pit.y = 0.0
-					at = pit + from_pit.normalized() * 1.7
-			at.y = _ground_y(at.x, at.z)
-			if at.y <= _water_y + 0.2 or absf(at.y - _player.global_position.y) > 0.8:
-				at = _player.global_position + side * 1.45 + toward * 0.35
-				at.y = _ground_y(at.x, at.z)
-				if at.y <= _water_y + 0.2 or absf(at.y - _player.global_position.y) > 0.8:
-					at = _player.global_position - side * 1.45 + toward * 0.35
-					at.y = _ground_y(at.x, at.z)
-			_sack.global_position = at
+			_sack.global_position = _dawn_chest_at()
+			if OS.get_environment("IOM_ASHORE_POSE") != "":
+				print("dawn chest %s d_pit %.2f d_player %.2f d_cam %.2f" % [_sack.global_position, _flat(_sack.global_position, _pit_position()), _flat(_sack.global_position, _player.global_position), _flat(_sack.global_position, _camera.global_position if _camera else _player.global_position)])
 	_line = "Dawn. The tide left a sea chest. Open it"
 	_pointer_id = "collect"
 
