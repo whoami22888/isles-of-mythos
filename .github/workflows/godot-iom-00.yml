@@ -66,6 +66,40 @@ jobs:
           "$RUNNER_TEMP/godot/godot" --headless --path client-godot --script res://tests/mobile_hud_test.gd
           "$RUNNER_TEMP/godot/godot" --headless --path client-godot --script res://tests/vertical_slice_player_avatar_test.gd
           "$RUNNER_TEMP/godot/godot" --headless --path client-godot --script res://tests/mobile_lod_test.gd
+      - name: Install software Vulkan and X11 test dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y mesa-vulkan-drivers vulkan-tools xvfb xauth
+          lvp_icd="$(find /usr/share/vulkan/icd.d -maxdepth 1 -type f -name 'lvp_icd*.json' -print -quit)"
+          if [ -z "$lvp_icd" ]; then
+            echo "::error::Mesa Lavapipe Vulkan ICD is unavailable."
+            exit 1
+          fi
+          echo "VK_ICD_FILENAMES=$lvp_icd" >> "$GITHUB_ENV"
+          vulkaninfo --summary
+      - name: Compile and render Prompt 005 with Vulkan Mobile
+        shell: bash
+        run: |
+          set -euo pipefail
+          capture="$RUNNER_TEMP/prompt-005-vulkan-mobile.png"
+          log="$RUNNER_TEMP/prompt-005-vulkan-mobile.log"
+          IOM_SHADER_CAPTURE_PATH="$capture" xvfb-run --auto-servernum --server-args="-screen 0 1280x720x24" \
+            "$RUNNER_TEMP/godot/godot" \
+            --path client-godot \
+            --display-driver x11 \
+            --rendering-method mobile \
+            --rendering-driver vulkan \
+            --audio-driver Dummy \
+            --script res://tests/cel_stylized_pbr_shader_compile_test.gd 2>&1 | tee "$log"
+          if grep -Eiq 'ERROR:|shader compilation failed|failed to compile shader' "$log"; then
+            echo "::error::Godot reported an error during the Vulkan Mobile shader render."
+            exit 1
+          fi
+          test -s "$capture"
+          sha256sum "$capture" | tee "$RUNNER_TEMP/prompt-005-vulkan-mobile.sha256"
+          printf 'renderer=vulkan\\nmethod=mobile\\n' | tee "$RUNNER_TEMP/prompt-005-vulkan-mobile-receipt.txt"
+          cat "$RUNNER_TEMP/prompt-005-vulkan-mobile.sha256" >> "$RUNNER_TEMP/prompt-005-vulkan-mobile-receipt.txt"
       - name: Verify Android export prerequisites
         shell: bash
         run: |
