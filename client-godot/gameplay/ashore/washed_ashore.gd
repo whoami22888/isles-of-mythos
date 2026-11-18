@@ -1334,7 +1334,10 @@ func _clear_camp_tufts() -> void:
 		var box: AABB = cliff.global_transform * cliff.get_aabb()
 		var c := box.get_center()
 		if Vector2(c.x - pit.x, c.z - pit.z).length() < 12.0 + box.size.length() * 0.25:
+			# The slice's LOD pass toggles visibility, so drop it from every
+			# render layer instead.
 			cliff.visible = false
+			cliff.layers = 0
 	for name in ["TropicalGrassTufts", "TropicalFernClumps", "CliffLedgeFerns", "TropicalCalathea", "TropicalShrubs"]:
 		for node in _slice.find_children(name, "MultiMeshInstance3D", true, false):
 			var mmi := node as MultiMeshInstance3D
