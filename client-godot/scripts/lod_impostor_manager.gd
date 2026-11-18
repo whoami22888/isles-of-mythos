@@ -1,9 +1,13 @@
 extends Node3D
 class_name LodImpostorManager
 
-## Visual-only screen-space LOD switcher for a rigged MeshInstance3D and a
-## pre-rendered row-major octahedral Sprite3D atlas. It never changes gameplay
-## state and fails safe to the full 3D mesh when the atlas or camera is missing.
+## Attach to an entity Node3D. mesh_path must identify the entity's full-detail
+## MeshInstance3D; use its custom_aabb when the rig contains multiple surfaces.
+## The Sprite3D texture is a pre-rendered, row-major octahedral view atlas.
+## Row zero represents the top of octahedral UV space.
+##
+## Visual-only: this controller never changes server-authoritative state.
+## The hot path creates no temporary Arrays, Dictionaries, Nodes or Resources.
 
 const HIGH_DETAIL_ENTER_PX: float = 140.0
 const IMPOSTOR_ENTER_PX: float = 120.0
@@ -11,6 +15,7 @@ const AABB_EPSILON_SQUARED: float = 0.000001
 
 @export var mesh_path: NodePath
 @export var impostor_path: NodePath
+## Optional explicit camera. When empty, the active viewport Camera3D is used.
 @export var camera_path: NodePath
 @export_range(2, 64, 1) var atlas_columns: int = 8
 @export_range(2, 64, 1) var atlas_rows: int = 8
@@ -23,6 +28,7 @@ var _valid: bool = false
 var _show_full_detail: bool = true
 var _last_frame: int = -1
 
+# Reused scalar scratch state; no per-frame collection construction.
 var _screen_min_y: float = 0.0
 var _screen_max_y: float = 0.0
 var _projected_corners: int = 0
@@ -32,7 +38,6 @@ var _behind_corners: int = 0
 func _ready() -> void:
 	_mesh = get_node_or_null(mesh_path) as MeshInstance3D
 	_impostor = get_node_or_null(impostor_path) as Sprite3D
-	_camera = get_node_or_null(camera_path) as Camera3D
 
 	if not is_instance_valid(_mesh):
 		push_warning("LodImpostorManager: mesh_path must resolve to a MeshInstance3D.")
@@ -43,7 +48,7 @@ func _ready() -> void:
 	if is_instance_valid(_impostor):
 		_impostor.visible = false
 
-	if not is_instance_valid(_impostor) or not is_instance_valid(_camera):
+	if not is_instance_valid(_impostor):
 		_fail_safe()
 		set_process(false)
 		return
@@ -68,19 +73,42 @@ func _ready() -> void:
 	_valid = true
 	set_process(true)
 
-	# Resolve the first LOD state before the first rendered frame.
-	_update_lod()
+	# Apply the initial state before the first rendered frame when a camera
+	# is already active. If it is not, _process keeps the safe 3D mesh visible
+	# and resolves the active camera on the next frame.
+	_camera = _resolve_camera()
+	if is_instance_valid(_camera):
+		_update_lod()
+	else:
+		_fail_safe()
 
 
 func _process(_delta: float) -> void:
 	if not _valid:
 		set_process(false)
 		return
-	if not is_instance_valid(_mesh) or not is_instance_valid(_impostor) or not is_instance_valid(_camera):
+	if not is_instance_valid(_mesh) or not is_instance_valid(_impostor):
 		_fail_safe()
 		set_process(false)
 		return
+
+	# The active camera can change during a scene transition. Resolving it
+	# returns an existing node reference and creates no temporary collection.
+	_camera = _resolve_camera()
+	if not is_instance_valid(_camera):
+		_fail_safe()
+		return
+
 	_update_lod()
+
+
+func _resolve_camera() -> Camera3D:
+	if not camera_path.is_empty():
+		return get_node_or_null(camera_path) as Camera3D
+	var viewport := get_viewport()
+	if viewport == null:
+		return null
+	return viewport.get_camera_3d()
 
 
 func _update_lod() -> void:
@@ -97,6 +125,8 @@ func _update_lod() -> void:
 
 
 func _projected_pixel_height() -> float:
+	if not is_instance_valid(_camera):
+		return INF
 	var viewport := _camera.get_viewport()
 	if viewport == null:
 		return INF
@@ -109,6 +139,8 @@ func _projected_pixel_height() -> float:
 	_projected_corners = 0
 	_behind_corners = 0
 
+	# Project all eight transformed AABB corners. Explicit calls avoid a
+	# temporary Array/range allocation in the per-frame path.
 	var mesh_transform := _mesh.global_transform
 	_accumulate_projected_corner(mesh_transform * _local_bounds.get_endpoint(0))
 	_accumulate_projected_corner(mesh_transform * _local_bounds.get_endpoint(1))
@@ -122,7 +154,8 @@ func _projected_pixel_height() -> float:
 	if _projected_corners == 0:
 		return 0.0
 	if _behind_corners > 0:
-		# The bounds intersect the camera plane; retain the full mesh.
+		# Bounds intersect the camera plane: keep the full mesh to avoid a
+		# sudden impostor while the camera passes through the entity.
 		return INF
 	return maxf(0.0, _screen_max_y - _screen_min_y)
 
@@ -140,7 +173,7 @@ func _accumulate_projected_corner(world_position: Vector3) -> void:
 
 func _update_impostor_frame() -> void:
 	var object_basis := _mesh.global_transform.basis.orthonormalized()
-	var view_direction := object_basis.inverse() * (_camera.global_position - global_position)
+	var view_direction := object_basis.inverse() * (_camera.global_position - _mesh.global_position)
 	var next_frame := octahedral_frame_index(view_direction, atlas_columns, atlas_rows)
 	if next_frame != _last_frame:
 		_impostor.frame = next_frame
@@ -169,6 +202,8 @@ func _fail_safe() -> void:
 	_last_frame = -1
 
 
+## The 20 px buffer is 15.38% of the 130 px midpoint.
+## Strict comparisons preserve the inclusive 120–140 px hold band.
 static func next_full_detail_state(current_full_detail: bool, pixel_height: float) -> bool:
 	if pixel_height > HIGH_DETAIL_ENTER_PX:
 		return true
@@ -195,10 +230,11 @@ static func octahedral_uv(direction: Vector3) -> Vector2:
 	)
 
 
+## Row-major frame order; row zero corresponds to octahedral UV y=1 (top).
 static func octahedral_frame_index(direction: Vector3, columns: int, rows: int) -> int:
 	var safe_columns := maxi(1, columns)
 	var safe_rows := maxi(1, rows)
 	var uv := octahedral_uv(direction)
 	var column := clampi(floori(uv.x * float(safe_columns)), 0, safe_columns - 1)
-	var row := clampi(floori(uv.y * float(safe_rows)), 0, safe_rows - 1)
+	var row := clampi(floori((1.0 - uv.y) * float(safe_rows)), 0, safe_rows - 1)
 	return row * safe_columns + column
