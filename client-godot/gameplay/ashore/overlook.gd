@@ -206,7 +206,8 @@ func reveal_camera(age: float) -> void:
 	# lower foreground with the horizon in the upper third.
 	# Swing the end view off the ridge hump toward the open strait.
 	var fwd2 := fwd
-	var finish := pl - fwd2 * 8.5 + side * 1.5 + Vector3.UP * 4.5
+	# Straight behind the castaway, looking out to sea over the islands.
+	var finish := pl - fwd2 * 8.5 + Vector3.UP * 4.5
 	# Raise the end eye until the line to the castaway's head clears the ridge.
 	var head := pl + Vector3.UP * 1.6
 	for _r in 12:

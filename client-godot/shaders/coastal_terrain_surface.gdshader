@@ -42,8 +42,13 @@ void vertex() {
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	if (sink_on > 0.5) {
 		vec2 rel = world_pos.xz - sink_origin.xz;
-		float ahead = dot(rel, normalize(sink_dir));
-		float k = smoothstep(2.0, 5.0, ahead) * (1.0 - smoothstep(55.0, 70.0, length(rel)));
+		vec2 fd = normalize(sink_dir);
+		float ahead = dot(rel, fd);
+		float lateral = abs(dot(rel, vec2(-fd.y, fd.x)));
+		// Everything ahead, plus the flanks beside the lookout (not behind the
+		// reveal camera), drops below eye level.
+		float k = max(smoothstep(0.5, 3.0, ahead), smoothstep(3.0, 6.0, lateral) * step(-6.0, ahead));
+		k *= 1.0 - smoothstep(55.0, 70.0, length(rel));
 		float floor_y = sink_origin.y - 0.6 * k;
 		if (world_pos.y > floor_y) {
 			world_pos.y = mix(world_pos.y, floor_y, k);

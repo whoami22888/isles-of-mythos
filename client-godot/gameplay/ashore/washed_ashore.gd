@@ -1327,23 +1327,14 @@ func _clear_camp_tufts() -> void:
 	if _slice == null:
 		return
 	var pit := _pit_position()
-	# The slice's cliff proxy behind the camp renders as flat untextured beige
-	# facets in firelight: give it the terrain's world-space rock/grass shader.
-	var terrain := _slice.get_node_or_null("IrregularCoastalTerrain") as MeshInstance3D
-	if terrain and terrain.material_override is ShaderMaterial:
-		var rock_mat := (terrain.material_override as ShaderMaterial).duplicate() as ShaderMaterial
-		rock_mat.set_shader_parameter("grass_zone", Vector3.ZERO)
-		rock_mat.set_shader_parameter("sink_on", 0.0)
-		# Its faces are only moderately steep, which the height rule splats as
-		# XZ-stretched sand (the flat beige look): force rock.
-		rock_mat.set_shader_parameter("sand_bias", -1.0)
-		rock_mat.set_shader_parameter("rock_bias", 0.45)
-		for node in _slice.find_children("coastal_cliff*", "MeshInstance3D", true, false):
-			var cliff := node as MeshInstance3D
-			var box: AABB = cliff.global_transform * cliff.get_aabb()
-			var c := box.get_center()
-			if Vector2(c.x - pit.x, c.z - pit.z).length() < 12.0 + box.size.length() * 0.5:
-				cliff.material_override = rock_mat
+	# The slice's cliff proxy behind the camp renders as flat beige facets in
+	# firelight however it is textured: the camp bank is terrain, hide it.
+	for node in _slice.find_children("coastal_cliff*", "MeshInstance3D", true, false):
+		var cliff := node as MeshInstance3D
+		var box: AABB = cliff.global_transform * cliff.get_aabb()
+		var c := box.get_center()
+		if Vector2(c.x - pit.x, c.z - pit.z).length() < 12.0 + box.size.length() * 0.25:
+			cliff.visible = false
 	for name in ["TropicalGrassTufts", "TropicalFernClumps", "CliffLedgeFerns"]:
 		for node in _slice.find_children(name, "MultiMeshInstance3D", true, false):
 			var mmi := node as MultiMeshInstance3D
@@ -1441,10 +1432,23 @@ func _scare_eye(beast_at: Vector3) -> Vector3:
 
 const SCARE_SECONDS := 2.5
 
+var _scare_rim: OmniLight3D
+
 func _begin_scare() -> void:
 	_cinematic = "scare"
 	_cine_age = 0.0
 	_cine_left = SCARE_SECONDS
+	# Cold lightning rim from behind the beast: body dark against the flash.
+	if _scare_rim == null:
+		_scare_rim = OmniLight3D.new()
+		_scare_rim.name = "ScareRim"
+		_scare_rim.light_color = Color(0.72, 0.82, 1.0)
+		_scare_rim.omni_range = 7.0
+		_scare_rim.shadow_enabled = false
+		add_child(_scare_rim)
+	_scare_rim.visible = true
+	if _storm_night:
+		_storm_night.flash_now()
 	_play("res://assets/ashore/audio/thunder_a.ogg", 4.0, 0.8)
 	_vibrate(400, 1.0)
 	_scare_camera()
@@ -1455,18 +1459,26 @@ func _scare_camera() -> void:
 		return
 	var at := _beast.global_position
 	var eye := _scare_eye(at)
-	# A hard jolt on the sting that settles over the first half second.
-	var jolt := maxf(0.0, 1.0 - _cine_age / 0.5)
-	eye += Vector3(sin(_cine_age * 61.0), cos(_cine_age * 47.0) * 0.6, 0) * 0.07 * jolt
+	# A hard, fast jolt on the sting, gone in a quarter second.
+	var jolt := maxf(0.0, 1.0 - _cine_age / 0.25)
+	eye += Vector3(sin(_cine_age * 97.0), cos(_cine_age * 83.0) * 0.6, sin(_cine_age * 71.0) * 0.4) * 0.12 * jolt
 	_camera.global_position = eye
 	_camera.look_at(at + Vector3.UP * 0.95, Vector3.UP)
-	_camera.fov = lerpf(44.0, 50.0, clampf(_cine_age / SCARE_SECONDS, 0.0, 1.0))
+	_camera.fov = lerpf(40.0, 48.0, clampf(_cine_age / SCARE_SECONDS, 0.0, 1.0))
+	if _scare_rim:
+		var away := Vector3(at.x - eye.x, 0, at.z - eye.z).normalized()
+		_scare_rim.global_position = at + away * 1.6 + Vector3.UP * 2.4
+		# Strike, then a flicker that dies down.
+		var f := maxf(0.0, 1.0 - _cine_age / 1.2)
+		_scare_rim.light_energy = 4.0 * f * (0.7 + 0.3 * sin(_cine_age * 40.0)) + 0.6
 	var pl := _player.global_position
 	_player.look_at(Vector3(at.x, pl.y, at.z), Vector3.UP)
 
 
 func _end_scare() -> void:
 	_cinematic = ""
+	if _scare_rim:
+		_scare_rim.visible = false
 	if _player and _beast:
 		var d := _beast.global_position - _player.global_position
 		_cam_yaw = atan2(-d.x, -d.z)
@@ -3201,12 +3213,16 @@ func _paint_beast(rare: bool) -> void:
 			# The source rig is near-black, 40% metallic Phong: give it a real
 			# hide albedo and a damp, non-metal roughness so firelight shapes it.
 			var nm := str(base.resource_name)
+			# Dark hide so it silhouettes against the lightning; the fire only
+			# picks out the jaw and lower front. No googly eye whites.
 			if nm == "Dino_Main":
-				orig = Color(0.34, 0.27, 0.19)
+				orig = Color(0.15, 0.12, 0.09)
 			elif nm == "Dino_Secondary":
-				orig = Color(0.58, 0.46, 0.30)
-			elif nm == "Dino_Teeth" or nm == "Eye_White":
-				orig = Color(0.80, 0.76, 0.64)
+				orig = Color(0.30, 0.23, 0.15)
+			elif nm == "Dino_Teeth":
+				orig = Color(0.78, 0.72, 0.58)
+			elif nm == "Eye_White" or nm == "Eye_Black":
+				orig = Color(0.03, 0.02, 0.02)
 			mat.metallic = 0.0
 			mat.roughness = 0.72
 			mat.albedo_color = orig * tint
