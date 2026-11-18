@@ -71,7 +71,7 @@ jobs:
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
-          ref: \${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - name: Install pinned Godot and renderer tools
         shell: bash
@@ -99,7 +99,7 @@ jobs:
       - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
         with:
           name: internal-coastal-frames
-          path: \${{ runner.temp }}/coastal-fx-frames/
+          path: ${{ runner.temp }}/coastal-fx-frames/
           retention-days: 7
           compression-level: 1
   assemble:
@@ -116,12 +116,12 @@ jobs:
       - name: Download the single continuous render artifact
         shell: bash
         env:
-          GH_TOKEN: \${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           name="internal-coastal-frames"
           artifact_id="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --paginate \
-            --jq ".artifacts[] | select(.name == \\\"$name\\\" and .expired == false) | [.created_at, .id] | @tsv" \
+            --jq ".artifacts[] | select(.name == \"$name\" and .expired == false) | [.created_at, .id] | @tsv" \
             | sort -r | sed -n '1p' | cut -f 2)"
           test -n "$artifact_id"
           mkdir -p "frames/$name"
@@ -154,7 +154,7 @@ jobs:
           test "$(ffprobe -v error -select_streams v:0 -show_entries stream=nb_frames -of default=noprint_wrappers=1:nokey=1 evidence/ship-wake-cinematic.mp4)" -eq 72
           (cd ordered-frames && sha256sum frame_*.rgba > ../evidence/FRAME_SHA256SUMS)
           (cd evidence && sha256sum ship-wake-cinematic.mp4 > SHA256SUMS)
-          printf 'commit=%s\\nengine=Godot 4.7.2\\nrender=Mobile Vulkan llvmpipe software\\ncapture_mode=single-process-continuous\\nframes=72\\nresolution=1280x720\\nfps=24\\nvisual_parity=NOT VERIFIED\\n' "\${{ github.event.pull_request.head.sha || github.sha }}" > evidence/EVIDENCE.txt
+          printf 'commit=%s\nengine=Godot 4.7.2\nrender=Mobile Vulkan llvmpipe software\ncapture_mode=single-process-continuous\nframes=72\nresolution=1280x720\nfps=24\nvisual_parity=NOT VERIFIED\n' "${{ github.event.pull_request.head.sha || github.sha }}" > evidence/EVIDENCE.txt
       - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
         with:
           name: internal-coastal-ship-fx-engine-evidence
