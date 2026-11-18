@@ -142,6 +142,7 @@ class CaptureContinuityTests(unittest.TestCase):
         workflow = WORKFLOW.read_text(encoding="utf-8")
         capture_job = workflow.split("  capture:\n", 1)[1].split("  assemble:\n", 1)[0]
         self.assertNotIn("matrix:", capture_job)
+        self.assertNotIn("\\${{", workflow)
         self.assertIn('IOM_FX_START_FRAME: "0"', capture_job)
         self.assertIn('IOM_FX_END_FRAME: "72"', capture_job)
         self.assertIn("internal-coastal-frames", capture_job)
