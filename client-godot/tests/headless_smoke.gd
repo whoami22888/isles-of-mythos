@@ -85,6 +85,10 @@ func run() -> void:
 	check(is_equal_approx(restore_step.x, 0.72) and is_equal_approx(restore_step.y, 9.0), "Ten stable seconds must restore one 0.02 step")
 	var unstable_step := PerformancePolicy.next_policy_state(0.80, 58.4, 16.5, 9.5, 0.5)
 	check(is_equal_approx(unstable_step.x, 0.80) and is_equal_approx(unstable_step.y, 0.0), "Below 58.5 FPS must reset the restore timer")
+	var restore_cap := PerformancePolicy.next_policy_state(0.99, 59.0, 16.5, 9.5, 0.5)
+	check(is_equal_approx(restore_cap.x, 1.0), "Restoration must never exceed native 1.0x resolution")
+	var restore_spacing := PerformancePolicy.next_policy_state(0.72, 59.0, 16.5, 9.0, 0.5)
+	check(is_equal_approx(restore_spacing.x, 0.72) and is_equal_approx(restore_spacing.y, 9.5), "Restore increments must be spaced one second apart")
 
 	if performance_adapter != null:
 		performance_adapter._set_scale(1.0)
