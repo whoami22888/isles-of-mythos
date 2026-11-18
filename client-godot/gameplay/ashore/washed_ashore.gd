@@ -679,7 +679,7 @@ func _enter(step: String) -> void:
 		_build_open = false
 		_begin_dusk()
 		if _storm_night.is_night():
-			_line = "Something crawls out of the wreck. Fight it off!"
+			_line = "Something stalks out of the jungle. Fight it off!"
 	if step == "epilogue":
 		_end_open = not _end_dismissed
 		_pointer_id = "offshore"
@@ -1746,10 +1746,22 @@ func _dawn_reward() -> void:
 		if tag:
 			tag.text = "Sea chest"
 		if _player:
-			var at := _player.global_position + _player.global_transform.basis.x * 1.3 - _player.global_transform.basis.z * 0.3
+			# Keep the chest off the pit stones: 1.5 m from the ring centre, on
+			# the open sand beside the castaway (toward the camera, plus a side
+			# step so it is not under their feet).
+			var pit := _pit_position()
+			var toward := _player.global_position - pit
+			toward.y = 0.0
+			if toward.length() < 0.2:
+				toward = -_player.global_transform.basis.z
+			toward = toward.normalized()
+			var side := Vector3(-toward.z, 0.0, toward.x)
+			var at := pit + toward * 1.1 + side * 1.15
 			at.y = _ground_y(at.x, at.z)
-			if at.y > _water_y + 0.2 and absf(at.y - _player.global_position.y) < 0.6:
-				_sack.global_position = at
+			if at.y <= _water_y + 0.2 or absf(at.y - _player.global_position.y) > 0.8:
+				at = _player.global_position + _player.global_transform.basis.x * 1.6
+				at.y = _ground_y(at.x, at.z)
+			_sack.global_position = at
 	_line = "Dawn. The tide left a sea chest. Open it"
 	_pointer_id = "collect"
 
@@ -4676,6 +4688,11 @@ func _prepare_foliage() -> void:
 		var path := str(get_path_to(mi)).to_lower()
 		if path.begins_with("buildghost"):
 			continue
+		# Campfire flipbook / particles and the jump-scare beast are not foliage
+		# and must not seed camera volumes (an empty or polluted volume list
+		# drops the follow camera out of the over-the-shoulder storm framing).
+		if "playerfire" in path or "firefx" in path or "camptorch" in path or "flamesheet" in path or path.begins_with("creatures") or path.begins_with("idlesack"):
+			continue
 		if not ("tree" in path or "palm" in path or "jungle" in path or "canopy" in path or "bush" in path):
 			continue
 		if "dead_tree_trunk" in path:
@@ -4692,6 +4709,8 @@ func _prepare_foliage() -> void:
 		# link to their mesh and only count while it is visible.
 		var link: Node3D = m if path.begins_with("nodes") else null
 		_add_foliage_box(box, box.size.y > 2.6, mats, link)
+	if OS.get_environment("IOM_ASHORE_POSE") != "":
+		print("foliage volumes %d small %d solids %d cam_solids %d" % [_foliage_boxes.size(), _small_boxes.size(), _solid_boxes.size(), _cam_solids.size()])
 
 
 ## Blob meshes are rounded, so the solid volume is the AABB pulled in 15%
