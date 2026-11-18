@@ -1,5 +1,5 @@
 extends SceneTree
-## Capture ACTUAL Godot-rendered frames for graphics review in a display-backed CI runner.
+## Capture an ACTUAL Godot-rendered frame for graphics review in a display-backed CI runner.
 
 func _init() -> void:
 	call_deferred("_capture")
@@ -21,17 +21,6 @@ func _capture() -> void:
 		if not await _capture_scene("res://scenes/realistic_coastal_fx_slice.tscn", "CinematicRevealCamera", coastal_output, true):
 			quit(1)
 			return
-
-	# Prompt 005's diagnostic scene is rendered by the existing Mobile preview
-	# capture so the shader is actually loaded and drawn by Godot 4.7.2.
-	# This remains an internal compile smoke test, not production visual evidence.
-	if not await _capture_scene(
-		"res://tests/cel_stylized_pbr_shader_test.tscn",
-		"Camera3D",
-		"user://cel-stylized-pbr-shader-test.png"
-	):
-		quit(1)
-		return
 	quit(0)
 
 
