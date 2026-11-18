@@ -115,7 +115,8 @@ func run() -> void:
 					scene._storm_night.threat_sent = true
 					scene._storm_night.boost_fire(true)
 					scene._enter("dusk")
-				scene._cam_yaw = (scene._player as Node3D).rotation.y + 0.55
+				if pose != "storm_threat":
+					scene._cam_yaw = (scene._player as Node3D).rotation.y + 0.55
 				if pose == "dawn":
 					scene._step = "night"
 					scene._storm_night.age = 200.0
@@ -185,6 +186,9 @@ func run() -> void:
 		else:
 			scene._follow_camera(1.0 / 30.0 if pose.begins_with("trees") else 10.0)
 		await RenderingServer.frame_post_draw
+	var tmesh = scene._slice.get_node_or_null("IrregularCoastalTerrain")
+	if tmesh:
+		print("TERRAIN mat %s grass_zone %s" % [tmesh.material_override, (tmesh.material_override as ShaderMaterial).get_shader_parameter("grass_zone") if tmesh.material_override is ShaderMaterial else "n/a"])
 	if pose.begins_with("storm") or pose == "dawn":
 		var pf := -(scene._player as Node3D).global_transform.basis.z
 		print("POSES cam %s player %s fwd %s pit %s beast %s vis %s" % [scene._camera.global_position, scene._player.global_position, pf, scene._pit_position(), scene._beast.global_position, scene._beast.visible])
@@ -263,6 +267,8 @@ func run() -> void:
 							best_t = t
 							best_name = "%s#%d [%s] vr=%.0f..%.0f" % [scene.get_path_to(gi), xi, mesh.resource_path.get_file(), g.visibility_range_begin, g.visibility_range_end]
 				var key := best_name
+				if gx >= 7:
+					print("CELL %d,%d -> %s @%.2f" % [gx, gy, best_name, best_t])
 				if not tally.has(key):
 					tally[key] = [0, 1e9]
 				tally[key][0] += 1

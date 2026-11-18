@@ -31,6 +31,7 @@ varying vec3 world_pos;
 varying vec3 world_nor;
 varying float sand_weight;
 varying float rock_weight;
+varying float zone_k;
 
 void vertex() {
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
@@ -42,9 +43,13 @@ void vertex() {
 	sand_weight = clamp(beach + sand_bias, 0.0, 1.0);
 	// Keep grass on mid slopes (the bare brown "back" lump); only steep faces go fully to rock.
 	rock_weight = clamp(smoothstep(0.38, 0.82, slope) * (1.0 - sand_weight * 0.65) + rock_bias, 0.0, 1.0);
+	zone_k = 0.0;
 	if (grass_zone.z > 0.0) {
 		float gz = 1.0 - smoothstep(grass_zone.z * 0.6, grass_zone.z, distance(world_pos.xz, grass_zone.xy));
 		rock_weight *= 1.0 - gz;
+		// Steep bank inside the zone: grass, not XZ-stretched sand (a flat wedge).
+		zone_k = gz * smoothstep(0.15, 0.40, slope);
+		sand_weight *= 1.0 - zone_k;
 	}
 }
 
@@ -112,6 +117,9 @@ void fragment() {
 	float wet_sand = (1.0 - smoothstep(0.04, 0.42, height)) * sand_weight;
 	sand *= mix(vec3(1.0), vec3(0.62, 0.57, 0.50), wet_sand);
 	vec3 grass = texture(grass_albedo, grass_uv).rgb * grass_tint.rgb;
+	if (zone_k > 0.001) {
+		grass = mix(grass, triplanar_albedo(grass_albedo, world_pos, world_nor, grass_scale) * grass_tint.rgb, zone_k);
+	}
 	// Inland ground is a darker, patchier undergrowth, not a golf-course lawn.
 	float inland = smoothstep(1.6, 4.8, height) * (1.0 - sand_weight);
 	float patch = 0.5 + 0.5 * sin(world_pos.x * 0.95 + 1.3) * cos(world_pos.z * 0.72);

@@ -1310,6 +1310,27 @@ func _light_fire() -> void:
 	if terrain and terrain.material_override is ShaderMaterial:
 		var pit := _pit_position()
 		(terrain.material_override as ShaderMaterial).set_shader_parameter("grass_zone", Vector3(pit.x, pit.z, 9.0))
+	_clear_camp_tufts()
+
+
+## Pitching camp clears the ground round the fire: grass tufts and fern
+## clumps there sat on the follow camera's lens (a fire-lit blade filled a
+## third of the frame as a flat peach wedge).
+func _clear_camp_tufts() -> void:
+	if _slice == null:
+		return
+	var pit := _pit_position()
+	for name in ["TropicalGrassTufts", "TropicalFernClumps", "CliffLedgeFerns"]:
+		for node in _slice.find_children(name, "MultiMeshInstance3D", true, false):
+			var mmi := node as MultiMeshInstance3D
+			if mmi.multimesh == null:
+				continue
+			var mm := mmi.multimesh
+			for i in mm.instance_count:
+				var xf: Transform3D = mmi.global_transform * mm.get_instance_transform(i)
+				if _flat(xf.origin, pit) < 6.0:
+					var local := mm.get_instance_transform(i)
+					mm.set_instance_transform(i, Transform3D(local.basis.scaled(Vector3.ZERO), local.origin))
 
 
 func _begin_dusk() -> void:
@@ -1327,9 +1348,7 @@ func _begin_dusk() -> void:
 		var pit := _pit_position()
 		var to_pit := Vector3(pit.x - _player.global_position.x, 0, pit.z - _player.global_position.z)
 		if to_pit.length() > 0.3 and to_pit.length() < 6.0:
-			var at := _player.global_position + to_pit.normalized() * maxf(4.0, to_pit.length() + 1.8)
-			at.y = _ground_y(at.x, at.z)
-			from = at
+			from = _storm_beast_spot(pit, to_pit.normalized())
 	_beast.global_position = from
 	var look := from - _player.global_position
 	look.y = 0.0
@@ -1340,6 +1359,42 @@ func _begin_dusk() -> void:
 	_apply_dusk_look()
 	_play(ROAR, -2.0, 1.0)
 	_vibrate(220, 0.8)
+
+
+## A clear spot across the fire, ~4 m in front of the castaway, that the
+## follow camera (behind the castaway, facing it) can see down to the chest:
+## no terrain, cliff, foliage or solid on the line, and clear of the fire pit.
+func _storm_beast_spot(pit: Vector3, fwd: Vector3) -> Vector3:
+	var pl := _player.global_position
+	var yaw := atan2(-fwd.x, -fwd.z)
+	var eye := _ots_eye(yaw)
+	var best := pl + fwd * 4.0
+	var best_score := -1e9
+	for di in [4.0, 4.6, 3.6, 5.2]:
+		for ai in [0.0, 0.3, -0.3, 0.6, -0.6, 0.9, -0.9]:
+			var dir := fwd.rotated(Vector3.UP, ai)
+			var at: Vector3 = pl + dir * di
+			at.y = _ground_y(at.x, at.z)
+			if at.y < _water_y + 0.2 or at.y > pl.y + 0.8:
+				continue
+			if _flat(at, pit) < 1.4:
+				continue
+			var chest := at + Vector3.UP * 1.0
+			if _terrain_block(eye, chest) < 0.98 or _foliage_hit(eye, chest) < 0.98 or _solid_frac(eye, chest) < 0.98:
+				continue
+			# Keep the pit stones off the line of sight.
+			var seg := chest - eye
+			var t := clampf((pit + Vector3.UP * 0.3 - eye).dot(seg) / seg.length_squared(), 0.0, 1.0)
+			if (eye + seg * t).distance_to(pit + Vector3.UP * 0.3) < 0.7:
+				continue
+			var score := -absf(di - 4.0) - absf(ai) * 1.5
+			if score > best_score:
+				best_score = score
+				best = at
+	best.y = _ground_y(best.x, best.z)
+	if OS.get_environment("IOM_ASHORE_POSE") != "":
+		print("storm beast spot %s (score %.2f)" % [best, best_score])
+	return best
 
 
 func _tick_beast(delta: float) -> void:
@@ -1819,7 +1874,7 @@ func _tick_ring() -> void:
 		return
 	var node := _nearest_node(3.6)
 	# No action ring in the storm: the night frame is fire, rain and shelter.
-	if node.is_empty() or bool(node.get("depleted", false)) or _cinematic != "" or _step == "storm" or _step == "night" or _dawn_chest:
+	if node.is_empty() or bool(node.get("depleted", false)) or _cinematic != "" or _step == "storm" or _step == "night" or _dawn_chest or (_storm_night and _storm_night.is_night()):
 		_ring.visible = false
 		return
 	var root := node.get("root") as Node3D
