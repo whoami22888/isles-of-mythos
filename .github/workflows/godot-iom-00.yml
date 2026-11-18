@@ -93,7 +93,7 @@ jobs:
             exit 1
           fi
 
-          # xvfb and xauth are already present on the pinned ubuntu-24.04 runner image.
+          # xvfb and xauth are already present on the ubuntu-24.04 runner image.
           command -v xvfb-run >/dev/null
           command -v xauth >/dev/null
 
@@ -106,7 +106,6 @@ jobs:
             echo "::error::Mesa Lavapipe Vulkan ICD is unavailable."
             exit 1
           fi
-          echo "mesa_vulkan_drivers_version=$(dpkg-query -W -f='\${Version}' mesa-vulkan-drivers)" >> "$GITHUB_ENV"
           export VK_ICD_FILENAMES="$lvp_icd"
           echo "VK_ICD_FILENAMES=$lvp_icd" >> "$GITHUB_ENV"
       - name: Compile and render Prompt 005 with Vulkan Mobile
