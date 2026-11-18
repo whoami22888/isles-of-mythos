@@ -49,6 +49,8 @@ void vertex() {
 		// the reveal camera and the castaway) drops below eye level; only the
 		// ground the castaway stands on stays.
 		float k = max(max(smoothstep(0.5, 3.0, ahead), smoothstep(2.5, 5.0, lateral)), smoothstep(1.8, 3.5, length(rel)));
+		// Blend the protected ground under the castaway out over ~3 m (no pillar).
+		k *= smoothstep(0.6, 3.6, length(rel));
 		k *= 1.0 - smoothstep(55.0, 70.0, length(rel));
 		float floor_y = sink_origin.y - 0.6 * k;
 		if (world_pos.y > floor_y) {

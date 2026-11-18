@@ -196,7 +196,7 @@
         [
           {
             "id": "planks",
-            "amount": 1
+            "amount": 2
           }
         ],
         [
@@ -477,13 +477,13 @@
         [
           {
             "id": "wood",
-            "amount": 1
+            "amount": 2
           }
         ],
         [
           {
             "id": "wood",
-            "amount": 1
+            "amount": 2
           }
         ],
         [
@@ -511,7 +511,7 @@
         [
           {
             "id": "wood",
-            "amount": 1
+            "amount": 2
           }
         ],
         [
@@ -523,7 +523,7 @@
         [
           {
             "id": "wood",
-            "amount": 1
+            "amount": 2
           }
         ]
       ]
@@ -829,13 +829,13 @@
         [
           {
             "id": "wood",
-            "amount": 1
+            "amount": 2
           }
         ],
         [
           {
             "id": "wood",
-            "amount": 1
+            "amount": 2
           }
         ],
         [
