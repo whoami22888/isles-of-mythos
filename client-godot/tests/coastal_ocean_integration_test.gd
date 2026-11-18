@@ -71,6 +71,23 @@ func run() -> void:
     check(not shader_source.contains("land_region"), "Invented rectangular shore mask banned")
     check(shader_source.contains("fresnel"), "Grazing-angle water response required")
     check(shader_source.contains("NORMAL_MAP"), "Moving water normal detail required")
+    check(shader_source.contains("wave_phase_a") and shader_source.contains("wave_phase_b"),
+        "Both Gerstner wave phases must compile into the ocean shader")
+    check(shader_source.contains("deep_ocean_color") and shader_source.contains("shallow_ocean_color")
+        and shader_source.contains("foam_color"), "Ocean color controls must remain exposed")
+    var wave_settings := scene.get_node_or_null("OceanWaveSettings")
+    check(wave_settings != null, "Scene-exposed ocean wave settings must be present")
+    if wave_settings != null:
+        check(absf(float(material.get_shader_parameter("wave_speed")) - float(wave_settings.get("wave_speed"))) < 0.0001,
+            "Scene wave-speed control must reach the shader material")
+        check(absf(float(material.get_shader_parameter("wave_amplitude")) - float(wave_settings.get("wave_amplitude"))) < 0.0001,
+            "Scene wave-amplitude control must reach the shader material")
+        check(absf(float(material.get_shader_parameter("wave_frequency")) - float(wave_settings.get("wave_frequency"))) < 0.0001,
+            "Scene wave-frequency control must reach the shader material")
+        check(absf(float(material.get_shader_parameter("wave_steepness_a")) - float(wave_settings.get("wave_steepness_a"))) < 0.0001,
+            "Scene wave-steepness A control must reach the shader material")
+        check(absf(float(material.get_shader_parameter("wave_steepness_b")) - float(wave_settings.get("wave_steepness_b"))) < 0.0001,
+            "Scene wave-steepness B control must reach the shader material")
     check(shader_source.contains("* 0.5 + 0.5"),
         "Water normal map must encode signed normals into Godot's 0..1 range")
     check(material.get_shader_parameter("shoremap_bound") == true, "Fail closed if shoreline unbound")
