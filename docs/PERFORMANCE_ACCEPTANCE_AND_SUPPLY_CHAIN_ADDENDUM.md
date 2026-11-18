@@ -19,9 +19,25 @@ Pin every remote GitHub Action to a verified 40-character commit SHA. Each workf
 ## PostgreSQL supply chain
 The previously recorded Docker Official Image digest `sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24` is immutable but not security-cleared by that fact alone; the prior Docker Hub metadata review reported 104 vulnerabilities. Candidate replacement:
 
-`cgr.dev/chainguard/postgres@sha256:1a417cf464d938b1b1182411416401215af7fbc88395d9b90f7c805e96d639a7`
+`cgr.dev/chainguard/postgres@sha256:fb42fe07f31379928ffb2fcb9acb903eb40e7e821b562f16809a45bc86097289`
 
-This is PostgreSQL 18.6, a major-version change from PostgreSQL 17. The current image metadata review reports one medium-severity CVE; the exact-digest automated scan remains authoritative. Do not accept the major-version change unless migrations, integration tests, regression tests, backup/restore and all required CI checks pass against this exact image. At runtime, record both `SHOW server_version` and `SHOW server_version_num`; fail unless the numeric version is in `[180000, 190000)`, and retain the version file as a workflow artifact and in the performance report.
+This is PostgreSQL 18.7, a patch-level update within major version 18. The
+published cgr.dev multi-platform index is:
+`sha256:fb42fe07f31379928ffb2fcb9acb903eb40e7e821b562f16809a45bc86097289`.
+
+The exact cgr.dev manifest captured by Prompt 003 PR #285 Performance run
+`44266875472` at HEAD `2412f7a7e70ef69c64b09e6a71ab765b706f0f21` maps
+linux/amd64 to `sha256:cdaa888288d460b9eeaeb5dcb9c716d7b660f69e1b9315085196364033b5d279`
+and linux/arm64 to `sha256:3eb009326fb2e312805d85118be38da2f521068b5c42dab85fcada9f545904eb`.
+Chainguard's current package lock identifies `postgresql-18=18.7-r0` and
+`libxslt=1.1.45-r8`; these are candidate metadata only. The exact-registry
+digest, signature, SLSA provenance, SPDX attestation and HIGH/CRITICAL
+vulnerability scan remain mandatory acceptance checks. Do not accept until
+migrations, integration, regression, backup/restore and all required CI checks
+pass against this exact image. At runtime, record both `SHOW server_version`
+and `SHOW server_version_num`; fail unless the numeric version is in
+`[180000, 190000)`, and retain the version file as a workflow artifact and in
+the performance report.
 
 Before acceptance, CI must verify the exact registry/index digest and assert via the raw OCI index that the expected linux/amd64 and linux/arm64 manifest digests are children of that exact index. For EACH child platform digest, verify the image signature, SLSA provenance and signed SPDX SBOM attestation using identity `https://github.com/chainguard-images/images/.github/workflows/release.yaml@refs/heads/main` and issuer `https://token.actions.githubusercontent.com`; verification of the index or one platform alone is insufficient. Run a vulnerability scan that fails on HIGH/CRITICAL findings (unfixed issues excluded). Retain inspection, signature, provenance, SPDX SBOM and generated CycloneDX SBOM/vulnerability artifacts. Review monthly and expedite security updates through a reviewed PR; resolve the new digest and rerun all evidence gates. Never silently move a digest or substitute a tag.
 
