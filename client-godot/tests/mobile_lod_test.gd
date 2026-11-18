@@ -121,5 +121,134 @@ func _run_tests() -> void:
     missing_camera.queue_free()
     await process_frame
 
+
+    # Prompt 008: exact 120/140 px hysteresis boundaries.
+    const LodImpostor := preload("res://scripts/lod_impostor_manager.gd")
+    if not LodImpostor.next_full_detail_state(true, 140.0):
+        failures += 1
+        push_error("Exactly 140 px must retain the current full-detail state")
+    if LodImpostor.next_full_detail_state(false, 140.0):
+        failures += 1
+        push_error("Exactly 140 px must retain the current impostor state")
+    if not LodImpostor.next_full_detail_state(true, 120.0):
+        failures += 1
+        push_error("Exactly 120 px must retain the current full-detail state")
+    if LodImpostor.next_full_detail_state(false, 120.0):
+        failures += 1
+        push_error("Exactly 120 px must retain the current impostor state")
+    if LodImpostor.next_full_detail_state(true, 119.99):
+        failures += 1
+        push_error("Below 120 px must enter the impostor state")
+    if not LodImpostor.next_full_detail_state(false, 140.01):
+        failures += 1
+        push_error("Above 140 px must restore the full-detail state")
+
+    # Octahedral directions must map into the configured row-major atlas.
+    var front_frame := LodImpostor.octahedral_frame_index(Vector3(0.0, 0.0, 1.0), 8, 8)
+    var right_frame := LodImpostor.octahedral_frame_index(Vector3(1.0, 0.0, 0.0), 8, 8)
+    if front_frame == right_frame or front_frame < 0 or front_frame >= 64 or right_frame >= 64:
+        failures += 1
+        push_error("Octahedral directions must map to distinct in-range atlas frames")
+    var zero_uv := LodImpostor.octahedral_uv(Vector3.ZERO)
+    if zero_uv.distance_to(Vector2(0.5, 0.5)) > 0.0001:
+        failures += 1
+        push_error("A zero view vector must map to the stable atlas centre")
+
+    # Real orthographic projection: 2 m bounds at 720 px viewport height
+    # produce 144 px at camera size 10, then cross below 120 px at size 12.1.
+    var previous_root_size := root.size
+    root.size = Vector2i(1280, 720)
+    var impostor_lod := LodImpostor.new()
+    impostor_lod.name = "ScreenSpaceImpostorLOD"
+    impostor_lod.mesh_path = NodePath("HighMesh")
+    impostor_lod.impostor_path = NodePath("Impostor")
+    # Empty path deliberately exercises the active viewport Camera3D.
+    impostor_lod.camera_path = NodePath("")
+
+    var impostor_mesh := MeshInstance3D.new()
+    impostor_mesh.name = "HighMesh"
+    var impostor_box := BoxMesh.new()
+    impostor_box.size = Vector3(1.0, 2.0, 1.0)
+    impostor_mesh.mesh = impostor_box
+
+    var impostor_sprite := Sprite3D.new()
+    impostor_sprite.name = "Impostor"
+    var atlas_image := Image.create(64, 64, false, Image.FORMAT_RGBA8)
+    atlas_image.fill(Color.WHITE)
+    impostor_sprite.texture = ImageTexture.create_from_image(atlas_image)
+    impostor_sprite.visible = true
+
+    var impostor_camera := Camera3D.new()
+    impostor_camera.name = "Camera"
+    impostor_camera.position = Vector3(0.0, 0.0, 10.0)
+    impostor_camera.projection = Camera3D.PROJECTION_ORTHOGONAL
+    impostor_camera.size = 10.0
+    impostor_camera.current = true
+
+    impostor_lod.add_child(impostor_mesh)
+    impostor_lod.add_child(impostor_sprite)
+    impostor_lod.add_child(impostor_camera)
+    root.add_child(impostor_lod)
+    await process_frame
+    impostor_lod._process(0.0)
+
+    var measured_height := impostor_lod._projected_pixel_height()
+    if measured_height <= 140.0:
+        failures += 1
+        push_error("Projected AABB height must exceed 140 px at the near orthographic zoom")
+    if not impostor_mesh.visible or impostor_sprite.visible:
+        failures += 1
+        push_error("Initial near view must show only the full 3D mesh")
+
+    # Directly invoke the same hot path used by the engine. Visibility must
+    # swap in that call, not one frame later.
+    impostor_camera.size = 12.1
+    impostor_lod._process(0.0)
+    if impostor_mesh.visible or not impostor_sprite.visible:
+        failures += 1
+        push_error("Crossing below 120 px must swap to the impostor immediately")
+
+    var frame_before_orbit := impostor_sprite.frame
+    impostor_camera.position = Vector3(10.0, 0.0, 10.0)
+    impostor_lod._process(0.0)
+    if impostor_sprite.frame == frame_before_orbit:
+        failures += 1
+        push_error("Changing the camera azimuth must select a different octahedral atlas frame")
+
+    impostor_camera.size = 11.0
+    impostor_lod._process(0.0)
+    if impostor_mesh.visible or not impostor_sprite.visible:
+        failures += 1
+        push_error("The 120–140 px buffer must retain the current impostor state")
+
+    impostor_camera.size = 10.0
+    impostor_lod._process(0.0)
+    if not impostor_mesh.visible or impostor_sprite.visible:
+        failures += 1
+        push_error("Crossing above 140 px must restore the 3D mesh immediately")
+    impostor_lod.queue_free()
+    await process_frame
+    root.size = previous_root_size
+
+    # An absent atlas is not allowed to hide the only usable 3D representation.
+    var missing_atlas_lod := LodImpostor.new()
+    missing_atlas_lod.name = "MissingAtlasLOD"
+    missing_atlas_lod.mesh_path = NodePath("HighMesh")
+    missing_atlas_lod.impostor_path = NodePath("Impostor")
+    var missing_atlas_mesh := MeshInstance3D.new()
+    missing_atlas_mesh.name = "HighMesh"
+    missing_atlas_mesh.mesh = BoxMesh.new()
+    var missing_atlas_sprite := Sprite3D.new()
+    missing_atlas_sprite.name = "Impostor"
+    missing_atlas_sprite.visible = true
+    missing_atlas_lod.add_child(missing_atlas_mesh)
+    missing_atlas_lod.add_child(missing_atlas_sprite)
+    root.add_child(missing_atlas_lod)
+    if not missing_atlas_mesh.visible or missing_atlas_sprite.visible or missing_atlas_lod.is_processing():
+        failures += 1
+        push_error("Missing atlas must fail safe to the visible 3D mesh and stop processing")
+    missing_atlas_lod.queue_free()
+    await process_frame
+
     print("Mobile LOD pure + scene lifecycle regression: %d failures" % failures)
     quit(1 if failures else 0)
