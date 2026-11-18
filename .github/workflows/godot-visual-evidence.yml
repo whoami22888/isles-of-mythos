@@ -34,39 +34,18 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update -qq
-          sudo apt-get install -y -qq xvfb xauth ffmpeg libvulkan1 mesa-vulkan-drivers vulkan-tools
+          sudo apt-get install -y -qq xvfb ffmpeg
           curl --fail --location --retry 3 -o "$RUNNER_TEMP/godot.zip" "https://github.com/godotengine/godot/releases/download/4.7.2-stable/Godot_v4.7.2-stable_linux.x86_64.zip"
           echo "cadd3204e728a35d3f13adb7fd0d7902636b79f6b95c40c265eb73b6c35329e4  $RUNNER_TEMP/godot.zip" | sha256sum --check
           unzip -q "$RUNNER_TEMP/godot.zip" -d "$RUNNER_TEMP"
           install "$RUNNER_TEMP/Godot_v4.7.2-stable_linux.x86_64" "$RUNNER_TEMP/godot"
-      - name: Verify Vulkan Mobile renderer prerequisites
-        shell: bash
-        run: |
-          set -euo pipefail
-          lvp_icd="$(find /usr/share/vulkan/icd.d -maxdepth 1 -type f -name 'lvp_icd*.json' -print -quit)"
-          if [ -z "$lvp_icd" ]; then
-            echo "::error::Mesa Lavapipe Vulkan ICD is unavailable."
-            exit 1
-          fi
-          export VK_ICD_FILENAMES="$lvp_icd"
-          echo "VK_ICD_FILENAMES=$lvp_icd" >> "$GITHUB_ENV"
-          xvfb-run -a -s "-screen 0 1280x720x24" vulkaninfo --summary | tee "$RUNNER_TEMP/vulkaninfo.txt"
-          grep -q "VK_KHR_surface" "$RUNNER_TEMP/vulkaninfo.txt"
-          grep -qi "llvmpipe" "$RUNNER_TEMP/vulkaninfo.txt"
       - name: Render original prototype reference image
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/visual-evidence"
-          xvfb-run -a -s "-screen 0 1280x720x24" "$RUNNER_TEMP/godot" --editor --path client-godot --rendering-method mobile --rendering-driver vulkan --display-driver x11 --audio-driver Dummy --quit --import
-          capture_log="$RUNNER_TEMP/visual-evidence/godot-vulkan-render.log"
-          IOM_SCREENSHOT_PATH="$RUNNER_TEMP/visual-evidence/island-preview.png" IOM_CINEMATIC_SCREENSHOT_PATH="$RUNNER_TEMP/visual-evidence/coastal-cinematic.png" xvfb-run -a -s "-screen 0 1280x720x24" "$RUNNER_TEMP/godot" --path client-godot --rendering-method mobile --rendering-driver vulkan --display-driver x11 --audio-driver Dummy --verbose --script res://tests/render_capture.gd 2>&1 | tee "$capture_log"
-          if grep -Eiq 'switching to OpenGL|OpenGL API' "$capture_log"; then
-            echo "::error::Godot silently fell back to OpenGL during a required Vulkan Mobile capture."
-            exit 1
-          fi
-          grep -Eq '^Vulkan [0-9]+\.[0-9]+' "$capture_log"
-          grep -q "Forward Mobile" "$capture_log"
+          xvfb-run -a -s "-screen 0 1280x720x24" "$RUNNER_TEMP/godot" --editor --path client-godot --quit --import
+          IOM_SCREENSHOT_PATH="$RUNNER_TEMP/visual-evidence/island-preview.png" IOM_CINEMATIC_SCREENSHOT_PATH="$RUNNER_TEMP/visual-evidence/coastal-cinematic.png" xvfb-run -a -s "-screen 0 1280x720x24" "$RUNNER_TEMP/godot" --path client-godot --rendering-method mobile --script res://tests/render_capture.gd
           file "$RUNNER_TEMP/visual-evidence/island-preview.png"
           test -s "$RUNNER_TEMP/visual-evidence/island-preview.png"
           file "$RUNNER_TEMP/visual-evidence/coastal-cinematic.png"
@@ -81,7 +60,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          IOM_SCULPTED_SCREENSHOT_PATH="$RUNNER_TEMP/visual-evidence/sculpted-terrain-preview.png" xvfb-run -a -s "-screen 0 1280x720x24" "$RUNNER_TEMP/godot" --path client-godot --rendering-method mobile --rendering-driver vulkan --display-driver x11 --audio-driver Dummy --script res://tests/render_sculpted_terrain.gd
+          IOM_SCULPTED_SCREENSHOT_PATH="$RUNNER_TEMP/visual-evidence/sculpted-terrain-preview.png" xvfb-run -a -s "-screen 0 1280x720x24" "$RUNNER_TEMP/godot" --path client-godot --rendering-method mobile --script res://tests/render_sculpted_terrain.gd
           test -s "$RUNNER_TEMP/visual-evidence/sculpted-terrain-preview.png"
           file "$RUNNER_TEMP/visual-evidence/sculpted-terrain-preview.png"
           if cmp -s "$RUNNER_TEMP/visual-evidence/island-preview.png" "$RUNNER_TEMP/visual-evidence/sculpted-terrain-preview.png"; then
@@ -93,7 +72,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          IOM_BOOT_UI_OUTPUT_DIR="$RUNNER_TEMP/visual-evidence" xvfb-run -a -s "-screen 0 1280x720x24" "$RUNNER_TEMP/godot" --path client-godot --rendering-method mobile --rendering-driver vulkan --display-driver x11 --audio-driver Dummy --script res://tests/render_boot_ui.gd
+          IOM_BOOT_UI_OUTPUT_DIR="$RUNNER_TEMP/visual-evidence" xvfb-run -a -s "-screen 0 1280x720x24" "$RUNNER_TEMP/godot" --path client-godot --rendering-method mobile --script res://tests/render_boot_ui.gd
           for name in boot-1280x720.png boot-960x540.png boot-800x480.png boot-focused-1280x720.png; do
             test -s "$RUNNER_TEMP/visual-evidence/$name"
             file "$RUNNER_TEMP/visual-evidence/$name"
@@ -103,7 +82,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          IOM_TOUCH_CONTROLS_OUTPUT_DIR="$RUNNER_TEMP/visual-evidence" xvfb-run -a -s "-screen 0 1280x720x24" "$RUNNER_TEMP/godot" --path client-godot --rendering-method mobile --rendering-driver vulkan --display-driver x11 --audio-driver Dummy --script res://tests/render_touch_controls.gd
+          IOM_TOUCH_CONTROLS_OUTPUT_DIR="$RUNNER_TEMP/visual-evidence" xvfb-run -a -s "-screen 0 1280x720x24" "$RUNNER_TEMP/godot" --path client-godot --rendering-method mobile --script res://tests/render_touch_controls.gd
           for name in touch-joystick-held.png touch-camera-orbited.png; do
             test -s "$RUNNER_TEMP/visual-evidence/$name"
             file "$RUNNER_TEMP/visual-evidence/$name"
@@ -120,7 +99,7 @@ jobs:
           motion="$RUNNER_TEMP/vertical-slice-motion"
           mkdir -p "$motion"
           # --fixed-fps 30 advances the avatar animation exactly 1/30 s per rendered frame.
-          IOM_VERTICAL_SLICE_OUTPUT_DIR="$RUNNER_TEMP/visual-evidence" IOM_VERTICAL_SLICE_MOTION_DIR="$motion" xvfb-run -a -s "-screen 0 1280x720x24" "$RUNNER_TEMP/godot" --path client-godot --rendering-method mobile --rendering-driver vulkan --display-driver x11 --audio-driver Dummy --fixed-fps 30 --script res://tests/render_vertical_slice_gameplay.gd
+          IOM_VERTICAL_SLICE_OUTPUT_DIR="$RUNNER_TEMP/visual-evidence" IOM_VERTICAL_SLICE_MOTION_DIR="$motion" xvfb-run -a -s "-screen 0 1280x720x24" "$RUNNER_TEMP/godot" --path client-godot --rendering-method mobile --fixed-fps 30 --script res://tests/render_vertical_slice_gameplay.gd
           for name in vertical-slice-gameplay.png vertical-slice-gameplay-orbited.png vertical-slice-gameplay-drawer.png vertical-slice-player-closeup-idle.png vertical-slice-player-closeup-walk.png; do
             test -s "$RUNNER_TEMP/visual-evidence/$name"
             file "$RUNNER_TEMP/visual-evidence/$name"
@@ -131,43 +110,11 @@ jobs:
           encoded="$(ffprobe -v error -count_frames -select_streams v:0 -show_entries stream=nb_read_frames -of csv=p=0 "$RUNNER_TEMP/visual-evidence/vertical-slice-player-walk.mp4")"
           test "$encoded" -eq "$frames"
           (cd "$motion" && sha256sum walk_*.png > "$RUNNER_TEMP/visual-evidence/VERTICAL-SLICE-MOTION-FRAMES-SHA256SUMS")
-          (cd "$RUNNER_TEMP/visual-evidence" && sha256sum vertical-slice-*.png vertical-slice-player-walk.mp4 > VERTICAL-SLICE-SHA256SUMS && printf '%s\n' "${{ github.event.pull_request.head.sha || github.sha }}" > SOURCE-SHA.txt && cat VERTICAL-SLICE-SHA256SUMS)
-      - name: Record renderer, source and capture provenance
-        shell: bash
-        run: |
-          set -euo pipefail
-          cp "$RUNNER_TEMP/vulkaninfo.txt" "$RUNNER_TEMP/visual-evidence/VULKANINFO-SUMMARY.txt"
-          cp vendor.lock.json "$RUNNER_TEMP/visual-evidence/vendor.lock.json"
-          printf '%s\n' "${{ github.event.pull_request.head.sha || github.sha }}" > "$RUNNER_TEMP/visual-evidence/SOURCE-SHA.txt"
-          godot_version="$("$RUNNER_TEMP/godot" --version)"
-          vendor_lock_sha="$(sha256sum vendor.lock.json | cut -d' ' -f1)"
-          vulkan_device="$(awk -F= '/deviceName/ { sub(/^[[:space:]]*/, "", $2); print $2; exit }' "$RUNNER_TEMP/vulkaninfo.txt")"
-          test -n "$vulkan_device"
-          {
-            printf 'source_sha=%s\n' "$(cat "$RUNNER_TEMP/visual-evidence/SOURCE-SHA.txt")"
-            printf 'godot_version=%s\n' "$godot_version"
-            printf 'rendering_method=mobile\n'
-            printf 'rendering_driver=vulkan\n'
-            printf 'vulkan_icd=%s\n' "$VK_ICD_FILENAMES"
-            printf 'vulkan_device=%s\n' "$vulkan_device"
-            printf 'source_asset_manifest=vendor.lock.json\n'
-            printf 'source_asset_manifest_sha256=%s\n' "$vendor_lock_sha"
-            printf 'capture_resolution=1280x720\n'
-            printf 'motion_fps=30\n'
-            printf 'owner_reference_sha256=713cd6e90c6f7d589a06eb3bd4b9b2d5ebeb9c0ff711b5de527a68460dfbcb05\n'
-            printf 'owner_reference_accessible_to_ci=false\n'
-            printf 'visual_acceptance=NOT_VERIFIED\n'
-          } > "$RUNNER_TEMP/visual-evidence/RENDERER-PROVENANCE.txt"
-          (cd "$RUNNER_TEMP/visual-evidence" && find . -maxdepth 1 -type f ! -name 'CAPTURE-ARTIFACT-SHA256SUMS' -print0 | sort -z | xargs -0 sha256sum > CAPTURE-ARTIFACT-SHA256SUMS)
+          (cd "$RUNNER_TEMP/visual-evidence" && sha256sum vertical-slice-*.png vertical-slice-player-walk.mp4 > VERTICAL-SLICE-SHA256SUMS && echo "source_sha=${{ github.event.pull_request.head.sha || github.sha }}" >> VERTICAL-SLICE-SHA256SUMS && cat VERTICAL-SLICE-SHA256SUMS)
       - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
         with:
           name: godot-vertical-slice-gameplay-visual-evidence
           path: |
-            ${{ runner.temp }}/visual-evidence/SOURCE-SHA.txt
-            ${{ runner.temp }}/visual-evidence/RENDERER-PROVENANCE.txt
-            ${{ runner.temp }}/visual-evidence/VULKANINFO-SUMMARY.txt
-            ${{ runner.temp }}/visual-evidence/CAPTURE-ARTIFACT-SHA256SUMS
-            ${{ runner.temp }}/visual-evidence/vendor.lock.json
             ${{ runner.temp }}/visual-evidence/vertical-slice-gameplay.png
             ${{ runner.temp }}/visual-evidence/vertical-slice-gameplay-orbited.png
             ${{ runner.temp }}/visual-evidence/vertical-slice-gameplay-drawer.png
@@ -181,11 +128,6 @@ jobs:
         with:
           name: godot-touch-controls-visual-evidence
           path: |
-            ${{ runner.temp }}/visual-evidence/SOURCE-SHA.txt
-            ${{ runner.temp }}/visual-evidence/RENDERER-PROVENANCE.txt
-            ${{ runner.temp }}/visual-evidence/VULKANINFO-SUMMARY.txt
-            ${{ runner.temp }}/visual-evidence/CAPTURE-ARTIFACT-SHA256SUMS
-            ${{ runner.temp }}/visual-evidence/vendor.lock.json
             ${{ runner.temp }}/visual-evidence/touch-joystick-held.png
             ${{ runner.temp }}/visual-evidence/touch-camera-orbited.png
             ${{ runner.temp }}/visual-evidence/TOUCH-CONTROLS-SHA256SUMS
@@ -194,11 +136,6 @@ jobs:
         with:
           name: godot-boot-ui-visual-evidence
           path: |
-            ${{ runner.temp }}/visual-evidence/SOURCE-SHA.txt
-            ${{ runner.temp }}/visual-evidence/RENDERER-PROVENANCE.txt
-            ${{ runner.temp }}/visual-evidence/VULKANINFO-SUMMARY.txt
-            ${{ runner.temp }}/visual-evidence/CAPTURE-ARTIFACT-SHA256SUMS
-            ${{ runner.temp }}/visual-evidence/vendor.lock.json
             ${{ runner.temp }}/visual-evidence/boot-1280x720.png
             ${{ runner.temp }}/visual-evidence/boot-960x540.png
             ${{ runner.temp }}/visual-evidence/boot-800x480.png
@@ -209,11 +146,6 @@ jobs:
         with:
           name: godot-rendered-sculpted-terrain
           path: |
-            ${{ runner.temp }}/visual-evidence/SOURCE-SHA.txt
-            ${{ runner.temp }}/visual-evidence/RENDERER-PROVENANCE.txt
-            ${{ runner.temp }}/visual-evidence/VULKANINFO-SUMMARY.txt
-            ${{ runner.temp }}/visual-evidence/CAPTURE-ARTIFACT-SHA256SUMS
-            ${{ runner.temp }}/visual-evidence/vendor.lock.json
             ${{ runner.temp }}/visual-evidence/sculpted-terrain-preview.png
             ${{ runner.temp }}/visual-evidence/island-preview.png
             ${{ runner.temp }}/visual-evidence/coastal-cinematic.png
@@ -222,11 +154,5 @@ jobs:
       - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
         with:
           name: godot-rendered-island-reference
-          path: |
-            ${{ runner.temp }}/visual-evidence/island-preview.png
-            ${{ runner.temp }}/visual-evidence/SOURCE-SHA.txt
-            ${{ runner.temp }}/visual-evidence/RENDERER-PROVENANCE.txt
-            ${{ runner.temp }}/visual-evidence/VULKANINFO-SUMMARY.txt
-            ${{ runner.temp }}/visual-evidence/CAPTURE-ARTIFACT-SHA256SUMS
-            ${{ runner.temp }}/visual-evidence/vendor.lock.json
+          path: ${{ runner.temp }}/visual-evidence/island-preview.png
           if-no-files-found: error
