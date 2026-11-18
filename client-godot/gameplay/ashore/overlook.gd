@@ -186,7 +186,7 @@ func _clear_view() -> void:
 		var box: AABB = g.global_transform * g.get_aabb()
 		var c := box.get_center()
 		var to := Vector3(c.x - pl.x, 0, c.z - pl.z)
-		if to.length() < 70.0 and box.end.y > pl.y - 4.0 and (to.length() < 8.0 or to.normalized().dot(fwd) > 0.2):
+		if to.length() < 70.0 and box.end.y > pl.y - 4.0 and (to.length() < 25.0 or to.normalized().dot(fwd) > 0.2):
 			g.visible = false
 			_hidden.append(g)
 
