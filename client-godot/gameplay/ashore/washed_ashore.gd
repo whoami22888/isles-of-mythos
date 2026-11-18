@@ -1736,8 +1736,9 @@ func _take_collect() -> void:
 ## Dawn after the storm night: the tide leaves a sea chest from the wreck.
 
 ## Mid-ground sand beside the castaway, in frame, clear of the pit stones.
-## "Toward the camera" is only a side pick — pulling the chest straight at
-## the lens drops it into the near rock lip and hides the body.
+## Prefer the camera-left beach (open sand in the OTS fire shot). A pull
+## straight at the lens drops the chest into the near rock lip; a point
+## on their hut-side hip is hidden by the body.
 func _dawn_chest_at() -> Vector3:
 	var pit := _pit_position()
 	var feet := _player.global_position
@@ -1748,45 +1749,44 @@ func _dawn_chest_at() -> Vector3:
 		look.y = 0.0
 	look = look.normalized()
 	var cam_right := Vector3(-look.z, 0.0, look.x)
-	var ply_right := _player.global_transform.basis.x
-	ply_right.y = 0.0
-	if ply_right.length() > 0.1:
-		ply_right = ply_right.normalized()
-	var fwd := -_player.global_transform.basis.z
-	fwd.y = 0.0
-	if fwd.length() > 0.1:
-		fwd = fwd.normalized()
-	var candidates: Array[Vector3] = []
-	for s in [1.35, -1.35, 1.55, -1.55]:
-		for along in [0.0, 0.35, -0.25, 0.7]:
-			candidates.append(feet + cam_right * s + look * along)
-			candidates.append(feet + ply_right * s + fwd * along)
-	var best := feet + cam_right * -1.35
-	var best_score := -1e9
+	var inland := pit - feet
+	inland.y = 0.0
+	if inland.length() < 0.1:
+		inland = look
+	inland = inland.normalized()
+	var tried: Array[Vector3] = []
+	# Camera-left first (open beach), then camera-right, each nudged inland
+	# so the wash doesn't swallow it.
+	for side_s in [-1.0, 1.0]:
+		for dist in [1.4, 1.55, 1.25, 1.7]:
+			for nudge in [0.35, 0.15, 0.55, 0.0]:
+				tried.append(feet + cam_right * (dist * side_s) + inland * nudge)
+	var best := Vector3.ZERO
 	var found := false
-	for c in candidates:
+	for c in tried:
 		var at := c
 		at.y = _ground_y(at.x, at.z)
-		if at.y <= _water_y + 0.2 or absf(at.y - feet.y) > 0.7:
+		if not _chest_spot_ok(at, pit, feet, cam, look):
 			continue
-		if _flat(at, pit) < 1.55 or _flat(at, feet) < 1.05:
-			continue
-		var dcam := _flat(at, cam)
-		if dcam < 2.6 or dcam > 7.5:
-			continue
-		var to := Vector3(at.x - cam.x, 0.0, at.z - cam.z)
-		if to.dot(look) < 0.4:
-			continue
-		var off_axis := absf(to.normalized().cross(look).y)
-		var score := -off_axis * 3.0 + _flat(at, pit) * 0.35 + absf((at - feet).dot(cam_right)) * 0.4
-		if score > best_score:
-			best_score = score
-			best = at
-			found = true
+		best = at
+		found = true
+		break
 	if not found:
-		best = feet + cam_right * -1.35
+		best = feet - cam_right * 1.4 + inland * 0.35
 		best.y = _ground_y(best.x, best.z)
 	return best
+
+
+func _chest_spot_ok(at: Vector3, pit: Vector3, feet: Vector3, cam: Vector3, look: Vector3) -> bool:
+	if at.y <= _water_y + 0.15 or absf(at.y - feet.y) > 0.85:
+		return false
+	if _flat(at, pit) < 1.55 or _flat(at, feet) < 1.1:
+		return false
+	var dcam := _flat(at, cam)
+	if dcam < 2.6 or dcam > 7.5:
+		return false
+	var to := Vector3(at.x - cam.x, 0.0, at.z - cam.z)
+	return to.dot(look) > 0.4
 
 
 func _dawn_reward() -> void:
