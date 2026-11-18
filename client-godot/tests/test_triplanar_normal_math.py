@@ -166,6 +166,14 @@ class StylizedPbrShaderContractTests(unittest.TestCase):
         self.assertIn("METALLIC = metallic", self.fragment)
         self.assertIn("ROUGHNESS = roughness", self.fragment)
 
+    def test_mobile_force_vertex_shading_has_builtin_toon_fallback(self):
+        """Mobile's built-in lighting path keeps toon diffuse, specular and rim."""
+        shader_header = self.source.split("void vertex()", 1)[0]
+        self.assertIn("diffuse_toon", shader_header)
+        self.assertIn("specular_toon", shader_header)
+        self.assertIn("SPECULAR = specular_amount", self.fragment)
+        self.assertIn("RIM = clamp(vertex_rim_factor", self.fragment)
+
     def test_opaque_material_does_not_force_transparent_pipeline(self):
         """Opaque material output must not assign ALPHA."""
         self.assertNotIn("ALPHA =", self.fragment)

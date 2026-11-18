@@ -1,5 +1,7 @@
 shader_type spatial;
-render_mode depth_draw_opaque, specular_schlick_ggx;
+// Force Vertex Shading skips light() on mobile. The built-in toon diffuse/specular
+// models preserve a toon response there; fragment RIM/RIM_TINT remain active.
+render_mode depth_draw_opaque, diffuse_toon, specular_toon;
 
 // Optional stylized PBR material scaffold. It is not assigned to production
 // scenes and does not constitute premium visual acceptance.
