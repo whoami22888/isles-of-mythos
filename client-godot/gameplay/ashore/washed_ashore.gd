@@ -17,6 +17,7 @@ const PET_DEFENCE_LINE := "Needs Pet Defence research and training"
 const Art := preload("res://gameplay/opening/opening_art.gd")
 const StormNight := preload("res://gameplay/ashore/storm_night.gd")
 const Overlook := preload("res://gameplay/ashore/overlook.gd")
+const Story := preload("res://gameplay/ashore/story_beats.gd")
 const SLICE_SCENE := preload("res://scenes/realistic_coastal_slice.tscn")
 const HUT := preload("res://assets/ashore/library/hut_hy3d/hut_hy3d.glb")
 const FIRE_PIT := preload("res://assets/ashore/library/stone_fire_pit/stone_fire_pit.glb")
@@ -141,6 +142,11 @@ var _gatherer := false
 ## Gathering feel: held Act repeats on GATHER_RHYTHM, tool mesh in the right hand,
 ## camera kick on each contact.
 var _act_held := false
+## Story: beats already told, queued subtitle lines [speaker, text], journal.
+var _story_seen: Array = []
+var _subs: Array = []
+var _sub_t := 0.0
+var _journal: Array = []
 var _tool_mesh: Node3D
 var _tool_show := 0.0
 var _cam_kick := 0.0
@@ -526,6 +532,10 @@ func on_name(text: String) -> void:
 	_note_burst(str(_pet_stats["name"]))
 	_sniff_left = 6.0
 	_fetch_left = 24.0
+	for entry in _journal:
+		entry["title"] = str(entry["title"]).replace("Tide-Puck", str(_pet_stats["name"]))
+		entry["text"] = str(entry["text"]).replace("Tide-Puck", str(_pet_stats["name"]))
+	_story("named")
 	_enter("gather")
 
 
@@ -682,7 +692,10 @@ func _enter(step: String) -> void:
 		_storm_left = STORM_SECONDS
 		_storm_warned = false
 		_build_open = _can_pay("lean_to")
+	if step == "gather":
+		_story("gather")
 	if step == "storm":
+		_story("storm")
 		_storm_left = -1.0
 		_build_open = false
 		_placing = ""
@@ -755,6 +768,7 @@ func _finish_wake() -> void:
 	snap_intro_camera()
 	_note_burst("Up")
 	_enter("scavenge")
+	_story("ashore")
 
 
 func _tick_cine(delta: float) -> void:
@@ -864,6 +878,7 @@ func _tick_play(delta: float) -> void:
 	_tick_ghost()
 	_gather_lock = maxf(_gather_lock - delta, 0.0)
 	_tick_hold_gather(delta)
+	_tick_subs(delta)
 	_follow_camera(delta)
 	_refresh_locks()
 	if _step == "scavenge" and _step_time > 40.0:
@@ -1226,6 +1241,7 @@ func _free_pet() -> void:
 	_pet_hop = 0.6
 	_vibrate(60, 0.6)
 	_note_burst("Friend")
+	_story("pet")
 	_enter("name_pet")
 
 
@@ -1478,6 +1494,7 @@ const SCARE_SECONDS := 2.5
 var _scare_rim: OmniLight3D
 
 func _begin_scare() -> void:
+	_story("beast")
 	_cinematic = "scare"
 	_cine_age = 0.0
 	_cine_left = SCARE_SECONDS
@@ -1727,6 +1744,7 @@ func _take_collect() -> void:
 		_sack.visible = false
 	var at := _sack.global_position if _sack else _player.global_position
 	if _dawn_chest:
+		_story("chest")
 		_dawn_chest = false
 		if _sack:
 			for pair in [["Bundle", true], ["SeaChest", false]]:
@@ -1815,6 +1833,7 @@ func _chest_spot_ok(at: Vector3, pit: Vector3, feet: Vector3, cam: Vector3, look
 
 func _dawn_reward() -> void:
 	_dawn_chest = true
+	_story("dawn")
 	_note_burst("Dawn")
 	_vibrate(60, 0.4)
 	_spawn_collect()
@@ -2483,6 +2502,8 @@ func _save() -> void:
 		"nodes": nodes,
 		"defeat_path": _defeat_path,
 		"silas_shown": _silas_shown,
+		"story_seen": _story_seen,
+		"journal": _journal,
 		"scavenged": _scavenged,
 		"storm_left": _storm_left,
 		"storm_night": _storm_night.state() if _storm_night else {},
@@ -2548,6 +2569,8 @@ func _apply_save(state: Dictionary) -> void:
 	_scavenged = int(state.get("scavenged", 0))
 	_storm_left = float(state.get("storm_left", -1.0))
 	_dawn_chest = bool(state.get("dawn_chest", false))
+	_story_seen = Array(state.get("story_seen", []))
+	_journal = Array(state.get("journal", []))
 	if _storm_night and state.get("storm_night", {}) is Dictionary:
 		_storm_night.restore(state.get("storm_night", {}))
 	_fish_cooked = int(state.get("fish_cooked", 0))
@@ -3642,6 +3665,9 @@ func _push_hud() -> void:
 		"counts": _inv,
 		"action": _action_caption(),
 		"tool_icon": _context_tool(),
+		"sub_speaker": str(_subs[0][0]) if not _subs.is_empty() else "",
+		"sub_text": str(_subs[0][1]) if not _subs.is_empty() else "",
+		"journal": _journal,
 		"attack": _beast != null and _beast.visible and _creature_hostile and _choice != "kill" and _flat(_player.global_position, _beast.global_position) < 16.0,
 		"skip": _cinematic != "",
 		"fork": _fork,
@@ -3851,8 +3877,8 @@ func _tick_silas_hint() -> void:
 		return
 	if _flat(_player.global_position, blade.global_position) < 3.2:
 		_silas_shown = true
-		# A hint, not the quest tracker: the tracker stays one short goal.
-		_show_hint("Silas's cutlass... no sign of him")
+		# Told as story subtitles, not the quest tracker.
+		_story("cutlass")
 		_push_hud()
 
 
@@ -3867,6 +3893,7 @@ func _tick_quest(delta: float) -> void:
 		_cine_age = 0.0
 		_move_goal = Vector3(INF, INF, INF)
 		_overlook.begin_reveal()
+		_story("overlook")
 		return
 	if _step == "gather":
 		if int(_inv.get("wood", 0)) >= GATHER_WOOD and int(_inv.get("stone", 0)) >= GATHER_STONE:
@@ -5442,3 +5469,54 @@ func _restore_node(node: Dictionary) -> void:
 	if title:
 		title.visible = false
 	_pop(root)
+
+
+# --- Story beats ----------------------------------------------------------
+
+func _pet_name() -> String:
+	return str(_pet_stats.get("name", "Tide-Puck"))
+
+
+## Queue a beat's subtitles once and add its journal entry.
+func _story(id: String) -> void:
+	if id in _story_seen or not Story.BEATS.has(id):
+		return
+	_story_seen.append(id)
+	var beat: Dictionary = Story.BEATS[id]
+	var pet := _pet_name()
+	for pair in beat.get("lines", []):
+		_subs.append([Story.fill(str(pair[0]), pet), Story.fill(str(pair[1]), pet)])
+	if _subs.size() == beat.get("lines", []).size():
+		_sub_t = _sub_seconds()
+	if str(beat.get("journal", "")) != "":
+		_journal.append({"title": Story.fill(str(beat.get("title", "")), pet), "text": Story.fill(str(beat.get("journal", "")), pet)})
+	if _hud:
+		_push_hud()
+
+
+func _sub_seconds() -> float:
+	if _subs.is_empty():
+		return 0.0
+	return clampf(1.4 + 0.05 * str(_subs[0][1]).length(), 2.6, 5.0)
+
+
+## Subtitles run on real time (they keep going through the slow-mo scare).
+func _tick_subs(delta: float) -> void:
+	if _subs.is_empty():
+		return
+	_sub_t -= delta / maxf(Engine.time_scale, 0.05)
+	if _sub_t <= 0.0:
+		on_sub_skip()
+
+
+func on_sub_skip() -> void:
+	if _subs.is_empty():
+		return
+	_subs.pop_front()
+	_sub_t = _sub_seconds()
+	if _hud:
+		_push_hud()
+
+
+func story_journal() -> Array:
+	return _journal
