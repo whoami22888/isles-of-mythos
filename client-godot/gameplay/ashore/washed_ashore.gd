@@ -1335,7 +1335,7 @@ func _clear_camp_tufts() -> void:
 		var c := box.get_center()
 		if Vector2(c.x - pit.x, c.z - pit.z).length() < 12.0 + box.size.length() * 0.25:
 			cliff.visible = false
-	for name in ["TropicalGrassTufts", "TropicalFernClumps", "CliffLedgeFerns"]:
+	for name in ["TropicalGrassTufts", "TropicalFernClumps", "CliffLedgeFerns", "TropicalCalathea", "TropicalShrubs"]:
 		for node in _slice.find_children(name, "MultiMeshInstance3D", true, false):
 			var mmi := node as MultiMeshInstance3D
 			if mmi.multimesh == null:
@@ -1343,7 +1343,7 @@ func _clear_camp_tufts() -> void:
 			var mm := mmi.multimesh
 			for i in mm.instance_count:
 				var xf: Transform3D = mmi.global_transform * mm.get_instance_transform(i)
-				if _flat(xf.origin, pit) < 6.0:
+				if _flat(xf.origin, pit) < 8.0:
 					var local := mm.get_instance_transform(i)
 					mm.set_instance_transform(i, Transform3D(local.basis.scaled(Vector3.ZERO), local.origin))
 
@@ -1408,7 +1408,7 @@ func _storm_beast_spot(pit: Vector3, fwd: Vector3) -> Vector3:
 			if _solid_frac(eye, chest) < 0.98:
 				score -= 3.0
 			if _foliage_hit(eye, chest) < 0.98:
-				score -= 1.5
+				score -= 4.0
 			if score > best_score:
 				best_score = score
 				best = at
@@ -1443,7 +1443,7 @@ func _begin_scare() -> void:
 		_scare_rim = OmniLight3D.new()
 		_scare_rim.name = "ScareRim"
 		_scare_rim.light_color = Color(0.72, 0.82, 1.0)
-		_scare_rim.omni_range = 7.0
+		_scare_rim.omni_range = 4.2
 		_scare_rim.shadow_enabled = false
 		add_child(_scare_rim)
 	_scare_rim.visible = true
@@ -1467,7 +1467,10 @@ func _scare_camera() -> void:
 	_camera.fov = lerpf(40.0, 48.0, clampf(_cine_age / SCARE_SECONDS, 0.0, 1.0))
 	if _scare_rim:
 		var away := Vector3(at.x - eye.x, 0, at.z - eye.z).normalized()
-		_scare_rim.global_position = at + away * 1.6 + Vector3.UP * 2.4
+		# High and just behind its shoulder, short range: rims the beast, not
+		# the jungle wall behind it.
+		_scare_rim.global_position = at + away * 0.9 + away.cross(Vector3.UP) * 1.0 + Vector3.UP * 2.9
+		_scare_rim.omni_range = 4.2
 		# Strike, then a flicker that dies down.
 		var f := maxf(0.0, 1.0 - _cine_age / 1.2)
 		_scare_rim.light_energy = 4.0 * f * (0.7 + 0.3 * sin(_cine_age * 40.0)) + 0.6
@@ -3182,7 +3185,7 @@ func _build_beast() -> void:
 	if dino:
 		dino.name = "Body"
 		_beast.add_child(dino)
-		_fit(dino, 1.7)
+		_fit(dino, 2.2)
 		_beast_anim = dino.get_meta("clips") as AnimationPlayer
 	var bar := MeshInstance3D.new()
 	bar.name = "HealthBar"

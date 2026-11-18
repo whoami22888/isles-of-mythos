@@ -45,9 +45,10 @@ void vertex() {
 		vec2 fd = normalize(sink_dir);
 		float ahead = dot(rel, fd);
 		float lateral = abs(dot(rel, vec2(-fd.y, fd.x)));
-		// Everything ahead, plus both flanks (the higher trail ridge the reveal
-		// camera sits beside), drops below eye level.
-		float k = max(smoothstep(0.5, 3.0, ahead), smoothstep(2.5, 5.0, lateral));
+		// Everything ahead, both flanks and the trail behind (the ridge between
+		// the reveal camera and the castaway) drops below eye level; only the
+		// ground the castaway stands on stays.
+		float k = max(max(smoothstep(0.5, 3.0, ahead), smoothstep(2.5, 5.0, lateral)), smoothstep(1.8, 3.5, length(rel)));
 		k *= 1.0 - smoothstep(55.0, 70.0, length(rel));
 		float floor_y = sink_origin.y - 0.6 * k;
 		if (world_pos.y > floor_y) {
