@@ -4822,7 +4822,15 @@ func _probe_clear_view(head: Vector3, dt: float = 0.12) -> void:
 	if _cam_orbit_hold > 0.0:
 		_cam_auto_off = 0.0
 	var home := _cam_yaw - _cam_auto_off
+	# Lighting the fire sinks camp tufts and rebuilds foliage volumes
+	# (7a0d330) so a blade is not stuck on the lens. That also makes the
+	# regular follow eye over the open beach test "clear", and the camera
+	# climbs to a high wide shot that loses the fire. Keep the close
+	# over-the-shoulder frame while standing at the lit pit.
+	var at_camp := _fire_lit and _flat(_player.global_position, _pit_position()) < 3.5
 	for off in [0.0, 0.3, -0.3, 0.6, -0.6]:
+		if at_camp:
+			break
 		if _cam_orbit_hold > 0.0 and absf(off) > 0.0:
 			continue
 		var back := Basis(Vector3.UP, home + off).z
