@@ -1334,6 +1334,10 @@ func _clear_camp_tufts() -> void:
 		var rock_mat := (terrain.material_override as ShaderMaterial).duplicate() as ShaderMaterial
 		rock_mat.set_shader_parameter("grass_zone", Vector3.ZERO)
 		rock_mat.set_shader_parameter("sink_on", 0.0)
+		# Its faces are only moderately steep, which the height rule splats as
+		# XZ-stretched sand (the flat beige look): force rock.
+		rock_mat.set_shader_parameter("sand_bias", -1.0)
+		rock_mat.set_shader_parameter("rock_bias", 0.45)
 		for node in _slice.find_children("coastal_cliff*", "MeshInstance3D", true, false):
 			var cliff := node as MeshInstance3D
 			var box: AABB = cliff.global_transform * cliff.get_aabb()
