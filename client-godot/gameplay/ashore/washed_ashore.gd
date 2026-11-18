@@ -1149,6 +1149,11 @@ func _act_on_node(node: Dictionary) -> void:
 	var root := node.get("root") as Node3D
 	var aim := _node_aim(node)
 	var kind := str(node.get("kind", ""))
+	if kind == "tree":
+		# Chop at chest height on the trunk face toward the castaway, not mid-crown.
+		var side := _player.global_position - root.global_position
+		side.y = 0.0
+		aim = root.global_position + Vector3.UP * 1.1 + (side.normalized() * 0.25 if side.length() > 0.01 else Vector3.ZERO)
 	var bonus := str(node.get("tool", ""))
 	# A found tool adds one extra piece on the final, felling/splitting hit.
 	var tool_bonus := 1 if bonus != "" and bool(_tools.get(bonus, false)) and int(node.get("stage", 0)) == int(node.get("stages", 1)) - 1 else 0
@@ -5227,12 +5232,12 @@ func _attach_tool(rig: Node3D) -> void:
 	var axe := AXE_MESH.instantiate() as Node3D
 	axe.name = "Axe"
 	holder.add_child(axe)
-	var box := _merged_aabb(axe)
-	var s := 0.62 / maxf(box.size.y, 0.01)
-	# Undo the rig's fit scale so the tool is ~0.6 m in the world.
-	var rs := maxf(rig.global_transform.basis.get_scale().y, 0.001) if rig.is_inside_tree() else maxf(rig.scale.y, 0.001)
-	axe.scale = Vector3.ONE * s / rs
-	axe.position = Vector3(0, -box.position.y - box.size.y * 0.18, 0) * s / rs
+	# Pirate-kit axe: 1.05 m along +Y, grip ~0.15 m above its foot. Scale to
+	# 0.65 m and put the grip on the hand bone (undo the rig's fit scale).
+	var rs := maxf(skel.global_transform.basis.get_scale().y, 0.001)
+	var k := 0.52 / rs
+	axe.scale = Vector3.ONE * k
+	axe.position = Vector3(0, 0.12 * k, 0)
 	holder.rotation_degrees = Vector3(90, 0, 0)
 	for mi in _meshes(axe):
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -5374,7 +5379,14 @@ func _deplete_fx(node: Dictionary) -> void:
 	root.add_child(gone)
 	match kind:
 		"tree":
-			# Pivot at the base: tip the trunk away from the castaway.
+			# Pivot at the base: tip the trunk across the screen (camera right),
+			# away from the castaway's side, so the fall always reads.
+			var across := _camera.global_transform.basis.x if _camera else away
+			across.y = 0.0
+			across = across.normalized()
+			if across.dot(away) < 0.0:
+				across = -across
+			away = across
 			var axis := Vector3.UP.cross(away).normalized()
 			var local_axis := (root.global_transform.basis.inverse() * axis).normalized()
 			for part in parts:

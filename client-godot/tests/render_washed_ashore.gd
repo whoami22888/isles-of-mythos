@@ -43,6 +43,12 @@ func run() -> void:
 			scene._enter("dusk")
 		"offshore":
 			_walk(scene, Vector3(-5.0, 0, 2.6), Vector3(-0.1, 0, -1))
+		"g_swing", "g_hit", "g_fell", "g_pop":
+			_free_pet(scene)
+			var tb: Vector3 = (scene._node_by_id("tree_b")["root"] as Node3D).global_position
+			_walk(scene, tb + Vector3(-0.9, 0, -1.5), Vector3(0.5, 0, 0.85))
+			var fw := Vector3(0.72, 0, 0.69).normalized()
+			scene._cam_yaw = atan2(-fw.x, -fw.z)
 		"gather":
 			_free_pet(scene)
 			var tree: Dictionary = scene._node_by_id("tree_a")
@@ -193,6 +199,8 @@ func run() -> void:
 		else:
 			scene._follow_camera(1.0 / 30.0 if pose.begins_with("trees") else 10.0)
 		await RenderingServer.frame_post_draw
+	if pose.begins_with("g_"):
+		await _gather_sequence(scene, pose)
 	var tmesh = scene._slice.get_node_or_null("IrregularCoastalTerrain")
 	if tmesh:
 		print("TERRAIN mat %s grass_zone %s" % [tmesh.material_override, (tmesh.material_override as ShaderMaterial).get_shader_parameter("grass_zone") if tmesh.material_override is ShaderMaterial else "n/a"])
@@ -305,3 +313,30 @@ func _free_pet(scene: Node) -> void:
 	if not pile.is_empty():
 		pile["depleted"] = true
 		(pile["root"] as Node3D).visible = false
+
+
+## Gathering frames: slow game time so a software-GL frame lands on the beat.
+## g_swing: wind-up / mid-swing; g_hit: contact burst; g_fell: palm falling
+## after the last hit; g_pop: loot arcing into the castaway + top toast.
+func _gather_sequence(scene, pose: String) -> void:
+	var tree_node: Dictionary = scene._node_by_id("tree_b")
+	var root3 := tree_node["root"] as Node3D
+	var face: Vector3 = root3.global_position
+	face.y = scene._player.global_position.y
+	scene._player.look_at(face, Vector3.UP)
+	scene._subs.clear()
+	Engine.time_scale = 0.12
+	var waits := {"g_swing": 0.12, "g_hit": 0.3, "g_fell": 1.12, "g_pop": 0.5}
+	var hits := 1
+	if pose == "g_fell":
+		hits = int(tree_node.get("stages", 4))
+	elif pose == "g_pop":
+		hits = 2
+	for h in hits:
+		scene._gather_lock = 0.0
+		scene._act_on_node(tree_node)
+		if h < hits - 1:
+			await create_timer(0.62).timeout
+	await create_timer(float(waits.get(pose, 0.3))).timeout
+	await RenderingServer.frame_post_draw
+	Engine.time_scale = 1.0

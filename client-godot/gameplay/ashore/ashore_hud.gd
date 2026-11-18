@@ -59,6 +59,7 @@ var _build_storage: Button
 var _place_btn: Button
 var _cancel_btn: Button
 var _sub_panel: Button
+var _tool_glyph: Control
 var _sub_speaker: Label
 var _sub_text: Label
 var _menu_btn: Button
@@ -250,6 +251,15 @@ func _build_widgets() -> void:
 	_action.offset_top = -150
 	_action.offset_bottom = -36
 	_action.pressed.connect(_emit_action)
+	_tool_glyph = Control.new()
+	_tool_glyph.name = "ToolGlyph"
+	_tool_glyph.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_tool_glyph.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_tool_glyph.draw.connect(func() -> void:
+		var tool := str(_state.get("tool_icon", ""))
+		if tool != "":
+			_draw_tool(_tool_glyph, Rect2(Vector2.ZERO, _tool_glyph.size), tool))
+	_action.add_child(_tool_glyph)
 	_action.button_down.connect(func() -> void:
 		if world and world.has_method("on_action_hold"):
 			world.on_action_hold(true))
@@ -696,6 +706,8 @@ func _process(delta: float) -> void:
 		_counts.scale = Vector2.ONE * (1.0 + sin(clampf(1.0 - _bag_pulse / 0.35, 0.0, 1.0) * PI) * 0.12 * (1.0 if _bag_pulse > 0.0 else 0.0))
 	if _draw:
 		_draw.queue_redraw()
+	if _tool_glyph:
+		_tool_glyph.queue_redraw()
 
 
 func _on_draw() -> void:
@@ -733,9 +745,6 @@ func _on_draw() -> void:
 		_draw_icon(at + Vector2(-30, -11), str(toast.kind), 26)
 		_draw.draw_string(tfont, at, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 34, Color(1, 0.95, 0.8, alpha))
 		ty += 52.0
-	var tool := str(_state.get("tool_icon", ""))
-	if tool != "" and _action and _action.visible:
-		_draw_tool(_action.get_global_rect(), tool)
 	if bool(_state.get("pointer", false)):
 		var aim: Vector2 = _state.get("pointer_at", Vector2.ZERO)
 		var center := size * 0.5
@@ -1064,28 +1073,28 @@ func _emit_cancel() -> void:
 
 
 ## Context tool glyph on the Act button: axe (trees), pick (stone), open hand (debris).
-func _draw_tool(rect: Rect2, tool: String) -> void:
+func _draw_tool(canvas: Control, rect: Rect2, tool: String) -> void:
 	var c := Vector2(rect.position.x + 40, rect.position.y + rect.size.y * 0.5)
 	var wood := Color(0.62, 0.42, 0.22)
 	var steel := Color(0.82, 0.84, 0.86)
 	var edge := Color(0.05, 0.05, 0.05, 0.8)
 	match tool:
 		"axe":
-			_draw.draw_line(c + Vector2(-14, 22), c + Vector2(10, -20), edge, 9.0)
-			_draw.draw_line(c + Vector2(-14, 22), c + Vector2(10, -20), wood, 6.0)
+			canvas.draw_line(c + Vector2(-14, 22), c + Vector2(10, -20), edge, 9.0)
+			canvas.draw_line(c + Vector2(-14, 22), c + Vector2(10, -20), wood, 6.0)
 			var head := PackedVector2Array([c + Vector2(4, -24), c + Vector2(24, -18), c + Vector2(22, 0), c + Vector2(8, -10)])
-			_draw.draw_colored_polygon(head, steel)
-			_draw.draw_polyline(head + PackedVector2Array([head[0]]), edge, 2.0)
+			canvas.draw_colored_polygon(head, steel)
+			canvas.draw_polyline(head + PackedVector2Array([head[0]]), edge, 2.0)
 		"pick":
-			_draw.draw_line(c + Vector2(0, 24), c + Vector2(0, -16), edge, 9.0)
-			_draw.draw_line(c + Vector2(0, 24), c + Vector2(0, -16), wood, 6.0)
+			canvas.draw_line(c + Vector2(0, 24), c + Vector2(0, -16), edge, 9.0)
+			canvas.draw_line(c + Vector2(0, 24), c + Vector2(0, -16), wood, 6.0)
 			var arc := PackedVector2Array([c + Vector2(-24, -6), c + Vector2(-10, -20), c + Vector2(0, -22), c + Vector2(10, -20), c + Vector2(24, -6)])
-			_draw.draw_polyline(arc, edge, 9.0)
-			_draw.draw_polyline(arc, steel, 6.0)
+			canvas.draw_polyline(arc, edge, 9.0)
+			canvas.draw_polyline(arc, steel, 6.0)
 		"hands":
 			var skin := Color(0.92, 0.76, 0.6)
-			_draw.draw_circle(c + Vector2(0, 6), 13, skin)
+			canvas.draw_circle(c + Vector2(0, 6), 13, skin)
 			for i in 4:
 				var x := -10.5 + 7.0 * float(i)
-				_draw.draw_line(c + Vector2(x, 2), c + Vector2(x, -16 + absf(x) * 0.3), skin, 6.0)
-			_draw.draw_line(c + Vector2(-12, 10), c + Vector2(-22, 0), skin, 6.0)
+				canvas.draw_line(c + Vector2(x, 2), c + Vector2(x, -16 + absf(x) * 0.3), skin, 6.0)
+			canvas.draw_line(c + Vector2(-12, 10), c + Vector2(-22, 0), skin, 6.0)
