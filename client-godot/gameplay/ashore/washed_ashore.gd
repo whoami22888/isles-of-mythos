@@ -5307,7 +5307,9 @@ func _dust(at: Vector3, color: Color) -> void:
 ## Loot pops out of the node in a little arc, flies into the castaway, then
 ## the HUD toasts "+2 Wood" and the bag pulses.
 func _loot_arc(id: String, amount: int, from: Vector3) -> void:
-	var col := _item_color(id)
+	var col := _chip_color(id) if id in ["wood", "planks", "stone", "flint"] else _item_color(id)
+	if id in ["wood", "planks"]:
+		col = Color(0.42, 0.28, 0.15)
 	var count := clampi(amount, 1, 3)
 	for i in count:
 		var bit := MeshInstance3D.new()
@@ -5384,7 +5386,11 @@ func _deplete_fx(node: Dictionary) -> void:
 			var across := _camera.global_transform.basis.x if _camera else away
 			across.y = 0.0
 			across = across.normalized()
-			if across.dot(away) < 0.0:
+			# Fall to the lower side so the trunk never buries itself in the slope.
+			var base := root.global_position
+			var ga := _ground_y(base.x + across.x * 3.0, base.z + across.z * 3.0)
+			var gb := _ground_y(base.x - across.x * 3.0, base.z - across.z * 3.0)
+			if gb < ga:
 				across = -across
 			away = across
 			var axis := Vector3.UP.cross(away).normalized()
