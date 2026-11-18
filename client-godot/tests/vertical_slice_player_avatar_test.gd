@@ -122,11 +122,37 @@ func run() -> void:
 	root.add_child(fallback)
 	await _frames(1)
 	check(not fallback.is_character_mounted(), "missing rig is not mounted")
-	check((fallback.get_node("Capsule") as MeshInstance3D).visible, "capsule fallback visible when the rig is missing")
+	var fallback_capsule := fallback.get_node("Capsule") as MeshInstance3D
+	check(fallback_capsule.visible, "capsule fallback visible when the rig is missing")
+	var fallback_material := fallback_capsule.material_override as StandardMaterial3D
+	check(fallback_material != null and fallback_material.albedo_color == Color(0.0, 0.8, 1.0), "runtime missing rig uses the cyan diagnostic capsule")
+	var fallback_log := FileAccess.get_file_as_string("user://missing_assets.log")
+	check(fallback_log.contains("mesh\tres://assets/opening/kenney/missing-character.fbx"), "runtime missing rig is recorded by the diagnostic factory")
 	fallback.observe_server_position(Vector3.ZERO)
 	fallback.observe_server_position(Vector3(0.5, 0, 0))
 	check(fallback.animation_state() == "Walk", "fallback still tracks movement state without a rig")
 	fallback.queue_free()
+	await _frames(1)
+
+	# Existing runtime rig must remain mounted when optional FBX clips and its skin texture are absent.
+	var missing_optional := PlayerAvatar.new()
+	missing_optional.idle_clip_path = "res://assets/opening/kenney/missing-idle-004.fbx"
+	missing_optional.walk_clip_path = "res://assets/opening/kenney/missing-walk-004.fbx"
+	missing_optional.skin_texture_path = "res://assets/opening/kenney/missing-skin-004.png"
+	root.add_child(missing_optional)
+	await _frames(2)
+	check(missing_optional.is_character_mounted(), "valid runtime rig remains mounted with missing optional presentation assets")
+	var optional_anim := missing_optional.animation_player()
+	check(optional_anim != null and not optional_anim.has_animation("Idle") and not optional_anim.has_animation("Walk"), "missing clips leave a safe empty animation player")
+	var optional_meshes := missing_optional.character().find_children("*", "MeshInstance3D", true, false)
+	if not optional_meshes.is_empty():
+		var optional_material := (optional_meshes[0] as MeshInstance3D).material_override as StandardMaterial3D
+		check(optional_material != null and optional_material.albedo_texture != null, "missing skin uses a generated checkerboard texture")
+	else:
+		check(false, "runtime rig exposes a mesh for the skin fallback assertion")
+	var optional_log := FileAccess.get_file_as_string("user://missing_assets.log")
+	check(optional_log.contains("animation\tres://assets/opening/kenney/missing-idle-004.fbx") and optional_log.contains("animation\tres://assets/opening/kenney/missing-walk-004.fbx") and optional_log.contains("texture\tres://assets/opening/kenney/missing-skin-004.png"), "missing runtime clips and skin are logged")
+	missing_optional.queue_free()
 	await _frames(1)
 	if failures == 0:
 		print("vertical slice player avatar test passed")
