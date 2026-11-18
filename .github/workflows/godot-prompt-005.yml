@@ -67,30 +67,27 @@ jobs:
             exit 1
           fi
 
-          # Regression-check HTTP, HTTPS and trailing-slash variants used by runner image releases.
-          for protocol in http https; do
-            for suffix in "" "/"; do
-              sample_uri="\${protocol}://us-east-2.ec2.archive.ubuntu.com/ubuntu\${suffix}"
-              expected_uri="https://archive.ubuntu.com/ubuntu"
-              rewritten_uri="$(printf '%s\\n' "$sample_uri" | sed -E 's|https?://[^[:space:]]*\\.ec2\\.archive\\.ubuntu\\.com/ubuntu/?|https://archive.ubuntu.com/ubuntu|g')"
-              if [ "$rewritten_uri" != "$expected_uri" ]; then
-                echo "::error::Ubuntu regional mirror rewrite regression: $rewritten_uri"
-                exit 1
-              fi
-            done
+          # Regression-check HTTP/HTTPS and trailing-slash variants from runner images.
+          for sample_uri in 'http://us-east-2.ec2.archive.ubuntu.com/ubuntu' 'http://us-east-2.ec2.archive.ubuntu.com/ubuntu/' 'https://us-east-2.ec2.archive.ubuntu.com/ubuntu' 'https://us-east-2.ec2.archive.ubuntu.com/ubuntu/'; do
+            expected_uri='https://archive.ubuntu.com/ubuntu'
+            rewritten_uri="$(printf '%s\n' "$sample_uri" | sed -E 's|https?://[^[:space:]]*\.ec2\.archive\.ubuntu\.com/ubuntu/?|https://archive.ubuntu.com/ubuntu|g')"
+            if [ "$rewritten_uri" != "$expected_uri" ]; then
+              echo "::error::Ubuntu regional mirror rewrite regression: $rewritten_uri"
+              exit 1
+            fi
           done
 
           echo "APT mirror list before rewrite:"
           cat "$mirror_file"
-          sudo sed -E -i 's|https?://[^[:space:]]*\\.ec2\\.archive\\.ubuntu\\.com/ubuntu/?|https://archive.ubuntu.com/ubuntu|g' "$mirror_file"
+          sudo sed -E -i 's|https?://[^[:space:]]*\.ec2\.archive\.ubuntu\.com/ubuntu/?|https://archive.ubuntu.com/ubuntu|g' "$mirror_file"
           echo "APT mirror list after rewrite:"
           cat "$mirror_file"
 
-          if grep -Eq 'https?://[^[:space:]]*\\.ec2\\.archive\\.ubuntu\\.com/ubuntu/?' "$mirror_file"; then
+          if grep -Eq 'https?://[^[:space:]]*\.ec2\.archive\.ubuntu\.com/ubuntu/?' "$mirror_file"; then
             echo "::error::A regional EC2 Ubuntu mirror remains in apt-mirrors.txt."
             exit 1
           fi
-          if ! grep -Eq 'https?://archive\\.ubuntu\\.com/ubuntu/?' "$mirror_file"; then
+          if ! grep -Eq 'https?://archive\.ubuntu\.com/ubuntu/?' "$mirror_file"; then
             echo "::error::Official Ubuntu archive mirror is not configured in apt-mirrors.txt."
             exit 1
           fi
@@ -98,7 +95,7 @@ jobs:
           # Also rewrite any direct regional mirror URI if the runner stops using mirror+file.
           for source_file in /etc/apt/sources.list /etc/apt/sources.list.d/*.sources /etc/apt/sources.list.d/*.list; do
             if [ -f "$source_file" ]; then
-              sudo sed -E -i 's|https?://[^[:space:]]*\\.ec2\\.archive\\.ubuntu\\.com/ubuntu/?|https://archive.ubuntu.com/ubuntu|g' "$source_file"
+              sudo sed -E -i 's|https?://[^[:space:]]*\.ec2\.archive\.ubuntu\.com/ubuntu/?|https://archive.ubuntu.com/ubuntu|g' "$source_file"
             fi
           done
 
