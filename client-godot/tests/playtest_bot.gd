@@ -89,6 +89,10 @@ func _watch_camera() -> void:
 	var v_block := false
 	var v_vis := false
 	for k in vol_boxes.size():
+		# Volumes whose mesh is hidden (felled, cleared, not built yet) do
+		# not count, the same rule the follow camera uses.
+		if scene.has_method("_foliage_live") and not scene._foliage_live(k):
+			continue
 		var b: AABB = vol_boxes[k]
 		if b.has_point(eye):
 			v_inside = true
@@ -105,8 +109,10 @@ func _watch_camera() -> void:
 			v_vis = true
 			if OS.get_environment("IOM_BOT_CAMDBG") != "" and vol_visible_block_frames % 30 == 0:
 				say("CAMDBG vis-block eye %s head %s box %s mats %d reach %.2f far %.2f ots %.2f tight %s goal %.1f" % [eye, head, b, (vol_mats[k] as Array).size(), reach, eye.distance_to(far_pt), float(scene._cam_ots), scene._cam_tight, float(scene._cam_ots_goal)])
-	for b2 in vol_boxes:
-		if (b2 as AABB).has_point(head):
+	for k2 in vol_boxes.size():
+		if scene.has_method("_foliage_live") and not scene._foliage_live(k2):
+			continue
+		if (vol_boxes[k2] as AABB).has_point(head):
 			vol_head_inside_frames += 1
 			break
 	sec_frames[section] = int(sec_frames.get(section, 0)) + 1
@@ -334,6 +340,9 @@ func test_follow_quest(budget: float) -> void:
 				say("  storm=%s warmth=%.0f health=%d fire_lit=%s" % [sn0.state(), float(g("_warmth", 0.0)), int(g("_health", 0)), g("_fire_lit")])
 			steps_seen[step] = snappedf(t, 0.1)
 			last_step = step
+			# Camp clears its foliage when the fire is built: re-read volumes.
+			foliage.clear()
+			collect_foliage()
 			stuck_since = t
 			await shot("step_" + step)
 		var sn = g("_storm_night")

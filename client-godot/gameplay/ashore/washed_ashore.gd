@@ -1347,8 +1347,12 @@ func _clear_camp_tufts() -> void:
 			for i in mm.instance_count:
 				var xf: Transform3D = mmi.global_transform * mm.get_instance_transform(i)
 				if _flat(xf.origin, pit) < 8.0:
+					# Sink it far below the island (a zero scale would leave a
+					# degenerate volume at the origin for the camera tests).
 					var local := mm.get_instance_transform(i)
-					mm.set_instance_transform(i, Transform3D(local.basis.scaled(Vector3.ZERO), local.origin))
+					mm.set_instance_transform(i, Transform3D(local.basis, local.origin + Vector3(0, -500, 0)))
+	# Camera and lens-fade volumes must match what is left.
+	_prepare_foliage()
 
 
 func _begin_dusk() -> void:
