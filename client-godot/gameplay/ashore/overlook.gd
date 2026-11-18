@@ -45,6 +45,7 @@ var _cairns: Node3D
 var _far_before := 420.0
 var _fog_end := -1.0
 var _hidden: Array[Node3D] = []
+var _sunk: Array = []
 
 
 func setup() -> void:
@@ -150,12 +151,25 @@ func _clear_view() -> void:
 	var pl: Vector3 = host._player.global_position
 	var fwd := Vector3(LOOK_FAR.x - pl.x, 0, LOOK_FAR.z - pl.z).normalized()
 	# Lower the grassy humps ahead of the lookout (terrain shader, render only).
-	var terrain := slice.get_node_or_null("IrregularCoastalTerrain") as MeshInstance3D
-	if terrain and terrain.material_override is ShaderMaterial:
-		var m := terrain.material_override as ShaderMaterial
+	_sunk.clear()
+	# Every mesh drawn with the coastal terrain shader (main terrain, hill
+	# and ridge proxies), on its override or its surface materials.
+	for mi in host.find_children("*", "MeshInstance3D", true, false):
+		var mesh_i := mi as MeshInstance3D
+		var mats: Array = [mesh_i.material_override]
+		if mesh_i.mesh:
+			for si in mesh_i.mesh.get_surface_count():
+				mats.append(mesh_i.get_active_material(si))
+		for mat in mats:
+			if mat is ShaderMaterial and (mat as ShaderMaterial).shader and (mat as ShaderMaterial).shader.resource_path.ends_with("coastal_terrain_surface.gdshader"):
+				_sunk.append(mat)
+	for mat in _sunk:
+		var m := mat as ShaderMaterial
 		m.set_shader_parameter("sink_origin", Vector3(pl.x, pl.y - 0.4, pl.z))
 		m.set_shader_parameter("sink_dir", Vector2(fwd.x, fwd.z))
 		m.set_shader_parameter("sink_on", 1.0)
+	if OS.get_environment("IOM_ASHORE_POSE") != "":
+		print("overlook sink on %d terrain materials" % _sunk.size())
 	for gi in slice.find_children("*", "GeometryInstance3D", true, false):
 		var g := gi as GeometryInstance3D
 		if not g.is_visible_in_tree():
@@ -178,10 +192,9 @@ func _clear_view() -> void:
 
 
 func end_reveal() -> void:
-	var slice: Node3D = host._slice
-	var terrain := slice.get_node_or_null("IrregularCoastalTerrain") as MeshInstance3D if slice else null
-	if terrain and terrain.material_override is ShaderMaterial:
-		(terrain.material_override as ShaderMaterial).set_shader_parameter("sink_on", 0.0)
+	for mat in _sunk:
+		(mat as ShaderMaterial).set_shader_parameter("sink_on", 0.0)
+	_sunk.clear()
 	for g in _hidden:
 		if is_instance_valid(g):
 			g.visible = true

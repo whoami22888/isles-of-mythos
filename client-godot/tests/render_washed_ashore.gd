@@ -273,7 +273,7 @@ func run() -> void:
 							best_t = t
 							best_name = "%s#%d [%s] vr=%.0f..%.0f" % [scene.get_path_to(gi), xi, mesh.resource_path.get_file(), g.visibility_range_begin, g.visibility_range_end]
 				var key := best_name
-				if gx >= 7:
+				if gx >= 6:
 					print("CELL %d,%d -> %s @%.2f" % [gx, gy, best_name, best_t])
 				if not tally.has(key):
 					tally[key] = [0, 1e9]

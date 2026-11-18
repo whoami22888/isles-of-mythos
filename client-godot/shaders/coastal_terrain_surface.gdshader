@@ -45,9 +45,9 @@ void vertex() {
 		vec2 fd = normalize(sink_dir);
 		float ahead = dot(rel, fd);
 		float lateral = abs(dot(rel, vec2(-fd.y, fd.x)));
-		// Everything ahead, plus the flanks beside the lookout (not behind the
-		// reveal camera), drops below eye level.
-		float k = max(smoothstep(0.5, 3.0, ahead), smoothstep(3.0, 6.0, lateral) * step(-6.0, ahead));
+		// Everything ahead, plus both flanks (the higher trail ridge the reveal
+		// camera sits beside), drops below eye level.
+		float k = max(smoothstep(0.5, 3.0, ahead), smoothstep(2.5, 5.0, lateral));
 		k *= 1.0 - smoothstep(55.0, 70.0, length(rel));
 		float floor_y = sink_origin.y - 0.6 * k;
 		if (world_pos.y > floor_y) {
