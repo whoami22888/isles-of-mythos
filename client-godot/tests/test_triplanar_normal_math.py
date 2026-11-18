@@ -139,22 +139,26 @@ class StylizedPbrShaderContractTests(unittest.TestCase):
         """Load shader and scene text for source-level contract assertions."""
         project_root = Path(__file__).resolve().parents[1]
         test_directory = Path(__file__).resolve().parent
-        cls.source = read_utf8(
-            project_root / "shaders" / "cel_stylized_pbr.gdshader"
+        shader_directory = project_root / "shaders"
+        cls.desktop_source = read_utf8(
+            shader_directory / "cel_stylized_pbr.gdshader"
+        )
+        cls.mobile_source = read_utf8(
+            shader_directory / "cel_stylized_pbr_mobile.gdshader"
+        )
+        cls.shared = read_utf8(
+            shader_directory / "cel_stylized_pbr_shared.gdshaderinc"
         )
         cls.scene = read_utf8(
             test_directory / "cel_stylized_pbr_shader_test.tscn"
         )
-        cls.shared = read_utf8(
-            project_root / "shaders" / "cel_stylized_pbr_shared.gdshaderinc"
-        )
-        cls.vertex = cls.source.split("void vertex()", 1)[1].split(
+        cls.vertex = cls.shared.split("void vertex()", 1)[1].split(
             "void fragment()", 1
         )[0]
-        cls.fragment = cls.source.split("void fragment()", 1)[1].split(
+        cls.fragment = cls.shared.split("void fragment()", 1)[1].split(
             "void light()", 1
         )[0]
-        cls.light = cls.source.split("void light()", 1)[1]
+        cls.light = cls.shared.split("void light()", 1)[1]
 
     def test_vertex_and_fragment_rim_paths_use_smoothstep(self):
         """Both vertex and fragment paths retain smooth rim transitions."""
@@ -189,11 +193,21 @@ class StylizedPbrShaderContractTests(unittest.TestCase):
         self.assertIn("METALLIC = metallic", self.fragment)
         self.assertIn("ROUGHNESS = roughness", self.fragment)
 
+    def test_entrypoints_share_the_same_shader_implementation(self):
+        """Desktop and mobile entrypoints must include the single shared source."""
+        shared_include = (
+            '#include "res://shaders/cel_stylized_pbr_shared.gdshaderinc"'
+        )
+        self.assertIn(shared_include, self.desktop_source)
+        self.assertIn(shared_include, self.mobile_source)
+        self.assertIn("#define IOM_CEL_MOBILE_VERTEX_RAMP", self.mobile_source)
+        self.assertNotIn("#define IOM_CEL_MOBILE_VERTEX_RAMP", self.desktop_source)
+
     def test_mobile_force_vertex_shading_has_builtin_toon_fallback(self):
         """Mobile's built-in lighting path keeps toon diffuse, specular and rim."""
-        shader_header = self.source.split("void vertex()", 1)[0]
-        self.assertIn("diffuse_toon", shader_header)
-        self.assertIn("specular_toon", shader_header)
+        self.assertIn("vertex_lighting", self.mobile_source)
+        self.assertIn("diffuse_toon", self.mobile_source)
+        self.assertIn("specular_toon", self.mobile_source)
         self.assertIn("SPECULAR = specular_amount", self.fragment)
         self.assertIn("RIM = clamp(vertex_rim_factor", self.fragment)
 
@@ -205,6 +219,7 @@ class StylizedPbrShaderContractTests(unittest.TestCase):
         """The smoke scene binds the shader to a real MeshInstance3D node."""
         self.assertIn('type="MeshInstance3D"', self.scene)
         self.assertIn("cel_stylized_pbr.gdshader", self.scene)
+        self.assertIn("cel_stylized_pbr_mobile.gdshader", self.scene)
         self.assertIn("material_override = SubResource", self.scene)
 
 
