@@ -1342,6 +1342,7 @@ func _begin_dusk() -> void:
 	_stagger = false
 	_beast.visible = true
 	var from := _dusk_spawn()
+	var storm_spot := false
 	# Storm night: it steps out of the dark across the fire, ~4 m in front
 	# of the castaway, so the boosted firelight is on its face.
 	if _storm_night and _storm_night.threat_sent and _fire_lit and _player:
@@ -1349,12 +1350,14 @@ func _begin_dusk() -> void:
 		var to_pit := Vector3(pit.x - _player.global_position.x, 0, pit.z - _player.global_position.z)
 		if to_pit.length() > 0.3 and to_pit.length() < 6.0:
 			from = _storm_beast_spot(pit, to_pit.normalized())
+			storm_spot = true
 	_beast.global_position = from
 	var look := from - _player.global_position
 	look.y = 0.0
 	if look.length() > 0.5:
 		look = look.normalized()
-		_cam_yaw = atan2(-look.x, -look.z)
+		if not storm_spot:
+			_cam_yaw = atan2(-look.x, -look.z)
 		_player.look_at(_player.global_position + look, Vector3.UP)
 	_apply_dusk_look()
 	_play(ROAR, -2.0, 1.0)
@@ -1368,14 +1371,22 @@ func _storm_beast_spot(pit: Vector3, fwd: Vector3) -> Vector3:
 	var pl := _player.global_position
 	var yaw := atan2(-fwd.x, -fwd.z)
 	var eye := _ots_eye(yaw)
+	# The live follow camera (it settles off the camp bank, not always straight
+	# behind): put the beast across the fire from the lens so the fire is
+	# between them and lights its front, and keep that camera where it is.
+	if _camera and _flat(_camera.global_position, pl) < 8.0:
+		eye = _camera.global_position
+		fwd = Vector3(pit.x - eye.x, 0, pit.z - eye.z).normalized()
+		pl = Vector3(eye.x, pl.y, eye.z)
 	var best := pl + fwd * 4.0
 	var best_score := -1e9
-	for di in [4.0, 4.6, 3.6, 5.2]:
-		for ai in [0.0, 0.3, -0.3, 0.6, -0.6, 0.9, -0.9]:
+	var base_d := _flat(eye, pit) + 2.2
+	for di in [base_d, base_d + 0.6, base_d - 0.4, base_d + 1.2]:
+		for ai in [0.0, 0.12, -0.12, 0.25, -0.25, 0.4, -0.4]:
 			var dir := fwd.rotated(Vector3.UP, ai)
 			var at: Vector3 = pl + dir * di
 			at.y = _ground_y(at.x, at.z)
-			if at.y < _water_y + 0.2 or at.y > pl.y + 0.8:
+			if at.y < _water_y + 0.2 or at.y > pit.y + 0.8:
 				continue
 			if _flat(at, pit) < 1.4:
 				continue
@@ -1387,7 +1398,9 @@ func _storm_beast_spot(pit: Vector3, fwd: Vector3) -> Vector3:
 			var t := clampf((pit + Vector3.UP * 0.3 - eye).dot(seg) / seg.length_squared(), 0.0, 1.0)
 			if (eye + seg * t).distance_to(pit + Vector3.UP * 0.3) < 0.7:
 				continue
-			var score := -absf(di - 4.0) - absf(ai) * 1.5
+			var score := -absf(di - base_d) - absf(ai) * 3.0
+			if _camera and not _camera.is_position_in_frustum(chest):
+				score -= 10.0
 			if score > best_score:
 				best_score = score
 				best = at
