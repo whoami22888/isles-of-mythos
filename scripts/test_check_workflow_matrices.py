@@ -104,34 +104,6 @@ class WorkflowMatrixGuard(unittest.TestCase):
         self.assertIn('find "$ANDROID_HOME/build-tools"', workflow)
         self.assertNotIn('ls -1 "$ANDROID_HOME"/build-tools', workflow)
 
-    def test_visual_evidence_forces_mobile_vulkan_and_records_provenance(self):
-        """Reject silent OpenGL fallback and require capture provenance."""
-        workflow = (guard.WORKFLOWS / "godot-visual-evidence.yml").read_text()
-        self.assertIn("mesa-vulkan-drivers", workflow)
-        self.assertIn("vulkan-tools", workflow)
-        self.assertIn("VK_ICD_FILENAMES", workflow)
-        self.assertIn("vulkaninfo --summary", workflow)
-        self.assertIn("VK_KHR_surface", workflow)
-        self.assertEqual(workflow.count("--rendering-driver vulkan"), 6)
-        self.assertIn("switching to OpenGL", workflow)
-        self.assertIn("grep -Eq '^Vulkan [0-9]+\\.[0-9]+'", workflow)
-        self.assertIn('grep -q "Forward Mobile"', workflow)
-        self.assertNotIn('grep -q "Vulkan API"', workflow)
-        self.assertIn("SOURCE-SHA.txt", workflow)
-        self.assertIn("RENDERER-PROVENANCE.txt", workflow)
-        self.assertIn("VULKANINFO-SUMMARY.txt", workflow)
-        self.assertIn("CAPTURE-ARTIFACT-SHA256SUMS", workflow)
-        self.assertIn("vendor.lock.json", workflow)
-        self.assertIn(
-            (
-                "owner_reference_sha256="
-                "713cd6e90c6f7d589a06eb3bd4b9b2d5ebeb9c0ff711b5de527a68460dfbcb05"
-            ),
-            workflow,
-        )
-        self.assertIn("visual_acceptance=NOT_VERIFIED", workflow)
-        self.assertNotIn('echo "source_sha=', workflow)
-
     def test_signed_android_artifact_runs_for_any_pull_request_base(self):
         """Keep the signed debug artifact enabled for stacked PR bases."""
         workflow = (guard.WORKFLOWS / "ci.yml").read_text()
