@@ -69,15 +69,15 @@ jobs:
       - name: Install software Vulkan and X11 test dependencies
         run: |
           set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install --no-install-recommends -y mesa-vulkan-drivers vulkan-tools xvfb xauth
+          timeout 180s sudo apt-get update -o Acquire::Retries=2 -o Acquire::http::Timeout=15
+          timeout 180s sudo apt-get install --no-install-recommends -y mesa-vulkan-drivers xvfb xauth
           lvp_icd="$(find /usr/share/vulkan/icd.d -maxdepth 1 -type f -name 'lvp_icd*.json' -print -quit)"
           if [ -z "$lvp_icd" ]; then
             echo "::error::Mesa Lavapipe Vulkan ICD is unavailable."
             exit 1
           fi
+          export VK_ICD_FILENAMES="$lvp_icd"
           echo "VK_ICD_FILENAMES=$lvp_icd" >> "$GITHUB_ENV"
-          vulkaninfo --summary
       - name: Compile and render Prompt 005 with Vulkan Mobile
         shell: bash
         run: |
