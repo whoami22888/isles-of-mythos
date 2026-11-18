@@ -1,0 +1,51 @@
+{
+ "slug": "sabertooth-tiger",
+ "triangles": 711984,
+ "texture_px": 4096,
+ "triangles_light": 355991,
+ "texture_px_light": 1024,
+ "files": {
+  "glb": {
+   "name": "sabertooth-tiger.glb",
+   "bytes": 26193368
+  },
+  "blend": {
+   "name": "sabertooth-tiger.blend",
+   "bytes": 32205291
+  },
+  "fbx": {
+   "name": "sabertooth-tiger.fbx",
+   "bytes": 46070764
+  },
+  "obj": {
+   "name": "sabertooth-tiger-obj.zip",
+   "bytes": 19946778
+  },
+  "usdz": {
+   "name": "sabertooth-tiger.usdz",
+   "bytes": 40638898
+  },
+  "glb_light": {
+   "name": "sabertooth-tiger-light.glb",
+   "bytes": 10811536
+  },
+  "fbx_light": {
+   "name": "sabertooth-tiger-light.fbx",
+   "bytes": 21448940
+  }
+ },
+ "extras": {
+  "license": "CC0-1.0",
+  "source": "grab3d.com",
+  "dimensions_m": "0.640 x 2.070 x 1.002",
+  "triangles": 711984,
+  "variant": "download",
+  "generator": "Created by grab3d",
+  "created": "2026-10-29"
+ },
+ "origin": {
+  "method": "ai-assisted",
+  "detail": "Base mesh and textures generated with an AI image-to-3D tool (Meshy), then cleaned up, scaled, textured and checked in Blender.",
+  "ai_content": true
+ }
+}

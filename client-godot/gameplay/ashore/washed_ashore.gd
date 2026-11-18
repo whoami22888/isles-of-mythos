@@ -22,6 +22,11 @@ const HUT := preload("res://assets/ashore/library/hut_hy3d/hut_hy3d.glb")
 const FIRE_PIT := preload("res://assets/ashore/library/stone_fire_pit/stone_fire_pit.glb")
 const DEAD_LOG := preload("res://assets/ashore/library/log_dead_trunk_02/log_dead_trunk_02.glb")
 const ASHORE_STONE := preload("res://assets/ashore/library/stone_01/stone_01.glb")
+const BEAST_MESH := preload("res://assets/ashore/library/sabertooth_tiger/sabertooth-tiger-light.glb")
+const FX_FLAME_SHEET := preload("res://assets/ashore/fx/flame_sheet.png")
+const FX_FIRE := preload("res://assets/ashore/fx/kenney/fire_01.png")
+const FX_FLAME_SPRITE := preload("res://assets/ashore/fx/kenney/flame_02.png")
+const FX_SMOKE := preload("res://assets/ashore/fx/kenney/smoke_01.png")
 const MODELS := "res://assets/ashore/models/"
 ## Landing spot on the slice's south beach. The beach is a narrow strip
 ## (z 2..7) under the jungle slope, so the castaway wakes facing east along
@@ -253,7 +258,9 @@ var _beast_mats: Array[StandardMaterial3D] = []
 var _sack: Node3D
 var _hut: Node3D
 var _flame: Node3D
-var _camp_flame: MeshInstance3D
+var _camp_flame: Node3D
+var _flame_sheet_mats: Array[StandardMaterial3D] = []
+var _flame_frame := 20.0
 var _ring: MeshInstance3D
 var _hud: CanvasLayer
 var _ocean: AudioStreamPlayer
@@ -365,6 +372,7 @@ func _process(delta: float) -> void:
 		_hint_t = maxf(_hint_t - delta, 0.0)
 		if _hint_t == 0.0 and not (_dusk_active and _alerted and _choice == ""):
 			_hint = ""
+	_tick_fire_fx(delta)
 	_storm_night.tick(delta)
 	_tick_warmth(delta)
 	_tick_hunger(delta)
@@ -1404,7 +1412,7 @@ func _storm_beast_spot(pit: Vector3, fwd: Vector3) -> Vector3:
 			if at.y < _water_y + 0.2 or _flat(at, pit) < 1.4:
 				continue
 			var eye := _scare_eye(at)
-			var chest := at + Vector3.UP * 1.0
+			var chest := at + Vector3.UP * 1.15
 			var score := -absf(di - base_d) - absf(ai) * 2.0
 			# Soft penalties: anything between the lens and its chest, or a perch
 			# up on the bank, costs more than a wider angle.
@@ -1470,7 +1478,7 @@ func _scare_camera() -> void:
 	var jolt := maxf(0.0, 1.0 - _cine_age / 0.25)
 	eye += Vector3(sin(_cine_age * 97.0), cos(_cine_age * 83.0) * 0.6, sin(_cine_age * 71.0) * 0.4) * 0.12 * jolt
 	_camera.global_position = eye
-	_camera.look_at(at + Vector3.UP * 0.95, Vector3.UP)
+	_camera.look_at(at + Vector3.UP * 1.15, Vector3.UP)
 	_camera.fov = lerpf(40.0, 48.0, clampf(_cine_age / SCARE_SECONDS, 0.0, 1.0))
 	if _scare_rim:
 		var away := Vector3(at.x - eye.x, 0, at.z - eye.z).normalized()
@@ -2029,7 +2037,7 @@ func _beast_wobble() -> void:
 		else:
 			_clip(_beast_anim, "Idle")
 	else:
-		_beast.rotation.z = sin(_age * 8.0) * 0.18
+		pass
 
 
 func _apply_dusk_look() -> void:
@@ -2672,10 +2680,9 @@ func _build_props() -> void:
 	var ring := Art.put(camp, FIRE_PIT, "CampStones", Vector3(0, 0, 0), Vector3(0, 30, 0), 1.0)
 	Art.fit_height(ring, 0.5)
 	_sit(ring)
-	_camp_flame = _flame_mesh()
+	_camp_flame = _build_fire_fx(0.7)
 	_camp_flame.name = "CampTorch"
-	_camp_flame.position = Vector3(0, 0.45, 0)
-	_camp_flame.scale = Vector3.ONE * 0.7
+	_camp_flame.position = Vector3(0, 0.28, 0)
 	camp.add_child(_camp_flame)
 	_flame = Node3D.new()
 	_flame.name = "PlayerFire"
@@ -2685,26 +2692,15 @@ func _build_props() -> void:
 	Art.fit_height(pit, 0.55)
 	var logs := Art.put(_flame, DEAD_LOG, "Logs", Vector3(0, 0.05, 0), Vector3(0, 40, 0), 1.0)
 	_fit_long(logs, 1.1)
-	# Built campfire: a taller outer flame, a hot inner core and a face-height
-	# fill so the castaway reads in the storm (the only light on the beach).
-	var fire := _flame_mesh()
-	fire.position = Vector3(0, 0.55, 0)
-	(fire.mesh as QuadMesh).size = Vector2(0.85, 1.25)
-	var fire_light := fire.get_child(0) as OmniLight3D
-	fire_light.light_energy = 2.0
-	fire_light.omni_range = 7.5
-	fire_light.position = Vector3(0, 0.5, 0)
-	_fire_light = fire_light
+	# Built campfire: flipbook flame + GPU particles (flame and smoke) and a
+	# point light. No unshaded glow blobs.
+	var fire := _build_fire_fx(1.0)
+	fire.name = "FireFx"
+	fire.position = Vector3(0, 0.18, 0)
+	_fire_light = fire.get_node("FireLight") as OmniLight3D
+	_fire_light.light_energy = 2.0
+	_fire_light.omni_range = 7.5
 	_flame.add_child(fire)
-	var core := _flame_mesh()
-	core.name = "Core"
-	core.position = Vector3(0, 0.42, 0)
-	(core.mesh as QuadMesh).size = Vector2(0.42, 0.8)
-	var core_mat := (core.material_override as StandardMaterial3D).duplicate() as StandardMaterial3D
-	core_mat.albedo_color = Color(1.0, 0.78, 0.34, 0.9)
-	core.material_override = core_mat
-	core.get_child(0).queue_free()
-	_flame.add_child(core)
 	_sack = Node3D.new()
 	_sack.name = "IdleSack"
 	_sack.visible = false
@@ -3105,27 +3101,108 @@ func _fruit(root: Node3D, at_world: Vector3) -> void:
 
 ## Small low fire: two crossed soft flame cards over the stones. Fire is the
 ## only emissive surface on the island.
-func _flame_mesh() -> MeshInstance3D:
-	var mesh := MeshInstance3D.new()
-	var card := QuadMesh.new()
-	card.size = Vector2(0.55, 0.75)
-	mesh.mesh = card
-	var mat := StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-	mat.billboard_mode = BaseMaterial3D.BILLBOARD_FIXED_Y
-	mat.albedo_texture = Art.SOFT
-	mat.albedo_color = Color(1.0, 0.5, 0.16, 0.85)
-	mesh.material_override = mat
-	mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+func _tick_fire_fx(delta: float) -> void:
+	if _flame_sheet_mats.is_empty():
+		return
+	_flame_frame = fmod(_flame_frame + delta * 18.0, 72.0)
+	var fi := int(_flame_frame)
+	for mat in _flame_sheet_mats:
+		mat.uv1_scale = Vector3(1.0 / 12.0, 1.0 / 6.0, 1.0)
+		mat.uv1_offset = Vector3(float(fi % 12) / 12.0, float(fi / 12) / 6.0, 0.0)
+
+
+## Campfire: a textured flipbook flame, GPU particles for flame and smoke, and
+## an omni light. Works on the mobile / compatibility renderer.
+func _build_fire_fx(body_scale: float) -> Node3D:
+	var root := Node3D.new()
+	root.scale = Vector3.ONE * body_scale
 	var light := OmniLight3D.new()
+	light.name = "FireLight"
 	light.light_color = Color(1.0, 0.6, 0.3)
 	light.light_energy = 1.2
 	light.omni_range = 5.0
 	light.light_specular = 0.0
-	mesh.add_child(light)
-	return mesh
+	light.position = Vector3(0, 0.55, 0)
+	light.shadow_enabled = false
+	root.add_child(light)
+	var sheet := MeshInstance3D.new()
+	sheet.name = "FlameSheet"
+	var card := QuadMesh.new()
+	card.size = Vector2(0.95, 1.35)
+	sheet.mesh = card
+	sheet.position = Vector3(0, 0.62, 0)
+	sheet.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var sheet_mat := StandardMaterial3D.new()
+	sheet_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	sheet_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	sheet_mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	sheet_mat.billboard_mode = BaseMaterial3D.BILLBOARD_FIXED_Y
+	sheet_mat.albedo_texture = FX_FLAME_SHEET
+	sheet_mat.albedo_color = Color(1.15, 0.95, 0.7, 1.0)
+	sheet_mat.uv1_scale = Vector3(1.0 / 12.0, 1.0 / 6.0, 1.0)
+	sheet_mat.uv1_offset = Vector3(8.0 / 12.0, 1.0 / 6.0, 0.0)
+	sheet_mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR
+	sheet.material_override = sheet_mat
+	root.add_child(sheet)
+	_flame_sheet_mats.append(sheet_mat)
+	root.add_child(_gpu_fire("Flames", FX_FLAME_SPRITE, Color(1.0, 0.55, 0.18, 0.9), 28, 0.65, 0.9, 1.6, true, 0.22))
+	root.add_child(_gpu_fire("FirePuffs", FX_FIRE, Color(1.0, 0.45, 0.12, 0.7), 16, 0.8, 0.7, 1.1, true, 0.18))
+	root.add_child(_gpu_fire("Smoke", FX_SMOKE, Color(0.22, 0.2, 0.18, 0.45), 14, 1.8, 0.35, 0.9, false, 0.16))
+	return root
+
+
+func _gpu_fire(node_name: String, tex: Texture2D, tint: Color, amount: int, lifetime: float, vel: float, scale: float, additive: bool, radius: float) -> GPUParticles3D:
+	var parts := GPUParticles3D.new()
+	parts.name = node_name
+	parts.amount = amount
+	parts.lifetime = lifetime
+	parts.preprocess = maxf(lifetime * 1.5, 1.2)
+	parts.explosiveness = 0.0
+	parts.randomness = 0.35
+	parts.visibility_aabb = AABB(Vector3(-2.0, -0.4, -2.0), Vector3(4.0, 4.5, 4.0))
+	parts.position = Vector3(0, 0.12, 0)
+	parts.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var proc := ParticleProcessMaterial.new()
+	proc.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
+	proc.emission_sphere_radius = radius
+	proc.direction = Vector3(0, 1, 0)
+	proc.spread = 18.0 if additive else 12.0
+	proc.initial_velocity_min = vel * 0.55
+	proc.initial_velocity_max = vel
+	proc.gravity = Vector3(0, 0.55 if additive else 0.85, 0)
+	proc.scale_min = scale * 0.55
+	proc.scale_max = scale
+	proc.color = tint
+	if not additive:
+		proc.color_ramp = _smoke_ramp()
+	parts.process_material = proc
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.55, 0.7) if additive else Vector2(0.8, 0.8)
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD if additive else BaseMaterial3D.BLEND_MODE_MIX
+	mat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	mat.albedo_texture = tex
+	mat.albedo_color = Color(1, 1, 1, 1)
+	mat.vertex_color_use_as_albedo = true
+	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR
+	quad.material = mat
+	parts.draw_pass_1 = quad
+	return parts
+
+
+func _smoke_ramp() -> GradientTexture1D:
+	var grad := Gradient.new()
+	grad.offsets = PackedFloat32Array([0.0, 0.2, 1.0])
+	grad.colors = PackedColorArray([
+		Color(0.25, 0.22, 0.2, 0.0),
+		Color(0.28, 0.26, 0.24, 0.5),
+		Color(0.18, 0.17, 0.16, 0.0),
+	])
+	var tex := GradientTexture1D.new()
+	tex.gradient = grad
+	return tex
 
 
 ## Castaway: rigged Quaternius UBC body with UAL clips (CC0), wet linen shirt.
@@ -3188,12 +3265,14 @@ func _build_beast() -> void:
 		home.name = "Creatures"
 		add_child(home)
 	home.add_child(_beast)
-	var dino := _rig(MODELS + "dino.glb", {"Idle": "|Idle", "Walk": "|Walk", "Run": "|Run", "Punch": "|Punch", "Death": "|Death", "Yes": "|Yes"})
-	if dino:
-		dino.name = "Body"
-		_beast.add_child(dino)
-		_fit(dino, 2.2)
-		_beast_anim = dino.get_meta("clips") as AnimationPlayer
+	# Grab3D CC0 sabertooth (static, light LOD). Head is at +Z, so yaw 180
+	# to match Godot's -Z forward before look_at.
+	var body := BEAST_MESH.instantiate() as Node3D
+	body.name = "Body"
+	body.rotation.y = PI
+	_beast.add_child(body)
+	_fit(body, 1.9)
+	_beast_anim = null
 	var bar := MeshInstance3D.new()
 	bar.name = "HealthBar"
 	var quad := QuadMesh.new()
@@ -3208,7 +3287,9 @@ func _build_beast() -> void:
 
 
 func _paint_beast(rare: bool) -> void:
-	var tint := Color(1.25, 0.95, 0.35) if rare else Color(1, 1, 1)
+	# Keep the sabertooth's hide texture. A slight cool, damp multiply so
+	# firelight and the lightning rim shape it; rare tame keeps a gold tint.
+	var tint := Color(1.2, 0.95, 0.4) if rare else Color(0.78, 0.72, 0.64)
 	_beast_mats.clear()
 	for mesh in _meshes(_beast):
 		if str(mesh.name) == "HealthBar" or mesh.mesh == null:
@@ -3218,27 +3299,15 @@ func _paint_beast(rare: bool) -> void:
 			if not (base is StandardMaterial3D):
 				continue
 			var mat := (base as StandardMaterial3D).duplicate() as StandardMaterial3D
-			var orig: Color = base.get_meta("base", (base as StandardMaterial3D).albedo_color)
-			mat.set_meta("base", orig)
-			# The source rig is near-black, 40% metallic Phong: give it a real
-			# hide albedo and a damp, non-metal roughness so firelight shapes it.
-			var nm := str(base.resource_name)
-			# Dark hide so it silhouettes against the lightning; the fire only
-			# picks out the jaw and lower front. No googly eye whites.
-			if nm == "Dino_Main":
-				orig = Color(0.15, 0.12, 0.09)
-			elif nm == "Dino_Secondary":
-				orig = Color(0.30, 0.23, 0.15)
-			elif nm == "Dino_Teeth":
-				orig = Color(0.78, 0.72, 0.58)
-			elif nm == "Eye_White" or nm == "Eye_Black":
-				orig = Color(0.03, 0.02, 0.02)
+			mat.set_meta("base", mat.albedo_color)
 			mat.metallic = 0.0
-			mat.roughness = 0.72
-			mat.albedo_color = orig * tint
+			mat.roughness = 0.62
+			mat.albedo_color = tint
 			if rare:
 				mat.emission_enabled = true
 				mat.emission = Color(0.35, 0.25, 0.05)
+			else:
+				mat.emission_enabled = false
 			mesh.set_surface_override_material(i, mat)
 			_beast_mats.append(mat)
 
