@@ -1,6 +1,7 @@
 extends SceneTree
 
 const Adapter = preload("res://scripts/websocket_adapter.gd")
+const PerformancePolicy = preload("res://autoload/performance_adapter.gd")
 var _failures := 0
 
 func check(condition: bool, description: String) -> void:
@@ -63,6 +64,42 @@ func run() -> void:
 	check(preset.load("res://export_presets.cfg") == OK, "Export preset must load")
 	check(preset.get_value("preset.0.options", "permissions/internet", false), "APK must allow Internet access")
 	check(ProjectSettings.get_setting("rendering/renderer/rendering_method", "") == "mobile", "Mobile renderer required")
+
+	var viewport := root.get_viewport()
+	var original_3d_scale := viewport.scaling_3d_scale
+	var original_canvas_transform := viewport.canvas_transform
+	var performance_adapter = root.get_node_or_null("PerformanceAdapter")
+	check(performance_adapter != null, "Dynamic resolution adapter must be registered as an autoload")
+	if performance_adapter != null:
+		performance_adapter.monitoring_enabled = false
+
+	var low_fps_step := PerformancePolicy.next_policy_state(1.0, 47.9, 16.0, 0.0, 0.5)
+	check(is_equal_approx(low_fps_step.x, 0.95) and is_equal_approx(low_fps_step.y, 0.0), "FPS below 48 must lower 3D scale by 0.05")
+	var slow_frame_step := PerformancePolicy.next_policy_state(1.0, 55.0, 20.1, 0.0, 0.5)
+	check(is_equal_approx(slow_frame_step.x, 0.95), "Average frame time above 20 ms must lower 3D scale")
+	var exact_boundary := PerformancePolicy.next_policy_state(1.0, 48.0, 20.0, 0.0, 0.5)
+	check(is_equal_approx(exact_boundary.x, 1.0), "Exact 48 FPS and 20 ms boundaries must not lower scale")
+	var minimum_step := PerformancePolicy.next_policy_state(0.72, 47.0, 25.0, 0.0, 0.5)
+	check(is_equal_approx(minimum_step.x, 0.70), "3D scale must not fall below 0.70")
+	var restore_step := PerformancePolicy.next_policy_state(0.70, 59.0, 16.5, 9.5, 0.5)
+	check(is_equal_approx(restore_step.x, 0.72) and is_equal_approx(restore_step.y, 9.0), "Ten stable seconds must restore one 0.02 step")
+	var unstable_step := PerformancePolicy.next_policy_state(0.80, 58.4, 16.5, 9.5, 0.5)
+	check(is_equal_approx(unstable_step.x, 0.80) and is_equal_approx(unstable_step.y, 0.0), "Below 58.5 FPS must reset the restore timer")
+
+	if performance_adapter != null:
+		performance_adapter._set_scale(1.0)
+		performance_adapter._stable_seconds = 0.0
+		performance_adapter.apply_metrics_sample(47.9, 16.0, 0.5)
+		check(is_equal_approx(viewport.scaling_3d_scale, 0.95), "Autoload must apply the 3D-only scale step")
+		performance_adapter._set_scale(0.72)
+		performance_adapter.apply_metrics_sample(47.0, 25.0, 0.5)
+		check(is_equal_approx(viewport.scaling_3d_scale, 0.70), "Autoload must clamp the 3D scale at 0.70")
+		performance_adapter._stable_seconds = 9.5
+		performance_adapter.apply_metrics_sample(59.0, 16.5, 0.5)
+		check(is_equal_approx(viewport.scaling_3d_scale, 0.72), "Autoload must restore 3D scale after ten stable seconds")
+		check(viewport.canvas_transform == original_canvas_transform, "3D scaling must leave the 2D canvas transform unchanged")
+		performance_adapter._set_scale(original_3d_scale)
+		performance_adapter._stable_seconds = 0.0
 	var adapter := Adapter.new()
 	root.add_child(adapter)
 	for url in ["wss://example.invalid/ws", "ws://127.0.0.1:3000/ws", "ws://localhost:3000/ws", "ws://[::1]:3000/ws"]:
