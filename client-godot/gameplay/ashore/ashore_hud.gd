@@ -69,6 +69,18 @@ func note_fly(from: Vector2, kind: String, amount: int) -> void:
 	_flies.append({"from": from, "kind": kind, "amount": amount, "age": 0.0, "life": 0.85})
 
 
+## "+2 Wood" toast near the top of the screen and a pulse on the bag counts.
+var _toasts: Array = []
+var _bag_pulse := 0.0
+
+
+func note_toast(text: String, kind: String) -> void:
+	_toasts.append({"text": text, "kind": kind, "age": 0.0})
+	if _toasts.size() > 3:
+		_toasts.pop_front()
+	_bag_pulse = 0.35
+
+
 func note_burst(text: String) -> void:
 	_burst = text
 	_burst_age = 0.0
@@ -229,6 +241,12 @@ func _build_widgets() -> void:
 	_action.offset_top = -150
 	_action.offset_bottom = -36
 	_action.pressed.connect(_emit_action)
+	_action.button_down.connect(func() -> void:
+		if world and world.has_method("on_action_hold"):
+			world.on_action_hold(true))
+	_action.button_up.connect(func() -> void:
+		if world and world.has_method("on_action_hold"):
+			world.on_action_hold(false))
 	add_child(_action)
 	_attack = _button("Strike", 24)
 	_attack.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
@@ -427,7 +445,7 @@ func _apply_counts() -> void:
 
 
 func _apply_buttons() -> void:
-	_action.text = str(_state.get("action", "Act"))
+	_action.text = ("     " if str(_state.get("tool_icon", "")) != "" else "") + str(_state.get("action", "Act"))
 	_action.visible = not bool(_state.get("fork", false)) and not bool(_state.get("qte", false)) and not bool(_state.get("name_open", false))
 	_attack.visible = bool(_state.get("attack", false))
 	_skip.visible = bool(_state.get("skip", false))
@@ -543,6 +561,16 @@ func _process(delta: float) -> void:
 		if float(fly.age) < float(fly.life):
 			keep.append(fly)
 	_flies = keep
+	var keep_t: Array = []
+	for toast in _toasts:
+		toast.age += delta
+		if float(toast.age) < 1.6:
+			keep_t.append(toast)
+	_toasts = keep_t
+	_bag_pulse = maxf(_bag_pulse - delta, 0.0)
+	if _counts:
+		_counts.pivot_offset = Vector2(0, _counts.size.y * 0.5)
+		_counts.scale = Vector2.ONE * (1.0 + sin(clampf(1.0 - _bag_pulse / 0.35, 0.0, 1.0) * PI) * 0.12 * (1.0 if _bag_pulse > 0.0 else 0.0))
 	if _draw:
 		_draw.queue_redraw()
 
@@ -569,6 +597,22 @@ func _on_draw() -> void:
 		var plus := "+%d" % int(fly.amount)
 		var font2 := _ui if _ui else ThemeDB.fallback_font
 		_draw.draw_string(font2, p + Vector2(16, -8), plus, HORIZONTAL_ALIGNMENT_LEFT, -1, 28, Color(1, 0.95, 0.8))
+	var ty := 150.0
+	for toast in _toasts:
+		var k := float(toast.age)
+		var alpha := clampf(1.6 - k, 0.0, 0.4) / 0.4
+		var rise := minf(k, 0.25) / 0.25
+		var tfont := _ui if _ui else ThemeDB.fallback_font
+		var txt := str(toast.text)
+		var tw := tfont.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 34).x
+		var at := Vector2(size.x * 0.5 - tw * 0.5 + 20, ty + 18.0 * (1.0 - rise))
+		_draw.draw_rect(Rect2(at - Vector2(56, 34), Vector2(tw + 76, 46)), Color(0.03, 0.06, 0.08, 0.55 * alpha))
+		_draw_icon(at + Vector2(-30, -11), str(toast.kind), 26)
+		_draw.draw_string(tfont, at, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 34, Color(1, 0.95, 0.8, alpha))
+		ty += 52.0
+	var tool := str(_state.get("tool_icon", ""))
+	if tool != "" and _action and _action.visible:
+		_draw_tool(_action.get_global_rect(), tool)
 	if bool(_state.get("pointer", false)):
 		var aim: Vector2 = _state.get("pointer_at", Vector2.ZERO)
 		var center := size * 0.5
@@ -894,3 +938,31 @@ func _emit_place() -> void:
 func _emit_cancel() -> void:
 	if world:
 		world.on_build_cancel()
+
+
+## Context tool glyph on the Act button: axe (trees), pick (stone), open hand (debris).
+func _draw_tool(rect: Rect2, tool: String) -> void:
+	var c := Vector2(rect.position.x + 40, rect.position.y + rect.size.y * 0.5)
+	var wood := Color(0.62, 0.42, 0.22)
+	var steel := Color(0.82, 0.84, 0.86)
+	var edge := Color(0.05, 0.05, 0.05, 0.8)
+	match tool:
+		"axe":
+			_draw.draw_line(c + Vector2(-14, 22), c + Vector2(10, -20), edge, 9.0)
+			_draw.draw_line(c + Vector2(-14, 22), c + Vector2(10, -20), wood, 6.0)
+			var head := PackedVector2Array([c + Vector2(4, -24), c + Vector2(24, -18), c + Vector2(22, 0), c + Vector2(8, -10)])
+			_draw.draw_colored_polygon(head, steel)
+			_draw.draw_polyline(head + PackedVector2Array([head[0]]), edge, 2.0)
+		"pick":
+			_draw.draw_line(c + Vector2(0, 24), c + Vector2(0, -16), edge, 9.0)
+			_draw.draw_line(c + Vector2(0, 24), c + Vector2(0, -16), wood, 6.0)
+			var arc := PackedVector2Array([c + Vector2(-24, -6), c + Vector2(-10, -20), c + Vector2(0, -22), c + Vector2(10, -20), c + Vector2(24, -6)])
+			_draw.draw_polyline(arc, edge, 9.0)
+			_draw.draw_polyline(arc, steel, 6.0)
+		"hands":
+			var skin := Color(0.92, 0.76, 0.6)
+			_draw.draw_circle(c + Vector2(0, 6), 13, skin)
+			for i in 4:
+				var x := -10.5 + 7.0 * float(i)
+				_draw.draw_line(c + Vector2(x, 2), c + Vector2(x, -16 + absf(x) * 0.3), skin, 6.0)
+			_draw.draw_line(c + Vector2(-12, 10), c + Vector2(-22, 0), skin, 6.0)

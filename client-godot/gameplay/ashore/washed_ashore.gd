@@ -138,6 +138,15 @@ var _qte := false
 var _stagger := false
 var _naming := false
 var _gatherer := false
+## Gathering feel: held Act repeats on GATHER_RHYTHM, tool mesh in the right hand,
+## camera kick on each contact.
+var _act_held := false
+var _tool_mesh: Node3D
+var _tool_show := 0.0
+var _cam_kick := 0.0
+const GATHER_RHYTHM := 0.6
+const GATHER_CONTACT := 0.22
+const AXE_MESH := preload("res://assets/ashore/models/axe.glb")
 var _rare := false
 var _choice := ""
 var _collect_ready := false
@@ -854,6 +863,7 @@ func _tick_play(delta: float) -> void:
 	_tick_quest(delta)
 	_tick_ghost()
 	_gather_lock = maxf(_gather_lock - delta, 0.0)
+	_tick_hold_gather(delta)
 	_follow_camera(delta)
 	_refresh_locks()
 	if _step == "scavenge" and _step_time > 40.0:
@@ -1048,6 +1058,10 @@ func _follow_camera(delta: float) -> void:
 	var fwd := -Basis(Vector3.UP, _cam_yaw).z
 	look = look.lerp(_player.global_position + Vector3.UP * 1.15 + fwd * 1.6, _cam_ots)
 	_camera.look_at(look, Vector3.UP)
+	_cam_kick = maxf(_cam_kick - delta, 0.0)
+	var kick := _cam_kick / 0.16
+	_camera.h_offset = randf_range(-0.05, 0.05) * kick
+	_camera.v_offset = randf_range(-0.035, 0.035) * kick
 	_fade_occluders(eye, head, delta)
 
 
@@ -1116,27 +1130,39 @@ func _act_on_node(node: Dictionary) -> void:
 		return
 	if _gather_lock > 0.0:
 		return
-	_gather_lock = 0.5
+	_gather_lock = GATHER_RHYTHM
 	var root := node.get("root") as Node3D
 	var aim := _node_aim(node)
 	var kind := str(node.get("kind", ""))
 	var bonus := str(node.get("tool", ""))
 	# A found tool adds one extra piece on the final, felling/splitting hit.
 	var tool_bonus := 1 if bonus != "" and bool(_tools.get(bonus, false)) and int(node.get("stage", 0)) == int(node.get("stages", 1)) - 1 else 0
-	_swing = 0.3
+	_swing = 0.45
 	var face := root.global_position
 	face.y = _player.global_position.y
 	if _flat(face, _player.global_position) > 0.2:
 		_player.look_at(face, Vector3.UP)
-	_play_clip("Jump" if kind in ["tree", "rock", "stones", "hull", "rigging"] else "Gather")
-	_play(_hit_sound(kind), -3.0, randf_range(0.92, 1.08))
-	_shake(root)
-	_chips(aim, _chip_color(kind), 14)
-	_vibrate(18, 0.4)
+	var icon := _tool_icon_for(kind)
+	if icon in ["axe", "pick"]:
+		_show_tool(icon)
+		_restart_clip("Jump", 1.25)
+	else:
+		_restart_clip("Gather", 1.4)
+	_play(SWING, -14.0, randf_range(1.05, 1.2))
+	# Effects land on contact, a beat after the wind-up, not on the tap.
+	var chip_col := _chip_color(kind)
+	get_tree().create_timer(GATHER_CONTACT).timeout.connect(func() -> void:
+		if not is_instance_valid(root):
+			return
+		_play(_hit_sound(kind), -3.0, randf_range(0.92, 1.08))
+		_shake(root)
+		_chips(aim, chip_col, 18)
+		_dust(aim, chip_col)
+		_cam_kick = 0.16
+		_vibrate(22, 0.45))
 	var need_hits := _hits_for(node)
 	node["hits"] = int(node.get("hits", 0)) + 1
 	if int(node["hits"]) < need_hits:
-		_crack_progress(node, aim, float(node["hits"]) / float(need_hits))
 		return
 	node["hits"] = 0
 	var stage := int(node.get("stage", 0))
@@ -1154,10 +1180,11 @@ func _act_on_node(node: Dictionary) -> void:
 	if int(node["stage"]) >= int(node.get("stages", 1)):
 		node["depleted"] = true
 		node["left"] = float(node.get("respawn", 42.0))
-		root.visible = false
 		if float(node.get("respawn", 42.0)) < 0.0:
 			_nodes.erase(node)
 			root.queue_free()
+		else:
+			_deplete_fx(node)
 	if kind == "dig":
 		_on_dug(node)
 	if id in WRECK_IDS:
@@ -1167,15 +1194,13 @@ func _act_on_node(node: Dictionary) -> void:
 			_enter("free_pet")
 
 
-const HITS_PER_PIECE := {"tree": 3, "rock": 3, "stones": 2, "hull": 2, "rigging": 2, "drift": 2}
+## One contact per stage: every swing pays out (Last Day on Earth / Palmon rhythm);
+## trees and rocks have 4 stages, wreck debris 3.
+const HITS_PER_PIECE := {}
 
 
 func _hits_for(node: Dictionary) -> int:
-	var hits := int(HITS_PER_PIECE.get(str(node.get("kind", "")), 1))
-	var tool := str(node.get("tool", ""))
-	if tool != "" and bool(_tools.get(tool, false)):
-		hits -= 1
-	return maxi(hits, 1)
+	return maxi(int(HITS_PER_PIECE.get(str(node.get("kind", "")), 1)), 1)
 
 
 ## In-between hit: a small "crack" tick so every tap still reads as progress.
@@ -1214,8 +1239,7 @@ func _give(id: String, amount: int, from: Vector3) -> void:
 			_popup("Axe! Double wood" if id == "axe" else "Pick! Double stone", from + Vector3.UP * (0.4 if id == "axe" else 0.9), Color(1.0, 0.86, 0.45))
 	else:
 		_inv[id] = int(_inv.get(id, 0)) + amount
-		_fly(id, amount, from)
-		_popup("+%d %s" % [amount, _item_word(id)], from, _item_color(id))
+		_loot_arc(id, amount, from)
 
 
 func _eat() -> bool:
@@ -1943,6 +1967,7 @@ func _tick_respawn(delta: float) -> void:
 		if float(node["left"]) <= 0.0:
 			node["depleted"] = false
 			node["stage"] = 0
+			_restore_node(node)
 			(node.get("root") as Node3D).visible = true
 			_apply_stage(node)
 
@@ -2035,6 +2060,10 @@ func _tick_sharks(delta: float) -> void:
 func _tick_ring() -> void:
 	if _ring == null:
 		return
+	# The cream ground ring read as a glowing marker: gone. The context
+	# button's tool icon and the node's title say what is in reach.
+	_ring.visible = false
+	return
 	var node := _nearest_node(3.6)
 	# No action ring in the storm: the night frame is fire, rain and shelter.
 	if node.is_empty() or bool(node.get("depleted", false)) or _cinematic != "" or _step == "storm" or _step == "night" or _dawn_chest or (_storm_night and _storm_night.is_night()):
@@ -3300,6 +3329,7 @@ func _build_player() -> void:
 		_fit(rig, 1.78)
 		_anim = rig.get_meta("clips") as AnimationPlayer
 		_collect_skin(rig)
+		_attach_tool(rig)
 	_player.look_at(_player.position + INTRO_FACING, Vector3.UP)
 	_cam_yaw = _player.rotation.y
 
@@ -3398,9 +3428,10 @@ func _apply_stage(node: Dictionary) -> void:
 	var root := node.get("root") as Node3D
 	if root == null:
 		return
-	var t := 1.0 - float(int(node.get("stage", 0))) / float(maxi(int(node.get("stages", 1)), 1))
 	var base := float(node.get("scale", 2.0))
-	root.scale = Vector3.ONE * base * (0.5 + 0.5 * t)
+	# No shrinking per hit (a palm that halves in size read as broken):
+	# the node keeps its size and only the final hit fells / crumbles it.
+	root.scale = Vector3.ONE * base
 	var chunks := _meshes(root)
 	var stage := int(node.get("stage", 0))
 	var i := 0
@@ -3610,6 +3641,7 @@ func _push_hud() -> void:
 		"show_health": _creature_hostile or _health < 5,
 		"counts": _inv,
 		"action": _action_caption(),
+		"tool_icon": _context_tool(),
 		"attack": _beast != null and _beast.visible and _creature_hostile and _choice != "kill" and _flat(_player.global_position, _beast.global_position) < 16.0,
 		"skip": _cinematic != "",
 		"fork": _fork,
@@ -5102,3 +5134,311 @@ func _foliage_hit(head: Vector3, eye: Vector3) -> float:
 		if hit != null:
 			best = minf(best, head.distance_to(hit) / length)
 	return best
+
+
+# --- Gathering feel -------------------------------------------------------
+
+func on_action_hold(down: bool) -> void:
+	_act_held = down
+
+
+## Held Act keeps swinging at the node in reach on GATHER_RHYTHM.
+func _tick_hold_gather(delta: float) -> void:
+	_tool_show = maxf(_tool_show - delta, 0.0)
+	if _tool_mesh:
+		_tool_mesh.visible = _tool_show > 0.0
+	if not _act_held or _gather_lock > 0.0 or _cinematic != "" or _placing != "":
+		return
+	var node := _nearest_node(3.5)
+	if node.is_empty() or str(node.get("kind", "")) in ["pile", "dig"]:
+		return
+	_act_on_node(node)
+
+
+func _tool_icon_for(kind: String) -> String:
+	match kind:
+		"tree", "drift":
+			return "axe"
+		"rock", "stones", "flint":
+			return "pick"
+		"hull", "rigging", "cargo", "pile", "bush", "crab", "fibre", "fish", "dig":
+			return "hands"
+	return "hands"
+
+
+func _context_tool() -> String:
+	if _placing != "" or _cinematic != "":
+		return ""
+	var node := _nearest_node(3.5)
+	if node.is_empty():
+		return ""
+	return _tool_icon_for(str(node.get("kind", "")))
+
+
+func _restart_clip(clip_name: String, speed: float) -> void:
+	if _anim == null:
+		return
+	var full := "ashore/" + clip_name
+	if _anim.has_animation(full):
+		_anim.stop()
+		_anim.play(full, 0.08, speed)
+
+
+## Pirate-kit axe (Quaternius, CC0) in the right hand; shown only while swinging.
+## Rocks use the same head turned spike-forward as a stand-in pick.
+func _attach_tool(rig: Node3D) -> void:
+	var skel := rig.find_child("Skeleton3D", true, false) as Skeleton3D
+	if skel == null or skel.find_bone("hand_r") < 0:
+		return
+	var attach := BoneAttachment3D.new()
+	attach.name = "ToolHand"
+	attach.bone_name = "hand_r"
+	skel.add_child(attach)
+	var holder := Node3D.new()
+	holder.name = "Tool"
+	attach.add_child(holder)
+	var axe := AXE_MESH.instantiate() as Node3D
+	axe.name = "Axe"
+	holder.add_child(axe)
+	var box := _merged_aabb(axe)
+	var s := 0.62 / maxf(box.size.y, 0.01)
+	# Undo the rig's fit scale so the tool is ~0.6 m in the world.
+	var rs := maxf(rig.global_transform.basis.get_scale().y, 0.001) if rig.is_inside_tree() else maxf(rig.scale.y, 0.001)
+	axe.scale = Vector3.ONE * s / rs
+	axe.position = Vector3(0, -box.position.y - box.size.y * 0.18, 0) * s / rs
+	holder.rotation_degrees = Vector3(90, 0, 0)
+	for mi in _meshes(axe):
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	holder.visible = true
+	_tool_mesh = attach
+	attach.visible = false
+
+
+func _show_tool(icon: String) -> void:
+	if _tool_mesh == null:
+		return
+	var holder := _tool_mesh.get_node_or_null("Tool") as Node3D
+	if holder:
+		holder.rotation_degrees = Vector3(90, 0, 0) if icon == "axe" else Vector3(90, 180, 0)
+	_tool_show = 0.9
+	_tool_mesh.visible = true
+
+
+## A soft puff of dust / sawdust on contact (shaded quads, no glow).
+func _dust(at: Vector3, color: Color) -> void:
+	var particles := GPUParticles3D.new()
+	particles.one_shot = true
+	particles.explosiveness = 0.9
+	particles.amount = 10
+	particles.lifetime = 0.9
+	particles.visibility_aabb = AABB(Vector3(-3, -3, -3), Vector3(6, 6, 6))
+	add_child(particles)
+	particles.global_position = at
+	var process := ParticleProcessMaterial.new()
+	process.direction = Vector3(0, 1, 0)
+	process.spread = 80.0
+	process.initial_velocity_min = 0.4
+	process.initial_velocity_max = 1.1
+	process.gravity = Vector3(0, 0.3, 0)
+	process.scale_min = 0.6
+	process.scale_max = 1.4
+	var curve := CurveTexture.new()
+	var c := Curve.new()
+	c.add_point(Vector2(0, 0.5))
+	c.add_point(Vector2(1, 1.4))
+	curve.curve = c
+	process.scale_curve = curve
+	var fade := Gradient.new()
+	fade.set_color(0, Color(1, 1, 1, 0.55))
+	fade.set_color(1, Color(1, 1, 1, 0.0))
+	var ramp := GradientTexture1D.new()
+	ramp.gradient = fade
+	process.color_ramp = ramp
+	particles.process_material = process
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.32, 0.32)
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = color.lerp(Color(0.8, 0.76, 0.68), 0.4)
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	mat.vertex_color_use_as_albedo = true
+	mat.roughness = 1.0
+	var tex = load(FX_SMOKE_PATH)
+	if tex:
+		mat.albedo_texture = tex
+	quad.material = mat
+	particles.draw_pass_1 = quad
+	particles.emitting = true
+	get_tree().create_timer(1.4).timeout.connect(particles.queue_free)
+
+
+## Loot pops out of the node in a little arc, flies into the castaway, then
+## the HUD toasts "+2 Wood" and the bag pulses.
+func _loot_arc(id: String, amount: int, from: Vector3) -> void:
+	var col := _item_color(id)
+	var count := clampi(amount, 1, 3)
+	for i in count:
+		var bit := MeshInstance3D.new()
+		var mesh: Mesh
+		if id in ["wood", "planks"]:
+			var cyl := CylinderMesh.new()
+			cyl.top_radius = 0.05
+			cyl.bottom_radius = 0.05
+			cyl.height = 0.32
+			cyl.radial_segments = 8
+			mesh = cyl
+		elif id in ["stone", "flint"]:
+			var sph := SphereMesh.new()
+			sph.radius = 0.08
+			sph.height = 0.12
+			sph.radial_segments = 8
+			sph.rings = 4
+			mesh = sph
+		else:
+			var box := BoxMesh.new()
+			box.size = Vector3(0.16, 0.1, 0.12)
+			mesh = box
+		var mat := _mat(col, 0.85)
+		bit.mesh = mesh
+		bit.material_override = mat
+		bit.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(bit)
+		var side := Vector3(randf_range(-0.6, 0.6), 0, randf_range(-0.6, 0.6))
+		var start := from + Vector3(0, 0.2, 0)
+		var land := start + side + Vector3(0, -0.15, 0)
+		bit.global_position = start
+		bit.rotation = Vector3(randf() * TAU, randf() * TAU, 0)
+		var delay := 0.25 + 0.06 * float(i)
+		var tween := create_tween()
+		tween.tween_interval(delay)
+		tween.tween_method(func(k: float) -> void:
+			if is_instance_valid(bit):
+				bit.global_position = start.lerp(land, k) + Vector3.UP * sin(k * PI) * 0.7
+				bit.rotate_x(0.25), 0.0, 1.0, 0.32)
+		tween.tween_interval(0.12)
+		tween.tween_method(func(k: float) -> void:
+			if is_instance_valid(bit) and _player:
+				var to := _player.global_position + Vector3.UP * 1.0
+				bit.global_position = land.lerp(to, k * k) + Vector3.UP * sin(k * PI) * 0.35
+				bit.scale = Vector3.ONE * (1.0 - 0.7 * k), 0.0, 1.0, 0.28)
+		tween.tween_callback(bit.queue_free)
+	get_tree().create_timer(0.95).timeout.connect(func() -> void:
+		if _hud and _hud.has_method("note_toast"):
+			_hud.note_toast("+%d %s" % [amount, _item_word(id)], id)
+		_play(AUDIO + "crunch.ogg", -20.0, 1.6))
+
+
+## Final hit: the palm falls and leaves a stump, the rock crumbles to rubble,
+## wreck debris breaks apart. _restore_node undoes it on respawn.
+func _deplete_fx(node: Dictionary) -> void:
+	var root := node.get("root") as Node3D
+	if root == null:
+		return
+	var kind := str(node.get("kind", ""))
+	var parts: Array[Node3D] = []
+	for child in root.get_children():
+		if child is Node3D and not (child is Label3D) and str(child.name) != "Depleted":
+			parts.append(child)
+	var away := root.global_position - _player.global_position
+	away.y = 0.0
+	away = away.normalized() if away.length() > 0.01 else Vector3.FORWARD
+	var gone := Node3D.new()
+	gone.name = "Depleted"
+	root.add_child(gone)
+	match kind:
+		"tree":
+			# Pivot at the base: tip the trunk away from the castaway.
+			var axis := Vector3.UP.cross(away).normalized()
+			var local_axis := (root.global_transform.basis.inverse() * axis).normalized()
+			for part in parts:
+				part.set_meta("rest", part.transform)
+			var tween := create_tween()
+			tween.tween_method(func(a: float) -> void:
+				for part in parts:
+					if is_instance_valid(part):
+						var rest: Transform3D = part.get_meta("rest")
+						part.transform = Transform3D(Basis(local_axis, a), Vector3.ZERO) * rest, 0.0, 1.5, 1.1).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+			tween.tween_callback(func() -> void:
+				_play(AUDIO + "punch.ogg", -4.0, 0.55)
+				_chips(root.global_position + away * 2.5 + Vector3.UP * 0.2, Color(0.5, 0.42, 0.25), 24)
+				_dust(root.global_position + away * 2.5, Color(0.7, 0.62, 0.45))
+				_cam_kick = 0.16
+				_vibrate(45, 0.7))
+			tween.tween_interval(0.5)
+			tween.tween_callback(func() -> void:
+				for part in parts:
+					if is_instance_valid(part):
+						part.visible = false
+						part.transform = part.get_meta("rest")
+				gone.visible = true)
+			var stump := MeshInstance3D.new()
+			var cyl := CylinderMesh.new()
+			cyl.top_radius = 0.17
+			cyl.bottom_radius = 0.24
+			cyl.height = 0.38
+			cyl.radial_segments = 12
+			stump.mesh = cyl
+			stump.material_override = _mat(Color(0.36, 0.27, 0.18), 0.95)
+			_unscaled(gone, stump, Vector3(0, 0.17, 0))
+			var cut := MeshInstance3D.new()
+			var disc := CylinderMesh.new()
+			disc.top_radius = 0.165
+			disc.bottom_radius = 0.165
+			disc.height = 0.02
+			disc.radial_segments = 12
+			cut.mesh = disc
+			cut.material_override = _mat(Color(0.78, 0.64, 0.42), 0.9)
+			_unscaled(gone, cut, Vector3(0, 0.37, 0))
+			gone.visible = false
+		"rock", "stones", "flint":
+			var tween := create_tween()
+			for part in parts:
+				part.set_meta("rest", part.transform)
+				tween.parallel().tween_property(part, "scale", part.scale * Vector3(1.15, 0.2, 1.15), 0.28).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+			_chips(root.global_position + Vector3.UP * 0.5, Color(0.5, 0.5, 0.48), 30)
+			_dust(root.global_position + Vector3.UP * 0.4, Color(0.6, 0.58, 0.55))
+			tween.chain().tween_callback(func() -> void:
+				for part in parts:
+					if is_instance_valid(part):
+						part.visible = false
+						part.transform = part.get_meta("rest"))
+			for i in 4:
+				var bit := Art.put(gone, ASHORE_STONE, "Rubble%d" % i, Vector3.ZERO, Vector3(0, randf() * 360.0, 0), 1.0)
+				Art.fit_height(bit, randf_range(0.12, 0.2) / maxf(root.global_transform.basis.get_scale().y, 0.001))
+				var ang := TAU * float(i) / 4.0 + randf() * 0.6
+				bit.position = Vector3(cos(ang), 0, sin(ang)) * randf_range(0.18, 0.32)
+		_:
+			# Debris / bush / crab: pieces fling apart, sink and vanish.
+			var tween := create_tween()
+			tween.set_parallel(true)
+			for part in parts:
+				part.set_meta("rest", part.transform)
+				var dir := Vector3(randf_range(-1, 1), 0, randf_range(-1, 1)).normalized() * 0.35
+				tween.tween_property(part, "position", part.position + dir + Vector3(0, -0.25, 0), 0.45).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+				tween.tween_property(part, "rotation", part.rotation + Vector3(randf_range(-0.8, 0.8), randf_range(-1, 1), randf_range(-0.8, 0.8)), 0.45)
+			_chips(root.global_position + Vector3.UP * 0.3, _chip_color(kind), 24)
+			_dust(root.global_position + Vector3.UP * 0.25, _chip_color(kind))
+			tween.chain().tween_callback(func() -> void:
+				for part in parts:
+					if is_instance_valid(part):
+						part.visible = false
+						part.transform = part.get_meta("rest"))
+
+
+func _restore_node(node: Dictionary) -> void:
+	var root := node.get("root") as Node3D
+	if root == null:
+		return
+	var gone := root.get_node_or_null("Depleted")
+	if gone:
+		root.remove_child(gone)
+		gone.queue_free()
+	for child in root.get_children():
+		if child is Node3D and not (child is Label3D):
+			if child.has_meta("rest"):
+				child.transform = child.get_meta("rest")
+			child.visible = true
+	var title := root.get_node_or_null("Title")
+	if title:
+		title.visible = false
+	_pop(root)

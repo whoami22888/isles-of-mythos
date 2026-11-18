@@ -469,11 +469,17 @@
         10
       ],
       "scale": 2.2,
-      "stages": 3,
+      "stages": 4,
       "tool": "axe",
       "requires": "",
       "respawn": 65,
       "loot": [
+        [
+          {
+            "id": "wood",
+            "amount": 1
+          }
+        ],
         [
           {
             "id": "wood",
@@ -483,7 +489,7 @@
         [
           {
             "id": "wood",
-            "amount": 2
+            "amount": 1
           }
         ],
         [
@@ -503,11 +509,17 @@
         9.5
       ],
       "scale": 2.3,
-      "stages": 3,
+      "stages": 4,
       "tool": "axe",
       "requires": "",
       "respawn": 65,
       "loot": [
+        [
+          {
+            "id": "wood",
+            "amount": 1
+          }
+        ],
         [
           {
             "id": "wood",
@@ -517,7 +529,7 @@
         [
           {
             "id": "wood",
-            "amount": 2
+            "amount": 1
           }
         ],
         [
@@ -537,7 +549,7 @@
         9
       ],
       "scale": 2.5,
-      "stages": 3,
+      "stages": 4,
       "tool": "pick",
       "requires": "",
       "respawn": 65,
@@ -545,10 +557,16 @@
         [
           {
             "id": "stone",
-            "amount": 2
+            "amount": 1
           },
           {
             "id": "flint",
+            "amount": 1
+          }
+        ],
+        [
+          {
+            "id": "stone",
             "amount": 1
           }
         ],
@@ -575,7 +593,7 @@
         4.5
       ],
       "scale": 2.4,
-      "stages": 3,
+      "stages": 4,
       "tool": "pick",
       "requires": "",
       "respawn": 65,
@@ -583,10 +601,16 @@
         [
           {
             "id": "stone",
-            "amount": 2
+            "amount": 1
           },
           {
             "id": "flint",
+            "amount": 1
+          }
+        ],
+        [
+          {
+            "id": "stone",
             "amount": 1
           }
         ],
@@ -821,11 +845,17 @@
         20.5
       ],
       "scale": 2.2,
-      "stages": 3,
+      "stages": 4,
       "tool": "axe",
       "requires": "",
       "respawn": 65,
       "loot": [
+        [
+          {
+            "id": "wood",
+            "amount": 1
+          }
+        ],
         [
           {
             "id": "wood",
@@ -835,7 +865,7 @@
         [
           {
             "id": "wood",
-            "amount": 2
+            "amount": 1
           }
         ],
         [

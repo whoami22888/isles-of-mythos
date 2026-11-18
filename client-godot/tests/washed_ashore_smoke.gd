@@ -81,10 +81,14 @@ func run() -> void:
 	scene._player.global_position = (hull["root"] as Node3D).global_position
 	var before := int(scene._inv.get("planks", 0))
 	scene.on_action()
-	check(int(scene._inv.get("planks", 0)) == before, "First hull hit only cracks it (multi-hit gathering)")
+	check(int(scene._inv.get("planks", 0)) > before, "Every hull hit pays out planks (LDoE-style rhythm)")
+	check(not bool(hull.get("depleted", false)), "One hit does not strip the hull")
+	var mid := int(scene._inv.get("planks", 0))
+	scene.on_action()
+	check(int(scene._inv.get("planks", 0)) == mid, "Act is rate-limited to the swing rhythm")
 	scene._gather_lock = 0.0
 	scene.on_action()
-	check(int(scene._inv.get("planks", 0)) > before, "Second hull hit breaks off planks")
+	check(int(scene._inv.get("planks", 0)) > mid, "Next swing on the rhythm pays out again")
 	await build_and_pet_checks(scene)
 	scene._fire_lit = false
 	scene._dusk_active = true
