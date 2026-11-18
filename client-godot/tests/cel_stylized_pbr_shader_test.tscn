@@ -1,9 +1,13 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=8 format=3]
 
-[ext_resource type="Shader" path="res://shaders/cel_stylized_pbr.gdshader" id="1_shader"]
+[ext_resource type="Shader" path="res://shaders/cel_stylized_pbr_mobile.gdshader" id="1_mobile_shader"]
+[ext_resource type="Shader" path="res://shaders/cel_stylized_pbr.gdshader" id="2_desktop_shader"]
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_cel_stylized_pbr"]
-shader = ExtResource("1_shader")
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_cel_stylized_pbr_mobile"]
+shader = ExtResource("1_mobile_shader")
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_cel_stylized_pbr_desktop"]
+shader = ExtResource("2_desktop_shader")
 
 [sub_resource type="BoxMesh" id="BoxMesh_cel_stylized_pbr"]
 size = Vector3(1, 1, 1)
@@ -22,9 +26,14 @@ position = Vector3(0, -0.55, 0)
 mesh = SubResource("PlaneMesh_shader_test_floor")
 material_override = SubResource("StandardMaterial3D_shader_test_floor")
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+[node name="MobileMesh" type="MeshInstance3D" parent="."]
 mesh = SubResource("BoxMesh_cel_stylized_pbr")
-material_override = SubResource("ShaderMaterial_cel_stylized_pbr")
+material_override = SubResource("ShaderMaterial_cel_stylized_pbr_mobile")
+
+[node name="DesktopMesh" type="MeshInstance3D" parent="."]
+position = Vector3(1.35, 0, 0)
+mesh = SubResource("BoxMesh_cel_stylized_pbr")
+material_override = SubResource("ShaderMaterial_cel_stylized_pbr_desktop")
 
 [node name="Camera3D" type="Camera3D" parent="."]
 position = Vector3(0, 1.8, 4)
