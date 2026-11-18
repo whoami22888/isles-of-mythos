@@ -367,7 +367,7 @@ def _validate_runtime_mesh(mesh: Any) -> None:
         raise ValueError("Invalid runtime surface report")
 
 
-def _validate_runtime_report(report: Any) -> RuntimeReport:
+def validate_runtime_report(report: Any) -> RuntimeReport:
     """Reject missing scenes and malformed runtime-probe records."""
     if not isinstance(report, dict) or not report:
         raise ValueError("Godot runtime probe report is empty")
@@ -424,7 +424,7 @@ def _runtime_report(root: Path, godot_bin: str) -> RuntimeReport:
                if line.startswith("RUNTIME_GRAPHICS_JSON=")]
     if len(markers) != 1:
         raise ValueError("Godot runtime probe produced no unique report")
-    return _validate_runtime_report(json.loads(markers[0]))
+    return validate_runtime_report(json.loads(markers[0]))
 
 
 def _basic_scene_findings(

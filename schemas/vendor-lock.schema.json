@@ -1,0 +1,121 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Isles of Mythos third-party vendor lock",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "assets"
+  ],
+  "properties": {
+    "$schema": {
+      "const": "./schemas/vendor-lock.schema.json"
+    },
+    "version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "assets": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "license",
+          "license_path",
+          "path",
+          "sha256",
+          "source_url",
+          "vendor"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^(?=.*\\S)(?!/)(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.?(/|$))(?!.*\\\\).+$"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "license": {
+            "enum": [
+              "CC0-1.0",
+              "CC-BY-4.0",
+              "CC-BY-SA-4.0",
+              "MIT",
+              "Apache-2.0",
+              "OFL-1.1"
+            ]
+          },
+          "license_path": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^(?=.*\\S)(?!/)(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.?(/|$))(?!.*\\\\).+$"
+          },
+          "source_url": {
+            "type": "string",
+            "pattern": "^https://"
+          },
+          "vendor": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          },
+          "source_revision": {
+            "type": "string",
+            "pattern": "^([0-9a-f]{40}|[0-9a-f]{64})$"
+          },
+          "pack_id": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          },
+          "source_identity": {
+            "type": "string",
+            "description": "Immutable per-file Poly Haven source identity; not a vendor pack revision or archive hash.",
+            "pattern": "^polyhaven-file:[a-z0-9_-]+/[A-Za-z0-9._/-]+@sha256:[0-9a-f]{64}$"
+          }
+        },
+        "oneOf": [
+          {
+            "required": [
+              "source_revision"
+            ],
+            "not": {
+              "required": [
+                "source_identity"
+              ]
+            }
+          },
+          {
+            "required": [
+              "source_identity"
+            ],
+            "not": {
+              "required": [
+                "source_revision"
+              ]
+            }
+          }
+        ],
+        "if": {
+          "required": [
+            "source_identity"
+          ]
+        },
+        "then": {
+          "required": [
+            "pack_id"
+          ],
+          "properties": {
+            "vendor": {
+              "const": "Poly Haven"
+            }
+          }
+        }
+      }
+    }
+  }
+}

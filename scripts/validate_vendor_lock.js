@@ -8,13 +8,15 @@
 
 const { createHash } = require("node:crypto");
 const { existsSync, lstatSync, readdirSync, readFileSync } = require("node:fs");
-const { join, relative, resolve, sep, isAbsolute } = require("node:path");
+const { join, relative, resolve, sep, isAbsolute, extname } = require("node:path");
 
 const LICENSES = new Set(["CC0-1.0", "CC-BY-4.0", "CC-BY-SA-4.0", "MIT", "Apache-2.0", "OFL-1.1"]); // same as validate_godot_assets.py
 const HASH = /^[0-9a-f]{64}$/;
 const TOP_KEYS = new Set(["$schema", "version", "assets"]);
-const ENTRY_KEYS = new Set(["path", "sha256", "license", "license_path", "source_url"]);
+const ENTRY_KEYS = new Set(["path", "sha256", "license", "license_path", "source_url", "vendor", "source_revision", "source_identity", "pack_id"]);
 const EXTERNAL_DIR = join("client-godot", "assets", "external");
+const GODOT_SIDECARS = new Set([".import", ".uid"]);
+const { validateAssetSourceTree } = require("./validate_asset_src.js");
 
 function sha256File(file) {
   return createHash("sha256").update(readFileSync(file)).digest("hex");
@@ -78,6 +80,9 @@ function validateVendorLock(root = resolve(__dirname, "..")) {
   for (const key of Object.keys(lock)) if (!TOP_KEYS.has(key)) errors.push(`vendor.lock.json: unknown key "${key}"`);
   if (typeof lock.version !== "string" || !lock.version) errors.push("vendor.lock.json: version must be a non-empty string");
   if (!Array.isArray(lock.assets)) return [...errors, "vendor.lock.json: assets must be an array"];
+  if (lock.assets.length === 0) {
+    errors.push("vendor.lock.json: assets must contain at least one verified dependency; an empty lock does not prove Prompt 001 source admission");
+  }
 
   const manifestFile = join(root, "client-godot", "assets", "external-assets.json");
   let manifest = null;
@@ -104,6 +109,42 @@ function validateVendorLock(root = resolve(__dirname, "..")) {
     if (typeof asset.sha256 !== "string" || !HASH.test(asset.sha256)) errors.push(`${at}: sha256 must be 64 lowercase hex characters`);
     if (!LICENSES.has(asset.license)) errors.push(`${at}: license "${asset.license}" is not allowlisted; review before admission`);
     if (typeof asset.source_url !== "string" || !asset.source_url.startsWith("https://")) errors.push(`${at}: source_url must be https`);
+    if (typeof asset.vendor !== "string" || !asset.vendor.trim()) errors.push(`${at}: vendor must be a non-empty string`);
+    const hasRevision = Object.hasOwn(asset, "source_revision");
+    const hasIdentity = Object.hasOwn(asset, "source_identity");
+    if (hasRevision === hasIdentity) {
+      errors.push(`${at}: exactly one of source_revision or source_identity is required`);
+    } else if (hasRevision) {
+      if (typeof asset.source_revision !== "string" || !/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/.test(asset.source_revision)) {
+        errors.push(`${at}: source_revision must be an immutable 40/64-character lowercase hex revision or archive digest`);
+      }
+    } else {
+      const prefix = "client-godot/assets/external/polyhaven/";
+      const relativeAssetPath = typeof asset.path === "string" && asset.path.startsWith(prefix)
+        ? asset.path.slice(prefix.length)
+        : "";
+      const parts = relativeAssetPath.split("/");
+      const slug = parts.shift() ?? "";
+      const relativeFile = parts.join("/");
+      const hasUnsafePathSegment = parts.some((part) => part === "" || part === "." || part === "..") ||
+        relativeAssetPath.includes("\\");
+      const slugDirectory = slug ? resolve(root, EXTERNAL_DIR, "polyhaven", slug) : "";
+      const staysWithinSlugDirectory = slugDirectory !== "" && abs.startsWith(slugDirectory + sep);
+      if (hasUnsafePathSegment || !staysWithinSlugDirectory) {
+        errors.push(`${at}: Poly Haven asset path must stay inside its slug directory without dot, empty, or backslash segments`);
+      }
+      const sourceSlug = typeof asset.source_url === "string"
+        ? /^https:\/\/polyhaven\.com\/a\/([a-z0-9_-]+)\/?$/.exec(asset.source_url)?.[1]
+        : undefined;
+      const expectedIdentity = HASH.test(asset.sha256 ?? "")
+        ? `polyhaven-file:${slug}/${relativeFile}@sha256:${asset.sha256}`
+        : "";
+      if (asset.vendor !== "Poly Haven" || !slug || !relativeFile || sourceSlug !== slug ||
+          asset.pack_id !== `polyhaven:${slug}` || asset.source_identity !== expectedIdentity) {
+        errors.push(`${at}: source_identity must match the Poly Haven asset page, pack id, repository-relative file path and exact sha256`);
+      }
+    }
+    if (asset.pack_id !== undefined && (typeof asset.pack_id !== "string" || !asset.pack_id.trim())) errors.push(`${at}: pack_id must be a non-empty string when provided`);
     if (typeof asset.license_path !== "string" || !asset.license_path.trim()) {
       errors.push(`${at}: license_path is required`);
     } else {
@@ -114,7 +155,7 @@ function validateVendorLock(root = resolve(__dirname, "..")) {
       return errors.push(`${at}: file not found or not a regular file: ${asset.path}`);
     }
     const actual = sha256File(abs);
-    if (HASH.test(asset.sha256 ?? "") && actual !== asset.sha256) errors.push(`${at}: sha256 mismatch for ${asset.path}`);
+    if (HASH.test(asset.sha256 ?? "") && actual !== asset.sha256) errors.push(`${at}: sha256 mismatch for ${asset.path} (expected ${asset.sha256}, actual ${actual})`);
     const registered = manifestByRepoPath.get(relative(root, abs));
     if (registered && registered.sha256 !== asset.sha256) errors.push(`${at}: digest disagrees with external-assets.json for ${asset.path}`);
   });
@@ -125,9 +166,11 @@ function validateVendorLock(root = resolve(__dirname, "..")) {
     for (const file of walk(externalAbs)) {
       const rel = relative(root, file.full);
       if (file.symlink) errors.push(`symlink under ${EXTERNAL_DIR}: ${rel}`);
+      else if (GODOT_SIDECARS.has(extname(file.full).toLowerCase())) continue;
       else if (!manifestPaths.has(rel) && !seen.has(file.full)) errors.push(`unregistered file under ${EXTERNAL_DIR}: ${rel}`);
     }
   }
+  errors.push(...validateAssetSourceTree(root, lock.assets));
   return errors;
 }
 

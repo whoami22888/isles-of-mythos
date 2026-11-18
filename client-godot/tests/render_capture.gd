@@ -6,6 +6,9 @@ func _init() -> void:
 
 
 func _capture() -> void:
+	if not _verify_renderer():
+		quit(1)
+		return
 	var baseline_output := OS.get_environment("IOM_SCREENSHOT_PATH")
 	if baseline_output.is_empty():
 		baseline_output = "user://island-preview.png"
@@ -86,4 +89,34 @@ func _capture_scene(scene_path: String, camera_name: String, output: String, cin
 		return false
 	print("Godot rendered capture: %s (%dx%d)" % [output, screenshot.get_width(), screenshot.get_height()])
 	scene.queue_free()
+	return true
+
+func _verify_renderer() -> bool:
+	var method := RenderingServer.get_current_rendering_method()
+	var driver := RenderingServer.get_current_rendering_driver_name()
+	var adapter := RenderingServer.get_video_adapter_name()
+	var vendor := RenderingServer.get_video_adapter_vendor()
+	var api_version := RenderingServer.get_video_adapter_api_version()
+	if method != "mobile" or driver != "vulkan":
+		push_error("Visual capture requires Vulkan Mobile; got %s/%s" % [method, driver])
+		return false
+	var metadata_path := OS.get_environment("IOM_RENDERER_INFO_PATH")
+	if metadata_path.is_empty():
+		push_error("IOM_RENDERER_INFO_PATH is required for capture provenance")
+		return false
+	var metadata_file := FileAccess.open(metadata_path, FileAccess.WRITE)
+	if metadata_file == null:
+		push_error("Unable to write renderer metadata: %s" % metadata_path)
+		return false
+	var metadata := {
+		"godot_version": Engine.get_version_info().get("string", "unknown"),
+		"rendering_method": method,
+		"rendering_driver": driver,
+		"adapter_name": adapter,
+		"adapter_vendor": vendor,
+		"adapter_api_version": api_version,
+	}
+	metadata_file.store_string(JSON.stringify(metadata, "\t") + "\n")
+	metadata_file.close()
+	print("IOM_RENDERER_METADATA: %s" % JSON.stringify(metadata))
 	return true

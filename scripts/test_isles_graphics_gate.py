@@ -196,7 +196,7 @@ class GraphicsGateTest(unittest.TestCase):
             'res://scenes/realistic_coastal_fx_slice.tscn': [
                 {'node': 'Ship', 'surfaces': [surface]}],
         }
-        self.assertIs(report, gate._validate_runtime_report(report))
+        self.assertIs(report, gate.validate_runtime_report(report))
         bad_values = [
             ('triangles', True), ('triangles', float('nan')),
             ('triangles', float('inf')), ('transparency', True),
@@ -207,7 +207,7 @@ class GraphicsGateTest(unittest.TestCase):
                 original = surface[field]
                 surface[field] = bad_value
                 with self.assertRaisesRegex(ValueError, 'Invalid runtime surface'):
-                    gate._validate_runtime_report(report)
+                    gate.validate_runtime_report(report)
                 surface[field] = original
 
     def test_base_ship_is_only_covered_by_verified_fx_motion(self):
