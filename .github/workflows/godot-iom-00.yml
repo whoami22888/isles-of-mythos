@@ -41,6 +41,8 @@ jobs:
           echo "$TEMPLATES_SHA256  $RUNNER_TEMP/godot/templates.tpz" | sha256sum --check
           unzip -q "$RUNNER_TEMP/godot/templates.tpz" -d "$RUNNER_TEMP/godot/templates"
           cp -R "$RUNNER_TEMP/godot/templates/templates/"* "$HOME/.local/share/godot/export_templates/4.7.2.stable/"
+      - name: Run Prompt 005 triplanar normal reference regressions
+        run: python3 -m unittest discover -s client-godot/tests -p "test_triplanar_normal_math.py"
       - name: Headless import and smoke test
         run: |
           set -euo pipefail
