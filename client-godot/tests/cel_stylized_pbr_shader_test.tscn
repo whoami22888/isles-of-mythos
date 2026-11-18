@@ -1,0 +1,15 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Shader" path="res://shaders/cel_stylized_pbr.gdshader" id="1_shader"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_cel_stylized_pbr"]
+shader = ExtResource("1_shader")
+
+[sub_resource type="BoxMesh" id="BoxMesh_cel_stylized_pbr"]
+size = Vector3(1, 1, 1)
+
+[node name="CelStylizedPbrShaderTest" type="Node3D"]
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+mesh = SubResource("BoxMesh_cel_stylized_pbr")
+material_override = SubResource("ShaderMaterial_cel_stylized_pbr")
