@@ -1,6 +1,7 @@
 extends SceneTree
 ## Pure hysteresis tests plus real scene-tree lifecycle regressions.
 const MobileLod := preload("res://scripts/mobile_lod.gd")
+const LodImpostor := preload("res://scripts/lod_impostor_manager.gd")
 
 
 func _init() -> void:
@@ -123,7 +124,6 @@ func _run_tests() -> void:
 
 
     # Prompt 008: exact 120/140 px hysteresis boundaries.
-    const LodImpostor := preload("res://scripts/lod_impostor_manager.gd")
     if not LodImpostor.next_full_detail_state(true, 140.0):
         failures += 1
         push_error("Exactly 140 px must retain the current full-detail state")
