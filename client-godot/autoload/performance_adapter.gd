@@ -29,6 +29,8 @@ var monitoring_enabled: bool = true
 var _viewport: Viewport
 var _sample_timestamps_usec := PackedInt64Array()
 var _sample_frame_ms := PackedFloat32Array()
+var _sample_engine_fps := PackedFloat32Array()
+var _sample_engine_process_ms := PackedFloat32Array()
 var _write_index: int = 0
 var _sample_count: int = 0
 var _evaluation_elapsed: float = 0.0
@@ -56,6 +58,8 @@ func _ready() -> void:
 	# Allocate the fixed ring buffer once, not from _process().
 	_sample_timestamps_usec.resize(SAMPLE_CAPACITY)
 	_sample_frame_ms.resize(SAMPLE_CAPACITY)
+	_sample_engine_fps.resize(SAMPLE_CAPACITY)
+	_sample_engine_process_ms.resize(SAMPLE_CAPACITY)
 
 	_current_scale = clampf(_viewport.scaling_3d_scale, MIN_SCALE, MAX_SCALE)
 	if not is_equal_approx(_viewport.scaling_3d_scale, _current_scale):
@@ -76,7 +80,10 @@ func _process(delta: float) -> void:
 		return
 
 	var now_usec := Time.get_ticks_usec()
-	_record_sample(now_usec, delta * 1000.0)
+	var engine_fps_sample := float(Performance.get_monitor(Performance.TIME_FPS))
+	var process_seconds_sample := float(Performance.get_monitor(Performance.TIME_PROCESS))
+	var engine_process_ms_sample := process_seconds_sample * 1000.0 if is_finite(process_seconds_sample) and process_seconds_sample >= 0.0 else -1.0
+	_record_sample(now_usec, delta * 1000.0, engine_fps_sample, engine_process_ms_sample)
 	_evaluation_elapsed += delta
 	if _evaluation_elapsed < EVALUATION_INTERVAL_SECONDS:
 		return
@@ -93,20 +100,18 @@ func _process(delta: float) -> void:
 		return
 	_last_rolling_fps = 1000.0 / _last_average_frame_ms
 
-	# Preserve the engine monitors for diagnostics, but do not use them to
-	# drive scaling: IOM07 measured TIME_PROCESS clock divergence from frame
-	# intervals on Xvfb. The delta-derived rolling window is the control clock.
-	var engine_fps := float(Performance.get_monitor(Performance.TIME_FPS))
-	_last_engine_fps = engine_fps if is_finite(engine_fps) and engine_fps >= 0.0 else 0.0
-	var process_seconds := float(Performance.get_monitor(Performance.TIME_PROCESS))
-	_last_engine_process_ms = process_seconds * 1000.0 if is_finite(process_seconds) and process_seconds >= 0.0 else 0.0
+	# Engine monitors are retained as rolling diagnostics. The delta-derived
+	# interval clock remains authoritative because IOM07 measured TIME_PROCESS
+	# divergence from actual frame intervals on Xvfb.
 
 	apply_metrics_sample(_last_rolling_fps, _last_average_frame_ms, evaluation_elapsed)
 
 
-func _record_sample(timestamp_usec: int, frame_ms: float) -> void:
+func _record_sample(timestamp_usec: int, frame_ms: float, engine_fps: float, engine_process_ms: float) -> void:
 	_sample_timestamps_usec[_write_index] = timestamp_usec
 	_sample_frame_ms[_write_index] = frame_ms
+	_sample_engine_fps[_write_index] = engine_fps if is_finite(engine_fps) and engine_fps > 0.0 else -1.0
+	_sample_engine_process_ms[_write_index] = engine_process_ms
 	_write_index = (_write_index + 1) % SAMPLE_CAPACITY
 	_sample_count = mini(_sample_count + 1, SAMPLE_CAPACITY)
 
@@ -115,6 +120,10 @@ func _summarize_window(now_usec: int) -> Vector2:
 	var cutoff_usec := now_usec - WINDOW_USEC
 	var total_ms := 0.0
 	var samples := 0
+	var engine_fps_total := 0.0
+	var engine_fps_samples := 0
+	var engine_process_total := 0.0
+	var engine_process_samples := 0
 	var index := _write_index - 1
 	if index < 0:
 		index = SAMPLE_CAPACITY - 1
@@ -126,11 +135,21 @@ func _summarize_window(now_usec: int) -> Vector2:
 			break
 		total_ms += float(_sample_frame_ms[index])
 		samples += 1
+		var engine_fps := float(_sample_engine_fps[index])
+		if is_finite(engine_fps) and engine_fps > 0.0:
+			engine_fps_total += engine_fps
+			engine_fps_samples += 1
+		var engine_process_ms := float(_sample_engine_process_ms[index])
+		if is_finite(engine_process_ms) and engine_process_ms >= 0.0:
+			engine_process_total += engine_process_ms
+			engine_process_samples += 1
 		index -= 1
 		if index < 0:
 			index = SAMPLE_CAPACITY - 1
 		visited += 1
 
+	_last_engine_fps = engine_fps_total / float(engine_fps_samples) if engine_fps_samples > 0 else 0.0
+	_last_engine_process_ms = engine_process_total / float(engine_process_samples) if engine_process_samples > 0 else 0.0
 	return Vector2(total_ms, float(samples))
 
 
