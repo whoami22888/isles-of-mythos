@@ -12,7 +12,7 @@ services:
     command: ["sh", "-c", "npm install --ignore-scripts --no-audit --no-fund && npm run dev -w client -- --host 0.0.0.0"]
 
   postgres:
-    image: cgr.dev/chainguard/postgres@sha256:0926ac7262a2c1963179eb939cd5d610e1be3ecca90b4b5cad8db8df16fab87e
+    image: cgr.dev/chainguard/postgres@sha256:fb42fe07f31379928ffb2fcb9acb903eb40e7e821b562f16809a45bc86097289
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-isles}
