@@ -22,11 +22,11 @@ const HUT := preload("res://assets/ashore/library/hut_hy3d/hut_hy3d.glb")
 const FIRE_PIT := preload("res://assets/ashore/library/stone_fire_pit/stone_fire_pit.glb")
 const DEAD_LOG := preload("res://assets/ashore/library/log_dead_trunk_02/log_dead_trunk_02.glb")
 const ASHORE_STONE := preload("res://assets/ashore/library/stone_01/stone_01.glb")
-const BEAST_MESH := preload("res://assets/ashore/library/sabertooth_tiger/sabertooth-tiger-light.glb")
-const FX_FLAME_SHEET := preload("res://assets/ashore/fx/flame_sheet.png")
-const FX_FIRE := preload("res://assets/ashore/fx/kenney/fire_01.png")
-const FX_FLAME_SPRITE := preload("res://assets/ashore/fx/kenney/flame_02.png")
-const FX_SMOKE := preload("res://assets/ashore/fx/kenney/smoke_01.png")
+const BEAST_MESH_PATH := "res://assets/ashore/library/sabertooth_tiger/sabertooth-tiger-light.glb"
+const FX_FLAME_SHEET_PATH := "res://assets/ashore/fx/flame_sheet.png"
+const FX_FIRE_PATH := "res://assets/ashore/fx/kenney/fire_01.png"
+const FX_FLAME_SPRITE_PATH := "res://assets/ashore/fx/kenney/flame_02.png"
+const FX_SMOKE_PATH := "res://assets/ashore/fx/kenney/smoke_01.png"
 const MODELS := "res://assets/ashore/models/"
 ## Landing spot on the slice's south beach. The beach is a narrow strip
 ## (z 2..7) under the jungle slope, so the castaway wakes facing east along
@@ -3137,7 +3137,7 @@ func _build_fire_fx(body_scale: float) -> Node3D:
 	sheet_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	sheet_mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
 	sheet_mat.billboard_mode = BaseMaterial3D.BILLBOARD_FIXED_Y
-	sheet_mat.albedo_texture = FX_FLAME_SHEET
+	sheet_mat.albedo_texture = load(FX_FLAME_SHEET_PATH) as Texture2D
 	sheet_mat.albedo_color = Color(1.15, 0.95, 0.7, 1.0)
 	sheet_mat.uv1_scale = Vector3(1.0 / 12.0, 1.0 / 6.0, 1.0)
 	sheet_mat.uv1_offset = Vector3(8.0 / 12.0, 1.0 / 6.0, 0.0)
@@ -3145,9 +3145,9 @@ func _build_fire_fx(body_scale: float) -> Node3D:
 	sheet.material_override = sheet_mat
 	root.add_child(sheet)
 	_flame_sheet_mats.append(sheet_mat)
-	root.add_child(_gpu_fire("Flames", FX_FLAME_SPRITE, Color(1.0, 0.55, 0.18, 0.9), 28, 0.65, 0.9, 1.6, true, 0.22))
-	root.add_child(_gpu_fire("FirePuffs", FX_FIRE, Color(1.0, 0.45, 0.12, 0.7), 16, 0.8, 0.7, 1.1, true, 0.18))
-	root.add_child(_gpu_fire("Smoke", FX_SMOKE, Color(0.22, 0.2, 0.18, 0.45), 14, 1.8, 0.35, 0.9, false, 0.16))
+	root.add_child(_gpu_fire("Flames", load(FX_FLAME_SPRITE_PATH) as Texture2D, Color(1.0, 0.55, 0.18, 0.9), 28, 0.65, 0.9, 1.6, true, 0.22))
+	root.add_child(_gpu_fire("FirePuffs", load(FX_FIRE_PATH) as Texture2D, Color(1.0, 0.45, 0.12, 0.7), 16, 0.8, 0.7, 1.1, true, 0.18))
+	root.add_child(_gpu_fire("Smoke", load(FX_SMOKE_PATH) as Texture2D, Color(0.22, 0.2, 0.18, 0.45), 14, 1.8, 0.35, 0.9, false, 0.16))
 	return root
 
 
@@ -3267,7 +3267,7 @@ func _build_beast() -> void:
 	home.add_child(_beast)
 	# Grab3D CC0 sabertooth (static, light LOD). Head is at +Z, so yaw 180
 	# to match Godot's -Z forward before look_at.
-	var body := BEAST_MESH.instantiate() as Node3D
+	var body := (load(BEAST_MESH_PATH) as PackedScene).instantiate() as Node3D
 	body.name = "Body"
 	body.rotation.y = PI
 	_beast.add_child(body)
