@@ -69,15 +69,44 @@ jobs:
           "$RUNNER_TEMP/godot/godot" --headless --path client-godot --script res://tests/vertical_slice_player_avatar_test.gd
           "$RUNNER_TEMP/godot/godot" --headless --path client-godot --script res://tests/mobile_lod_test.gd
       - name: Install software Vulkan and X11 test dependencies
+        shell: bash
         run: |
           set -euo pipefail
-          timeout 180s sudo apt-get update -o Acquire::Retries=2 -o Acquire::http::Timeout=15
-          timeout 180s sudo apt-get install --no-install-recommends -y mesa-vulkan-drivers xvfb xauth
+
+          # Regression-check the rewrite against the regional EC2 mirror used by ubuntu-24.04.
+          sample_uri='URIs: http://us-east-2.ec2.archive.ubuntu.com/ubuntu'
+          expected_uri='URIs: https://archive.ubuntu.com/ubuntu'
+          rewritten_uri="$(printf '%s\n' "$sample_uri" | sed -E 's|http://[^[:space:]]*\.ec2\.archive\.ubuntu\.com/ubuntu|https://archive.ubuntu.com/ubuntu|g')"
+          if [ "$rewritten_uri" != "$expected_uri" ]; then
+            echo "::error::Ubuntu regional mirror rewrite regression: $rewritten_uri"
+            exit 1
+          fi
+
+          source_file=/etc/apt/sources.list.d/ubuntu.sources
+          if [ ! -f "$source_file" ]; then
+            echo "::error::Ubuntu 24.04 deb822 source file is missing."
+            exit 1
+          fi
+          sudo sed -E -i 's|http://[^[:space:]]*\.ec2\.archive\.ubuntu\.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' "$source_file"
+          if ! grep -q 'https://archive.ubuntu.com/ubuntu' "$source_file"; then
+            echo "::error::Official Ubuntu archive mirror was not configured."
+            exit 1
+          fi
+
+          # xvfb and xauth are already present on the pinned ubuntu-24.04 runner image.
+          command -v xvfb-run >/dev/null
+          command -v xauth >/dev/null
+
+          # Keep the existing 180s hard cap; add per-request timeouts/retries to update and install.
+          timeout 180s sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15 update
+          timeout 180s sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15 install --no-install-recommends -y mesa-vulkan-drivers
+
           lvp_icd="$(find /usr/share/vulkan/icd.d -maxdepth 1 -type f -name 'lvp_icd*.json' -print -quit)"
           if [ -z "$lvp_icd" ]; then
             echo "::error::Mesa Lavapipe Vulkan ICD is unavailable."
             exit 1
           fi
+          echo "mesa_vulkan_drivers_version=$(dpkg-query -W -f='\${Version}' mesa-vulkan-drivers)" >> "$GITHUB_ENV"
           export VK_ICD_FILENAMES="$lvp_icd"
           echo "VK_ICD_FILENAMES=$lvp_icd" >> "$GITHUB_ENV"
       - name: Compile and render Prompt 005 with Vulkan Mobile
