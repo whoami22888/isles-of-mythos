@@ -1378,9 +1378,10 @@ func _storm_beast_spot(pit: Vector3, fwd: Vector3) -> Vector3:
 		eye = _camera.global_position
 		fwd = Vector3(pit.x - eye.x, 0, pit.z - eye.z).normalized()
 		pl = Vector3(eye.x, pl.y, eye.z)
-	var best := pl + fwd * 4.0
 	var best_score := -1e9
 	var base_d := _flat(eye, pit) + 2.2
+	# Fallback: straight across the fire from the lens.
+	var best := Vector3(eye.x, pl.y, eye.z) + fwd * base_d
 	for di in [base_d, base_d + 0.6, base_d - 0.4, base_d + 1.2]:
 		for ai in [0.0, 0.12, -0.12, 0.25, -0.25, 0.4, -0.4]:
 			var dir := fwd.rotated(Vector3.UP, ai)
