@@ -30,9 +30,9 @@ def blend_normal(geometric_normal, samples, sharpness=4.0):
     signs = [1 if component >= 0 else -1 for component in normal]
     sample_x, sample_y, sample_z = samples
 
-    tangent_x = (sample_x[2] * signs[0], sample_x[0], sample_x[1])
-    tangent_y = (sample_y[0], sample_y[2] * signs[1], sample_y[1])
-    tangent_z = (sample_z[0], sample_z[1], sample_z[2] * signs[2])
+    tangent_x = (sample_x[2] * signs[0], sample_x[0], sample_x[1] * signs[0])
+    tangent_y = (sample_y[0], sample_y[2] * signs[1], -sample_y[1] * signs[1])
+    tangent_z = (sample_z[0], sample_z[1] * signs[2], sample_z[2] * signs[2])
     flat_x = (signs[0], 0, 0)
     flat_y = (0, signs[1], 0)
     flat_z = (0, 0, signs[2])
@@ -96,6 +96,23 @@ class TriplanarNormalReferenceTests(unittest.TestCase):
                     actual_component, expected_component, places=7
                 )
 
+    def test_signed_projection_bitangents_keep_face_handedness(self):
+        """Each signed face keeps the expected orientation for its UV bitangent."""
+        flat = (0.0, 0.0, 1.0)
+        tangent_y = (0.0, 1.0, 0.0)
+        cases = (
+            ((1, 0, 0), (tangent_y, flat, flat), (0, 0, 1)),
+            ((-1, 0, 0), (tangent_y, flat, flat), (0, 0, -1)),
+            ((0, 1, 0), (flat, tangent_y, flat), (0, 0, -1)),
+            ((0, -1, 0), (flat, tangent_y, flat), (0, 0, 1)),
+            ((0, 0, 1), (flat, flat, tangent_y), (0, 1, 0)),
+            ((0, 0, -1), (flat, flat, tangent_y), (0, -1, 0)),
+        )
+        for face, samples, expected in cases:
+            actual = blend_normal(face, samples)
+            for actual_component, expected_component in zip(actual, expected):
+                self.assertAlmostEqual(actual_component, expected_component, places=7)
+
     def test_weighted_blend_remains_normalized(self):
         """Perturbed triplanar blends remain finite and unit length."""
         sample_x = (0.2, -0.1, math.sqrt(0.95))
@@ -127,6 +144,9 @@ class StylizedPbrShaderContractTests(unittest.TestCase):
         )
         cls.scene = read_utf8(
             test_directory / "cel_stylized_pbr_shader_test.tscn"
+        )
+        cls.shared = read_utf8(
+            project_root / "shaders" / "cel_stylized_pbr_shared.gdshaderinc"
         )
         cls.vertex = cls.source.split("void vertex()", 1)[1].split(
             "void fragment()", 1
@@ -160,6 +180,9 @@ class StylizedPbrShaderContractTests(unittest.TestCase):
         """UV and triplanar maps retain scalar material fallbacks."""
         self.assertIn("use_triplanar", self.fragment)
         self.assertIn("sample_triplanar_normal", self.fragment)
+        self.assertIn("nx.y * face.x", self.shared)
+        self.assertIn("-ny.y * face.y", self.shared)
+        self.assertIn("nz.y * face.z", self.shared)
         self.assertIn("texture(normal_texture, UV)", self.fragment)
         self.assertIn("texture(roughness_texture, UV)", self.fragment)
         self.assertIn("base_color.rgb", self.fragment)
