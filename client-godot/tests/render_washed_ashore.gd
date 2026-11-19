@@ -1,7 +1,7 @@
 extends SceneTree
 ## Headless-friendly capture of the washed-ashore scene from its real cameras.
 ## Not a CI gate.
-## IOM_ASHORE_POSE=wake|intro|intro_hull|follow|hut|dusk|offshore|gather|ghost|built|pet_point|trees_a|trees_b|cook
+## IOM_ASHORE_POSE=wake|intro|intro_hull|follow|hut|dusk|offshore|gather|ghost|built|pet_point|trees_a|trees_b|cook|hud|g_swing|g_hit|g_fell|g_pop
 ## IOM_ASHORE_SHOT=/absolute/path.png
 
 func _init() -> void:
@@ -159,6 +159,14 @@ func run() -> void:
 				scene._cinematic = "reveal"
 				scene._overlook.begin_reveal()
 				scene._cine_age = 7.2
+		"hud":
+			_free_pet(scene)
+			scene._inv["wood"] = 4
+			scene._inv["stone"] = 2
+			scene._inv["fibre"] = 1
+			_walk(scene, Vector3(-8.0, 0, 5.2), Vector3(0.25, 0, 1))
+			scene._step = "gather"
+			scene._line = scene._line_for("gather")
 		"trees_a":
 			_free_pet(scene)
 			_walk(scene, Vector3(-9.5, 0, 7.4), Vector3(0, 0, -1))

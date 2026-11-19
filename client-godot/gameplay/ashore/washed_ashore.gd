@@ -3758,11 +3758,55 @@ func _push_hud() -> void:
 		"placing": _placing != "",
 		"place_ok": _ghost_ok,
 		"build_hint": (_step == "fire" and not _fire_lit and _can_pay("campfire")) or (_step == "shelter" and _hut_stage == 0 and not _building and _can_pay("lean_to")),
+		"build_ready": _build_ready(),
+		"tray_kinds": _tray_kinds(),
 		"pet_bond": int(_pet_stats.get("bond", 0)),
 		"pet_finds": _pet_finds,
 		"pet_fetches": _pet_fetches,
 		"pet_mode": _pet_mode,
 	})
+
+
+func _tray_kinds() -> Array:
+	var kinds: Array = []
+	match _step:
+		"wake", "scavenge", "free_pet", "name_pet":
+			kinds = ["planks", "rope", "cloth"]
+		"gather":
+			kinds = ["wood", "stone", "fibre"]
+		"fire":
+			kinds = ["wood", "stone", "flint"]
+		"cook":
+			kinds = ["fish", "cooked", "food"]
+		"shelter":
+			kinds = ["wood", "fibre", "planks"]
+		"storm", "dusk", "night", "climb":
+			kinds = ["cooked", "wood", "food"]
+		"collect", "epilogue":
+			kinds = ["planks", "rope", "cloth"]
+		_:
+			kinds = ["wood", "stone", "planks"]
+	if _tray_focus != "" and _tray_focus not in kinds:
+		kinds[kinds.size() - 1] = _tray_focus
+	if kinds.size() > 3:
+		kinds = kinds.slice(0, 3)
+	return kinds
+
+
+func _build_ready() -> bool:
+	if _cinematic != "" or _naming or _fork or _qte:
+		return false
+	if _placing != "":
+		return true
+	if (_step == "fire" and not _fire_lit) or (_step == "shelter" and _hut_stage == 0 and not _building):
+		return true
+	if not _fire_lit and _can_pay("campfire"):
+		return true
+	if _hut_stage == 0 and not _building and _can_pay("lean_to"):
+		return true
+	if _fire_lit and not _has_structure("storage") and _can_pay("storage"):
+		return true
+	return false
 
 
 func _action_caption() -> String:

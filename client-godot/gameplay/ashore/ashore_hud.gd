@@ -1,6 +1,6 @@
 extends CanvasLayer
-## Touch HUD for the washed-ashore island. One quest line, chunky counters,
-## warmth above hunger. No debug fields and no session token.
+## Touch HUD for the washed-ashore island. One quest line, a merged survival
+## strip, a step-aware resource tray (max 3), compact Log and Pet. No debug fields.
 
 var world: Node
 
@@ -170,32 +170,41 @@ func _build_widgets() -> void:
 	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_hint.add_theme_color_override("font_color", Color(0.98, 0.82, 0.45))
 	add_child(_hint)
+	var survive := ColorRect.new()
+	survive.color = Color(0.04, 0.08, 0.12, 0.72)
+	survive.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	survive.offset_left = 16
+	survive.offset_right = 220
+	survive.offset_top = 62
+	survive.offset_bottom = 96
+	survive.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(survive)
 	_warm = ColorRect.new()
 	_warm.color = Color(0.05, 0.1, 0.16, 0.7)
-	_warm.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	_warm.offset_left = 18
-	_warm.offset_right = 198
-	_warm.offset_top = 64
-	_warm.offset_bottom = 76
+	_warm.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	_warm.offset_left = 6
+	_warm.offset_right = -6
+	_warm.offset_top = 4
+	_warm.offset_bottom = 15
 	_warm.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(_warm)
+	survive.add_child(_warm)
 	_warm_fill = ColorRect.new()
 	_warm_fill.color = Color(0.35, 0.62, 0.95)
 	_warm_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_warm_fill.set_anchors_preset(Control.PRESET_LEFT_WIDE)
-	_warm_fill.offset_top = 3
-	_warm_fill.offset_bottom = -3
-	_warm_fill.offset_left = 3
+	_warm_fill.offset_top = 2
+	_warm_fill.offset_bottom = -2
+	_warm_fill.offset_left = 2
 	_warm.add_child(_warm_fill)
 	_hunger = ColorRect.new()
 	_hunger.color = Color(0.08, 0.12, 0.08, 0.65)
-	_hunger.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	_hunger.offset_left = 18
-	_hunger.offset_right = 198
-	_hunger.offset_top = 80
-	_hunger.offset_bottom = 90
+	_hunger.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	_hunger.offset_left = 6
+	_hunger.offset_right = -6
+	_hunger.offset_top = -15
+	_hunger.offset_bottom = -4
 	_hunger.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(_hunger)
+	survive.add_child(_hunger)
 	_hunger_fill = ColorRect.new()
 	_hunger_fill.color = Color(0.55, 0.75, 0.22)
 	_hunger_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -205,12 +214,11 @@ func _build_widgets() -> void:
 	_hunger_fill.offset_left = 2
 	_hunger.add_child(_hunger_fill)
 	_counts = HBoxContainer.new()
-	_counts.set_anchors_preset(Control.PRESET_TOP_RIGHT)
 	_counts.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	_counts.offset_top = 96
-	_counts.offset_bottom = 128
+	_counts.offset_top = 102
+	_counts.offset_bottom = 134
 	_counts.offset_left = 16
-	_counts.offset_right = 760
+	_counts.offset_right = 520
 	_counts.alignment = BoxContainer.ALIGNMENT_BEGIN
 	_counts.add_theme_constant_override("separation", 6)
 	add_child(_counts)
@@ -337,12 +345,12 @@ func _build_widgets() -> void:
 	_cancel_btn.offset_bottom = -50
 	_place_btn.pressed.connect(_emit_place)
 	_cancel_btn.pressed.connect(_emit_cancel)
-	_pet_chip = _button("Pet", 20)
-	_pet_chip.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	_pet_chip.offset_left = -400
-	_pet_chip.offset_right = -226
-	_pet_chip.offset_top = -120
-	_pet_chip.offset_bottom = -36
+	_pet_chip = _button("Pet", 16)
+	_pet_chip.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	_pet_chip.offset_left = 228
+	_pet_chip.offset_right = 400
+	_pet_chip.offset_top = 62
+	_pet_chip.offset_bottom = 96
 	_pet_chip.visible = false
 	_pet_chip.pressed.connect(_emit_pet_toggle)
 	add_child(_pet_chip)
@@ -479,12 +487,12 @@ func _build_story_widgets() -> void:
 	hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_sub_panel.add_child(hint)
 	# One menu button (top right): pauses and shows the story journal.
-	_menu_btn = _button("Journal", 24)
+	_menu_btn = _button("Log", 18)
 	_menu_btn.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	_menu_btn.offset_left = -170
-	_menu_btn.offset_right = -20
-	_menu_btn.offset_top = 16
-	_menu_btn.offset_bottom = 68
+	_menu_btn.offset_left = -80
+	_menu_btn.offset_right = -16
+	_menu_btn.offset_top = 14
+	_menu_btn.offset_bottom = 70
 	_menu_btn.process_mode = Node.PROCESS_MODE_ALWAYS
 	_menu_btn.pressed.connect(_toggle_journal)
 	add_child(_menu_btn)
@@ -556,8 +564,8 @@ func _apply_story() -> void:
 func _apply_meters() -> void:
 	var warmth := clampf(float(_state.get("warmth", 0.0)) / 100.0, 0.0, 1.0)
 	var hunger := clampf(float(_state.get("hunger", 0.0)) / 100.0, 0.0, 1.0)
-	var width := 174.0
-	_warm_fill.offset_right = 3.0 + width * warmth
+	var width := 188.0
+	_warm_fill.offset_right = 2.0 + width * warmth
 	_warm_fill.color = Color(0.32, 0.58, 0.95).lerp(Color(0.96, 0.42, 0.12), warmth)
 	_hunger_fill.offset_right = 2.0 + width * hunger
 	var hp := int(_state.get("health", 5))
@@ -569,11 +577,16 @@ func _apply_meters() -> void:
 
 func _apply_counts() -> void:
 	var counts: Dictionary = _state.get("counts", {})
+	var tray: Array = _state.get("tray_kinds", [])
+	if tray.is_empty():
+		tray = ALWAYS_COUNTS.slice(0, 3)
+	if tray.size() > 3:
+		tray = tray.slice(0, 3)
 	for kind in _count_labels.keys():
 		var label: Label = _count_labels[kind]
 		var n := int(counts.get(kind, 0))
 		label.text = "%s %d" % [_short(kind), n]
-		label.visible = n > 0 or kind in ALWAYS_COUNTS
+		label.visible = kind in tray
 
 
 func _apply_buttons() -> void:
@@ -1037,7 +1050,8 @@ func _emit_research(id: String) -> void:
 func _apply_build() -> void:
 	var placing := bool(_state.get("placing", false))
 	var hidden := bool(_state.get("fork", false)) or bool(_state.get("qte", false)) or bool(_state.get("name_open", false)) or bool(_state.get("skip", false))
-	_build_btn.visible = not hidden and not placing
+	var ready := bool(_state.get("build_ready", false)) or bool(_state.get("build_hint", false)) or bool(_state.get("build_open", false))
+	_build_btn.visible = not hidden and not placing and ready
 	_place_btn.visible = placing and not hidden
 	_cancel_btn.visible = placing and not hidden
 	_place_btn.modulate = Color(1, 1, 1, 1) if bool(_state.get("place_ok", false)) else Color(1, 0.55, 0.5, 0.8)
