@@ -152,6 +152,22 @@ var _tool_show := 0.0
 var _cam_kick := 0.0
 const GATHER_RHYTHM := 0.6
 const GATHER_CONTACT := 0.22
+var _hit_stop := 0.0
+var _hit_stop_anim_scale := 1.0
+var _kick_dur := 0.16
+var _kick_h := 0.05
+var _kick_v := 0.035
+var _pending_hits: Array = []
+var _deferred: Array = []
+var _chip_emitters: Array = []
+var _dust_emitters: Array = []
+var _loot_bits: Array = []
+var _chip_i := 0
+var _dust_i := 0
+var _fx_ready := false
+var _audio_cache: Dictionary = {}
+var _tray_focus := ""
+var _tray_focus_t := 0.0
 const AXE_MESH := preload("res://assets/ashore/models/axe.glb")
 var _rare := false
 var _choice := ""
@@ -387,6 +403,16 @@ func _exit_tree() -> void:
 
 func _process(delta: float) -> void:
 	_age += delta
+	if _hit_stop > 0.0:
+		_hit_stop = maxf(_hit_stop - delta, 0.0)
+		if _hit_stop == 0.0 and _anim:
+			_anim.speed_scale = _hit_stop_anim_scale
+	_tick_pending_hits(delta)
+	_tick_deferred(delta)
+	if _tray_focus_t > 0.0:
+		_tray_focus_t = maxf(_tray_focus_t - delta, 0.0)
+		if _tray_focus_t == 0.0:
+			_tray_focus = ""
 	if _hint_t > 0.0:
 		_hint_t = maxf(_hint_t - delta, 0.0)
 		if _hint_t == 0.0 and not (_dusk_active and _alerted and _choice == ""):
@@ -1074,9 +1100,9 @@ func _follow_camera(delta: float) -> void:
 	look = look.lerp(_player.global_position + Vector3.UP * 1.15 + fwd * 1.6, _cam_ots)
 	_camera.look_at(look, Vector3.UP)
 	_cam_kick = maxf(_cam_kick - delta, 0.0)
-	var kick := _cam_kick / 0.16
-	_camera.h_offset = randf_range(-0.05, 0.05) * kick
-	_camera.v_offset = randf_range(-0.035, 0.035) * kick
+	var kick := 0.0 if _kick_dur <= 0.0 else _cam_kick / _kick_dur
+	_camera.h_offset = randf_range(-_kick_h, _kick_h) * kick
+	_camera.v_offset = randf_range(-_kick_v, _kick_v) * kick
 	_fade_occluders(eye, head, delta)
 
 
@@ -1145,7 +1171,8 @@ func _act_on_node(node: Dictionary) -> void:
 		return
 	if _gather_lock > 0.0:
 		return
-	_gather_lock = GATHER_RHYTHM
+	var profile := _gather_profile(str(node.get("kind", "")))
+	_gather_lock = float(profile.get("swing_interval_s", GATHER_RHYTHM))
 	var root := node.get("root") as Node3D
 	var aim := _node_aim(node)
 	var kind := str(node.get("kind", ""))
@@ -1171,15 +1198,14 @@ func _act_on_node(node: Dictionary) -> void:
 	_play(SWING, -14.0, randf_range(1.05, 1.2))
 	# Effects land on contact, a beat after the wind-up, not on the tap.
 	var chip_col := _chip_color(kind)
-	get_tree().create_timer(GATHER_CONTACT).timeout.connect(func() -> void:
-		if not is_instance_valid(root):
-			return
-		_play(_hit_sound(kind), -3.0, randf_range(0.92, 1.08))
-		_shake(root)
-		_chips(aim, chip_col, 18)
-		_dust(aim, chip_col)
-		_cam_kick = 0.16
-		_vibrate(22, 0.45))
+	_pending_hits.append({
+		"t": GATHER_CONTACT,
+		"root": root,
+		"aim": aim,
+		"kind": kind,
+		"color": chip_col,
+		"profile": profile,
+	})
 	var need_hits := _hits_for(node)
 	node["hits"] = int(node.get("hits", 0)) + 1
 	if int(node["hits"]) < need_hits:
@@ -2179,12 +2205,13 @@ func _note_burst(text: String) -> void:
 		_hud.note_burst(text)
 
 
-func _fly(kind: String, amount: int, from: Vector3) -> void:
-	if _hud == null or _camera == null or not _hud.has_method("note_fly"):
+func _fly(kind: String, amount: int, from: Vector3, life: float = 0.5) -> void:
+	if _hud == null or not _hud.has_method("note_fly"):
 		return
-	if _camera.is_position_behind(from):
-		return
-	_hud.note_fly(_camera.unproject_position(from), kind, amount)
+	var screen := Vector2(640, 400)
+	if _camera and not _camera.is_position_behind(from):
+		screen = _camera.unproject_position(from)
+	_hud.note_fly(screen, kind, amount, life)
 
 
 func _play(path: String, db: float, pitch: float) -> void:
@@ -2192,10 +2219,13 @@ func _play(path: String, db: float, pitch: float) -> void:
 		return
 	var voice := _voices[_voice_i]
 	_voice_i = (_voice_i + 1) % _voices.size()
-	var stream = load(path)
+	var stream = _audio_cache.get(path)
 	if stream == null:
-		return
-	voice.stream = stream.duplicate()
+		stream = load(path)
+		if stream == null:
+			return
+		_audio_cache[path] = stream
+	voice.stream = stream
 	voice.volume_db = db
 	voice.pitch_scale = pitch
 	voice.play()
@@ -3579,13 +3609,14 @@ func _label3(text: String, y: float) -> Label3D:
 	return label
 
 
-func _shake(node: Node3D) -> void:
+func _shake(node: Node3D, deg: float = 8.0) -> void:
 	if node == null:
 		return
 	var base := node.rotation.z
+	var rad := deg_to_rad(deg)
 	var tween := create_tween()
-	tween.tween_property(node, "rotation:z", base + 0.14, 0.06)
-	tween.tween_property(node, "rotation:z", base - 0.1, 0.07)
+	tween.tween_property(node, "rotation:z", base + rad, 0.06)
+	tween.tween_property(node, "rotation:z", base - rad * 0.7, 0.07)
 	tween.tween_property(node, "rotation:z", base, 0.06)
 
 
@@ -3990,15 +4021,238 @@ func _item_color(id: String) -> Color:
 	return Color(1, 0.95, 0.8)
 
 
-func _hit_sound(kind: String) -> String:
+
+func _gather_profile(kind: String) -> Dictionary:
+	var profiles: Dictionary = _tuning.get("gather_profiles", {})
+	var key := kind
 	match kind:
-		"tree", "drift":
+		"rock", "stones", "flint":
+			key = "rock"
+		"bush", "fibre":
+			key = "bush"
+		"drift":
+			key = "driftwood"
+		"hull", "rigging", "cargo":
+			key = "wreck_pile"
+	var profile = profiles.get(key, {})
+	return profile if profile is Dictionary else {}
+
+
+func _kind_for_item(id: String) -> String:
+	match id:
+		"wood":
+			return "tree"
+		"stone", "flint":
+			return "rock"
+		"food", "fibre":
+			return "bush"
+		"planks", "rope", "cloth":
+			return "hull"
+	return id
+
+
+func _begin_hit_stop(ms: int) -> void:
+	var hold := float(ms) / 1000.0
+	if hold <= 0.0:
+		return
+	if _hit_stop <= 0.0 and _anim:
+		_hit_stop_anim_scale = _anim.speed_scale
+		_anim.speed_scale = 0.0
+	_hit_stop = maxf(_hit_stop, hold)
+
+
+func _begin_cam_kick(profile: Dictionary) -> void:
+	var shake: Dictionary = profile.get("camera_shake", {})
+	_kick_dur = maxf(float(shake.get("duration_ms", 110)) / 1000.0, 0.05)
+	_kick_h = float(shake.get("horizontal_m", 0.04))
+	_kick_v = float(shake.get("vertical_m", 0.025))
+	_cam_kick = _kick_dur
+
+
+func _tick_pending_hits(delta: float) -> void:
+	var i := 0
+	while i < _pending_hits.size():
+		_pending_hits[i]["t"] = float(_pending_hits[i]["t"]) - delta
+		if float(_pending_hits[i]["t"]) <= 0.0:
+			var hit: Dictionary = _pending_hits[i]
+			_pending_hits.remove_at(i)
+			_resolve_hit(hit)
+		else:
+			i += 1
+
+
+func _resolve_hit(hit: Dictionary) -> void:
+	var root = hit.get("root")
+	if root == null or not is_instance_valid(root):
+		return
+	var kind := str(hit.get("kind", ""))
+	var profile: Dictionary = hit.get("profile", {})
+	var aim: Vector3 = hit.get("aim", Vector3.ZERO)
+	var color: Color = hit.get("color", _chip_color(kind))
+	var sizes: Array = profile.get("chip_size_m", [0.05, 0.12])
+	var lo := float(sizes[0]) if sizes.size() > 0 else 0.05
+	var hi := float(sizes[1]) if sizes.size() > 1 else 0.12
+	_play(_hit_sound(kind), -3.0, randf_range(0.92, 1.08))
+	_shake(root, float(profile.get("node_wobble_deg", 8.0)))
+	_chips(aim, color, int(profile.get("chip_count", 16)), lo, hi)
+	_dust(aim, color)
+	_begin_cam_kick(profile)
+	_begin_hit_stop(int(profile.get("hit_stop_ms", 50)))
+	_vibrate(int(profile.get("haptic_ms", 22)), 0.45)
+
+
+func _after(sec: float, cb: Callable) -> void:
+	_deferred.append([sec, cb])
+
+
+func _tick_deferred(delta: float) -> void:
+	var i := 0
+	while i < _deferred.size():
+		_deferred[i][0] = float(_deferred[i][0]) - delta
+		if float(_deferred[i][0]) <= 0.0:
+			var cb: Callable = _deferred[i][1]
+			_deferred.remove_at(i)
+			cb.call()
+		else:
+			i += 1
+
+
+func _ensure_fx() -> void:
+	if _fx_ready:
+		return
+	_fx_ready = true
+	for _i in 4:
+		var particles := GPUParticles3D.new()
+		particles.one_shot = true
+		particles.explosiveness = 0.95
+		particles.amount = 16
+		particles.lifetime = 0.7
+		particles.emitting = false
+		particles.visibility_aabb = AABB(Vector3(-3, -3, -3), Vector3(6, 6, 6))
+		var process := ParticleProcessMaterial.new()
+		process.direction = Vector3(0, 1, 0)
+		process.spread = 70.0
+		process.initial_velocity_min = 1.6
+		process.initial_velocity_max = 3.6
+		process.gravity = Vector3(0, -11, 0)
+		process.angular_velocity_min = -360.0
+		process.angular_velocity_max = 360.0
+		particles.process_material = process
+		var box := BoxMesh.new()
+		box.size = Vector3(0.08, 0.06, 0.11)
+		var mat := StandardMaterial3D.new()
+		mat.roughness = 0.9
+		box.material = mat
+		particles.draw_pass_1 = box
+		add_child(particles)
+		_chip_emitters.append(particles)
+	var smoke = load(FX_SMOKE_PATH)
+	for _j in 3:
+		var dust := GPUParticles3D.new()
+		dust.one_shot = true
+		dust.explosiveness = 0.9
+		dust.amount = 10
+		dust.lifetime = 0.9
+		dust.emitting = false
+		dust.visibility_aabb = AABB(Vector3(-3, -3, -3), Vector3(6, 6, 6))
+		var process := ParticleProcessMaterial.new()
+		process.direction = Vector3(0, 1, 0)
+		process.spread = 80.0
+		process.initial_velocity_min = 0.4
+		process.initial_velocity_max = 1.1
+		process.gravity = Vector3(0, 0.3, 0)
+		process.scale_min = 0.6
+		process.scale_max = 1.4
+		var curve := CurveTexture.new()
+		var c := Curve.new()
+		c.add_point(Vector2(0, 0.5))
+		c.add_point(Vector2(1, 1.4))
+		curve.curve = c
+		process.scale_curve = curve
+		var fade := Gradient.new()
+		fade.set_color(0, Color(1, 1, 1, 0.55))
+		fade.set_color(1, Color(1, 1, 1, 0.0))
+		var ramp := GradientTexture1D.new()
+		ramp.gradient = fade
+		process.color_ramp = ramp
+		dust.process_material = process
+		var quad := QuadMesh.new()
+		quad.size = Vector2(0.32, 0.32)
+		var mat := StandardMaterial3D.new()
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		mat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+		mat.vertex_color_use_as_albedo = true
+		mat.roughness = 1.0
+		if smoke:
+			mat.albedo_texture = smoke
+		quad.material = mat
+		dust.draw_pass_1 = quad
+		add_child(dust)
+		_dust_emitters.append(dust)
+
+
+func _take_loot_bit() -> MeshInstance3D:
+	_ensure_fx()
+	for bit in _loot_bits:
+		if bit is MeshInstance3D and not (bit as MeshInstance3D).visible:
+			_kill_bit_tween(bit)
+			return bit
+	if _loot_bits.size() < 8:
+		var bit := MeshInstance3D.new()
+		bit.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(bit)
+		_loot_bits.append(bit)
+		return bit
+	var reuse: MeshInstance3D = _loot_bits[0]
+	_kill_bit_tween(reuse)
+	reuse.visible = true
+	reuse.scale = Vector3.ONE
+	return reuse
+
+
+func _kill_bit_tween(bit: MeshInstance3D) -> void:
+	if bit.has_meta("tween"):
+		var tw = bit.get_meta("tween")
+		if tw is Tween and is_instance_valid(tw):
+			tw.kill()
+
+
+func _loot_mesh_for(id: String) -> Mesh:
+	if id in ["wood", "planks"]:
+		var cyl := CylinderMesh.new()
+		cyl.top_radius = 0.08
+		cyl.bottom_radius = 0.08
+		cyl.height = 0.38
+		cyl.radial_segments = 8
+		return cyl
+	if id in ["stone", "flint"]:
+		var sph := SphereMesh.new()
+		sph.radius = 0.11
+		sph.height = 0.16
+		sph.radial_segments = 8
+		sph.rings = 4
+		return sph
+	var box := BoxMesh.new()
+	box.size = Vector3(0.2, 0.13, 0.16)
+	return box
+
+
+func _hit_sound(kind: String) -> String:
+	var profile := _gather_profile(kind)
+	var by: Dictionary = profile.get("sound_cue_by_kind", {})
+	var cue := str(by.get(kind, ""))
+	if cue == "":
+		cue = str(profile.get("sound_cue", ""))
+	if cue != "":
+		return AUDIO + cue
+	match kind:
+		"tree", "drift", "hull", "rigging":
 			return AUDIO + "chop.ogg"
 		"rock", "stones", "flint":
 			return AUDIO + "stone_hit.ogg"
 		"dig":
 			return AUDIO + "dig.ogg"
-		"bush", "fibre", "crab", "fish":
+		"bush", "fibre", "crab", "fish", "cargo":
 			return AUDIO + "crunch.ogg"
 	return AUDIO + "punch.ogg"
 
@@ -4039,36 +4293,23 @@ func _popup(text: String, at: Vector3, color: Color) -> void:
 	tween.chain().tween_callback(label.queue_free)
 
 
-## Small shaded chips flying off a hit (wood splinters, stone grit, sand).
-func _chips(at: Vector3, color: Color, amount: int) -> void:
-	var particles := GPUParticles3D.new()
-	particles.one_shot = true
-	particles.explosiveness = 0.95
-	particles.amount = amount
-	particles.lifetime = 0.7
-	particles.visibility_aabb = AABB(Vector3(-3, -3, -3), Vector3(6, 6, 6))
-	add_child(particles)
+## Shaded chips flying off a hit (wood splinters, stone grit, sand). Pooled.
+func _chips(at: Vector3, color: Color, amount: int, size_min: float = 0.05, size_max: float = 0.12) -> void:
+	_ensure_fx()
+	var particles: GPUParticles3D = _chip_emitters[_chip_i]
+	_chip_i = (_chip_i + 1) % _chip_emitters.size()
+	particles.emitting = false
+	particles.amount = clampi(amount, 4, 24)
+	var mid := maxf((size_min + size_max) * 0.5, 0.02)
+	var box := particles.draw_pass_1 as BoxMesh
+	box.size = Vector3(mid, mid * 0.7, mid * 1.3)
+	(box.material as StandardMaterial3D).albedo_color = color
+	var process := particles.process_material as ParticleProcessMaterial
+	process.scale_min = size_min / mid
+	process.scale_max = size_max / mid
 	particles.global_position = at
-	var process := ParticleProcessMaterial.new()
-	process.direction = Vector3(0, 1, 0)
-	process.spread = 70.0
-	process.initial_velocity_min = 1.6
-	process.initial_velocity_max = 3.6
-	process.gravity = Vector3(0, -11, 0)
-	process.angular_velocity_min = -360.0
-	process.angular_velocity_max = 360.0
-	process.scale_min = 0.6
-	process.scale_max = 1.3
-	particles.process_material = process
-	var box := BoxMesh.new()
-	box.size = Vector3(0.07, 0.05, 0.1)
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = color
-	mat.roughness = 0.9
-	box.material = mat
-	particles.draw_pass_1 = box
+	particles.restart()
 	particles.emitting = true
-	get_tree().create_timer(1.2).timeout.connect(particles.queue_free)
 
 
 func _vibrate(ms: int, strength: float) -> void:
@@ -5265,110 +5506,71 @@ func _show_tool(icon: String) -> void:
 	_tool_mesh.visible = true
 
 
-## A soft puff of dust / sawdust on contact (shaded quads, no glow).
+## A soft puff of dust / sawdust on contact (shaded quads, no glow). Pooled.
 func _dust(at: Vector3, color: Color) -> void:
-	var particles := GPUParticles3D.new()
-	particles.one_shot = true
-	particles.explosiveness = 0.9
-	particles.amount = 10
-	particles.lifetime = 0.9
-	particles.visibility_aabb = AABB(Vector3(-3, -3, -3), Vector3(6, 6, 6))
-	add_child(particles)
-	particles.global_position = at
-	var process := ParticleProcessMaterial.new()
-	process.direction = Vector3(0, 1, 0)
-	process.spread = 80.0
-	process.initial_velocity_min = 0.4
-	process.initial_velocity_max = 1.1
-	process.gravity = Vector3(0, 0.3, 0)
-	process.scale_min = 0.6
-	process.scale_max = 1.4
-	var curve := CurveTexture.new()
-	var c := Curve.new()
-	c.add_point(Vector2(0, 0.5))
-	c.add_point(Vector2(1, 1.4))
-	curve.curve = c
-	process.scale_curve = curve
-	var fade := Gradient.new()
-	fade.set_color(0, Color(1, 1, 1, 0.55))
-	fade.set_color(1, Color(1, 1, 1, 0.0))
-	var ramp := GradientTexture1D.new()
-	ramp.gradient = fade
-	process.color_ramp = ramp
-	particles.process_material = process
-	var quad := QuadMesh.new()
-	quad.size = Vector2(0.32, 0.32)
-	var mat := StandardMaterial3D.new()
+	_ensure_fx()
+	var particles: GPUParticles3D = _dust_emitters[_dust_i]
+	_dust_i = (_dust_i + 1) % _dust_emitters.size()
+	particles.emitting = false
+	var mat := (particles.draw_pass_1 as QuadMesh).material as StandardMaterial3D
 	mat.albedo_color = color.lerp(Color(0.8, 0.76, 0.68), 0.4)
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
-	mat.vertex_color_use_as_albedo = true
-	mat.roughness = 1.0
-	var tex = load(FX_SMOKE_PATH)
-	if tex:
-		mat.albedo_texture = tex
-	quad.material = mat
-	particles.draw_pass_1 = quad
+	particles.global_position = at
+	particles.restart()
 	particles.emitting = true
-	get_tree().create_timer(1.4).timeout.connect(particles.queue_free)
 
 
-## Loot pops out of the node in a little arc, flies into the castaway, then
-## the HUD toasts "+2 Wood" and the bag pulses.
+## Loot pops in world space, then one icon flies to the resource tray and
+## the toast ("+2 Wood") shows on arrival. Visible bits only; inventory
+## amounts stay with the catalog loot tables.
 func _loot_arc(id: String, amount: int, from: Vector3) -> void:
+	_tray_focus = id
+	_tray_focus_t = 2.4
+	var profile := _gather_profile(_kind_for_item(id))
+	var arc: Dictionary = profile.get("loot_arc", {})
+	var pop_s := float(arc.get("pop_ms", 220)) / 1000.0
+	var apex := float(arc.get("apex_m", 0.55))
+	var hold_s := float(arc.get("hold_ms", 50)) / 1000.0
+	var fly_s := float(arc.get("fly_to_counter_ms", 480)) / 1000.0
+	var stagger := float(arc.get("stagger_ms", 40)) / 1000.0
 	var col := _chip_color(id) if id in ["wood", "planks", "stone", "flint"] else _item_color(id)
 	if id in ["wood", "planks"]:
 		col = Color(0.42, 0.28, 0.15)
 	var count := clampi(amount, 1, 3)
 	for i in count:
-		var bit := MeshInstance3D.new()
-		var mesh: Mesh
-		if id in ["wood", "planks"]:
-			var cyl := CylinderMesh.new()
-			cyl.top_radius = 0.05
-			cyl.bottom_radius = 0.05
-			cyl.height = 0.32
-			cyl.radial_segments = 8
-			mesh = cyl
-		elif id in ["stone", "flint"]:
-			var sph := SphereMesh.new()
-			sph.radius = 0.08
-			sph.height = 0.12
-			sph.radial_segments = 8
-			sph.rings = 4
-			mesh = sph
-		else:
-			var box := BoxMesh.new()
-			box.size = Vector3(0.16, 0.1, 0.12)
-			mesh = box
-		var mat := _mat(col, 0.85)
-		bit.mesh = mesh
-		bit.material_override = mat
-		bit.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		add_child(bit)
-		var side := Vector3(randf_range(-0.6, 0.6), 0, randf_range(-0.6, 0.6))
+		var bit := _take_loot_bit()
+		bit.mesh = _loot_mesh_for(id)
+		bit.material_override = _mat(col, 0.85)
+		bit.scale = Vector3.ONE
+		bit.visible = true
+		var side := Vector3(randf_range(-0.55, 0.55), 0, randf_range(-0.55, 0.55))
 		var start := from + Vector3(0, 0.2, 0)
-		var land := start + side + Vector3(0, -0.15, 0)
+		var land := start + side + Vector3(0, -0.1, 0)
 		bit.global_position = start
 		bit.rotation = Vector3(randf() * TAU, randf() * TAU, 0)
-		var delay := 0.25 + 0.06 * float(i)
+		var delay := stagger * float(i)
 		var tween := create_tween()
+		bit.set_meta("tween", tween)
 		tween.tween_interval(delay)
 		tween.tween_method(func(k: float) -> void:
 			if is_instance_valid(bit):
-				bit.global_position = start.lerp(land, k) + Vector3.UP * sin(k * PI) * 0.7
-				bit.rotate_x(0.25), 0.0, 1.0, 0.32)
-		tween.tween_interval(0.12)
-		tween.tween_method(func(k: float) -> void:
-			if is_instance_valid(bit) and _player:
-				var to := _player.global_position + Vector3.UP * 1.0
-				bit.global_position = land.lerp(to, k * k) + Vector3.UP * sin(k * PI) * 0.35
-				bit.scale = Vector3.ONE * (1.0 - 0.7 * k), 0.0, 1.0, 0.28)
-		tween.tween_callback(bit.queue_free)
-	get_tree().create_timer(0.95).timeout.connect(func() -> void:
-		if _hud and _hud.has_method("note_toast"):
-			_hud.note_toast("+%d %s" % [amount, _item_word(id)], id)
-		_play(AUDIO + "crunch.ogg", -20.0, 1.6))
+				bit.global_position = start.lerp(land, k) + Vector3.UP * sin(k * PI) * apex
+				bit.rotate_x(0.25), 0.0, 1.0, pop_s)
+		tween.tween_interval(hold_s)
+		tween.tween_callback(func() -> void:
+			if is_instance_valid(bit):
+				bit.visible = false)
+	var toast := "+%d %s" % [amount, _item_word(id)]
+	var by: Dictionary = profile.get("toast_by_item", {})
+	if by.has(id):
+		toast = str(by[id]).replace("{amount}", str(amount))
+	elif str(profile.get("toast", "")) != "":
+		toast = str(profile.get("toast", "")).replace("{amount}", str(amount))
+	_after(pop_s + hold_s, func() -> void:
+		_fly(id, amount, from, fly_s)
+		_after(fly_s, func() -> void:
+			if _hud and _hud.has_method("note_toast"):
+				_hud.note_toast(toast, id)
+			_play(AUDIO + "crunch.ogg", -20.0, 1.6)))
 
 
 ## Final hit: the palm falls and leaves a stump, the rock crumbles to rubble,

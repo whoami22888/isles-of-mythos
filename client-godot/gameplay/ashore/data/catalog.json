@@ -13,7 +13,224 @@
     "warmth_drain_dusk": 0.55,
     "hunger_drain": 0.04,
     "respawn_seconds": 60,
-    "pacing": "Rescue v2: wreck + pet ~1.5 min, gather 10 wood/8 stone ~2 min, campfire, catch+cook 2 fish and feed Tide-Puck (Bond Lv2 Fetch), lean-to before a 3:00 storm, dusk creature. Target first session 6-10 min for a human."
+    "pacing": "Rescue v2: wreck + pet ~1.5 min, gather 10 wood/8 stone ~2 min, campfire, catch+cook 2 fish and feed Tide-Puck (Bond Lv2 Fetch), lean-to before a 3:00 storm, dusk creature. Target first session 6-10 min for a human.",
+    "gather_profiles": {
+      "tree": {
+        "kind": "tree",
+        "stages": 4,
+        "hits_per_stage": 1,
+        "hits_to_deplete": 4,
+        "tool": "axe",
+        "swing_interval_s": 0.6,
+        "hit_stop_ms": 55,
+        "camera_shake": {
+          "duration_ms": 110,
+          "horizontal_m": 0.04,
+          "vertical_m": 0.025
+        },
+        "node_wobble_deg": 7,
+        "chip_count": 16,
+        "chip_size_m": [
+          0.05,
+          0.12
+        ],
+        "loot_pieces_per_hit": [
+          1,
+          2,
+          1,
+          2
+        ],
+        "loot_arc": {
+          "pop_ms": 220,
+          "apex_m": 0.55,
+          "hold_ms": 50,
+          "fly_to_counter_ms": 480,
+          "stagger_ms": 40,
+          "target": "resource_counter"
+        },
+        "toast": "+{amount} Wood",
+        "haptic_ms": 24,
+        "sound_cue": "chop.ogg",
+        "respawn": 65
+      },
+      "rock": {
+        "kind": "rock",
+        "stages": 4,
+        "hits_per_stage": 1,
+        "hits_to_deplete": 4,
+        "tool": "pick",
+        "swing_interval_s": 0.62,
+        "hit_stop_ms": 70,
+        "camera_shake": {
+          "duration_ms": 120,
+          "horizontal_m": 0.05,
+          "vertical_m": 0.03
+        },
+        "node_wobble_deg": 5,
+        "chip_count": 20,
+        "chip_size_m": [
+          0.035,
+          0.085
+        ],
+        "loot_pieces_per_hit": [
+          2,
+          1,
+          1,
+          2
+        ],
+        "loot_arc": {
+          "pop_ms": 190,
+          "apex_m": 0.35,
+          "hold_ms": 50,
+          "fly_to_counter_ms": 480,
+          "stagger_ms": 35,
+          "target": "resource_counter"
+        },
+        "toast": "+{amount} Stone",
+        "haptic_ms": 28,
+        "sound_cue": "stone_hit.ogg",
+        "respawn": 65
+      },
+      "bush": {
+        "kind": "bush",
+        "stages": 3,
+        "hits_per_stage": 1,
+        "hits_to_deplete": 3,
+        "tool": "",
+        "swing_interval_s": 0.48,
+        "hit_stop_ms": 35,
+        "camera_shake": {
+          "duration_ms": 90,
+          "horizontal_m": 0.025,
+          "vertical_m": 0.015
+        },
+        "node_wobble_deg": 8,
+        "chip_count": 10,
+        "chip_size_m": [
+          0.025,
+          0.06
+        ],
+        "loot_pieces_per_hit": [
+          1,
+          1,
+          2
+        ],
+        "loot_arc": {
+          "pop_ms": 170,
+          "apex_m": 0.3,
+          "hold_ms": 40,
+          "fly_to_counter_ms": 450,
+          "stagger_ms": 30,
+          "target": "resource_counter"
+        },
+        "toast": "+{amount} Food",
+        "haptic_ms": 16,
+        "sound_cue": "crunch.ogg",
+        "respawn": 45
+      },
+      "driftwood": {
+        "kind": "drift",
+        "stages": 2,
+        "hits_per_stage": 1,
+        "hits_to_deplete": 2,
+        "tool": "",
+        "swing_interval_s": 0.5,
+        "hit_stop_ms": 45,
+        "camera_shake": {
+          "duration_ms": 100,
+          "horizontal_m": 0.035,
+          "vertical_m": 0.02
+        },
+        "node_wobble_deg": 6,
+        "chip_count": 12,
+        "chip_size_m": [
+          0.04,
+          0.1
+        ],
+        "loot_pieces_per_hit": [
+          1,
+          2
+        ],
+        "loot_arc": {
+          "pop_ms": 200,
+          "apex_m": 0.45,
+          "hold_ms": 45,
+          "fly_to_counter_ms": 450,
+          "stagger_ms": 35,
+          "target": "resource_counter"
+        },
+        "toast": "+{amount} Wood",
+        "haptic_ms": 20,
+        "sound_cue": "chop.ogg",
+        "respawn": 55
+      },
+      "wreck_pile": {
+        "kinds": [
+          "hull",
+          "rigging",
+          "cargo"
+        ],
+        "stages": 3,
+        "hits_per_stage": 1,
+        "hits_to_deplete": 3,
+        "tool": "",
+        "swing_interval_s": 0.56,
+        "hit_stop_ms": 50,
+        "camera_shake": {
+          "duration_ms": 110,
+          "horizontal_m": 0.04,
+          "vertical_m": 0.025
+        },
+        "node_wobble_deg": 5,
+        "chip_count": 14,
+        "chip_size_m": [
+          0.04,
+          0.11
+        ],
+        "loot_pieces_per_hit_by_node": {
+          "hull": [
+            2,
+            2,
+            1
+          ],
+          "rigging": [
+            1,
+            1,
+            1
+          ],
+          "cargo_cloth": [
+            1,
+            1,
+            1
+          ],
+          "cargo_tools": [
+            1,
+            1,
+            0
+          ]
+        },
+        "loot_arc": {
+          "pop_ms": 210,
+          "apex_m": 0.45,
+          "hold_ms": 50,
+          "fly_to_counter_ms": 480,
+          "stagger_ms": 40,
+          "target": "resource_counter"
+        },
+        "toast_by_item": {
+          "planks": "+{amount} Planks",
+          "rope": "+{amount} Rope",
+          "cloth": "+{amount} Cloth"
+        },
+        "haptic_ms": 22,
+        "sound_cue_by_kind": {
+          "hull": "chop.ogg",
+          "rigging": "chop.ogg",
+          "cargo": "crunch.ogg"
+        },
+        "respawn": 70
+      }
+    }
   },
   "lines": {
     "wake": "Cold...",

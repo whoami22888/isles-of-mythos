@@ -73,8 +73,9 @@ func stick() -> Vector2:
 	return _stick
 
 
-func note_fly(from: Vector2, kind: String, amount: int) -> void:
-	_flies.append({"from": from, "kind": kind, "amount": amount, "age": 0.0, "life": 0.85})
+func note_fly(from: Vector2, kind: String, amount: int, life: float = 0.5) -> void:
+	_flies.clear()
+	_flies.append({"from": from, "kind": kind, "amount": amount, "age": 0.0, "life": life})
 
 
 ## "+2 Wood" toast near the top of the screen and a pulse on the bag counts.
@@ -83,9 +84,7 @@ var _bag_pulse := 0.0
 
 
 func note_toast(text: String, kind: String) -> void:
-	_toasts.append({"text": text, "kind": kind, "age": 0.0})
-	if _toasts.size() > 3:
-		_toasts.pop_front()
+	_toasts = [{"text": text, "kind": kind, "age": 0.0}]
 	_bag_pulse = 0.35
 
 
@@ -722,8 +721,8 @@ func _on_draw() -> void:
 		var text_size := font.get_string_size(_burst, HORIZONTAL_ALIGNMENT_CENTER, -1, int(64 * punch))
 		var pos := Vector2(size.x * 0.5 - text_size.x * 0.5, 340)
 		_draw.draw_string(font, pos, _burst, HORIZONTAL_ALIGNMENT_LEFT, -1, int(64 * punch), Color(1, 0.95, 0.75))
-	var slot := _count_anchor()
 	for fly in _flies:
+		var slot := _count_anchor_for(str(fly.kind))
 		var t := clampf(float(fly.age) / float(fly.life), 0.0, 1.0)
 		var from: Vector2 = fly.from
 		var mid := (from + slot) * 0.5 + Vector2(0, -120)
@@ -883,6 +882,14 @@ func _count_anchor() -> Vector2:
 	if _counts:
 		return _counts.global_position + _counts.size * 0.5
 	return Vector2(640, 210)
+
+
+func _count_anchor_for(kind: String) -> Vector2:
+	var label = _count_labels.get(kind)
+	if label is Control and (label as Control).visible:
+		var lab := label as Control
+		return lab.global_position + lab.size * 0.5
+	return _count_anchor()
 
 
 func _input(event: InputEvent) -> void:

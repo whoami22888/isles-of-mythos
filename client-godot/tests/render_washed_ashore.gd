@@ -317,7 +317,7 @@ func _free_pet(scene: Node) -> void:
 
 ## Gathering frames: slow game time so a software-GL frame lands on the beat.
 ## g_swing: wind-up / mid-swing; g_hit: contact burst; g_fell: palm falling
-## after the last hit; g_pop: loot arcing into the castaway + top toast.
+## after the last hit; g_pop: world pop then loot flying to the resource tray.
 func _gather_sequence(scene, pose: String) -> void:
 	var tree_node: Dictionary = scene._node_by_id("tree_b")
 	var root3 := tree_node["root"] as Node3D
@@ -326,7 +326,7 @@ func _gather_sequence(scene, pose: String) -> void:
 	scene._player.look_at(face, Vector3.UP)
 	scene._subs.clear()
 	Engine.time_scale = 0.12
-	var waits := {"g_swing": 0.12, "g_hit": 0.3, "g_fell": 0.85, "g_pop": 0.5}
+	var waits := {"g_swing": 0.12, "g_hit": 0.3, "g_fell": 0.85, "g_pop": 0.72}
 	var hits := 1
 	if pose == "g_fell":
 		hits = int(tree_node.get("stages", 4))
