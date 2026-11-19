@@ -7,7 +7,10 @@ import re
 import unittest
 from pathlib import Path
 
-SHADER = Path(__file__).resolve().parents[1] / "shaders" / "ocean_surface.gdshader"
+CLIENT = Path(__file__).resolve().parents[1]
+SHADER = CLIENT / "shaders" / "ocean_surface.gdshader"
+COAST_SCRIPT = CLIENT / "scripts" / "realistic_coastal_slice.gd"
+WAVE_SETTINGS = CLIENT / "scripts" / "ocean_wave_settings.gd"
 
 
 def strip_shader_comments(source: str) -> str:
@@ -340,6 +343,32 @@ class OceanShaderContractTests(unittest.TestCase):
         for pattern in patterns:
             with self.subTest(pattern=pattern.pattern):
                 self.assertRegex(fragment_body, pattern)
+
+    def test_scene_does_not_suppress_mobile_wave_motion_or_normals(self):
+        """Keep scene overrides strong enough to expose swell and moving normal detail."""
+        coast = COAST_SCRIPT.read_text(encoding="utf-8")
+        settings = WAVE_SETTINGS.read_text(encoding="utf-8")
+        def scene_value(name):
+            match = re.search(
+                rf'set_shader_parameter\\("{re.escape(name)}",\\s*([0-9.]+)\\)',
+                coast,
+            )
+            self.assertIsNotNone(match, f"missing scene parameter {name}")
+            return float(match.group(1))
+        def exported_value(name):
+            match = re.search(
+                rf'var\\s+{re.escape(name)}\\s*:\\s*float\\s*=\\s*([0-9.]+)',
+                settings,
+            )
+            self.assertIsNotNone(match, f"missing exported wave setting {name}")
+            return float(match.group(1))
+        self.assertGreaterEqual(scene_value("swell_scale"), 0.60)
+        self.assertGreaterEqual(scene_value("ripple_detail"), 0.55)
+        self.assertGreaterEqual(scene_value("foam_amount"), 0.80)
+        self.assertGreaterEqual(exported_value("wave_speed"), 1.30)
+        self.assertGreaterEqual(exported_value("wave_amplitude"), 0.60)
+        self.assertGreaterEqual(exported_value("wave_steepness_a"), 0.60)
+        self.assertGreaterEqual(exported_value("wave_steepness_b"), 0.45)
 
 
 if __name__ == "__main__":

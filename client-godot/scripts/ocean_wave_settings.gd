@@ -2,11 +2,11 @@ extends Node
 ## Scene-owned controls for the terrain-sampled mobile ocean.
 ## Deferred application is required because the parent builds the ocean in _ready().
 
-@export_range(0.1, 5.0, 0.05) var wave_speed: float = 1.25
-@export_range(0.0, 1.0, 0.01) var wave_amplitude: float = 0.4
+@export_range(0.1, 5.0, 0.05) var wave_speed: float = 1.45
+@export_range(0.0, 1.0, 0.01) var wave_amplitude: float = 0.65
 @export_range(0.05, 0.6, 0.01) var wave_frequency: float = 0.18
-@export_range(0.0, 1.0, 0.01) var wave_steepness_a: float = 0.55
-@export_range(0.0, 1.0, 0.01) var wave_steepness_b: float = 0.40
+@export_range(0.0, 1.0, 0.01) var wave_steepness_a: float = 0.68
+@export_range(0.0, 1.0, 0.01) var wave_steepness_b: float = 0.52
 
 
 func _ready() -> void:
