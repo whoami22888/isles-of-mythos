@@ -127,10 +127,7 @@ class OceanShaderContractTests(unittest.TestCase):
         )
         self.assertRegex(
             self.code,
-            (
-                r"float\s+depth_factor\s*=\s*1\.0\s*-\s*smoothstep\s*"
-                r"(\s*0\.15\s*,\s*6\.5\s*,\s*effective_depth_m\s*)\s*;"
-            ),
+            r"float\s+depth_factor\s*=\s*1\.0\s*-\s*smoothstep\s*\(\s*0\.15\s*,\s*6\.5\s*,\s*effective_depth_m\s*\)\s*;",
         )
         self.assertRegex(
             self.code,
