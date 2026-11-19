@@ -1,12 +1,13 @@
 shader_type spatial;
-render_mode cull_back, depth_draw_opaque;
+render_mode blend_mix, depth_draw_opaque, cull_back, diffuse_burley, specular_schlick_ggx;
 
-// Dual Gerstner swell plus retained 3-scale detail with analytic vertex
-// normals. This material is opaque to retain early depth writes on mobile.
-// Surface quality must still be checked against actual Godot footage.
+// Dual Gerstner swell plus terrain and scene-depth shoreline contact.
+// Keep the project's proven Mobile depth-write path used by opening_water.gdshader;
+// shallow alpha is driven by real view-space thickness, not a guessed constant.
 uniform vec4 shallow_ocean_color : source_color = vec4(0.10, 0.78, 0.72, 1.0);
 uniform vec4 deep_ocean_color : source_color = vec4(0.015, 0.14, 0.38, 1.0);
 uniform vec4 foam_color : source_color = vec4(0.95, 0.98, 0.96, 1.0);
+uniform sampler2D depth_texture : hint_depth_texture, filter_linear, repeat_disable;
 uniform float wave_speed : hint_range(0.1, 5.0, 0.05) = 1.25;
 uniform float wave_amplitude : hint_range(0.0, 1.0, 0.01) = 0.4;
 uniform float wave_frequency : hint_range(0.05, 0.6, 0.01) = 0.18;
@@ -138,19 +139,32 @@ void fragment() {
     vec2 p = surface_world.xz;
     float coverage = shore_terrain_coverage(p) * float(shoremap_bound);
     float floor_y = shore_terrain_height(p);
-    float depth_m = max(SEA_LEVEL - floor_y, 0.0);
+    float terrain_depth_m = max(SEA_LEVEL - floor_y, 0.0);
+    // Godot fragment VERTEX and the reconstructed depth sample are both in
+    // view space. Convert to positive camera depth before subtracting so a
+    // surface behind the water has a positive thickness.
+    float surface_depth = max(-VERTEX.z, 0.001);
+    float raw_depth = texture(depth_texture, SCREEN_UV).r;
+    vec4 scene_view = INV_PROJECTION_MATRIX * vec4(SCREEN_UV * 2.0 - 1.0, raw_depth, 1.0);
+    scene_view.xyz /= scene_view.w;
+    float behind_depth = max(-scene_view.z, 0.001);
+    float scene_thickness = max(behind_depth - surface_depth, 0.0);
+    // The terrain heightfield remains authoritative inside its footprint;
+    // depth texture covers actual intersections and open-ocean geometry.
+    float effective_depth_m = mix(
+        scene_thickness,
+        min(terrain_depth_m, scene_thickness),
+        clamp(coverage, 0.0, 1.0)
+    );
     // NO replicated terrain height equation and NO rectangular contact mask.
-    // Open ocean is genuinely deep outside the source mesh footprint.
-    // Wide turquoise shelf, then a real falloff into deep blue. Crest foam is
-    // intentionally not added here: it turned every swell peak into a white tile.
-    float depth_factor = 1.0 - smoothstep(0.15, 6.5, depth_m);
+    float depth_factor = 1.0 - smoothstep(0.15, 6.5, effective_depth_m);
     float seabed_variation = 0.86 + 0.14 * sin(dot(p, vec2(0.045, 0.03)));
     float shallow_factor = coverage * depth_factor * seabed_variation;
-    // Shoreline contact must include the exposed beach and submerged edge.
-    // depth_m remains one-sided for shallow/deep colour attenuation; foam uses
-    // absolute distance from sea level so dry sand is not silently excluded.
+    // Contact includes exposed beach, submerged shoreline and nearby geometry.
     float shoreline_distance_m = abs(SEA_LEVEL - floor_y);
-    float contact = coverage * (1.0 - smoothstep(0.025, 0.24, shoreline_distance_m));
+    float terrain_contact = coverage * (1.0 - smoothstep(0.025, 0.24, shoreline_distance_m));
+    float depth_contact = coverage * (1.0 - smoothstep(0.08, 1.35, scene_thickness));
+    float contact = max(terrain_contact, depth_contact);
 
     // Gentle micro normals. High-frequency normals plus a shiny roughness
     // produced a repeating diamond lattice under the mobile specular model.
@@ -196,5 +210,6 @@ void fragment() {
     ALBEDO = mix(sea, foam_color.rgb, foam);
     ROUGHNESS = mix(0.68, 0.86, foam);
     METALLIC = 0.0;
-    SPECULAR = mix(0.16, 0.08, foam);
+    SPECULAR = mix(0.55, 0.08, foam);
+    ALPHA = mix(0.85, 0.98, clamp(effective_depth_m * 0.1, 0.0, 1.0));
 }

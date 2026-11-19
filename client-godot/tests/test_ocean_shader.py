@@ -68,18 +68,32 @@ class OceanShaderContractTests(unittest.TestCase):
                     for symbol in ("shore_terrain_coverage", "shore_terrain_height"):
                         self.assertRegex(source, rf"\bfloat\s+{symbol}\s*\(")
 
-    def test_mobile_opaque_depth_path_is_preserved(self):
-        """Keep the terrain-sampled opaque path without alpha or screen-depth reads."""
+    def test_mobile_depth_texture_alpha_path_is_preserved(self):
+        """Use the existing Mobile water depth-texture path with bounded alpha."""
         self.assertRegex(
             self.code,
-            r"render_mode\s+cull_back\s*,\s*depth_draw_opaque\s*;",
+            r"render_mode\s+blend_mix\s*,\s*depth_draw_opaque\s*,\s*cull_back\s*,\s*diffuse_burley\s*,\s*specular_schlick_ggx\s*;",
         )
-        self.assertNotRegex(self.code, r"\bALPHA\s*=")
-        self.assertNotIn("DEPTH_TEXTURE", self.code)
+        self.assertRegex(
+            self.code,
+            r"uniform\s+sampler2D\s+depth_texture\s*:\s*hint_depth_texture",
+        )
+        self.assertIn("texture(depth_texture, SCREEN_UV)", self.code)
+        self.assertIn("INV_PROJECTION_MATRIX", self.code)
+        self.assertRegex(self.code, r"\bALPHA\s*=\s*mix\s*\(\s*0\.85\s*,\s*0\.98")
         self.assertRegex(
             self.code,
             r"uniform\s+bool\s+shoremap_bound\s*=\s*false\s*;",
         )
+
+    def test_depth_texture_drives_view_space_thickness(self):
+        """Require a positive view-space scene-minus-water thickness."""
+        fragment_body = shader_stage_body(self.code, "fragment")
+        self.assertIn("float surface_depth = max(-VERTEX.z, 0.001);", fragment_body)
+        self.assertIn("float raw_depth = texture(depth_texture, SCREEN_UV).r;", fragment_body)
+        self.assertIn("INV_PROJECTION_MATRIX * vec4(SCREEN_UV * 2.0 - 1.0, raw_depth, 1.0)", fragment_body)
+        self.assertIn("float scene_thickness = max(behind_depth - surface_depth, 0.0);", fragment_body)
+        self.assertIn("effective_depth_m", fragment_body)
 
     def test_deterministic_capture_controls_both_stages(self):
         """Require exactly one capture-time selector in each shader stage."""
@@ -139,7 +153,15 @@ class OceanShaderContractTests(unittest.TestCase):
         )
         self.assertRegex(
             fragment_body,
-            r"float\s+contact\s*=\s*coverage\s*\*\s*\(\s*1\.0\s*-\s*smoothstep\s*\(\s*0\.025\s*,\s*0\.24\s*,\s*shoreline_distance_m\s*\)\s*\)\s*;",
+            r"float\s+terrain_contact\s*=\s*coverage\s*\*\s*\(\s*1\.0\s*-\s*smoothstep\s*\(\s*0\.025\s*,\s*0\.24\s*,\s*shoreline_distance_m\s*\)\s*\)\s*;",
+        )
+        self.assertRegex(
+            fragment_body,
+            r"float\s+depth_contact\s*=\s*coverage\s*\*\s*\(\s*1\.0\s*-\s*smoothstep\s*\(\s*0\.08\s*,\s*1\.35\s*,\s*scene_thickness\s*\)\s*\)\s*;",
+        )
+        self.assertRegex(
+            fragment_body,
+            r"float\s+contact\s*=\s*max\s*\(\s*terrain_contact\s*,\s*depth_contact\s*\)\s*;",
         )
         self.assertNotRegex(
             fragment_body,
@@ -319,6 +341,9 @@ class OceanShaderContractTests(unittest.TestCase):
                 \)
                 """,
                 re.VERBOSE,
+            ),
+            re.compile(
+                r"ALPHA\s*=\s*mix\s*\(\s*0\.85\s*,\s*0\.98\s*,\s*clamp\s*\(\s*effective_depth_m",
             ),
         )
         fragment_body = shader_stage_body(self.code, "fragment")
