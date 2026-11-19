@@ -2508,6 +2508,8 @@ func _save() -> void:
 		"defeat_path": _defeat_path,
 		"silas_shown": _silas_shown,
 		"story_seen": _story_seen,
+		"subs": _subs.duplicate(true),
+		"sub_t": _sub_t,
 		"journal": _journal,
 		"scavenged": _scavenged,
 		"storm_left": _storm_left,
@@ -2575,6 +2577,13 @@ func _apply_save(state: Dictionary) -> void:
 	_storm_left = float(state.get("storm_left", -1.0))
 	_dawn_chest = bool(state.get("dawn_chest", false))
 	_story_seen = Array(state.get("story_seen", []))
+	_subs = []
+	for row in state.get("subs", []):
+		if row is Array and row.size() >= 2:
+			_subs.append([str(row[0]), str(row[1])])
+	_sub_t = clampf(float(state.get("sub_t", 0.0)), 0.0, 5.0)
+	if not _subs.is_empty() and _sub_t <= 0.0:
+		_sub_t = _sub_seconds()
 	_journal = Array(state.get("journal", []))
 	if _storm_night and state.get("storm_night", {}) is Dictionary:
 		_storm_night.restore(state.get("storm_night", {}))
