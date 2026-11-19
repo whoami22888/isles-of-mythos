@@ -139,7 +139,6 @@ void fragment() {
     vec2 p = surface_world.xz;
     float coverage = shore_terrain_coverage(p) * float(shoremap_bound);
     float floor_y = shore_terrain_height(p);
-    float terrain_depth_m = max(SEA_LEVEL - floor_y, 0.0);
     // Godot fragment VERTEX and the reconstructed depth sample are both in
     // view space. Convert to positive camera depth before subtracting so a
     // surface behind the water has a positive thickness.
@@ -149,15 +148,10 @@ void fragment() {
     scene_view.xyz /= scene_view.w;
     float behind_depth = max(-scene_view.z, 0.001);
     float scene_thickness = max(behind_depth - surface_depth, 0.0);
-    // The terrain heightfield remains authoritative inside its footprint;
-    // depth texture covers actual intersections and open-ocean geometry.
-    float effective_depth_m = mix(
-        scene_thickness,
-        min(terrain_depth_m, scene_thickness),
-        clamp(coverage, 0.0, 1.0)
-    );
-    // NO replicated terrain height equation and NO rectangular contact mask.
-    float depth_factor = 1.0 - smoothstep(0.15, 6.5, effective_depth_m);
+    float water_depth = clamp(scene_thickness * 0.1, 0.0, 1.0);
+    // Terrain coverage still prevents shallow colour or foam being invented
+    // beyond the real coastal mesh; view-space thickness drives water depth.
+    float depth_factor = 1.0 - smoothstep(0.15, 6.5, scene_thickness);
     float seabed_variation = 0.86 + 0.14 * sin(dot(p, vec2(0.045, 0.03)));
     float shallow_factor = coverage * depth_factor * seabed_variation;
     // Contact includes exposed beach, submerged shoreline and nearby geometry.
@@ -211,5 +205,5 @@ void fragment() {
     ROUGHNESS = mix(0.68, 0.86, foam);
     METALLIC = 0.0;
     SPECULAR = mix(0.55, 0.08, foam);
-    ALPHA = mix(0.85, 0.98, clamp(effective_depth_m * 0.1, 0.0, 1.0));
+    ALPHA = mix(0.85, 0.98, water_depth);
 }

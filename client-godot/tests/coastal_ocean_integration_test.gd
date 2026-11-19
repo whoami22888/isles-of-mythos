@@ -64,6 +64,8 @@ func run() -> void:
     check(shader_source.contains("shore_terrain_coverage("), "Foam must honour terrain coverage")
     check(shader_source.contains("hint_depth_texture") and shader_source.contains("scene_thickness"),
         "Mobile water must sample actual scene depth in view space")
+    check(shader_source.contains("water_depth = clamp(scene_thickness * 0.1"),
+        "Water transparency must use the scene-minus-surface view-space thickness")
     check(shader_source.contains("ALPHA = mix(0.85, 0.98"),
         "Water transparency must attenuate with scene depth")
     check(shader_source.contains("abs(SEA_LEVEL - floor_y)"),
