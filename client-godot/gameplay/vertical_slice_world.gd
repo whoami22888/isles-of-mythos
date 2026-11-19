@@ -10,6 +10,7 @@ var _objectives: VBoxContainer
 const CraftPanel = preload("res://gameplay/craft_panel.gd")
 var _craft: VBoxContainer
 const TouchControls = preload("res://gameplay/touch_controls.gd")
+const CameraTerrainCollisionBuilder = preload("res://scripts/camera_terrain_collision_factory.gd")
 const PlayerAvatar = preload("res://gameplay/player_avatar.gd")
 var _touch: Control
 ## Camera orbit yaw (radians) around the authoritative player. Presentation
@@ -18,6 +19,7 @@ var _touch: Control
 ## seaward of the player and looks inland across the beach, so the coastal
 ## bay's cliff band is behind the player instead of between camera and player.
 var _camera_yaw := PI
+var _camera_focus_offset := Vector3.ZERO
 const CAMERA_ORBIT_RADIANS_PER_PIXEL := 0.008
 var _manual_moving := false
 ## Gameplay panels live in a viewport-bounded scroll area so every control
@@ -46,6 +48,7 @@ const DRAWER_LABEL_OPEN := "Close drawer"
 const DRAWER_LABEL_CLOSED := "Quests & crafting"
 var _panel: PanelContainer
 var _title: Label
+var _camera_mode_overlay: Label
 var _drawer_toggle: Button
 var _gameplay_hud := false
 var _drawer_open := true
@@ -106,6 +109,23 @@ func _ready() -> void:
 	_title = $Interface/Panel/Margin/Content/Title
 	_drawer_toggle = $Interface/Panel/Margin/Content/DrawerToggle
 	_drawer_toggle.pressed.connect(toggle_drawer)
+	_camera_mode_overlay = Label.new()
+	_camera_mode_overlay.name = "CameraModeOverlay"
+	_camera_mode_overlay.text = "STRATEGIC VIEW"
+	_camera_mode_overlay.visible = false
+	_camera_mode_overlay.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_camera_mode_overlay.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	_camera_mode_overlay.offset_left = -150.0
+	_camera_mode_overlay.offset_top = 18.0
+	_camera_mode_overlay.offset_right = 150.0
+	_camera_mode_overlay.offset_bottom = 58.0
+	_camera_mode_overlay.add_theme_font_size_override("font_size", 20)
+	_camera_mode_overlay.add_theme_color_override("font_color", Color("#f4e6c8"))
+	_camera_mode_overlay.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.85))
+	_camera_mode_overlay.add_theme_constant_override("shadow_outline_size", 4)
+	$Interface.add_child(_camera_mode_overlay)
+	var camera := $Camera as CameraZoomController
+	camera.camera_mode_changed.connect(_on_camera_mode_changed)
 	_gather.pressed.connect(_gather_nearest)
 	_connect_button.pressed.connect(_connect)
 	_hud_scroll = ScrollContainer.new()
@@ -263,11 +283,43 @@ func _mount_touch_controls() -> void:
 	$Interface.add_child(_touch)
 	$Interface.move_child(_touch, 0)
 	_touch.camera_drag.connect(_on_camera_drag)
+	_touch.camera_pinch_started.connect(_on_camera_pinch_started)
+	_touch.camera_pinch.connect(_on_camera_pinch)
+	_touch.camera_pinch_ended.connect(_on_camera_pinch_ended)
 	_touch.tapped.connect(_handle_tap)
 
 func _on_camera_drag(delta: Vector2) -> void:
 	_camera_yaw = wrapf(_camera_yaw - delta.x * CAMERA_ORBIT_RADIANS_PER_PIXEL, -PI, PI)
-	_follow_camera()
+	var camera := $Camera as CameraZoomController
+	camera.set_orbit_yaw(_camera_yaw)
+	if not is_zero_approx(delta.y):
+		camera.pan_by_pixels(Vector2(0.0, delta.y))
+		_camera_focus_offset = camera.focus_point - _camera_target()
+	_frame_player_in_play_area(camera)
+
+
+func _on_camera_pinch_started() -> void:
+	var camera := $Camera as CameraZoomController
+	if camera != null:
+		camera.begin_routed_pinch()
+
+
+func _on_camera_pinch_ended() -> void:
+	var camera := $Camera as CameraZoomController
+	if camera != null:
+		camera.end_routed_pinch()
+
+
+func _on_camera_pinch(distance_delta: float, midpoint_delta: Vector2) -> void:
+	var camera := $Camera as CameraZoomController
+	camera.apply_touch_gesture(distance_delta, midpoint_delta)
+	_camera_focus_offset = camera.focus_point - _camera_target()
+	_frame_player_in_play_area(camera)
+
+
+func _on_camera_mode_changed(is_top_down: bool) -> void:
+	if _camera_mode_overlay != null:
+		_camera_mode_overlay.visible = is_top_down
 
 ## The single manual-movement source: keyboard actions and the touch joystick
 ## (screen space, +y = down/towards camera) combined into a unit world XZ
@@ -366,6 +418,10 @@ func _mount_coastal_world() -> void:
 	_coastal = packed.instantiate()
 	_coastal.name = "CoastalWorld"
 	add_child(_coastal)
+	# Keep camera-only terrain collision in the gameplay presentation mount; it never enters gameplay-body collision.
+	var camera_terrain_collision := CameraTerrainCollisionBuilder.build_for(_coastal, CameraZoomController.CAMERA_TERRAIN_COLLISION_LAYER)
+	if camera_terrain_collision != null:
+		_coastal.add_child(camera_terrain_collision)
 	var gameplay = _coastal.get("gameplay_camera")
 	if gameplay is Camera3D:
 		(gameplay as Camera3D).current = false
@@ -389,17 +445,17 @@ func _mount_coastal_world() -> void:
 	# explicit low/medium IOM_VISUAL_QUALITY turns them off). The gameplay mount
 	# must not override it.
 
-## About 22.5 m from the player's feet at the same ~49 degree pitch: close
-## enough that the 1.8 m avatar reads on a phone, far enough to see the beach.
-const CAMERA_OFFSET := Vector3(0, 13.5, 15.0)
+func _camera_target() -> Vector3:
+	return Vector3(_player.x, _player.y - PLAYER_HALF_HEIGHT, _player.z)
 
-# Keep the gameplay camera on the authoritative player so an account restored
-# far from the origin is still on screen. Presentation only; no game state.
+
+# Keep the integrated zoom controller focused on the authoritative player.
+# The pan offset is presentation-only and persists as the player moves.
 func _follow_camera() -> void:
 	_recenter_ground()
-	var camera: Camera3D = $Camera
-	var target := Vector3(_player.x, _player.y - PLAYER_HALF_HEIGHT, _player.z)
-	camera.look_at_from_position(target + CAMERA_OFFSET.rotated(Vector3.UP, _camera_yaw), target)
+	var camera := $Camera as CameraZoomController
+	camera.set_orbit_yaw(_camera_yaw)
+	camera.set_focus_point(_camera_target() + _camera_focus_offset)
 	_frame_player_in_play_area(camera)
 
 func _on_viewport_resized() -> void:
@@ -416,7 +472,9 @@ func _frame_player_in_play_area(camera: Camera3D) -> void:
 		return
 	var free_left := clampf(panel.get_global_rect().end.x, 0.0, screen.x * 0.6)
 	var shift_px := (free_left + screen.x) * 0.5 - screen.x * 0.5
-	var view_height := 2.0 * CAMERA_OFFSET.length() * tan(deg_to_rad(camera.fov) * 0.5)
+	var zoom_camera := camera as CameraZoomController
+	var camera_distance := zoom_camera.get_rendered_distance() if zoom_camera != null else camera.global_position.distance_to(_camera_target())
+	var view_height := 2.0 * camera_distance * tan(deg_to_rad(camera.fov) * 0.5)
 	camera.h_offset = -shift_px * view_height / screen.y
 
 # Snap the scaffold ground to the centre of the player's chunk (not the raw position, so it does not jitter
