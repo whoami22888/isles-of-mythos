@@ -123,13 +123,13 @@ class OceanShaderContractTests(unittest.TestCase):
         )
         self.assertRegex(
             self.code,
-            r"float\s+depth_m\s*=\s*max\s*\(\s*SEA_LEVEL\s*-\s*floor_y\s*,\s*0\.0\s*\)\s*;",
+            r"float\s+terrain_depth_m\s*=\s*max\s*\(\s*SEA_LEVEL\s*-\s*floor_y\s*,\s*0\.0\s*\)\s*;",
         )
         self.assertRegex(
             self.code,
             (
                 r"float\s+depth_factor\s*=\s*1\.0\s*-\s*smoothstep\s*"
-                r"\(\s*0\.15\s*,\s*6\.5\s*,\s*depth_m\s*\)\s*;"
+                r"(\s*0\.15\s*,\s*6\.5\s*,\s*effective_depth_m\s*)\s*;"
             ),
         )
         self.assertRegex(
@@ -141,7 +141,7 @@ class OceanShaderContractTests(unittest.TestCase):
         )
         self.assertRegex(
             self.code,
-            r"float\s+contact\s*=\s*coverage\s*\*\s*\(\s*1\.0\s*-\s*smoothstep",
+            r"float\s+contact\s*=\s*max\s*\(\s*terrain_contact\s*,\s*depth_contact\s*\)\s*;",
         )
 
     def test_shoreline_foam_uses_absolute_sea_level_distance(self):
