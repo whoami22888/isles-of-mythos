@@ -62,12 +62,15 @@ func run() -> void:
     check(shader_source.contains("coastal_shore_sampler.gdshaderinc"), "Material must use PR #173 shoreline")
     check(shader_source.contains("shore_terrain_height("), "Depth must sample actual terrain mesh")
     check(shader_source.contains("shore_terrain_coverage("), "Foam must honour terrain coverage")
-    check(shader_source.contains("hint_depth_texture") and shader_source.contains("scene_thickness"),
-        "Mobile water must sample actual scene depth in view space")
-    check(shader_source.contains("water_depth = clamp(scene_thickness * 0.1"),
-        "Water transparency must use the scene-minus-surface view-space thickness")
-    check(shader_source.contains("ALPHA = mix(0.85, 0.98"),
-        "Water transparency must attenuate with scene depth")
+    check(shader_source.contains("render_mode cull_back, depth_draw_opaque")
+        and not shader_source.contains("blend_mix"),
+        "Mobile ocean must retain the existing opaque depth-write path")
+    check(not shader_source.contains("hint_depth_texture") and not shader_source.contains("ALPHA ="),
+        "Mobile ocean must avoid scene-depth alpha blending and its extra overdraw")
+    check(shader_source.contains("float depth_m = max(SEA_LEVEL - floor_y, 0.0);"),
+        "Water depth must derive from the actual coastal heightfield")
+    check(shader_source.contains("float depth_factor = 1.0 - smoothstep(0.15, 6.5, depth_m);"),
+        "Water depth tint must attenuate from the bound terrain heightfield")
     check(shader_source.contains("abs(SEA_LEVEL - floor_y)"),
         "Shoreline foam must cover exposed sand and submerged waterline")
     var shoreline_source: String = FileAccess.get_file_as_string("res://shaders/coastal_shore_sampler.gdshaderinc")

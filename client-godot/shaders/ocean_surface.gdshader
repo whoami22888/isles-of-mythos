@@ -1,13 +1,12 @@
 shader_type spatial;
-render_mode blend_mix, depth_draw_opaque, cull_back, diffuse_burley, specular_schlick_ggx;
+render_mode cull_back, depth_draw_opaque, diffuse_burley, specular_schlick_ggx;
 
-// Dual Gerstner swell plus terrain and scene-depth shoreline contact.
-// Keep the project's proven Mobile depth-write path used by opening_water.gdshader;
-// shallow alpha is driven by real view-space thickness, not a guessed constant.
+// Dual Gerstner swell with terrain-derived depth tint and shoreline contact.
+// Preserve the existing opaque Mobile depth-write path: no alpha blend or scene-
+// depth sampler. The admitted coastal heightfield remains the water-depth source.
 uniform vec4 shallow_ocean_color : source_color = vec4(0.10, 0.78, 0.72, 1.0);
 uniform vec4 deep_ocean_color : source_color = vec4(0.015, 0.14, 0.38, 1.0);
 uniform vec4 foam_color : source_color = vec4(0.95, 0.98, 0.96, 1.0);
-uniform sampler2D depth_texture : hint_depth_texture, filter_linear, repeat_disable;
 uniform float wave_speed : hint_range(0.1, 5.0, 0.05) = 1.25;
 uniform float wave_amplitude : hint_range(0.0, 1.0, 0.01) = 0.4;
 uniform float wave_frequency : hint_range(0.05, 0.6, 0.01) = 0.18;
@@ -83,7 +82,7 @@ void vertex() {
               + cos(c) * 0.015 * 2.25 * -0.31) * swell_scale;
 
     // One contiguous ocean mesh; fade geometric swells outside near camera
-    // distances without changing material colour, alpha or draw surface.
+    // distances without changing material colour or draw surface.
     // Distant water retains its animated per-pixel normal detail.
     float fade_x = 1.0 - smoothstep(near_patch_half_extent.x - 18.0,
         near_patch_half_extent.x - 1.0, abs(xz.x));
@@ -139,25 +138,17 @@ void fragment() {
     vec2 p = surface_world.xz;
     float coverage = shore_terrain_coverage(p) * float(shoremap_bound);
     float floor_y = shore_terrain_height(p);
-    // Godot fragment VERTEX and the reconstructed depth sample are both in
-    // view space. Convert to positive camera depth before subtracting so a
-    // surface behind the water has a positive thickness.
-    float surface_depth = max(-VERTEX.z, 0.001);
-    float raw_depth = texture(depth_texture, SCREEN_UV).r;
-    vec4 scene_view = INV_PROJECTION_MATRIX * vec4(SCREEN_UV * 2.0 - 1.0, raw_depth, 1.0);
-    scene_view.xyz /= scene_view.w;
-    float behind_depth = max(-scene_view.z, 0.001);
-    float scene_thickness = max(behind_depth - surface_depth, 0.0);
-    float water_depth = clamp(scene_thickness * 0.1, 0.0, 1.0);
-    // Terrain coverage still prevents shallow colour or foam being invented
-    // beyond the real coastal mesh; view-space thickness drives water depth.
-    float depth_factor = 1.0 - smoothstep(0.15, 6.5, scene_thickness);
+    // The indexed coastal heightfield is the single depth source. Keeping the
+    // surface opaque preserves early depth writes on Mobile and avoids extra
+    // overdraw from a scene-depth alpha-blending path.
+    float depth_m = max(SEA_LEVEL - floor_y, 0.0);
+    float depth_factor = 1.0 - smoothstep(0.15, 6.5, depth_m);
     float seabed_variation = 0.86 + 0.14 * sin(dot(p, vec2(0.045, 0.03)));
     float shallow_factor = coverage * depth_factor * seabed_variation;
     // Contact includes exposed beach, submerged shoreline and nearby geometry.
     float shoreline_distance_m = abs(SEA_LEVEL - floor_y);
     float terrain_contact = coverage * (1.0 - smoothstep(0.025, 0.24, shoreline_distance_m));
-    float depth_contact = coverage * (1.0 - smoothstep(0.08, 1.35, scene_thickness));
+    float depth_contact = coverage * (1.0 - smoothstep(0.08, 1.35, depth_m));
     float contact = max(terrain_contact, depth_contact);
 
     // Gentle micro normals. High-frequency normals plus a shiny roughness
@@ -205,5 +196,4 @@ void fragment() {
     ROUGHNESS = mix(0.68, 0.86, foam);
     METALLIC = 0.0;
     SPECULAR = mix(0.55, 0.08, foam);
-    ALPHA = mix(0.85, 0.98, water_depth);
 }
