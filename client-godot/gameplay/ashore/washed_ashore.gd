@@ -168,6 +168,8 @@ var _fx_ready := false
 var _audio_cache: Dictionary = {}
 var _tray_focus := ""
 var _tray_focus_t := 0.0
+var _pet_bark_cd := 0.0
+var _pet_barks_seen: Array = []
 const AXE_MESH := preload("res://assets/ashore/models/axe.glb")
 var _rare := false
 var _choice := ""
@@ -413,6 +415,8 @@ func _process(delta: float) -> void:
 		_tray_focus_t = maxf(_tray_focus_t - delta, 0.0)
 		if _tray_focus_t == 0.0:
 			_tray_focus = ""
+	if _pet_bark_cd > 0.0:
+		_pet_bark_cd = maxf(_pet_bark_cd - delta, 0.0)
 	if _hint_t > 0.0:
 		_hint_t = maxf(_hint_t - delta, 0.0)
 		if _hint_t == 0.0 and not (_dusk_active and _alerted and _choice == ""):
@@ -1401,6 +1405,8 @@ func _light_fire() -> void:
 		var pit := _pit_position()
 		(terrain.material_override as ShaderMaterial).set_shader_parameter("grass_zone", Vector3(pit.x, pit.z, 9.0))
 	_clear_camp_tufts()
+	if not _loading:
+		_pet_bark("campfire")
 
 
 ## Pitching camp clears the ground round the fire: grass tufts and fern
@@ -2003,6 +2009,7 @@ func _tick_build(delta: float) -> void:
 		_pop(_hut)
 		_note_burst("Shelter!")
 		_vibrate(70, 0.7)
+		_pet_bark("lean_to")
 		if _step == "shelter":
 			_enter("storm")
 
@@ -4099,6 +4106,17 @@ func _resolve_hit(hit: Dictionary) -> void:
 	_begin_cam_kick(profile)
 	_begin_hit_stop(int(profile.get("hit_stop_ms", 50)))
 	_vibrate(int(profile.get("haptic_ms", 22)), 0.45)
+	match kind:
+		"tree":
+			_pet_bark("palm_hit")
+		"rock", "stones", "flint":
+			_pet_bark("rock_hit")
+		"bush":
+			_pet_bark("bush")
+		"drift":
+			_pet_bark("drift")
+		"rigging":
+			_pet_bark("rigging")
 
 
 func _after(sec: float, cb: Callable) -> void:
@@ -5592,6 +5610,7 @@ func _deplete_fx(node: Dictionary) -> void:
 	root.add_child(gone)
 	match kind:
 		"tree":
+			_pet_bark("palm_fall")
 			# Pivot at the base: tip the trunk across the screen (camera right),
 			# away from the castaway's side, so the fall always reads.
 			var across := _camera.global_transform.basis.x if _camera else away
@@ -5704,6 +5723,34 @@ func _restore_node(node: Dictionary) -> void:
 
 func _pet_name() -> String:
 	return str(_pet_stats.get("name", "Tide-Puck"))
+
+
+## One-shot Tide-Puck reactions on gather/build events. Never stacks over
+## a First Mate story line; 8s cooldown between barks.
+const PET_BARKS := {
+	"palm_hit": "*ears twitch; it noses the fresh wood chips*",
+	"palm_fall": "*scrambles clear as the palm crashes into the sand*",
+	"rock_hit": "*flinches at the crack, then sniffs the split stone*",
+	"bush": "*sniffs the berries and gives a short, eager squeak*",
+	"drift": "*paws the dry wood, then nudges it toward you*",
+	"rigging": "*tugs a loose rope end, then backs away*",
+	"campfire": "*circles the stones, then settles beside the warmth*",
+	"lean_to": "*ducks beneath the roof and curls up beside you*",
+}
+
+
+func _pet_bark(id: String) -> void:
+	if not _pet_freed or id in _pet_barks_seen or not PET_BARKS.has(id):
+		return
+	if _pet_bark_cd > 0.0 or not _subs.is_empty():
+		return
+	_pet_barks_seen.append(id)
+	_subs.append([_pet_name(), str(PET_BARKS[id])])
+	if _subs.size() == 1:
+		_sub_t = _sub_seconds()
+	_pet_bark_cd = 8.0
+	if _hud:
+		_push_hud()
 
 
 ## Queue a beat's subtitles once and add its journal entry.
