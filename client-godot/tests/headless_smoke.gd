@@ -169,6 +169,8 @@ func run() -> void:
 	FallbackFactory._log_missing(restart_path, "mesh")
 	var first_session_bytes := FileAccess.get_file_as_string(FallbackFactory.LOG_PATH).to_utf8_buffer().size()
 	FallbackFactory._logged_paths.clear()
+	FallbackFactory._logged_path_order.clear()
+	FallbackFactory._logged_path_cursor = 0
 	FallbackFactory._log_missing(restart_path, "mesh")
 	var second_session_bytes := FileAccess.get_file_as_string(FallbackFactory.LOG_PATH).to_utf8_buffer().size()
 	check(second_session_bytes > first_session_bytes, "A restarted client may repeat a missing path")
@@ -237,6 +239,30 @@ func run() -> void:
 			if archived_size != null:
 				check(archived_size.get_length() <= FallbackFactory.MAX_LOG_BYTES, "Oversized legacy log must not grow the archive beyond its cap")
 				archived_size.close()
+	# The dedupe cache is a bounded FIFO, not a hard limit on diagnostic logging.
+	FallbackFactory._logged_paths.clear()
+	FallbackFactory._logged_path_order.clear()
+	FallbackFactory._logged_path_cursor = 0
+	var capped_lines: Array[String] = []
+	var capture_line := func(line: String):
+		capped_lines.append(line)
+		return OK
+	for index in range(FallbackFactory.MAX_LOGGED_PATHS + 1):
+		var cap_path := "res://_dedupe_cap_%04d.glb" % index
+		FallbackFactory._log_missing_with_writer(cap_path, "mesh", capture_line)
+	check(capped_lines.size() == FallbackFactory.MAX_LOGGED_PATHS + 1, "New unique paths must still be logged after the dedupe cache fills")
+	check(FallbackFactory._logged_paths.size() == FallbackFactory.MAX_LOGGED_PATHS, "In-memory dedupe dictionary must stay bounded")
+	check(FallbackFactory._logged_path_order.size() == FallbackFactory.MAX_LOGGED_PATHS, "In-memory dedupe order must stay bounded")
+	check(not FallbackFactory._logged_paths.has("mesh:res://_dedupe_cap_0000.glb"), "The oldest dedupe key must be evicted")
+	check(FallbackFactory._logged_paths.has("mesh:res://_dedupe_cap_1024.glb"), "The newest dedupe key must be retained")
+	FallbackFactory._log_missing_with_writer("res://_dedupe_cap_1024.glb", "mesh", capture_line)
+	check(capped_lines.size() == FallbackFactory.MAX_LOGGED_PATHS + 1, "A recent duplicate must still be suppressed")
+	FallbackFactory._log_missing_with_writer("res://_dedupe_cap_0000.glb", "mesh", capture_line)
+	check(capped_lines.size() == FallbackFactory.MAX_LOGGED_PATHS + 2, "An evicted path must be logged again when it reappears")
+	check(FallbackFactory._logged_paths.size() == FallbackFactory.MAX_LOGGED_PATHS, "FIFO eviction must keep the cache at its fixed cap")
+	FallbackFactory._logged_paths.clear()
+	FallbackFactory._logged_path_order.clear()
+	FallbackFactory._logged_path_cursor = 0
 	adapter.queue_free()
 	scene.queue_free()
 	print("IOM-00 connection checks: %s failures" % _failures)
