@@ -39,14 +39,20 @@ static func run(tree: SceneTree, check: Callable) -> void:
 			var last_buffer_color := Color(buffer[last_offset], buffer[last_offset + 1], buffer[last_offset + 2], buffer[last_offset + 3])
 			check.call(_colors_differ(first_buffer_color, last_buffer_color), "Underlying MultiMesh buffer must contain distinct per-instance colours")
 
-		var first_color := multi.get_instance_color(0)
-		var last_color := multi.get_instance_color(511)
-		check.call(_colors_differ(first_color, last_color), "Per-instance colours must vary without extra materials")
+		var adapter_name := RenderingServer.get_video_adapter_name()
+		if adapter_name.is_empty():
+			# Godot 4.7.2's Dummy RenderingServer returns Color() for get_instance_color().
+			# The raw buffer assertion above remains active in headless CI.
+			print("INSTANCE_COLOR_GETTER_NOT_MEASURED: dummy headless renderer returns Color()")
+		else:
+			var first_color := multi.get_instance_color(0)
+			var last_color := multi.get_instance_color(511)
+			check.call(_colors_differ(first_color, last_color), "Per-instance colours must vary without extra materials")
+
 		var last_transform := multi.get_instance_transform(511)
 		check.call(instancer.custom_aabb.has_point(last_transform.origin), "Custom AABB must include the final instance for culling")
 
 		var draw_calls_after := int(RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME))
-		var adapter_name := RenderingServer.get_video_adapter_name()
 		var rendering_method := RenderingServer.get_current_rendering_method()
 		print("MULTIMESH_DRAW_CALL_DIAGNOSTIC adapter=%s method=%s before=%d after=%d delta=%d" % [adapter_name, rendering_method, draw_calls_before, draw_calls_after, draw_calls_after - draw_calls_before])
 		if adapter_name.is_empty():
