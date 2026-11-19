@@ -350,14 +350,14 @@ class OceanShaderContractTests(unittest.TestCase):
         settings = WAVE_SETTINGS.read_text(encoding="utf-8")
         def scene_value(name):
             match = re.search(
-                rf'set_shader_parameter\\("{re.escape(name)}",\\s*([0-9.]+)\\)',
+                rf'set_shader_parameter\("{re.escape(name)}",\s*([0-9.]+)\)',
                 coast,
             )
             self.assertIsNotNone(match, f"missing scene parameter {name}")
             return float(match.group(1))
         def exported_value(name):
             match = re.search(
-                rf'var\\s+{re.escape(name)}\\s*:\\s*float\\s*=\\s*([0-9.]+)',
+                rf'var\s+{re.escape(name)}\s*:\s*float\s*=\s*([0-9.]+)',
                 settings,
             )
             self.assertIsNotNone(match, f"missing exported wave setting {name}")
