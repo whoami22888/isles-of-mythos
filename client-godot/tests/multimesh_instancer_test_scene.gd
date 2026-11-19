@@ -19,6 +19,7 @@ func _ready() -> void:
 	mesh.size = Vector3(0.8, 0.8, 0.8)
 	var material := StandardMaterial3D.new()
 	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	material.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
 	material.vertex_color_use_as_albedo = true
 
 	instancer = InstancerScript.new()

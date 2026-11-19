@@ -1,7 +1,6 @@
 extends RefCounted
-## Structural batching checks plus an optional rendered draw-call assertion.
-## Headless CI verifies the MultiMesh contract; a real renderer/device must
-## provide the final draw-call and mobile-GPU acceptance measurement.
+## Structural batching checks plus a rendered draw-call assertion when a GPU renderer is available.
+## Headless CI has no renderer; the physical Android draw-call measurement remains a separate gate.
 
 const InstancerScript := preload("res://scripts/multimesh_instancer.gd")
 
@@ -32,6 +31,14 @@ static func run(tree: SceneTree, check: Callable) -> void:
 		check.call(multi.mesh != null and multi.mesh.get_surface_count() == 1, "Batch must contain exactly one mesh surface")
 		check.call(instancer.get_expected_draw_calls() == 1, "One single-surface batch must expect one draw call per render pass")
 
+		var buffer: PackedFloat32Array = multi.buffer
+		check.call(buffer.size() == 512 * InstancerScript.FLOATS_PER_INSTANCE, "MultiMesh buffer must contain 16 floats per 3D instance")
+		if buffer.size() == 512 * InstancerScript.FLOATS_PER_INSTANCE:
+			var first_buffer_color := Color(buffer[12], buffer[13], buffer[14], buffer[15])
+			var last_offset := 511 * InstancerScript.FLOATS_PER_INSTANCE + 12
+			var last_buffer_color := Color(buffer[last_offset], buffer[last_offset + 1], buffer[last_offset + 2], buffer[last_offset + 3])
+			check.call(_colors_differ(first_buffer_color, last_buffer_color), "Underlying MultiMesh buffer must contain distinct per-instance colours")
+
 		var first_color := multi.get_instance_color(0)
 		var last_color := multi.get_instance_color(511)
 		check.call(_colors_differ(first_color, last_color), "Per-instance colours must vary without extra materials")
@@ -39,7 +46,10 @@ static func run(tree: SceneTree, check: Callable) -> void:
 		check.call(instancer.custom_aabb.has_point(last_transform.origin), "Custom AABB must include the final instance for culling")
 
 		var draw_calls_after := int(RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME))
-		if OS.has_feature("headless"):
+		var adapter_name := RenderingServer.get_video_adapter_name()
+		var rendering_method := RenderingServer.get_current_rendering_method()
+		print("MULTIMESH_DRAW_CALL_DIAGNOSTIC adapter=%s method=%s before=%d after=%d delta=%d" % [adapter_name, rendering_method, draw_calls_before, draw_calls_after, draw_calls_after - draw_calls_before])
+		if adapter_name.is_empty():
 			print("DRAW_CALL_COUNT_NOT_MEASURED: headless renderer; expected one draw call per single-surface batch")
 		else:
 			check.call(draw_calls_after - draw_calls_before == 1, "Rendered 512-instance single-surface batch must add exactly one draw call")

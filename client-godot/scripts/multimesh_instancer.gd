@@ -1,16 +1,18 @@
 class_name MultiMeshInstancer
 extends MultiMeshInstance3D
 ## Batches repeated instances of one mesh/material into a MultiMesh.
-## Use one node per mesh/material batch (trees, rocks, coral, cannonballs,
-## army units). A single-surface mesh produces one draw call per render pass;
-## heterogeneous meshes or multi-surface materials require separate batches.
+## Use one node per homogeneous mesh/material batch (trees, rocks, coral,
+## cannonballs, army units). A single-surface mesh produces one draw call per
+## render pass; heterogeneous or multi-surface assets require separate batches.
 
 const MAX_INSTANCE_COUNT := 10000
+const FLOATS_PER_INSTANCE := 16 # 12 Transform3D floats + 4 RGBA floats.
 
 @export var source_mesh: Mesh
 @export var source_material: StandardMaterial3D
 
 var _configured := false
+var _instance_buffer := PackedFloat32Array()
 
 
 func _ready() -> void:
@@ -44,6 +46,8 @@ func configure(mesh: Mesh, material: StandardMaterial3D = null) -> bool:
 	if multimesh.instance_count > 0:
 		multimesh.visible_instance_count = 0
 		multimesh.instance_count = 0
+
+	# MultiMesh format flags must be set before allocating any instances.
 	multimesh.transform_format = MultiMesh.TRANSFORM_3D
 	multimesh.use_colors = true
 	multimesh.use_custom_data = false
@@ -64,14 +68,43 @@ func set_instances(transforms: Array[Transform3D], colors: Array[Color] = []) ->
 	if not colors.is_empty() and colors.size() != transforms.size():
 		push_warning("MultiMeshInstancer colour count must match transform count")
 		return false
+	if transforms.is_empty():
+		clear_instances()
+		return true
 
 	if multimesh.instance_count != transforms.size():
 		multimesh.instance_count = transforms.size()
-	for index in range(transforms.size()):
-		multimesh.set_instance_transform(index, transforms[index])
-		var instance_color := colors[index] if not colors.is_empty() else Color.WHITE
-		multimesh.set_instance_color(index, instance_color)
 
+	var required_float_count := transforms.size() * FLOATS_PER_INSTANCE
+	if _instance_buffer.size() != required_float_count:
+		_instance_buffer.resize(required_float_count)
+
+	for index in range(transforms.size()):
+		var transform := transforms[index]
+		var instance_color := colors[index] if not colors.is_empty() else Color.WHITE
+		var offset := index * FLOATS_PER_INSTANCE
+
+		# Godot MultiMesh 3D buffer order is row-major Transform3D (12 floats),
+		# followed by RGBA (4 floats) when use_colors is enabled.
+		_instance_buffer[offset + 0] = transform.basis.x.x
+		_instance_buffer[offset + 1] = transform.basis.y.x
+		_instance_buffer[offset + 2] = transform.basis.z.x
+		_instance_buffer[offset + 3] = transform.origin.x
+		_instance_buffer[offset + 4] = transform.basis.x.y
+		_instance_buffer[offset + 5] = transform.basis.y.y
+		_instance_buffer[offset + 6] = transform.basis.z.y
+		_instance_buffer[offset + 7] = transform.origin.y
+		_instance_buffer[offset + 8] = transform.basis.x.z
+		_instance_buffer[offset + 9] = transform.basis.y.z
+		_instance_buffer[offset + 10] = transform.basis.z.z
+		_instance_buffer[offset + 11] = transform.origin.z
+		_instance_buffer[offset + 12] = instance_color.r
+		_instance_buffer[offset + 13] = instance_color.g
+		_instance_buffer[offset + 14] = instance_color.b
+		_instance_buffer[offset + 15] = instance_color.a
+
+	# Upload all transforms and colours in one buffer assignment.
+	multimesh.buffer = _instance_buffer
 	multimesh.visible_instance_count = transforms.size()
 	custom_aabb = _calculate_custom_aabb(transforms)
 	return true
@@ -82,6 +115,8 @@ func clear_instances() -> void:
 		return
 	multimesh.visible_instance_count = 0
 	multimesh.instance_count = 0
+	_instance_buffer.resize(0)
+	multimesh.buffer = _instance_buffer
 	custom_aabb = AABB()
 
 
