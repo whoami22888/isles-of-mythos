@@ -9,6 +9,8 @@ const CHECKER_SIZE := 32
 const MAX_LOGGED_PATHS := 1024
 const MAX_LOG_BYTES := 262144
 static var _logged_paths: Dictionary = {}
+static var _logged_path_order: Array[String] = []
+static var _logged_path_cursor := 0
 
 
 static func _allowed_path(path: String, extensions: PackedStringArray) -> bool:
@@ -76,7 +78,7 @@ static func _log_missing_with_writer(path: String, category: String, writer: Cal
 	# Keep the TSV record single-line and two-column, including for C0/DEL chars.
 	var safe_path := _safe_log_path(path)
 	var key := category + ":" + safe_path
-	if _logged_paths.has(key) or _logged_paths.size() >= MAX_LOGGED_PATHS:
+	if _logged_paths.has(key):
 		return
 	if not writer.is_valid():
 		return
@@ -85,6 +87,16 @@ static func _log_missing_with_writer(path: String, category: String, writer: Cal
 	# A failed or partial write must remain retryable after storage recovers.
 	if write_error != OK:
 		return
+	# Keep only the most recent unique paths in memory. The bounded disk log
+	# continues recording new paths after this cache fills instead of silently
+	# dropping every later diagnostic.
+	if _logged_path_order.size() < MAX_LOGGED_PATHS:
+		_logged_path_order.append(key)
+	else:
+		var evicted_key: String = _logged_path_order[_logged_path_cursor]
+		_logged_paths.erase(evicted_key)
+		_logged_path_order[_logged_path_cursor] = key
+		_logged_path_cursor = (_logged_path_cursor + 1) % MAX_LOGGED_PATHS
 	_logged_paths[key] = true
 
 
