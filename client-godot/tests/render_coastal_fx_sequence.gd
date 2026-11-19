@@ -25,6 +25,15 @@ func _record() -> void:
     if DirAccess.make_dir_recursive_absolute(directory) != OK:
         _fail("Could not create renderer evidence directory")
         return
+    var rendering_method := RenderingServer.get_current_rendering_method()
+    var rendering_driver := RenderingServer.get_current_rendering_driver_name()
+    if rendering_method != "mobile" or rendering_driver != "vulkan":
+        _fail(
+            "Expected Vulkan Mobile renderer, got driver=%s method=%s"
+            % [rendering_driver, rendering_method]
+        )
+        return
+    print("IOM_INTERNAL_RENDERER driver=%s method=%s" % [rendering_driver, rendering_method])
     var start_frame := int(OS.get_environment("IOM_FX_START_FRAME")) if OS.has_environment("IOM_FX_START_FRAME") else 0
     var end_frame := int(OS.get_environment("IOM_FX_END_FRAME")) if OS.has_environment("IOM_FX_END_FRAME") else FRAME_COUNT
     if start_frame != 0 or end_frame != FRAME_COUNT:

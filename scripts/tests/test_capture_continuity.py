@@ -146,7 +146,21 @@ class CaptureContinuityTests(unittest.TestCase):
         self.assertIn('IOM_FX_START_FRAME: "0"', capture_job)
         self.assertIn('IOM_FX_END_FRAME: "72"', capture_job)
         self.assertIn("internal-coastal-frames", capture_job)
+        self.assertIn("--display-driver x11", capture_job)
+        self.assertIn("--rendering-method mobile", capture_job)
+        self.assertIn("--rendering-driver vulkan", capture_job)
+        self.assertIn("VK_ICD_FILENAMES=$lvp_icd", workflow)
+        self.assertIn("sha256sum frame_*.rgba render.log > SHA256SUMS", capture_job)
+        self.assertIn(
+            "grep -Fx 'IOM_INTERNAL_RENDERER driver=vulkan method=mobile' "
+            '"$source_dir/render.log"',
+            workflow,
+        )
+        self.assertNotIn("render=Mobile Vulkan llvmpipe software", workflow)
         sequence = SEQUENCE.read_text(encoding="utf-8")
+        self.assertIn("RenderingServer.get_current_rendering_method()", sequence)
+        self.assertIn("RenderingServer.get_current_rendering_driver_name()", sequence)
+        self.assertIn("IOM_INTERNAL_RENDERER driver=%s method=%s", sequence)
         self.assertIn(
             "start_frame != 0 or end_frame != FRAME_COUNT",
             sequence,

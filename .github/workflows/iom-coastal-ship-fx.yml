@@ -83,6 +83,12 @@ jobs:
           install "$RUNNER_TEMP/Godot_v4.7.2-stable_linux.x86_64" "$RUNNER_TEMP/godot"
           sudo apt-get update -qq
           sudo apt-get install -y -qq xvfb mesa-vulkan-drivers
+          lvp_icd="$(find /usr/share/vulkan/icd.d -maxdepth 1 -type f -name 'lvp_icd*.json' -print -quit)"
+          if [ -z "$lvp_icd" ]; then
+            echo "::error::Mesa Lavapipe Vulkan ICD is unavailable."
+            exit 1
+          fi
+          echo "VK_ICD_FILENAMES=$lvp_icd" >> "$GITHUB_ENV"
           timeout --signal=TERM --kill-after=10s 180s "$RUNNER_TEMP/godot" --headless --path client-godot --editor --quit --import
       - name: Render one continuous 72-frame sequence
         shell: bash
@@ -93,9 +99,14 @@ jobs:
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/coastal-fx-frames"
           export IOM_FX_FRAMES_DIR="$RUNNER_TEMP/coastal-fx-frames"
-          timeout --signal=TERM --kill-after=10s 240s xvfb-run -a -s "-screen 0 1280x720x24" "$RUNNER_TEMP/godot" --path client-godot --rendering-method mobile --script res://tests/render_coastal_fx_sequence.gd
+          timeout --signal=TERM --kill-after=10s 240s xvfb-run -a -s "-screen 0 1280x720x24" "$RUNNER_TEMP/godot" \
+            --path client-godot \
+            --display-driver x11 \
+            --rendering-method mobile \
+            --rendering-driver vulkan \
+            --script res://tests/render_coastal_fx_sequence.gd 2>&1 | tee "$IOM_FX_FRAMES_DIR/render.log"
           test "$(find "$IOM_FX_FRAMES_DIR" -maxdepth 1 -name 'frame_*.rgba' | wc -l)" -eq 72
-          (cd "$IOM_FX_FRAMES_DIR" && sha256sum frame_*.rgba > SHA256SUMS)
+          (cd "$IOM_FX_FRAMES_DIR" && sha256sum frame_*.rgba render.log > SHA256SUMS)
       - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
         with:
           name: internal-coastal-frames
@@ -138,6 +149,8 @@ jobs:
           test -f "$source_dir/SHA256SUMS"
           (cd "$source_dir" && sha256sum --check --strict SHA256SUMS)
           test "$(find "$source_dir" -maxdepth 1 -name 'frame_*.rgba' | wc -l)" -eq 72
+          renderer_line="$(grep -Fx 'IOM_INTERNAL_RENDERER driver=vulkan method=mobile' "$source_dir/render.log")"
+          test -n "$renderer_line"
           mkdir -p ordered-frames evidence
           for frame_number in $(seq 0 71); do
             printf -v filename 'frame_%04d.rgba' "$frame_number"
@@ -154,7 +167,7 @@ jobs:
           test "$(ffprobe -v error -select_streams v:0 -show_entries stream=nb_frames -of default=noprint_wrappers=1:nokey=1 evidence/ship-wake-cinematic.mp4)" -eq 72
           (cd ordered-frames && sha256sum frame_*.rgba > ../evidence/FRAME_SHA256SUMS)
           (cd evidence && sha256sum ship-wake-cinematic.mp4 > SHA256SUMS)
-          printf 'commit=%s\nengine=Godot 4.7.2\nrender=Mobile Vulkan llvmpipe software\ncapture_mode=single-process-continuous\nframes=72\nresolution=1280x720\nfps=24\nvisual_parity=NOT VERIFIED\n' "${{ github.event.pull_request.head.sha || github.sha }}" > evidence/EVIDENCE.txt
+          printf 'commit=%s\nengine=Godot 4.7.2\nrenderer_assertion=%s\nrender_driver=vulkan\nrender_method=mobile\nvulkan_icd=lavapipe\ncapture_mode=single-process-continuous\nframes=72\nresolution=1280x720\nfps=24\nvisual_parity=NOT VERIFIED\ndevice_validation=NOT VERIFIED\n' "${{ github.event.pull_request.head.sha || github.sha }}" "$renderer_line" > evidence/EVIDENCE.txt
       - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
         with:
           name: internal-coastal-ship-fx-engine-evidence
