@@ -125,7 +125,26 @@ class OceanShaderContractTests(unittest.TestCase):
                 r"depth_factor\s*\*\s*seabed_variation\s*;"
             ),
         )
-        self.assertRegex(self.code, r"contact\s*=\s*coverage\s*\*")
+        self.assertRegex(
+            self.code,
+            r"float\s+contact\s*=\s*coverage\s*\*\s*\(\s*1\.0\s*-\s*smoothstep",
+        )
+
+    def test_shoreline_foam_uses_absolute_sea_level_distance(self):
+        """Foam must reach exposed sand as well as the submerged shoreline."""
+        fragment_body = shader_stage_body(self.code, "fragment")
+        self.assertRegex(
+            fragment_body,
+            r"float\s+shoreline_distance_m\s*=\s*abs\s*\(\s*SEA_LEVEL\s*-\s*floor_y\s*\)\s*;",
+        )
+        self.assertRegex(
+            fragment_body,
+            r"float\s+contact\s*=\s*coverage\s*\*\s*\(\s*1\.0\s*-\s*smoothstep\s*\(\s*0\.025\s*,\s*0\.24\s*,\s*shoreline_distance_m\s*\)\s*\)\s*;",
+        )
+        self.assertNotRegex(
+            fragment_body,
+            r"contact\s*=\s*coverage\s*\*\s*smoothstep\s*\(\s*0\.02\s*,\s*0\.12\s*,\s*depth_m",
+        )
 
     def test_existing_wave_normals_and_wake_are_not_lost(self):
         """Protect wave displacement in vertex() and wake inputs in fragment()."""

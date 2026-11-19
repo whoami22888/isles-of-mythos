@@ -146,8 +146,11 @@ void fragment() {
     float depth_factor = 1.0 - smoothstep(0.15, 6.5, depth_m);
     float seabed_variation = 0.86 + 0.14 * sin(dot(p, vec2(0.045, 0.03)));
     float shallow_factor = coverage * depth_factor * seabed_variation;
-    float contact = coverage * smoothstep(0.02, 0.12, depth_m)
-                    * (1.0 - smoothstep(0.16, 0.55, depth_m));
+    // Shoreline contact must include the exposed beach and submerged edge.
+    // depth_m remains one-sided for shallow/deep colour attenuation; foam uses
+    // absolute distance from sea level so dry sand is not silently excluded.
+    float shoreline_distance_m = abs(SEA_LEVEL - floor_y);
+    float contact = coverage * (1.0 - smoothstep(0.025, 0.24, shoreline_distance_m));
 
     // Gentle micro normals. High-frequency normals plus a shiny roughness
     // produced a repeating diamond lattice under the mobile specular model.

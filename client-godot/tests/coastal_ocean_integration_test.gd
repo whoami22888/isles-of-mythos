@@ -62,6 +62,8 @@ func run() -> void:
     check(shader_source.contains("coastal_shore_sampler.gdshaderinc"), "Material must use PR #173 shoreline")
     check(shader_source.contains("shore_terrain_height("), "Depth must sample actual terrain mesh")
     check(shader_source.contains("shore_terrain_coverage("), "Foam must honour terrain coverage")
+    check(shader_source.contains("abs(SEA_LEVEL - floor_y)"),
+        "Shoreline foam must cover exposed sand and submerged waterline")
     var shoreline_source: String = FileAccess.get_file_as_string("res://shaders/coastal_shore_sampler.gdshaderinc")
     check(shoreline_source.contains("smoothstep(0.0, 0.12, uv.x)"),
         "Terrain coverage edge must feather to avoid a rectangular ocean seam")
