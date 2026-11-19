@@ -72,14 +72,14 @@ class OceanShaderContractTests(unittest.TestCase):
         """Keep the existing Mobile opaque depth-write path and terrain depth source."""
         self.assertRegex(
             self.code,
-            r"render_mode\\s+cull_back\\s*,\\s*depth_draw_opaque\\s*,\\s*diffuse_burley\\s*,\\s*specular_schlick_ggx\\s*;",
+            r"render_mode\s+cull_back\s*,\s*depth_draw_opaque\s*,\s*diffuse_burley\s*,\s*specular_schlick_ggx\s*;",
         )
         self.assertNotIn("blend_mix", self.code)
         self.assertNotIn("hint_depth_texture", self.code)
         self.assertNotIn("ALPHA =", self.code)
         self.assertRegex(
             self.code,
-            r"uniform\\s+bool\\s+shoremap_bound\\s*=\\s*false\\s*;",
+            r"uniform\s+bool\s+shoremap_bound\s*=\s*false\s*;",
         )
 
     def test_terrain_heightfield_drives_depth_attenuation(self):
