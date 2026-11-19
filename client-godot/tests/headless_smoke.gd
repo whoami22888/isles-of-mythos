@@ -3,6 +3,7 @@ extends SceneTree
 const Adapter = preload("res://scripts/websocket_adapter.gd")
 const PerformancePolicy = preload("res://autoload/performance_adapter.gd")
 const FallbackFactory = preload("res://scripts/render_fallback_factory.gd")
+const MultiMeshRegression = preload("res://tests/multimesh_instancer_regression.gd")
 var _failures := 0
 
 func check(condition: bool, description: String) -> void:
@@ -279,5 +280,6 @@ func run() -> void:
 				archived_size.close()
 	adapter.queue_free()
 	scene.queue_free()
+	await MultiMeshRegression.run(self, Callable(self, "check"))
 	print("IOM-00 connection checks: %s failures" % _failures)
 	quit(1 if _failures else 0)
