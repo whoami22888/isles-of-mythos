@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-11-20T15:18:00+11:00",
+  "status": "QUARANTINE_ONLY_NOT_ADMITTED",
+  "purpose": "Record publisher-origin Quaternius archive evidence without importing or accepting assets. This manifest is not a licence grant and does not mark any asset production-ready.",
+  "policy": {
+    "required_before_admission": [
+      "original archive bytes materialized in controlled repository quarantine",
+      "per-file SHA-256 manifest",
+      "complete source roster and dependency closure",
+      "pack-specific licence evidence with no unresolved mismatch",
+      "Godot 4.7.2 rendered evidence visually assessed against the owner reference"
+    ],
+    "no_mirror_or_generated_assets": true,
+    "no_production_import": true
+  },
+  "references": {
+    "owner_quality_floor_sha256": "713cd6e90c6f7d589a06eb3bd4b9b2d5ebeb9c0ff711b5de527a68460dfbcb05",
+    "quaternius_current_license_page": "https://quaternius.com/license.html",
+    "cc0_1_0": "https://creativecommons.org/publicdomain/zero/1.0/"
+  },
+  "packs": [
+    {
+      "id": "QH05-ULTIMATE-MONSTERS",
+      "publisher": "Quaternius",
+      "publisher_page": "https://quaternius.com/packs/ultimatemonsters.html",
+      "official_drive_folder": "https://drive.google.com/drive/folders/18m4KpzpEzhC9wl7jzr6dUc0N8Jozr79C",
+      "archive": {
+        "filename": "Ultimate Monsters-20261120T042858Z-1-001.zip",
+        "size_bytes": 46576830,
+        "sha256": "2c7c0987c59abee705fe2b4eb74000aaa02adce556eadedec5740cf99ec159ce",
+        "zip_entry_count": 260,
+        "uncompressed_bytes": 224170082,
+        "crc_test": "PASS",
+        "extension_counts": {
+          ".fbx": 50,
+          ".obj": 50,
+          ".blend": 50,
+          ".gltf": 50,
+          ".mtl": 50,
+          ".png": 8,
+          ".jpg": 1,
+          ".txt": 1
+        }
+      },
+      "licence": {
+        "publisher_page_declares": "CC0",
+        "embedded_file": "License.txt",
+        "embedded_file_present": true,
+        "embedded_title": "Ultimate Platformer Pack",
+        "embedded_terms": "CC0 1.0 Universal",
+        "status": "REVIEW_REQUIRED",
+        "issue": "The embedded licence heading names Ultimate Platformer Pack rather than Ultimate Monsters. The body states CC0 1.0 Universal; do not silently rewrite or normalize the mismatch."
+      },
+      "per_file_manifest": "NOT_CAPTURED",
+      "repository_materialized": false,
+      "godot_visual_acceptance": "NOT_VERIFIED",
+      "admission_status": "NOT_ADMITTED"
+    },
+    {
+      "id": "QH06-CUTE-ANIMATED-MONSTERS",
+      "publisher": "Quaternius",
+      "publisher_page": "https://quaternius.com/packs/cutemonsters.html",
+      "official_drive_folder": "https://drive.google.com/drive/folders/1zLLO_7ZoWgUsS4uooYnVSErQYRu1VdS0",
+      "archive": {
+        "filename": "Cute Animated Monsters - Aug 2020-20261120T042744Z-1-001.zip",
+        "size_bytes": 20231254,
+        "sha256": "da8b7cf52e0b84ff24cb851bf7d6844c5581451931dc4b6ccf10d9a7b32e5060",
+        "zip_entry_count": 127,
+        "uncompressed_bytes": 57066500,
+        "crc_test": "PASS",
+        "earlier_export": {
+          "filename": "Cute Animated Monsters - Aug 2020-20261120T042439Z-1-001.zip",
+          "size_bytes": 20231254,
+          "sha256": "910725e79cc08c91a60bb3e95637b002f337c2c5a5f7c0df6e261366edc784f9",
+          "zip_entry_count": 127,
+          "crc_test": "PASS"
+        },
+        "export_note": "Two Download all exports from the same publisher folder produced different archive SHA-256 values with the same byte and entry counts. File-content equivalence was not established; neither ZIP hash is treated as a canonical pin."
+      },
+      "licence": {
+        "publisher_page_declares": "CC0",
+        "embedded_file_present": false,
+        "status": "MISSING_EMBEDDED_LICENSE",
+        "issue": "No License.txt, licence, README, copyright or notice file was present in the downloaded archive. Page-level CC0 evidence alone does not satisfy the current repository vendor-lock requirement."
+      },
+      "per_file_manifest": "NOT_CAPTURED",
+      "repository_materialized": false,
+      "godot_visual_acceptance": "NOT_VERIFIED",
+      "admission_status": "NOT_ADMITTED"
+    }
+  ],
+  "capture_limits": {
+    "archive_bytes_persisted_in_repository": false,
+    "archive_bytes_persisted_in_notion": false,
+    "acquisition_environment": "temporary remote quarantine session",
+    "reason": "The exact bytes were downloaded and SHA/ZIP integrity checked, but could not be materialized into the repository or a persistent attachment in this run. No archive or asset import commit was created."
+  },
+  "next_action": "Materialize the original publisher bytes in a controlled quarantine workspace, capture per-file SHA-256 and dependency closure, resolve H05 licence-title mismatch and H06 missing embedded licence with publisher-specific evidence, then render in Godot 4.7.2 and compare to the owner reference before any production admission."
+}
