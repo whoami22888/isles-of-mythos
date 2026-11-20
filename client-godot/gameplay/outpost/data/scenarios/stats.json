@@ -18,8 +18,7 @@
  "chain_targets": 82,
  "rejected": {
   "note_fixed": 29,
-  "few_choices": 4,
-  "no_intro": 19
+  "few_choices": 4
  },
  "engine": {
   "kilo": 314

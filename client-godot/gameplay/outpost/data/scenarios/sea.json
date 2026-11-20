@@ -2387,7 +2387,7 @@
   "history_note": "At Île Sainte-Marie ships were deliberately sunk as a harbour barrier and Condent burned the Fiery Dragon rather than see her sail — a wreck on a reef is salvage, trap and tomb at once."
  },
  {
-  "id": "sea_015",
+  "id": "sea_012",
   "category": "sea",
   "title": "Careening Crisis",
   "zones": [
@@ -2432,7 +2432,7 @@
        "spawn": null,
        "pet_xp": 20,
        "unlock": null,
-       "next_event": "sea_016"
+       "next_event": "sea_013"
       }
      },
      {
@@ -2454,7 +2454,7 @@
        "spawn": "utc_patrol",
        "pet_xp": 10,
        "unlock": null,
-       "next_event": "sea_016"
+       "next_event": "sea_013"
       }
      },
      {
@@ -2477,7 +2477,7 @@
        "spawn": "utc_patrol",
        "pet_xp": 0,
        "unlock": null,
-       "next_event": "sea_016"
+       "next_event": "sea_013"
       }
      }
     ]
@@ -2504,7 +2504,7 @@
        "spawn": null,
        "pet_xp": 15,
        "unlock": null,
-       "next_event": "sea_016"
+       "next_event": "sea_013"
       }
      },
      {
@@ -2526,7 +2526,7 @@
        "spawn": null,
        "pet_xp": 5,
        "unlock": null,
-       "next_event": "sea_016"
+       "next_event": "sea_013"
       }
      },
      {
@@ -2547,7 +2547,7 @@
        "spawn": "utc_patrol",
        "pet_xp": 0,
        "unlock": null,
-       "next_event": "sea_016"
+       "next_event": "sea_013"
       }
      }
     ]
@@ -2575,7 +2575,7 @@
        "spawn": null,
        "pet_xp": 0,
        "unlock": "utc_watchlist",
-       "next_event": "sea_016"
+       "next_event": "sea_013"
       }
      },
      {
@@ -2595,7 +2595,7 @@
        "spawn": null,
        "pet_xp": 10,
        "unlock": null,
-       "next_event": "sea_016"
+       "next_event": "sea_013"
       }
      },
      {
@@ -2617,7 +2617,7 @@
        "spawn": "utc_patrol",
        "pet_xp": 0,
        "unlock": null,
-       "next_event": "sea_016"
+       "next_event": "sea_013"
       }
      }
     ]
@@ -2626,7 +2626,7 @@
   "history_note": "Pirates careened on sloping beaches to scrape teredo worm tunnels, landing guns in beach batteries while defenceless (JMU thesis on pirate island haunts)."
  },
  {
-  "id": "sea_016",
+  "id": "sea_013",
   "category": "sea",
   "title": "Cutter's Shadow",
   "zones": [
@@ -2671,7 +2671,7 @@
        "spawn": null,
        "pet_xp": 30,
        "unlock": null,
-       "next_event": "sea_017"
+       "next_event": "sea_014"
       }
      },
      {
@@ -2692,7 +2692,7 @@
        "spawn": "utc_patrol",
        "pet_xp": 15,
        "unlock": null,
-       "next_event": "sea_017"
+       "next_event": "sea_014"
       }
      },
      {
@@ -2714,7 +2714,7 @@
        "spawn": "utc_patrol",
        "pet_xp": 5,
        "unlock": null,
-       "next_event": "sea_017"
+       "next_event": "sea_014"
       }
      }
     ]
@@ -2740,7 +2740,7 @@
        "spawn": null,
        "pet_xp": 50,
        "unlock": "sovereign_witness",
-       "next_event": "sea_017"
+       "next_event": "sea_014"
       }
      },
      {
@@ -2762,7 +2762,7 @@
        "spawn": "wild_mythos",
        "pet_xp": 30,
        "unlock": null,
-       "next_event": "sea_017"
+       "next_event": "sea_014"
       }
      },
      {
@@ -2784,7 +2784,7 @@
        "spawn": "wild_mythos",
        "pet_xp": 0,
        "unlock": null,
-       "next_event": "sea_017"
+       "next_event": "sea_014"
       }
      }
     ]
@@ -2812,7 +2812,7 @@
        "spawn": null,
        "pet_xp": 20,
        "unlock": null,
-       "next_event": "sea_017"
+       "next_event": "sea_014"
       }
      },
      {
@@ -2834,7 +2834,7 @@
        "spawn": "utc_patrol",
        "pet_xp": 0,
        "unlock": null,
-       "next_event": "sea_017"
+       "next_event": "sea_014"
       }
      },
      {
@@ -2854,7 +2854,7 @@
        "spawn": "tideborn_scout",
        "pet_xp": 25,
        "unlock": "tideborn_ally",
-       "next_event": "sea_017"
+       "next_event": "sea_014"
       }
      }
     ]
@@ -2863,7 +2863,7 @@
   "history_note": "UTC deploys dark-binding crystals that enrage the Abyssal Sovereign; pirates used false flags and night escapes to evade naval cutters (Johnson's General History)."
  },
  {
-  "id": "sea_017",
+  "id": "sea_014",
   "category": "sea",
   "title": "Reckoning at Dawn",
   "zones": [
@@ -3101,7 +3101,7 @@
   "history_note": "Pirate articles required votes on affairs; Roberts' code gave captain and quartermaster two shares, injury compensation 800 dollars for a limb (Johnson 1724)."
  },
  {
-  "id": "sea_018",
+  "id": "sea_015",
   "category": "sea",
   "title": "Raft of Last Resort",
   "zones": [
@@ -3142,7 +3142,7 @@
        "spawn": null,
        "pet_xp": 15,
        "unlock": null,
-       "next_event": "sea_019"
+       "next_event": "sea_016"
       }
      },
      {
@@ -3162,7 +3162,7 @@
        "spawn": null,
        "pet_xp": 0,
        "unlock": null,
-       "next_event": "sea_019"
+       "next_event": "sea_016"
       }
      },
      {
@@ -3180,7 +3180,7 @@
        "spawn": "shark",
        "pet_xp": 25,
        "unlock": null,
-       "next_event": "sea_019"
+       "next_event": "sea_016"
       }
      }
     ]
@@ -3207,7 +3207,7 @@
        "spawn": null,
        "pet_xp": 20,
        "unlock": null,
-       "next_event": "sea_019"
+       "next_event": "sea_016"
       }
      },
      {
@@ -3227,7 +3227,7 @@
        "spawn": null,
        "pet_xp": 10,
        "unlock": null,
-       "next_event": "sea_019"
+       "next_event": "sea_016"
       }
      },
      {
@@ -3248,7 +3248,7 @@
        "spawn": null,
        "pet_xp": 0,
        "unlock": null,
-       "next_event": "sea_019"
+       "next_event": "sea_016"
       }
      }
     ]
@@ -3274,7 +3274,7 @@
        "spawn": null,
        "pet_xp": 15,
        "unlock": null,
-       "next_event": "sea_019"
+       "next_event": "sea_016"
       }
      },
      {
@@ -3295,7 +3295,7 @@
        "spawn": null,
        "pet_xp": 5,
        "unlock": null,
-       "next_event": "sea_019"
+       "next_event": "sea_016"
       }
      },
      {
@@ -3316,7 +3316,7 @@
        "spawn": null,
        "pet_xp": 25,
        "unlock": null,
-       "next_event": "sea_019"
+       "next_event": "sea_016"
       }
      }
     ]
@@ -3325,7 +3325,7 @@
   "history_note": "Pedro Serrano flipped sea turtles for blood when no rain; castaway crews on rafts bailed with helmets and plugged leaks with clothing (Garcilaso de la Vega 1609)."
  },
  {
-  "id": "sea_019",
+  "id": "sea_016",
   "category": "sea",
   "title": "Empty Bellies, Open Water",
   "zones": [
@@ -3368,7 +3368,7 @@
        "spawn": null,
        "pet_xp": 20,
        "unlock": null,
-       "next_event": "sea_020"
+       "next_event": "sea_017"
       }
      },
      {
@@ -3389,7 +3389,7 @@
        "spawn": null,
        "pet_xp": 10,
        "unlock": null,
-       "next_event": "sea_020"
+       "next_event": "sea_017"
       }
      },
      {
@@ -3409,7 +3409,7 @@
        "spawn": "shark",
        "pet_xp": 0,
        "unlock": null,
-       "next_event": "sea_020"
+       "next_event": "sea_017"
       }
      }
     ]
@@ -3436,7 +3436,7 @@
        "spawn": null,
        "pet_xp": 25,
        "unlock": null,
-       "next_event": "sea_020"
+       "next_event": "sea_017"
       }
      },
      {
@@ -3457,7 +3457,7 @@
        "spawn": "eel",
        "pet_xp": 5,
        "unlock": null,
-       "next_event": "sea_020"
+       "next_event": "sea_017"
       }
      },
      {
@@ -3477,7 +3477,7 @@
        "spawn": "shark",
        "pet_xp": 0,
        "unlock": null,
-       "next_event": "sea_020"
+       "next_event": "sea_017"
       }
      }
     ]
@@ -3503,7 +3503,7 @@
        "spawn": null,
        "pet_xp": 15,
        "unlock": null,
-       "next_event": "sea_020"
+       "next_event": "sea_017"
       }
      },
      {
@@ -3523,7 +3523,7 @@
        "spawn": null,
        "pet_xp": 5,
        "unlock": null,
-       "next_event": "sea_020"
+       "next_event": "sea_017"
       }
      },
      {
@@ -3541,7 +3541,7 @@
        "spawn": null,
        "pet_xp": 0,
        "unlock": null,
-       "next_event": "sea_020"
+       "next_event": "sea_017"
       }
      }
     ]
@@ -3550,7 +3550,7 @@
   "history_note": "Rule of threes: three days without water; rain catchment with sails and shells was primary survival method (NOAA). Small reef fish avoid ciguatera toxin (Cleveland Clinic)."
  },
  {
-  "id": "sea_020",
+  "id": "sea_017",
   "category": "sea",
   "title": "Sloop on the Horizon",
   "zones": [
@@ -3785,7 +3785,7 @@
   "history_note": "Pirates traded with passing sloops at havens like Île Sainte-Marie; Adam Baldridge sold cattle to careening crews for guns and powder (Sailing the Black Flag)."
  },
  {
-  "id": "sea_021",
+  "id": "sea_018",
   "category": "sea",
   "title": "Teredo's Toll",
   "zones": [
@@ -4023,7 +4023,7 @@
   "history_note": "Teredo navalis (shipworm) destroys wooden hulls in tropical waters; pirates careened regularly to scrape and tar the bottom (JMU thesis on pirate island haunts)."
  },
  {
-  "id": "sea_022",
+  "id": "sea_019",
   "category": "sea",
   "title": "Men in the Water",
   "zones": [
@@ -4260,7 +4260,7 @@
   "history_note": "Pirates rescued drowning men for recruits; Roberts used a captured master to identify the richest Portuguese ship (Johnson 1724). Sharks drawn by blood in shallows (NOAA reef hazards)."
  },
  {
-  "id": "sea_023",
+  "id": "sea_020",
   "category": "sea",
   "title": "Cutter on the Quarter",
   "zones": [
@@ -4500,7 +4500,7 @@
   "history_note": "Pirates used false flags and night boarding from muffled boats; most prizes surrendered without a fight through intimidation (Johnson 1724)."
  },
  {
-  "id": "sea_024",
+  "id": "sea_021",
   "category": "sea",
   "title": "Night Fishing the Lanterns",
   "zones": [
@@ -4735,7 +4735,7 @@
   "history_note": "Pirates fished at night by lantern light; frigatebirds and gulls signal fish schools (Tromelin castaways ate reef fish by line and spear). Ciguatera toxin in large predators (Cleveland Clinic)."
  },
  {
-  "id": "sea_025",
+  "id": "sea_022",
   "category": "sea",
   "title": "Careening Camp Fever",
   "zones": [
