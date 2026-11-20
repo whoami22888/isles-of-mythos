@@ -134,6 +134,33 @@ func run() -> void:
 	check(missing_texture != null, "Missing skin texture must return a checkerboard texture")
 	var missing_animation := FallbackFactory.load_scene_or_null("res://_missing_animation_004.fbx", "animation")
 	check(missing_animation == null, "Missing FBX animation scene must fail safely")
+	# A PackedScene resource may exist but have no instantiable root; it must
+	# become a diagnostic fallback rather than dereferencing a null instance.
+	var empty_scene := PackedScene.new()
+	check(not empty_scene.can_instantiate(), "Empty PackedScene fixture must be non-instantiable")
+	var empty_scene_fallback := FallbackFactory.mesh_resource_or_fallback(
+		empty_scene, "res://_empty_scene_004.glb", "character"
+	)
+	check(empty_scene_fallback is MeshInstance3D and empty_scene_fallback.mesh is CapsuleMesh,
+		"Non-instantiable PackedScene must use a capsule diagnostic")
+	if empty_scene_fallback != null:
+		empty_scene_fallback.free()
+	# A valid PackedScene with a non-3D root is instantiated safely, type-checked,
+	# freed and replaced with the requested diagnostic primitive.
+	var control_root := Control.new()
+	var control_scene := PackedScene.new()
+	check(control_scene.pack(control_root) == OK, "Non-3D PackedScene fixture must pack")
+	control_root.free()
+	var control_instance := FallbackFactory.instantiate_scene_or_null(control_scene)
+	check(control_instance is Control, "Valid non-3D PackedScene must instantiate for caller type validation")
+	if is_instance_valid(control_instance):
+		control_instance.free()
+	var non_3d_fallback := FallbackFactory.mesh_resource_or_fallback(
+		control_scene, "res://_non_3d_scene_004.glb", "building"
+	)
+	check(non_3d_fallback is MeshInstance3D and non_3d_fallback.mesh is BoxMesh,
+		"Non-3D PackedScene must use a box diagnostic")
+	non_3d_fallback.free()
 	var asset_log := FileAccess.open("user://missing_assets.log", FileAccess.READ)
 	check(asset_log != null, "Missing asset paths must be written to the user log")
 	if asset_log != null:
