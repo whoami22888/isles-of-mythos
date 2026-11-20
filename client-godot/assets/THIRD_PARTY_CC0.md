@@ -83,3 +83,11 @@ CC0 sources added under `opening/library/` and `ashore/library/`. Per-file SHA-2
 | Quaternius Ultimate Base Characters and Universal Animation Library (Standard) | https://quaternius.com (CC0, licence text in the UAL download) | `opening/library/castaway_ubc_rigged/` |
 
 These are not CC0 and are listed in the PROVENANCE files: `*_hy3d` meshes (Tencent HY 3D free tier, commercial terms unconfirmed), and `leviathan_tentacle` (TripoSR MIT output from a Z-Image-Turbo Apache-2.0 concept).
+
+## Outpost wildlife (rigged, animated)
+
+| Asset | Source | Path |
+|---|---|---|
+| Crab Enemy, Monkroose (monkey), Snake, Pigeon (gull), Goat, Shark: Quaternius (CC0 1.0) | https://poly.pizza/u/Quaternius (Ultimate Monsters / Animated Animal packs) | `outpost/animals/` |
+
+Materials are re-toned at runtime (desaturated, matte, mottled grain) in `gameplay/outpost/outpost_wildlife.gd`.

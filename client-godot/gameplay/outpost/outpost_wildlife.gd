@@ -8,6 +8,27 @@ extends Node3D
 ## mesh with matte materials (no glow).
 
 const MAX := 8
+const OArt := preload("res://gameplay/opening/opening_art.gd")
+## Rigged CC0 models (Quaternius via poly.pizza, see assets/THIRD_PARTY_CC0.md).
+## kind -> [path, largest extent in metres, tint (multiplies a desaturated base)]
+const MODELS := {
+	"crab": ["res://assets/outpost/animals/crab.glb", 0.6, Color(1.0, 0.9, 0.85)],
+	"snake": ["res://assets/outpost/animals/snake.glb", 1.3, Color(0.75, 0.72, 0.55)],
+	"monkey": ["res://assets/outpost/animals/monkey.glb", 0.85, Color(0.55, 0.42, 0.3)],
+	"gull": ["res://assets/outpost/animals/gull.glb", 0.42, Color(1.0, 1.0, 1.0)],
+	"goat": ["res://assets/outpost/animals/goat.glb", 1.15, Color(0.85, 0.8, 0.72)],
+	"shark": ["res://assets/outpost/animals/shark.glb", 2.6, Color(0.7, 0.74, 0.78)],
+}
+## Per-material recolours for models whose source palette is toy-bright.
+const RECOLOR := {
+	"Pigeon_Main": Color(0.8, 0.8, 0.78), "Pigeon_Secondary": Color(0.62, 0.5, 0.22),
+	"Monkroose_Main": Color(0.3, 0.23, 0.16), "Monkroose_Secondary": Color(0.42, 0.32, 0.24), "Monkroose_Ears": Color(0.36, 0.27, 0.2),
+	"DarkGreen": Color(0.24, 0.27, 0.16), "LightGreen": Color(0.42, 0.4, 0.26), "Yellow": Color(0.45, 0.38, 0.2), "Purple": Color(0.2, 0.15, 0.12),
+}
+const ANIM_KEYS := {
+	"idle": ["Idle", "Swim"], "walk": ["Walk", "Swim"], "run": ["Run", "Gallop", "Swim_Fast", "Walk"],
+	"attack": ["Headbutt", "Attack", "Bite_Front", "Punch", "Swim_Bite", "Bite"], "death": ["Death"],
+}
 const DEFAULTS := {
 	"boar": {"hp": 70, "damage": 18, "speed": 2.2, "charge_speed": 7.5, "aggro": 7.0, "zones": ["jungle", "camp"], "time": "any", "drops": {"hide": 2, "meat": 3}, "weight": 3},
 	"crab": {"hp": 18, "damage": 5, "speed": 2.6, "aggro": 2.5, "zones": ["beach"], "time": "any", "drops": {"meat": 1}, "weight": 4},
@@ -17,7 +38,7 @@ const DEFAULTS := {
 	"goat": {"hp": 40, "damage": 0, "speed": 1.4, "aggro": 0.0, "zones": ["jungle", "camp"], "time": "day", "drops": {"meat": 2, "hide": 1}, "passive": true, "weight": 2},
 }
 const SPAWN_POINTS := {
-	"beach": [Vector3(3.5, 0, 3.0), Vector3(8, 0, 1.5), Vector3(13, 0, 2.6), Vector3(17, 0, 5.6)],
+	"beach": [Vector3(3.5, 0, 3.0), Vector3(8, 0, 1.5), Vector3(11.5, 0, 1.2), Vector3(6.5, 0, 1.6)],
 	"jungle": [Vector3(0.5, 0, 8), Vector3(23, 0, 12), Vector3(1.0, 0, 16), Vector3(22, 0, 18), Vector3(12, 0, 21)],
 	"camp": [Vector3(8, 0, 15), Vector3(16, 0, 9)],
 }
@@ -95,8 +116,12 @@ func spawn_kind(kind: String, at: Vector3 = Vector3.INF) -> Dictionary:
 	add_child(node)
 	at.y = float(host.ground_y(at.x, at.z)) if host else 0.0
 	node.global_position = at
-	var body := build_body(kind)
+	var body := build_model(kind)
+	if body == null:
+		body = build_body(kind)
 	node.add_child(body)
+	if body.has_meta("extent"):
+		_fit_extent(body, float(body.get_meta("extent")))
 	var a := {"kind": kind, "node": node, "body": body, "hp": float(kinds[kind].get("hp", 20)), "state": "wander", "t": 0.0,
 		"goal": at, "home": at, "carry": "", "cd": 0.0, "dir": Vector3.ZERO, "age": 0.0}
 	animals.append(a)
@@ -308,8 +333,11 @@ func hurt(a: Dictionary, dmg: float, from: Vector3) -> Dictionary:
 	a["state"] = "dead"
 	var body: Node3D = a["body"]
 	var t := n.create_tween()
-	t.tween_property(body, "rotation_degrees:z", 90.0, 0.3)
-	t.tween_interval(1.2)
+	if body.has_meta("anim") and play_anim(body, "death"):
+		t.tween_interval(1.8)
+	else:
+		t.tween_property(body, "rotation_degrees:z", 90.0, 0.3)
+		t.tween_interval(1.2)
 	t.tween_property(body, "scale", Vector3.ONE * 0.01, 0.4)
 	t.tween_callback(n.queue_free)
 	if host and host.get("pet_sys") != null:
@@ -334,6 +362,21 @@ func _pet_name() -> String:
 
 func _animate(a: Dictionary, delta: float) -> void:
 	var body: Node3D = a["body"]
+	if body.has_meta("anim"):
+		var want := "idle"
+		match str(a["state"]):
+			"wander":
+				want = "walk" if (a["node"] as Node3D).global_position.distance_to(a["goal"]) > 0.4 else "idle"
+			"charge", "flee", "steal", "chase":
+				want = "run"
+			"windup":
+				want = "attack" if a["kind"] != "boar" else "idle"
+			"recover":
+				want = "idle"
+		if float(a["cd"]) > 1.0:
+			want = "attack"
+		play_anim(body, want)
+		return
 	var k: String = a["kind"]
 	var ph := float(a["age"]) * (14.0 if a["state"] in ["charge", "flee", "steal", "chase"] else 6.0)
 	if k == "snake":
@@ -354,7 +397,102 @@ func _animate(a: Dictionary, delta: float) -> void:
 			body.rotation.x = sin(ph * 2.0) * 0.06
 
 
-# --- Art: composed, matte, stylised-realistic ------------------------------------
+# --- Art: rigged CC0 models -----------------------------------------------------------
+
+static func _desat(c: Color, k: float) -> Color:
+	var l := c.get_luminance()
+	return Color(lerpf(c.r, l, k), lerpf(c.g, l, k), lerpf(c.b, l, k), c.a)
+
+
+## The rigged model for `kind`, toned down (desaturated, tinted, matte with
+## roughness grain), or null when there is none.
+static func build_model(kind: String) -> Node3D:
+	if not MODELS.has(kind) or not ResourceLoader.exists(str(MODELS[kind][0])):
+		return null
+	var ps := load(str(MODELS[kind][0])) as PackedScene
+	if ps == null:
+		return null
+	var b := Node3D.new()
+	b.name = "Body"
+	var m := ps.instantiate() as Node3D
+	m.name = "Model"
+	m.rotation.y = PI   # Quaternius faces +Z; our animals look down -Z
+	b.add_child(m)
+	var tint: Color = MODELS[kind][2]
+	for mi in m.find_children("*", "MeshInstance3D", true, false):
+		var mesh := (mi as MeshInstance3D).mesh
+		if mesh == null:
+			continue
+		for si in mesh.get_surface_count():
+			var src := mesh.surface_get_material(si)
+			var sm := StandardMaterial3D.new()
+			var base := Color(0.6, 0.6, 0.6)
+			var nm := ""
+			if src is BaseMaterial3D:
+				sm = (src as BaseMaterial3D).duplicate() as StandardMaterial3D if src is StandardMaterial3D else sm
+				base = (src as BaseMaterial3D).albedo_color
+				nm = str(src.resource_name)
+			var col: Color = RECOLOR.get(nm, _desat(base, 0.45) * tint)
+			if nm.begins_with("Eye") or nm in ["Black", "Teeth", "White", "Red"]:
+				col = _desat(base, 0.5)
+			sm.albedo_color = Color(col.r, col.g, col.b, 1.0)
+			sm.roughness = 0.88
+			sm.metallic = 0.0
+			sm.specular_mode = BaseMaterial3D.SPECULAR_SCHLICK_GGX
+			sm.emission_enabled = false
+			if sm.albedo_texture == null:
+				_mat(Color.WHITE)   # make sure the grain exists
+				sm.albedo_texture = _grain
+				sm.uv1_triplanar = true
+				sm.uv1_scale = Vector3(5, 5, 5)
+			(mi as MeshInstance3D).set_surface_override_material(si, sm)
+	var ap := m.find_children("*", "AnimationPlayer", true, false)
+	if not ap.is_empty():
+		var player := ap[0] as AnimationPlayer
+		var map := {}
+		for key in ANIM_KEYS.keys():
+			for want in ANIM_KEYS[key]:
+				var found := ""
+				for an in player.get_animation_list():
+					if str(an).get_slice("|", str(an).get_slice_count("|") - 1) == want or (want in str(an) and found == ""):
+						found = str(an)
+				if found != "":
+					map[key] = found
+					break
+		for key in ["idle", "walk", "run"]:
+			if map.has(key):
+				player.get_animation(map[key]).loop_mode = Animation.LOOP_LINEAR
+		b.set_meta("anim", player)
+		b.set_meta("anims", map)
+		b.set_meta("playing", "")
+	b.set_meta("extent", float(MODELS[kind][1]))
+	return b
+
+
+static func play_anim(body: Node3D, key: String) -> bool:
+	var map: Dictionary = body.get_meta("anims", {})
+	if not map.has(key):
+		return false
+	if str(body.get_meta("playing", "")) == key:
+		return true
+	var player: AnimationPlayer = body.get_meta("anim")
+	player.play(map[key], 0.18, 1.0)
+	body.set_meta("playing", key)
+	return true
+
+
+## Scale so the largest bounding extent is `target` metres, feet on the ground.
+static func _fit_extent(body: Node3D, target: float) -> void:
+	var box := OArt.world_aabb(body)
+	var big := maxf(box.size.x, maxf(box.size.y, box.size.z))
+	if big <= 0.0001:
+		return
+	body.scale *= target / big
+	box = OArt.world_aabb(body)
+	body.global_position.y += body.get_parent().global_position.y - box.position.y
+
+
+# --- Art: composed fallback (used only when no model) ------------------------------
 
 static var _grain: NoiseTexture2D
 

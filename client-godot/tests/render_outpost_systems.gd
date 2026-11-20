@@ -1,7 +1,7 @@
 extends SceneTree
 ## Stills of the Chapter 2 systems. IOM_POSE picks one pair:
-##   ui    -> sys_event_card, sys_pet_panel (+ bag)
-##   fauna -> sys_boar, sys_monkey_crab
+##   ui    -> sys_world_event (barrels on the tide line + context button), sys_pet_panel (+ bag)
+##   fauna -> sys_boar, sys_monkey_crab (rigged CC0 models)
 ##   nodes -> sys_bamboo, sys_iron_seam
 ## IOM_SHOTS=/abs/dir (default /workspace/iom-shots/outpost_systems).
 
@@ -31,6 +31,20 @@ func look(at: Vector3, yaw_deg: float, zoom: float) -> void:
 	scene.snap_camera()
 
 
+## Ground point under a screen position (fraction of the viewport).
+func ground_at(fx: float, fy: float) -> Vector3:
+	var cam: Camera3D = root.get_viewport().get_camera_3d()
+	var sz := root.get_viewport().get_visible_rect().size
+	var o := cam.project_ray_origin(Vector2(sz.x * fx, sz.y * fy))
+	var dv := cam.project_ray_normal(Vector2(sz.x * fx, sz.y * fy))
+	var p := o
+	for i in 400:
+		p += dv * 0.1
+		if p.y <= scene.ground_y(p.x, p.z):
+			break
+	return Vector3(p.x, 0, p.z)
+
+
 func run() -> void:
 	dir = OS.get_environment("IOM_SHOTS")
 	if dir == "":
@@ -47,16 +61,18 @@ func run() -> void:
 	var pose := OS.get_environment("IOM_POSE")
 	match pose:
 		"fauna":
-			look(Vector3(13.5, 0, 8.8), 192.0, 0.42)
-			var b: Dictionary = scene.wildlife.spawn_kind("boar", Vector3(15.0, 0, 8.2))
+			look(Vector3(13.2, 0, 9.6), 192.0, 0.3)
+			await frames(3)
+			var b: Dictionary = scene.wildlife.spawn_kind("boar", ground_at(0.3, 0.72))
 			b["state"] = "idle"
 			(b["node"] as Node3D).rotation_degrees.y = 70.0
 			await shot("sys_boar")
 			scene.wildlife._despawn(b)
-			look(Vector3(13.2, 0, 8.6), 192.0, 0.42)
-			var m: Dictionary = scene.wildlife.spawn_kind("monkey", Vector3(11.8, 0, 8.0))
+			look(Vector3(13.0, 0, 9.4), 192.0, 0.3)
+			await frames(3)
+			var m: Dictionary = scene.wildlife.spawn_kind("monkey", ground_at(0.28, 0.7))
 			m["state"] = "idle"
-			var c: Dictionary = scene.wildlife.spawn_kind("crab", Vector3(14.4, 0, 7.8))
+			var c: Dictionary = scene.wildlife.spawn_kind("crab", ground_at(0.6, 0.62))
 			c["state"] = "idle"
 			(m["node"] as Node3D).rotation_degrees.y = 120.0
 			(c["node"] as Node3D).rotation_degrees.y = 150.0
@@ -67,11 +83,14 @@ func run() -> void:
 			look(Vector3(20.6, 0, 9.4), 12.0, 0.6)
 			await shot("sys_iron_seam")
 		_:
-			look(Vector3(11, 0, 8.4), 192.0, 1.0)
-			scene.events.present("raid_parley")
-			await shot("sys_event_card")
-			scene.events._card.visible = false
+			look(Vector3(9.5, 0, 6.0), 192.0, 0.8)
+			scene.events.present("sample_driftwood")
+			var wp: Vector3 = scene.events.world_pos()
+			look(wp + Vector3(0.6, 0, 2.6), 12.0, 0.6)
+			scene._player.look_at(Vector3(wp.x, scene._player.global_position.y, wp.z), Vector3.UP)
+			await shot("sys_world_event")
 			scene.events.active = {}
+			scene.events._clear_world()
 			scene.pet_sys.add_xp(300)
 			scene.state.add_item("pearl", 1)
 			scene.state.add_item("hide", 3)

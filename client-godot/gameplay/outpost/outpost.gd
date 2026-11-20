@@ -525,6 +525,8 @@ func _action_text() -> String:
 		return rescue.action_text()
 	if raid and raid.active() and player_alive() and not raid.nearest_enemy(_player.global_position, 3.2).is_empty():
 		return "Strike"
+	if events and events.world_action() != "":
+		return events.world_action()
 	if wildlife and not wildlife.nearest(_player.global_position, 2.8).is_empty():
 		return "Strike"
 	if _focus != "" and state.needs_repair(_focus) and not state.is_building(_focus):
@@ -559,6 +561,10 @@ func on_action() -> void:
 		return
 	if raid and raid.active() and not raid.nearest_enemy(_player.global_position, 3.2).is_empty():
 		strike_enemy()
+		return
+	if events and events.world_action() != "":
+		Art.play(_rig, "Interact" if events.world_action() != "Attack" else "Attack", 0.08)
+		events.world_act()
 		return
 	if wildlife and not wildlife.nearest(_player.global_position, 2.8).is_empty():
 		strike_animal()
@@ -647,6 +653,14 @@ func collect(id: String) -> Dictionary:
 func on_tap(screen: Vector2) -> void:
 	var from := _camera.project_ray_origin(screen)
 	var dir := _camera.project_ray_normal(screen)
+	# Tapping a world event's stranger / prop = the strike verb.
+	if events and events.world_pos() != Vector3.INF and events.has_world_verb("strike"):
+		var wp: Vector3 = events.world_pos() + Vector3.UP * 0.9
+		if (wp - from).cross(dir).length() < 1.4:
+			if not events.world_strike().is_empty():
+				Art.play(_rig, "Attack", 0.06)
+				camera_kick(0.1)
+			return
 	var best := ""
 	var best_d := 3.2
 	for id in _sites.keys():

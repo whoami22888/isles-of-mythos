@@ -49,6 +49,7 @@ func _trace(ev) -> Array:
 
 
 func run() -> void:
+	Engine.max_fps = 30   # frame-count waits below assume ~30 fps deltas
 	for f in ["user://washed_ashore.cfg", "user://outpost.cfg"]:
 		if FileAccess.file_exists(f):
 			DirAccess.remove_absolute(ProjectSettings.globalize_path(f))

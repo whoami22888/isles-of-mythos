@@ -153,6 +153,11 @@ func train() -> String:
 func command(cmd: String) -> String:
 	if not unlocked(cmd):
 		return "Unlocks at level %d" % int(unlocks.get(cmd, 99))
+	# A world event nearby with a "send the pup" option takes the command.
+	if host and host.get("events") != null and host.events.has_world_verb("pet"):
+		if not host.events.world_pet().is_empty():
+			add_xp(4)
+			return ""
 	if rng.randf() > obedience():
 		_toast("%s ignores you%s" % [st.pet_name, " and sulks" if mood() < 30 else ", nose in the sand"])
 		return "ignored"

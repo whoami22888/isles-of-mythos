@@ -46,8 +46,9 @@ var zone_fn: Callable   # () -> String; host supplies the player's zone
 var paused := false
 var _roll_t := 0.0
 var _ui: Control
-var _card: PanelContainer
-var _card_box: VBoxContainer
+## The live world event: {row, node, pos, verbs: {verb: choice idx}, t, near}
+var world: Dictionary = {}
+var world_timeout := 75.0
 var _clock_lab: Label
 
 
@@ -214,6 +215,7 @@ func tick(delta: float) -> void:
 	if paused:
 		return
 	_tick_clock(delta)
+	_tick_world(delta)
 	d["phase_left"] = float(d["phase_left"]) - delta
 	if float(d["phase_left"]) <= 0.0:
 		_next_phase()
@@ -396,7 +398,7 @@ func present(id: String) -> void:
 	(d["seen"] as Dictionary)[id] = int((d["seen"] as Dictionary).get(id, 0)) + 1
 	(d["cooldowns"] as Dictionary)[id] = float(d["clock"]) + float(active.get("cooldown_s", 300))
 	event_opened.emit(active)
-	_show_card()
+	_spawn_world()
 
 
 ## "" when the player may pick this choice, else the reason.
@@ -467,7 +469,7 @@ func choose(idx: int) -> Dictionary:
 		st.journal.append({"title": str(row.get("title", "")), "text": str(outcome.get("text", ""))})
 	event_resolved.emit(str(row["id"]), idx, outcome)
 	save_state()
-	_show_outcome(row, outcome)
+	_world_outcome(row, outcome)
 	return outcome
 
 
@@ -523,118 +525,363 @@ func has_unlock(u: String) -> bool:
 
 # --- UI -------------------------------------------------------------------------
 
-func build_ui(hud: CanvasLayer, font: Font) -> void:
+func build_ui(hud: CanvasLayer, _font: Font) -> void:
 	_ui = Control.new()
 	_ui.name = "EventsUI"
 	_ui.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_ui.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hud.add_child(_ui)
 	_clock_lab = Label.new()
-	_clock_lab.add_theme_font_size_override("font_size", 24)
 	_clock_lab.name = "Clock"
+	_clock_lab.add_theme_font_size_override("font_size", 24)
 	_clock_lab.add_theme_color_override("font_color", Color(0.95, 0.9, 0.78))
 	_clock_lab.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
 	_clock_lab.add_theme_constant_override("outline_size", 6)
 	_clock_lab.position = Vector2(26, 152)
 	_ui.add_child(_clock_lab)
-	_card = PanelContainer.new()
-	_card.name = "EventCard"
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.1, 0.08, 0.06, 0.92)
-	sb.border_color = Color(0.62, 0.48, 0.28)
-	sb.set_border_width_all(3)
-	sb.set_corner_radius_all(10)
-	sb.set_content_margin_all(22)
-	_card.add_theme_stylebox_override("panel", sb)
-	_card.anchor_left = 0.5
-	_card.anchor_right = 0.5
-	_card.anchor_top = 0.5
-	_card.anchor_bottom = 0.5
-	_card.offset_left = -430
-	_card.offset_right = 430
-	_card.offset_top = -200
-	_card.grow_vertical = Control.GROW_DIRECTION_BOTH
-	_card.visible = false
-	_ui.add_child(_card)
-	_card_box = VBoxContainer.new()
-	_card_box.add_theme_constant_override("separation", 12)
-	_card.add_child(_card_box)
-	if font:
-		_card.add_theme_font_override("font", font)
-	if "extra" in hud:
-		hud.extra.append(_card)
 
 
-func _text(t: String, size: int, col: Color = Color(0.95, 0.92, 0.85)) -> Label:
-	var l := Label.new()
-	l.text = t
-	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	l.custom_minimum_size.x = 800
-	l.add_theme_font_size_override("font_size", size)
-	l.add_theme_color_override("font_color", col)
-	_card_box.add_child(l)
-	return l
+# --- World events (no cards: choices are actions) --------------------------------
+
+## Verb for a choice label (pet / ignore / strike / give, default interact).
+static func verb_of(label: String) -> String:
+	var l := " " + label.to_lower() + " "
+	for k in ["dog", " pet", "pup", "sniff", "tide-puck", "puck"]:
+		if k in l:
+			return "pet"
+	for k in ["leave", "hide", "ignore", "wait", "avoid", "retreat", "stay ", "back away", "let it", "let them", "walk away", "keep away", "do nothing", "lie low"]:
+		if k in l:
+			return "ignore"
+	for k in ["attack", "fight", "kill", "strike", "shoot", "fire ", "ambush", "charge", "club", "spear", "hunt", "stab", "chase", "drive off", "throw"]:
+		if k in l:
+			return "strike"
+	for k in ["trade", "give", "pay", "offer", "share", "barter", "hand over", "feed"]:
+		if k in l:
+			return "give"
+	return "interact"
 
 
-func _clear_card() -> void:
-	for c in _card_box.get_children():
-		c.queue_free()
-		_card_box.remove_child(c)
-
-
-func _show_card() -> void:
-	if _card == null:
-		return
-	_clear_card()
-	_text(str(active.get("title", "")), 38, Color(1.0, 0.85, 0.55))
-	var lines: Array = active.get("intro_lines", [])
-	for i in mini(lines.size(), 3):
-		_text(str(lines[i]), 27)
-	var choices: Array = active.get("choices", [])
+## verb -> choice index. When two choices share a verb (two ways to search a
+## wreck), the seeded director picks which one this encounter is, so every
+## branch stays reachable across runs without a menu.
+func _verbs(row: Dictionary) -> Dictionary:
+	var groups := {}
+	var choices: Array = row.get("choices", [])
 	for i in choices.size():
-		var ch: Dictionary = choices[i]
-		var why := choice_block(ch)
-		var b := Button.new()
-		b.text = str(ch.get("label", "...")) + ("   (%s)" % why if why != "" else "")
-		b.disabled = why != ""
-		b.custom_minimum_size = Vector2(800, 66)
-		b.add_theme_font_size_override("font_size", 27)
-		b.pressed.connect(choose.bind(i))
-		_card_box.add_child(b)
-	_card.visible = true
-	_card.reset_size()
+		var v := verb_of(str(choices[i].get("label", "")))
+		if not groups.has(v):
+			groups[v] = []
+		groups[v].append(i)
+	var out := {}
+	for v in groups.keys():
+		var g: Array = groups[v]
+		out[v] = g[0] if g.size() == 1 else g[rng.randi() % g.size()]
+	return out
 
 
-func _show_outcome(row: Dictionary, outcome: Dictionary) -> void:
-	if _card == null:
+## What physical thing marks this scenario in the world.
+static func prop_kind(row: Dictionary) -> String:
+	var t := (str(row.get("title", "")) + " " + " ".join(row.get("intro_lines", [])) + " " + str(row.get("category", ""))).to_lower()
+	for pair in [["smoke", "smoke"], ["fire on", "smoke"], ["signal", "smoke"], ["track", "tracks"], ["print", "tracks"], ["footprint", "tracks"],
+			["stranger", "npc"], ["survivor", "npc"], ["deserter", "npc"], ["officer", "npc"], ["scout", "npc"], ["sailor", "npc"], ["trader", "npc"], ["castaway", "npc"], ["man ", "npc"], ["woman", "npc"], ["boy", "npc"],
+			["longboat", "boat"], ["boat", "boat"], ["canoe", "boat"], ["raft", "boat"], ["sail", "boat"],
+			["barrel", "barrels"], ["cask", "barrels"], ["wreck", "wreck"], ["plank", "wreck"], ["driftwood", "wreck"], ["tide", "wreck"],
+			["chest", "chest"], ["bottle", "bottle"], ["note", "bottle"], ["map", "chest"], ["relic", "chest"],
+			["boar", "tracks"], ["monkey", "tracks"], ["gull", "tracks"], ["snake", "tracks"], ["crab", "tracks"], ["coffin", "chest"], ["locker", "chest"], ["cache", "chest"]]:
+		if str(pair[0]) in t:
+			return str(pair[1])
+	return {"pirate": "npc", "faction": "npc", "wildlife": "tracks", "pet": "tracks", "sea": "wreck",
+		"discovery": "chest", "mythos": "chest", "weather": "smoke"}.get(str(row.get("category", "")), "crate")
+
+
+const ZONE_POINTS := {   # open ground clear of plots and gather nodes
+	"beach": [Vector3(6.5, 0, 1.4), Vector3(11.2, 0, 1.0), Vector3(12.0, 0, 2.0), Vector3(7.2, 0, 2.2)],
+	"camp": [Vector3(12.0, 0, 13.0), Vector3(7.0, 0, 12.8), Vector3(14.8, 0, 10.4), Vector3(11.8, 0, 6.6)],
+	"jungle": [Vector3(1.5, 0, 8.5), Vector3(21.5, 0, 12.5), Vector3(20.5, 0, 17.5), Vector3(2.2, 0, 15.5)],
+}
+
+
+func _spawn_world() -> void:
+	_clear_world()
+	var row := active
+	var z := "camp"
+	if zone_fn.is_valid():
+		z = str(zone_fn.call())
+	var zs: Array = row.get("zones", [])
+	if not _zone_ok(zs, z):
+		for cand in ["beach", "camp", "jungle"]:
+			if _zone_ok(zs, cand):
+				z = cand
+				break
+	var pts: Array = ZONE_POINTS.get(z, ZONE_POINTS["camp"])
+	var pp: Vector3 = host._player.global_position if host else Vector3.ZERO
+	var best: Vector3 = pts[0]
+	var best_s := 1e9
+	for q in pts:
+		var dd := (q as Vector3).distance_to(Vector3(pp.x, 0, pp.z))
+		var sc := absf(dd - 6.0) + rng.randf() * 2.0   # a few strides away, never on top of you
+		if sc < best_s:
+			best_s = sc
+			best = q
+	world = {"row": row, "pos": best, "verbs": _verbs(row), "t": world_timeout, "near": false, "kind": prop_kind(row)}
+	if host == null:
 		return
-	_clear_card()
-	_text(str(row.get("title", "")), 34, Color(1.0, 0.85, 0.55))
-	_text(str(outcome.get("text", "")), 27)
-	var fx: Dictionary = outcome.get("effects", {})
+	best.y = float(host.ground_y(best.x, best.z))
+	world["pos"] = best
+	var root := Node3D.new()
+	root.name = "WorldEvent"
+	host.add_child(root)
+	root.global_position = best
+	_build_prop(root, str(world["kind"]))
+	var lab := Label3D.new()
+	lab.text = str(row.get("title", ""))
+	lab.font_size = 44
+	lab.outline_size = 14
+	lab.modulate = Color(1.0, 0.92, 0.75)
+	lab.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	lab.no_depth_test = true
+	lab.position = Vector3(0, 2.3, 0)
+	lab.name = "Title"
+	root.add_child(lab)
+	world["node"] = root
+
+
+func _zone_ok(zs: Array, z: String) -> bool:
+	for zz in ZONE_ALIAS.get(z, [z]):
+		if zz in zs:
+			return true
+	return "any" in zs or zs.is_empty()
+
+
+func _build_prop(root: Node3D, kind: String) -> void:
+	const A := preload("res://gameplay/opening/opening_art.gd")
+	const W := preload("res://gameplay/outpost/outpost_wildlife.gd")
+	match kind:
+		"barrels":
+			for i in 3:
+				var b := A.spawn(A.BARRELS)
+				root.add_child(b)
+				A.fit_height(b, 0.8 - i * 0.12)
+				b.position = Vector3(i * 0.7 - 0.7, 0, (i % 2) * 0.5)
+				b.rotation_degrees = Vector3(0 if i != 2 else 80, i * 40, 0)
+		"wreck":
+			var p := A.spawn(A.PLANKS)
+			root.add_child(p)
+			A.fit_height(p, 0.35)
+			var t := A.spawn(A.DRIFT_TRUNK)
+			root.add_child(t)
+			A.fit_height(t, 0.5)
+			t.position = Vector3(0.9, 0, 0.4)
+			t.rotation_degrees.y = 60
+		"chest":
+			var c := A.spawn(A.CHEST)
+			root.add_child(c)
+			A.fit_height(c, 0.55)
+			c.rotation_degrees.y = 25
+		"npc":
+			var r := A.castaway(Color(0.3, 0.26, 0.22))
+			root.add_child(r)
+			A.fit_height(r, 1.74)
+			A.play(r, "Idle")
+			root.set_meta("npc", r)
+		"boat":
+			var h := A.spawn(A.HULL_STERN)
+			root.add_child(h)
+			A.fit_height(h, 1.1)
+			var bx := A.world_aabb(h)
+			if maxf(bx.size.x, bx.size.z) > 3.5:
+				h.scale *= 3.5 / maxf(bx.size.x, bx.size.z)
+		"smoke":
+			var pit := MeshInstance3D.new()
+			pit.mesh = W._cyl(0.45, 0.5)
+			pit.scale = Vector3(1, 0.12, 1)
+			pit.material_override = W._mat(Color(0.12, 0.1, 0.09))
+			root.add_child(pit)
+			var sm := CPUParticles3D.new()
+			sm.amount = 26
+			sm.lifetime = 5.0
+			sm.direction = Vector3.UP
+			sm.spread = 12.0
+			sm.initial_velocity_min = 0.6
+			sm.initial_velocity_max = 1.1
+			sm.gravity = Vector3(0.25, 0.12, 0)
+			sm.scale_amount_min = 0.6
+			sm.scale_amount_max = 1.6
+			var q := QuadMesh.new()
+			q.size = Vector2(0.9, 0.9)
+			var m := StandardMaterial3D.new()
+			m.albedo_color = Color(0.42, 0.41, 0.4, 0.35)
+			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			m.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+			q.material = m
+			sm.mesh = q
+			sm.position.y = 0.2
+			root.add_child(sm)
+		"tracks":
+			for i in 7:
+				var mi := MeshInstance3D.new()
+				mi.mesh = W._sphere()
+				mi.scale = Vector3(0.14, 0.02, 0.2)
+				mi.material_override = W._mat(Color(0.16, 0.12, 0.09))
+				mi.position = Vector3((i % 2) * 0.22 - 0.11, 0.01, -1.5 + i * 0.5)
+				root.add_child(mi)
+		"bottle":
+			var bt := MeshInstance3D.new()
+			bt.mesh = W._cyl(0.035, 0.07)
+			bt.scale = Vector3(1, 0.28, 1)
+			bt.rotation_degrees.z = 80
+			bt.position.y = 0.06
+			var bm := W._mat(Color(0.22, 0.32, 0.24))
+			bm.roughness = 0.35
+			bt.material_override = bm
+			root.add_child(bt)
+		_:
+			var cr := A.spawn(A.CRATE_A)
+			root.add_child(cr)
+			A.fit_height(cr, 0.6)
+			cr.rotation_degrees.y = 20
+
+
+func _clear_world() -> void:
+	if world.has("node") and is_instance_valid(world["node"]):
+		var n: Node3D = world["node"]
+		var tw := n.create_tween()
+		tw.tween_property(n, "scale", Vector3.ONE * 0.01, 0.35)
+		tw.tween_callback(n.queue_free)
+	world = {}
+
+
+func world_pos() -> Vector3:
+	return world.get("pos", Vector3.INF)
+
+
+func _near(r: float) -> bool:
+	if world.is_empty() or host == null:
+		return false
+	var p: Vector3 = world["pos"]
+	var q: Vector3 = host._player.global_position
+	return Vector2(p.x - q.x, p.z - q.z).length() < r
+
+
+func _choice(verb: String) -> Dictionary:
+	if not world.has("verbs") or not (world["verbs"] as Dictionary).has(verb):
+		return {}
+	return active.get("choices", [])[int(world["verbs"][verb])]
+
+
+static func _need_text(ch: Dictionary) -> String:
+	var req = ch.get("requires", {})
+	if not (req is Dictionary):
+		return ""
+	var items: Dictionary = (req as Dictionary).get("items", {}).duplicate()
+	for k in req.keys():
+		if not (k in ["items", "pet_level", "rep", "unlock", "camp_level", "building", "morale", "crew"]):
+			items[k] = req[k]
 	var bits: Array = []
-	var items: Dictionary = fx.get("items", {})
 	for k in items.keys():
-		bits.append("%+d %s" % [int(items[k]), str(k).replace("_", " ")])
-	if fx.has("hp"):
-		bits.append("%+d HP" % int(fx["hp"]))
-	if fx.has("morale"):
-		bits.append("%+d morale" % int(fx["morale"]))
-	var rp: Dictionary = fx.get("rep", {})
-	for k in rp.keys():
-		bits.append("%+d %s" % [int(rp[k]), str(k).capitalize()])
-	if int(fx.get("pet_xp", 0)) != 0:
-		bits.append("+%d pet XP" % int(fx["pet_xp"]))
-	if not bits.is_empty():
-		_text("  ·  ".join(bits), 24, Color(0.75, 0.9, 0.7))
-	var b := Button.new()
-	b.text = "Continue"
-	b.custom_minimum_size = Vector2(800, 62)
-	b.add_theme_font_size_override("font_size", 27)
-	b.pressed.connect(func(): _card.visible = false)
-	_card_box.add_child(b)
-	_card.reset_size()
+		bits.append("%d %s" % [int(items[k]), str(k).replace("_", " ")])
+	return ", ".join(bits)
+
+
+static func _short(label: String) -> String:
+	var t := label.strip_edges()
+	return t if t.length() <= 26 else t.left(24).strip_edges() + "…"
+
+
+## Context-button text near the world event ("" when not in reach).
+func world_action() -> String:
+	if active.is_empty() or world.is_empty() or not _near(2.8):
+		return ""
+	var give := _choice("give")
+	if not give.is_empty() and choice_block(give) == "":
+		var need := _need_text(give)
+		return ("Give " + need) if need != "" else _short(str(give.get("label", "Give")))
+	var it := _choice("interact")
+	if not it.is_empty():
+		return _short(str(it.get("label", "Search")))
+	if not _choice("strike").is_empty():
+		return "Attack"
+	if not give.is_empty():
+		return "Need " + _need_text(give)
+	return ""
+
+
+## The context button pressed beside the world event.
+func world_act() -> Dictionary:
+	if world_action() == "":
+		return {}
+	for v in ["give", "interact", "strike"]:
+		var ch := _choice(v)
+		if not ch.is_empty() and choice_block(ch) == "":
+			return choose(int(world["verbs"][v]))
+	if host:
+		host._toast(world_action())
+	return {}
+
+
+## A tap / strike on the event's prop or NPC (the strike verb).
+func world_strike() -> Dictionary:
+	if active.is_empty() or not _near(3.4):
+		return {}
+	var ch := _choice("strike")
+	if ch.is_empty() or choice_block(ch) != "":
+		return {}
+	return choose(int(world["verbs"]["strike"]))
+
+
+## A pet command issued with the event within sniffing range.
+func world_pet() -> Dictionary:
+	if active.is_empty() or not _near(14.0):
+		return {}
+	var ch := _choice("pet")
+	if ch.is_empty() or choice_block(ch) != "":
+		return {}
+	return choose(int(world["verbs"]["pet"]))
+
+
+func has_world_verb(verb: String) -> bool:
+	return not _choice(verb).is_empty()
+
+
+func _tick_world(delta: float) -> void:
+	if active.is_empty() or world.is_empty():
+		return
+	world["t"] = float(world["t"]) - delta
+	if _near(9.0):
+		if not bool(world["near"]):
+			world["near"] = true
+			var lines: Array = active.get("intro_lines", [])
+			if host and not lines.is_empty():
+				host._toast(str(lines[0]))
+	var walked_off: bool = bool(world["near"]) and not _near(24.0)
+	if float(world["t"]) <= 0.0 or walked_off:
+		var ig := _choice("ignore")
+		if not ig.is_empty():
+			choose(int(world["verbs"]["ignore"]))
+		else:
+			active = {}
+			_clear_world()
+
+
+func _world_outcome(_row: Dictionary, outcome: Dictionary) -> void:
+	var at: Vector3 = world.get("pos", Vector3.ZERO)
+	_clear_world()
+	if host == null:
+		return
+	var txt := str(outcome.get("text", ""))
+	if txt.length() > 90:
+		txt = txt.left(88) + "…"
+	if txt != "":
+		host._toast(txt)
+	var gain := {}
+	var items: Dictionary = outcome.get("effects", {}).get("items", {})
+	for k in items.keys():
+		if int(items[k]) > 0:
+			gain[k] = int(items[k])
+	if not gain.is_empty():
+		host.fly_from_world(at + Vector3.UP, gain)
 
 
 func card_open() -> bool:
-	return _card != null and _card.visible
+	return false
