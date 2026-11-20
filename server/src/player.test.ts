@@ -98,7 +98,7 @@ describe("player survival and movement", () => {
     expect(tileAtWorld(0, 0)).toBe(TileKind.Reef);
     player.oxygen = 50;
     applyPlayerInput(player, { dx: 0, dy: 0, dt: 1 });
-    expect(player.oxygen).toBeCloseTo(49.965, 6);
+    expect(player.oxygen).toBeCloseTo(49.8, 6);
   });
   it("treats coral reef tiles as water for movement", () => {
     const player = createDefaultPlayer("reef-movement");
@@ -172,13 +172,22 @@ describe("player survival and movement", () => {
     player.y = 0;
     expect([TileKind.Ocean, TileKind.Shallow, TileKind.Reef]).toContain(tileAtWorld(0, 0));
     applyPlayerInput(player, { dx: 0, dy: 0, dt: 0.1 });
-    expect(player.hunger).toBeCloseTo(PLAYER_MAX_HUNGER - 0.012, 6);
-    expect(player.oxygen).toBeCloseTo(PLAYER_MAX_OXYGEN - 0.035, 6);
+    expect(player.hunger).toBeCloseTo(PLAYER_MAX_HUNGER - 0.05, 6);
+    expect(player.oxygen).toBeCloseTo(PLAYER_MAX_OXYGEN - 0.2, 6);
   });
 
-  it("damages a player when hunger and oxygen are depleted", () => {
-    const player = createDefaultPlayer("survival-depleted");
+  it("applies starvation damage at 2 health per second", () => {
+    const player = createDefaultPlayer("survival-starvation");
     player.hunger = 0;
+    player.oxygen = PLAYER_MAX_OXYGEN;
+    player.health = 50;
+    applyPlayerInput(player, { dx: 0, dy: 0, dt: 0.1 });
+    expect(player.health).toBeCloseTo(49.8, 6);
+  });
+
+  it("applies oxygen-depletion damage at the same server rate", () => {
+    const player = createDefaultPlayer("survival-oxygen-depleted");
+    player.hunger = PLAYER_MAX_HUNGER;
     player.oxygen = 0;
     player.health = 50;
     applyPlayerInput(player, { dx: 0, dy: 0, dt: 0.1 });
