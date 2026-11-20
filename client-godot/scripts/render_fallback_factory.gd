@@ -274,10 +274,14 @@ static func get_fallback_sprite(path: String) -> ColorRect:
 	var background := ColorRect.new()
 	background.name = "MissingSpriteDiagnostic"
 	background.color = Color(1.0, 0.0, 1.0)
+	# This node is a visual placeholder; let its parent Button/Control receive touch input.
+	background.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	background.custom_minimum_size = Vector2(CHECKER_SIZE, CHECKER_SIZE)
 	background.size = Vector2(CHECKER_SIZE, CHECKER_SIZE)
 	var child := TextureRect.new()
 	child.name = "Checkerboard"
+	# The checkerboard is decorative and must not intercept pointer input either.
+	child.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	child.texture = _checkerboard_texture()
 	child.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	child.stretch_mode = TextureRect.STRETCH_SCALE
@@ -298,6 +302,8 @@ static func load_sprite_or_fallback(path: String) -> Control:
 	var resource := _load_checked(path, PackedStringArray(["png", "webp"]))
 	if resource is Texture2D:
 		var sprite := TextureRect.new()
+		# Loaded sprites are presentation-only; interaction belongs to their parent.
+		sprite.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		sprite.texture = resource
 		return sprite
 	return get_fallback_sprite(path)
