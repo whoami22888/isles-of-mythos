@@ -1,0 +1,3269 @@
+[
+ {
+  "id": "pet_001",
+  "category": "pet",
+  "title": "First Lesson: Fetch",
+  "zones": [
+   "beach",
+   "outpost"
+  ],
+  "trigger": {
+   "type": "action",
+   "chance": 0.12,
+   "min_day": 2,
+   "camp_level": 1,
+   "needs_item": null,
+   "weather": "clear"
+  },
+  "weight": 7,
+  "cooldown_s": 5400,
+  "intro_lines": [
+   "Puck worries a splintered oar handle, tail going.",
+   "You whistle. It tilts its head, unimpressed.",
+   "Fetch, then. First lesson of many."
+  ],
+  "choices": [
+   {
+    "label": "Throw the oar into the shallows",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Puck belly-flops after it and drags it back, insufferably proud.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 4,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 30,
+       "unlock": "pet_fetch",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.25,
+      "text": "It brings back a rotten coconut instead. Close enough for a first try.",
+      "effects": {
+       "items": {
+        "coconut": 1
+       },
+       "hp": 0,
+       "morale": 3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 15,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.15,
+      "text": "It misjudges a wave, tumbles, and sulks in the foam until you apologise.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 5,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Bribe it with fish scraps",
+    "requires": {
+     "fish": 1
+    },
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "The bargain holds. Puck learns fast when it is being paid.",
+      "effects": {
+       "items": {
+        "fish": -1
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 45,
+       "unlock": "pet_fetch",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "It eats the bribe, then ignores the oar entirely and sleeps.",
+      "effects": {
+       "items": {
+        "fish": -1
+       },
+       "hp": 0,
+       "morale": -1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Skip the lesson, let it nap",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "It sleeps against your boot. Trust grows in the quiet.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 8,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.5,
+      "text": "You both lose the afternoon to the heat and learn nothing.",
+      "effects": {
+       "items": {},
+       "hp": -1,
+       "morale": 1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Alexander Selkirk tamed feral kid goats on Juan Fernández for milk and company, the same patient bribery that turns a wild animal into a working partner."
+ },
+ {
+  "id": "pet_002",
+  "category": "pet",
+  "title": "The Buried Locker",
+  "zones": [
+   "beach",
+   "outpost"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.1,
+   "min_day": 3,
+   "camp_level": 2,
+   "needs_item": null,
+   "weather": "rain"
+  },
+  "weight": 6,
+  "cooldown_s": 7200,
+  "intro_lines": [
+   "Puck's nose drops. It digs with both forefeet.",
+   "Sand sprays your shins. It will not be stopped.",
+   "The rain has washed something loose in the dune."
+  ],
+  "choices": [
+   {
+    "label": "Dig beside it",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.55,
+      "text": "A tarred bundle: sailcloth, a flint striker, a dead man's boots.",
+      "effects": {
+       "items": {
+        "sailcloth": 2,
+        "flint": 1,
+        "hide": 1
+       },
+       "hp": 0,
+       "morale": 2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 25,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Older bones. A turtle's ribs, picked clean, and a shell worth keeping.",
+      "effects": {
+       "items": {
+        "shell": 1
+       },
+       "hp": 0,
+       "morale": 0,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 15,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.15,
+      "text": "You strike rusted iron and open your palm on it.",
+      "effects": {
+       "items": {
+        "iron": 1
+       },
+       "hp": -4,
+       "morale": 0,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Let Puck dig alone, hands off",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "It presents a pearl as though it were a fish head, all pride.",
+      "effects": {
+       "items": {
+        "pearl": 1
+       },
+       "hp": 0,
+       "morale": 4,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 35,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "It hoards the find under the floorboards. Yours, apparently, not.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 20,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Call it off, the bank is unstable",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "The dune caves where you stood. Puck presses hard to your leg.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 12,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.5,
+      "text": "It obeys, resentfully, then digs three fresh holes out of spite.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 5,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Pedro Serrano used shells as rain-catchers and fuel on Serrana Bank, teaching himself to wring use from whatever the tide buried."
+ },
+ {
+  "id": "pet_003",
+  "category": "pet",
+  "title": "Bad Fish",
+  "zones": [
+   "outpost"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.09,
+   "min_day": 4,
+   "camp_level": 2,
+   "needs_item": null,
+   "weather": "heat"
+  },
+  "weight": 8,
+  "cooldown_s": 10800,
+  "intro_lines": [
+   "Puck vomits seawater and half-digested fish.",
+   "Then it curls tight and will not look at you.",
+   "The fish that did it was silver, not scaled."
+  ],
+  "choices": [
+   {
+    "label": "Boil herbs into a bitter mash",
+    "requires": {
+     "herbs": 1
+    },
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "It laps the mash, shivers once, and sleeps it off by noon.",
+      "effects": {
+       "items": {
+        "herbs": -1
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 30,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.25,
+      "text": "It refuses it hot, takes it cold, and recovers slowly and grudgingly.",
+      "effects": {
+       "items": {
+        "herbs": -1
+       },
+       "hp": -2,
+       "morale": 2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 20,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.15,
+      "text": "It heaves the mash back up. You sit the whole night out with it.",
+      "effects": {
+       "items": {
+        "herbs": -1
+       },
+       "hp": -3,
+       "morale": -1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Force freshwater down it, a sip",
+    "requires": {
+     "fresh_water": 1
+    },
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Small sips, then a long drink. Colour comes back to its flanks.",
+      "effects": {
+       "items": {
+        "fresh_water": -1
+       },
+       "hp": 0,
+       "morale": 3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 20,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.5,
+      "text": "Too fast. It brings the water straight back up on your boots.",
+      "effects": {
+       "items": {
+        "fresh_water": -1
+       },
+       "hp": -2,
+       "morale": -1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 8,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Let it ride it out. Watch all night",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "By dawn it is on its feet, thinner and warier, and follows you closely.",
+      "effects": {
+       "items": {},
+       "hp": -1,
+       "morale": 2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 15,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.35,
+      "text": "It worsens. You hold its head clear of the sick and count breaths.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.15,
+      "text": "It goes still a long moment, then breathes. You do not sleep at all.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 12,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Ciguatera from large reef predators is not destroyed by cooking, so a silver barracuda can poison a companion that eats better than you do."
+ },
+ {
+  "id": "pet_004",
+  "category": "pet",
+  "title": "The Crab It Could Not Leave",
+  "zones": [
+   "beach",
+   "reef"
+  ],
+  "trigger": {
+   "type": "location",
+   "chance": 0.15,
+   "min_day": 2,
+   "camp_level": 1,
+   "needs_item": null,
+   "weather": "clear"
+  },
+  "weight": 7,
+  "cooldown_s": 9000,
+  "intro_lines": [
+   "Puck freezes, quivering, fixed on a crab.",
+   "The crab is huge and entirely unbothered.",
+   "It bolts before you can grab the harness."
+  ],
+  "choices": [
+   {
+    "label": "Chase it into the rocks",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.45,
+      "text": "You corner both. Puck gets the crab, you get the claw and the meat.",
+      "effects": {
+       "items": {
+        "crab_meat": 2
+       },
+       "hp": 0,
+       "morale": 3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "crab",
+       "pet_xp": 25,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.35,
+      "text": "The crab escapes. Puck slices a forefoot open on the coral doing it.",
+      "effects": {
+       "items": {},
+       "hp": -3,
+       "morale": 0,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "crab",
+       "pet_xp": 8,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "You slip in the surf and go down hard on the wet rock.",
+      "effects": {
+       "items": {},
+       "hp": -5,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "crab",
+       "pet_xp": 4,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Whistle it back and sit still",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "It returns at last, sulking, and leans its whole weight on your shin.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 18,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "The crab wanders to you instead. Dinner, rudely delivered.",
+      "effects": {
+       "items": {
+        "crab_meat": 1
+       },
+       "hp": 0,
+       "morale": 1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 12,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "It ignores you for an hour. The crab wins and you look foolish.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 4,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Bait it with a shell",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Puck learns the trick itself: bait, wait, pounce. A hunter is made.",
+      "effects": {
+       "items": {
+        "crab_meat": 1,
+        "shell": 1
+       },
+       "hp": 0,
+       "morale": 3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 35,
+       "unlock": "pet_dig",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "It eats the bait and abandons the hunt entirely, well fed and useless.",
+      "effects": {
+       "items": {
+        "shell": -1
+       },
+       "hp": 0,
+       "morale": -1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Coconut crabs climb palms and crush with claws measured near 3,300 newtons, so a companion that chases one is not merely playing."
+ },
+ {
+  "id": "pet_005",
+  "category": "pet",
+  "title": "Something on the Treeline",
+  "zones": [
+   "outpost"
+  ],
+  "trigger": {
+   "type": "time",
+   "chance": 0.1,
+   "min_day": 5,
+   "camp_level": 3,
+   "needs_item": null,
+   "weather": "storm"
+  },
+  "weight": 8,
+  "cooldown_s": 14400,
+  "intro_lines": [
+   "Puck's low rasp wakes you before the sound does.",
+   "Something is walking the treeline, unhurried.",
+   "Your blade is under the cot. You reach slowly."
+  ],
+  "choices": [
+   {
+    "label": "Send Puck to circle behind it",
+    "requires": {
+     "pet_level": 2
+    },
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "It flushes a UTC scout, who runs rather than fight alone in the rain.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 4,
+       "rep": {
+        "utc": -3,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 40,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "It flushes a boar instead. The boar charges straight through your fire.",
+      "effects": {
+       "items": {},
+       "hp": -4,
+       "morale": -1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "boar",
+       "pet_xp": 20,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Puck is gone too long. You find it shaking in the wet ferns.",
+      "effects": {
+       "items": {},
+       "hp": -1,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Keep Puck close and build the fire",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.55,
+      "text": "Whatever it was decides your fire is not worth the trouble.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 20,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "It circles twice more, then goes. You do not sleep again.",
+      "effects": {
+       "items": {},
+       "hp": -1,
+       "morale": -1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 12,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.15,
+      "text": "A shape breaks cover: a UTC scout, who marks your camp and leaves.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -3,
+       "rep": {
+        "utc": -2,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Go out and meet it alone",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.4,
+      "text": "A half-drowned sailor, unarmed. You give him water and a fire.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 3
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.35,
+      "text": "Nothing out there but a torn sail snapping on a stake.",
+      "effects": {
+       "items": {},
+       "hp": -2,
+       "morale": 0,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 8,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.25,
+      "text": "A boar at close quarters. Puck hits it and buys you one breath.",
+      "effects": {
+       "items": {},
+       "hp": -6,
+       "morale": -1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "boar",
+       "pet_xp": 30,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Alexander Selkirk tamed feral cats after rats gnawed his feet at night, keeping them as sentinels as much as companions."
+ },
+ {
+  "id": "pet_006",
+  "category": "pet",
+  "title": "The Scent Line",
+  "zones": [
+   "jungle",
+   "cliff"
+  ],
+  "trigger": {
+   "type": "action",
+   "chance": 0.12,
+   "min_day": 4,
+   "camp_level": 2,
+   "needs_item": null,
+   "weather": "fog"
+  },
+  "weight": 6,
+  "cooldown_s": 7200,
+  "intro_lines": [
+   "Puck works a scent line through the ferns.",
+   "Not a wild smell. Something carried.",
+   "It stops, hackles up, and looks back at you."
+  ],
+  "choices": [
+   {
+    "label": "Follow where it leads",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.45,
+      "text": "A poacher's snare line, and a pig still warm in the wire.",
+      "effects": {
+       "items": {
+        "rope": 1,
+        "hide": 2,
+        "food": 2
+       },
+       "hp": 0,
+       "morale": 1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -2
+       },
+       "spawn": null,
+       "pet_xp": 30,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "A tideborn blind, empty, marked with shells. A scout watches, then is gone.",
+      "effects": {
+       "items": {
+        "shell": 2
+       },
+       "hp": 0,
+       "morale": 1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 3,
+        "free": 0
+       },
+       "spawn": "tideborn_scout",
+       "pet_xp": 20,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.25,
+      "text": "The trail ends at a wallow. The boar is very much at home.",
+      "effects": {
+       "items": {},
+       "hp": -5,
+       "morale": -1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "boar",
+       "pet_xp": 12,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Lift Puck and back away downwind",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "You withdraw unseen. Puck trembles, then slowly relaxes against you.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 18,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "Something follows you half the way back to the outpost.",
+      "effects": {
+       "items": {},
+       "hp": -2,
+       "morale": -1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Put Puck on a lead and press on",
+    "requires": {
+     "rope": 1
+    },
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Leashed, it works the trail cleaner, nose down, no wasted steps.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 40,
+       "unlock": "pet_track",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.5,
+      "text": "It fights the rope the whole way and you learn nothing at all.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 5,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Feral pigs left by sailors root up ground and eat crab juveniles and eggs, so their wallows and runs are the clearest trails any island offers."
+ },
+ {
+  "id": "pet_007",
+  "category": "pet",
+  "title": "The Hand in the Sand",
+  "zones": [
+   "beach"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.05,
+   "min_day": 6,
+   "camp_level": 3,
+   "needs_item": null,
+   "weather": "fog"
+  },
+  "weight": 5,
+  "cooldown_s": 43200,
+  "intro_lines": [
+   "Puck digs at something under a scrap of canvas.",
+   "Not a shell. The sand there is the wrong shape.",
+   "It whines, digs harder, and will not be called off."
+  ],
+  "choices": [
+   {
+    "label": "Dig. Get it out.",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "A hand. Then an arm. The man under the canvas is breathing.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 20,
+       "unlock": null,
+       "next_event": "pet_009"
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "Canvas, wet sand, then a salt-crusted wrist that moves when you touch it.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 15,
+       "unlock": null,
+       "next_event": "pet_009"
+      }
+     }
+    ]
+   },
+   {
+    "label": "Drag Puck off and mark the spot",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.65,
+      "text": "You stake the canvas down and haul Puck home, snarling at your heel.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": "pet_010"
+      }
+     },
+     {
+      "chance": 0.35,
+      "text": "It fights the harness the whole way back to camp and sleeps facing away.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 8,
+       "unlock": null,
+       "next_event": "pet_010"
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "On Serrana Bank a second castaway reached Pedro Serrano after years alone, and the two men quarrelled before they made peace, the sea rarely sending help in a shape you want."
+ },
+ {
+  "id": "pet_008",
+  "category": "pet",
+  "title": "Diving for Supper",
+  "zones": [
+   "reef",
+   "sea"
+  ],
+  "trigger": {
+   "type": "action",
+   "chance": 0.13,
+   "min_day": 3,
+   "camp_level": 1,
+   "needs_item": null,
+   "weather": "heat"
+  },
+  "weight": 7,
+  "cooldown_s": 6600,
+  "intro_lines": [
+   "Puck porpoises over the reef crest, hunting.",
+   "It dives. Bubbles, then nothing, then bubbles.",
+   "A grey shape slides past the far coral."
+  ],
+  "choices": [
+   {
+    "label": "Let it hunt the drop-off",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "It hauls up a grouper bigger than its own head and drops it at your feet.",
+      "effects": {
+       "items": {
+        "fish": 3
+       },
+       "hp": 0,
+       "morale": 3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 30,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "It surfaces with a moray still clamped to its flank.",
+      "effects": {
+       "items": {
+        "fish": 1
+       },
+       "hp": 0,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "eel",
+       "pet_xp": 15,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "A reef shark takes the fish out of its jaws and leaves a graze.",
+      "effects": {
+       "items": {},
+       "hp": -3,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "shark",
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Call it in before the grey shape returns",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "It comes grudging, with two small fish and a rag of net tangled on it.",
+      "effects": {
+       "items": {
+        "fish": 2,
+        "scrap": 1
+       },
+       "hp": 0,
+       "morale": 1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 20,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "It ignores you until the shark has passed. Your nerves pay for it.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 8,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Wade out and fish it yourself",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.55,
+      "text": "You spear two. Puck herds them into the shallows and holds them.",
+      "effects": {
+       "items": {
+        "fish": 2
+       },
+       "hp": 0,
+       "morale": 2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 25,
+       "unlock": "pet_fish",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.45,
+      "text": "You gash a shin open on coral and come back with nothing.",
+      "effects": {
+       "items": {},
+       "hp": -5,
+       "morale": -1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 5,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Reef sharks are drawn by blood and thrashing in the shallows, so a companion diving with a struggling fish is ringing a bell underwater."
+ },
+ {
+  "id": "pet_009",
+  "category": "pet",
+  "title": "Salt in the Wound",
+  "zones": [
+   "beach"
+  ],
+  "trigger": {
+   "type": "location",
+   "chance": 0.0,
+   "min_day": 6,
+   "camp_level": 3,
+   "needs_item": null,
+   "weather": "fog"
+  },
+  "weight": 5,
+  "cooldown_s": 0,
+  "intro_lines": [
+   "He is UTC by his coat. Pressed, not willing.",
+   "His hands are bound with his own belt.",
+   "Puck licks the salt from his face and whines."
+  ],
+  "choices": [
+   {
+    "label": "Cut him loose and give him water",
+    "requires": {
+     "fresh_water": 1
+    },
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Pressed off a merchantman. He knows where UTC careens and draws it for you.",
+      "effects": {
+       "items": {
+        "fresh_water": -1,
+        "map_fragment": 1
+       },
+       "hp": 0,
+       "morale": 4,
+       "rep": {
+        "utc": -4,
+        "tideborn": 0,
+        "free": 3
+       },
+       "spawn": null,
+       "pet_xp": 25,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "He drinks, thanks you, and is gone before dawn. So is your flint.",
+      "effects": {
+       "items": {
+        "fresh_water": -1,
+        "flint": -1
+       },
+       "hp": 0,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 15,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "He drinks, then reaches for your knife. Puck gets to his wrist first.",
+      "effects": {
+       "items": {
+        "fresh_water": -1
+       },
+       "hp": -5,
+       "morale": -3,
+       "rep": {
+        "utc": -6,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 35,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Take his coat and boots, leave the belt",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.45,
+      "text": "You walk away with good boots, a warm coat and a bad feeling.",
+      "effects": {
+       "items": {
+        "hide": 2,
+        "scrap": 1
+       },
+       "hp": 0,
+       "morale": -4,
+       "rep": {
+        "utc": -1,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.35,
+      "text": "He shouts a ship's name after you. Puck growls at the trees all day.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -2,
+       "rep": {
+        "utc": -3,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "He works the belt loose and comes at your back. Puck is already turning.",
+      "effects": {
+       "items": {},
+       "hp": -6,
+       "morale": -3,
+       "rep": {
+        "utc": -2,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 20,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Leave water within reach and go",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.55,
+      "text": "He is free by nightfall. You never learn his name or his ship.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 1
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.45,
+      "text": "He is dead by morning. Puck will not leave the spot and will not eat.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -4,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 5,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Pirate articles condemned offenders to marooning with a gun, a bottle of water and a bottle of powder, a sentence the sea knows well."
+ },
+ {
+  "id": "pet_010",
+  "category": "pet",
+  "title": "What the Tide Left",
+  "zones": [
+   "beach"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.0,
+   "min_day": 7,
+   "camp_level": 3,
+   "needs_item": null,
+   "weather": "night"
+  },
+  "weight": 5,
+  "cooldown_s": 0,
+  "intro_lines": [
+   "Puck is gone from the cot. You find it digging.",
+   "The canvas is shredded. Whatever is under it is metal.",
+   "It drags the thing to your feet and waits."
+  ],
+  "choices": [
+   {
+    "label": "Open it",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "A UTC dark-binding crystal in an iron cage. Puck will not come near it.",
+      "effects": {
+       "items": {
+        "iron": 2,
+        "relic_shard": 2
+       },
+       "hp": 0,
+       "morale": -3,
+       "rep": {
+        "utc": -5,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 15,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "A tideborn reliquary, sealed with coral. It hums when you lift it.",
+      "effects": {
+       "items": {
+        "relic_shard": 3,
+        "shell": 2
+       },
+       "hp": 0,
+       "morale": 2,
+       "rep": {
+        "utc": -3,
+        "tideborn": 2,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 20,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Powder, damp and useless, in a crate that stinks of tar and old water.",
+      "effects": {
+       "items": {
+        "powder": 1,
+        "tar": 1,
+        "wood": 2
+       },
+       "hp": 0,
+       "morale": 0,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Bury it deeper, Puck hugged",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "You cover it and sleep badly. Puck does not dig there again.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 20,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "It is back at the hole by noon. So, inevitably, are you.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 8,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Haul it to the water and let it go",
+    "requires": {
+     "rope": 1
+    },
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "It slides under the surf and does not come back. Puck watches it go.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 1,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 15,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.5,
+      "text": "The rope parts and the crate stays. Puck stares at the water a while.",
+      "effects": {
+       "items": {
+        "rope": -1
+       },
+       "hp": 0,
+       "morale": -1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Tromelin's castaways kept a single fire alive fifteen years on wreck timber and driftwood and salvaged lead basins for water, wreckage on a beach never being only wreckage."
+ },
+ {
+  "id": "pet_011",
+  "category": "pet",
+  "title": "The Yelp on the Cliff",
+  "zones": [
+   "cliff",
+   "cave"
+  ],
+  "trigger": {
+   "type": "action",
+   "chance": 0.11,
+   "min_day": 5,
+   "camp_level": 2,
+   "needs_item": null,
+   "weather": "fog"
+  },
+  "weight": 6,
+  "cooldown_s": 9000,
+  "intro_lines": [
+   "You point Puck up the cliff path. It goes.",
+   "Ten minutes. Then a yelp, cut short.",
+   "Fog sits on the rocks like wet wool."
+  ],
+  "choices": [
+   {
+    "label": "Go down after it",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.45,
+      "text": "A crevice, a dropped fish, and Puck, wedged and furious with you.",
+      "effects": {
+       "items": {
+        "fish": 2
+       },
+       "hp": -3,
+       "morale": 3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 35,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "You find it cornered in the rocks by something with too many limbs.",
+      "effects": {
+       "items": {},
+       "hp": -6,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "wild_mythos",
+       "pet_xp": 25,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.25,
+      "text": "The yelp was a gull. Puck is perfectly fine and smug about it.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Wait and whistle",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "It comes up the path with a cut foot and a stolen egg in its mouth.",
+      "effects": {
+       "items": {
+        "feather": 2,
+        "food": 1
+       },
+       "hp": 0,
+       "morale": 1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 20,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.5,
+      "text": "Nothing. You whistle until your throat is raw and the fog thickens.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 5,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Send down a rope line",
+    "requires": {
+     "rope": 1
+    },
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "It bites the rope and you haul it up, sodden, shaking and grateful.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 30,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "It tangles itself, panics, and you nearly lose the rope and your grip.",
+      "effects": {
+       "items": {
+        "rope": -1
+       },
+       "hp": -2,
+       "morale": -1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 12,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Tromelin's castaways fed on sooty tern colonies numbering tens of thousands, which is why a cliff full of birds is worth a dangerous climb."
+ },
+ {
+  "id": "pet_012",
+  "category": "pet",
+  "title": "Goat Kid Jealousy",
+  "zones": [
+   "outpost",
+   "jungle"
+  ],
+  "trigger": {
+   "type": "action",
+   "chance": 0.35,
+   "min_day": 3,
+   "camp_level": 2,
+   "needs_item": null,
+   "weather": "any"
+  },
+  "weight": 7,
+  "cooldown_s": 1200,
+  "intro_lines": [
+   "Tide-Puck snaps at a tamed goat kid.",
+   "The kid bleats; Puck guards his bowl."
+  ],
+  "choices": [
+   {
+    "label": "Separate bowls, train both",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Puck learns to share; kid follows you.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 12,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "Puck sulks for a day, then recovers.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 4,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Scold Puck, reward kid",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Puck withdraws; kid grows bold.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": "pet_013"
+      }
+     },
+     {
+      "chance": 0.5,
+      "text": "Puck obeys but sulks at night.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 2,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Selkirk tamed kid goats for milk and company on Juan Fernandez."
+ },
+ {
+  "id": "pet_013",
+  "category": "pet",
+  "title": "Puck Turns on the Kid",
+  "zones": [
+   "outpost"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.0,
+   "min_day": 4,
+   "camp_level": 2,
+   "needs_item": null,
+   "weather": "any"
+  },
+  "weight": 6,
+  "cooldown_s": 1800,
+  "intro_lines": [
+   "Puck corners the goat kid at dawn.",
+   "Ears flat; snarling low."
+  ],
+  "choices": [
+   {
+    "label": "Intervene, feed Puck first",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.55,
+      "text": "Puck stands down; kid spared.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 8,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.45,
+      "text": "Kid bolts; Puck chases but stops.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -4,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 3,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Let them settle it",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.4,
+      "text": "Kid wins respect; Puck backs off.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 5,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.6,
+      "text": "Kid injured; you treat the wound.",
+      "effects": {
+       "items": {
+        "herbs": -1
+       },
+       "hp": -5,
+       "morale": -6,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Selkirk's tamed kid goats lived alongside his cats on Juan Fernandez."
+ },
+ {
+  "id": "pet_014",
+  "category": "pet",
+  "title": "Rats in the Larder",
+  "zones": [
+   "outpost",
+   "cave"
+  ],
+  "trigger": {
+   "type": "time",
+   "chance": 0.3,
+   "min_day": 5,
+   "camp_level": 3,
+   "needs_item": null,
+   "weather": "night"
+  },
+  "weight": 6,
+  "cooldown_s": 1500,
+  "intro_lines": [
+   "Rats gnaw through your stores.",
+   "Puck watches, uninterested."
+  ],
+  "choices": [
+   {
+    "label": "Set Puck on the rats",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "Puck clears the larder in a night.",
+      "effects": {
+       "items": {
+        "food": 2
+       },
+       "hp": 0,
+       "morale": 4,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 15,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Puck plays, rats scatter deeper.",
+      "effects": {
+       "items": {
+        "food": -2
+       },
+       "hp": 0,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 2,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Trap and bait yourself",
+    "requires": {
+     "food": 1
+    },
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "You catch six; stores saved.",
+      "effects": {
+       "items": {
+        "food": 1,
+        "hide": 1
+       },
+       "hp": 0,
+       "morale": 3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "Trap springs empty; rats return.",
+      "effects": {
+       "items": {
+        "food": -3
+       },
+       "hp": 0,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Selkirk tamed feral cats after rats gnawed his feet at night."
+ },
+ {
+  "id": "pet_015",
+  "category": "pet",
+  "title": "Parrot Learns a Word",
+  "zones": [
+   "outpost",
+   "beach"
+  ],
+  "trigger": {
+   "type": "action",
+   "chance": 0.25,
+   "min_day": 6,
+   "camp_level": 4,
+   "needs_item": null,
+   "weather": "clear"
+  },
+  "weight": 5,
+  "cooldown_s": 2000,
+  "intro_lines": [
+   "A scarlet parrot lands on your shoulder.",
+   "It cocks its head, listening."
+  ],
+  "choices": [
+   {
+    "label": "Teach it 'UTC ship'",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "It squawks it at passing sails.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 4,
+       "rep": {
+        "utc": -2,
+        "tideborn": 0,
+        "free": 2
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.5,
+      "text": "It only says 'food' instead.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Feed and release it",
+    "requires": {
+     "food": 1
+    },
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "It returns with a shiny shell.",
+      "effects": {
+       "items": {
+        "shell": 1
+       },
+       "hp": 0,
+       "morale": 3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "It flies off, never returns.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Parrots mimic speech and were sold in pirate havens."
+ },
+ {
+  "id": "pet_016",
+  "category": "pet",
+  "title": "Injured Gull",
+  "zones": [
+   "beach",
+   "reef"
+  ],
+  "trigger": {
+   "type": "location",
+   "chance": 0.4,
+   "min_day": 2,
+   "camp_level": 1,
+   "needs_item": null,
+   "weather": "storm"
+  },
+  "weight": 6,
+  "cooldown_s": 1000,
+  "intro_lines": [
+   "A gull with a broken wing lies in surf.",
+   "Puck sniffs, wary of its beak."
+  ],
+  "choices": [
+   {
+    "label": "Splint and cage it",
+    "requires": {
+     "rope": 1
+    },
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "It heals; later circles your camp.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 6,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "It pecks free and escapes injured.",
+      "effects": {
+       "items": {
+        "rope": -1
+       },
+       "hp": -2,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Leave it to the crabs",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Crabs take it; Puck sulks all day.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.5,
+      "text": "It dies; Puck eats it anyway.",
+      "effects": {
+       "items": {
+        "food": 1
+       },
+       "hp": 0,
+       "morale": -1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Tromelin castaways ate sooty terns and seabirds by the colony."
+ },
+ {
+  "id": "pet_017",
+  "category": "pet",
+  "title": "Puck Refuses a Command",
+  "zones": [
+   "outpost",
+   "jungle"
+  ],
+  "trigger": {
+   "type": "action",
+   "chance": 0.3,
+   "min_day": 7,
+   "camp_level": 5,
+   "needs_item": null,
+   "weather": "heat"
+  },
+  "weight": 7,
+  "cooldown_s": 900,
+  "intro_lines": [
+   "You strike Puck for eating a coil.",
+   "He cowers; refuses your whistle."
+  ],
+  "choices": [
+   {
+    "label": "Apologise, offer food",
+    "requires": {
+     "food": 1
+    },
+    "outcomes": [
+     {
+      "chance": 0.65,
+      "text": "Puck forgives; tail wags again.",
+      "effects": {
+       "items": {
+        "food": -1
+       },
+       "hp": 0,
+       "morale": 4,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.35,
+      "text": "He eats but keeps distance.",
+      "effects": {
+       "items": {
+        "food": -1
+       },
+       "hp": 0,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 2,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Force the command",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.4,
+      "text": "Puck obeys, then hides for hours.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.6,
+      "text": "He snaps; you lose a finger's skin.",
+      "effects": {
+       "items": {},
+       "hp": -8,
+       "morale": -4,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Companion animals reduced despair for Selkirk and Ada Blackjack."
+ },
+ {
+  "id": "pet_018",
+  "category": "pet",
+  "title": "Coconut Crab Theft",
+  "zones": [
+   "beach",
+   "cliff"
+  ],
+  "trigger": {
+   "type": "location",
+   "chance": 0.35,
+   "min_day": 8,
+   "camp_level": 4,
+   "needs_item": null,
+   "weather": "night"
+  },
+  "weight": 6,
+  "cooldown_s": 1400,
+  "intro_lines": [
+   "A coconut crab steals your knife.",
+   "Puck tracks it into the rocks."
+  ],
+  "choices": [
+   {
+    "label": "Follow Puck, retrieve knife",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Puck corners it; knife recovered.",
+      "effects": {
+       "items": {
+        "scrap": 1
+       },
+       "hp": 0,
+       "morale": 3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 12,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.5,
+      "text": "Claw pinches Puck's nose; retreat.",
+      "effects": {
+       "items": {},
+       "hp": -3,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 4,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Bribe with coconut",
+    "requires": {
+     "coconut": 1
+    },
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "Crab drops knife, takes coconut.",
+      "effects": {
+       "items": {
+        "coconut": -1,
+        "scrap": 1
+       },
+       "hp": 0,
+       "morale": 2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "It ignores you, vanishes seaward.",
+      "effects": {
+       "items": {
+        "coconut": -1
+       },
+       "hp": 0,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Coconut crabs scavenge and steal shiny objects."
+ },
+ {
+  "id": "pet_019",
+  "category": "pet",
+  "title": "Training Breakthrough",
+  "zones": [
+   "outpost"
+  ],
+  "trigger": {
+   "type": "action",
+   "chance": 0.2,
+   "min_day": 10,
+   "camp_level": 6,
+   "needs_item": null,
+   "weather": "clear"
+  },
+  "weight": 8,
+  "cooldown_s": 2500,
+  "intro_lines": [
+   "Puck drags a fish to your feet.",
+   "He waits, tail stiff, for praise."
+  ],
+  "choices": [
+   {
+    "label": "Reward and name the trick",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "Puck learns 'fetch fish' reliably.",
+      "effects": {
+       "items": {
+        "fish": 1
+       },
+       "hp": 0,
+       "morale": 6,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 25,
+       "unlock": "fetch_fish",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "He eats it before you can praise.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 5,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Ignore, demand more",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.4,
+      "text": "Puck tries again, succeeds.",
+      "effects": {
+       "items": {
+        "fish": 1
+       },
+       "hp": 0,
+       "morale": 2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 15,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.6,
+      "text": "Puck drops the trick, confused.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -4,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Selkirk read the Bible aloud to keep his speech."
+ },
+ {
+  "id": "pet_020",
+  "category": "pet",
+  "title": "Puck Warns of Boar",
+  "zones": [
+   "jungle",
+   "cliff"
+  ],
+  "trigger": {
+   "type": "location",
+   "chance": 0.45,
+   "min_day": 9,
+   "camp_level": 5,
+   "needs_item": null,
+   "weather": "any"
+  },
+  "weight": 7,
+  "cooldown_s": 1200,
+  "intro_lines": [
+   "Puck freezes, hackles raised.",
+   "A boar grunts in the ferns."
+  ],
+  "choices": [
+   {
+    "label": "Retreat with Puck",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "You slip away; boar loses interest.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 8,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Boar charges; Puck bites its ear.",
+      "effects": {
+       "items": {},
+       "hp": -6,
+       "morale": 0,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "boar",
+       "pet_xp": 6,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Stand ground, throw stones",
+    "requires": {
+     "stone": 2
+    },
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Boar flees; you gather tusks.",
+      "effects": {
+       "items": {
+        "hide": 1
+       },
+       "hp": 0,
+       "morale": 4,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 4,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.5,
+      "text": "Boar gores your leg; Puck drags you out.",
+      "effects": {
+       "items": {
+        "stone": -2
+       },
+       "hp": -12,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "boar",
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Feral boar charge when cornered or with piglets."
+ },
+ {
+  "id": "pet_021",
+  "category": "pet",
+  "title": "Tide-Puck Finds Fresh Water",
+  "zones": [
+   "jungle",
+   "cliff"
+  ],
+  "trigger": {
+   "type": "location",
+   "chance": 0.4,
+   "min_day": 4,
+   "camp_level": 2,
+   "needs_item": null,
+   "weather": "rain"
+  },
+  "weight": 7,
+  "cooldown_s": 1000,
+  "intro_lines": [
+   "Puck scratches at wet sand.",
+   "A seep pools behind the dune."
+  ],
+  "choices": [
+   {
+    "label": "Dig and collect water",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "You fill two skins; Puck drinks first.",
+      "effects": {
+       "items": {
+        "fresh_water": 2
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "Sand collapses; water turns brackish.",
+      "effects": {
+       "items": {
+        "fresh_water": 1
+       },
+       "hp": 0,
+       "morale": -1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 3,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Mark spot, return later",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Later you find a full pool.",
+      "effects": {
+       "items": {
+        "fresh_water": 3
+       },
+       "hp": 0,
+       "morale": 4,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 4,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.5,
+      "text": "Tide washes it out; spot lost.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Digging behind the dune line can reach a brackish lens."
+ },
+ {
+  "id": "pet_022",
+  "category": "pet",
+  "title": "Puck's Night Watch",
+  "zones": [
+   "outpost",
+   "beach"
+  ],
+  "trigger": {
+   "type": "time",
+   "chance": 0.3,
+   "min_day": 6,
+   "camp_level": 3,
+   "needs_item": null,
+   "weather": "fog"
+  },
+  "weight": 6,
+  "cooldown_s": 1600,
+  "intro_lines": [
+   "Puck won't sleep; stares at surf.",
+   "A shape moves in the fog."
+  ],
+  "choices": [
+   {
+    "label": "Trust Puck, stay alert",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Tideborn scout passes; Puck silent.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 4,
+       "rep": {
+        "utc": 0,
+        "tideborn": 2,
+        "free": 0
+       },
+       "spawn": "tideborn_scout",
+       "pet_xp": 8,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.5,
+      "text": "UTC patrol; you hide in time.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 2,
+       "rep": {
+        "utc": 2,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 6,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Wake the camp, arm up",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.4,
+      "text": "False alarm; sleep lost, morale drops.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 2,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.6,
+      "text": "You catch a thief at the stores.",
+      "effects": {
+       "items": {
+        "food": 2,
+        "scrap": 1
+       },
+       "hp": 0,
+       "morale": 3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 5,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Selkirk hid from Spanish ships and waited for English."
+ }
+]

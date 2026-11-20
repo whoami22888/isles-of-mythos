@@ -2,6 +2,686 @@
  {
   "id": "wild_001",
   "category": "wildlife",
+  "title": "The Sow and Her Piglets",
+  "zones": [
+   "jungle"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.15,
+   "min_day": 2,
+   "camp_level": 1,
+   "needs_item": null,
+   "weather": "any"
+  },
+  "weight": 7,
+  "cooldown_s": 86400,
+  "intro_lines": [
+   "Grunts echo from the brush.",
+   "A sow roots beside her striped piglets."
+  ],
+  "choices": [
+   {
+    "label": "Back away slowly",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "You slip back through the brush as the sounder moves on.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 0,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "A piglet squeals and the sow gores your thigh before you flee.",
+      "effects": {
+       "items": {},
+       "hp": -20,
+       "morale": -6,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "boar",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Scare them with a firebrand",
+    "requires": {
+     "flint": 1
+    },
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "Sparks scatter the sounder; you pocket a broken tusk.",
+      "effects": {
+       "items": {
+        "flint": -1,
+        "hide": 1
+       },
+       "hp": 0,
+       "morale": 2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "The sow lowers her head and rips your calf open.",
+      "effects": {
+       "items": {
+        "flint": -1
+       },
+       "hp": -18,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "boar",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Toss food to distract them",
+    "requires": {
+     "food": 2
+    },
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "They gorge while you slip past, unnoticed.",
+      "effects": {
+       "items": {
+        "food": -2
+       },
+       "hp": 0,
+       "morale": 1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "They finish eating and follow, demanding more.",
+      "effects": {
+       "items": {
+        "food": -2
+       },
+       "hp": 0,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "The scent draws a second boar from the thicket.",
+      "effects": {
+       "items": {
+        "food": -2
+       },
+       "hp": -10,
+       "morale": -4,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "boar",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Feral pigs were put ashore by sailors as living larders and charge with tusks when cornered with young."
+ },
+ {
+  "id": "wild_003",
+  "category": "wildlife",
+  "title": "The Night Thieves",
+  "zones": [
+   "beach"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.14,
+   "min_day": 1,
+   "camp_level": 1,
+   "needs_item": null,
+   "weather": "night"
+  },
+  "weight": 7,
+  "cooldown_s": 43200,
+  "intro_lines": [
+   "Something clicks outside the tent flap.",
+   "Your belt buckle is gone."
+  ],
+  "choices": [
+   {
+    "label": "Hunt the thief by lantern",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "You trace clicks to a burrow: your buckle and a pearl.",
+      "effects": {
+       "items": {
+        "pearl": 1
+       },
+       "hp": 0,
+       "morale": 2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "crab",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "A claw the size of your fist clamps your ankle.",
+      "effects": {
+       "items": {},
+       "hp": -12,
+       "morale": -4,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "crab",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "The burrow is empty; the thief has moved on.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Set a coconut bait trap",
+    "requires": {
+     "coconut": 1
+    },
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "It takes the bait and is caught; your gear is safe.",
+      "effects": {
+       "items": {
+        "coconut": -1
+       },
+       "hp": 0,
+       "morale": 2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "It drags the trap into the surf, bait and all.",
+      "effects": {
+       "items": {
+        "coconut": -1
+       },
+       "hp": 0,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Throw stones to drive them off",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.8,
+      "text": "The crabs retreat into the rocks, clicking.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 0,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "One pins your hand under a rock before fleeing.",
+      "effects": {
+       "items": {},
+       "hp": -6,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Coconut crabs climb palms, strike with claws of roughly 3,300 newtons, and steal shiny objects."
+ },
+ {
+  "id": "wild_006",
+  "category": "wildlife",
+  "title": "The Emerald Coil",
+  "zones": [
+   "jungle"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.12,
+   "min_day": 3,
+   "camp_level": 1,
+   "needs_item": null,
+   "weather": "any"
+  },
+  "weight": 5,
+  "cooldown_s": 86400,
+  "intro_lines": [
+   "Something heavy hangs above the trail.",
+   "Yellow eyes blink from the leaves."
+  ],
+  "choices": [
+   {
+    "label": "Shoot it with a slingstone",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "The boa drops dead and you skin it for supper.",
+      "effects": {
+       "items": {
+        "hide": 1,
+        "food": 2
+       },
+       "hp": 0,
+       "morale": 1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "The wounded boa falls on you and coils tight.",
+      "effects": {
+       "items": {},
+       "hp": -14,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "snake",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Climb past carefully",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.8,
+      "text": "You pass beneath the coil without waking it.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 0,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "A branch snaps and the boa strikes at your face.",
+      "effects": {
+       "items": {},
+       "hp": -10,
+       "morale": -4,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "snake",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Burn the brush below it",
+    "requires": {
+     "fibre": 2
+    },
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "Smoke drives the boa into the canopy above.",
+      "effects": {
+       "items": {
+        "fibre": -2
+       },
+       "hp": 0,
+       "morale": 1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Fire spreads through the ferns; you retreat singed.",
+      "effects": {
+       "items": {
+        "fibre": -2
+       },
+       "hp": -6,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Tree boas ambush prey from branches, and moray eels bite hands poked into reef crevices."
+ },
+ {
+  "id": "wild_007",
+  "category": "wildlife",
+  "title": "The Troop at the Gate",
+  "zones": [
+   "outpost"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.15,
+   "min_day": 2,
+   "camp_level": 3,
+   "needs_item": null,
+   "weather": "any"
+  },
+  "weight": 8,
+  "cooldown_s": 43200,
+  "intro_lines": [
+   "Screeching fills the camp.",
+   "Macaques tear through your stores."
+  ],
+  "choices": [
+   {
+    "label": "Beat drums and drive them off",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "The troop flees with only a sack of copra.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "The alpha charges and you take scratches before they break.",
+      "effects": {
+       "items": {},
+       "hp": -8,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "monkey",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Throw them your spoiled food",
+    "requires": {
+     "food": 3
+    },
+    "outcomes": [
+     {
+      "chance": 0.9,
+      "text": "They gorge on scraps and retreat into the trees.",
+      "effects": {
+       "items": {
+        "food": -3
+       },
+       "hp": 0,
+       "morale": 0,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.1,
+      "text": "They tear your tent apart for the good stores.",
+      "effects": {
+       "items": {
+        "food": -3
+       },
+       "hp": 0,
+       "morale": -4,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "monkey",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Tide-Puck, drive them back",
+    "requires": {
+     "pet_level": 2
+    },
+    "outcomes": [
+     {
+      "chance": 0.85,
+      "text": "Tide-Puck hisses and the troop scatters into the jungle.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.15,
+      "text": "The troop turns on Tide-Puck; you drag him away bleeding.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -6,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 2,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Macaques raid camps for food and shiny tools, and their alarm calls warn of predators."
+ },
+ {
+  "id": "wild_012",
+  "category": "wildlife",
   "title": "Blood in the Shallows",
   "zones": [
    "reef",
@@ -79,7 +759,7 @@
        "spawn": "shark",
        "pet_xp": 5,
        "unlock": null,
-       "next_event": "wild_002"
+       "next_event": "wild_013"
       }
      }
     ]
@@ -147,7 +827,7 @@
        "spawn": "shark",
        "pet_xp": 0,
        "unlock": null,
-       "next_event": "wild_002"
+       "next_event": "wild_013"
       }
      }
     ]
@@ -156,7 +836,7 @@
   "history_note": "Reef sharks are drawn by blood and thrashing in shallow water, a documented hazard for waders and fishers."
  },
  {
-  "id": "wild_002",
+  "id": "wild_013",
   "category": "wildlife",
   "title": "Tiger at Dusk",
   "zones": [
@@ -307,7 +987,7 @@
   "history_note": "Tiger sharks hunt at dusk in shallow coastal water, a well-documented risk to swimmers and small boats."
  },
  {
-  "id": "wild_003",
+  "id": "wild_014",
   "category": "wildlife",
   "title": "Stingray in the Sand",
   "zones": [
@@ -463,7 +1143,7 @@
   "history_note": "Stingrays bury in sand and injure when stepped on; shuffling feet is the standard avoidance."
  },
  {
-  "id": "wild_004",
+  "id": "wild_015",
   "category": "wildlife",
   "title": "Moray in the Crevice",
   "zones": [
@@ -620,7 +1300,7 @@
   "history_note": "Moray eels bite when hands enter crevices and may carry ciguatera toxin."
  },
  {
-  "id": "wild_005",
+  "id": "wild_016",
   "category": "wildlife",
   "title": "Stonefish on the Reef",
   "zones": [
@@ -769,7 +1449,7 @@
   "history_note": "Stonefish venom spines cause severe pain and require hot-water immersion; they camouflage as rock."
  },
  {
-  "id": "wild_006",
+  "id": "wild_017",
   "category": "wildlife",
   "title": "Turtles at Moonrise",
   "zones": [
@@ -923,7 +1603,7 @@
   "history_note": "Sea turtles nest at night and were historically flipped onto their backs to capture."
  },
  {
-  "id": "wild_007",
+  "id": "wild_018",
   "category": "wildlife",
   "title": "Frigatebird Shadow",
   "zones": [
@@ -1082,7 +1762,7 @@
   "history_note": "Frigatebirds steal fish and shiny objects, a known nuisance to sailors and castaways."
  },
  {
-  "id": "wild_008",
+  "id": "wild_019",
   "category": "wildlife",
   "title": "Tern Colony Eggs",
   "zones": [
@@ -1248,7 +1928,7 @@
   "history_note": "Tern colonies provided eggs and meat to castaways such as those on Tromelin Island."
  },
  {
-  "id": "wild_009",
+  "id": "wild_020",
   "category": "wildlife",
   "title": "Fever Mosquitoes",
   "zones": [
@@ -1416,7 +2096,7 @@
   "history_note": "Mosquitoes spread fever among camped sailors, a common killer on tropical havens."
  },
  {
-  "id": "wild_010",
+  "id": "wild_021",
   "category": "wildlife",
   "title": "Parrot That Talks",
   "zones": [
@@ -1578,7 +2258,7 @@
   "history_note": "Parrots mimicked speech and were sold in pirate havens as prized curiosities."
  },
  {
-  "id": "wild_011",
+  "id": "wild_022",
   "category": "wildlife",
   "title": "Crab That Steals",
   "zones": [
@@ -1735,5 +2415,2118 @@
    }
   ],
   "history_note": "Coconut crabs scavenge and steal shiny objects, with claws strong enough to crush."
+ },
+ {
+  "id": "wild_023",
+  "category": "wildlife",
+  "title": "Cliff-Goat Snare",
+  "zones": [
+   "cliff",
+   "jungle"
+  ],
+  "trigger": {
+   "type": "action",
+   "chance": 0.35,
+   "min_day": 5,
+   "camp_level": 2,
+   "needs_item": "rope",
+   "weather": "clear"
+  },
+  "weight": 6,
+  "cooldown_s": 7200,
+  "intro_lines": [
+   "Tide-Puck stiffens, nose aimed at the basalt ledges above.",
+   "Feral goats graze the sparse grass — descendants"
+  ],
+  "choices": [
+   {
+    "label": "Set wire nooses on game trails",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.55,
+      "text": "A yearling nanny catches her leg; you dispatch it cleanly. Meat and hide for camp.",
+      "effects": {
+       "items": {
+        "food": 8,
+        "hide": 2
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 30,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "The billy charges the snare line, horns slashing your forearm before breaking free.",
+      "effects": {
+       "items": {
+        "rope": -1
+       },
+       "hp": -15,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.15,
+      "text": "A UTC patrol spots the snares from the ridge. They confiscate gear and fine you.",
+      "effects": {
+       "items": {
+        "rope": -2,
+        "iron": -1,
+        "gold": -10
+       },
+       "hp": 0,
+       "morale": -10,
+       "rep": {
+        "utc": -5,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Drive goats toward a box canyon",
+    "requires": {
+     "pet_level": 2
+    },
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Puck herds three kids into the dead-end. Easy capture — milk and meat for weeks.",
+      "effects": {
+       "items": {
+        "food": 12,
+        "hide": 1
+       },
+       "hp": 0,
+       "morale": 10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 50,
+       "unlock": "goat_pen",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.25,
+      "text": "The nannies panic, scatter over the cliff edge. Only one carcass recoverable.",
+      "effects": {
+       "items": {
+        "food": 4
+       },
+       "hp": 0,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 15,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.15,
+      "text": "Loose rock gives way under Puck. He falls twenty feet — bruised but breathing.",
+      "effects": {
+       "items": {
+        "food": 2
+       },
+       "hp": 0,
+       "morale": -15,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Observe from cover, learn their water",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "You find a seep behind a lava tube — fresh water and a natural trap site for future.",
+      "effects": {
+       "items": {
+        "fresh_water": 6
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 20,
+       "unlock": "goat_water_hole",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Rain closes in before you locate it. Wet, cold, and empty-handed.",
+      "effects": {
+       "items": {},
+       "hp": -5,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 5,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Alexander Selkirk tamed feral goats on Juan Fernández for milk and company, running them down on foot and building huts from their skins."
+ },
+ {
+  "id": "wild_024",
+  "category": "wildlife",
+  "title": "Boar Pit at the Wallow",
+  "zones": [
+   "jungle",
+   "beach"
+  ],
+  "trigger": {
+   "type": "location",
+   "chance": 0.25,
+   "min_day": 10,
+   "camp_level": 3,
+   "needs_item": "wood",
+   "weather": "any"
+  },
+  "weight": 7,
+  "cooldown_s": 10800,
+  "intro_lines": [
+   "Churned mud and tusk-gouged trees mark a sounder's daily",
+   "The big boar's spoor is fresh — he'll return at dusk."
+  ],
+  "choices": [
+   {
+    "label": "Dig a deep pit, stake it",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "The boar drops at twilight. Six hundred pounds of meat, tusks for tools.",
+      "effects": {
+       "items": {
+        "food": 25,
+        "hide": 3,
+        "iron": 1
+       },
+       "hp": 0,
+       "morale": 15,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 40,
+       "unlock": "boar_tusks",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "A sow falls in instead, squealing. The boar circles, charging the edge — you barely climb clear.",
+      "effects": {
+       "items": {
+        "food": 10,
+        "hide": 1
+       },
+       "hp": -10,
+       "morale": 0,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "boar",
+       "pet_xp": 20,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Rain collapses the pit walls overnight. Wasted labour, wasted stakes.",
+      "effects": {
+       "items": {
+        "wood": -5,
+        "iron": -1,
+        "food": -2
+       },
+       "hp": 0,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Lure with fermented coconut mash, shoot",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "The mash works. One ball drops the boar clean. Meat smokes by midnight.",
+      "effects": {
+       "items": {
+        "food": 20,
+        "hide": 2,
+        "coconut": -6,
+        "powder": -1
+       },
+       "hp": 0,
+       "morale": 10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 30,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.25,
+      "text": "Shot goes low. Wounded boar vanishes into mangroves — blood trail lost in tide.",
+      "effects": {
+       "items": {
+        "coconut": -6,
+        "powder": -1
+       },
+       "hp": 0,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "boar",
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.15,
+      "text": "Monkeys raid the mash, get drunk, and mob your stand. You retreat empty-handed.",
+      "effects": {
+       "items": {
+        "coconut": -6
+       },
+       "hp": -5,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "monkey",
+       "pet_xp": 5,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Leave it be — boar root up crab beds",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.8,
+      "text": "You mark the wallow. Later, a UTC patrol blunders into the sounder — chaos buys you intel.",
+      "effects": {
+       "items": {
+        "map_fragment": 1
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": -3,
+        "tideborn": 0,
+        "free": 2
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 15,
+       "unlock": "boar_warden",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "The boar finds your outpost midden instead. Fence splintered, stores scattered.",
+      "effects": {
+       "items": {
+        "food": -8,
+        "wood": -3
+       },
+       "hp": 0,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "boar",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Sailors introduced feral pigs as living larders; they root up ground, eat crab juveniles, and charge with tusks causing deep leg wounds when cornered."
+ },
+ {
+  "id": "wild_025",
+  "category": "wildlife",
+  "title": "Bird-Lime on the Tern Colony",
+  "zones": [
+   "beach",
+   "cliff"
+  ],
+  "trigger": {
+   "type": "time",
+   "chance": 0.3,
+   "min_day": 3,
+   "camp_level": 1,
+   "needs_item": "shell",
+   "weather": "clear"
+  },
+  "weight": 5,
+  "cooldown_s": 5400,
+  "intro_lines": [
+   "Sooty terns carpet the cay — tens of thousands screaming",
+   "Tromelin castaways lived on them for fifteen years. You can"
+  ],
+  "choices": [
+   {
+    "label": "Smear lime on low branches, wait",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Dozens stick fast. You club and pluck until your arms ache. Eggs too.",
+      "effects": {
+       "items": {
+        "food": 18,
+        "feather": 8
+       },
+       "hp": -5,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 25,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.25,
+      "text": "A frigatebird dives through the lime, tangles, crashes — colony erupts. Cloud of beaks and claws.",
+      "effects": {
+       "items": {
+        "food": 6,
+        "feather": 3
+       },
+       "hp": -15,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "gull",
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.15,
+      "text": "Heat melts the lime. Birds avoid it. Wasted shells, wasted dawn.",
+      "effects": {
+       "items": {
+        "shell": -5,
+        "fibre": -2
+       },
+       "hp": 0,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Build a hide, net fledglings at night",
+    "requires": {
+     "pet_level": 3
+    },
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "Puck flushes chicks into the net silently. Adults never wake. Clean harvest.",
+      "effects": {
+       "items": {
+        "food": 15,
+        "feather": 10
+       },
+       "hp": 0,
+       "morale": 10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 50,
+       "unlock": "tern_hide",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "A rat snake drops from above onto Puck. He kills it, but the strike draws blood.",
+      "effects": {
+       "items": {
+        "food": 8,
+        "feather": 5
+       },
+       "hp": 0,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "snake",
+       "pet_xp": 20,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.1,
+      "text": "Tideborn scouts observe from the reef. They leave a shell offering — neutral contact.",
+      "effects": {
+       "items": {
+        "food": 10,
+        "feather": 6,
+        "shell": 1
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 3,
+        "free": 0
+       },
+       "spawn": "tideborn_scout",
+       "pet_xp": 15,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Take only eggs — sustainable, less noise",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.8,
+      "text": "Basket full before sunrise. Rich protein, colony undisturbed for next season.",
+      "effects": {
+       "items": {
+        "food": 12
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 1,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 15,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "A tern pecks your hand deep. Infection risk — herbs needed fast.",
+      "effects": {
+       "items": {
+        "food": 8
+       },
+       "hp": -10,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 5,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Tromelin castaways survived fifteen years eating sooty terns from colonies of tens of thousands, keeping one fire alive with wreck timber and driftwood."
+ },
+ {
+  "id": "wild_026",
+  "category": "wildlife",
+  "title": "Stone Fish Weir at Ebb",
+  "zones": [
+   "reef",
+   "beach"
+  ],
+  "trigger": {
+   "type": "time",
+   "chance": 0.4,
+   "min_day": 2,
+   "camp_level": 1,
+   "needs_item": "stone",
+   "weather": "any"
+  },
+  "weight": 8,
+  "cooldown_s": 3600,
+  "intro_lines": [
+   "The tide pulls back, exposing the reef flat. Jacks",
+   "A wall of coral rubble now could funnel them into a holding"
+  ],
+  "choices": [
+   {
+    "label": "Build a V-weir with the outgoing current",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.65,
+      "text": "The weir fills each ebb. Steady fish, no powder, no hooks lost.",
+      "effects": {
+       "items": {
+        "fish": 12
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 20,
+       "unlock": "fish_weir",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "A moray claims the pen. Bitten hand hauling the catch — hot water helps, but fever follows.",
+      "effects": {
+       "items": {
+        "fish": 6
+       },
+       "hp": -15,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "eel",
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.15,
+      "text": "Storm surge smashes the wall. Rebuild needed, stones scattered.",
+      "effects": {
+       "items": {
+        "stone": -10,
+        "wood": -3
+       },
+       "hp": 0,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Spear the pools by torchlight with Puck",
+    "requires": {
+     "pet_level": 2
+    },
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "Puck's eyes catch the flash of scales. You spear eight fat jacks in an hour.",
+      "effects": {
+       "items": {
+        "fish": 10
+       },
+       "hp": 0,
+       "morale": 10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 40,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Stonefish camouflage works. Spike through boot — agony, swelling, night of sweats.",
+      "effects": {
+       "items": {
+        "fish": 4
+       },
+       "hp": -20,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 15,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.1,
+      "text": "Torch draws a UTC cutter's attention. They board, seize half the catch.",
+      "effects": {
+       "items": {
+        "fish": -5,
+        "wood": -2,
+        "fibre": -1
+       },
+       "hp": 0,
+       "morale": -10,
+       "rep": {
+        "utc": -5,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Poison the pool with crushed derris",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Fish float belly-up. Easy gathering, but the meat tastes metallic. Ciguatera risk.",
+      "effects": {
+       "items": {
+        "fish": 15,
+        "herbs": -3
+       },
+       "hp": -5,
+       "morale": 0,
+       "rep": {
+        "utc": 0,
+        "tideborn": -2,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 5,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Current shifts. Poison kills the coral, drives off fish for weeks. Waste.",
+      "effects": {
+       "items": {
+        "herbs": -3
+       },
+       "hp": 0,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": -3,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Tideborn scout confronts you. Reef is sacred. They take your knife as forfeit.",
+      "effects": {
+       "items": {
+        "fish": 10,
+        "herbs": -3,
+        "iron": -1
+       },
+       "hp": 0,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": -5,
+        "free": 0
+       },
+       "spawn": "tideborn_scout",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Tromelin castaways caught reef fish — jacks, groupers, triggerfish — by line, spear, and tide-pool gathering on the exposed reef flat."
+ },
+ {
+  "id": "wild_027",
+  "category": "wildlife",
+  "title": "Coconut Crab Trap Line",
+  "zones": [
+   "jungle",
+   "beach"
+  ],
+  "trigger": {
+   "type": "time",
+   "chance": 0.3,
+   "min_day": 7,
+   "camp_level": 2,
+   "needs_item": "coconut",
+   "weather": "night"
+  },
+  "weight": 6,
+  "cooldown_s": 7200,
+  "intro_lines": [
+   "Moonlight glints on armoured claws the size of your fist.",
+   "Coconut crabs climb palms, steal shiny things, taste like"
+  ],
+  "choices": [
+   {
+    "label": "Bait coconut halves on weighted lines",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Five monsters in the buckets. Meat for days, claws for hooks, one wore a gold ring.",
+      "effects": {
+       "items": {
+        "crab_meat": 10,
+        "iron": 1,
+        "gold": 1
+       },
+       "hp": 0,
+       "morale": 10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 30,
+       "unlock": "crab_traps",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.25,
+      "text": "Biggest male crushes the bucket, climbs the line, nips your finger to bone.",
+      "effects": {
+       "items": {
+        "crab_meat": 4,
+        "rope": -1
+       },
+       "hp": -10,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "crab",
+       "pet_xp": 15,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.15,
+      "text": "Hermit crabs swarm the bait. Nothing worth keeping but the shells.",
+      "effects": {
+       "items": {
+        "coconut": -6,
+        "shell": 4
+       },
+       "hp": 0,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 5,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Dig pit traps under palm trunks, funnel",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.65,
+      "text": "Crabs fall in climbing down at dawn. Easy capture, no injured fingers.",
+      "effects": {
+       "items": {
+        "crab_meat": 8,
+        "shell": 2
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 25,
+       "unlock": "crab_pits",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "A wild boar smashes the pits rooting for grubs. Traps ruined, boar gets fat.",
+      "effects": {
+       "items": {
+        "wood": -4,
+        "fibre": -4
+       },
+       "hp": 0,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "boar",
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.15,
+      "text": "Tide-Puck investigates a pit, falls in. Claws click on his shell — he's stuck.",
+      "effects": {
+       "items": {
+        "crab_meat": 3
+       },
+       "hp": 0,
+       "morale": -15,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "crab",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Trade with free pirates — they know",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "Quartermaster shares a hidden grove. You return with a sack of giants.",
+      "effects": {
+       "items": {
+        "crab_meat": 12,
+        "rum": -1,
+        "coconut": -4
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 3
+       },
+       "spawn": "free_pirates",
+       "pet_xp": 20,
+       "unlock": "pirate_crab_grove",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Pirates water the rum. You wake robbed, crab-less, with a headache.",
+      "effects": {
+       "items": {
+        "rum": -1,
+        "coconut": -4,
+        "gold": -5
+       },
+       "hp": -5,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -2
+       },
+       "spawn": "free_pirates",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Coconut crabs (Birgus latro) climb palms, exert claw forces up to 3,300 newtons, scavenge shiny objects, and are prized for meat but overharvested."
+ },
+ {
+  "id": "wild_028",
+  "category": "wildlife",
+  "title": "Rats in the Stores",
+  "zones": [
+   "outpost",
+   "cave"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.2,
+   "min_day": 14,
+   "camp_level": 2,
+   "needs_item": "food",
+   "weather": "any"
+  },
+  "weight": 5,
+  "cooldown_s": 14400,
+  "intro_lines": [
+   "Gnawed sacks, scattered grain, droppings like black rice.",
+   "They came on the wreck — ship rats, bold and multiplying."
+  ],
+  "choices": [
+   {
+    "label": "Set spring traps baited",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "Twenty dead by morning. Stores secure. Tide-Puck presents you with the largest.",
+      "effects": {
+       "items": {
+        "iron": -1
+       },
+       "hp": 0,
+       "morale": 10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 40,
+       "unlock": "rat_traps",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "A trap snaps on your finger checking it. Broken nail, blood, curses.",
+      "effects": {
+       "items": {
+        "iron": -1,
+        "coconut": -2,
+        "food": -1
+       },
+       "hp": -5,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 5,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.1,
+      "text": "Rats avoid the traps. They've learned. Infestation grows.",
+      "effects": {
+       "items": {
+        "food": -5,
+        "iron": -1,
+        "coconut": -2
+       },
+       "hp": 0,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Train Tide-Puck as a ratter — instinct",
+    "requires": {
+     "pet_level": 3
+    },
+    "outcomes": [
+     {
+      "chance": 0.75,
+      "text": "Puck becomes a terror. He brings you trophies daily. The holds stay clean.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 15,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 100,
+       "unlock": "ratter_puck",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.15,
+      "text": "He corners a nest in the cave. Mother rat bites his nose — nasty gash.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.1,
+      "text": "He eats his catches. Grows fat, lazy, ignores commands for a week.",
+      "effects": {
+       "items": {
+        "food": -3
+       },
+       "hp": 0,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Seal the stores with tar and sailcloth",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Airtight drums. Rats vanish within a week. Stores safe for months.",
+      "effects": {
+       "items": {
+        "tar": -2,
+        "sailcloth": -3
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": "sealed_stores",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.25,
+      "text": "They chew through the cloth before the tar sets. Wasted supplies.",
+      "effects": {
+       "items": {
+        "tar": -2,
+        "sailcloth": -3,
+        "food": -8
+       },
+       "hp": 0,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.15,
+      "text": "Condensation inside the drums moulds the grain. Total loss.",
+      "effects": {
+       "items": {
+        "tar": -2,
+        "sailcloth": -3,
+        "food": -15
+       },
+       "hp": 0,
+       "morale": -15,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Alexander Selkirk's feet were gnawed by rats at night on Juan Fernández; he tamed feral cats to control them and read the Bible aloud to keep his speech."
+ },
+ {
+  "id": "wild_029",
+  "category": "wildlife",
+  "title": "Wreck-Hounds on the Wind",
+  "zones": [
+   "beach",
+   "jungle",
+   "cliff"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.15,
+   "min_day": 20,
+   "camp_level": 3,
+   "needs_item": null,
+   "weather": "fog"
+  },
+  "weight": 4,
+  "cooldown_s": 18000,
+  "intro_lines": [
+   "Low throats bay in the mist — not wolves, but dogs gone",
+   "They know the island. They know you. And they're hungry."
+  ],
+  "choices": [
+   {
+    "label": "Stand ground, fire a volley, drive them",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.55,
+      "text": "Smoke and thunder scatter the pack. One drops — collar bears a UTC brand.",
+      "effects": {
+       "items": {
+        "powder": -3,
+        "scrap": -2,
+        "map_fragment": 1
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": -2,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 20,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.25,
+      "text": "The alpha charges through the smoke. Jaws on your thigh before Puck distracts it.",
+      "effects": {
+       "items": {
+        "powder": -3,
+        "scrap": -2
+       },
+       "hp": -25,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 30,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Shots miss. Pack circles, waits. You retreat to the outpost, besieged till dawn.",
+      "effects": {
+       "items": {
+        "powder": -3,
+        "scrap": -2
+       },
+       "hp": -5,
+       "morale": -15,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Throw meat, back away — buy peace",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "They eat, sniff the air, trot off. The alpha pauses, looks back — truce held.",
+      "effects": {
+       "items": {
+        "food": -10
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 15,
+       "unlock": "dog_truce",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Meat only whets them. They take the food and flank you. Puck growls, hair up.",
+      "effects": {
+       "items": {
+        "food": -10
+       },
+       "hp": -10,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 20,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.1,
+      "text": "A Tideborn scout whistles — the pack obeys. Dogs were theirs. They nod at you.",
+      "effects": {
+       "items": {
+        "food": -10
+       },
+       "hp": 0,
+       "morale": 0,
+       "rep": {
+        "utc": 0,
+        "tideborn": 5,
+        "free": 0
+       },
+       "spawn": "tideborn_scout",
+       "pet_xp": 10,
+       "unlock": "tideborn_dogs",
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Follow at dawn — find their den, maybe",
+    "requires": {
+     "pet_level": 4
+    },
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Cave den found. Three pups, eyes open. Mother watches but doesn't attack. You take one.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 15,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "wild_mythos",
+       "pet_xp": 50,
+       "unlock": "feral_pup",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Den empty — they moved. Tracks lead to a UTC camp. Dogs were their sentries.",
+      "effects": {
+       "items": {
+        "map_fragment": 1
+       },
+       "hp": -5,
+       "morale": 0,
+       "rep": {
+        "utc": -3,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 20,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Mother ambushes from above. Puck fights her off, but both bleed badly.",
+      "effects": {
+       "items": {},
+       "hp": -20,
+       "morale": -15,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Dogs from wrecked ships often survive on islands; Pedro Serrano encountered a second castaway after years alone, and conflict with other survivors was a documented risk."
+ },
+ {
+  "id": "wild_030",
+  "category": "wildlife",
+  "title": "Jungle Fowl at Dust-Bath",
+  "zones": [
+   "jungle"
+  ],
+  "trigger": {
+   "type": "time",
+   "chance": 0.35,
+   "min_day": 4,
+   "camp_level": 1,
+   "needs_item": "fibre",
+   "weather": "heat"
+  },
+  "weight": 6,
+  "cooldown_s": 5400,
+  "intro_lines": [
+   "Feathers dust the dry earth — red jungle fowl, ancestors",
+   "They scratch, bathe, crow. Unaware the noose waits."
+  ],
+  "choices": [
+   {
+    "label": "Slip-nooses on game trails",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.65,
+      "text": "Two cocks, three hens in the bag. Meat, eggs, feathers for arrows.",
+      "effects": {
+       "items": {
+        "food": 8,
+        "feather": 6
+       },
+       "hp": 0,
+       "morale": 10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 25,
+       "unlock": "fowl_snares",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "A monitor lizard triggers a noose. It thrashes, cuts the line, escapes.",
+      "effects": {
+       "items": {
+        "fibre": -2
+       },
+       "hp": 0,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.15,
+      "text": "Monkeys watch, copy your knots. Next dawn your snares are gone, fibre in trees.",
+      "effects": {
+       "items": {
+        "fibre": -4,
+        "wood": -2
+       },
+       "hp": 0,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "monkey",
+       "pet_xp": 5,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Blowgun with curare-tipped darts —",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "Clean kills. Best hen for breeding, cock for the pot. No alarm raised.",
+      "effects": {
+       "items": {
+        "food": 6,
+        "feather": 8,
+        "herbs": -2
+       },
+       "hp": 0,
+       "morale": 10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 30,
+       "unlock": "blowgun_fowl",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Dart misses, hits a parrot. It screams, flock erupts. Fowl vanish.",
+      "effects": {
+       "items": {
+        "herbs": -2,
+        "wood": -1,
+        "feather": -3
+       },
+       "hp": 0,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "gull",
+       "pet_xp": 5,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.1,
+      "text": "You nick your own thumb loading. Numbness spreads. Hour of panic.",
+      "effects": {
+       "items": {
+        "herbs": -2,
+        "wood": -1,
+        "feather": -3
+       },
+       "hp": -10,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Leave grain trail to a pen —",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "They come daily. Hens lay in your nest boxes. Sustainable protein.",
+      "effects": {
+       "items": {
+        "food": -5,
+        "wood": -6
+       },
+       "hp": 0,
+       "morale": 15,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 20,
+       "unlock": "fowl_pen",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Rats eat the grain. Fowl ignore it. Pen stands empty.",
+      "effects": {
+       "items": {
+        "food": -8,
+        "wood": -6
+       },
+       "hp": 0,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "A feral cat takes up residence in the pen. Hens stop coming.",
+      "effects": {
+       "items": {
+        "food": -5,
+        "wood": -6
+       },
+       "hp": 0,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "wild_mythos",
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Sailors left chickens on islands as living larders; feral jungle fowl revert to wild type quickly, dust-bathing and roosting in predictable patterns trappers exploit."
+ },
+ {
+  "id": "wild_032",
+  "category": "wildlife",
+  "title": "The Cave at Creek's End",
+  "zones": [
+   "cave",
+   "jungle"
+  ],
+  "trigger": {
+   "type": "action",
+   "chance": 0.0,
+   "min_day": 15,
+   "camp_level": 4,
+   "needs_item": null,
+   "weather": "any"
+  },
+  "weight": 5,
+  "cooldown_s": 0,
+  "intro_lines": [
+   "The cave smells of brine, copper, and something floral —",
+   "Walls glitter with embedded shell. A pool reflects"
+  ],
+  "choices": [
+   {
+    "label": "Approach the pool — the reflection",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "You push through the water-curtain. A dry chamber. Tideborn glyphs cover the walls. In the centre, a nest of woven seaweed cradles an egg — pulsing, bioluminescent.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 30,
+       "unlock": "sovereign_egg",
+       "next_event": "wild_033"
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "The water surges. A shape lunges — not the Sovereign, but a guardian: eel-headed, crab-clawed. Puck intercepts. You flee, glyphs unread.",
+      "effects": {
+       "items": {},
+       "hp": -15,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "eel",
+       "pet_xp": 20,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Copy the glyphs, retreat — knowledge",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.8,
+      "text": "Charcoal rubbings made. The glyphs depict a binding ritual — chains, crystals, the Sovereign thrashing. UTC dark-binding crystals match the drawings.",
+      "effects": {
+       "items": {
+        "map_fragment": -1,
+        "relic_shard": 2
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 3,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 25,
+       "unlock": "binding_knowledge",
+       "next_event": "wild_033"
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "The pool boils as you work. You flee, rubbings incomplete. The glyphs fade behind you.",
+      "effects": {
+       "items": {
+        "map_fragment": -1
+       },
+       "hp": 0,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 1,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Take the egg — power, leverage",
+    "requires": {
+     "pet_level": 5
+    },
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "You snatch it. The cave shrieks — not sound, but pressure in your skull. Puck howls. You run, the egg cold and heavy in your arms.",
+      "effects": {
+       "items": {
+        "relic_shard": 1
+       },
+       "hp": -10,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": -5,
+        "free": 0
+       },
+       "spawn": "wild_mythos",
+       "pet_xp": 0,
+       "unlock": "stolen_egg",
+       "next_event": "wild_033"
+      }
+     },
+     {
+      "chance": 0.5,
+      "text": "Your fingers close on shell — then a hand closes on your wrist. Tideborn. Pale, gilled, silent. They take the egg. You leave empty-handed but alive.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": -2,
+        "free": 0
+       },
+       "spawn": "tideborn_scout",
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Pedro Serrano on Serrana Bank used shells as rain catchers holding up to 12 gallons, dove for two stones to strike sparks, and built a fire hut from seaweed and wreck planks."
+ },
+ {
+  "id": "wild_033",
+  "category": "wildlife",
+  "title": "Consequences at the Fire",
+  "zones": [
+   "outpost",
+   "beach"
+  ],
+  "trigger": {
+   "type": "time",
+   "chance": 0.0,
+   "min_day": 16,
+   "camp_level": 4,
+   "needs_item": null,
+   "weather": "night"
+  },
+  "weight": 5,
+  "cooldown_s": 0,
+  "intro_lines": [
+   "Night falls. The camp fire cracks. Whatever happened",
+   "Silas watches. Puck sleeps — or feigns it. The egg"
+  ],
+  "choices": [
+   {
+    "label": "If you have the egg: hatch it, bind it",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.4,
+      "text": "The egg hatches into a Mythos — not Sovereign, but kin. It imprints on Puck. UTC crystals glow red in its presence.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 20,
+       "rep": {
+        "utc": -5,
+        "tideborn": -3,
+        "free": 5
+       },
+       "spawn": "wild_mythos",
+       "pet_xp": 100,
+       "unlock": "bound_mythos",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.35,
+      "text": "It hatches wrong. Twisted, ravenous. It eats your stores, then turns on Puck. You put it down. The guilt stays.",
+      "effects": {
+       "items": {
+        "food": -15
+       },
+       "hp": 0,
+       "morale": -20,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.25,
+      "text": "A UTC warship appears at dawn. Their crystals track the egg. They shell the beach. You flee inland.",
+      "effects": {
+       "items": {
+        "wood": -10,
+        "food": -10
+       },
+       "hp": -10,
+       "morale": -15,
+       "rep": {
+        "utc": -10,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "If you have the glyphs: share",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Silas knows a retired UTC boatswain turned pirate. He confirms the crystal weakness. A raid is planned.",
+      "effects": {
+       "items": {
+        "relic_shard": 1
+       },
+       "hp": 0,
+       "morale": 15,
+       "rep": {
+        "utc": 0,
+        "tideborn": 2,
+        "free": 5
+       },
+       "spawn": "free_pirates",
+       "pet_xp": 30,
+       "unlock": "crystal_weakness",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "The boatswain betrays you. UTC ambush at the rendezvous. Silas takes a ball to the shoulder. You drag him back.",
+      "effects": {
+       "items": {},
+       "hp": -10,
+       "morale": -15,
+       "rep": {
+        "utc": -5,
+        "tideborn": 0,
+        "free": -3
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 20,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "If you have neither: the Tideborn",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "A scout waits at the fire. The egg in a kelp basket. 'The Sovereign wakes. The binding breaks. You will help us — or we all drown.'",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 5,
+        "free": 0
+       },
+       "spawn": "tideborn_scout",
+       "pet_xp": 20,
+       "unlock": "tideborn_pact",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.5,
+      "text": "No one comes. But at dawn, the UTC camp is gone — burned, crystals shattered. Tideborn arrows in the sand. A warning delivered.",
+      "effects": {
+       "items": {
+        "map_fragment": 1
+       },
+       "hp": 0,
+       "morale": 10,
+       "rep": {
+        "utc": -5,
+        "tideborn": 3,
+        "free": 2
+       },
+       "spawn": null,
+       "pet_xp": 15,
+       "unlock": "utc_driven_off",
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Ada Blackjack on Wrangel Island nursed a dying man through scurvy, barricaded his body against animals, taught herself to shoot and trap, and survived alone with her cat Vic until rescue."
  }
 ]

@@ -1,0 +1,2214 @@
+[
+ {
+  "id": "wthr_001",
+  "category": "weather",
+  "title": "Cyclone Warning: The Long Swell",
+  "zones": [
+   "beach",
+   "outpost",
+   "reef",
+   "sea"
+  ],
+  "trigger": {
+   "type": "time",
+   "chance": 0.15,
+   "min_day": 10,
+   "camp_level": 3,
+   "needs_item": null,
+   "weather": "clear"
+  },
+  "weight": 8,
+  "cooldown_s": 86400,
+  "intro_lines": [
+   "The horizon bruises purple. Swells march in slow, heavy",
+   "Tide-Puck's frill lies flat. He growls at the receding surf.",
+   "A UTC deserter stumbles from the jungle, uniform rotting"
+  ],
+  "choices": [
+   {
+    "label": "Grant shelter; earn a blade",
+    "requires": {
+     "food": 2,
+     "fresh_water": 1
+    },
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "He shares UTC patrol routes. You brace the outpost before the eye hits.",
+      "effects": {
+       "items": {
+        "iron": 1,
+        "rope": 2
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": -5,
+        "tideborn": 0,
+        "free": 5
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": "wthr_002"
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "He steals a cutlass in the night. Tide-Puck wakes you; the thief flees empty-handed.",
+      "effects": {
+       "items": {
+        "iron": -1
+       },
+       "hp": -5,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 5,
+       "unlock": null,
+       "next_event": "wthr_002"
+      }
+     },
+     {
+      "chance": 0.1,
+      "text": "He's a UTC plant. He signals a patrol before vanishing. The storm masks their approach.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -15,
+       "rep": {
+        "utc": 10,
+        "tideborn": 0,
+        "free": -10
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": "wthr_003"
+      }
+     }
+    ]
+   },
+   {
+    "label": "Turn him away; seal the walls",
+    "requires": {
+     "wood": 10,
+     "stone": 5
+    },
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "You reinforce the palisade. The deserter curses you into the wind.",
+      "effects": {
+       "items": {
+        "wood": -10,
+        "stone": -5
+       },
+       "hp": 0,
+       "morale": 0,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -5
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": "wthr_002"
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "He returns with a UTC boarding party at the storm's height. You fight in wind and rain.",
+      "effects": {
+       "items": {
+        "iron": -2
+       },
+       "hp": -20,
+       "morale": -15,
+       "rep": {
+        "utc": 15,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": "wthr_003"
+      }
+     }
+    ]
+   },
+   {
+    "label": "Flee to the sea caves with Tide-Puck",
+    "requires": {
+     "pet_level": 2
+    },
+    "outcomes": [
+     {
+      "chance": 0.8,
+      "text": "Tide-Puck guides you through a submerged tunnel. The camp weathers the worst alone.",
+      "effects": {
+       "items": {},
+       "hp": 5,
+       "morale": 10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 5,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 20,
+       "unlock": "cave_shelter",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "The tunnel floods. You claw through an air pocket, losing gear but surviving.",
+      "effects": {
+       "items": {
+        "food": -3,
+        "fibre": -2,
+        "flint": -1
+       },
+       "hp": -15,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Alexander Selkirk read weather signs from swell patterns and bird behaviour to survive four years on Juan Fernández; Tide-Puck's frill-flattening mirrors frigatebirds sensing pressure drops before cyclones (RMG)."
+ },
+ {
+  "id": "wthr_002",
+  "category": "weather",
+  "title": "Cyclone Landfall: The Eye's Silence",
+  "zones": [
+   "outpost",
+   "beach",
+   "jungle",
+   "cliff"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.0,
+   "min_day": 10,
+   "camp_level": 3,
+   "needs_item": null,
+   "weather": "storm"
+  },
+  "weight": 5,
+  "cooldown_s": 0,
+  "intro_lines": [
+   "Wind screams like a gutted hull. Palm trunks snap. The eye",
+   "Debris orbits the calm centre: a UTC longboat, shredded"
+  ],
+  "choices": [
+   {
+    "label": "Rally sailors to shore the walls",
+    "requires": {
+     "rope": 5,
+     "wood": 5
+    },
+    "outcomes": [
+     {
+      "chance": 0.65,
+      "text": "The palisade holds. The back-wind tears the roof off the storehouse but the powder stays dry.",
+      "effects": {
+       "items": {
+        "wood": -5,
+        "rope": -5,
+        "tar": -2
+       },
+       "hp": -5,
+       "morale": 10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 5
+       },
+       "spawn": null,
+       "pet_xp": 15,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.35,
+      "text": "A flying spar crushes the cookfire. Burns spread to the fibre stores. You bucket seawater in the lull.",
+      "effects": {
+       "items": {
+        "fibre": -10,
+        "food": -5,
+        "wood": -3
+       },
+       "hp": -10,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 5,
+       "unlock": null,
+       "next_event": "wthr_004"
+      }
+     }
+    ]
+   },
+   {
+    "label": "Send Tide-Puck to scout the UTC wreck",
+    "requires": {
+     "pet_level": 3
+    },
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "He returns with a waterlogged crate: UTC charts showing Tideborn ruin locations. Salt-ruined but legible.",
+      "effects": {
+       "items": {
+        "map_fragment": 2,
+        "relic_shard": 1
+       },
+       "hp": 0,
+       "morale": 15,
+       "rep": {
+        "utc": -5,
+        "tideborn": 5,
+        "free": 5
+       },
+       "spawn": null,
+       "pet_xp": 30,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "He finds a live dark-binding crystal pulsing in the wreck. It screams in your mind. You bury it deep.",
+      "effects": {
+       "items": {
+        "relic_shard": -1
+       },
+       "hp": -10,
+       "morale": -20,
+       "rep": {
+        "utc": 0,
+        "tideborn": -10,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": "crystal_buried",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "The back-wind catches him. He rides a gust back, wing torn. You stitch the membrane with sailcloth and catgut.",
+      "effects": {
+       "items": {
+        "sailcloth": -1,
+        "fibre": -1
+       },
+       "hp": 0,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Ride out the eyewall in the cellar",
+    "requires": {
+     "food": 3,
+     "fresh_water": 2
+    },
+    "outcomes": [
+     {
+      "chance": 0.8,
+      "text": "The stone walls hold. You emerge to shattered jungle and a sea littered with UTC timber.",
+      "effects": {
+       "items": {
+        "food": -3,
+        "fresh_water": -2
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Storm surge floods the cellar. You swim for the hatch, dragging an unconscious sailor. He dies of swallowed seawater.",
+      "effects": {
+       "items": {},
+       "hp": -15,
+       "morale": -15,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -5
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "The 1761 L'Utile survivors on Tromelin kept one fire alive for fifteen years through cyclones, building 1.5 m thick coral walls with backs to the trade wind after a storm destroyed their first shelter (INRAP)."
+ },
+ {
+  "id": "wthr_003",
+  "category": "weather",
+  "title": "Cyclone Landfall: The Betrayal",
+  "zones": [
+   "outpost",
+   "beach",
+   "jungle"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.0,
+   "min_day": 10,
+   "camp_level": 3,
+   "needs_item": null,
+   "weather": "storm"
+  },
+  "weight": 5,
+  "cooldown_s": 0,
+  "intro_lines": [
+   "The deserter's whistle cuts the gale. UTC marines emerge",
+   "They knew your wall's weak face. The storm masks their"
+  ],
+  "choices": [
+   {
+    "label": "Fight a retreating action to the cliffs",
+    "requires": {
+     "iron": 3,
+     "powder": 2
+    },
+    "outcomes": [
+     {
+      "chance": 0.55,
+      "text": "You hold the ridge. Lightning silhouettes the UTC officer; a sniper's ball takes him. The patrol breaks.",
+      "effects": {
+       "items": {
+        "iron": -3,
+        "powder": -2,
+        "hide": -2
+       },
+       "hp": -15,
+       "morale": 10,
+       "rep": {
+        "utc": -15,
+        "tideborn": 5,
+        "free": 10
+       },
+       "spawn": null,
+       "pet_xp": 20,
+       "unlock": "cliff_stronghold",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.45,
+      "text": "The mud sucks boots off. A marine grapples you; Tide-Puck tears his throat. You limp away, leaving the camp burning.",
+      "effects": {
+       "items": {
+        "wood": -20,
+        "food": -10,
+        "fibre": -10
+       },
+       "hp": -25,
+       "morale": -20,
+       "rep": {
+        "utc": -5,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 15,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Surrender the relic shards; buy lives",
+    "requires": {
+     "relic_shard": 3
+    },
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "The officer takes the shards and your swords. 'Company business.' They leave you alive, camp intact.",
+      "effects": {
+       "items": {
+        "relic_shard": -3,
+        "iron": -5
+       },
+       "hp": 0,
+       "morale": -15,
+       "rep": {
+        "utc": 10,
+        "tideborn": -10,
+        "free": -10
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "The crystals shrieked when he touched them. The leviathan's rage hits the patrol. You flee in the chaos.",
+      "effects": {
+       "items": {
+        "relic_shard": -3
+       },
+       "hp": -10,
+       "morale": 5,
+       "rep": {
+        "utc": -10,
+        "tideborn": 10,
+        "free": 5
+       },
+       "spawn": "wild_mythos",
+       "pet_xp": 10,
+       "unlock": "leviathan_wrath",
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Trigger the powder cache; collapse",
+    "requires": {
+     "powder": 5,
+     "flint": 1
+    },
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "The blast seals the pass. UTC screams echo. The camp survives but the jungle path is gone for months.",
+      "effects": {
+       "items": {
+        "powder": -5,
+        "flint": -1,
+        "stone": -10
+       },
+       "hp": -5,
+       "morale": 5,
+       "rep": {
+        "utc": -10,
+        "tideborn": 0,
+        "free": 5
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": "tunnel_collapsed",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "Damp powder fizzes. The officer laughs. You're captured, marched to a UTC brig in irons.",
+      "effects": {
+       "items": {
+        "powder": -5,
+        "flint": -1,
+        "iron": -3
+       },
+       "hp": -20,
+       "morale": -30,
+       "rep": {
+        "utc": 20,
+        "tideborn": 0,
+        "free": -15
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "utc_prisoner",
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Bartholomew Roberts' articles mandated death or marooning for desertion; UTC deserters historically faced impressment or execution, making betrayal a rational survival choice (Johnson 1724)."
+ },
+ {
+  "id": "wthr_004",
+  "category": "weather",
+  "title": "Lightning Fire: The Dry Thunder",
+  "zones": [
+   "outpost",
+   "jungle",
+   "cliff"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.12,
+   "min_day": 15,
+   "camp_level": 4,
+   "needs_item": null,
+   "weather": "storm"
+  },
+  "weight": 6,
+  "cooldown_s": 172800,
+  "intro_lines": [
+   "Lightning stabs the ridge. No rain follows — just the smell",
+   "A banyan crown erupts. Embers ride the wind toward"
+  ],
+  "choices": [
+   {
+    "label": "Bucket chain from the well",
+    "requires": {
+     "fresh_water": 20,
+     "rope": 3
+    },
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "The line passes shells and helmets. You save the storehouse and the sail loft. Hands blister.",
+      "effects": {
+       "items": {
+        "fresh_water": -20,
+        "rope": -1
+       },
+       "hp": -5,
+       "morale": 10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 5
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "The well runs dry. The fire takes the quartermaster's hut. His charts burn; he weeps into rum.",
+      "effects": {
+       "items": {
+        "fresh_water": -20,
+        "map_fragment": -2,
+        "wood": -10
+       },
+       "hp": 0,
+       "morale": -15,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -5
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Cut a firebreak with axes and fire",
+    "requires": {
+     "iron": 2,
+     "wood": 5
+    },
+    "outcomes": [
+     {
+      "chance": 0.65,
+      "text": "You fell a green belt. The backfire meets the main front. The camp survives in a blackened clearing.",
+      "effects": {
+       "items": {
+        "iron": -1,
+        "wood": -5,
+        "food": -3
+       },
+       "hp": -5,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 15,
+       "unlock": "firebreak",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.35,
+      "text": "Wind shifts. The backfire jumps the break. You lose the boat shed and a half-careened hull.",
+      "effects": {
+       "items": {
+        "wood": -30,
+        "tar": -5,
+        "sailcloth": -3,
+        "iron": -2
+       },
+       "hp": -10,
+       "morale": -20,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -10
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Tide-Puck smothers embers with wet wings",
+    "requires": {
+     "pet_level": 4
+    },
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "He dives through smoke, dousing hotspots. His wing-tips singe. You treat burns with aloe and shark oil.",
+      "effects": {
+       "items": {
+        "herbs": -2,
+        "fish": -1
+       },
+       "hp": 0,
+       "morale": 15,
+       "rep": {
+        "utc": 0,
+        "tideborn": 5,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 40,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "A beam collapses. He shields a sailor, taking the weight. Ribs cracked. Weeks of recovery.",
+      "effects": {
+       "items": {
+        "herbs": -5,
+        "hide": -1
+       },
+       "hp": 0,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "pet_injured",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "He herds the flock of terns nesting in the rafters. Their panicked flight spreads fire to the jungle canopy.",
+      "effects": {
+       "items": {
+        "wood": -15,
+        "feather": 10
+       },
+       "hp": 0,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": -5,
+        "free": 0
+       },
+       "spawn": "gull",
+       "pet_xp": 5,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Tromelin castaways kept a single fire alive for fifteen years using wreck timber, driftwood, and the island's only shrub; lightning strikes on dry jungle were a constant threat they managed with communal vigilance (Archaeology Mag 2014)."
+ },
+ {
+  "id": "wthr_005",
+  "category": "weather",
+  "title": "King Tide: The Sea Takes Its Due",
+  "zones": [
+   "beach",
+   "outpost",
+   "cave",
+   "reef"
+  ],
+  "trigger": {
+   "type": "time",
+   "chance": 0.1,
+   "min_day": 20,
+   "camp_level": 5,
+   "needs_item": null,
+   "weather": "clear"
+  },
+  "weight": 7,
+  "cooldown_s": 259200,
+  "intro_lines": [
+   "The moon hangs fat and low. Water climbs the beach markers",
+   "The tide laps the palisade logs. Your fresh-water well"
+  ],
+  "choices": [
+   {
+    "label": "Sandbag the well and storehouse",
+    "requires": {
+     "sailcloth": 5,
+     "rope": 2
+    },
+    "outcomes": [
+     {
+      "chance": 0.75,
+      "text": "The bags hold. The well stays sweet. You lose the beach drying racks but save the salt pork.",
+      "effects": {
+       "items": {
+        "sailcloth": -5,
+        "fibre": -5,
+        "food": -3
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "crab",
+       "pet_xp": 5,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.25,
+      "text": "A wave bursts the barrier. Salt poisons the well. You'll need a solar still or rain catchment.",
+      "effects": {
+       "items": {
+        "sailcloth": -5,
+        "fibre": -5,
+        "fresh_water": -15
+       },
+       "hp": -5,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "well_poisoned",
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Move critical stores to the sea cave",
+    "requires": {
+     "pet_level": 2,
+     "rope": 10
+    },
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Tide-Puck guides the line through the tidal tunnel. Powder, charts, and rum reach the high ledge dry.",
+      "effects": {
+       "items": {
+        "rope": -10
+       },
+       "hp": 0,
+       "morale": 10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 5,
+        "free": 5
+       },
+       "spawn": null,
+       "pet_xp": 20,
+       "unlock": "cave_storage",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "The surge traps two sailors in the tunnel. You haul them out blue-lipped. The powder kegs stay below.",
+      "effects": {
+       "items": {
+        "powder": -5,
+        "rope": -10
+       },
+       "hp": -15,
+       "morale": -15,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -5
+       },
+       "spawn": null,
+       "pet_xp": 5,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Harvest the stranded reef life",
+    "requires": {
+     "flint": 1,
+     "iron": 1
+    },
+    "outcomes": [
+     {
+      "chance": 0.55,
+      "text": "Tide pools yield octopus, sea cucumbers, and a trapped reef shark. Feast tonight; smoke the rest.",
+      "effects": {
+       "items": {
+        "food": 15,
+        "fish": 10,
+        "hide": 2
+       },
+       "hp": 5,
+       "morale": 15,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 5
+       },
+       "spawn": "shark",
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "A stonefish spines your hand. Hot water helps but the limb swells. Three days of fever.",
+      "effects": {
+       "items": {
+        "herbs": -3,
+        "fresh_water": -2
+       },
+       "hp": -20,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "stonefish_sting",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.15,
+      "text": "UTC scavengers on the reef claim the best pools. A musket ball kicks sand at your feet. You withdraw.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -10,
+       "rep": {
+        "utc": 5,
+        "tideborn": 0,
+        "free": -5
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Pedro Serrano on Serrana Bank used shells as rain catchers holding up to twelve gallons and drank turtle blood when no rain fell; king tides would have turned his brackish well lethal (Garcilaso de la Vega 1609)."
+ },
+ {
+  "id": "wthr_006",
+  "category": "weather",
+  "title": "Heatwave: The Doldrums' Fever",
+  "zones": [
+   "outpost",
+   "jungle",
+   "beach",
+   "cave"
+  ],
+  "trigger": {
+   "type": "time",
+   "chance": 0.15,
+   "min_day": 30,
+   "camp_level": 6,
+   "needs_item": null,
+   "weather": "heat"
+  },
+  "weight": 6,
+  "cooldown_s": 345600,
+  "intro_lines": [
+   "The air thickens to syrup. No wind for six days. Pitch",
+   "Sailors hallucinate in the shade. Tide-Puck burrows into"
+  ],
+  "choices": [
+   {
+    "label": "Rig awnings and enforce siesta",
+    "requires": {
+     "sailcloth": 8,
+     "rope": 5,
+     "fresh_water": 30
+    },
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "Canvas shades the camp. You ration water, wake only at dawn and dusk. No heat deaths this cycle.",
+      "effects": {
+       "items": {
+        "sailcloth": -3,
+        "fresh_water": -30
+       },
+       "hp": 5,
+       "morale": 10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 5
+       },
+       "spawn": null,
+       "pet_xp": 5,
+       "unlock": "siesta_routine",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "The quartermaster hoards rum rations. A knife fight in the shade leaves two men bleeding. You maroon the instigator.",
+      "effects": {
+       "items": {
+        "rum": -5,
+        "iron": -1
+       },
+       "hp": -10,
+       "morale": -15,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -10
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Dig a communal solar still",
+    "requires": {
+     "scrap": 5,
+     "sailcloth": 3,
+     "shell": 10
+    },
+    "outcomes": [
+     {
+      "chance": 0.65,
+      "text": "The still yields three gallons daily. Men line up with cups. Morale lifts; the cave stays cool.",
+      "effects": {
+       "items": {
+        "scrap": -5,
+        "sailcloth": -3,
+        "shell": -10,
+        "fresh_water": 20
+       },
+       "hp": 0,
+       "morale": 15,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 5
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": "solar_still",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.35,
+      "text": "The plastic sheeting fails. The pit collapses. You waste days and precious sailcloth for a cup of brackish water.",
+      "effects": {
+       "items": {
+        "scrap": -5,
+        "sailcloth": -3,
+        "shell": -10
+       },
+       "hp": -5,
+       "morale": -15,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -5
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Hunt nocturnal; sleep by day",
+    "requires": {
+     "pet_level": 3,
+     "flint": 2
+    },
+    "outcomes": [
+     {
+      "chance": 0.55,
+      "text": "Tide-Puck flushes fruit bats and land crabs by torchlight. The cave stays cool. You gain weight.",
+      "effects": {
+       "items": {
+        "food": 10,
+        "crab_meat": 5,
+        "hide": 2,
+        "flint": -1
+       },
+       "hp": 10,
+       "morale": 10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 5,
+        "free": 0
+       },
+       "spawn": "crab",
+       "pet_xp": 25,
+       "unlock": "nocturnal_hunt",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "A feral boar charges the torch-bearer. Tusks rip a thigh. You cauterize with a heated cutlass.",
+      "effects": {
+       "items": {
+        "herbs": -5,
+        "hide": -1,
+        "iron": -1
+       },
+       "hp": -25,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "boar",
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.15,
+      "text": "Sea kraits swarm the warm cave mouth. You seal the entrance with boulders, losing the cool air.",
+      "effects": {
+       "items": {
+        "stone": -10
+       },
+       "hp": -5,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": -5,
+        "free": 0
+       },
+       "spawn": "snake",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Ada Blackjack on Wrangel Island built a stove from kerosene cans and a lookout platform to survive Arctic extremes; tropical heatwaves demand inverse adaptations — shade, stills, and nocturnal rhythms (NPS)."
+ },
+ {
+  "id": "wthr_007",
+  "category": "weather",
+  "title": "Sea Fog: The Grey Wolf",
+  "zones": [
+   "sea",
+   "reef",
+   "beach",
+   "outpost"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.18,
+   "min_day": 5,
+   "camp_level": 2,
+   "needs_item": null,
+   "weather": "fog"
+  },
+  "weight": 7,
+  "cooldown_s": 172800,
+  "intro_lines": [
+   "Fog rolls in on a breathless tide. The reef vanishes. Gulls",
+   "Oars muffled. A horn sounds — once, twice — from somewhere"
+  ],
+  "choices": [
+   {
+    "label": "Light signal fires; hold position",
+    "requires": {
+     "wood": 10,
+     "tar": 2,
+     "flint": 1
+    },
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Three fires in a triangle. A free pirate cutter ghosts past, hails you. Trade news for rum and charts.",
+      "effects": {
+       "items": {
+        "wood": -10,
+        "tar": -2,
+        "rum": 2,
+        "map_fragment": 1
+       },
+       "hp": 0,
+       "morale": 10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 10
+       },
+       "spawn": "free_pirates",
+       "pet_xp": 5,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "The fires draw a UTC patrol. They board silently. You hide relic shards in a false-bottomed chest.",
+      "effects": {
+       "items": {
+        "wood": -10,
+        "tar": -2,
+        "relic_shard": -2
+       },
+       "hp": 0,
+       "morale": -10,
+       "rep": {
+        "utc": 10,
+        "tideborn": 0,
+        "free": -5
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Send Tide-Puck to sniff the vessel",
+    "requires": {
+     "pet_level": 2
+    },
+    "outcomes": [
+     {
+      "chance": 0.55,
+      "text": "He returns smelling of tar, sweat, and coconut oil — free pirates. They leave a barrel of salt beef.",
+      "effects": {
+       "items": {
+        "food": 10,
+        "hide": 2
+       },
+       "hp": 0,
+       "morale": 10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 5
+       },
+       "spawn": "free_pirates",
+       "pet_xp": 20,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "He smells ozone and copper — dark-binding crystals. A UTC hunter-killer. You sink your longboat to hide it.",
+      "effects": {
+       "items": {
+        "wood": -20,
+        "iron": -5
+       },
+       "hp": 0,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 5,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 15,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.15,
+      "text": "He doesn't return. Hours later a Tideborn scout finds him tangled in a ghost net. She cuts him free.",
+      "effects": {
+       "items": {
+        "rope": 5
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 10,
+        "free": 0
+       },
+       "spawn": "tideborn_scout",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Row silent reconnaissance with muffled",
+    "requires": {
+     "wood": 5,
+     "rope": 3,
+     "iron": 1
+    },
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "You glide alongside a careened UTC frigate. Count guns, note crystal crates. Intel worth gold in Nassau.",
+      "effects": {
+       "items": {
+        "map_fragment": 2,
+        "relic_shard": 1
+       },
+       "hp": 0,
+       "morale": 15,
+       "rep": {
+        "utc": -5,
+        "tideborn": 0,
+        "free": 10
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": "utc_intel",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "A sentry coughs. You freeze. The fog lifts enough for a musket volley. One oarsman dies. You row for your life.",
+      "effects": {
+       "items": {
+        "wood": -5,
+        "iron": -1
+       },
+       "hp": -15,
+       "morale": -20,
+       "rep": {
+        "utc": 5,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "You drift into a Tideborn ruin's shadow. Ancient arches loom. A scout presses a pearl into your palm — a warning.",
+      "effects": {
+       "items": {
+        "pearl": 1
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 10,
+        "free": 0
+       },
+       "spawn": "tideborn_scout",
+       "pet_xp": 5,
+       "unlock": "tideborn_warning",
+       "next_event": "wthr_009"
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Pedro Serrano's smoke signals were ignored by ships fearing Serrana Bank's shoals; effective signalling required three fires in a triangle and green leaves for white smoke to distinguish distress from wreckers' false lights (Frontiers 2019)."
+ },
+ {
+  "id": "wthr_008",
+  "category": "weather",
+  "title": "Doldrums: The Painted Ship",
+  "zones": [
+   "sea",
+   "outpost",
+   "reef"
+  ],
+  "trigger": {
+   "type": "time",
+   "chance": 0.1,
+   "min_day": 25,
+   "camp_level": 7,
+   "needs_item": null,
+   "weather": "clear"
+  },
+  "weight": 5,
+  "cooldown_s": 432000,
+  "intro_lines": [
+   "Fourteen days without a breath. The sea mirrors the sky.",
+   "Water runs low. Men drink urine. The quartermaster counts"
+  ],
+  "choices": [
+   {
+    "label": "Careen now; scrape the hull at high tide",
+    "requires": {
+     "tar": 10,
+     "rope": 10,
+     "iron": 3
+    },
+    "outcomes": [
+     {
+      "chance": 0.65,
+      "text": "The keel bites sand. You plug wormholes, coat with tar and turtle fat. Speed returns. The shark circles closer.",
+      "effects": {
+       "items": {
+        "tar": -10,
+        "fibre": -5,
+        "food": -5,
+        "hide": -2
+       },
+       "hp": -5,
+       "morale": 10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 5
+       },
+       "spawn": "shark",
+       "pet_xp": 10,
+       "unlock": "careened",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.35,
+      "text": "The tide drops fast. The hull lists, cracking a rib. You jury-rig shores. Weeks of repair ahead.",
+      "effects": {
+       "items": {
+        "tar": -10,
+        "wood": -10,
+        "iron": -3
+       },
+       "hp": -10,
+       "morale": -15,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "hull_damaged",
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Distill seawater in the ship's coppers",
+    "requires": {
+     "scrap": 10,
+     "wood": 20,
+     "fresh_water": 5
+    },
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "The coppers yield twenty gallons daily. You ration fairly. The shark gets nothing but bilge.",
+      "effects": {
+       "items": {
+        "scrap": -5,
+        "wood": -10,
+        "fresh_water": 40
+       },
+       "hp": 5,
+       "morale": 15,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 5
+       },
+       "spawn": null,
+       "pet_xp": 5,
+       "unlock": "ship_still",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "Salt scale clogs the condenser. A sailor drinks from the header — brine burns his throat. He dies screaming.",
+      "effects": {
+       "items": {
+        "scrap": -10,
+        "wood": -20
+       },
+       "hp": 0,
+       "morale": -25,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -10
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Tide-Puck dives for bottom fish",
+    "requires": {
+     "pet_level": 4
+    },
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "He drives grouper and snapper into the nets. Fresh meat and moisture. The crew cheers his name.",
+      "effects": {
+       "items": {
+        "fish": 20,
+        "food": 15
+       },
+       "hp": 10,
+       "morale": 20,
+       "rep": {
+        "utc": 0,
+        "tideborn": 5,
+        "free": 5
+       },
+       "spawn": null,
+       "pet_xp": 40,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "He brings a massive barracuda. You know the risk — ciguatera — but hunger wins. Three men twitch for days.",
+      "effects": {
+       "items": {
+        "fish": 15,
+        "herbs": -10
+       },
+       "hp": -15,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 20,
+       "unlock": "ciguatera_outbreak",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "He surfaces with a Tideborn relic in his jaws — a coral key. The shark bumps the boat. Tide-Puck chatters defiance.",
+      "effects": {
+       "items": {
+        "relic_shard": 1
+       },
+       "hp": 0,
+       "morale": 10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 10,
+        "free": 0
+       },
+       "spawn": "shark",
+       "pet_xp": 30,
+       "unlock": "coral_key",
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Golden Age pirates careened on sloping beaches at high tide, scraping teredo worm trails and coating hulls with tar, tallow, and turtle fat; crews were defenceless during careening, often landing guns as a beach battery (JMU thesis)."
+ },
+ {
+  "id": "wthr_009",
+  "category": "weather",
+  "title": "Waterspout: The Rope from Heaven",
+  "zones": [
+   "sea",
+   "reef",
+   "beach",
+   "outpost"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.08,
+   "min_day": 12,
+   "camp_level": 4,
+   "needs_item": null,
+   "weather": "storm"
+  },
+  "weight": 6,
+  "cooldown_s": 259200,
+  "intro_lines": [
+   "A finger of cloud descends, spinning. The sea boils around",
+   "Tide-Puck shrieks, diving for cover. The UTC cutter ahead"
+  ],
+  "choices": [
+   {
+    "label": "Anchor in the lee of the cliff; ride it",
+    "requires": {
+     "iron": 5,
+     "rope": 20,
+     "wood": 5
+    },
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "The spout passes two cables away. Spray strips paint. Your anchor holds. The cutter is gone.",
+      "effects": {
+       "items": {
+        "rope": -5,
+        "wood": -3
+       },
+       "hp": 0,
+       "morale": 10,
+       "rep": {
+        "utc": -5,
+        "tideborn": 0,
+        "free": 5
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "The wind shifts. The spout lifts your stern. You cut the anchor cable, drifting into the reef. Hull breached.",
+      "effects": {
+       "items": {
+        "rope": -20,
+        "iron": -5,
+        "wood": -15,
+        "tar": -5
+       },
+       "hp": -15,
+       "morale": -20,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -5
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "hull_breached",
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Row perpendicular to its path; outrun",
+    "requires": {
+     "wood": 3,
+     "iron": 1
+    },
+    "outcomes": [
+     {
+      "chance": 0.55,
+      "text": "You pull for your lives. The spout's fringe tears a sail. You clear its path as it dissolves into rain.",
+      "effects": {
+       "items": {
+        "sailcloth": -2,
+        "wood": -2
+       },
+       "hp": -5,
+       "morale": 15,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 5
+       },
+       "spawn": null,
+       "pet_xp": 15,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.45,
+      "text": "A rogue wave capsizes the boat. You cling to the keel. Tide-Puck tows the unconscious to shore.",
+      "effects": {
+       "items": {
+        "wood": -10,
+        "sailcloth": -3,
+        "food": -5
+       },
+       "hp": -20,
+       "morale": -15,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 30,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Fire the swivel gun into the vortex",
+    "requires": {
+     "powder": 3,
+     "iron": 2,
+     "scrap": 5
+    },
+    "outcomes": [
+     {
+      "chance": 0.3,
+      "text": "The grapeshot disrupts the spin. The spout unravels, dropping a ton of seawater on the reef. You survive.",
+      "effects": {
+       "items": {
+        "powder": -3,
+        "scrap": -5,
+        "iron": -1
+       },
+       "hp": 0,
+       "morale": 20,
+       "rep": {
+        "utc": 0,
+        "tideborn": 5,
+        "free": 10
+       },
+       "spawn": null,
+       "pet_xp": 20,
+       "unlock": "spout_breaker",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.5,
+      "text": "The shot passes through harmlessly. The spout veers toward the flash. You abandon ship for the jungle.",
+      "effects": {
+       "items": {
+        "powder": -3,
+        "iron": -2,
+        "wood": -20,
+        "food": -10
+       },
+       "hp": -10,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 5,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "The concussion triggers a dark-binding crystal in the cutter's wreck. The spout glows purple. The leviathan wakes.",
+      "effects": {
+       "items": {
+        "powder": -3,
+        "relic_shard": -1
+       },
+       "hp": -15,
+       "morale": -25,
+       "rep": {
+        "utc": -10,
+        "tideborn": -10,
+        "free": 0
+       },
+       "spawn": "wild_mythos",
+       "pet_xp": 0,
+       "unlock": "leviathan_wrath",
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Waterspouts are documented hazards in tropical waters; 18th-century mariners fired cannon into them hoping to disrupt the vortex, a tactic mentioned in Royal Navy logs but of dubious effectiveness (NOAA reef hazards)."
+ },
+ {
+  "id": "wthr_010",
+  "category": "weather",
+  "title": "Rainy Season: The Green Rot",
+  "zones": [
+   "outpost",
+   "jungle",
+   "cave",
+   "cliff"
+  ],
+  "trigger": {
+   "type": "time",
+   "chance": 0.2,
+   "min_day": 40,
+   "camp_level": 8,
+   "needs_item": null,
+   "weather": "rain"
+  },
+  "weight": 7,
+  "cooldown_s": 345600,
+  "intro_lines": [
+   "Thirty days of rain. Moss thickens on ropes. Mushrooms",
+   "A sailor's boot rots on his foot. Another coughs blood."
+  ],
+  "choices": [
+   {
+    "label": "Burn sulphur and herbs; fumigate",
+    "requires": {
+     "herbs": 15
+    },
+    "outcomes": [
+     {
+      "chance": 0.65,
+      "text": "The smoke drives mould from the stores. You lose some flavour but save the powder and sailcloth.",
+      "effects": {
+       "items": {
+        "herbs": -15
+       },
+       "hp": 5,
+       "morale": 10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 5
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": "fumigated",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.35,
+      "text": "The fumes choke a sleeping sailor. He wakes gasping, lungs scarred. The surgeon bleeds him; he weakens.",
+      "effects": {
+       "items": {
+        "herbs": -15
+       },
+       "hp": -15,
+       "morale": -15,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -5
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "lung_damage",
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Build raised platforms; move stores off",
+    "requires": {
+     "wood": 30,
+     "rope": 10,
+     "iron": 5
+    },
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "Pallet floors and beam shelves. Air circulates. The rot halts. You gain a second storey for the quartermaster.",
+      "effects": {
+       "items": {
+        "wood": -30,
+        "rope": -10,
+        "iron": -5
+       },
+       "hp": 0,
+       "morale": 15,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 5
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": "raised_storage",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Green timber warps in the damp. A shelf collapses, crushing the rum casks. The crew mourns the loss.",
+      "effects": {
+       "items": {
+        "wood": -30,
+        "rope": -10,
+        "iron": -5,
+        "rum": -10
+       },
+       "hp": 0,
+       "morale": -20,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -10
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Tide-Puck seeks the cave's dry chimney",
+    "requires": {
+     "pet_level": 3
+    },
+    "outcomes": [
+     {
+      "chance": 0.55,
+      "text": "He finds a fissure where wind blows constant and dry. You move the powder and charts there. Safe at last.",
+      "effects": {
+       "items": {
+        "map_fragment": 1
+       },
+       "hp": 0,
+       "morale": 15,
+       "rep": {
+        "utc": 0,
+        "tideborn": 5,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 25,
+       "unlock": "dry_chimney",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "The chimney houses a colony of oilbirds. Their guano burns the powder bags. You salvage half, cursing.",
+      "effects": {
+       "items": {
+        "powder": -5
+       },
+       "hp": 0,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "gull",
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.15,
+      "text": "He leads you to a Tideborn shrine, dry and ancient. A stone tablet depicts the leviathan. You copy the glyphs.",
+      "effects": {
+       "items": {
+        "relic_shard": 1,
+        "map_fragment": 1
+       },
+       "hp": 0,
+       "morale": 10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 15,
+        "free": 0
+       },
+       "spawn": "tideborn_scout",
+       "pet_xp": 20,
+       "unlock": "tideborn_glyphs",
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Tromelin castaways battled mould and rot for fifteen years; they stored water in salvaged lead basins and built thick coral walls to manage damp, while the island's single shrub provided minimal dry fuel (Int J Osteoarchaeol 2021)."
+ },
+ {
+  "id": "wthr_011",
+  "category": "weather",
+  "title": "The Fog's Gift: Tideborn Warning",
+  "zones": [
+   "reef",
+   "sea",
+   "beach"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.0,
+   "min_day": 5,
+   "camp_level": 2,
+   "needs_item": null,
+   "weather": "fog"
+  },
+  "weight": 5,
+  "cooldown_s": 0,
+  "intro_lines": [
+   "The Tideborn scout's pearl glows faint in your palm. She",
+   "Dawn burns the fog. The reef shows UTC wreckage —"
+  ],
+  "choices": [
+   {
+    "label": "Sabotage the array before it charges",
+    "requires": {
+     "iron": 3,
+     "powder": 2,
+     "flint": 1
+    },
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "You shatter the focusing crystals. The array screams, a sound like tearing metal. UTC patrol boats turn back.",
+      "effects": {
+       "items": {
+        "iron": -3,
+        "powder": -2,
+        "flint": -1,
+        "relic_shard": 2
+       },
+       "hp": 0,
+       "morale": 20,
+       "rep": {
+        "utc": -15,
+        "tideborn": 15,
+        "free": 5
+       },
+       "spawn": null,
+       "pet_xp": 20,
+       "unlock": "array_destroyed",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "The feedback loop detonates. A wave of pressure flattens the reef. You wake on the beach, ears bleeding.",
+      "effects": {
+       "items": {
+        "iron": -3,
+        "powder": -2,
+        "flint": -1
+       },
+       "hp": -20,
+       "morale": -10,
+       "rep": {
+        "utc": -5,
+        "tideborn": 5,
+        "free": 0
+       },
+       "spawn": "wild_mythos",
+       "pet_xp": 10,
+       "unlock": "leviathan_stirred",
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Steal the power core; bring it to Silas",
+    "requires": {
+     "rope": 5,
+     "sailcloth": 3,
+     "pet_level": 2
+    },
+    "outcomes": [
+     {
+      "chance": 0.55,
+      "text": "Tide-Puck retrieves the core — a living geode. Silas weeps; it's a Tideborn heart-stone. He knows the binding songs.",
+      "effects": {
+       "items": {
+        "rope": -5,
+        "sailcloth": -3,
+        "relic_shard": 3
+       },
+       "hp": 0,
+       "morale": 15,
+       "rep": {
+        "utc": -10,
+        "tideborn": 20,
+        "free": 5
+       },
+       "spawn": null,
+       "pet_xp": 30,
+       "unlock": "heart_stone",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.45,
+      "text": "UTC divers cut the line. The core sinks. A patrol surrounds you. You trade the map fragment for your lives.",
+      "effects": {
+       "items": {
+        "rope": -5,
+        "sailcloth": -3,
+        "map_fragment": -1
+       },
+       "hp": 0,
+       "morale": -15,
+       "rep": {
+        "utc": 10,
+        "tideborn": -10,
+        "free": -5
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Leave it; the leviathan is not your war",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "You withdraw. The array charges. Weeks later, a tidal wave scours the UTC haven on the next isle. Survivors wash ashore.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": -5,
+        "tideborn": 0,
+        "free": 10
+       },
+       "spawn": "free_pirates",
+       "pet_xp": 0,
+       "unlock": "utc_haven_destroyed",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "The wave hits your isle too. The camp floods. Silas's charts are lost. You rebuild from memory and salt.",
+      "effects": {
+       "items": {
+        "wood": -20,
+        "map_fragment": -2,
+        "food": -10
+       },
+       "hp": -10,
+       "morale": -20,
+       "rep": {
+        "utc": 0,
+        "tideborn": -5,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "The 1761 Tromelin survivors built a boat from wreckage in two months and sailed for help, leaving sixty Malagasy slaves behind; fifteen years passed before rescue, during which they maintained fire, dug wells, and endured cyclones (Archaeology Mag 2014)."
+ }
+]

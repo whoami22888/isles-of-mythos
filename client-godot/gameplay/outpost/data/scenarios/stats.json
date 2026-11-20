@@ -1,16 +1,24 @@
 {
  "per_category": {
   "castaway": 21,
+  "discovery": 7,
   "gathering": 22,
+  "mystery": 22,
+  "pet": 22,
+  "pirate": 11,
   "sea": 11,
-  "wildlife": 11
+  "weather": 11,
+  "wildlife": 25
  },
- "total": 65,
- "chain_links": 13,
- "chain_heads": 6,
- "chain_targets": 9,
- "rejected": {},
+ "total": 152,
+ "chain_links": 61,
+ "chain_heads": 19,
+ "chain_targets": 30,
+ "rejected": {
+  "few_outcomes": 12,
+  "no_intro": 3
+ },
  "engine": {
-  "kilo": 65
+  "kilo": 152
  }
 }

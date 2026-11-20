@@ -446,7 +446,7 @@
   ],
   "choices": [
    {
-    "label": "Paddle across the current, not against.",
+    "label": "Paddle across the current, not against",
     "requires": {},
     "outcomes": [
      {
@@ -732,7 +732,7 @@
     ]
    },
    {
-    "label": "Fish the floating crates instead.",
+    "label": "Fish the floating crates instead",
     "requires": {},
     "outcomes": [
      {
@@ -800,7 +800,7 @@
     ]
    },
    {
-    "label": "Leave it. Escort sails with a.",
+    "label": "Leave it. Escort sails",
     "requires": {},
     "outcomes": [
      {
@@ -1015,7 +1015,7 @@
     ]
    },
    {
-    "label": "Sit still. Keep your hands out of the.",
+    "label": "Sit still. Keep your hands out",
     "requires": {},
     "outcomes": [
      {
@@ -1814,7 +1814,7 @@
     ]
    },
    {
-    "label": "Take the line, knife where he can see.",
+    "label": "Take the line, knife where he can see",
     "requires": {},
     "outcomes": [
      {
@@ -1967,7 +1967,7 @@
   ],
   "choices": [
    {
-    "label": "Fight him. He is tired and you are.",
+    "label": "Fight him. He is tired and you are",
     "requires": {},
     "outcomes": [
      {
