@@ -140,11 +140,11 @@ void fragment() {
     mobile_ramp = mix(mobile_ramp, toon_highlight_tint.rgb, mobile_high_band);
     vec3 mobile_tint = mobile_ramp * mobile_key_light_color;
     ALBEDO *= mix(vec3(1.0), mobile_tint, clamp(mobile_ramp_strength, 0.0, 1.0));
-#endif
 
-    // Built-in rim fallback remains available when mobile vertex lighting skips light().
+    // Built-in rim fallback is mobile-only; desktop already adds its rim in light().
     RIM = clamp(vertex_rim_factor, 0.0, 1.0) * rim_strength;
     RIM_TINT = rim_tint;
+#endif
 }
 
 void light() {
