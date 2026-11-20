@@ -33,20 +33,39 @@ jobs:
           JSON
           failed=0
           fetch_one() {
-            local id="$1" file="$2" url="$3"
-            echo "Fetching $id from the official Kenney endpoint"
-            if curl --fail --location --silent --show-error --retry 3 --retry-all-errors --connect-timeout 15 --max-time 180 --max-filesize 100000000 --output "quarantine/archives/$file" --write-out '%{url_effective}' "$url" > "quarantine/archives/$file.effective-url"; then
-              echo "$id download complete ($(stat -c '%s' "quarantine/archives/$file") bytes)"
+            local id="$1" file="$2" url="$3" page="$4"
+            local destination="quarantine/archives/$file"
+            local meta="$destination.http-meta"
+            local error_file="$destination.curl-error"
+            local cookie_jar="quarantine/archives/$id.cookies"
+            local user_agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+            echo "Fetching $id from the official Kenney endpoint with its publisher-page referer"
+            # Establish the public publisher-page session first; this is a bounded
+            # anti-hotlink compatibility check, not a licence or provenance bypass.
+            curl --location --silent --show-error --connect-timeout 15 --max-time 45 \
+              --user-agent "$user_agent" --cookie-jar "$cookie_jar" \
+              --output /dev/null "$page" 2>"$error_file" || true
+            local curl_exit=0
+            curl --fail --location --silent --show-error --retry 1 --retry-all-errors \
+              --connect-timeout 15 --max-time 180 --max-filesize 100000000 \
+              --user-agent "$user_agent" --referer "$page" --header "Origin: https://kenney.nl" \
+              --cookie "$cookie_jar" --cookie-jar "$cookie_jar" \
+              --output "$destination" --write-out '%{http_code}|%{url_effective}' "$url" \
+              > "$meta" 2>"$error_file" || curl_exit=$?
+            printf '%s\\n' "$curl_exit" > "$destination.exit"
+            rm -f "$cookie_jar"
+            if [ "$curl_exit" -eq 0 ] && [ -s "$destination" ]; then
+              echo "$id download complete ($(stat -c '%s' "$destination") bytes)"
             else
-              echo "::error::$id official archive download failed"
-              rm -f "quarantine/archives/$file"
+              echo "::error::$id official archive download failed (curl exit $curl_exit; HTTP metadata: $(cat "$meta" 2>/dev/null || true))"
+              rm -f "$destination"
               failed=1
             fi
           }
-          fetch_one H01 kenney_pirate-kit.zip "https://kenney.nl/media/pages/assets/pirate-kit/e6d4bb1525-1771333093/kenney_pirate-kit.zip"
-          fetch_one H02 kenney_watercraft-pack.zip "https://kenney.nl/media/pages/assets/watercraft-kit/a335cfed49-1713519620/kenney_watercraft-pack.zip"
-          fetch_one H03 kenney_fantasy-town-kit_2.0.zip "https://kenney.nl/media/pages/assets/fantasy-town-kit/efe948d309-1754222374/kenney_fantasy-town-kit_2.0.zip"
-          fetch_one H04 kenney_ui-pack-adventure.zip "https://kenney.nl/media/pages/assets/ui-pack-adventure/9a877376bc-1723597274/kenney_ui-pack-adventure.zip"
+          fetch_one H01 kenney_pirate-kit.zip "https://kenney.nl/media/pages/assets/pirate-kit/e6d4bb1525-1771333093/kenney_pirate-kit.zip" "https://kenney.nl/assets/pirate-kit"
+          fetch_one H02 kenney_watercraft-pack.zip "https://kenney.nl/media/pages/assets/watercraft-kit/a335cfed49-1713519620/kenney_watercraft-pack.zip" "https://kenney.nl/assets/watercraft-kit"
+          fetch_one H03 kenney_fantasy-town-kit_2.0.zip "https://kenney.nl/media/pages/assets/fantasy-town-kit/efe948d309-1754222374/kenney_fantasy-town-kit_2.0.zip" "https://kenney.nl/assets/fantasy-town-kit"
+          fetch_one H04 kenney_ui-pack-adventure.zip "https://kenney.nl/media/pages/assets/ui-pack-adventure/9a877376bc-1723597274/kenney_ui-pack-adventure.zip" "https://kenney.nl/assets/ui-pack-adventure"
           python3 - <<'PY'
           import hashlib, json, os, stat, zipfile
           from collections import Counter
@@ -80,12 +99,19 @@ jobs:
                   None if not source.get("expected_remote_sha256")
                   else data_hash.hexdigest() == source["expected_remote_sha256"]
               )
-              effective_path = archive.with_name(archive.name + ".effective-url")
-              effective = effective_path.read_text().strip() if effective_path.exists() else ""
+              meta_path = archive.with_name(archive.name + ".http-meta")
+              meta = meta_path.read_text().strip() if meta_path.exists() else ""
+              parts = meta.split("|", 1)
+              record["http_status"] = parts[0] if parts else None
+              effective = parts[1] if len(parts) > 1 else ""
               parsed = urlparse(effective)
               record["effective_origin"] = f"{parsed.scheme}://{parsed.netloc}" if parsed.scheme and parsed.netloc else None
               record["effective_path"] = parsed.path if parsed.path else None
               record["redirect_origin_allowed"] = parsed.scheme == "https" and parsed.hostname in {"kenney.nl", "www.kenney.nl"}
+              exit_path = archive.with_name(archive.name + ".exit")
+              record["curl_exit"] = exit_path.read_text().strip() if exit_path.exists() else None
+              error_path = archive.with_name(archive.name + ".curl-error")
+              record["curl_error"] = error_path.read_text(errors="replace")[-2000:] if error_path.exists() else None
               if not record["redirect_origin_allowed"]:
                   record["status"] = "REJECTED_REDIRECT_ORIGIN"
                   invalid = True
