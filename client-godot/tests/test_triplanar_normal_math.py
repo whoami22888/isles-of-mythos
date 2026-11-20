@@ -180,7 +180,7 @@ class StylizedPbrShaderContractTests(unittest.TestCase):
         for token in ("toon_shadow_tint", "toon_mid_tint", "toon_highlight_tint"):
             self.assertIn(token, self.light)
         self.assertIn("SPECULAR_AMOUNT", self.light)
-        self.assertIn("specular_amount", self.light)
+        self.assertIn("SPECULAR = specular_amount", self.fragment)
 
     def test_uv_and_triplanar_texture_fallbacks_are_present(self):
         """UV and triplanar maps retain scalar material fallbacks."""
@@ -212,6 +212,23 @@ class StylizedPbrShaderContractTests(unittest.TestCase):
         self.assertIn("specular_toon", self.mobile_source)
         self.assertIn("SPECULAR = specular_amount", self.fragment)
         self.assertIn("RIM = clamp(vertex_rim_factor", self.fragment)
+
+    def test_back_facing_lights_do_not_add_direct_diffuse(self):
+        """Back-facing lights must not contribute the shadow tint as direct light."""
+        guard = "if (n_dot_l <= 0.0) {\n        return;\n    }"
+        self.assertIn(guard, self.light)
+        self.assertLess(
+            self.light.index(guard),
+            self.light.index("DIFFUSE_LIGHT +="),
+        )
+
+    def test_specular_amount_is_applied_once(self):
+        """The fragment SPECULAR control must not be squared in the light lobe."""
+        self.assertEqual(self.light.count("SPECULAR_AMOUNT"), 1)
+        self.assertIn("SPECULAR = specular_amount", self.fragment)
+        self.assertIn("vec3 f0 = mix(vec3(0.04), ALBEDO, METALLIC);", self.light)
+        self.assertNotIn("specular_amount * SPECULAR_AMOUNT", self.light)
+        self.assertNotIn("0.04 * specular_amount", self.light)
 
     def test_opaque_material_does_not_force_transparent_pipeline(self):
         """Opaque material output must not assign ALPHA."""
