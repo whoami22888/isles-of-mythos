@@ -11,6 +11,7 @@ extends Node3D
 ## Barracks crew fighting beside the player) will hang off the state signals
 ## building_done / camp_levelled and read palisade_hp() / crew_slots().
 
+const Rescue := preload("res://gameplay/outpost/outpost_rescue.gd")
 const Raid := preload("res://gameplay/outpost/outpost_raid.gd")
 const Gather := preload("res://gameplay/outpost/outpost_gather.gd")
 const State := preload("res://gameplay/outpost/outpost_state.gd")
@@ -103,6 +104,11 @@ func _ready() -> void:
 	add_child(raid)
 	raid.setup(state.m2())
 	raid_director = raid
+	rescue = Rescue.new()
+	rescue.name = "Rescue"
+	rescue.host = self
+	add_child(rescue)
+	rescue.setup(state.data.get("milestone3", {}))
 	player_max = float(state.m2().get("player", {}).get("hp", 120))
 	player_hp = player_max
 	_hud = CanvasLayer.new()
@@ -260,7 +266,18 @@ func lens_hidden_count() -> int:
 	return _lens_hidden.size()
 
 
+func register_terrain(xf: Transform3D) -> void:
+	_extra_terrain.append(xf)
+
+
 func ground_y(x: float, z: float) -> float:
+	if _terrain_tm and z < -60.0:
+		for xf in _extra_terrain:
+			var inv2: Transform3D = xf.affine_inverse()
+			var hit2 := _terrain_tm.intersect_ray(inv2 * Vector3(x, 80.0, z), (inv2.basis * Vector3.DOWN).normalized())
+			if not hit2.is_empty():
+				return (xf * (hit2["position"] as Vector3)).y
+		return _water_y - 6.0
 	if _terrain_tm:
 		var inv := _terrain_xf.affine_inverse()
 		var hit := _terrain_tm.intersect_ray(inv * Vector3(x, 80.0, z), (inv.basis * Vector3.DOWN).normalized())
@@ -383,6 +400,8 @@ func _process(delta: float) -> void:
 		np.y = ground_y(np.x, np.z)
 		if np.y > _water_y + 0.15:
 			_player.global_position = np
+	elif rescue and rescue.controls_player():
+		pass
 	else:
 		_move(delta)
 	if not _pet_bite(delta):
@@ -465,6 +484,8 @@ func _nearest_site(radius: float) -> String:
 
 
 func _action_text() -> String:
+	if rescue and rescue.action_text() != "" and not (raid.active() and not raid.nearest_enemy(_player.global_position, 3.2).is_empty()):
+		return rescue.action_text()
 	if raid and raid.active() and player_alive() and not raid.nearest_enemy(_player.global_position, 3.2).is_empty():
 		return "Strike"
 	if _focus != "" and state.needs_repair(_focus) and not state.is_building(_focus):
@@ -493,6 +514,9 @@ func _site_idle(id: String) -> bool:
 
 func on_action() -> void:
 	if not player_alive():
+		return
+	if rescue and _action_text() == rescue.action_text() and rescue.action_text() != "":
+		rescue.on_action()
 		return
 	if raid and raid.active() and not raid.nearest_enemy(_player.global_position, 3.2).is_empty():
 		strike_enemy()
@@ -731,6 +755,8 @@ func hurt_player(dmg: float, from: Vector3) -> void:
 func _respawn() -> void:
 	player_hp = player_max
 	var at := site_pos("camp") + Vector3(0, 0, -3.5)
+	if respawn_override != Vector3.INF:
+		at = respawn_override
 	at.y = ground_y(at.x, at.z)
 	_player.global_position = at
 	Art.play(_rig, "Idle")
@@ -758,12 +784,35 @@ func _pet_bite(delta: float) -> bool:
 	elif _pet_cd <= 0.0:
 		_pet_cd = float(pcfg.get("cooldown", 3.0))
 		raid.hurt(_pet_target, float(pcfg.get("damage", 6)), _pet.global_position, 0.3)
+		_pet_lunge(at)
 		raid.stun(_pet_target, float(pcfg.get("stun", 1.2)))
 		pet_bites += 1
 	return true
 
 
 var pet_bites := 0
+
+
+## Bite lunge: the pup springs forward, squashes on the bite, settles back.
+func _pet_lunge(at: Vector3) -> void:
+	var body := _pet.get_node_or_null("Body") as Node3D
+	if body == null:
+		return
+	var rest := body.position
+	var dir := _pet.global_transform.basis.inverse() * (at - _pet.global_position)
+	dir.y = 0
+	dir = dir.normalized() * 0.55
+	var base := body.scale
+	var t := body.create_tween()
+	t.tween_property(body, "position", rest + dir + Vector3(0, 0.18, 0), 0.09).set_ease(Tween.EASE_OUT)
+	t.parallel().tween_property(body, "scale", base * Vector3(0.9, 1.15, 1.1), 0.09)
+	t.tween_property(body, "position", rest + dir, 0.05)
+	t.parallel().tween_property(body, "scale", base * Vector3(1.12, 0.85, 1.0), 0.05)
+	t.tween_property(body, "position", rest, 0.22).set_trans(Tween.TRANS_BACK)
+	t.parallel().tween_property(body, "scale", base, 0.22)
+var rescue: Node3D
+var respawn_override := Vector3.INF
+var _extra_terrain: Array = []   # [Transform3D] more copies of the terrain kit
 
 
 func site_pos(id: String) -> Vector3:
@@ -830,6 +879,33 @@ func damage_number(at: Vector3, n: int, enemy: bool, key: Object = null) -> void
 func banner(title: String, sub: String) -> void:
 	if _hud and _hud.has_method("banner"):
 		_hud.banner(title, sub)
+
+
+func place_player(at: Vector3, snap: bool = true) -> void:
+	if snap:
+		at.y = ground_y(at.x, at.z)
+	_player.global_position = at
+	if snap:
+		_pet.global_position = at + Vector3(1.0, 0, 0.6)
+		_pet.global_position.y = ground_y(_pet.global_position.x, _pet.global_position.z)
+		snap_camera()
+
+
+func knock_player(v: Vector3) -> void:
+	var p := _player.global_position + v * 0.35
+	p.y = ground_y(p.x, p.z)
+	if p.y > _water_y + 0.1:
+		_player.global_position = p
+
+
+func subtitle(who: String, text: String) -> void:
+	if _hud and _hud.has_method("subtitle"):
+		_hud.subtitle(who, text)
+
+
+func on_log() -> void:
+	if _hud and _hud.has_method("show_log"):
+		_hud.show_log(state.journal)
 
 
 ## Bot/test helper: walk instantly beside a site.

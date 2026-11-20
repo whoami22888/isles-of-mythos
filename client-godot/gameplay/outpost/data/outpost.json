@@ -473,6 +473,52 @@
         "shot_speed": 13.0,
         "crew": true,
         "windup": 0.7
+      },
+      "harpooner": {
+        "title": "Harpooner",
+        "hp": 110,
+        "damage": 22,
+        "range": 3.2,
+        "cooldown": 1.6,
+        "windup": 0.5,
+        "speed": 2.6,
+        "shirt": [
+          0.2,
+          0.32,
+          0.4
+        ],
+        "scale": 1.0,
+        "weapon": "cutlass",
+        "crew": true
+      },
+      "silas": {
+        "title": "Silas",
+        "hp": 400,
+        "damage": 0,
+        "range": 1.0,
+        "cooldown": 9,
+        "speed": 2.0,
+        "shirt": [
+          0.55,
+          0.12,
+          0.1
+        ],
+        "scale": 1.0,
+        "weapon": "cutlass"
+      },
+      "prisoner": {
+        "title": "Sailor",
+        "hp": 100,
+        "damage": 0,
+        "range": 1.0,
+        "cooldown": 9,
+        "speed": 2.4,
+        "shirt": [
+          0.62,
+          0.6,
+          0.5
+        ],
+        "scale": 1.0
       }
     },
     "crew_train": {
@@ -489,6 +535,14 @@
           "iron": 8
         },
         "seconds": 30
+      },
+      "harpooner": {
+        "cost": {
+          "food": 30,
+          "iron": 12
+        },
+        "seconds": 35,
+        "requires": "silas"
       }
     },
     "waves": [
@@ -623,5 +677,150 @@
         "z": 7.0
       }
     ]
+  },
+  "milestone3": {
+    "_note": "Silas rescue (Blueprint Act 2). Story text: Grok Bot draft (no REPLY B-012 from ChatGPT yet).",
+    "bottle_after_waves": 2,
+    "bottle": {
+      "x": 7.0,
+      "z": 1.6
+    },
+    "raft": {
+      "cost": {
+        "wood": 60,
+        "food": 20
+      },
+      "seconds": 40
+    },
+    "raft_speed": 3.6,
+    "island2": {
+      "x": -18.0,
+      "z": -128.0,
+      "yaw": 180.0,
+      "scale": 0.55
+    },
+    "harpooner_slots": 2,
+    "waves": [
+      {
+        "deckhand": 3
+      },
+      {
+        "deckhand": 2,
+        "musketeer": 2
+      }
+    ],
+    "boss": {
+      "kind": "captain",
+      "hp": 520,
+      "charge_every": 6.5,
+      "charge_windup": 1.0,
+      "charge_speed": 11.0,
+      "charge_time": 0.7,
+      "charge_damage": 32
+    },
+    "story": {
+      "bottle": {
+        "title": "A Bottle on the Tide",
+        "lines": [
+          [
+            "First Mate",
+            "A bottle, sealed with Silas's own wax."
+          ],
+          [
+            "Silas (letter)",
+            "\"Alive. UTC holds me on the isle to the north.\""
+          ],
+          [
+            "Silas (letter)",
+            "\"Three of our lads with me. Bring steel, Mate.\""
+          ]
+        ],
+        "journal": "A bottle washed up sealed with Silas's wax. He is alive, held by the UTC on the island to the north with three of our sailors."
+      },
+      "raft": {
+        "title": "The Raft",
+        "lines": [
+          [
+            "First Mate",
+            "Lash the logs tight. She only has to float once."
+          ],
+          [
+            "{pet}",
+            "*slaps the planks with a flipper, ready*"
+          ]
+        ],
+        "journal": "We lashed a raft together at the dock. Small, ugly, and it floats. That is enough."
+      },
+      "voyage": {
+        "title": "Across the Strait",
+        "lines": [
+          [
+            "First Mate",
+            "Steady. Smoke on the far shore. That's their camp."
+          ]
+        ],
+        "journal": "We crossed the strait under a patched sail. Smoke rose from a stockade on the northern isle."
+      },
+      "stockade": {
+        "title": "The Stockade",
+        "lines": [
+          [
+            "UTC Captain",
+            "\"The Mythos mate! The Company pays double for you.\""
+          ],
+          [
+            "First Mate",
+            "Then come and collect."
+          ]
+        ],
+        "journal": "The UTC built a stockade on the beach and caged our men inside. Their captain knew my face."
+      },
+      "freed": {
+        "title": "Silas",
+        "lines": [
+          [
+            "Silas",
+            "\"Took your time, Mate. Thought the sea had you.\""
+          ],
+          [
+            "Silas",
+            "\"The Sovereign spat me out. The Company caught me.\""
+          ],
+          [
+            "Silas",
+            "\"Get us home. We've a debt to settle.\""
+          ]
+        ],
+        "journal": "Silas is alive, thinner and angrier. Three sailors with him. He says the Company knew the Sovereign would rise."
+      },
+      "home": {
+        "title": "The Crew Returns",
+        "lines": [
+          [
+            "Silas",
+            "\"A palisade and a forge? You've been busy.\""
+          ],
+          [
+            "Silas",
+            "\"I'll drill the lads. Harpoons for the next raid.\""
+          ]
+        ],
+        "journal": "Silas took the Barracks in hand. Two more bunks, and he is teaching the crew the harpoon."
+      },
+      "flag": {
+        "title": "Flag & Fortress",
+        "lines": [
+          [
+            "Silas",
+            "\"That's no privateer. That's a Company warship.\""
+          ],
+          [
+            "First Mate",
+            "Then they're coming for all of us."
+          ]
+        ],
+        "journal": "A UTC warship's flag on the horizon. Not a raid this time. A fleet."
+      }
+    }
   }
 }

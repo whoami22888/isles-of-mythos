@@ -28,6 +28,11 @@ var waves_done := 0
 var crew_queue: Array = []   # [{"kind": String, "left": float}]
 var crew_ready: Array = []   # kinds trained and waiting to be fielded
 var relics := 0
+## Milestone 3: Silas rescue progress (see outpost_rescue.gd).
+var rescue_phase := ""
+var raft_left := -1.0
+var silas_joined := false
+var journal: Array = []   # [{title, text}]
 
 
 func load_data(path: String = DATA_PATH) -> bool:
@@ -312,7 +317,8 @@ func palisade_hp() -> int:
 
 func crew_slots() -> int:
 	var lv := level_of("barracks")
-	return int(level_row("barracks", lv).get("crew_slots", 0)) if lv > 0 else 0
+	var extra := int(data.get("milestone3", {}).get("harpooner_slots", 2)) if silas_joined else 0
+	return int(level_row("barracks", lv).get("crew_slots", 0)) + extra if lv > 0 else 0
 
 
 func warning_seconds() -> float:
@@ -373,6 +379,8 @@ func train(kind: String) -> String:
 	var row: Dictionary = m2().get("crew_train", {}).get(kind, {})
 	if row.is_empty():
 		return "Unknown crew"
+	if str(row.get("requires", "")) == "silas" and not silas_joined:
+		return "Rescue Silas first"
 	if level_of("barracks") <= 0:
 		return "Needs a Barracks"
 	if crew_queue.size() + crew_ready.size() + fielded >= crew_slots():
@@ -411,7 +419,8 @@ func to_dict() -> Dictionary:
 		"camp_building": camp_building, "camp_left": camp_left,
 		"buildings": buildings.duplicate(true), "welcomed": welcomed,
 		"hp": hp.duplicate(), "waves_done": waves_done, "crew_queue": crew_queue.duplicate(true),
-		"crew_ready": crew_ready.duplicate(), "relics": relics}
+		"crew_ready": crew_ready.duplicate(), "relics": relics,
+		"rescue_phase": rescue_phase, "raft_left": raft_left, "silas_joined": silas_joined, "journal": journal.duplicate(true)}
 
 
 func from_dict(d: Dictionary) -> void:
@@ -428,6 +437,10 @@ func from_dict(d: Dictionary) -> void:
 	crew_queue = (d.get("crew_queue", []) as Array).duplicate(true)
 	crew_ready = (d.get("crew_ready", []) as Array).duplicate()
 	relics = int(d.get("relics", 0))
+	rescue_phase = str(d.get("rescue_phase", ""))
+	raft_left = float(d.get("raft_left", -1.0))
+	silas_joined = bool(d.get("silas_joined", false))
+	journal = (d.get("journal", []) as Array).duplicate(true)
 	var bs: Dictionary = d.get("buildings", {})
 	for id in bs.keys():
 		if buildings.has(id):

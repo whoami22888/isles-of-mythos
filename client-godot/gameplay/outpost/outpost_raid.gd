@@ -30,6 +30,10 @@ var _retarget := 0.0
 var _armed := false
 var kills := 0
 var freeze := 0.0
+## Milestone 3: hold pauses the raid timer; arena makes raiders hunt the
+## player anywhere (the rescue fight on the northern isle).
+var hold := false
+var arena := false
 
 
 func setup(data: Dictionary) -> void:
@@ -112,7 +116,7 @@ func _process(delta: float) -> void:
 		timer = float(cfg.get("raid_interval", 180))
 	match phase:
 		"idle":
-			if _armed:
+			if _armed and not hold:
 				timer -= delta
 				if timer <= 0.0:
 					start_warning()
@@ -277,7 +281,7 @@ func _pick_target(u: Dictionary) -> void:
 					u["target"] = o
 		if host.player_alive() and not (walled and not _south(host._player.global_position)):
 			var dp: float = me.distance_to(host._player.global_position)
-			if dp < 5.0 + (6.0 if unit_row(u["kind"]).get("ranged", false) else 0.0) and dp < best_d:
+			if arena or dp < 5.0 + (6.0 if unit_row(u["kind"]).get("ranged", false) else 0.0) and dp < best_d:
 				best_d = dp
 				u["target"] = "player"
 		if u["target"] != null:
@@ -370,6 +374,8 @@ func _tick_units(delta: float) -> void:
 	for u in units:
 		var node: Node3D = u["node"]
 		if not is_instance_valid(node):
+			continue
+		if not (u["team"] in ["enemy", "crew"]):
 			continue
 		if float(u["dead"]) >= 0.0:
 			u["dead"] = float(u["dead"]) + delta

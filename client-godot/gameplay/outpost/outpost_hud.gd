@@ -30,6 +30,12 @@ var _banner_t := 0.0
 var _hp_back: ColorRect
 var _hp_fill: ColorRect
 var _dodge: Button
+var _sub: Label
+var _subs: Array = []
+var _sub_t := 0.0
+var _log_btn: Button
+var _log: PanelContainer
+var _log_box: VBoxContainer
 ## Below the resource strip, camp line and objective line.
 const TAG_TOP := 150.0
 
@@ -138,6 +144,41 @@ func _ready() -> void:
 	_dodge.offset_bottom = -90
 	_dodge.pressed.connect(func(): if world: world.on_dodge())
 	add_child(_dodge)
+	_sub = _label(30)
+	_sub.anchor_left = 0.5
+	_sub.anchor_right = 0.5
+	_sub.anchor_top = 1.0
+	_sub.anchor_bottom = 1.0
+	_sub.offset_left = -470
+	_sub.offset_right = 470
+	_sub.offset_top = -150
+	_sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_sub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	add_child(_sub)
+	_log_btn = _button("Log", 26)
+	_log_btn.anchor_left = 1.0
+	_log_btn.anchor_right = 1.0
+	_log_btn.offset_left = -300
+	_log_btn.offset_right = -205
+	_log_btn.offset_top = 20
+	_log_btn.offset_bottom = 84
+	_log_btn.pressed.connect(func():
+		if _log.visible:
+			_log.visible = false
+		elif world:
+			world.on_log())
+	add_child(_log_btn)
+	_log = PanelContainer.new()
+	_log.add_theme_stylebox_override("panel", _box(Color(0.09, 0.07, 0.05, 0.92)))
+	_log.anchor_left = 0.5
+	_log.anchor_right = 0.5
+	_log.offset_left = -420
+	_log.offset_right = 420
+	_log.offset_top = 110
+	_log.visible = false
+	add_child(_log)
+	_log_box = VBoxContainer.new()
+	_log.add_child(_log_box)
 	_toast = _label(30)
 	_toast.anchor_left = 0.5
 	_toast.anchor_right = 0.5
@@ -195,6 +236,33 @@ func menu_open() -> bool:
 
 func close_menu() -> void:
 	_menu.visible = false
+
+
+func subtitle(who: String, text: String) -> void:
+	_subs.append("%s: %s" % [who, text])
+
+
+func subtitle_count() -> int:
+	return _subs.size() + (1 if _sub_t > 0.0 else 0)
+
+
+func show_log(entries: Array) -> void:
+	for c in _log_box.get_children():
+		c.queue_free()
+	var head := _label(34)
+	head.text = "Journal"
+	_log_box.add_child(head)
+	for e in entries.slice(maxi(entries.size() - 5, 0)):
+		var t := _label(26)
+		t.add_theme_color_override("font_color", Color(1.0, 0.9, 0.62))
+		t.text = str(e.get("title", ""))
+		_log_box.add_child(t)
+		var b := _label(22)
+		b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		b.custom_minimum_size = Vector2(800, 0)
+		b.text = str(e.get("text", ""))
+		_log_box.add_child(b)
+	_log.visible = true
 
 
 func banner(title: String, sub: String) -> void:
@@ -302,6 +370,13 @@ func tag_rects() -> Array:
 
 
 func _process(delta: float) -> void:
+	if _sub_t > 0.0:
+		_sub_t -= delta
+		if _sub_t <= 0.0:
+			_sub.text = ""
+	if _sub_t <= 0.0 and not _subs.is_empty():
+		_sub.text = str(_subs.pop_front())
+		_sub_t = 3.4
 	if _banner_t > 0.0:
 		_banner_t -= delta
 		var a := clampf(_banner_t, 0.0, 1.0)
@@ -331,7 +406,7 @@ func _process(delta: float) -> void:
 
 
 func _over_button(p: Vector2) -> bool:
-	for c in [_action, _build_btn, _menu, _dodge]:
+	for c in [_action, _build_btn, _menu, _dodge, _log_btn, _log]:
 		if c.visible and c.get_global_rect().has_point(p):
 			return true
 	return false
