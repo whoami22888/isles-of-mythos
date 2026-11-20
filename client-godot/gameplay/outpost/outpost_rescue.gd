@@ -188,8 +188,12 @@ func _build_raft() -> Node3D:
 	pole.position.y = 1.5
 	var sail := Art.spawn(Art.TORN_SAIL)
 	mast.add_child(sail)
-	Art.fit_height(sail, 1.8)
-	sail.position = Vector3(0, 1.4, 0.1)
+	# The torn sail mesh lies flat and wide: fit its largest extent, not height.
+	var sb := Art.world_aabb(sail)
+	sail.scale *= 1.8 / maxf(maxf(sb.size.x, sb.size.y), maxf(sb.size.z, 0.01))
+	if sb.size.y < maxf(sb.size.x, sb.size.z) * 0.5:
+		sail.rotation_degrees.x = 90
+	sail.position = Vector3(0, 1.8, 0.08)
 	return r
 
 
