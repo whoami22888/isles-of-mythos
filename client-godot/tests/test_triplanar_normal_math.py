@@ -2,6 +2,10 @@
 
 These tests do not compile or render a Godot shader; engine evidence remains mandatory.
 """
+
+# This standalone unittest module does not use Django settings.
+# pylint: disable=django-not-configured
+
 import math
 import unittest
 from pathlib import Path
@@ -21,6 +25,15 @@ def normalize(vector):
     return tuple(component / length for component in vector)
 
 
+def reorient_projection(sample, face_sign, axis_index):
+    """Map a tangent-space sample into its signed local projection frame."""
+    if axis_index == 0:
+        return (sample[2] * face_sign, sample[0], sample[1] * face_sign)
+    if axis_index == 1:
+        return (sample[0], sample[2] * face_sign, -sample[1] * face_sign)
+    return (sample[0], sample[1] * face_sign, sample[2] * face_sign)
+
+
 def blend_normal(geometric_normal, samples, sharpness=4.0):
     """Blend reoriented triplanar normal samples around the geometric normal."""
     normal = normalize(geometric_normal)
@@ -28,31 +41,24 @@ def blend_normal(geometric_normal, samples, sharpness=4.0):
     total_weight = sum(raw_weights)
     weights = [weight / total_weight for weight in raw_weights]
     signs = [1 if component >= 0 else -1 for component in normal]
-    sample_x, sample_y, sample_z = samples
-
-    tangent_x = (sample_x[2] * signs[0], sample_x[0], sample_x[1] * signs[0])
-    tangent_y = (sample_y[0], sample_y[2] * signs[1], -sample_y[1] * signs[1])
-    tangent_z = (sample_z[0], sample_z[1] * signs[2], sample_z[2] * signs[2])
-    flat_x = (signs[0], 0, 0)
-    flat_y = (0, signs[1], 0)
-    flat_z = (0, 0, signs[2])
-    projections = (tangent_x, tangent_y, tangent_z)
-    flat_normals = (flat_x, flat_y, flat_z)
-
+    projections = [
+        reorient_projection(samples[index], signs[index], index)
+        for index in range(3)
+    ]
+    flat_normals = (
+        (signs[0], 0, 0),
+        (0, signs[1], 0),
+        (0, 0, signs[2]),
+    )
     perturbation = tuple(
         sum(
-            weights[projection_index]
-            * (
-                projections[projection_index][component_index]
-                - flat_normals[projection_index][component_index]
-            )
-            for projection_index in range(3)
+            weight * (projection[component_index] - flat[component_index])
+            for weight, projection, flat in zip(weights, projections, flat_normals)
         )
         for component_index in range(3)
     )
     blended = tuple(
-        normal[index] + perturbation[index]
-        for index in range(3)
+        component + delta for component, delta in zip(normal, perturbation)
     )
     return normalize(blended)
 
@@ -152,6 +158,9 @@ class StylizedPbrShaderContractTests(unittest.TestCase):
         cls.scene = read_utf8(
             test_directory / "cel_stylized_pbr_shader_test.tscn"
         )
+        cls.test_script = read_utf8(
+            test_directory / "cel_stylized_pbr_shader_compile_test.gd"
+        )
         cls.vertex = cls.shared.split("void vertex()", 1)[1].split(
             "void fragment()", 1
         )[0]
@@ -171,14 +180,10 @@ class StylizedPbrShaderContractTests(unittest.TestCase):
 
     def test_three_stop_palette_and_light_specular_are_present(self):
         """The light function keeps three palette stops and specular response."""
-        for token in (
-            "toon_shadow_tint",
-            "toon_mid_tint",
-            "toon_highlight_tint",
-        ):
+        for token in ("toon_shadow_tint", "toon_mid_tint", "toon_highlight_tint"):
             self.assertIn(token, self.light)
         self.assertIn("SPECULAR_AMOUNT", self.light)
-        self.assertIn("specular_amount", self.light)
+        self.assertIn("SPECULAR = specular_amount", self.fragment)
 
     def test_uv_and_triplanar_texture_fallbacks_are_present(self):
         """UV and triplanar maps retain scalar material fallbacks."""
@@ -211,6 +216,39 @@ class StylizedPbrShaderContractTests(unittest.TestCase):
         self.assertIn("SPECULAR = specular_amount", self.fragment)
         self.assertIn("RIM = clamp(vertex_rim_factor", self.fragment)
 
+    def test_builtin_rim_is_mobile_only_to_avoid_double_desktop_rim(self):
+        """Desktop uses its per-light rim; only mobile uses the built-in fallback."""
+        mobile_block = self.fragment.split(
+            "#ifdef IOM_CEL_MOBILE_VERTEX_RAMP", 1
+        )[1].split("#endif", 1)[0]
+        desktop_block = self.fragment.split(
+            "#ifdef IOM_CEL_MOBILE_VERTEX_RAMP", 1
+        )[0]
+        self.assertIn("RIM = clamp(vertex_rim_factor", mobile_block)
+        self.assertIn("RIM_TINT = rim_tint", mobile_block)
+        self.assertNotIn("RIM =", desktop_block)
+        self.assertNotIn("RIM_TINT =", desktop_block)
+
+    def test_back_facing_lights_do_not_add_direct_diffuse(self):
+        """Back-facing lights must not contribute the shadow tint as direct light."""
+        guard = "if (n_dot_l > 0.0) {"
+        self.assertIn(guard, self.light)
+        light_code = "\n".join(
+            line.split("//", 1)[0] for line in self.light.splitlines()
+        )
+        self.assertNotIn("return;", light_code)
+        guarded_body = self.light.split(guard, 1)[1].rsplit("\n}", 1)[0]
+        self.assertIn("DIFFUSE_LIGHT +=", guarded_body)
+        self.assertIn("SPECULAR_LIGHT +=", guarded_body)
+
+    def test_specular_amount_is_applied_once(self):
+        """The fragment SPECULAR control must not be squared in the light lobe."""
+        self.assertEqual(self.light.count("* SPECULAR_AMOUNT;"), 1)
+        self.assertIn("SPECULAR = specular_amount", self.fragment)
+        self.assertIn("vec3 f0 = mix(vec3(0.04), ALBEDO, METALLIC);", self.light)
+        self.assertNotIn("specular_amount * SPECULAR_AMOUNT", self.light)
+        self.assertNotIn("0.04 * specular_amount", self.light)
+
     def test_opaque_material_does_not_force_transparent_pipeline(self):
         """Opaque material output must not assign ALPHA."""
         self.assertNotIn("ALPHA =", self.fragment)
@@ -221,6 +259,13 @@ class StylizedPbrShaderContractTests(unittest.TestCase):
         self.assertIn("cel_stylized_pbr.gdshader", self.scene)
         self.assertIn("cel_stylized_pbr_mobile.gdshader", self.scene)
         self.assertIn("material_override = SubResource", self.scene)
+
+    def test_capture_samples_projected_mobile_mesh(self):
+        """The Vulkan regression must sample the mesh, not an arbitrary viewport pixel."""
+        self.assertIn('get_node_or_null("Camera3D") as Camera3D', self.test_script)
+        self.assertIn("camera.is_position_behind(mobile_mesh.global_position)", self.test_script)
+        self.assertIn("camera.unproject_position(mobile_mesh.global_position)", self.test_script)
+        self.assertIn("rotation_degrees = Vector3(-24.2, 0, 0)", self.scene)
 
 
 if __name__ == "__main__":

@@ -140,35 +140,39 @@ void fragment() {
     mobile_ramp = mix(mobile_ramp, toon_highlight_tint.rgb, mobile_high_band);
     vec3 mobile_tint = mobile_ramp * mobile_key_light_color;
     ALBEDO *= mix(vec3(1.0), mobile_tint, clamp(mobile_ramp_strength, 0.0, 1.0));
-#endif
 
-    // Built-in rim fallback remains available when mobile vertex lighting skips light().
+    // Built-in rim fallback is mobile-only; desktop already adds its rim in light().
     RIM = clamp(vertex_rim_factor, 0.0, 1.0) * rim_strength;
     RIM_TINT = rim_tint;
+#endif
 }
 
 void light() {
-    float n_dot_l = max(dot(NORMAL, LIGHT), 0.0);
-    float n_dot_v = clamp(dot(NORMAL, VIEW), 0.0, 1.0);
-    float softness = max(toon_ramp_smoothness, 0.001);
-    float mid_band = smoothstep(0.4 - softness, 0.4 + softness, n_dot_l);
-    float high_band = smoothstep(0.75 - softness, 0.75 + softness, n_dot_l);
-    vec3 ramp = mix(toon_shadow_tint.rgb, toon_mid_tint.rgb, mid_band);
-    ramp = mix(ramp, toon_highlight_tint.rgb, high_band);
-    DIFFUSE_LIGHT += ALBEDO * ramp * LIGHT_COLOR * ATTENUATION / PI;
+    float n_dot_l = dot(NORMAL, LIGHT);
+    // Godot's light() processor forbids return; gate every direct-light term.
+    if (n_dot_l > 0.0) {
+        float n_dot_v = clamp(dot(NORMAL, VIEW), 0.0, 1.0);
+        float softness = max(toon_ramp_smoothness, 0.001);
+        float mid_band = smoothstep(0.4 - softness, 0.4 + softness, n_dot_l);
+        float high_band = smoothstep(0.75 - softness, 0.75 + softness, n_dot_l);
+        vec3 ramp = mix(toon_shadow_tint.rgb, toon_mid_tint.rgb, mid_band);
+        ramp = mix(ramp, toon_highlight_tint.rgb, high_band);
+        DIFFUSE_LIGHT += ALBEDO * ramp * LIGHT_COLOR * ATTENUATION / PI;
 
-    float rim_width = max(rim_thickness, 0.001);
-    float fragment_rim = smoothstep(1.0 - rim_width, 1.0, 1.0 - n_dot_v)
-        * smoothstep(0.0, 0.15, n_dot_l);
-    float vertex_rim = clamp(vertex_rim_factor, 0.0, 1.0)
-        * smoothstep(0.0, 0.15, n_dot_l);
-    float rim_intensity = max(fragment_rim, vertex_rim * 0.5) * rim_strength;
-    DIFFUSE_LIGHT += rim_color.rgb * rim_intensity * LIGHT_COLOR * ATTENUATION;
+        float rim_width = max(rim_thickness, 0.001);
+        float fragment_rim = smoothstep(1.0 - rim_width, 1.0, 1.0 - n_dot_v)
+            * smoothstep(0.0, 0.15, n_dot_l);
+        float vertex_rim = clamp(vertex_rim_factor, 0.0, 1.0)
+            * smoothstep(0.0, 0.15, n_dot_l);
+        float rim_intensity = max(fragment_rim, vertex_rim * 0.5) * rim_strength;
+        DIFFUSE_LIGHT += rim_color.rgb * rim_intensity * LIGHT_COLOR * ATTENUATION;
 
-    float surface_roughness = clamp(ROUGHNESS, 0.04, 1.0);
-    float specular_power = mix(128.0, 4.0, surface_roughness);
-    float specular_lobe = pow(max(dot(reflect(-LIGHT, NORMAL), VIEW), 0.0), specular_power)
-        * (1.0 - surface_roughness) * specular_amount * SPECULAR_AMOUNT;
-    vec3 f0 = mix(vec3(0.04 * specular_amount), ALBEDO, METALLIC);
-    SPECULAR_LIGHT += f0 * LIGHT_COLOR * ATTENUATION * specular_lobe;
+        float surface_roughness = clamp(ROUGHNESS, 0.04, 1.0);
+        float specular_power = mix(128.0, 4.0, surface_roughness);
+        // SPECULAR_AMOUNT already reflects the fragment SPECULAR output; apply it once.
+        float specular_lobe = pow(max(dot(reflect(-LIGHT, NORMAL), VIEW), 0.0), specular_power)
+            * (1.0 - surface_roughness) * SPECULAR_AMOUNT;
+        vec3 f0 = mix(vec3(0.04), ALBEDO, METALLIC);
+        SPECULAR_LIGHT += f0 * LIGHT_COLOR * ATTENUATION * specular_lobe;
+    }
 }
