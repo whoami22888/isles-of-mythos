@@ -127,7 +127,9 @@ func _on_player_state_received(state: Dictionary) -> void:
 
 
 func _on_command_acknowledged(_request_id: String, message: Dictionary) -> void:
-	print("GAME_MANAGER_ACK_HANDLER keys=", message.keys(), " state_type=", typeof(message.get("state")))
+	var state_debug: Variant = message.get("state")
+	var inventory_debug: Variant = state_debug.get("inventory") if state_debug is Dictionary else null
+	print("GAME_MANAGER_ACK_HANDLER keys=", message.keys(), " state_type=", typeof(state_debug), " state_is_dictionary=", state_debug is Dictionary, " inventory_type=", typeof(inventory_debug), " inventory_is_dictionary=", inventory_debug is Dictionary, " wood=", inventory_debug.get("resource.wood") if inventory_debug is Dictionary else "n/a")
 	var state: Variant = message.get("state")
 	if state is Dictionary:
 		_apply_authoritative_player_state(state)
