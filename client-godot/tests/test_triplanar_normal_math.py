@@ -265,7 +265,7 @@ class StylizedPbrShaderContractTests(unittest.TestCase):
         self.assertIn('get_node_or_null("Camera3D") as Camera3D', self.test_script)
         self.assertIn("camera.is_position_behind(mobile_mesh.global_position)", self.test_script)
         self.assertIn("camera.unproject_position(mobile_mesh.global_position)", self.test_script)
-        self.assertIn("rotation_degrees = Vector3(24.2, 0, 0)", self.scene)
+        self.assertIn("rotation_degrees = Vector3(-24.2, 0, 0)", self.scene)
 
 
 if __name__ == "__main__":
