@@ -1,7 +1,8 @@
 name: Quaternius source quarantine — H05/H06 only
-run-name: Quaternius source quarantine \${{ github.sha }}
+run-name: Quaternius source quarantine ${{ github.sha }}
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - scratch/quaternius-source-quarantine-20261120
@@ -18,7 +19,7 @@ concurrency:
 
 jobs:
   acquire:
-    if: github.actor == 'whoami22888' && github.ref_name == 'scratch/quaternius-source-quarantine-20261120'
+    if: ${{ github.actor == 'whoami22888' && github.ref_name == 'scratch/quaternius-source-quarantine-20261120' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     permissions:
@@ -26,7 +27,7 @@ jobs:
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
-          ref: \${{ github.ref }}
+          ref: ${{ github.ref }}
           fetch-depth: 0
           persist-credentials: false
 
@@ -48,7 +49,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
         with:
-          name: quaternius-source-quarantine-\${{ github.sha }}
+          name: quaternius-source-quarantine-${{ github.sha }}
           path: quarantine/quaternius/
           if-no-files-found: warn
           retention-days: 30
@@ -58,7 +59,7 @@ jobs:
         if: success()
         shell: bash
         env:
-          GH_TOKEN: \${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
