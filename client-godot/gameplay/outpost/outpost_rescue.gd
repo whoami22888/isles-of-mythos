@@ -80,19 +80,19 @@ func _build_island() -> void:
 	island_xf = Transform3D(basis, Vector3(float(row.get("x", -18)), 0, float(row.get("z", -128)))) * src.global_transform
 	t.global_transform = island_xf
 	host.register_terrain(island_xf)
-	# Landing: walk from the isle's middle toward home until the sand meets water.
+	# Landing: come in from the open water on the home side (+z) and stop at
+	# the first dry sand.
 	var c := Vector3(float(row.get("x", -18)), 0, float(row.get("z", -128)))
 	var wy: float = host._water_y
-	var last_dry := c
-	for k in 80:
-		var p := c + Vector3(0, 0, k * 0.5)
+	landing = c
+	for k in 120:
+		var p := c + Vector3(0, 0, 30.0 - k * 0.5)
 		var y: float = host.ground_y(p.x, p.z)
 		if y > wy + 0.35:
-			last_dry = Vector3(p.x, y, p.z)
-		elif k > 4:
-			moor = Vector3(p.x, wy, p.z + 2.5)
+			landing = Vector3(p.x, y, p.z - 1.0)
+			landing.y = host.ground_y(landing.x, landing.z)
+			moor = Vector3(p.x, wy, p.z + 4.0)
 			break
-	landing = last_dry
 	cage = landing + Vector3(1.5, 0, -7.0)
 	cage.y = host.ground_y(cage.x, cage.z)
 	_dress_stockade()

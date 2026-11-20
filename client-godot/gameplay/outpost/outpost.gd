@@ -456,7 +456,7 @@ func _follow_pet(delta: float) -> void:
 
 func _follow_camera(delta: float, snap: bool) -> void:
 	var target := _player.global_position + Vector3.UP * 1.2
-	var off := Vector3(sin(_cam_yaw), 0, cos(_cam_yaw)) * CAM_BACK + Vector3.UP * CAM_UP
+	var off := (Vector3(sin(_cam_yaw), 0, cos(_cam_yaw)) * CAM_BACK + Vector3.UP * CAM_UP) * cam_zoom
 	var eye := target + off
 	eye.y = maxf(eye.y, ground_y(eye.x, eye.z) + 2.0)
 	_camera.global_position = eye if snap else _camera.global_position.lerp(eye, clampf(delta * 4.0, 0.0, 1.0))
@@ -812,6 +812,8 @@ func _pet_lunge(at: Vector3) -> void:
 	t.parallel().tween_property(body, "scale", base, 0.22)
 var rescue: Node3D
 var respawn_override := Vector3.INF
+## Camera distance multiplier (renders use < 1 for close side-on shots).
+var cam_zoom := 1.0
 var _extra_terrain: Array = []   # [Transform3D] more copies of the terrain kit
 
 
