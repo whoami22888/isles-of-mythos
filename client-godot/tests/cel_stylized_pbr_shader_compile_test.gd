@@ -86,7 +86,26 @@ func _run() -> void:
         quit(1)
         return
 
-    var sample_position := Vector2i(front_image.get_width() / 2, front_image.get_height() / 2)
+    var camera := scene.get_node_or_null("Camera3D") as Camera3D
+    if camera == null:
+        push_error("Prompt 005 shader test scene must include its Camera3D")
+        scene.queue_free()
+        quit(1)
+        return
+    if camera.is_position_behind(mobile_mesh.global_position):
+        push_error("Prompt 005 mobile mesh is behind the diagnostic camera")
+        scene.queue_free()
+        quit(1)
+        return
+
+    var projected_sample := camera.unproject_position(mobile_mesh.global_position)
+    var sample_position := Vector2i(roundi(projected_sample.x), roundi(projected_sample.y))
+    var viewport_bounds := Rect2i(Vector2i.ZERO, front_image.get_size())
+    if not viewport_bounds.has_point(sample_position):
+        push_error("Prompt 005 mobile mesh projects outside the diagnostic viewport")
+        scene.queue_free()
+        quit(1)
+        return
     var front_pixel := front_image.get_pixel(sample_position.x, sample_position.y)
     mobile_material.set_shader_parameter("mobile_key_light_direction", Vector3(0.0, 0.0, -1.0))
     for frame_index in range(2):
