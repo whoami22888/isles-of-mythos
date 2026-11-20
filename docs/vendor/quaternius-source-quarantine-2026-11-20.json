@@ -96,5 +96,94 @@
     "acquisition_environment": "temporary remote quarantine session",
     "reason": "The exact bytes were downloaded and SHA/ZIP integrity checked, but could not be materialized into the repository or a persistent attachment in this run. No archive or asset import commit was created."
   },
-  "next_action": "Materialize the original publisher bytes in a controlled quarantine workspace, capture per-file SHA-256 and dependency closure, resolve H05 licence-title mismatch and H06 missing embedded licence with publisher-specific evidence, then render in Godot 4.7.2 and compare to the owner reference before any production admission."
+  "next_action": "Materialize the original publisher bytes in a controlled quarantine workspace, capture per-file SHA-256 and dependency closure, resolve H05 licence-title mismatch and H06 missing embedded licence with publisher-specific evidence, then render in Godot 4.7.2 and compare to the owner reference before any production admission.",
+  "latest_publisher_folder_observation": {
+    "observed_date": "2026-11-20",
+    "source": "public publisher-linked Google Drive folder listings, viewed without sign-in or modification",
+    "h05_ultimate_monsters": {
+      "folder_id": "18m4KpzpEzhC9wl7jzr6dUc0N8Jozr79C",
+      "root_entries": [
+        {
+          "name": "Big",
+          "type": "folder",
+          "drive_file_id": "1fOL6ES-e73dPPLzc7_vvmTJ4uZ_j8QG2"
+        },
+        {
+          "name": "Blob",
+          "type": "folder",
+          "drive_file_id": "1lW9Bw_QaD8TvTFCGcuUevRFb--xTtb_1"
+        },
+        {
+          "name": "Flying",
+          "type": "folder",
+          "drive_file_id": "1tBcwb_hEg1NuLjNp8k5neuomn7catr5K"
+        },
+        {
+          "name": "Atlas_Monsters.png",
+          "type": "file",
+          "size_bytes": 9216,
+          "drive_file_id": "1CtLGgAKj-6a6GGNVNQT7GRPM7uyo9Fj8"
+        },
+        {
+          "name": "Color Guide.png",
+          "type": "file",
+          "size_bytes": 64512,
+          "drive_file_id": "11rPu1EL2rJusR1Sz2LQ5s9WfR7iVViRO"
+        },
+        {
+          "name": "License.txt",
+          "type": "file",
+          "size_bytes": 374,
+          "drive_file_id": "16GqsDGESyEOfRbc4dS7EqAwkIUSIW4_y"
+        },
+        {
+          "name": "Preview.jpg",
+          "type": "file",
+          "size_bytes": 443392,
+          "drive_file_id": "1P7Mr76R_3ZzTtYCJ7aDtaQ84Yb9C3owY"
+        }
+      ],
+      "license_file_title_mismatch": "Ultimate Platformer Pack",
+      "archive_downloaded_or_hashed_in_this_observation": false
+    },
+    "h06_cute_animated_monsters": {
+      "folder_id": "1zLLO_7ZoWgUsS4uooYnVSErQYRu1VdS0",
+      "root_entries": [
+        {
+          "name": "Blends",
+          "type": "folder",
+          "drive_file_id": "1XTBHVTKF4DSQyGM9C5KEXS-XOpK7HLSj"
+        },
+        {
+          "name": "FBX",
+          "type": "folder",
+          "drive_file_id": "1KBnr5nPoWvMHrR-hmiZ-ctLit42dAsmU"
+        },
+        {
+          "name": "glTF",
+          "type": "folder",
+          "drive_file_id": "1mbSG9TxThs-t7yr4KEQjnSeG3MuZvM5o"
+        },
+        {
+          "name": "OBJ",
+          "type": "folder",
+          "drive_file_id": "1LWGbuzCZ2qJwYoPRlMnqTOsFLAfMbBng"
+        },
+        {
+          "name": "Textures",
+          "type": "folder",
+          "drive_file_id": "1la9Vu1RmF0p98smPZvxUOOgn4_mPpBvO"
+        },
+        {
+          "name": "Preview.jpg",
+          "type": "file",
+          "size_bytes": 505856,
+          "drive_file_id": "1S-j0FDZMdDbjmEmlUzukx--R108czpgD"
+        }
+      ],
+      "root_license_document": "ABSENT",
+      "archive_downloaded_or_hashed_in_this_observation": false
+    },
+    "admission_effect": "NONE; no bytes imported, no licence assertion changed, no SHA-256 or revision fabricated"
+  }
 }
