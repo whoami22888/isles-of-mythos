@@ -302,8 +302,8 @@
   "plots": [
     {
       "id": 0,
-      "x": 5.5,
-      "z": 10.0,
+      "x": 6.0,
+      "z": 9.5,
       "yaw": 10
     },
     {
@@ -338,13 +338,13 @@
     }
   ],
   "camp_plot": {
-    "x": 11.0,
-    "z": 9.5,
+    "x": 11.5,
+    "z": 12.0,
     "yaw": 0
   },
   "player_start": {
     "x": 11.0,
-    "z": 7.2
+    "z": 7.0
   },
   "milestone2": {
     "_note": "Hooks only. Raids target the palisade; crew from the Barracks fight beside the player.",

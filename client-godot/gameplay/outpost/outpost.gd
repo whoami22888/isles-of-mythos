@@ -18,8 +18,13 @@ const SLICE_SCENE := preload("res://scenes/realistic_coastal_slice.tscn")
 const FONT_PATH := "res://assets/fonts/PirataOne-Regular.ttf"
 const HIDDEN_DRESSING := ["TropicalBayDressing/BeachSettlement", "TropicalBayDressing/BeachWreckage"]
 const SPEED := 4.6
-const CAM_BACK := 9.5
-const CAM_UP := 7.5
+## Camera sits on the sea side (south) looking inland at the castaway.
+const CAM_BACK := 7.0
+const CAM_UP := 5.0
+## Village clearing: the survivors cut back undergrowth here.
+const CLEARING := Rect2(1.0, 2.0, 20.0, 17.0)
+## Foliage within this many metres of the lens (or of the sightline) fades out.
+const LENS_CLEAR := 3.4
 const REACH := 4.8
 
 var state = State.new()
@@ -39,7 +44,10 @@ var _font: Font
 var _sites := {}
 var _focus := ""
 var _save_t := 0.0
-var _cam_yaw := deg_to_rad(15.0)
+var _cam_yaw := deg_to_rad(192.0)
+## [{mm, i, xf, pos, r}] tall foliage instances that can block the lens.
+var _lens_items: Array = []
+var _lens_hidden := {}
 var _age := 0.0
 
 
@@ -86,6 +94,7 @@ func _build_world() -> void:
 	if terrain and terrain.mesh:
 		_terrain_tm = terrain.mesh.generate_triangle_mesh()
 		_terrain_xf = terrain.global_transform
+	_clear_village()
 	_camera = Camera3D.new()
 	_camera.name = "Camera"
 	_camera.fov = 52.0
@@ -93,6 +102,63 @@ func _build_world() -> void:
 	_camera.far = 420.0
 	add_child(_camera)
 	_camera.make_current()
+
+
+## Collapse foliage instances inside the clearing (per-scene multimesh copy)
+## and remember the tall ones around it for the lens fade.
+func _clear_village() -> void:
+	var dressing := _slice.get_node_or_null("TropicalBayDressing")
+	if dressing == null:
+		return
+	for node in dressing.find_children("*", "MultiMeshInstance3D", true, false):
+		var mmi := node as MultiMeshInstance3D
+		var nm := str(mmi.name)
+		if "Summit" in nm or "Cliff" in nm or mmi.multimesh == null or mmi.multimesh.mesh == null:
+			continue
+		var mm := mmi.multimesh.duplicate() as MultiMesh
+		mmi.multimesh = mm
+		var tall := "Palm" in nm or "Canopy" in nm or "Leeward" in nm or "Shrub" in nm or "Fern" in nm or "Understory" in nm or "Calathea" in nm
+		var r := mm.mesh.get_aabb().size.length() * 0.35
+		for i in mm.instance_count:
+			var xf := mmi.global_transform * mm.get_instance_transform(i)
+			var p := xf.origin
+			if CLEARING.has_point(Vector2(p.x, p.z)) and not "Palm" in nm:
+				mm.set_instance_transform(i, Transform3D(Basis().scaled(Vector3.ZERO), mm.get_instance_transform(i).origin))
+			elif tall:
+				var rs := r * xf.basis.get_scale().x
+				_lens_items.append({"mm": mm, "i": i, "xf": mm.get_instance_transform(i), "pos": p + Vector3.UP * rs * 0.6, "r": rs})
+
+
+## Hide tall foliage instances in front of the lens; restore once clear.
+func _fade_lens() -> void:
+	var eye := _camera.global_position
+	var head := _player.global_position + Vector3.UP * 1.4
+	var want := {}
+	for k in _lens_items.size():
+		var it: Dictionary = _lens_items[k]
+		var p: Vector3 = it["pos"]
+		if p.distance_squared_to(eye) > 400.0:
+			continue
+		var r := float(it["r"])
+		var near := p.distance_to(eye) < LENS_CLEAR + r
+		var seg := Geometry3D.get_closest_point_to_segment(p, eye, head)
+		var blocks := seg.distance_to(p) < r * 0.8 and seg.distance_to(head) > 1.0
+		if near or blocks:
+			want[k] = true
+	for k in want.keys():
+		if not _lens_hidden.has(k):
+			var it2: Dictionary = _lens_items[k]
+			var xf: Transform3D = it2["xf"]
+			(it2["mm"] as MultiMesh).set_instance_transform(int(it2["i"]), Transform3D(Basis().scaled(Vector3.ZERO), xf.origin))
+	for k in _lens_hidden.keys():
+		if not want.has(k):
+			var it3: Dictionary = _lens_items[k]
+			(it3["mm"] as MultiMesh).set_instance_transform(int(it3["i"]), it3["xf"])
+	_lens_hidden = want
+
+
+func lens_hidden_count() -> int:
+	return _lens_hidden.size()
 
 
 func ground_y(x: float, z: float) -> float:
@@ -204,6 +270,7 @@ func _process(delta: float) -> void:
 	_move(delta)
 	_follow_pet(delta)
 	_follow_camera(delta, false)
+	_fade_lens()
 	_refresh_sites()
 	_focus = _nearest_site(REACH)
 	_push()
@@ -388,7 +455,7 @@ func _push() -> void:
 ## Bot/test helper: walk instantly beside a site.
 func stand_at(id: String) -> void:
 	var p: Vector3 = _sites[id]["plot"]
-	var at := p + Vector3(0, 0, -3.0)
+	var at := p + Vector3(0, 0, -3.2)
 	at.y = ground_y(at.x, at.z)
 	_player.global_position = at
 	snap_camera()
