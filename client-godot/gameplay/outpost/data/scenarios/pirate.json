@@ -2625,5 +2625,2849 @@
    }
   ],
   "history_note": "The haven chain — haven, victualler, receiver, protector — sustained pirate economies (Sailing the Black Flag)."
+ },
+ {
+  "id": "pir_012",
+  "category": "pirate",
+  "title": "The Bribed Protector",
+  "zones": [
+   "outpost",
+   "isle"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.2,
+   "min_day": 3,
+   "camp_level": 2,
+   "needs_item": null,
+   "weather": "any"
+  },
+  "weight": 6,
+  "cooldown_s": 180,
+  "intro_lines": [
+   "A UTC officer in civilian coat asks for gold.",
+   "He promises warning of raids if paid."
+  ],
+  "choices": [
+   {
+    "label": "Pay him two gold",
+    "requires": {
+     "gold": 2
+    },
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "He keeps his word; raiders diverted for a week.",
+      "effects": {
+       "items": {
+        "gold": -2
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 2
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.5,
+      "text": "He pockets it and sells your camp's position.",
+      "effects": {
+       "items": {
+        "gold": -2
+       },
+       "hp": -10,
+       "morale": -10,
+       "rep": {
+        "utc": -3,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": "pir_013"
+      }
+     }
+    ]
+   },
+   {
+    "label": "Refuse and threaten him",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.4,
+      "text": "He flees; your boldness earns haven respect.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 3
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.6,
+      "text": "He returns with UTC marines at dawn.",
+      "effects": {
+       "items": {},
+       "hp": -15,
+       "morale": -5,
+       "rep": {
+        "utc": -4,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": "pir_013"
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Pirate havens relied on bribed officials as protectors in the haven chain."
+ },
+ {
+  "id": "pir_013",
+  "category": "pirate",
+  "title": "Sold Out",
+  "zones": [
+   "outpost"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.0,
+   "min_day": 1,
+   "camp_level": 1,
+   "needs_item": null,
+   "weather": "any"
+  },
+  "weight": 5,
+  "cooldown_s": 300,
+  "intro_lines": [
+   "UTC marines breach the palisade at dawn.",
+   "They seek the relic shard cache."
+  ],
+  "choices": [
+   {
+    "label": "Fight from the ramparts",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.4,
+      "text": "You drive them off; camp stands scarred.",
+      "effects": {
+       "items": {
+        "scrap": 3
+       },
+       "hp": -20,
+       "morale": 5,
+       "rep": {
+        "utc": -5,
+        "tideborn": 0,
+        "free": 4
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.6,
+      "text": "Overwhelmed; loot taken, fires set.",
+      "effects": {
+       "items": {
+        "food": -5,
+        "gold": -2
+       },
+       "hp": -30,
+       "morale": -15,
+       "rep": {
+        "utc": -6,
+        "tideborn": 0,
+        "free": -2
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Hide the shard and surrender",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "They find nothing; leave with a warning.",
+      "effects": {
+       "items": {},
+       "hp": -5,
+       "morale": -5,
+       "rep": {
+        "utc": -1,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": "pir_014"
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "They torture a sailor; he reveals it.",
+      "effects": {
+       "items": {
+        "relic_shard": -1
+       },
+       "hp": -10,
+       "morale": -20,
+       "rep": {
+        "utc": -3,
+        "tideborn": -2,
+        "free": -1
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "UTC privateers hunted Tideborn relics with dark-binding crystals."
+ },
+ {
+  "id": "pir_014",
+  "category": "pirate",
+  "title": "A Debt Repaid",
+  "zones": [
+   "isle"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.0,
+   "min_day": 1,
+   "camp_level": 1,
+   "needs_item": null,
+   "weather": "any"
+  },
+  "weight": 4,
+  "cooldown_s": 600,
+  "intro_lines": [
+   "The officer returns, wounded, seeking refuge.",
+   "He carries a UTC cipher book."
+  ],
+  "choices": [
+   {
+    "label": "Shelter him and read the book",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Intel reveals a UTC convoy route.",
+      "effects": {
+       "items": {
+        "map_fragment": 1
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": -2,
+        "tideborn": 0,
+        "free": 2
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "utc_convoy_intel",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "He steals rum and slips away at night.",
+      "effects": {
+       "items": {
+        "rum": -2
+       },
+       "hp": 0,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -1
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Turn him over to free pirates",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "They ransom him; you earn a cut.",
+      "effects": {
+       "items": {
+        "gold": 3
+       },
+       "hp": 0,
+       "morale": 3,
+       "rep": {
+        "utc": -1,
+        "tideborn": 0,
+        "free": 4
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.5,
+      "text": "His kin ambush you on the road.",
+      "effects": {
+       "items": {},
+       "hp": -15,
+       "morale": -5,
+       "rep": {
+        "utc": -2,
+        "tideborn": 0,
+        "free": -2
+       },
+       "spawn": "free_pirates",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Pirate justice included ransom and marooning under articles."
+ },
+ {
+  "id": "pir_015",
+  "category": "pirate",
+  "title": "Scuttled Barrier",
+  "zones": [
+   "sea",
+   "isle"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.15,
+   "min_day": 5,
+   "camp_level": 3,
+   "needs_item": null,
+   "weather": "clear"
+  },
+  "weight": 5,
+  "cooldown_s": 240,
+  "intro_lines": [
+   "A hulk is towed into the harbour mouth.",
+   "It will be sunk to block warships."
+  ],
+  "choices": [
+   {
+    "label": "Help scuttle and salvage",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Timber and iron recovered; harbour safer.",
+      "effects": {
+       "items": {
+        "wood": 4,
+        "iron": 2
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": -2,
+        "tideborn": 0,
+        "free": 3
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "A keel snags your boat; you swim free.",
+      "effects": {
+       "items": {
+        "scrap": 2
+       },
+       "hp": -10,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 1
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Refuse; watch from shore",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "You miss salvage but stay dry.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 0,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -1
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.5,
+      "text": "Wreck drifts and crushes your skiff.",
+      "effects": {
+       "items": {
+        "wood": -2
+       },
+       "hp": -5,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -2
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Ships were deliberately sunk as harbour barriers at Ile Sainte-Marie."
+ },
+ {
+  "id": "pir_016",
+  "category": "pirate",
+  "title": "Fever in the Haven",
+  "zones": [
+   "outpost"
+  ],
+  "trigger": {
+   "type": "time",
+   "chance": 0.25,
+   "min_day": 7,
+   "camp_level": 2,
+   "needs_item": null,
+   "weather": "heat"
+  },
+  "weight": 7,
+  "cooldown_s": 300,
+  "intro_lines": [
+   "Sailors fall to fever after a turtle feast.",
+   "Quartermaster Silas needs herbs."
+  ],
+  "choices": [
+   {
+    "label": "Send Tide-Puck for herbs",
+    "requires": {
+     "pet_level": 2
+    },
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "Fresh herbs found; fever breaks.",
+      "effects": {
+       "items": {
+        "herbs": 3
+       },
+       "hp": 5,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 2
+       },
+       "spawn": null,
+       "pet_xp": 4,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Puck returns empty; fever worsens.",
+      "effects": {
+       "items": {},
+       "hp": -10,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -1
+       },
+       "spawn": null,
+       "pet_xp": 1,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Quarantine and boil water",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Slow but steady recovery.",
+      "effects": {
+       "items": {
+        "fresh_water": -2
+       },
+       "hp": 0,
+       "morale": 0,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 1
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "Rumour of plague spreads; morale crashes.",
+      "effects": {
+       "items": {},
+       "hp": -5,
+       "morale": -15,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -2
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Fever killed most of the Susanna's crew at St Mary's."
+ },
+ {
+  "id": "pir_017",
+  "category": "pirate",
+  "title": "Recruiting the Carpenter",
+  "zones": [
+   "isle"
+  ],
+  "trigger": {
+   "type": "location",
+   "chance": 0.3,
+   "min_day": 2,
+   "camp_level": 1,
+   "needs_item": null,
+   "weather": "any"
+  },
+  "weight": 6,
+  "cooldown_s": 200,
+  "intro_lines": [
+   "A skilled carpenter sits drunk on the beach.",
+   "Free pirates want him for a careening crew."
+  ],
+  "choices": [
+   {
+    "label": "Buy his debt and free him",
+    "requires": {
+     "gold": 1
+    },
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "He joins your camp; repairs improve.",
+      "effects": {
+       "items": {
+        "gold": -1,
+        "scrap": 2
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 2
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "carpenter_ally",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "He drinks the gold away and vanishes.",
+      "effects": {
+       "items": {
+        "gold": -1
+       },
+       "hp": 0,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -1
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Let the pirates press him",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "He sails off; you gain pirate favour.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 0,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 3
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.5,
+      "text": "He resists; brawl leaves you bruised.",
+      "effects": {
+       "items": {},
+       "hp": -12,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -2
+       },
+       "spawn": "free_pirates",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Pirates recruited skilled men like carpenters and surgeons by force."
+ },
+ {
+  "id": "pir_018",
+  "category": "pirate",
+  "title": "Pardon Offer",
+  "zones": [
+   "isle"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.1,
+   "min_day": 10,
+   "camp_level": 4,
+   "needs_item": null,
+   "weather": "clear"
+  },
+  "weight": 4,
+  "cooldown_s": 600,
+  "intro_lines": [
+   "Woodes Rogers' envoy offers the King's pardon.",
+   "Sign, and your past debts vanish."
+  ],
+  "choices": [
+   {
+    "label": "Accept the pardon",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "You walk free; some pirates shun you.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 3,
+       "rep": {
+        "utc": 2,
+        "tideborn": 0,
+        "free": -4
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "king_pardon",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "It's a trap; you're clapped in irons.",
+      "effects": {
+       "items": {},
+       "hp": -20,
+       "morale": -15,
+       "rep": {
+        "utc": -3,
+        "tideborn": 0,
+        "free": 2
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Refuse and toast the black flag",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "Free pirates cheer; haven doors open.",
+      "effects": {
+       "items": {
+        "rum": 1
+       },
+       "hp": 0,
+       "morale": 10,
+       "rep": {
+        "utc": -2,
+        "tideborn": 0,
+        "free": 5
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "UTC bounty rises; hunters follow.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -5,
+       "rep": {
+        "utc": -4,
+        "tideborn": 0,
+        "free": 2
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Woodes Rogers issued pardons at Nassau in 1718."
+ },
+ {
+  "id": "pir_019",
+  "category": "pirate",
+  "title": "Locals Rise Over Cattle",
+  "zones": [
+   "isle",
+   "jungle"
+  ],
+  "trigger": {
+   "type": "action",
+   "chance": 0.2,
+   "min_day": 4,
+   "camp_level": 2,
+   "needs_item": null,
+   "weather": "any"
+  },
+  "weight": 6,
+  "cooldown_s": 240,
+  "intro_lines": [
+   "Islanders raid the haven for stolen cattle.",
+   "Pirates scramble for their guns."
+  ],
+  "choices": [
+   {
+    "label": "Side with the islanders",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Cattle returned; locals share fruit.",
+      "effects": {
+       "items": {
+        "food": 4,
+        "coconut": 2
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 1,
+        "free": -3
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.5,
+      "text": "Islanders distrust you; stones thrown.",
+      "effects": {
+       "items": {},
+       "hp": -8,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": -1,
+        "free": -1
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Defend the pirate camp",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Islanders routed; plundered stores.",
+      "effects": {
+       "items": {
+        "food": 3,
+        "gold": 1
+       },
+       "hp": -10,
+       "morale": 3,
+       "rep": {
+        "utc": 0,
+        "tideborn": -2,
+        "free": 4
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "A hut burns; cattle stampede.",
+      "effects": {
+       "items": {
+        "food": -2
+       },
+       "hp": -15,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": -1,
+        "free": -2
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Islanders rose and killed pirates over stolen cattle at Ile Sainte-Marie."
+ },
+ {
+  "id": "pir_020",
+  "category": "pirate",
+  "title": "Victualler's Price",
+  "zones": [
+   "isle"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.3,
+   "min_day": 1,
+   "camp_level": 1,
+   "needs_item": null,
+   "weather": "any"
+  },
+  "weight": 7,
+  "cooldown_s": 120,
+  "intro_lines": [
+   "Victualler sells salt pork at triple price.",
+   "His scales look rigged."
+  ],
+  "choices": [
+   {
+    "label": "Pay and keep peace",
+    "requires": {
+     "gold": 2
+    },
+    "outcomes": [
+     {
+      "chance": 0.8,
+      "text": "Stocked up; no trouble today.",
+      "effects": {
+       "items": {
+        "gold": -2,
+        "food": 6
+       },
+       "hp": 0,
+       "morale": 0,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Pork is spoiled; crew sickens.",
+      "effects": {
+       "items": {
+        "gold": -2,
+        "food": 6
+       },
+       "hp": -8,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Accuse him of cheating",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Crowd sides with you; fair price.",
+      "effects": {
+       "items": {
+        "food": 6
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 2
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.5,
+      "text": "He draws a knife; you back off.",
+      "effects": {
+       "items": {},
+       "hp": -6,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -1
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Havens depended on victuallers and receivers in the haven chain."
+ },
+ {
+  "id": "pir_021",
+  "category": "pirate",
+  "title": "Careening Under Guard",
+  "zones": [
+   "beach"
+  ],
+  "trigger": {
+   "type": "location",
+   "chance": 0.2,
+   "min_day": 6,
+   "camp_level": 3,
+   "needs_item": null,
+   "weather": "clear"
+  },
+  "weight": 5,
+  "cooldown_s": 240,
+  "intro_lines": [
+   "Your hull is hauled over on the beach.",
+   "Crew is defenceless while scraping."
+  ],
+  "choices": [
+   {
+    "label": "Land guns as beach battery",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "Raiders see the guns and withdraw.",
+      "effects": {
+       "items": {
+        "tar": 1
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 2
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "A squall floods the battery; delay.",
+      "effects": {
+       "items": {
+        "tar": -1
+       },
+       "hp": 0,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Rush the scrape, skip the tar",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.4,
+      "text": "Faster careen; hull still sound.",
+      "effects": {
+       "items": {
+        "wood": 2
+       },
+       "hp": 0,
+       "morale": 3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 1
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.6,
+      "text": "Teredo worms remain; leak at sea.",
+      "effects": {
+       "items": {},
+       "hp": -10,
+       "morale": -8,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -1
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Careening left crews defenceless; guns were landed as beach batteries."
+ },
+ {
+  "id": "pir_022",
+  "category": "pirate",
+  "title": "Condent's Scuttled Dragon",
+  "zones": [
+   "sea",
+   "isle"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.08,
+   "min_day": 12,
+   "camp_level": 5,
+   "needs_item": null,
+   "weather": "fog"
+  },
+  "weight": 3,
+  "cooldown_s": 900,
+  "intro_lines": [
+   "A scuttled frigate lies in the bay.",
+   "Locals whisper of hidden powder."
+  ],
+  "choices": [
+   {
+    "label": "Dive the wreck at dawn",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Powder and coin recovered.",
+      "effects": {
+       "items": {
+        "powder": 4,
+        "gold": 2
+       },
+       "hp": -5,
+       "morale": 8,
+       "rep": {
+        "utc": -1,
+        "tideborn": 0,
+        "free": 3
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.5,
+      "text": "Eel bites; you surface gasping.",
+      "effects": {
+       "items": {
+        "powder": 1
+       },
+       "hp": -15,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "eel",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Chart it and sell the map",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Receiver pays well for the chart.",
+      "effects": {
+       "items": {
+        "gold": 4
+       },
+       "hp": 0,
+       "morale": 3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 2
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "Receiver betrays you to UTC.",
+      "effects": {
+       "items": {},
+       "hp": -10,
+       "morale": -8,
+       "rep": {
+        "utc": -2,
+        "tideborn": 0,
+        "free": -3
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Condent's Fiery Dragon was scuttled in the bay as a pardon condition."
+ },
+ {
+  "id": "pir_023",
+  "category": "pirate",
+  "title": "The Deserter's Footprints",
+  "zones": [
+   "beach",
+   "jungle"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.12,
+   "min_day": 10,
+   "camp_level": 3,
+   "needs_item": null,
+   "weather": "fog"
+  },
+  "weight": 6,
+  "cooldown_s": 86400,
+  "intro_lines": [
+   "Fresh prints in the sand — bare feet, dragging one leg.",
+   "A cutlass scabbard lies abandoned, salt-rusted.",
+   "Tide-Puck bristles, nose low to the wet grains."
+  ],
+  "choices": [
+   {
+    "label": "Track him inland",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.45,
+      "text": "You find a lean man drinking from a coconut shell. He raises empty hands — Silas's deserter, 'One-Eye' Malloy. He swears he fled UTC press-gangs, not the articles.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 2
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": "pir_024"
+      }
+     },
+     {
+      "chance": 0.35,
+      "text": "The trail ends at a slit throat. UTC binding crystals glitter in the wound. A patrol finds you kneeling over the body.",
+      "effects": {
+       "items": {},
+       "hp": -15,
+       "morale": -10,
+       "rep": {
+        "utc": -5,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Malloy ambushes you from a fig tree. He needs your boat. Tide-Puck's warning saves your throat, but his knife opens your forearm.",
+      "effects": {
+       "items": {
+        "food": -2,
+        "fresh_water": -1
+       },
+       "hp": -20,
+       "morale": -15,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -3
+       },
+       "spawn": null,
+       "pet_xp": 15,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Burn the trail, warn the outpost",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Silas nods grimly. 'Marooning's too good for deserters.' Posters go up. A week later, Malloy's head on a pike at the reef passage.",
+      "effects": {
+       "items": {
+        "wood": -5,
+        "tar": -1
+       },
+       "hp": 0,
+       "morale": 10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 8
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "deserter_warning",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "The smoke draws a UTC cutter. They land marines, not deserters. Your warning fire becomes their beacon.",
+      "effects": {
+       "items": {},
+       "hp": -10,
+       "morale": -5,
+       "rep": {
+        "utc": -8,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Based on Bartholomew Roberts' articles: desertion meant death or marooning with a gun, shot, bottle of water, and bottle of powder."
+ },
+ {
+  "id": "pir_024",
+  "category": "pirate",
+  "title": "One-Eye's Ledger",
+  "zones": [
+   "outpost",
+   "cave"
+  ],
+  "trigger": {
+   "type": "action",
+   "chance": 0.0,
+   "min_day": 1,
+   "camp_level": 0,
+   "needs_item": null,
+   "weather": "any"
+  },
+  "weight": 1,
+  "cooldown_s": 0,
+  "intro_lines": [
+   "Malloy presses a sodden notebook into your hands.",
+   "'UTC convoy routes.",
+   "Crystal shipment dates. All of it.'"
+  ],
+  "choices": [
+   {
+    "label": "Trust the ledger, raid the convoy",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "The convoy appears on schedule. Crates of dark-binding crystals, iron, and rum. Malloy fights beside you, screaming for his lost eye. The haul feeds the camp for weeks.",
+      "effects": {
+       "items": {
+        "iron": 30,
+        "rum": 15,
+        "powder": 20,
+        "relic_shard": 3
+       },
+       "hp": -10,
+       "morale": 20,
+       "rep": {
+        "utc": -15,
+        "tideborn": 0,
+        "free": 10
+       },
+       "spawn": null,
+       "pet_xp": 30,
+       "unlock": "utc_convoy_raider",
+       "next_event": "pir_025"
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "The convoy's a trap. Warships rise from behind the cay. Malloy shrugs. 'Told 'em you'd come.' UTC marines swarm the beach. You fight free, but the camp burns.",
+      "effects": {
+       "items": {
+        "wood": -50,
+        "food": -30,
+        "iron": -20
+       },
+       "hp": -25,
+       "morale": -30,
+       "rep": {
+        "utc": -10,
+        "tideborn": 0,
+        "free": -10
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": "pir_025"
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Malloy vanishes in the fight. The crystals are fake — salt painted black. His ledger was a UTC plant. Silas spits on the sand. 'Should've marooned him.'",
+      "effects": {
+       "items": {
+        "map_fragment": -1
+       },
+       "hp": -5,
+       "morale": -20,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -5
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": "pir_025"
+      }
+     }
+    ]
+   },
+   {
+    "label": "Hand the ledger to Silas",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "Silas cross-references with captured UTC logs. The routes match. Malloy earns a share and a grudging nod. The convoy raid is set for the new moon.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 5
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "verified_intel",
+       "next_event": "pir_025"
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Silas burns the book. 'Written in UTC cipher. He's feeding you to the wolves.' Malloy's gone by dawn — took a skiff and the tide.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 3
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "deserter_exposed",
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Pirates used captured masters to identify richest targets; Roberts used a Portuguese master to pick the richest ship in a fleet."
+ },
+ {
+  "id": "pir_025",
+  "category": "pirate",
+  "title": "The Leviathan's Wake",
+  "zones": [
+   "sea",
+   "reef"
+  ],
+  "trigger": {
+   "type": "action",
+   "chance": 0.0,
+   "min_day": 1,
+   "camp_level": 0,
+   "needs_item": null,
+   "weather": "storm"
+  },
+  "weight": 1,
+  "cooldown_s": 0,
+  "intro_lines": [
+   "The Abyssal Sovereign rises beneath the UTC flotilla.",
+   "Crystals scream.",
+   "The water boils with bioluminescent rage."
+  ],
+  "choices": [
+   {
+    "label": "Signal Malloy's boat — together we",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.55,
+      "text": "Malloy turns his guns on the UTC flagship. His crew boards amid the chaos. You seize a crystal-laden brigantine. He grins, one eye wild. 'Articles hold, Captain.'",
+      "effects": {
+       "items": {
+        "relic_shard": 10,
+        "iron": 40,
+        "powder": 30,
+        "rum": 20
+       },
+       "hp": 0,
+       "morale": 25,
+       "rep": {
+        "utc": -20,
+        "tideborn": 5,
+        "free": 15
+       },
+       "spawn": null,
+       "pet_xp": 50,
+       "unlock": "malloy_ally",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.45,
+      "text": "Malloy signals the UTC. 'Take them. The crystals are yours.' A grapeshot volley shreds your mainsail. You escape in the leviathan's shadow, but the camp is compromised.",
+      "effects": {
+       "items": {
+        "sailcloth": -10,
+        "wood": -30,
+        "food": -20
+       },
+       "hp": -15,
+       "morale": -25,
+       "rep": {
+        "utc": -5,
+        "tideborn": 0,
+        "free": -15
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": "malloy_traitor",
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Cut Malloy loose — every ship for itself",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "You ride the leviathan's wake through the UTC line. Malloy's brig takes the brunt. He goes down screaming. His share sinks with him. Silas drinks to his memory.",
+      "effects": {
+       "items": {
+        "relic_shard": 5,
+        "iron": 20
+       },
+       "hp": -5,
+       "morale": 5,
+       "rep": {
+        "utc": -10,
+        "tideborn": 3,
+        "free": 5
+       },
+       "spawn": null,
+       "pet_xp": 20,
+       "unlock": "malloy_lost",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "The leviathan ignores you. UTC grapples your stern. Malloy watches from his quarterdeck, drinking rum. 'Articles don't apply to ghosts.' You're boarded.",
+      "effects": {
+       "items": {
+        "iron": -30,
+        "powder": -20,
+        "rum": -15,
+        "food": -20
+       },
+       "hp": -30,
+       "morale": -30,
+       "rep": {
+        "utc": -5,
+        "tideborn": 0,
+        "free": -10
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": "malloy_watched",
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Pirates fought ashore to settle quarrels — pistol then cutlass, first blood wins. At sea, false flags and intimidation made most prizes surrender without a fight."
+ },
+ {
+  "id": "pir_026",
+  "category": "pirate",
+  "title": "Quartermaster's Crown",
+  "zones": [
+   "isle",
+   "cliff"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.1,
+   "min_day": 15,
+   "camp_level": 4,
+   "needs_item": null,
+   "weather": "heat"
+  },
+  "weight": 5,
+  "cooldown_s": 172800,
+  "intro_lines": [
+   "A figure waves from the cliffs of Isle Mourne — marooned.",
+   "Quartermaster's coat, salt-bleached.",
+   "A pistol at his hip. Tide-Puck whines."
+  ],
+  "choices": [
+   {
+    "label": "Row ashore, hear his tale",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "It's 'Silver' Toby, Silas's rival. Marooned for 'theft between mates' — slit ears, nose gone. He knows every careening beach, every UTC patrol route. He wants his articles back.",
+      "effects": {
+       "items": {
+        "food": -5,
+        "fresh_water": -3
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 3
+       },
+       "spawn": null,
+       "pet_xp": 15,
+       "unlock": null,
+       "next_event": "pir_027"
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Toby's mad. Sun, thirst, and the gulls pecking his ears. He fires his last shot at you. The bullet grazes your ribs. You leave him screaming at the tide.",
+      "effects": {
+       "items": {
+        "food": -3,
+        "fresh_water": -2
+       },
+       "hp": -15,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "UTC lands a boat as you approach. Toby waves them in. 'Captain! The camp's unguarded!' You row for your life as grapeshot churns the water.",
+      "effects": {
+       "items": {
+        "food": -5,
+        "fresh_water": -3,
+        "wood": -5
+       },
+       "hp": -10,
+       "morale": -15,
+       "rep": {
+        "utc": -8,
+        "tideborn": 0,
+        "free": -5
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": "pir_027"
+      }
+     }
+    ]
+   },
+   {
+    "label": "Signal from the ship — let Silas decide",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.65,
+      "text": "Silas arrives with a cutter. Toby kneels. 'Articles say marooning for theft. I served my sentence.' Silas grants a hearing. Toby joins as a common hand — no quartermaster's share.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 8
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "toby_reinstated",
+       "next_event": "pir_027"
+      }
+     },
+     {
+      "chance": 0.35,
+      "text": "Silas orders him keelhauled. 'Articles don't forgive.' Toby drowns begging. The crew watches silent. You gain nothing but a heavier silence at mess.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -15,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 5
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "toby_executed",
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Roberts' articles: theft between mates meant slit ears and nose, put ashore somewhere hard. Marooning was standard punishment."
+ },
+ {
+  "id": "pir_027",
+  "category": "pirate",
+  "title": "Careening at Deadman's Cove",
+  "zones": [
+   "beach",
+   "reef"
+  ],
+  "trigger": {
+   "type": "action",
+   "chance": 0.0,
+   "min_day": 1,
+   "camp_level": 0,
+   "needs_item": "tar",
+   "weather": "clear"
+  },
+  "weight": 1,
+  "cooldown_s": 0,
+  "intro_lines": [
+   "The galleon heels on the careening beach.",
+   "Teredo tunnels honeycomb her keel.",
+   "Toby directs the shore battery. 'Three guns."
+  ],
+  "choices": [
+   {
+    "label": "Trust Toby's battery plan",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.55,
+      "text": "Toby's aim is true. The lead UTC cutter takes a chain-shot through the waterline. The others sheer off. The hull gets scraped, tarred, and tallowed on schedule. Toby earns back his share.",
+      "effects": {
+       "items": {
+        "tar": -10,
+        "hide": -5,
+        "iron": 15
+       },
+       "hp": 0,
+       "morale": 15,
+       "rep": {
+        "utc": -8,
+        "tideborn": 0,
+        "free": 10
+       },
+       "spawn": null,
+       "pet_xp": 20,
+       "unlock": "toby_gunner",
+       "next_event": "pir_028"
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Toby's powder is damp — or sabotaged. The guns sputter. UTC marines swarm the beach. You fight knee-deep in surf, the careening unfinished. The ship leaks badly now.",
+      "effects": {
+       "items": {
+        "tar": -10,
+        "powder": -20,
+        "wood": -30,
+        "iron": -15
+       },
+       "hp": -20,
+       "morale": -20,
+       "rep": {
+        "utc": -5,
+        "tideborn": 0,
+        "free": -8
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": "pir_028"
+      }
+     },
+     {
+      "chance": 0.15,
+      "text": "Toby vanishes mid-fight. The battery's abandoned. You rally the crew, but the delay costs the tide. The ship settles wrong — a plank springs. Weeks of repairs ahead.",
+      "effects": {
+       "items": {
+        "wood": -40,
+        "tar": -15,
+        "rope": -10
+       },
+       "hp": -10,
+       "morale": -25,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -10
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "toby_deserted",
+       "next_event": "pir_028"
+      }
+     }
+    ]
+   },
+   {
+    "label": "Take command of the battery yourself",
+    "requires": {
+     "pet_level": 2
+    },
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Tide-Puck spots the boarding boats early. Your first shot dismasts their launch. Toby reappears, cutlass in hand, fighting beside you. 'Knew you had it in you, Captain.'",
+      "effects": {
+       "items": {
+        "tar": -10,
+        "hide": -5
+       },
+       "hp": -5,
+       "morale": 20,
+       "rep": {
+        "utc": -10,
+        "tideborn": 0,
+        "free": 12
+       },
+       "spawn": null,
+       "pet_xp": 30,
+       "unlock": "toby_respect",
+       "next_event": "pir_028"
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "You hold the line, but a splinter takes your shoulder. Toby drags you behind the gun carriage. 'My turn to lead.' He finishes the fight. The crew whispers you're weak.",
+      "effects": {
+       "items": {
+        "tar": -10,
+        "hide": -5,
+        "herbs": -3
+       },
+       "hp": -25,
+       "morale": -10,
+       "rep": {
+        "utc": -8,
+        "tideborn": 0,
+        "free": 2
+       },
+       "spawn": null,
+       "pet_xp": 15,
+       "unlock": "toby_protector",
+       "next_event": "pir_028"
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "During careening, crews were defenceless; guns often landed in a beach battery. Pirate haunts were chosen for careening beaches and turtling grounds."
+ },
+ {
+  "id": "pir_028",
+  "category": "pirate",
+  "title": "The Haven's Ledger",
+  "zones": [
+   "outpost",
+   "cave"
+  ],
+  "trigger": {
+   "type": "action",
+   "chance": 0.0,
+   "min_day": 1,
+   "camp_level": 0,
+   "needs_item": null,
+   "weather": "night"
+  },
+  "weight": 1,
+  "cooldown_s": 0,
+  "intro_lines": [
+   "Toby slips a folded chart into your hammock.",
+   "'Haven accounts.'",
+   "UTC receivers, bribed governors, Tideborn relic routes."
+  ],
+  "choices": [
+   {
+    "label": "Burn the ledger — no blackmail in this",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "Toby nods, unsurprised. 'Didn't think you would.' He stays, fights at the next raid, takes a musket ball meant for you. Dies cursing the UTC. His share goes to the crew's widows.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 15,
+       "rep": {
+        "utc": -5,
+        "tideborn": 3,
+        "free": 10
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "toby_loyal",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "The fire draws a tideborn scout. She reads the ash. 'You burn knowledge the UTC would kill for.' She marks your camp — friend, not target. Toby watches, thoughtful.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 8,
+        "free": 5
+       },
+       "spawn": "tideborn_scout",
+       "pet_xp": 0,
+       "unlock": "tideborn_friend",
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Use the ledger — trade secrets",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.45,
+      "text": "You feed false intel to a UTC receiver. A supply ship diverts — powder, iron, medicine. Toby grins. 'Quartermaster's work.' But the receiver escapes, and now UTC knows your hand.",
+      "effects": {
+       "items": {
+        "powder": 40,
+        "iron": 30,
+        "herbs": 15
+       },
+       "hp": 0,
+       "morale": 10,
+       "rep": {
+        "utc": -10,
+        "tideborn": 0,
+        "free": 5
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "utc_deceived",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.35,
+      "text": "The receiver is a Tideborn agent. She pays in relic shards and a warning: 'The Sovereign wakes. The crystals call it.' Toby vanishes with the real ledger. 'Insurance collected.'",
+      "effects": {
+       "items": {
+        "relic_shard": 15,
+        "map_fragment": 1
+       },
+       "hp": 0,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 5,
+        "free": -5
+       },
+       "spawn": "tideborn_scout",
+       "pet_xp": 0,
+       "unlock": "toby_vanished",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Toby sells the ledger to UTC directly. A week later, a fleet anchors at your haven. He stands on the quarterdeck of the flagship, ears slit, nose gone, wearing a commodore's coat.",
+      "effects": {
+       "items": {
+        "wood": -60,
+        "iron": -40,
+        "food": -30,
+        "powder": -20
+       },
+       "hp": -20,
+       "morale": -35,
+       "rep": {
+        "utc": -15,
+        "tideborn": 0,
+        "free": -20
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": "toby_turned",
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "The haven chain: haven, victualler, receiver (fence), protector (bribed officials). Pirates traded intelligence and plunder through this network."
+ },
+ {
+  "id": "pir_029",
+  "category": "pirate",
+  "title": "Surgeon's Saw",
+  "zones": [
+   "jungle",
+   "cave"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.08,
+   "min_day": 20,
+   "camp_level": 5,
+   "needs_item": null,
+   "weather": "rain"
+  },
+  "weight": 4,
+  "cooldown_s": 172800,
+  "intro_lines": [
+   "Screams from a jungle cave.",
+   "The smell of blood and rum.",
+   "A UTC cage holds a man in a bloodstained apron. Clean."
+  ],
+  "choices": [
+   {
+    "label": "Free him, bring him to camp",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.55,
+      "text": "Dr. Vane. Forced to serve UTC after his ship was taken. He tends the camp's fevers, saves a sailor's crushed leg with amputation. 'Rum for anaesthetic. Silk for ligatures. I'll need both.'",
+      "effects": {
+       "items": {
+        "rum": -10,
+        "fibre": -5,
+        "herbs": -3
+       },
+       "hp": 0,
+       "morale": 20,
+       "rep": {
+        "utc": -3,
+        "tideborn": 0,
+        "free": 5
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "surgeon_vane",
+       "next_event": "pir_030"
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Vane's hands shake. He botches a simple lancing. The patient dies of gangrene. The crew mutters. Silas puts him to work boiling tar — 'Less harm there.'",
+      "effects": {
+       "items": {
+        "rum": -5,
+        "herbs": -5
+       },
+       "hp": 0,
+       "morale": -15,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -3
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "surgeon_incompetent",
+       "next_event": "pir_030"
+      }
+     },
+     {
+      "chance": 0.15,
+      "text": "Vane poisons the rum barrel. Three dead before Tide-Puck alerts you. He flees into the jungle, but not before stealing the herb stores. UTC patrol finds his trail — and yours.",
+      "effects": {
+       "items": {
+        "rum": -30,
+        "herbs": -20,
+        "food": -10
+       },
+       "hp": 0,
+       "morale": -25,
+       "rep": {
+        "utc": -5,
+        "tideborn": 0,
+        "free": -5
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 10,
+       "unlock": "surgeon_poisoner",
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Leave him. UTC problem, not ours.",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "A week later, a UTC deserter stumbles into camp. 'Vane saved my life. Then he saved the captain's. They're hunting you with his maps.' The surgeon's skills now serve the enemy.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -10,
+       "rep": {
+        "utc": -2,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "surgeon_lost",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "Tideborn scouts find the cave first. They take Vane — and his knowledge of UTC crystal protocols. A tideborn healer now knows how to counter dark-binding. Your camp gains a quiet ally.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 10,
+        "free": 0
+       },
+       "spawn": "tideborn_scout",
+       "pet_xp": 0,
+       "unlock": "tideborn_healer",
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Pirates forced skilled men — carpenters, surgeons — to join. Deserters gave intelligence; a deserter told Roberts how HMS Swallow sailed best."
+ },
+ {
+  "id": "pir_030",
+  "category": "pirate",
+  "title": "Boucan & Boarding",
+  "zones": [
+   "beach",
+   "outpost"
+  ],
+  "trigger": {
+   "type": "action",
+   "chance": 0.0,
+   "min_day": 1,
+   "camp_level": 0,
+   "needs_item": "fish",
+   "weather": "clear"
+  },
+  "weight": 1,
+  "cooldown_s": 0,
+  "intro_lines": [
+   "Turtle fat sizzles on the boucan frames.",
+   "The crew feasts.",
+   "Vane carves meat with his amputation saw. Clean cuts."
+  ],
+  "choices": [
+   {
+    "label": "Vane organizes the wounded as a reserve",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Vane's 'lazarus line' — bandaged men with pistols — fires a volley that shatters the first boat. The UTC hesitate. You lead the counter-charge. The beach runs red, but the camp holds.",
+      "effects": {
+       "items": {
+        "herbs": -10,
+        "powder": -15,
+        "rum": -5
+       },
+       "hp": -10,
+       "morale": 25,
+       "rep": {
+        "utc": -12,
+        "tideborn": 0,
+        "free": 10
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "vane_tactician",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "The wounded break. Vane tries to rally them, takes a ball to the shoulder. His saw goes flying. You drag him back. The UTC gain the beach. The boucan frames burn.",
+      "effects": {
+       "items": {
+        "food": -30,
+        "wood": -20,
+        "herbs": -15
+       },
+       "hp": -15,
+       "morale": -20,
+       "rep": {
+        "utc": -5,
+        "tideborn": 0,
+        "free": -8
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": "vane_wounded",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Vane slips away in the smoke. The UTC officer shouts his name — they know each other. The boarding party withdraws with Vane 'captured.' A ransom note arrives by dawn.",
+      "effects": {
+       "items": {
+        "gold": -50,
+        "rum": -20,
+        "herbs": -10
+       },
+       "hp": 0,
+       "morale": -15,
+       "rep": {
+        "utc": -3,
+        "tideborn": 0,
+        "free": -5
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "vane_ransomed",
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Fight at the gunwales, Vane tends",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "The crew repels the boarding. Vane works through the night — seventeen amputations, zero deaths from shock. 'Clean cuts. Good ligatures. Rum helps.' The crew toasts him.",
+      "effects": {
+       "items": {
+        "rum": -20,
+        "fibre": -10,
+        "herbs": -15
+       },
+       "hp": 0,
+       "morale": 30,
+       "rep": {
+        "utc": -10,
+        "tideborn": 0,
+        "free": 15
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "vane_surgeon",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "You're pinned at the mainmast. Vane appears with a boarding axe, not a saw. He kills the UTC lieutenant. 'I swore an oath to do no harm. I amend it.' He stays. The crew stares.",
+      "effects": {
+       "items": {
+        "iron": -5,
+        "rum": -10
+       },
+       "hp": -5,
+       "morale": 20,
+       "rep": {
+        "utc": -8,
+        "tideborn": 2,
+        "free": 10
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "vane_oathbreaker",
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Camp life: tents of sails, rum, turtle and goat barbecues (boucan), quartermaster as camp judge. Pirates cared for injured per articles — 800 dollars for a limb."
+ },
+ {
+  "id": "pir_031",
+  "category": "pirate",
+  "title": "The Turtling Moon",
+  "zones": [
+   "beach",
+   "reef"
+  ],
+  "trigger": {
+   "type": "time",
+   "chance": 0.15,
+   "min_day": 5,
+   "camp_level": 2,
+   "needs_item": "rope",
+   "weather": "night"
+  },
+  "weight": 7,
+  "cooldown_s": 604800,
+  "intro_lines": [
+   "Green turtles crawl ashore under the full moon.",
+   "Dozens.",
+   "Tide-Puck stalks the treeline — crabs, not turtles."
+  ],
+  "choices": [
+   {
+    "label": "Work the beach alone — quiet, all",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.4,
+      "text": "You flip six turtles before dawn. Meat, shells, oil. Tide-Puck drives off ghost crabs. A good haul. Your back screams for days.",
+      "effects": {
+       "items": {
+        "food": 40,
+        "shell": 12,
+        "hide": 6
+       },
+       "hp": -15,
+       "morale": 10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 3
+       },
+       "spawn": null,
+       "pet_xp": 20,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.35,
+      "text": "A tiger shark takes your leg in the shallows. Tide-Puck drags you ashore. You live — barely. The turtles escape. Silas shakes his head. 'Greed bites.'",
+      "effects": {
+       "items": {
+        "rope": -1
+       },
+       "hp": -50,
+       "morale": -20,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "shark",
+       "pet_xp": 30,
+       "unlock": "shark_scar",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.25,
+      "text": "UTC patrol spots your fires. They don't attack — they wait offshore. You abandon half the catch fleeing. 'Turtling's not worth a hanging,' Silas says.",
+      "effects": {
+       "items": {
+        "food": 15,
+        "shell": 4,
+        "rope": -1
+       },
+       "hp": -5,
+       "morale": -10,
+       "rep": {
+        "utc": -3,
+        "tideborn": 0,
+        "free": -2
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Crew shares the work, crew shares",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Twenty turtles flipped. The camp feasts for a week. Shells become water catchers, bowls, trade goods. Even the UTC patrol watches and rows away — too many witnesses.",
+      "effects": {
+       "items": {
+        "food": 80,
+        "shell": 30,
+        "hide": 15
+       },
+       "hp": -5,
+       "morale": 20,
+       "rep": {
+        "utc": 0,
+        "tideborn": 2,
+        "free": 8
+       },
+       "spawn": null,
+       "pet_xp": 15,
+       "unlock": "turtling_master",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "A dispute over shares turns bloody. Two crew dead. The turtles rot in the sun. Silas maroons the killer on a cay with a bottle of water. 'Articles hold.'",
+      "effects": {
+       "items": {
+        "food": -20,
+        "shell": -10
+       },
+       "hp": 0,
+       "morale": -25,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 3
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "articles_enforced",
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Pedro Serrano flipped sea turtles onto their backs to catch them; drank blood when no rain. Turtles nested at night; shells used as vessels."
+ },
+ {
+  "id": "pir_032",
+  "category": "pirate",
+  "title": "Boucan Betrayal",
+  "zones": [
+   "outpost",
+   "jungle"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.1,
+   "min_day": 12,
+   "camp_level": 3,
+   "needs_item": "rum",
+   "weather": "clear"
+  },
+  "weight": 5,
+  "cooldown_s": 172800,
+  "intro_lines": [
+   "The boucan smokes.",
+   "Rum flows.",
+   "Dice click on a sea-chest lid."
+  ],
+  "choices": [
+   {
+    "label": "Challenge him to dice — win his secrets",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.45,
+      "text": "You clean him out. His purse holds a UTC cypher wheel and a Tideborn relic map. He flees into the jungle, cursing. Silas burns the cypher. 'Don't need their codes.'",
+      "effects": {
+       "items": {
+        "gold": 20,
+        "map_fragment": 2,
+        "relic_shard": 1
+       },
+       "hp": 0,
+       "morale": 10,
+       "rep": {
+        "utc": -5,
+        "tideborn": 3,
+        "free": 5
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "utc_cypher",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.35,
+      "text": "He wins. Your gold, your map fragment, your rum stores. He leaves at dawn, whistling. A week later, UTC hits the camp with exact knowledge of your stores.",
+      "effects": {
+       "items": {
+        "gold": -30,
+        "map_fragment": -1,
+        "rum": -20,
+        "food": -15
+       },
+       "hp": 0,
+       "morale": -20,
+       "rep": {
+        "utc": -3,
+        "tideborn": 0,
+        "free": -5
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Tide-Puck knocks the table over. Crystals spill from the stranger's pocket — dark-binding. He draws a pistol. You draw faster. The boucan goes silent.",
+      "effects": {
+       "items": {
+        "relic_shard": 1,
+        "powder": -1
+       },
+       "hp": -5,
+       "morale": -5,
+       "rep": {
+        "utc": -8,
+        "tideborn": 0,
+        "free": 2
+       },
+       "spawn": null,
+       "pet_xp": 20,
+       "unlock": "crystal_seized",
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Feed him poisoned rum — quiet removal",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.55,
+      "text": "He drinks, chokes, dies in the latrine. His pack: UTC patrol schedules, a Tideborn scout's death warrant, and a letter — your camp's coordinates. Silas nods. 'Good work.'",
+      "effects": {
+       "items": {
+        "herbs": -3,
+        "rum": -2,
+        "map_fragment": 1
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": -5,
+        "tideborn": 5,
+        "free": 3
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "utc_intel",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.45,
+      "text": "He smells the herbs. 'Monkshood? Crude.' He's a UTC surgeon. He doses YOU. You wake bound, the camp burning. Tide-Puck chews your ropes. Vane — if you have him — saves you.",
+      "effects": {
+       "items": {
+        "herbs": -5,
+        "rum": -10,
+        "wood": -30
+       },
+       "hp": -20,
+       "morale": -30,
+       "rep": {
+        "utc": -5,
+        "tideborn": 0,
+        "free": -10
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 15,
+       "unlock": "surgeon_needed",
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Pirate camp life: rum, gambling ashore, fights. Quartermaster as camp judge. UTC deployed dark-binding crystals that enrage the leviathan."
+ },
+ {
+  "id": "pir_033",
+  "category": "pirate",
+  "title": "Careening Ambush",
+  "zones": [
+   "beach",
+   "reef",
+   "sea"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.08,
+   "min_day": 25,
+   "camp_level": 6,
+   "needs_item": "tar",
+   "weather": "fog"
+  },
+  "weight": 4,
+  "cooldown_s": 259200,
+  "intro_lines": [
+   "The galleon heels on the beach.",
+   "Guns landed.",
+   "Hull exposed. Fog swallows the mastheads. They've timed it."
+  ],
+  "choices": [
+   {
+    "label": "Scuttle the longboat — trap them",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "The brig grounds on the hidden reef you marked. Your beach battery — rebuilt since last time — rakes her decks. The tide turns. You capture a warship. Silas weeps with joy.",
+      "effects": {
+       "items": {
+        "iron": 80,
+        "powder": 60,
+        "rum": 40,
+        "relic_shard": 5
+       },
+       "hp": 0,
+       "morale": 30,
+       "rep": {
+        "utc": -20,
+        "tideborn": 5,
+        "free": 20
+       },
+       "spawn": null,
+       "pet_xp": 40,
+       "unlock": "utc_brig_captured",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "The brig's pilot knows the reef. She threads the needle. Grapeshot scythes the battery. You fight on the careening beach, knee-deep in tar and sand. The galleon burns.",
+      "effects": {
+       "items": {
+        "wood": -60,
+        "tar": -20,
+        "rope": -30,
+        "sailcloth": -20
+       },
+       "hp": -25,
+       "morale": -25,
+       "rep": {
+        "utc": -10,
+        "tideborn": 0,
+        "free": -10
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "The fog lifts. The Abyssal Sovereign rises under the brig. Crystals scream. The warship splinters. You watch from the beach, tar-stained and alive. The leviathan ignores you.",
+      "effects": {
+       "items": {
+        "relic_shard": 8,
+        "map_fragment": 1
+       },
+       "hp": 0,
+       "morale": 10,
+       "rep": {
+        "utc": -5,
+        "tideborn": 10,
+        "free": 5
+       },
+       "spawn": "wild_mythos",
+       "pet_xp": 20,
+       "unlock": "sovereign_witness",
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Cut the careening lines — sail damaged",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "The galleon rights, sails sheeted home in minutes. You flee into the fog, hull leaking, teredo tunnels open. But you live. The UTC brig fires blind into mist.",
+      "effects": {
+       "items": {
+        "wood": -20,
+        "tar": -15,
+        "rope": -10
+       },
+       "hp": -10,
+       "morale": 5,
+       "rep": {
+        "utc": -5,
+        "tideborn": 0,
+        "free": 5
+       },
+       "spawn": null,
+       "pet_xp": 15,
+       "unlock": "careening_escape",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "A plank springs as you clear the shoals. The pump crew drowns below. You beach her on a hostile coast, limp into the jungle. The UTC lands marines. A long chase begins.",
+      "effects": {
+       "items": {
+        "wood": -40,
+        "tar": -20,
+        "food": -20,
+        "fresh_water": -15
+       },
+       "hp": -15,
+       "morale": -20,
+       "rep": {
+        "utc": -8,
+        "tideborn": 0,
+        "free": -5
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": "hunted_ashore",
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "During careening, crews were defenceless; guns often landed in a beach battery. Pirate haunts chosen for careening beaches. Deserters gave intelligence on patrol routes."
  }
 ]

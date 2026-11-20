@@ -2385,5 +2385,2594 @@
    }
   ],
   "history_note": "At Île Sainte-Marie ships were deliberately sunk as a harbour barrier and Condent burned the Fiery Dragon rather than see her sail — a wreck on a reef is salvage, trap and tomb at once."
+ },
+ {
+  "id": "sea_015",
+  "category": "sea",
+  "title": "Careening Crisis",
+  "zones": [
+   "beach",
+   "sea"
+  ],
+  "trigger": {
+   "type": "action",
+   "chance": 0.15,
+   "min_day": 10,
+   "camp_level": 3,
+   "needs_item": "tar",
+   "weather": "clear"
+  },
+  "weight": 8,
+  "cooldown_s": 86400,
+  "intro_lines": [
+   "The galleon heels on the careening beach.",
+   "Guns lie landed in a sand battery.",
+   "A UTC cutter rounds the headland — no flags, gunports open."
+  ],
+  "choices": [
+   {
+    "label": "Man the beach battery",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.4,
+      "text": "Shot tears their foresail; they sheer off, cursing. Hull patched in time.",
+      "effects": {
+       "items": {
+        "tar": -1,
+        "powder": -2
+       },
+       "hp": -5,
+       "morale": 10,
+       "rep": {
+        "utc": -5,
+        "tideborn": 0,
+        "free": 5
+       },
+       "spawn": null,
+       "pet_xp": 20,
+       "unlock": null,
+       "next_event": "sea_016"
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "Gunners hit the waterline; cutter returns fire. Splinters maim two crew.",
+      "effects": {
+       "items": {
+        "tar": -1,
+        "powder": -2,
+        "wood": -3
+       },
+       "hp": -25,
+       "morale": -15,
+       "rep": {
+        "utc": -10,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": "sea_016"
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Powder damp misfires. Boarders swarm before you can reload.",
+      "effects": {
+       "items": {
+        "tar": -1,
+        "powder": -2,
+        "iron": -5,
+        "food": -10
+       },
+       "hp": -40,
+       "morale": -30,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -10
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": "sea_016"
+      }
+     }
+    ]
+   },
+   {
+    "label": "Cut cables, warp into reef",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Kedging drags the stern into coral shallows. Cutter cannot follow without grounding.",
+      "effects": {
+       "items": {
+        "rope": -3,
+        "wood": -2
+       },
+       "hp": -10,
+       "morale": 5,
+       "rep": {
+        "utc": -3,
+        "tideborn": 2,
+        "free": 3
+       },
+       "spawn": null,
+       "pet_xp": 15,
+       "unlock": null,
+       "next_event": "sea_016"
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Anchor bites, but surge slams hull on reef. Fresh leaks open below waterline.",
+      "effects": {
+       "items": {
+        "rope": -3,
+        "wood": -5,
+        "tar": -2
+       },
+       "hp": -15,
+       "morale": -10,
+       "rep": {
+        "utc": -2,
+        "tideborn": 1,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 5,
+       "unlock": null,
+       "next_event": "sea_016"
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Hawser parts. Drifting broadside to cutter's guns. No choice but to fight.",
+      "effects": {
+       "items": {
+        "rope": -3,
+        "sailcloth": -2
+       },
+       "hp": -20,
+       "morale": -20,
+       "rep": {
+        "utc": -5,
+        "tideborn": 0,
+        "free": -5
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": "sea_016"
+      }
+     }
+    ]
+   },
+   {
+    "label": "Parley under white flag",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.3,
+      "text": "Captain accepts bribe: half the tar, all the rum. Logs your name for later.",
+      "effects": {
+       "items": {
+        "tar": -5,
+        "rum": -10,
+        "gold": -20
+       },
+       "hp": 0,
+       "morale": -5,
+       "rep": {
+        "utc": 10,
+        "tideborn": -5,
+        "free": -10
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "utc_watchlist",
+       "next_event": "sea_016"
+      }
+     },
+     {
+      "chance": 0.5,
+      "text": "Lieutenant sneers, demands the ship. You stall while crew rearms below.",
+      "effects": {
+       "items": {
+        "food": -5
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": -2,
+        "tideborn": 0,
+        "free": 5
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": "sea_016"
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Officer signals marines. Boarding nets drop before you reach the rail.",
+      "effects": {
+       "items": {
+        "iron": -10,
+        "food": -15,
+        "rum": -5
+       },
+       "hp": -30,
+       "morale": -25,
+       "rep": {
+        "utc": 5,
+        "tideborn": -5,
+        "free": -10
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": "sea_016"
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Pirates careened on sloping beaches to scrape teredo worm tunnels, landing guns in beach batteries while defenceless (JMU thesis on pirate island haunts)."
+ },
+ {
+  "id": "sea_016",
+  "category": "sea",
+  "title": "Cutter's Shadow",
+  "zones": [
+   "sea",
+   "reef"
+  ],
+  "trigger": {
+   "type": "action",
+   "chance": 0.0,
+   "min_day": 10,
+   "camp_level": 3,
+   "needs_item": null,
+   "weather": "any"
+  },
+  "weight": 5,
+  "cooldown_s": 43200,
+  "intro_lines": [
+   "The UTC cutter holds station beyond the reef.",
+   "Their dark-binding crystals hum faint in the rigging.",
+   "Silas signals from the ridge: \"They mean to trap"
+  ],
+  "choices": [
+   {
+    "label": "Slip out at night, dark lanterns",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Tide carries you through the channel unseen. Crystals fade astern.",
+      "effects": {
+       "items": {
+        "sailcloth": -2,
+        "food": -3
+       },
+       "hp": 0,
+       "morale": 15,
+       "rep": {
+        "utc": -5,
+        "tideborn": 5,
+        "free": 5
+       },
+       "spawn": null,
+       "pet_xp": 30,
+       "unlock": null,
+       "next_event": "sea_017"
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Phosphorescence wakes in your wake. Cutter's boats give chase.",
+      "effects": {
+       "items": {
+        "sailcloth": -2,
+        "rope": -2
+       },
+       "hp": -10,
+       "morale": 0,
+       "rep": {
+        "utc": -3,
+        "tideborn": 2,
+        "free": 3
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 15,
+       "unlock": null,
+       "next_event": "sea_017"
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Ground on a hidden spur. Hull screams. Dawn finds you stuck, exposed.",
+      "effects": {
+       "items": {
+        "sailcloth": -2,
+        "wood": -8,
+        "tar": -3
+       },
+       "hp": -20,
+       "morale": -15,
+       "rep": {
+        "utc": 0,
+        "tideborn": -2,
+        "free": -5
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 5,
+       "unlock": null,
+       "next_event": "sea_017"
+      }
+     }
+    ]
+   },
+   {
+    "label": "Lure the Sovereign onto them",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.4,
+      "text": "Shard pulses. The Abyssal Sovereign rises beneath the cutter — timbers shatter.",
+      "effects": {
+       "items": {
+        "relic_shard": -1
+       },
+       "hp": 0,
+       "morale": 20,
+       "rep": {
+        "utc": -20,
+        "tideborn": 15,
+        "free": 10
+       },
+       "spawn": null,
+       "pet_xp": 50,
+       "unlock": "sovereign_witness",
+       "next_event": "sea_017"
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "Leviathan takes the bait but thrashes wildly. Your ship takes collateral damage.",
+      "effects": {
+       "items": {
+        "relic_shard": -1,
+        "wood": -10,
+        "rope": -5
+       },
+       "hp": -15,
+       "morale": 5,
+       "rep": {
+        "utc": -10,
+        "tideborn": 10,
+        "free": 5
+       },
+       "spawn": "wild_mythos",
+       "pet_xp": 30,
+       "unlock": null,
+       "next_event": "sea_017"
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Crystals overwhelm the shard. Sovereign enraged, attacks indiscriminately.",
+      "effects": {
+       "items": {
+        "relic_shard": -1,
+        "wood": -15,
+        "sailcloth": -5
+       },
+       "hp": -30,
+       "morale": -20,
+       "rep": {
+        "utc": -5,
+        "tideborn": -10,
+        "free": -5
+       },
+       "spawn": "wild_mythos",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": "sea_017"
+      }
+     }
+    ]
+   },
+   {
+    "label": "Fortify the beach, wait them out",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Palisades rise. Cutter's boats take musket fire, withdraw. They blockade offshore.",
+      "effects": {
+       "items": {
+        "wood": -10,
+        "powder": -5,
+        "food": -10
+       },
+       "hp": -5,
+       "morale": 10,
+       "rep": {
+        "utc": -5,
+        "tideborn": 0,
+        "free": 5
+       },
+       "spawn": null,
+       "pet_xp": 20,
+       "unlock": null,
+       "next_event": "sea_017"
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Mortar bombs from the cutter shatter your works. Crew breaks, flees inland.",
+      "effects": {
+       "items": {
+        "wood": -10,
+        "iron": -5,
+        "food": -15
+       },
+       "hp": -25,
+       "morale": -30,
+       "rep": {
+        "utc": 5,
+        "tideborn": -5,
+        "free": -10
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": "sea_017"
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "A Tideborn scout offers aid: \"We know these waters. Follow us.\"",
+      "effects": {
+       "items": {
+        "wood": -5
+       },
+       "hp": 0,
+       "morale": 15,
+       "rep": {
+        "utc": -3,
+        "tideborn": 10,
+        "free": 0
+       },
+       "spawn": "tideborn_scout",
+       "pet_xp": 25,
+       "unlock": "tideborn_ally",
+       "next_event": "sea_017"
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "UTC deploys dark-binding crystals that enrage the Abyssal Sovereign; pirates used false flags and night escapes to evade naval cutters (Johnson's General History)."
+ },
+ {
+  "id": "sea_017",
+  "category": "sea",
+  "title": "Reckoning at Dawn",
+  "zones": [
+   "sea",
+   "beach"
+  ],
+  "trigger": {
+   "type": "action",
+   "chance": 0.0,
+   "min_day": 11,
+   "camp_level": 3,
+   "needs_item": null,
+   "weather": "clear"
+  },
+  "weight": 5,
+  "cooldown_s": 86400,
+  "intro_lines": [
+   "Morning light reveals the cutter's fate.",
+   "Silas rows out: \"The articles say we vote.",
+   "What's the course, Quartermaster?\""
+  ],
+  "choices": [
+   {
+    "label": "Rescue the cutter's survivors",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Midshipman Hale surrenders his commission. \"You fight like devils. I'll sail with you.\"",
+      "effects": {
+       "items": {
+        "rope": -2,
+        "food": -5,
+        "rum": -3
+       },
+       "hp": 5,
+       "morale": 20,
+       "rep": {
+        "utc": -10,
+        "tideborn": 5,
+        "free": 15
+       },
+       "spawn": "free_pirates",
+       "pet_xp": 30,
+       "unlock": "hale_joins",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Hale accepts rescue, then signals a hidden UTC frigate. \"Company property,\" he sneers.",
+      "effects": {
+       "items": {
+        "rope": -2,
+        "iron": -10,
+        "gold": -20
+       },
+       "hp": -15,
+       "morale": -25,
+       "rep": {
+        "utc": 15,
+        "tideborn": -10,
+        "free": -15
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": "hale_betrayal",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.1,
+      "text": "No survivors but a sealed dispatch case. UTC patrol routes for the season.",
+      "effects": {
+       "items": {
+        "rope": -2,
+        "map_fragment": 1
+       },
+       "hp": 0,
+       "morale": 10,
+       "rep": {
+        "utc": -5,
+        "tideborn": 5,
+        "free": 5
+       },
+       "spawn": null,
+       "pet_xp": 20,
+       "unlock": "utc_routes",
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Salvage the wreck, leave the rest",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Cannon, anchor, crystallized tar — haul worth weeks. No witnesses left.",
+      "effects": {
+       "items": {
+        "iron": 8,
+        "tar": 5,
+        "scrap": 10,
+        "gold": 15
+       },
+       "hp": -5,
+       "morale": 10,
+       "rep": {
+        "utc": -5,
+        "tideborn": -5,
+        "free": 5
+       },
+       "spawn": null,
+       "pet_xp": 15,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Dark-binding crystals shatter in the hold. Crew sickens, Tide-Puck howls.",
+      "effects": {
+       "items": {
+        "iron": 5,
+        "herbs": -5
+       },
+       "hp": -20,
+       "morale": -15,
+       "rep": {
+        "utc": 0,
+        "tideborn": -10,
+        "free": 0
+       },
+       "spawn": "wild_mythos",
+       "pet_xp": 0,
+       "unlock": "crystal_sickness",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Tideborn scouts claim the wreck by ancient right. \"The sea takes, the sea gives.\"",
+      "effects": {
+       "items": {
+        "iron": 3,
+        "relic_shard": 1
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": -3,
+        "tideborn": 10,
+        "free": -5
+       },
+       "spawn": "tideborn_scout",
+       "pet_xp": 20,
+       "unlock": "tideborn_debt",
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Burn it all, deny UTC the crystals",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "Fire consumes the cutter and its cursed cargo. Sovereign's rage abates.",
+      "effects": {
+       "items": {
+        "powder": -3,
+        "tar": -2
+       },
+       "hp": 0,
+       "morale": 15,
+       "rep": {
+        "utc": -15,
+        "tideborn": 15,
+        "free": 10
+       },
+       "spawn": null,
+       "pet_xp": 40,
+       "unlock": "crystal_destroyer",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Explosion triggers a chain reaction. Shockwave damages your hull badly.",
+      "effects": {
+       "items": {
+        "powder": -3,
+        "wood": -15,
+        "sailcloth": -5
+       },
+       "hp": -25,
+       "morale": -10,
+       "rep": {
+        "utc": -10,
+        "tideborn": 5,
+        "free": 5
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.1,
+      "text": "A UTC frigate appears on the horizon, drawn by the blast. Run.",
+      "effects": {
+       "items": {
+        "powder": -3
+       },
+       "hp": -10,
+       "morale": -20,
+       "rep": {
+        "utc": 10,
+        "tideborn": 0,
+        "free": -5
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Pirate articles required votes on affairs; Roberts' code gave captain and quartermaster two shares, injury compensation 800 dollars for a limb (Johnson 1724)."
+ },
+ {
+  "id": "sea_018",
+  "category": "sea",
+  "title": "Raft of Last Resort",
+  "zones": [
+   "sea"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.08,
+   "min_day": 5,
+   "camp_level": 1,
+   "needs_item": null,
+   "weather": "storm"
+  },
+  "weight": 6,
+  "cooldown_s": 172800,
+  "intro_lines": [
+   "The longboat founders in the squall.",
+   "You cling to a lashed spar deck.",
+   "Planking gaps gape; seawater sloshes ankle-deep with each"
+  ],
+  "choices": [
+   {
+    "label": "Bail with helmets, boots, hands",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Rhythmic bailing keeps pace with the leaks. Strength returns with purpose.",
+      "effects": {
+       "items": {},
+       "hp": -10,
+       "morale": 10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 15,
+       "unlock": null,
+       "next_event": "sea_019"
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Exhaustion sets in. Water rises. A crewman slips overboard — gone.",
+      "effects": {
+       "items": {
+        "food": -3
+       },
+       "hp": -20,
+       "morale": -20,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": "sea_019"
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Shark investigates the commotion. Tide-Puck bites its nose; it flees.",
+      "effects": {
+       "items": {},
+       "hp": -15,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "shark",
+       "pet_xp": 25,
+       "unlock": null,
+       "next_event": "sea_019"
+      }
+     }
+    ]
+   },
+   {
+    "label": "Stuff gaps with clothing, sailcloth",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Rags and canvas plug the worst. Raft rides higher, drier.",
+      "effects": {
+       "items": {
+        "sailcloth": -1,
+        "fibre": -2
+       },
+       "hp": -5,
+       "morale": 15,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 20,
+       "unlock": null,
+       "next_event": "sea_019"
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Plugs hold, but chafing opens new seams. Constant vigilance needed.",
+      "effects": {
+       "items": {
+        "sailcloth": -1
+       },
+       "hp": -10,
+       "morale": 0,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": "sea_019"
+      }
+     },
+     {
+      "chance": 0.1,
+      "text": "A plug blows. Cold surge knocks the wind out of everyone.",
+      "effects": {
+       "items": {
+        "sailcloth": -1,
+        "food": -2
+       },
+       "hp": -25,
+       "morale": -15,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": "sea_019"
+      }
+     }
+    ]
+   },
+   {
+    "label": "Rig a sea anchor, ride it out",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Drogue steadies the bow to waves. Less shipping water, slower drift.",
+      "effects": {
+       "items": {
+        "rope": -2
+       },
+       "hp": -5,
+       "morale": 10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 15,
+       "unlock": null,
+       "next_event": "sea_019"
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Line parts in a gust. Raft broaches, nearly capsizes.",
+      "effects": {
+       "items": {
+        "rope": -2,
+        "wood": -3
+       },
+       "hp": -20,
+       "morale": -15,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 5,
+       "unlock": null,
+       "next_event": "sea_019"
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Sea anchor snags a floating spar — extra flotation, dry wood!",
+      "effects": {
+       "items": {
+        "rope": -2,
+        "wood": 5
+       },
+       "hp": 0,
+       "morale": 20,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 25,
+       "unlock": null,
+       "next_event": "sea_019"
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Pedro Serrano flipped sea turtles for blood when no rain; castaway crews on rafts bailed with helmets and plugged leaks with clothing (Garcilaso de la Vega 1609)."
+ },
+ {
+  "id": "sea_019",
+  "category": "sea",
+  "title": "Empty Bellies, Open Water",
+  "zones": [
+   "sea"
+  ],
+  "trigger": {
+   "type": "action",
+   "chance": 0.0,
+   "min_day": 5,
+   "camp_level": 1,
+   "needs_item": null,
+   "weather": "any"
+  },
+  "weight": 5,
+  "cooldown_s": 86400,
+  "intro_lines": [
+   "Dawn finds the raft afloat.",
+   "Throats cracked with salt.",
+   "No food since yesterday. Not alone out here."
+  ],
+  "choices": [
+   {
+    "label": "Hand-line for the flying fish school",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Fish leap into the raft. Raw protein, precious moisture. Tide-Puck gets the heads.",
+      "effects": {
+       "items": {
+        "fish": 8
+       },
+       "hp": 10,
+       "morale": 15,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 20,
+       "unlock": null,
+       "next_event": "sea_020"
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Line snaps on a big one. Hook catches a crewman's hand — nasty tear.",
+      "effects": {
+       "items": {
+        "fish": 3,
+        "herbs": -1
+       },
+       "hp": -15,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": "sea_020"
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Shark takes the fish, the line, and a chunk of the gunwale.",
+      "effects": {
+       "items": {
+        "wood": -2
+       },
+       "hp": -5,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "shark",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": "sea_020"
+      }
+     }
+    ]
+   },
+   {
+    "label": "Spear the shadow beneath the raft",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.4,
+      "text": "A decent dorado, firm flesh. No ciguatera risk at this size. Feast tonight.",
+      "effects": {
+       "items": {
+        "iron": -1,
+        "fish": 12
+       },
+       "hp": 15,
+       "morale": 20,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 25,
+       "unlock": null,
+       "next_event": "sea_020"
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "Moray eel lunges from a crevice in the raft's shadow. Bites the spear, then a leg.",
+      "effects": {
+       "items": {
+        "iron": -1,
+        "herbs": -2
+       },
+       "hp": -25,
+       "morale": -15,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "eel",
+       "pet_xp": 5,
+       "unlock": null,
+       "next_event": "sea_020"
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Spear misses. The splash attracts the shark. It circles closer now.",
+      "effects": {
+       "items": {
+        "iron": -1
+       },
+       "hp": -5,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "shark",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": "sea_020"
+      }
+     }
+    ]
+   },
+   {
+    "label": "Catch rain in the sail, ration strictly",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Squall passes. Canvas funnels precious fresh water. Thirst beaten back.",
+      "effects": {
+       "items": {
+        "fresh_water": 6
+       },
+       "hp": 10,
+       "morale": 10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 15,
+       "unlock": null,
+       "next_event": "sea_020"
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Only a drizzle. Mouthfuls each. Hope frays at the edges.",
+      "effects": {
+       "items": {
+        "fresh_water": 2
+       },
+       "hp": -5,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 5,
+       "unlock": null,
+       "next_event": "sea_020"
+      }
+     },
+     {
+      "chance": 0.1,
+      "text": "Seawater contaminates the catch. Salt sores bloom on lips.",
+      "effects": {
+       "items": {},
+       "hp": -15,
+       "morale": -20,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": "sea_020"
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Rule of threes: three days without water; rain catchment with sails and shells was primary survival method (NOAA). Small reef fish avoid ciguatera toxin (Cleveland Clinic)."
+ },
+ {
+  "id": "sea_020",
+  "category": "sea",
+  "title": "Sloop on the Horizon",
+  "zones": [
+   "sea"
+  ],
+  "trigger": {
+   "type": "action",
+   "chance": 0.0,
+   "min_day": 6,
+   "camp_level": 1,
+   "needs_item": null,
+   "weather": "clear"
+  },
+  "weight": 5,
+  "cooldown_s": 86400,
+  "intro_lines": [
+   "A sloop heels in the trade wind, running down on your raft.",
+   "No colours flown.",
+   "Could be free traders, UTC, or worse."
+  ],
+  "choices": [
+   {
+    "label": "Signal distress, offer pearl for passage",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Captain pockets the pearl, hauls you aboard. \"Lucky you. UTC patrol swept through yesterday.\"",
+      "effects": {
+       "items": {
+        "pearl": -1
+       },
+       "hp": 20,
+       "morale": 20,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 5
+       },
+       "spawn": "free_pirates",
+       "pet_xp": 15,
+       "unlock": "sloop_passage",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "\"Pearl's fake,\" the quartermaster spits. They tow the raft but claim salvage rights.",
+      "effects": {
+       "items": {
+        "pearl": -1,
+        "wood": -5,
+        "food": -5
+       },
+       "hp": 10,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -5
+       },
+       "spawn": "free_pirates",
+       "pet_xp": 5,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "UTC colours break out. \"Company business.\" Irons for everyone.",
+      "effects": {
+       "items": {
+        "pearl": -1,
+        "iron": -5,
+        "gold": -10
+       },
+       "hp": -10,
+       "morale": -30,
+       "rep": {
+        "utc": 15,
+        "tideborn": -10,
+        "free": -15
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": "utc_capture",
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Feign death, let them board",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.4,
+      "text": "Boarders climb over the gunwale — into a volley. You take the sloop.",
+      "effects": {
+       "items": {
+        "powder": -2,
+        "wood": 20,
+        "iron": 5,
+        "food": 10,
+        "rum": 5
+       },
+       "hp": -10,
+       "morale": 25,
+       "rep": {
+        "utc": -5,
+        "tideborn": 0,
+        "free": 10
+       },
+       "spawn": "free_pirates",
+       "pet_xp": 30,
+       "unlock": "sloop_captured",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "They're wary. Grapples hook from a distance. Musket balls skip off the water.",
+      "effects": {
+       "items": {
+        "wood": -3,
+        "rope": -2
+       },
+       "hp": -15,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "free_pirates",
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Tideborn scouts aboard. \"The sea returns what it borrows.\" They take you in.",
+      "effects": {
+       "items": {
+        "relic_shard": 1,
+        "herbs": 3
+       },
+       "hp": 15,
+       "morale": 15,
+       "rep": {
+        "utc": -5,
+        "tideborn": 15,
+        "free": 0
+       },
+       "spawn": "tideborn_scout",
+       "pet_xp": 25,
+       "unlock": "tideborn_rescue",
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Paddle hard for the reef passage, lose",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Local knowledge pays off. Sloop dares not follow. You beach near Silas's camp.",
+      "effects": {
+       "items": {
+        "food": -3
+       },
+       "hp": -10,
+       "morale": 15,
+       "rep": {
+        "utc": 0,
+        "tideborn": 5,
+        "free": 5
+       },
+       "spawn": null,
+       "pet_xp": 20,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Ground on a coral head. Sloop anchors, sends boats. Fight in knee-deep water.",
+      "effects": {
+       "items": {
+        "wood": -5,
+        "iron": -3
+       },
+       "hp": -20,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": -2,
+        "free": 0
+       },
+       "spawn": "free_pirates",
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Tide-Puck guides you through a hidden channel. Sloop passes overhead, unseen.",
+      "effects": {
+       "items": {
+        "food": -2
+       },
+       "hp": 0,
+       "morale": 20,
+       "rep": {
+        "utc": -3,
+        "tideborn": 10,
+        "free": 5
+       },
+       "spawn": null,
+       "pet_xp": 40,
+       "unlock": "hidden_channel",
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Pirates traded with passing sloops at havens like Île Sainte-Marie; Adam Baldridge sold cattle to careening crews for guns and powder (Sailing the Black Flag)."
+ },
+ {
+  "id": "sea_021",
+  "category": "sea",
+  "title": "Teredo's Toll",
+  "zones": [
+   "sea",
+   "outpost"
+  ],
+  "trigger": {
+   "type": "time",
+   "chance": 0.12,
+   "min_day": 20,
+   "camp_level": 4,
+   "needs_item": null,
+   "weather": "heat"
+  },
+  "weight": 7,
+  "cooldown_s": 172800,
+  "intro_lines": [
+   "The ship's bottom feels soft underfoot.",
+   "Worm-holes honeycomb the planking.",
+   "Every tide sucks more water through the worm-roads."
+  ],
+  "choices": [
+   {
+    "label": "Emergency careen at the hidden cove",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Three tides of scraping, plugging, tallowing. She's sound again. Crew exhausted.",
+      "effects": {
+       "items": {
+        "tar": -10,
+        "wood": -5,
+        "food": -15,
+        "hide": -5
+       },
+       "hp": -15,
+       "morale": 10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 20,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Keel blocks shift on the spring tide. Hull warps. New leaks along the garboard.",
+      "effects": {
+       "items": {
+        "tar": -10,
+        "wood": -10,
+        "rope": -5
+       },
+       "hp": -10,
+       "morale": -15,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "UTC launch spots the careening smoke. Guns land just in time to repel boats.",
+      "effects": {
+       "items": {
+        "tar": -10,
+        "powder": -5,
+        "iron": -5
+       },
+       "hp": -20,
+       "morale": -10,
+       "rep": {
+        "utc": -5,
+        "tideborn": 0,
+        "free": 5
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 15,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Sheath with scrap copper from the hold",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Copper nails drive home. Worms can't bore metal. Speed picks up a knot.",
+      "effects": {
+       "items": {
+        "scrap": -15,
+        "iron": -5
+       },
+       "hp": 0,
+       "morale": 15,
+       "rep": {
+        "utc": 0,
+        "tideborn": 2,
+        "free": 3
+       },
+       "spawn": null,
+       "pet_xp": 25,
+       "unlock": "copper_sheathed",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Electrolysis eats the iron bolts. Sheathing peels in sheets. Worse than before.",
+      "effects": {
+       "items": {
+        "scrap": -15,
+        "iron": -10
+       },
+       "hp": -5,
+       "morale": -20,
+       "rep": {
+        "utc": 0,
+        "tideborn": -5,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.1,
+      "text": "Tideborn divers surface: \"Copper drives the spirits away. Remove it.\" They'll help if you do.",
+      "effects": {
+       "items": {
+        "scrap": -10,
+        "relic_shard": 1
+       },
+       "hp": 0,
+       "morale": 10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 10,
+        "free": -5
+       },
+       "spawn": "tideborn_scout",
+       "pet_xp": 20,
+       "unlock": "tideborn_pact",
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Sail her hard, pump constantly, pray",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.4,
+      "text": "Make the free port at Sainte-Marie. Careen there under Baldridge's protection.",
+      "effects": {
+       "items": {
+        "rope": -5,
+        "food": -10,
+        "gold": -20
+       },
+       "hp": -10,
+       "morale": 5,
+       "rep": {
+        "utc": -3,
+        "tideborn": 0,
+        "free": 10
+       },
+       "spawn": "free_pirates",
+       "pet_xp": 15,
+       "unlock": "sainte_marie",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "Pumps choke on worm-cast. Water gains. Abandon ship, take to boats.",
+      "effects": {
+       "items": {
+        "rope": -5,
+        "wood": -20,
+        "iron": -10,
+        "food": -15
+       },
+       "hp": -25,
+       "morale": -30,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -10
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "ship_lost",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Sovereign's shadow passes deep. Worms flee the hull in terror. Clean for weeks.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 20,
+       "rep": {
+        "utc": 0,
+        "tideborn": 15,
+        "free": 5
+       },
+       "spawn": "wild_mythos",
+       "pet_xp": 50,
+       "unlock": "sovereign_blessing",
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Teredo navalis (shipworm) destroys wooden hulls in tropical waters; pirates careened regularly to scrape and tar the bottom (JMU thesis on pirate island haunts)."
+ },
+ {
+  "id": "sea_022",
+  "category": "sea",
+  "title": "Men in the Water",
+  "zones": [
+   "sea",
+   "reef"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.1,
+   "min_day": 15,
+   "camp_level": 3,
+   "needs_item": null,
+   "weather": "storm"
+  },
+  "weight": 6,
+  "cooldown_s": 172800,
+  "intro_lines": [
+   "Wreckage strewn across the reef.",
+   "Voices scream in the wind and breakers.",
+   "A UTC transport, holed by the Sovereign's passing."
+  ],
+  "choices": [
+   {
+    "label": "Launch boats, rescue whoever you can",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Twelve souls hauled aboard. A UTC navigator among them — knows patrol codes.",
+      "effects": {
+       "items": {
+        "rope": -3,
+        "food": -12,
+        "fresh_water": -6
+       },
+       "hp": -10,
+       "morale": 15,
+       "rep": {
+        "utc": -5,
+        "tideborn": 0,
+        "free": 10
+       },
+       "spawn": "free_pirates",
+       "pet_xp": 30,
+       "unlock": "utc_navigator",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Boat swamped by a breaker. Three crew lost. Survivors cling to the gunwales.",
+      "effects": {
+       "items": {
+        "rope": -3,
+        "wood": -5,
+        "food": -8
+       },
+       "hp": -25,
+       "morale": -20,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 5
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Shark takes a drowning man beside the boat. Blood in the water. Stop pulling.",
+      "effects": {
+       "items": {
+        "rope": -3
+       },
+       "hp": -5,
+       "morale": -25,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "shark",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Heave lines, haul them one by one",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Slow but steady. Eight saved, no boat risk. An officer offers his commission.",
+      "effects": {
+       "items": {
+        "rope": -5,
+        "food": -8,
+        "fresh_water": -4
+       },
+       "hp": -5,
+       "morale": 10,
+       "rep": {
+        "utc": -3,
+        "tideborn": 0,
+        "free": 8
+       },
+       "spawn": "free_pirates",
+       "pet_xp": 25,
+       "unlock": "utc_officer",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Line chafes through on coral. Two men slip back. The rest refuse to try.",
+      "effects": {
+       "items": {
+        "rope": -5,
+        "food": -4
+       },
+       "hp": 0,
+       "morale": -15,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 5,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.1,
+      "text": "A Tideborn scout swims out, guides survivors through a safe channel. Nine saved.",
+      "effects": {
+       "items": {
+        "rope": -3,
+        "relic_shard": 1
+       },
+       "hp": 5,
+       "morale": 20,
+       "rep": {
+        "utc": -2,
+        "tideborn": 15,
+        "free": 5
+       },
+       "spawn": "tideborn_scout",
+       "pet_xp": 35,
+       "unlock": "tideborn_guide",
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Salvage the cargo, leave the men",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Powder, shot, salt beef — worth a fortune. Screams fade behind you.",
+      "effects": {
+       "items": {
+        "powder": 10,
+        "iron": 8,
+        "food": 20,
+        "gold": 15
+       },
+       "hp": 0,
+       "morale": -30,
+       "rep": {
+        "utc": 5,
+        "tideborn": -15,
+        "free": -10
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "ruthless",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Cargo holds crushed. Only wet powder and shattered casks. Waste of time.",
+      "effects": {
+       "items": {
+        "powder": 3
+       },
+       "hp": -5,
+       "morale": -20,
+       "rep": {
+        "utc": 2,
+        "tideborn": -10,
+        "free": -5
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Survivors reach shore on their own. They remember. They tell everyone.",
+      "effects": {
+       "items": {
+        "iron": 5,
+        "food": 10
+       },
+       "hp": 0,
+       "morale": -40,
+       "rep": {
+        "utc": 10,
+        "tideborn": -20,
+        "free": -20
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "infamous",
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Pirates rescued drowning men for recruits; Roberts used a captured master to identify the richest Portuguese ship (Johnson 1724). Sharks drawn by blood in shallows (NOAA reef hazards)."
+ },
+ {
+  "id": "sea_023",
+  "category": "sea",
+  "title": "Cutter on the Quarter",
+  "zones": [
+   "sea"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.15,
+   "min_day": 30,
+   "camp_level": 5,
+   "needs_item": null,
+   "weather": "clear"
+  },
+  "weight": 8,
+  "cooldown_s": 172800,
+  "intro_lines": [
+   "UTC cutter fast on the larboard quarter, gunports open.",
+   "Signal flags snap: Heave to for boarding.",
+   "Resistance means death. Your ship heavier, slower."
+  ],
+  "choices": [
+   {
+    "label": "Run for the windward passage, reefs",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Thread the needle. Cutter grounds on the outer reef. You vanish into the lagoon.",
+      "effects": {
+       "items": {
+        "map_fragment": -1,
+        "food": -5
+       },
+       "hp": 0,
+       "morale": 20,
+       "rep": {
+        "utc": -10,
+        "tideborn": 5,
+        "free": 10
+       },
+       "spawn": null,
+       "pet_xp": 30,
+       "unlock": "windward_passage",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Current sets you onto the coral. Hull grinds. Cutter anchors, sends boats.",
+      "effects": {
+       "items": {
+        "map_fragment": -1,
+        "wood": -15,
+        "tar": -5
+       },
+       "hp": -15,
+       "morale": -15,
+       "rep": {
+        "utc": 0,
+        "tideborn": -5,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Tideborn fireship emerges from the lagoon. Cutter flees. \"The passage is closed.\"",
+      "effects": {
+       "items": {
+        "map_fragment": -1
+       },
+       "hp": 0,
+       "morale": 25,
+       "rep": {
+        "utc": -15,
+        "tideborn": 20,
+        "free": 5
+       },
+       "spawn": "tideborn_scout",
+       "pet_xp": 40,
+       "unlock": "tideborn_gatekeepers",
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Deploy drag anchors, spin and fight",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.4,
+      "text": "Ship spins, broadside crashes into their bow. Cutter sheers off, dismasted.",
+      "effects": {
+       "items": {
+        "rope": -5,
+        "powder": -5,
+        "iron": -3
+       },
+       "hp": -10,
+       "morale": 25,
+       "rep": {
+        "utc": -15,
+        "tideborn": 0,
+        "free": 15
+       },
+       "spawn": null,
+       "pet_xp": 35,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "Drag anchors foul. Cutter rakes your stern. Steering shot away. Drifting.",
+      "effects": {
+       "items": {
+        "rope": -5,
+        "powder": -5,
+        "wood": -10,
+        "iron": -5
+       },
+       "hp": -25,
+       "morale": -20,
+       "rep": {
+        "utc": 5,
+        "tideborn": -5,
+        "free": -5
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 5,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Sovereign surfaces between you. Both ships freeze. It judges. Then dives.",
+      "effects": {
+       "items": {
+        "rope": -5,
+        "powder": -5
+       },
+       "hp": 0,
+       "morale": 15,
+       "rep": {
+        "utc": -5,
+        "tideborn": 15,
+        "free": 5
+       },
+       "spawn": "wild_mythos",
+       "pet_xp": 50,
+       "unlock": "sovereign_arbitration",
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Feign surrender, board them at close",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "White flag drops, grapples fly. Your boarders sweep their deck in minutes.",
+      "effects": {
+       "items": {
+        "sailcloth": -1,
+        "powder": -3,
+        "iron": 10,
+        "gold": 20
+       },
+       "hp": -15,
+       "morale": 20,
+       "rep": {
+        "utc": -10,
+        "tideborn": 0,
+        "free": 10
+       },
+       "spawn": "free_pirates",
+       "pet_xp": 30,
+       "unlock": "cutter_captured",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Marines wait behind the bulwarks. Volley cuts your boarders down. Retreat!",
+      "effects": {
+       "items": {
+        "sailcloth": -1,
+        "iron": -5,
+        "food": -5
+       },
+       "hp": -30,
+       "morale": -30,
+       "rep": {
+        "utc": 10,
+        "tideborn": -5,
+        "free": -10
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Their captain offers a deal: his ship for his crew's lives. He knows UTC codes.",
+      "effects": {
+       "items": {
+        "sailcloth": -1,
+        "map_fragment": 1,
+        "relic_shard": 1
+       },
+       "hp": 0,
+       "morale": 15,
+       "rep": {
+        "utc": -8,
+        "tideborn": 2,
+        "free": 8
+       },
+       "spawn": "free_pirates",
+       "pet_xp": 25,
+       "unlock": "utc_defector",
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Pirates used false flags and night boarding from muffled boats; most prizes surrendered without a fight through intimidation (Johnson 1724)."
+ },
+ {
+  "id": "sea_024",
+  "category": "sea",
+  "title": "Night Fishing the Lanterns",
+  "zones": [
+   "sea",
+   "reef"
+  ],
+  "trigger": {
+   "type": "time",
+   "chance": 0.1,
+   "min_day": 7,
+   "camp_level": 2,
+   "needs_item": null,
+   "weather": "night"
+  },
+  "weight": 5,
+  "cooldown_s": 86400,
+  "intro_lines": [
+   "Lanterns over the stern draw the night feeders — squid.",
+   "Tide-Puck stares into the black water, hackles raised.",
+   "Something big below. Crew jokes quiet."
+  ],
+  "choices": [
+   {
+    "label": "Jig for squid, salt the catch",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Buckets of squid by midnight. Salted, they last weeks. Good morale, full hold.",
+      "effects": {
+       "items": {
+        "iron": -1,
+        "fish": 30,
+        "food": 20
+       },
+       "hp": 5,
+       "morale": 15,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 20,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "A Humboldt squid wraps the jig — and the fisherman's arm. Beak draws blood.",
+      "effects": {
+       "items": {
+        "iron": -1,
+        "fish": 15,
+        "herbs": -2
+       },
+       "hp": -20,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.1,
+      "text": "The lanterns go out. Something massive bumps the hull. Silence. Then dawn.",
+      "effects": {
+       "items": {
+        "fish": 10
+       },
+       "hp": 0,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 5,
+        "free": 0
+       },
+       "spawn": "wild_mythos",
+       "pet_xp": 30,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Spear the shadows at the light's edge",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Mahi-mahi, wahoo, tuna — clean meat, no ciguatera. Crew feasts at dawn.",
+      "effects": {
+       "items": {
+        "wood": -2,
+        "fish": 40,
+        "food": 25
+       },
+       "hp": 10,
+       "morale": 20,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 25,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Spear hits a reef shark's flank. It thrashes, tangles the line, nearly capsizes the boat.",
+      "effects": {
+       "items": {
+        "wood": -2,
+        "rope": -3,
+        "fish": 10
+       },
+       "hp": -15,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "shark",
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "A Tideborn diver takes your spear. \"These waters feed our children.\" Leaves a pearl.",
+      "effects": {
+       "items": {
+        "wood": -2,
+        "fish": 20,
+        "pearl": 1
+       },
+       "hp": 0,
+       "morale": 10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 10,
+        "free": -5
+       },
+       "spawn": "tideborn_scout",
+       "pet_xp": 20,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Drift silent, lights doused, listen",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Hear the Sovereign's song — low, vibrating in the chest. It passes close. Blessing.",
+      "effects": {
+       "items": {
+        "relic_shard": 1
+       },
+       "hp": 0,
+       "morale": 25,
+       "rep": {
+        "utc": 0,
+        "tideborn": 15,
+        "free": 5
+       },
+       "spawn": "wild_mythos",
+       "pet_xp": 50,
+       "unlock": "sovereign_song",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Hear UTC cutter's oars, muffled. Row silent, escape unseen. Warn Silas.",
+      "effects": {
+       "items": {
+        "map_fragment": 1
+       },
+       "hp": 0,
+       "morale": 15,
+       "rep": {
+        "utc": -5,
+        "tideborn": 0,
+        "free": 5
+       },
+       "spawn": null,
+       "pet_xp": 20,
+       "unlock": "utc_patrol_warned",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Hear nothing. Too quiet. Morning finds the reef stripped — dynamite fishing.",
+      "effects": {
+       "items": {
+        "fish": -10
+       },
+       "hp": 0,
+       "morale": -15,
+       "rep": {
+        "utc": 0,
+        "tideborn": -10,
+        "free": -5
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "reef_destroyed",
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Pirates fished at night by lantern light; frigatebirds and gulls signal fish schools (Tromelin castaways ate reef fish by line and spear). Ciguatera toxin in large predators (Cleveland Clinic)."
+ },
+ {
+  "id": "sea_025",
+  "category": "sea",
+  "title": "Careening Camp Fever",
+  "zones": [
+   "beach",
+   "outpost"
+  ],
+  "trigger": {
+   "type": "time",
+   "chance": 0.1,
+   "min_day": 14,
+   "camp_level": 4,
+   "needs_item": null,
+   "weather": "heat"
+  },
+  "weight": 6,
+  "cooldown_s": 172800,
+  "intro_lines": [
+   "Two weeks on the careening beach.",
+   "Tents of sails, rum, turtle barbecues.",
+   "Now the sweat turns cold. Men shiver in the heat."
+  ],
+  "choices": [
+   {
+    "label": "Quarantine the sick, burn sulphur",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Three lose the fever, two don't. Camp holds. Careening resumes on schedule.",
+      "effects": {
+       "items": {
+        "herbs": -5,
+        "wood": -3
+       },
+       "hp": -10,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 15,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Sulphur smoke chokes the healthy. Coughing spreads. Quartermaster falls ill.",
+      "effects": {
+       "items": {
+        "herbs": -5,
+        "food": -5
+       },
+       "hp": -15,
+       "morale": -15,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 5,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Tideborn healer appears: \"Your fire poisons the earth. Let us treat them.\" Half survive.",
+      "effects": {
+       "items": {
+        "herbs": -3,
+        "relic_shard": 1
+       },
+       "hp": 5,
+       "morale": 10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 10,
+        "free": -5
+       },
+       "spawn": "tideborn_scout",
+       "pet_xp": 20,
+       "unlock": "tideborn_medicine",
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Press on, dose the sick with rum",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.4,
+      "text": "The strong survive, the weak die. Hull cleaned, tarred, launched in three days.",
+      "effects": {
+       "items": {
+        "rum": -10,
+        "herbs": -3,
+        "food": -10
+       },
+       "hp": -15,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": -5,
+        "free": 5
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "Rum runs out. Mutiny murmurs. Silas draws his pistol. \"Articles say desertion is death.\"",
+      "effects": {
+       "items": {
+        "rum": -10,
+        "herbs": -3,
+        "powder": -2
+       },
+       "hp": -10,
+       "morale": -20,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -10
+       },
+       "spawn": "free_pirates",
+       "pet_xp": 0,
+       "unlock": "mutiny_quashed",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "A UTC launch spots the disarray. Boats pull for the beach. Fight in the surf.",
+      "effects": {
+       "items": {
+        "rum": -10,
+        "herbs": -3,
+        "iron": -5,
+        "wood": -5
+       },
+       "hp": -20,
+       "morale": -15,
+       "rep": {
+        "utc": -5,
+        "tideborn": 0,
+        "free": 5
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Abandon the careen, sail for a healthy",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Reach Sainte-Marie. Fever breaks in the breeze. Ship worms untreated but alive.",
+      "effects": {
+       "items": {
+        "map_fragment": -1,
+        "food": -15,
+        "gold": -10
+       },
+       "hp": 10,
+       "morale": 15,
+       "rep": {
+        "utc": -3,
+        "tideborn": 0,
+        "free": 10
+       },
+       "spawn": "free_pirates",
+       "pet_xp": 20,
+       "unlock": "sainte_marie_refuge",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Worm-holes worsen underway. Pump crew collapses. Abandon ship at the last haven.",
+      "effects": {
+       "items": {
+        "map_fragment": -1,
+        "wood": -20,
+        "iron": -10,
+        "food": -20
+       },
+       "hp": -25,
+       "morale": -30,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -10
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "ship_lost_fever",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Tideborn canoes intercept. \"The sick ship brings death. Turn back or be sunk.\"",
+      "effects": {
+       "items": {
+        "map_fragment": -1,
+        "relic_shard": 1
+       },
+       "hp": 0,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": -5,
+        "free": 0
+       },
+       "spawn": "tideborn_scout",
+       "pet_xp": 15,
+       "unlock": "tideborn_quarantine",
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Fever killed most of the Susanna's crew at St Mary's; pirate camp life included tents of sails, rum, turtle barbecues, quartermaster as camp judge (Sailing the Black Flag)."
  }
 ]

@@ -1321,6 +1321,1278 @@
  {
   "id": "gath_012",
   "category": "gathering",
+  "title": "Rotten timber gives way",
+  "zones": [
+   "jungle"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.22,
+   "min_day": 2,
+   "camp_level": 1,
+   "needs_item": null,
+   "weather": "any"
+  },
+  "weight": 7,
+  "cooldown_s": 2400,
+  "intro_lines": [
+   "A dead kapok leans over your woodpile, trunk punky with rot.",
+   "You swing.",
+   "The tree answers with a long, wet groan."
+  ],
+  "choices": [
+   {
+    "label": "Cut it down for salvage",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "The crown slams into the mud beside you. Splinters fly; you drag two good logs clear.",
+      "effects": {
+       "items": {
+        "wood": 6
+       },
+       "hp": -10,
+       "morale": 0,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "A branch catches your thigh. You hack free, bleeding, the wood ruined by damp.",
+      "effects": {
+       "items": {
+        "wood": 2
+       },
+       "hp": -25,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "The trunk sighs and stays upright. You back away and leave it.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 0,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Leave it standing",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.8,
+      "text": "You walk on. The rotted trunk keeps its silence.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 0,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "It falls overnight, crashing near camp. The noise draws eyes.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 0,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": "gath_019"
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Selkirk on Juan Fernández cut rotten timber for his huts and was nearly buried by a collapsing trunk (DNB)."
+ },
+ {
+  "id": "gath_015",
+  "category": "gathering",
+  "title": "The beds are picked bare",
+  "zones": [
+   "beach"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.2,
+   "min_day": 10,
+   "camp_level": 4,
+   "needs_item": null,
+   "weather": "any"
+  },
+  "weight": 6,
+  "cooldown_s": 4800,
+  "intro_lines": [
+   "The tide has been generous for weeks.",
+   "Today the shells are gone.",
+   "The crab beds look picked clean, only shells remain."
+  ],
+  "choices": [
+   {
+    "label": "Dig deeper for survivors",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "You find a few small crabs under rubble. Thin pickings.",
+      "effects": {
+       "items": {
+        "crab_meat": 1,
+        "food": 1
+       },
+       "hp": 0,
+       "morale": 0,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "A coconut crab claws your boot as you reach in.",
+      "effects": {
+       "items": {},
+       "hp": -12,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "crab",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Nothing left. You lose a day.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Move to the reef edge",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "The reef still gives. You spear a jack and gather shellfish.",
+      "effects": {
+       "items": {
+        "fish": 2,
+        "crab_meat": 1
+       },
+       "hp": 0,
+       "morale": 3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "A stingray flares as you step past. The barb takes your ankle.",
+      "effects": {
+       "items": {},
+       "hp": -20,
+       "morale": 0,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "eel",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Wait for the beds to recover",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.8,
+      "text": "You sit out the tide. Nothing gained, nothing lost.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 0,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "A tideborn scout watches you from the rocks.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 0,
+       "rep": {
+        "utc": 0,
+        "tideborn": -5,
+        "free": 0
+       },
+       "spawn": "tideborn_scout",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Overharvested crab beds take months to recover; Serrano watched his shellfish vanish after weeks of constant picking (Frontiers 2019)."
+ },
+ {
+  "id": "gath_016",
+  "category": "gathering",
+  "title": "Rivals on the reef",
+  "zones": [
+   "sea"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.15,
+   "min_day": 6,
+   "camp_level": 5,
+   "needs_item": null,
+   "weather": "clear"
+  },
+  "weight": 7,
+  "cooldown_s": 3600,
+  "intro_lines": [
+   "Another camp's smoke rises on the next cay.",
+   "Their nets drip.",
+   "They work the same reef you do."
+  ],
+  "choices": [
+   {
+    "label": "Confront them at dawn",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.4,
+      "text": "You argue over the reef. They yield the western channel.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 5
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "They stand their ground. You retreat with a bruised ego.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -3
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "A fight breaks out. You take a cut to the shoulder.",
+      "effects": {
+       "items": {},
+       "hp": -18,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -8
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Sneak in, take their catch",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "You steal two fish and a coil of rope from their rack.",
+      "effects": {
+       "items": {
+        "fish": 2,
+        "rope": 1
+       },
+       "hp": 0,
+       "morale": 3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "A gull alarms the camp. You run with nothing.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "They catch you at the waterline. You trade blows, share the catch.",
+      "effects": {
+       "items": {
+        "fish": 1
+       },
+       "hp": -8,
+       "morale": 0,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -2
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Move to another reef",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.8,
+      "text": "You drop your line in quieter water and pull up a good jack.",
+      "effects": {
+       "items": {
+        "fish": 3
+       },
+       "hp": 0,
+       "morale": 2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "A shark follows your bait to the surface.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "shark",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Desperate crews poached each other's fishing grounds; Johnson's pirates fought over the best turtling beaches (Johnson 1724)."
+ },
+ {
+  "id": "gath_017",
+  "category": "gathering",
+  "title": "Tide-Puck digs up a cache",
+  "zones": [
+   "jungle"
+  ],
+  "trigger": {
+   "type": "action",
+   "chance": 0.85,
+   "min_day": 3,
+   "camp_level": 2,
+   "needs_item": null,
+   "weather": "any"
+  },
+  "weight": 8,
+  "cooldown_s": 2400,
+  "intro_lines": [
+   "Tide-Puck digs at the base of a breadfruit, snuffling hard.",
+   "His nose has found something that is not root or rain."
+  ],
+  "choices": [
+   {
+    "label": "Let him dig",
+    "requires": {
+     "pet_level": 1
+    },
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "He unearths a wax-sealed jar of rum, untouched by rain.",
+      "effects": {
+       "items": {
+        "rum": 2
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 5,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "It is only a broken compass and rusted nails.",
+      "effects": {
+       "items": {
+        "scrap": 1
+       },
+       "hp": 0,
+       "morale": 0,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 2,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.1,
+      "text": "The cache was booby-trapped; a deadfall snaps on his tail.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Call him off",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "He whines and looks back at the hole. You walk on empty-handed.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 1,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "He keeps digging and finds a rusted knife.",
+      "effects": {
+       "items": {
+        "scrap": 1
+       },
+       "hp": 0,
+       "morale": 0,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 3,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Dogs kept by castaways learned to locate buried stores; Selkirk's cats found his hidden caches nightly (DNB)."
+ },
+ {
+  "id": "gath_018",
+  "category": "gathering",
+  "title": "The axe splits on a knot",
+  "zones": [
+   "jungle"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.25,
+   "min_day": 3,
+   "camp_level": 2,
+   "needs_item": "wood",
+   "weather": "any"
+  },
+  "weight": 7,
+  "cooldown_s": 3000,
+  "intro_lines": [
+   "The axe bites deep, then gives a cracked bell note.",
+   "The head has split on a hidden knot."
+  ],
+  "choices": [
+   {
+    "label": "Repair it at camp",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "You lash the head with rope and tar. It will hold a week.",
+      "effects": {
+       "items": {
+        "rope": -1,
+        "tar": -1
+       },
+       "hp": 0,
+       "morale": 3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "The handle splinters too. You are left with a wedged stump.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Trade for a new one",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "A free trader swaps it for two hides and a shell.",
+      "effects": {
+       "items": {
+        "hide": -2,
+        "shell": -1
+       },
+       "hp": 0,
+       "morale": 0,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "They want iron. You give up a bar, keep the axe.",
+      "effects": {
+       "items": {
+        "iron": -1
+       },
+       "hp": 0,
+       "morale": 0,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "No trader is near. You lose the rest of the day.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Use a stone adze instead",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "The adze is slow but true. You finish the cut.",
+      "effects": {
+       "items": {
+        "wood": 4
+       },
+       "hp": 0,
+       "morale": 0,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "The edge chips on a root. You lose a hand to a splinter.",
+      "effects": {
+       "items": {},
+       "hp": -8,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Axes and adzes were the most-repaired gear on stranded crews; rope and tar were always on hand for lashing (Pirate Surgeon's Journal)."
+ },
+ {
+  "id": "gath_019",
+  "category": "gathering",
+  "title": "The stranger from the Wake",
+  "zones": [
+   "outpost"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.0,
+   "min_day": 5,
+   "camp_level": 3,
+   "needs_item": null,
+   "weather": "any"
+  },
+  "weight": 5,
+  "cooldown_s": 3600,
+  "intro_lines": [
+   "A week on, a ragged sailor limps into your outpost.",
+   "He says he was on the Wake with you.",
+   "He asks for shelter."
+  ],
+  "choices": [
+   {
+    "label": "Give him shelter",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.45,
+      "text": "He shares dried fish and a map scrap. At dusk he stands between you and a boar charge.",
+      "effects": {
+       "items": {
+        "map_fragment": 1
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 5
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.55,
+      "text": "At dawn your tool chest is empty and his hammock is gone. He took your iron and the flint.",
+      "effects": {
+       "items": {
+        "iron": -3,
+        "flint": -1
+       },
+       "hp": 0,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -8
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Turn him away",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "He curses you as he vanishes into the palms. You keep your supplies.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Three shadows come for the gate at dusk. You bar it and they melt back into the dark.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 0,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -3
+       },
+       "spawn": "free_pirates",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Castaways lied about who owned what on the beach; Selkirk's rescue ship took a man who had stolen from him (RMG)."
+ },
+ {
+  "id": "gath_020",
+  "category": "gathering",
+  "title": "Storm-washed timber",
+  "zones": [
+   "beach"
+  ],
+  "trigger": {
+   "type": "time",
+   "chance": 0.9,
+   "min_day": 8,
+   "camp_level": 3,
+   "needs_item": null,
+   "weather": "storm"
+  },
+  "weight": 8,
+  "cooldown_s": 3600,
+  "intro_lines": [
+   "The storm has thrown ship's timber onto the tideline.",
+   "Salvaged oak is worth more than the wood you chop."
+  ],
+  "choices": [
+   {
+    "label": "Haul it in before the tide turns",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "You drag a 3-metre spar clear. Good hull timber.",
+      "effects": {
+       "items": {
+        "wood": 8,
+        "scrap": 2
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "A wave slams you and drags the spar back out. You lose a boot.",
+      "effects": {
+       "items": {
+        "hide": -1
+       },
+       "hp": -10,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Let it go",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "The sea claims it again at high tide.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "It wedges on the reef. You mark it for tomorrow.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 0,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Scavenge the smaller flotsam first",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.8,
+      "text": "You gather rope, a sail patch and a tin cup.",
+      "effects": {
+       "items": {
+        "rope": 1,
+        "sailcloth": 1,
+        "scrap": 2
+       },
+       "hp": 0,
+       "morale": 3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "A shark circles the debris and bumps your legs.",
+      "effects": {
+       "items": {},
+       "hp": -5,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "shark",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Tromelin's castaways built their escape boat entirely from storm-washed wreck timbers (Archaeology Mag 2014)."
+ },
+ {
+  "id": "gath_022",
+  "category": "gathering",
+  "title": "Coral cuts on the reef",
+  "zones": [
+   "reef"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.22,
+   "min_day": 2,
+   "camp_level": 2,
+   "needs_item": null,
+   "weather": "clear"
+  },
+  "weight": 7,
+  "cooldown_s": 2400,
+  "intro_lines": [
+   "The reef edge is low at this tide.",
+   "Shellfish lie in the pools.",
+   "The coral under your boots is sharper than it looks."
+  ],
+  "choices": [
+   {
+    "label": "Gather in the shallows",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "You collect clams and a crab without a scratch.",
+      "effects": {
+       "items": {
+        "food": 2,
+        "crab_meat": 1
+       },
+       "hp": 0,
+       "morale": 3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "A coral slice opens your calf. Blood in the water.",
+      "effects": {
+       "items": {
+        "food": 1
+       },
+       "hp": -15,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "shark",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Wade to the outer ledge",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "The ledge holds abalone and a lobster. Worth the risk.",
+      "effects": {
+       "items": {
+        "food": 3,
+        "crab_meat": 1
+       },
+       "hp": 0,
+       "morale": 4,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "A stingray flares as you step past. The barb takes your ankle.",
+      "effects": {
+       "items": {},
+       "hp": -20,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "A moray snaps at your hand from a crevice.",
+      "effects": {
+       "items": {},
+       "hp": -12,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "eel",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Come back at low tide",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.8,
+      "text": "The pools shrink but expose more shellfish.",
+      "effects": {
+       "items": {
+        "food": 2
+       },
+       "hp": 0,
+       "morale": 1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "The tide turns early. You wade back waist-deep.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Coral cuts on bare feet infect within hours in warm water; NOAA warns reef injuries draw sharks by blood."
+ },
+ {
+  "id": "gath_023",
+  "category": "gathering",
   "title": "Smokehouse Trouble",
   "zones": [
    "outpost",
@@ -1432,7 +2704,7 @@
        "spawn": "gull",
        "pet_xp": 0,
        "unlock": null,
-       "next_event": "gath_015"
+       "next_event": "gath_026"
       }
      }
     ]
@@ -1441,7 +2713,7 @@
   "history_note": "In the heat and rain, Pedro Serrano's provisions spoiled within two months; meat had to be dried in the sun to last."
  },
  {
-  "id": "gath_013",
+  "id": "gath_024",
   "category": "gathering",
   "title": "Salting the Catch",
   "zones": [
@@ -1563,7 +2835,7 @@
   "history_note": "In the heat and rain, Pedro Serrano's provisions spoiled within two months; meat had to be dried in the sun to last."
  },
  {
-  "id": "gath_014",
+  "id": "gath_025",
   "category": "gathering",
   "title": "Drying Hides",
   "zones": [
@@ -1686,7 +2958,7 @@
   "history_note": "Selkirk wore goatskin clothes after tanning hides on Juan Fernández."
  },
  {
-  "id": "gath_015",
+  "id": "gath_026",
   "category": "gathering",
   "title": "Stranger at the Kiln",
   "zones": [
@@ -1802,7 +3074,7 @@
   "history_note": "Serrano's second castaway quarrelled, then reconciled on the cay."
  },
  {
-  "id": "gath_016",
+  "id": "gath_027",
   "category": "gathering",
   "title": "Rain Catchment",
   "zones": [
@@ -1921,7 +3193,7 @@
   "history_note": "Serrano used shells as rain catchers holding up to twelve gallons."
  },
  {
-  "id": "gath_017",
+  "id": "gath_028",
   "category": "gathering",
   "title": "Digging the Well",
   "zones": [
@@ -2042,7 +3314,7 @@
   "history_note": "Tromelin castaways dug a well and walked 750 metres for water."
  },
  {
-  "id": "gath_018",
+  "id": "gath_029",
   "category": "gathering",
   "title": "Kiln Firing",
   "zones": [
@@ -2159,7 +3431,7 @@
   "history_note": "Tromelin castaways kept one fire alive fifteen years with wreck timber."
  },
  {
-  "id": "gath_019",
+  "id": "gath_030",
   "category": "gathering",
   "title": "Rope Walk",
   "zones": [
@@ -2283,7 +3555,7 @@
   "history_note": "Rats gnawed Alexander Selkirk's feet as he slept until he tamed feral cats to keep them off."
  },
  {
-  "id": "gath_020",
+  "id": "gath_031",
   "category": "gathering",
   "title": "Trading Surplus",
   "zones": [
@@ -2405,7 +3677,7 @@
   "history_note": "Île Sainte-Marie traders sold cattle to careening crews for guns and iron."
  },
  {
-  "id": "gath_021",
+  "id": "gath_032",
   "category": "gathering",
   "title": "Crew Laziness",
   "zones": [
@@ -2522,7 +3794,7 @@
   "history_note": "Roberts' articles set lights out at eight and equal liquor shares."
  },
  {
-  "id": "gath_022",
+  "id": "gath_033",
   "category": "gathering",
   "title": "Theft from Stores",
   "zones": [

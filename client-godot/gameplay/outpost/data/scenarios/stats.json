@@ -1,25 +1,26 @@
 {
  "per_category": {
-  "castaway": 21,
-  "discovery": 7,
-  "gathering": 22,
+  "castaway": 32,
+  "discovery": 11,
+  "faction": 11,
+  "gathering": 30,
   "mystery": 22,
   "pet": 22,
-  "pirate": 11,
-  "sea": 11,
-  "weather": 11,
+  "pirate": 33,
+  "sea": 22,
+  "weather": 21,
   "wildlife": 25
  },
- "total": 152,
- "chain_links": 61,
- "chain_heads": 19,
- "chain_targets": 30,
+ "total": 229,
+ "chain_links": 141,
+ "chain_heads": 30,
+ "chain_targets": 49,
  "rejected": {
-  "note_fixed": 21,
-  "few_outcomes": 12,
+  "note_fixed": 24,
+  "few_outcomes": 23,
   "no_intro": 3
  },
  "engine": {
-  "kilo": 152
+  "kilo": 229
  }
 }

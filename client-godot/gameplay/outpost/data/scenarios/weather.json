@@ -2220,5 +2220,1991 @@
    }
   ],
   "history_note": "The 1761 Tromelin survivors built a boat from wreckage in two months and sailed for help, leaving sixty Malagasy slaves behind; fifteen years passed before rescue, during which they maintained fire, dug wells, and endured cyclones (Archaeology Mag 2014)."
+ },
+ {
+  "id": "wthr_012",
+  "category": "weather",
+  "title": "Drying Gear After Rain",
+  "zones": [
+   "beach",
+   "outpost"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.4,
+   "min_day": 1,
+   "camp_level": 1,
+   "needs_item": null,
+   "weather": "rain"
+  },
+  "weight": 5,
+  "cooldown_s": 86400,
+  "intro_lines": [
+   "After three days of steady rain your gear is soaking wet",
+   "The camp smells of damp wool and mildew",
+   "Fire struggles to catch on saturated rope"
+  ],
+  "choices": [
+   {
+    "label": "Spread gear on smooth stones in the sun",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "Gear dries without damage morale improves",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Unexpected squall re-wets everything",
+      "effects": {
+       "items": {
+        "sailcloth": -1
+       },
+       "hp": -3,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.1,
+      "text": "Sun bleaches and weakens canvas",
+      "effects": {
+       "items": {
+        "sailcloth": -1
+       },
+       "hp": 0,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Hang hides and sails near the hearth",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Smoke preserves and dries hides scent lingers",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Sparks set light to oiled canvas panic ensues",
+      "effects": {
+       "items": {
+        "sailcloth": -1
+       },
+       "hp": -2,
+       "morale": -8,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.1,
+      "text": "Rodents flee drying hides into camp stores",
+      "effects": {
+       "items": {
+        "food": -1
+       },
+       "hp": 0,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Pray to the tides for clear skies",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Rain stops gear can finally dry",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 4,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Tides ignore your plea rain continues",
+      "effects": {
+       "items": {},
+       "hp": -1,
+       "morale": -4,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Lightning strikes nearby fire goes out",
+      "effects": {
+       "items": {},
+       "hp": -2,
+       "morale": -6,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Pedro Serrano collected rain in turtle shells, some holding about twelve gallons (Garcilaso de la Vega, 1609)."
+ },
+ {
+  "id": "wthr_013",
+  "category": "weather",
+  "title": "Hurricane Shelter Choice",
+  "zones": [
+   "isle",
+   "beach"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.2,
+   "min_day": 3,
+   "camp_level": 2,
+   "needs_item": null,
+   "weather": "storm"
+  },
+  "weight": 8,
+  "cooldown_s": 604800,
+  "intro_lines": [
+   "The hurricane winds howl through the island night",
+   "You must choose where to shelter your camp from the coming",
+   "Rafters snap against the hull as the sea crashes nearby"
+  ],
+  "choices": [
+   {
+    "label": "Build coral walls like Tromelin backs",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Walls absorb wave energy camp survives intact",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 6,
+       "rep": {
+        "utc": 0,
+        "tideborn": 1,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 20,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Coral shifts in surge wall breaches late",
+      "effects": {
+       "items": {
+        "wood": -1
+       },
+       "hp": -4,
+       "morale": -3,
+       "rep": {
+        "utc": -1,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.1,
+      "text": "Wind finds gap behind wall tent destroyed",
+      "effects": {
+       "items": {
+        "sailcloth": -1,
+        "rope": -1
+       },
+       "hp": -6,
+       "morale": -10,
+       "rep": {
+        "utc": -2,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Hunker in the stone cave",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Cave roof holds bunker stays dry",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 4,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Bats swarm in darkness panic forces you out",
+      "effects": {
+       "items": {},
+       "hp": -1,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Floodwater fills cave entrance exit blocked",
+      "effects": {
+       "items": {
+        "food": -1,
+        "fresh_water": -1
+       },
+       "hp": -3,
+       "morale": -7,
+       "rep": {
+        "utc": -1,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Lash tents together with rope low",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.4,
+      "text": "Tents streamline wind camp survives",
+      "effects": {
+       "items": {
+        "rope": -1
+       },
+       "hp": -2,
+       "morale": 2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 5,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "Stakes pull free tents collapse morale drops",
+      "effects": {
+       "items": {
+        "rope": -1
+       },
+       "hp": -4,
+       "morale": -6,
+       "rep": {
+        "utc": -1,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Wind tears tents away entirely",
+      "effects": {
+       "items": {
+        "sailcloth": -2
+       },
+       "hp": -5,
+       "morale": -9,
+       "rep": {
+        "utc": -2,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Tromelin islanders built 1.5 m thick coral/beachrock walls with backs to the trade wind after a storm surviving 15 years as a hurricane shelter strategy"
+ },
+ {
+  "id": "wthr_014",
+  "category": "weather",
+  "title": "Wind Direction for Building",
+  "zones": [
+   "cliff",
+   "outpost"
+  ],
+  "trigger": {
+   "type": "location",
+   "chance": 0.35,
+   "min_day": 1,
+   "camp_level": 1,
+   "needs_item": null,
+   "weather": "clear"
+  },
+  "weight": 4,
+  "cooldown_s": 43200,
+  "intro_lines": [
+   "Trade winds shift the island's breath changes direction",
+   "Morning breeze carries the scent of distant sea",
+   "Evening air grows heavy with humidity"
+  ],
+  "choices": [
+   {
+    "label": "Build longhouse with gable end to wind",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "Wind flows over ridge rain stays out",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 4,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Wind shifts direction smoke backs up inside",
+      "effects": {
+       "items": {
+        "herbs": -1
+       },
+       "hp": -1,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.1,
+      "text": "Gable catches gust kindling flies everywhere",
+      "effects": {
+       "items": {},
+       "hp": -2,
+       "morale": -6,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Set up windbreaks of turtle shells",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Shells deflect trade wind camp stays warm",
+      "effects": {
+       "items": {
+        "shell": -2
+       },
+       "hp": 0,
+       "morale": 3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 8,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Shells shift night wind finds gap in barrier",
+      "effects": {
+       "items": {},
+       "hp": -1,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.1,
+      "text": "Curfew poachers spotted near turtle remains",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -4,
+       "rep": {
+        "utc": -1,
+        "tideborn": 0,
+        "free": 1
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Position tents in lee of cliff face",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.8,
+      "text": "Cliff blocks wind camp stays sheltered",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 12,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.15,
+      "text": "Rockfall from erosion exposes tents",
+      "effects": {
+       "items": {
+        "stone": -1
+       },
+       "hp": -3,
+       "morale": -4,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.05,
+      "text": "Morning fog rolls in mist dampens all supplies",
+      "effects": {
+       "items": {},
+       "hp": -1,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Pirates careening their ships heeled over on sloping beaches with guns landed in beach batteries vulnerable to wind exposure"
+ },
+ {
+  "id": "wthr_015",
+  "category": "weather",
+  "title": "Red Sky Warnings",
+  "zones": [
+   "sea",
+   "isle"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.3,
+   "min_day": 2,
+   "camp_level": 1,
+   "needs_item": null,
+   "weather": "clear"
+  },
+  "weight": 5,
+  "cooldown_s": 129600,
+  "intro_lines": [
+   "Red sky at morn sailors take warning",
+   "Red sky at night sailors delight",
+   "The horizon hums with unnatural light"
+  ],
+  "choices": [
+   {
+    "label": "Set watch on horizon red hue means",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.8,
+      "text": "Storm veers west camp secures lashings",
+      "effects": {
+       "items": {
+        "rope": -1
+       },
+       "hp": 0,
+       "morale": 4,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 8,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.15,
+      "text": "False alarm clear sails sail all day",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 3,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.05,
+      "text": "Storm arrives sooner than watch prepared",
+      "effects": {
+       "items": {
+        "sailcloth": -1
+       },
+       "hp": -3,
+       "morale": -7,
+       "rep": {
+        "utc": -1,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Ignore good omen for fair weather",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Day passes clear seas calm sailing",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 5,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Evening brings squall unprepared camp soaked",
+      "effects": {
+       "items": {
+        "sailcloth": -1
+       },
+       "hp": -2,
+       "morale": -5,
+       "rep": {
+        "utc": -1,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Night gale tears unsecured gear away",
+      "effects": {
+       "items": {
+        "wood": -1
+       },
+       "hp": -4,
+       "morale": -8,
+       "rep": {
+        "utc": -2,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Check barometric pressure with iron",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Pressure drops storm approaching prepare",
+      "effects": {
+       "items": {
+        "iron": -1
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 6,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Pressure steady fair weather continues",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 3,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.1,
+      "text": "Needle breaks frustrates attempt",
+      "effects": {
+       "items": {},
+       "hp": -1,
+       "morale": -4,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Sailors ignored Serrano's smoke signals fearing shoals ships passed without rescuing a castaway"
+ },
+ {
+  "id": "wthr_016",
+  "category": "weather",
+  "title": "Swell Reading",
+  "zones": [
+   "sea"
+  ],
+  "trigger": {
+   "type": "action",
+   "chance": 0.25,
+   "min_day": 1,
+   "camp_level": 1,
+   "needs_item": null,
+   "weather": "any"
+  },
+  "weight": 4,
+  "cooldown_s": 3600,
+  "intro_lines": [
+   "Swell patterns tell the sea's mood today",
+   "Long rolling waves approach from the east",
+   "Short choppy waves break near the reef"
+  ],
+  "choices": [
+   {
+    "label": "Paddle out with the swell conserve",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "Reach distant fishing grounds with ease",
+      "effects": {
+       "items": {
+        "fish": 2
+       },
+       "hp": 0,
+       "morale": 4,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 15,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Cross wind shifts drift toward unknown isle",
+      "effects": {
+       "items": {},
+       "hp": -1,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "tideborn_scout",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.1,
+      "text": "Swells grow larger taker capsized exhausted",
+      "effects": {
+       "items": {},
+       "hp": -3,
+       "morale": -8,
+       "rep": {
+        "utc": -1,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "shark",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Row against swell hunt richer grounds",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Find abundant fish school catch abundant",
+      "effects": {
+       "items": {
+        "fish": 3
+       },
+       "hp": -1,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 20,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Exhaustion rowing backs camp short on water",
+      "effects": {
+       "items": {
+        "fresh_water": -1
+       },
+       "hp": -2,
+       "morale": -4,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Oar snaps straining return camp empty-handed",
+      "effects": {
+       "items": {},
+       "hp": -2,
+       "morale": -7,
+       "rep": {
+        "utc": -1,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Stay in harbor swell too dangerous",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.8,
+      "text": "Ride out swell safely nets mend time",
+      "effects": {
+       "items": {
+        "rope": 1
+       },
+       "hp": 0,
+       "morale": 4,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.15,
+      "text": "Mosquitoes breed in stagnant harbor fever risk",
+      "effects": {
+       "items": {},
+       "hp": -1,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "monkey",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.05,
+      "text": "Harbor silts in overnight supplies buried",
+      "effects": {
+       "items": {
+        "food": -1
+       },
+       "hp": 0,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Pedro Serrano flipped sea turtles onto their backs drank blood when no rain used shells as rain catchers up to 12 gallons"
+ },
+ {
+  "id": "wthr_018",
+  "category": "weather",
+  "title": "Drought Rationing",
+  "zones": [
+   "jungle",
+   "isle"
+  ],
+  "trigger": {
+   "type": "time",
+   "chance": 0.5,
+   "min_day": 5,
+   "camp_level": 1,
+   "needs_item": null,
+   "weather": "heat"
+  },
+  "weight": 7,
+  "cooldown_s": 604800,
+  "intro_lines": [
+   "The dry season stretches on wells are half-empty",
+   "Sun-bleached bones lie scattered at the trail's end",
+   "Heat shimmers off the rock in wavering lines"
+  ],
+  "choices": [
+   {
+    "label": "Ration fresh_water to half litre per",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Camp survives two weeks until rains return",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 4,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 8,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Dehydration sets in rationing too strict",
+      "effects": {
+       "items": {},
+       "hp": -2,
+       "morale": -5,
+       "rep": {
+        "utc": -1,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.1,
+      "text": "Secret sip caught morale improves briefly then crashes",
+      "effects": {
+       "items": {},
+       "hp": -1,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Drink turtle blood like Serrano",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Turtle blood sustains camp three more days",
+      "effects": {
+       "items": {
+        "coconut": -1
+       },
+       "hp": 1,
+       "morale": 3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 1,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 12,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Blood tastes coppery causes nausea anyway",
+      "effects": {
+       "items": {},
+       "hp": -1,
+       "morale": -4,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Overindulgence triggers dysentery immediate weakness",
+      "effects": {
+       "items": {},
+       "hp": -3,
+       "morale": -7,
+       "rep": {
+        "utc": -1,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Dig for brackish lens behind dune line",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.4,
+      "text": "Fresh water found camp survives week longer",
+      "effects": {
+       "items": {
+        "fresh_water": 2
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "Water too brackish causes stomach cramps",
+      "effects": {
+       "items": {},
+       "hp": -1,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Dune collapses burying digging tools lost",
+      "effects": {
+       "items": {
+        "rope": -1
+       },
+       "hp": -2,
+       "morale": -6,
+       "rep": {
+        "utc": -1,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Never drink seawater kidneys can't excrete the salt worsens dehydration NOAA"
+ },
+ {
+  "id": "wthr_019",
+  "category": "weather",
+  "title": "Stranger on the Beach",
+  "zones": [
+   "beach",
+   "outpost"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.3,
+   "min_day": 2,
+   "camp_level": 2,
+   "needs_item": null,
+   "weather": "any"
+  },
+  "weight": 6,
+  "cooldown_s": 43200,
+  "intro_lines": [
+   "A figure emerges from the fog clutching a broken oar",
+   "Salt-crusted and breath ragged they wave silently",
+   "Your camp falls silent as the stranger approaches"
+  ],
+  "choices": [
+   {
+    "label": "Offer shelter and share your fire",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "Stranger saves you from incoming tide next_event: wthr_109",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": "wthr_020"
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Stranger steals your supplies and flees next_event: wthr_110",
+      "effects": {
+       "items": {
+        "food": -1,
+        "fresh_water": -1
+       },
+       "hp": -2,
+       "morale": -6,
+       "rep": {
+        "utc": -1,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": "wthr_021"
+      }
+     }
+    ]
+   },
+   {
+    "label": "Send them away with a warning",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.8,
+      "text": "Stranger leaves warning marker gone",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 3,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Stranger returns with UTC patrol in tow",
+      "effects": {
+       "items": {},
+       "hp": -3,
+       "morale": -7,
+       "rep": {
+        "utc": -2,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Search their belongings for supplies",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Find dry matches and tar",
+      "effects": {
+       "items": {
+        "tar": 1
+       },
+       "hp": 0,
+       "morale": 3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 5,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Discover tideborn relic map fragment",
+      "effects": {
+       "items": {
+        "map_fragment": 1
+       },
+       "hp": 0,
+       "morale": 4,
+       "rep": {
+        "utc": -1,
+        "tideborn": 1,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 8,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Encounter trapped boar turn violent",
+      "effects": {
+       "items": {},
+       "hp": -2,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "boar",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Free pirates articles Bartholomew Roberts defrauding the company punished by marooning with a gun shot bottle of water bottle of powder"
+ },
+ {
+  "id": "wthr_020",
+  "category": "weather",
+  "title": "Stranger Saves You",
+  "zones": [
+   "beach"
+  ],
+  "trigger": {
+   "type": "location",
+   "chance": 0.0,
+   "min_day": 1,
+   "camp_level": 0,
+   "needs_item": null,
+   "weather": "any"
+  },
+  "weight": 5,
+  "cooldown_s": 0,
+  "intro_lines": [
+   "The stranger pulls you from the rising tide",
+   "They gesture you follow to high ground",
+   "Your camp watches as they tend the fire you lost"
+  ],
+  "choices": [
+   {
+    "label": "Accept their help build together",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Joint shelter built morale strengthens",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 6,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 15,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Language barrier causes misunderstanding",
+      "effects": {
+       "items": {},
+       "hp": -1,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.1,
+      "text": "Stranger demands tribute next camp short",
+      "effects": {
+       "items": {
+        "food": -1
+       },
+       "hp": -1,
+       "morale": -4,
+       "rep": {
+        "utc": -1,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Question their motives before trusting",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "They reveal they know this island",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 1,
+        "free": 0
+       },
+       "spawn": "tideborn_scout",
+       "pet_xp": 8,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "They slip away under cover of dark",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "They leave a gift of dried fish beside your bed",
+      "effects": {
+       "items": {
+        "fish": 2
+       },
+       "hp": 0,
+       "morale": 2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 3,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Tromelin 15 years dug a well walked 750 m for water stored water in salvaged lead basins triton shell as ladle"
+ },
+ {
+  "id": "wthr_021",
+  "category": "weather",
+  "title": "Stranger Betrays You",
+  "zones": [
+   "beach"
+  ],
+  "trigger": {
+   "type": "location",
+   "chance": 0.0,
+   "min_day": 1,
+   "camp_level": 0,
+   "needs_item": null,
+   "weather": "any"
+  },
+  "weight": 5,
+  "cooldown_s": 0,
+  "intro_lines": [
+   "The stranger slips a hand to your purse while you sleep",
+   "Morning finds your fresh water gone",
+   "Their footprints lead away from the fire toward the cliffs"
+  ],
+  "choices": [
+   {
+    "label": "Pursue them across the cliffs",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.4,
+      "text": "Catch them they reveal UTC patrol location",
+      "effects": {
+       "items": {},
+       "hp": -1,
+       "morale": -3,
+       "rep": {
+        "utc": 1,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 12,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "Lose their trail in the rocks",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -4,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "They escape you but leave a warning sign",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -2,
+       "rep": {
+        "utc": -1,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 3,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Let them go learn a lesson",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "They return later with fish and news",
+      "effects": {
+       "items": {
+        "fish": 2
+       },
+       "hp": 0,
+       "morale": 2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 5,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "They never return camp lacks their help",
+      "effects": {
+       "items": {},
+       "hp": -1,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "They leave a cursed relic behind",
+      "effects": {
+       "items": {
+        "relic_shard": -1
+       },
+       "hp": -2,
+       "morale": -6,
+       "rep": {
+        "utc": -1,
+        "tideborn": 1,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Pedro Serrano a second castaway arrived they quarrelled then reconciled sharing scarce resources"
+ },
+ {
+  "id": "wthr_022",
+  "category": "weather",
+  "title": "Fog Navigation",
+  "zones": [
+   "sea",
+   "isle"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.2,
+   "min_day": 3,
+   "camp_level": 2,
+   "needs_item": "feather",
+   "weather": "fog"
+  },
+  "weight": 4,
+  "cooldown_s": 86400,
+  "intro_lines": [
+   "Thick fog rolls in visibility drops to zero metres",
+   "Compass card spins useless in magnetic disturbance",
+   "The gulls stop crying and settle on the water"
+  ],
+  "choices": [
+   {
+    "label": "Follow the gull school to deeper water",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "Gull leads you to fish school and safe passage",
+      "effects": {
+       "items": {
+        "feather": -1
+       },
+       "hp": 0,
+       "morale": 4,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "gull",
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Gull leads you toward UTC blockade instead",
+      "effects": {
+       "items": {},
+       "hp": -2,
+       "morale": -5,
+       "rep": {
+        "utc": -1,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.1,
+      "text": "Gull flies off exhausted you lose your bearing",
+      "effects": {
+       "items": {},
+       "hp": -1,
+       "morale": -6,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Drop anchor wait for visibility to clear",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Fog lifts sun returns navigation resumes",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 8,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Drift carries you to unknown isle overnight",
+      "effects": {
+       "items": {},
+       "hp": -1,
+       "morale": -3,
+       "rep": {
+        "utc": -1,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "tideborn_scout",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.1,
+      "text": "Anchor drags you shoreward against reef",
+      "effects": {
+       "items": {
+        "wood": -1
+       },
+       "hp": -3,
+       "morale": -8,
+       "rep": {
+        "utc": -2,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "shark",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Use mirror flash signal for help",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Signal catches passing ship attention rescued",
+      "effects": {
+       "items": {
+        "shell": -1
+       },
+       "hp": 0,
+       "morale": 6,
+       "rep": {
+        "utc": 1,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 15,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Ship ignores signal keeps sailing",
+      "effects": {
+       "items": {},
+       "hp": -1,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Mirror catches fire on dry brush panic ensues",
+      "effects": {
+       "items": {},
+       "hp": -2,
+       "morale": -7,
+       "rep": {
+        "utc": -1,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Signalling three fires in a triangle green leaves for white smoke mirror flash ships avoid shoals Serrano was ignored"
  }
 ]

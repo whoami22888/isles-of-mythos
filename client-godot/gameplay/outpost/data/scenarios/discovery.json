@@ -1,6 +1,612 @@
 [
  {
-  "id": "disc_001",
+  "id": "disc_004",
+  "category": "discovery",
+  "title": "The Weeping Spring",
+  "zones": [
+   "jungle",
+   "cliff"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.1,
+   "min_day": 3,
+   "camp_level": 1,
+   "needs_item": null,
+   "weather": "rain"
+  },
+  "weight": 8,
+  "cooldown_s": 172800,
+  "intro_lines": [
+   "Rain unveils a curtain of water seeping from a limestone",
+   "But monkey chatter echoes above; something watches the pool."
+  ],
+  "choices": [
+   {
+    "label": "Drink deep and fill every vessel",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Sweet water revives you. Barrels full, throat clear — the best find since landfall.",
+      "effects": {
+       "items": {
+        "fresh_water": 30
+       },
+       "hp": 10,
+       "morale": 10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 5,
+       "unlock": "spring_claimed",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Macaques drop fruit — then stones. One cracks your shoulder; you retreat half-empty.",
+      "effects": {
+       "items": {
+        "fresh_water": 15
+       },
+       "hp": -15,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "monkey",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.1,
+      "text": "A krait drops from the ferns into the pool. You flee, bottles abandoned.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "snake",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Build a bamboo pipeline to camp",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "Gravity does the work. Clean water flows to your kettle day and night.",
+      "effects": {
+       "items": {
+        "fresh_water": 50,
+        "fibre": -5
+       },
+       "hp": 5,
+       "morale": 15,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": "water_pipeline",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Joints leak; half the flow soaks into jungle mud before it reaches you.",
+      "effects": {
+       "items": {
+        "fresh_water": 20,
+        "fibre": -5
+       },
+       "hp": 0,
+       "morale": 0,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 5,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Poison the pool to kill the watchers",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Macaques convulse and die. Water fouled — undrinkable for weeks. A waste.",
+      "effects": {
+       "items": {
+        "herbs": -1,
+        "fresh_water": -10
+       },
+       "hp": 0,
+       "morale": -15,
+       "rep": {
+        "utc": 0,
+        "tideborn": -5,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.5,
+      "text": "Troop flees, but elders warn the Tideborn. Scouts mark your camp as dangerous.",
+      "effects": {
+       "items": {
+        "herbs": -1
+       },
+       "hp": 0,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": -10,
+        "free": 0
+       },
+       "spawn": "tideborn_scout",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Macaque troops raid camps for food and give alarm calls when predators approach."
+ },
+ {
+  "id": "disc_006",
+  "category": "discovery",
+  "title": "The Crow's Nest Ridge",
+  "zones": [
+   "cliff"
+  ],
+  "trigger": {
+   "type": "time",
+   "chance": 0.1,
+   "min_day": 7,
+   "camp_level": 2,
+   "needs_item": null,
+   "weather": "clear"
+  },
+  "weight": 5,
+  "cooldown_s": 172800,
+  "intro_lines": [
+   "A razorback ridge climbs above the tree line.",
+   "Wind tears at your clothes.",
+   "From here, the whole atoll lies spread — channels, wrecks."
+  ],
+  "choices": [
+   {
+    "label": "Build a permanent lookout platform",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "Platform lashed to banyan roots. You spot a UTC convoy two days out — warning bought.",
+      "effects": {
+       "items": {
+        "wood": -15
+       },
+       "hp": -5,
+       "morale": 10,
+       "rep": {
+        "utc": -5,
+        "tideborn": 0,
+        "free": 5
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": "lookout_post",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Lightning strikes the mast. Platform burns; you descend singed but wiser.",
+      "effects": {
+       "items": {
+        "wood": -10
+       },
+       "hp": -15,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Sketch a detailed chart of the lagoon",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.8,
+      "text": "Ink and memory chart every coral head, every channel. Navigation grows safer.",
+      "effects": {
+       "items": {
+        "map_fragment": 1
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 5,
+        "free": 5
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": "lagoon_chart",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Wind tears the parchment. You salvage fragments, but the whole picture is lost.",
+      "effects": {
+       "items": {
+        "map_fragment": -1
+       },
+       "hp": 0,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Light a signal fire for passing ships",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.4,
+      "text": "A free pirate sloop sees the smoke. They trade powder for turtle and gossip.",
+      "effects": {
+       "items": {
+        "powder": 10,
+        "food": -5,
+        "fibre": -1
+       },
+       "hp": 0,
+       "morale": 10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 10
+       },
+       "spawn": "free_pirates",
+       "pet_xp": 5,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "UTC frigate logs the fire. A cutter arrives at dawn — they question, then leave.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -5,
+       "rep": {
+        "utc": -5,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "No one comes. Fuel wasted. The ridge stays lonely.",
+      "effects": {
+       "items": {
+        "fibre": -1
+       },
+       "hp": 0,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Pirate lookouts on headlands gave hours of warning — Roberts at Tobago saw HMS Swallow's topsails and slipped away; Serrano's smoke signals were ignored by ships fearing shoals."
+ },
+ {
+  "id": "disc_009",
+  "category": "discovery",
+  "title": "Midnight Mangrove Betrayal",
+  "zones": [
+   "reef",
+   "jungle"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.0,
+   "min_day": 1,
+   "camp_level": 0,
+   "needs_item": null,
+   "weather": "night"
+  },
+  "weight": 5,
+  "cooldown_s": 0,
+  "intro_lines": [
+   "The bent mangrove looms in moonlight.",
+   "The pilot waits — but UTC cutters glide behind him.",
+   "He raised the alarm. Your kindness bought a trap."
+  ],
+  "choices": [
+   {
+    "label": "Fight through the ambush",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.4,
+      "text": "Musket and cutlass clear a path. The pilot dies cursing; you seize his officer's commission.",
+      "effects": {
+       "items": {
+        "powder": -5,
+        "relic_shard": 1
+       },
+       "hp": -20,
+       "morale": -5,
+       "rep": {
+        "utc": -10,
+        "tideborn": -5,
+        "free": 10
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 20,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.6,
+      "text": "Too many. You swim the channel, gear lost. The cache stays hidden.",
+      "effects": {
+       "items": {
+        "map_fragment": -1
+       },
+       "hp": -15,
+       "morale": -15,
+       "rep": {
+        "utc": -5,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 5,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Vanish into the roots like a crab",
+    "requires": {
+     "pet_level": 2
+    },
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "Tide-Puck finds a submerged tunnel. You surface miles away, shaken but free.",
+      "effects": {
+       "items": {},
+       "hp": -5,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 5,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 25,
+       "unlock": "mangrove_tunnel",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Mud sucks at your boots. A marine's bayonet finds your thigh before you slip free.",
+      "effects": {
+       "items": {},
+       "hp": -25,
+       "morale": -10,
+       "rep": {
+        "utc": -5,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Pirates were betrayed by recruits — Roberts' men deserted to the Navy; UTC used dark-binding crystals to turn Tideborn against each other."
+ },
+ {
+  "id": "disc_010",
+  "category": "discovery",
+  "title": "Midnight Mangrove Redemption",
+  "zones": [
+   "reef",
+   "jungle"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.0,
+   "min_day": 1,
+   "camp_level": 0,
+   "needs_item": null,
+   "weather": "night"
+  },
+  "weight": 5,
+  "cooldown_s": 0,
+  "intro_lines": [
+   "The bent mangrove.",
+   "The pilot waits alone, chart spread on a root.",
+   "'You came. Good.'"
+  ],
+  "choices": [
+   {
+    "label": "Take the cache and his knowledge",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "He hands over everything. 'The Sovereign hunts UTC crystals. Destroy them, you survive.'",
+      "effects": {
+       "items": {
+        "relic_shard": 3,
+        "map_fragment": 2
+       },
+       "hp": 0,
+       "morale": 15,
+       "rep": {
+        "utc": -5,
+        "tideborn": 10,
+        "free": 5
+       },
+       "spawn": null,
+       "pet_xp": 20,
+       "unlock": "sovereign_lore",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "A crocodile lunges from the dark. He shoves you aside, takes the bite. Dies in your arms.",
+      "effects": {
+       "items": {
+        "relic_shard": 2,
+        "map_fragment": 1
+       },
+       "hp": 0,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 15,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 15,
+       "unlock": "pilot_sacrifice",
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Demand he guide you to the UTC crystal",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "He agrees. Three nights later you burn a crystal store — the Sovereign screams in the deep.",
+      "effects": {
+       "items": {
+        "rope": -1
+       },
+       "hp": -10,
+       "morale": 10,
+       "rep": {
+        "utc": -15,
+        "tideborn": 10,
+        "free": 10
+       },
+       "spawn": "wild_mythos",
+       "pet_xp": 30,
+       "unlock": "crystal_depot_burned",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "Patrol catches you at the depot. He cuts your bonds, fights beside you — both escape bloody.",
+      "effects": {
+       "items": {},
+       "hp": -20,
+       "morale": 5,
+       "rep": {
+        "utc": -10,
+        "tideborn": 5,
+        "free": 10
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 20,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Ada Blackjack nursed a dying man alone; Selkirk's companionship with tamed goats and cats preserved his mind — mercy can forge alliances in isolation."
+ },
+ {
+  "id": "disc_012",
   "category": "discovery",
   "title": "Hollow Camp",
   "zones": [
@@ -140,7 +746,7 @@
   "history_note": "Alexander Selkirk built two huts on Juan Fernández — one to sleep, one to cook — and hid from Spanish ships that would have enslaved him."
  },
  {
-  "id": "disc_003",
+  "id": "disc_014",
   "category": "discovery",
   "title": "Iron Coffin at the Reef",
   "zones": [
@@ -329,7 +935,7 @@
   "history_note": "UTC deploys dark-binding crystals that enrage the Abyssal Sovereign; the leviathan broke both Mythos Wake and the UTC warship in the storm."
  },
  {
-  "id": "disc_005",
+  "id": "disc_016",
   "category": "discovery",
   "title": "Signpost of the Marooned",
   "zones": [
@@ -532,7 +1138,7 @@
   "history_note": "Pedro Serrano used shells as rain catchers on Serrana Bank; ships ignored his smoke for fear of shoals — signposts save lives when read right."
  },
  {
-  "id": "disc_006",
+  "id": "disc_017",
   "category": "discovery",
   "title": "Ruined Careening Camp",
   "zones": [
@@ -720,7 +1326,7 @@
   "history_note": "Careening crews grounded ships at high tide on sloping beaches, heeled them over, scraped teredo worm and weed, then coated hulls with tar, tallow, and turtle fat."
  },
  {
-  "id": "disc_009",
+  "id": "disc_020",
   "category": "discovery",
   "title": "The Stranger at the Fire",
   "zones": [
@@ -765,7 +1371,7 @@
        "spawn": null,
        "pet_xp": 15,
        "unlock": null,
-       "next_event": "disc_010"
+       "next_event": "disc_021"
       }
      },
      {
@@ -814,7 +1420,7 @@
        "spawn": null,
        "pet_xp": 10,
        "unlock": null,
-       "next_event": "disc_011"
+       "next_event": "disc_022"
       }
      },
      {
@@ -901,7 +1507,7 @@
   "history_note": "Bartholomew Roberts' articles: quarrels settled ashore by pistol then cutlass, first blood wins; deserters gave intelligence to enemies."
  },
  {
-  "id": "disc_010",
+  "id": "disc_021",
   "category": "discovery",
   "title": "Kestrel's Ledger — The Betrayal",
   "zones": [
@@ -1021,7 +1627,7 @@
   "history_note": "Pirate justice: defrauding the company meant marooning with a gun, shot, bottle of water, bottle of powder; betrayal was paid in blood."
  },
  {
-  "id": "disc_011",
+  "id": "disc_022",
   "category": "discovery",
   "title": "Kestrel's Ledger — The Debt Paid",
   "zones": [
