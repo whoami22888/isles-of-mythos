@@ -126,5 +126,14 @@
       "glb_dependency_references": 0,
       "glb_dependency_closure": "PASS"
     }
-  ]
+  ],
+  "acquisition": {
+    "workflow_run_id": 44667401316,
+    "workflow_run_url": "https://github.com/whoami22888/isles-of-mythos/actions/runs/44667401316",
+    "artifact_id": 14597962705,
+    "artifact_url": "https://github.com/whoami22888/isles-of-mythos/actions/runs/44667401316/artifacts/14597962705",
+    "artifact_size_bytes": 9890789,
+    "artifact_zip_sha256": "8ed496582cb2e32a57c71ffb142dfc6c6dfc829bd40e6a8e91cc7333dbedd9fb",
+    "source_import_commit": "82cac66ae1fc026f66d26267ffa67f50594f3e92"
+  }
 }
