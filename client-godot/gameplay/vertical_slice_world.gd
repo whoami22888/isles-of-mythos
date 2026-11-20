@@ -168,6 +168,8 @@ func _ready() -> void:
 	var game_manager := get_node_or_null("/root/GameManager")
 	if game_manager == null or not game_manager.has_method("bind_protocol") or not bool(game_manager.call("bind_protocol", _client)):
 		push_error("GameManager could not bind authoritative protocol signals")
+	if _player_avatar == null or not _player_avatar.has_method("set_protocol") or not bool(_player_avatar.call("set_protocol", _client)):
+		push_error("PlayerController could not bind authoritative protocol commands")
 	_client.status_changed.connect(_on_transport_status)
 	_client.authenticated.connect(_on_authenticated)
 	_client.player_state_received.connect(_on_player_state)
@@ -341,6 +343,13 @@ func manual_move_intent() -> Vector2:
 		return Vector2.ZERO
 	return screen.normalized().rotated(-_camera_yaw)
 
+## Sends a normalized movement intent through the player entity; the server
+## remains the only authority that changes position.
+func _send_move_intent(direction: Vector2) -> bool:
+	if _player_avatar == null or not _player_avatar.has_method("request_move_intent"):
+		return false
+	return bool(_player_avatar.call("request_move_intent", direction))
+
 ## Sends the manual direction through the existing server `move` intent at the
 ## same bounded cadence as tap-to-move. Returns true while manual input is held.
 func _manual_move_step(delta: float) -> bool:
@@ -357,7 +366,7 @@ func _manual_move_step(delta: float) -> bool:
 	_move_clock += delta
 	if _move_clock >= MOVE_INTERVAL_SECONDS:
 		_move_clock = 0.0
-		_client.request_move(intent.x, intent.y)
+		_send_move_intent(intent)
 	return true
 
 func _connect() -> void:
@@ -385,6 +394,7 @@ const GAMEPLAY_SHIP_MOORING := Vector2(-17.0, -7.0)
 const GAMEPLAY_SHIP_YAW_DEGREES := 0.0
 var _ground: MeshInstance3D
 var _coastal: Node3D
+var _player_avatar: Node3D
 var _death: Label
 
 func _build_scaffold_world() -> void:
@@ -404,6 +414,7 @@ func _build_scaffold_world() -> void:
 	var player := PlayerAvatar.new()
 	player.feet_offset = PLAYER_HALF_HEIGHT
 	player.name = "ServerPlayerRepresentation"
+	_player_avatar = player
 	add_child(player)
 	player.position = Vector3(_player.x, _feet_height(_player.x, _player.z) + PLAYER_HALF_HEIGHT, _player.z)
 	_player = player.position
@@ -605,9 +616,11 @@ func _approach_step() -> void:
 			_send_gather(target)
 			return
 	var direction := offset.normalized()
-	_client.request_move(direction.x, direction.y)
+	_send_move_intent(direction)
 
 func _on_player_state(state: Dictionary) -> void:
+	if _player_avatar != null and _player_avatar.has_method("apply_authoritative_state"):
+		_player_avatar.call("apply_authoritative_state", state)
 	_craft.set_inventory(state.get("inventory"))
 	var x = state.get("x")
 	var y = state.get("y")
