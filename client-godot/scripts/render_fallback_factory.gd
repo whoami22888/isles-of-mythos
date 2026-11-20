@@ -86,9 +86,10 @@ static func _repair_incomplete_log_tail() -> int:
 		var category := tail.slice(0, tab_index).get_string_from_utf8()
 		looks_like_record_prefix = LOG_CATEGORIES.has(category)
 	if not looks_like_record_prefix:
-		# Do not reinterpret unrelated legacy bytes as a partial record.
+		# Do not reinterpret unrelated legacy bytes as a partial record, and fail closed:
+		# appending would concatenate a new record behind an unverified unterminated tail.
 		file.close()
-		return OK
+		return FAILED
 	var resize_error := file.resize(tail_start)
 	file.flush()
 	var repaired := resize_error == OK and file.get_length() == tail_start
