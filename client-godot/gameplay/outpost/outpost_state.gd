@@ -391,11 +391,15 @@ var fielded := 0
 
 
 func tick_crew(delta: float) -> void:
-	if crew_queue.is_empty():
-		return
-	var head: Dictionary = crew_queue[0]
-	head["left"] = float(head["left"]) - delta
-	if float(head["left"]) <= 0.0:
+	# Carry leftover time down the queue (long ticks finish several recruits).
+	var budget := delta
+	while not crew_queue.is_empty() and budget > 0.0:
+		var head: Dictionary = crew_queue[0]
+		var left := float(head["left"])
+		if left > budget:
+			head["left"] = left - budget
+			return
+		budget -= left
 		crew_queue.pop_front()
 		crew_ready.append(str(head["kind"]))
 
