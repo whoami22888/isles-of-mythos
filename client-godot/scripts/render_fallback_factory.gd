@@ -43,7 +43,62 @@ static func _safe_log_path(path: String) -> String:
 	return result
 
 
+static func _repair_incomplete_log_tail() -> int:
+	# A failed resize (or process interruption) can leave an unterminated TSV prefix.
+	# Repair it before every append so a later retry cannot concatenate records.
+	if not FileAccess.file_exists(LOG_PATH):
+		return OK
+	var file := FileAccess.open(LOG_PATH, FileAccess.READ_WRITE)
+	if file == null:
+		return FAILED
+	var size_before := file.get_length()
+	if size_before < 0:
+		file.close()
+		return FAILED
+	if size_before == 0 or size_before > MAX_LOG_BYTES:
+		file.close()
+		return OK
+	file.seek(0)
+	var bytes := file.get_buffer(size_before)
+	var read_error := file.get_error()
+	if bytes.size() != size_before or read_error != OK:
+		file.close()
+		return FAILED
+	if bytes[bytes.size() - 1] == 10:
+		file.close()
+		return OK
+	var tail_start := 0
+	for index in range(bytes.size() - 1, -1, -1):
+		if bytes[index] == 10:
+			tail_start = index + 1
+			break
+	var tail := bytes.slice(tail_start)
+	var tab_index := tail.find(9)
+	var looks_like_record_prefix := false
+	if tab_index == -1:
+		# Also recover a short write that stopped inside the fixed category field.
+		var category_prefix := tail.get_string_from_utf8()
+		for category in LOG_CATEGORIES:
+			if category.begins_with(category_prefix):
+				looks_like_record_prefix = true
+				break
+	else:
+		var category := tail.slice(0, tab_index).get_string_from_utf8()
+		looks_like_record_prefix = LOG_CATEGORIES.has(category)
+	if not looks_like_record_prefix:
+		# Do not reinterpret unrelated legacy bytes as a partial record.
+		file.close()
+		return OK
+	var resize_error := file.resize(tail_start)
+	file.flush()
+	var repaired := resize_error == OK and file.get_length() == tail_start
+	file.close()
+	return OK if repaired else FAILED
+
+
 static func _append_log_line(line: String, writer: Callable = Callable()):
+	if _repair_incomplete_log_tail() != OK:
+		return FAILED
 	var entry_bytes := line.to_utf8_buffer().size()
 	var exists := FileAccess.file_exists(LOG_PATH)
 	var existing_size := 0
