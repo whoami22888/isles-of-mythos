@@ -11,6 +11,7 @@ extends Node3D
 ## Barracks crew fighting beside the player) will hang off the state signals
 ## building_done / camp_levelled and read palisade_hp() / crew_slots().
 
+const Raid := preload("res://gameplay/outpost/outpost_raid.gd")
 const Gather := preload("res://gameplay/outpost/outpost_gather.gd")
 const State := preload("res://gameplay/outpost/outpost_state.gd")
 const OutpostArt := preload("res://gameplay/outpost/outpost_art.gd")
@@ -31,6 +32,15 @@ const REACH := 4.8
 var state = State.new()
 var art = OutpostArt.new()
 var raid_director: Node = null
+var raid: Node3D
+var player_hp := 120.0
+var player_max := 120.0
+var _strike_cd := 0.0
+var _dodge_t := 0.0
+var _dodge_dir := Vector3.ZERO
+var _dead_t := -1.0
+var _pet_cd := 0.0
+var _pet_target: Dictionary = {}
 var gather: Node3D
 var _gather_focus := -1
 var _kick := 0.0
@@ -87,6 +97,14 @@ func _ready() -> void:
 	add_child(gather)
 	gather.setup(state.data.get("gather", {}))
 	_build_player()
+	raid = Raid.new()
+	raid.name = "Raid"
+	raid.host = self
+	add_child(raid)
+	raid.setup(state.m2())
+	raid_director = raid
+	player_max = float(state.m2().get("player", {}).get("hp", 120))
+	player_hp = player_max
 	_hud = CanvasLayer.new()
 	_hud.set_script(load("res://gameplay/outpost/outpost_hud.gd"))
 	_hud.world = self
@@ -352,8 +370,23 @@ func _tag_text(id: String) -> String:
 func _process(delta: float) -> void:
 	_age += delta
 	state.tick(delta)
-	_move(delta)
-	_follow_pet(delta)
+	_strike_cd = maxf(_strike_cd - delta, 0.0)
+	if _dead_t >= 0.0:
+		_dead_t -= delta
+		if _dead_t < 0.0:
+			_respawn()
+	elif _dodge_t > 0.0:
+		_dodge_t -= delta
+		var pc: Dictionary = state.m2().get("player", {})
+		var step := _dodge_dir * float(pc.get("dodge_distance", 3.4)) / float(pc.get("dodge_seconds", 0.35)) * delta
+		var np := _player.global_position + step
+		np.y = ground_y(np.x, np.z)
+		if np.y > _water_y + 0.15:
+			_player.global_position = np
+	else:
+		_move(delta)
+	if not _pet_bite(delta):
+		_follow_pet(delta)
 	_follow_camera(delta, false)
 	_fade_lens()
 	_refresh_sites()
@@ -432,6 +465,10 @@ func _nearest_site(radius: float) -> String:
 
 
 func _action_text() -> String:
+	if raid and raid.active() and player_alive() and not raid.nearest_enemy(_player.global_position, 3.2).is_empty():
+		return "Strike"
+	if _focus != "" and state.needs_repair(_focus) and not state.is_building(_focus):
+		return "Repair (%s)" % State.cost_text(state.repair_cost(_focus))
 	if _gather_focus >= 0 and (_focus == "" or _site_idle(_focus)):
 		return "Chop" if gather.kind_of(_gather_focus) == "tree" else "Mine"
 	if _focus == "":
@@ -455,6 +492,18 @@ func _site_idle(id: String) -> bool:
 
 
 func on_action() -> void:
+	if not player_alive():
+		return
+	if raid and raid.active() and not raid.nearest_enemy(_player.global_position, 3.2).is_empty():
+		strike_enemy()
+		return
+	if _focus != "" and state.needs_repair(_focus) and not state.is_building(_focus):
+		if state.repair(_focus):
+			_toast("%s repaired" % state.title(_focus))
+			_sites[_focus]["shown"] = ""
+		else:
+			_toast("Repair needs " + State.cost_text(state.repair_cost(_focus)))
+		return
 	if _gather_focus >= 0 and (_focus == "" or _site_idle(_focus)):
 		strike(_gather_focus)
 		return
@@ -496,6 +545,11 @@ func interact(id: String) -> void:
 
 
 func on_build(id: String) -> void:
+	if id.begins_with("train_"):
+		var kind := id.substr(6)
+		var why0: String = state.train(kind)
+		_toast(why0 if why0 != "" else "Training a %s" % str(raid.unit_row(kind).get("title", kind)))
+		return
 	var why: String = state.block_reason(id)
 	if why != "":
 		_toast("%s: %s" % [state.title(id), why])
@@ -561,6 +615,14 @@ func _menu_rows() -> Dictionary:
 			if why != "" and not why.begins_with("Need "):
 				text += "  ·  " + why
 		rows[id] = {"text": text, "can": why == "", "button": "Build" if lv == 0 else "L%d" % nl}
+	for kind in state.m2().get("crew_train", {}).keys():
+		var tr: Dictionary = state.m2()["crew_train"][kind]
+		var queued := 0
+		for q in state.crew_queue:
+			if q["kind"] == kind:
+				queued += 1
+		rows["train_" + kind] = {"text": "Train %s  ·  %s  ·  %ds%s" % [raid.unit_row(kind).get("title", kind), State.cost_text(tr.get("cost", {})), int(tr.get("seconds", 20)), "  ·  %d queued" % queued if queued else ""],
+			"can": state.level_of("barracks") > 0, "button": "Train"}
 	return rows
 
 
@@ -569,16 +631,28 @@ func _push() -> void:
 		return
 	_hud.push({
 		"inv": state.inv,
-		"camp_line": "%s  ·  Camp L%d" % [state.camp_title(), state.camp_level],
+		"camp_line": "%s  ·  Camp L%d%s" % [state.camp_title(), state.camp_level, _raid_line()],
 		"objective": state.objective(),
 		"action": _action_text(),
 		"menu": _menu_rows(),
 		"tags": _screen_tags(),
+		"hp": player_hp / maxf(player_max, 1.0),
+		"combat": raid != null and raid.active(),
 	})
 
 
 ## World labels as HUD text: focused / ready plots, plus the pet's name only
 ## when you stand still beside it and nothing else is labelled.
+func _raid_line() -> String:
+	if raid == null:
+		return ""
+	if raid.active():
+		return "  ·  RAID wave %d  ·  %d raiders" % [maxi(raid.wave, 1), raid.enemies_alive()]
+	if raid.eta() > 0.0:
+		return "  ·  next raid %d:%02d" % [int(raid.eta()) / 60, int(raid.eta()) % 60]
+	return ""
+
+
 func _screen_tags() -> Array:
 	var out: Array = []
 	for id in _sites.keys():
@@ -600,6 +674,142 @@ func _screen_tags() -> Array:
 		if not _camera.is_position_behind(pa):
 			out.append({"text": state.pet_name, "pos": _camera.unproject_position(pa), "focus": false})
 	return out
+
+
+# --- Milestone 2: combat -----------------------------------------------------
+
+func player_alive() -> bool:
+	return _dead_t < 0.0
+
+
+## Cutlass swing at the nearest raider: hit-stop, knockback, flash, number.
+func strike_enemy() -> bool:
+	if _strike_cd > 0.0 or not player_alive():
+		return false
+	var pc: Dictionary = state.m2().get("player", {})
+	var u: Dictionary = raid.nearest_enemy(_player.global_position, float(pc.get("range", 2.2)) + 1.0)
+	Art.play(_rig, "Attack", 0.06)
+	_strike_cd = float(pc.get("cooldown", 0.42))
+	raid._play(Raid.SWING, -8.0, randf_range(0.95, 1.1))
+	if u.is_empty():
+		return false
+	var at: Vector3 = (u["node"] as Node3D).global_position
+	_player.look_at(Vector3(at.x, _player.global_position.y, at.z), Vector3.UP)
+	raid.hurt(u, float(pc.get("damage", 26)), _player.global_position, float(pc.get("knockback", 2.2)))
+	raid.freeze = 0.07
+	camera_kick(0.12)
+	Input.vibrate_handheld(40, 0.7)
+	return true
+
+
+func on_dodge() -> void:
+	if not player_alive() or _dodge_t > 0.0:
+		return
+	var input: Vector2 = _hud.stick() if _hud else Vector2.ZERO
+	var fwd := Vector3(-sin(_cam_yaw), 0, -cos(_cam_yaw))
+	var right := Vector3(cos(_cam_yaw), 0, -sin(_cam_yaw))
+	_dodge_dir = (right * input.x - fwd * input.y).normalized() if input.length() > 0.2 else -_player.global_transform.basis.z
+	_dodge_t = float(state.m2().get("player", {}).get("dodge_seconds", 0.35))
+	Art.play(_rig, "Dodge", 0.05, 1.4)
+
+
+func hurt_player(dmg: float, from: Vector3) -> void:
+	if not player_alive() or _dodge_t > 0.0:
+		return
+	player_hp -= dmg
+	damage_number(_player.global_position + Vector3.UP * 2.1, int(dmg), false)
+	camera_kick(0.1)
+	if player_hp <= 0.0:
+		player_hp = 0.0
+		_dead_t = float(state.m2().get("player", {}).get("respawn_seconds", 3.0))
+		Art.play(_rig, "Death", 0.05)
+		banner("You fell", "Back on your feet at the camp")
+	else:
+		Art.play(_rig, "Hit", 0.05)
+
+
+func _respawn() -> void:
+	player_hp = player_max
+	var at := site_pos("camp") + Vector3(0, 0, -3.5)
+	at.y = ground_y(at.x, at.z)
+	_player.global_position = at
+	Art.play(_rig, "Idle")
+	snap_camera()
+
+
+## Tide-Puck darts at the nearest raider, bites (small damage) and stuns.
+func _pet_bite(delta: float) -> bool:
+	_pet_cd = maxf(_pet_cd - delta, 0.0)
+	if raid == null or not raid.active():
+		return false
+	var pcfg: Dictionary = state.m2().get("pet", {})
+	if _pet_target.is_empty() or float(_pet_target.get("dead", 0.0)) >= 0.0:
+		_pet_target = raid.nearest_enemy(_pet.global_position, float(pcfg.get("range", 7.0)))
+	if _pet_target.is_empty():
+		return false
+	var at: Vector3 = (_pet_target["node"] as Node3D).global_position
+	var to := at - _pet.global_position
+	to.y = 0
+	if to.length() > 1.1:
+		var p := _pet.global_position + to.normalized() * 4.5 * delta
+		p.y = ground_y(p.x, p.z)
+		_pet.global_position = p
+		_pet.look_at(Vector3(at.x, p.y, at.z), Vector3.UP)
+	elif _pet_cd <= 0.0:
+		_pet_cd = float(pcfg.get("cooldown", 3.0))
+		raid.hurt(_pet_target, float(pcfg.get("damage", 6)), _pet.global_position, 0.3)
+		raid.stun(_pet_target, float(pcfg.get("stun", 1.2)))
+		pet_bites += 1
+	return true
+
+
+var pet_bites := 0
+
+
+func site_pos(id: String) -> Vector3:
+	return _sites[id]["plot"]
+
+
+func site_ids() -> Array:
+	return _sites.keys()
+
+
+func site_hit(id: String) -> void:
+	var body: Node3D = _sites[id].get("body")
+	if body and is_instance_valid(body):
+		var t := body.create_tween()
+		t.tween_property(body, "rotation_degrees:z", 1.5, 0.05)
+		t.tween_property(body, "rotation_degrees:z", 0.0, 0.15)
+	if state.is_damaged(id) and not bool(_sites[id].get("wrecked", false)):
+		_sites[id]["wrecked"] = true
+		_toast("%s wrecked! Repair it with wood" % state.title(id))
+		if id == "palisade":
+			_sites[id]["shown"] = ""
+
+
+func damage_number(at: Vector3, n: int, enemy: bool) -> void:
+	var lab := Label3D.new()
+	lab.text = str(n)
+	lab.font = _font
+	lab.font_size = 72
+	lab.pixel_size = 0.0009
+	lab.fixed_size = true
+	lab.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	lab.no_depth_test = true
+	lab.outline_size = 12
+	lab.outline_modulate = Color(0.05, 0.03, 0.02, 0.9)
+	lab.modulate = Color(1.0, 0.93, 0.7) if enemy else Color(0.95, 0.35, 0.3)
+	add_child(lab)
+	lab.global_position = at + Vector3(randf_range(-0.3, 0.3), 0, 0)
+	var t := lab.create_tween()
+	t.tween_property(lab, "global_position", lab.global_position + Vector3.UP * 0.9, 0.7)
+	t.parallel().tween_property(lab, "modulate:a", 0.0, 0.7).set_delay(0.3)
+	t.tween_callback(lab.queue_free)
+
+
+func banner(title: String, sub: String) -> void:
+	if _hud and _hud.has_method("banner"):
+		_hud.banner(title, sub)
 
 
 ## Bot/test helper: walk instantly beside a site.

@@ -24,6 +24,12 @@ var _toast: Label
 var _toast_t := 0.0
 var _flies: Array = []
 var _tags: Array = []
+var _banner: Label
+var _banner_sub: Label
+var _banner_t := 0.0
+var _hp_back: ColorRect
+var _hp_fill: ColorRect
+var _dodge: Button
 ## Below the resource strip, camp line and objective line.
 const TAG_TOP := 150.0
 
@@ -35,7 +41,7 @@ func _ready() -> void:
 	top.position = Vector2(24, 18)
 	top.add_theme_constant_override("separation", 14)
 	add_child(top)
-	for kind in ["wood", "stone", "food", "iron"]:
+	for kind in ["wood", "stone", "food", "iron", "gold"]:
 		var chip := PanelContainer.new()
 		chip.add_theme_stylebox_override("panel", _box(Color(0.1, 0.08, 0.06, 0.72)))
 		var lab := _label(30)
@@ -83,7 +89,7 @@ func _ready() -> void:
 	_menu_box = VBoxContainer.new()
 	_menu_box.add_theme_constant_override("separation", 6)
 	_menu.add_child(_menu_box)
-	for id in ["camp"] + ORDER:
+	for id in ["camp"] + ORDER + ["train_sailor", "train_crew_musketeer"]:
 		var row := HBoxContainer.new()
 		var info := _label(24)
 		info.custom_minimum_size = Vector2(420, 0)
@@ -95,6 +101,43 @@ func _ready() -> void:
 		row.add_child(go)
 		_menu_box.add_child(row)
 		_rows[id] = [info, go]
+	_banner = _label(64)
+	_banner.anchor_left = 0.5
+	_banner.anchor_right = 0.5
+	_banner.offset_left = -500
+	_banner.offset_right = 500
+	_banner.offset_top = 200
+	_banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_banner.add_theme_color_override("font_color", Color(0.98, 0.86, 0.55))
+	_banner.add_theme_constant_override("outline_size", 14)
+	add_child(_banner)
+	_banner_sub = _label(30)
+	_banner_sub.anchor_left = 0.5
+	_banner_sub.anchor_right = 0.5
+	_banner_sub.offset_left = -500
+	_banner_sub.offset_right = 500
+	_banner_sub.offset_top = 285
+	_banner_sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	add_child(_banner_sub)
+	_hp_back = ColorRect.new()
+	_hp_back.color = Color(0.08, 0.06, 0.05, 0.75)
+	_hp_back.size = Vector2(300, 18)
+	add_child(_hp_back)
+	_hp_fill = ColorRect.new()
+	_hp_fill.color = Color(0.68, 0.2, 0.16)
+	_hp_fill.size = Vector2(296, 14)
+	add_child(_hp_fill)
+	_dodge = _button("Roll", 30)
+	_dodge.anchor_left = 1.0
+	_dodge.anchor_right = 1.0
+	_dodge.anchor_top = 1.0
+	_dodge.anchor_bottom = 1.0
+	_dodge.offset_left = -480
+	_dodge.offset_right = -350
+	_dodge.offset_top = -170
+	_dodge.offset_bottom = -90
+	_dodge.pressed.connect(func(): if world: world.on_dodge())
+	add_child(_dodge)
 	_toast = _label(30)
 	_toast.anchor_left = 0.5
 	_toast.anchor_right = 0.5
@@ -154,6 +197,12 @@ func close_menu() -> void:
 	_menu.visible = false
 
 
+func banner(title: String, sub: String) -> void:
+	_banner.text = title
+	_banner_sub.text = sub
+	_banner_t = 3.5
+
+
 func toast(text: String) -> void:
 	_toast.text = text
 	_toast_t = 3.0
@@ -190,6 +239,15 @@ func push(state: Dictionary) -> void:
 	_action.text = act
 	_build_btn.visible = not bool(state.get("cinematic", false))
 	_layout_tags(state.get("tags", []))
+	var rect := get_viewport().get_visible_rect().size
+	var combat := bool(state.get("combat", false))
+	var hpf := float(state.get("hp", 1.0))
+	_hp_back.visible = combat or hpf < 0.999
+	_hp_fill.visible = _hp_back.visible
+	_hp_back.position = Vector2(rect.x * 0.5 - 150, rect.y - 46)
+	_hp_fill.position = _hp_back.position + Vector2(2, 2)
+	_hp_fill.size.x = 296.0 * clampf(hpf, 0.0, 1.0)
+	_dodge.visible = combat
 	var rows: Dictionary = state.get("menu", {})
 	for id in _rows.keys():
 		var r: Dictionary = rows.get(id, {})
@@ -244,6 +302,11 @@ func tag_rects() -> Array:
 
 
 func _process(delta: float) -> void:
+	if _banner_t > 0.0:
+		_banner_t -= delta
+		var a := clampf(_banner_t, 0.0, 1.0)
+		_banner.modulate.a = a
+		_banner_sub.modulate.a = a
 	if _toast_t > 0.0:
 		_toast_t -= delta
 		_toast.modulate.a = clampf(_toast_t, 0.0, 1.0)
@@ -268,7 +331,7 @@ func _process(delta: float) -> void:
 
 
 func _over_button(p: Vector2) -> bool:
-	for c in [_action, _build_btn, _menu]:
+	for c in [_action, _build_btn, _menu, _dodge]:
 		if c.visible and c.get_global_rect().has_point(p):
 			return true
 	return false
