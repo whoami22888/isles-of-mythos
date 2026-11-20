@@ -213,6 +213,19 @@ class StylizedPbrShaderContractTests(unittest.TestCase):
         self.assertIn("SPECULAR = specular_amount", self.fragment)
         self.assertIn("RIM = clamp(vertex_rim_factor", self.fragment)
 
+    def test_builtin_rim_is_mobile_only_to_avoid_double_desktop_rim(self):
+        """Desktop uses its per-light rim; only mobile uses the built-in fallback."""
+        mobile_block = self.fragment.split(
+            "#ifdef IOM_CEL_MOBILE_VERTEX_RAMP", 1
+        )[1].split("#endif", 1)[0]
+        desktop_block = self.fragment.split(
+            "#ifdef IOM_CEL_MOBILE_VERTEX_RAMP", 1
+        )[0]
+        self.assertIn("RIM = clamp(vertex_rim_factor", mobile_block)
+        self.assertIn("RIM_TINT = rim_tint", mobile_block)
+        self.assertNotIn("RIM =", desktop_block)
+        self.assertNotIn("RIM_TINT =", desktop_block)
+
     def test_back_facing_lights_do_not_add_direct_diffuse(self):
         """Back-facing lights must not contribute the shadow tint as direct light."""
         guard = "if (n_dot_l > 0.0) {"
