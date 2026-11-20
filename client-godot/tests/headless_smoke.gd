@@ -233,12 +233,12 @@ func run() -> void:
 	var partial_writer := func(file: FileAccess, _line: String) -> bool:
 		partial_prefix_written[0] = file.store_string("mesh\tpartial_retry_004")
 		return false
-	var partial_error := FallbackFactory._append_log_line(partial_record, partial_writer)
+	var partial_error: int = FallbackFactory._append_log_line(partial_record, partial_writer)
 	check(partial_prefix_written[0], "Partial-write fixture must append a prefix before reporting failure")
 	check(partial_error == FAILED, "A writer that reports failure must fail the append")
 	var after_partial_failure := FileAccess.get_file_as_string(FallbackFactory.LOG_PATH)
 	check(after_partial_failure == before_partial_append, "Failed partial append must roll the log back to its original byte length")
-	var retry_error := FallbackFactory._append_log_line(partial_record)
+	var retry_error: int = FallbackFactory._append_log_line(partial_record)
 	var after_partial_retry := FileAccess.get_file_as_string(FallbackFactory.LOG_PATH)
 	check(retry_error == OK and after_partial_retry == before_partial_append + partial_record,
 		"Retry after a partial append must produce exactly one complete TSV record")
