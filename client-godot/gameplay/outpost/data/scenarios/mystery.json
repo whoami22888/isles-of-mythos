@@ -1891,7 +1891,7 @@
     ]
    }
   ],
-  "history_note": "Condent's Fiery Dragon was scuttled in Sainte-Marie bay as a pardon condition, and ships were deliberately sunk as harbour barriers."
+  "history_note": "Ships sighted Pedro Serrano's smoke for years but stayed clear of the shoals around his cay."
  },
  {
   "id": "mys_016",
@@ -2646,7 +2646,7 @@
     "outcomes": [
      {
       "chance": 0.5,
-      "text": "A relic shard glows; the storm breaks and you gain insight.",
+      "text": "A relic shard hums; the storm breaks and you gain insight.",
       "effects": {
        "items": {
         "relic_shard": -1,

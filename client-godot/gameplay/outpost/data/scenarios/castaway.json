@@ -407,7 +407,7 @@
     ]
    }
   ],
-  "history_note": "Tromelin's castaways kept a single fire alive for fifteen years with wreck timber and driftwood because relighting one in humid air was nearly impossible."
+  "history_note": "The Tromelin castaways used flint strikers left by the French crew until the stones were worn to nothing."
  },
  {
   "id": "cast_003",
@@ -950,7 +950,8 @@
   "cooldown_s": 10800,
   "intro_lines": [
    "A sail, white as a gull's wing, on the horizon.",
-   "It is heading past the shoals. It will not see you."
+   "It is heading past the shoals.",
+   "It will not see you."
   ],
   "choices": [
    {
@@ -1496,7 +1497,7 @@
     ]
    }
   ],
-  "history_note": "A second castaway could be salvation or danger: Pedro Serrano's companion quarrelled with him, while pirate articles punished theft between shipmates with marooning."
+  "history_note": "Castaways face a rough order of threats: about 3 hours of exposure, 3 days without water, 3 weeks without food."
  },
  {
   "id": "cast_009",
@@ -1833,7 +1834,7 @@
     ]
    }
   ],
-  "history_note": "When Serrano's second castaway turned on him they fought and later reconciled, a pattern that made distrust as dangerous as the sea itself."
+  "history_note": "In the heat and rain, Pedro Serrano's provisions spoiled within two months; meat had to be dried in the sun to last."
  },
  {
   "id": "cast_011",
@@ -2467,7 +2468,7 @@
     ]
    }
   ],
-  "history_note": "Serrano's provisions rotted in heat and rain; he sun-dried strips instead."
+  "history_note": "In the heat and rain, Pedro Serrano's provisions spoiled within two months; meat had to be dried in the sun to last."
  },
  {
   "id": "cast_016",

@@ -1515,7 +1515,7 @@
      },
      {
       "chance": 0.1,
-      "text": "A second turtle mistakes you for a predator and charges.",
+      "text": "Your shadow falls across a second turtle; she turns back to the sea unlaid.",
       "effects": {
        "items": {},
        "hp": -6,
@@ -1759,7 +1759,7 @@
     ]
    }
   ],
-  "history_note": "Frigatebirds steal fish and shiny objects, a known nuisance to sailors and castaways."
+  "history_note": "Frigatebirds chase other seabirds until they drop their catch."
  },
  {
   "id": "wild_019",
@@ -2436,11 +2436,11 @@
   "cooldown_s": 7200,
   "intro_lines": [
    "Tide-Puck stiffens, nose aimed at the basalt ledges above.",
-   "Feral goats graze the sparse grass — descendants"
+   "Feral goats graze the sparse grass."
   ],
   "choices": [
    {
-    "label": "Set wire nooses on game trails",
+    "label": "Set fibre nooses on game trails",
     "requires": {},
     "outcomes": [
      {
@@ -2622,7 +2622,7 @@
     ]
    }
   ],
-  "history_note": "Alexander Selkirk tamed feral goats on Juan Fernández for milk and company, running them down on foot and building huts from their skins."
+  "history_note": "Alexander Selkirk ran down feral goats on foot on Juan Fernandez and tamed kids for milk and company."
  },
  {
   "id": "wild_024",
@@ -2653,7 +2653,7 @@
     "outcomes": [
      {
       "chance": 0.5,
-      "text": "The boar drops at twilight. Six hundred pounds of meat, tusks for tools.",
+      "text": "The boar drops at twilight. A hundred and fifty pounds of meat, tusks for tools.",
       "effects": {
        "items": {
         "food": 25,
@@ -2857,8 +2857,9 @@
   "weight": 5,
   "cooldown_s": 5400,
   "intro_lines": [
-   "Sooty terns carpet the cay — tens of thousands screaming",
-   "Tromelin castaways lived on them for fifteen years. You can"
+   "Sooty terns carpet the cay — tens of thousands screaming.",
+   "Tromelin castaways lived on them for fifteen years.",
+   "You can too."
   ],
   "choices": [
    {
@@ -3070,7 +3071,8 @@
   "weight": 8,
   "cooldown_s": 3600,
   "intro_lines": [
-   "The tide pulls back, exposing the reef flat. Jacks",
+   "The tide pulls back, exposing the reef flat.",
+   "Jacks and groupers trapped in pools.",
    "A wall of coral rubble now could funnel them into a holding"
   ],
   "choices": [
@@ -3303,7 +3305,7 @@
   "cooldown_s": 7200,
   "intro_lines": [
    "Moonlight glints on armoured claws the size of your fist.",
-   "Coconut crabs climb palms, steal shiny things, taste like"
+   "Coconut crabs climb palms, steal shiny things."
   ],
   "choices": [
    {
@@ -3312,7 +3314,7 @@
     "outcomes": [
      {
       "chance": 0.6,
-      "text": "Five monsters in the buckets. Meat for days, claws for hooks, one wore a gold ring.",
+      "text": "Five big crabs in the buckets. Meat for days, claws for hooks, one wore a gold ring.",
       "effects": {
        "items": {
         "crab_meat": 10,
@@ -3748,8 +3750,9 @@
   "weight": 4,
   "cooldown_s": 18000,
   "intro_lines": [
-   "Low throats bay in the mist — not wolves, but dogs gone",
-   "They know the island. They know you. And they're hungry."
+   "Low throats bay in the mist — not wolves.",
+   "They know the island.",
+   "They know you. And they're hungry."
   ],
   "choices": [
    {
@@ -3973,8 +3976,9 @@
   "weight": 6,
   "cooldown_s": 5400,
   "intro_lines": [
-   "Feathers dust the dry earth — red jungle fowl, ancestors",
-   "They scratch, bathe, crow. Unaware the noose waits."
+   "Feathers dust the dry earth — red jungle fowl.",
+   "They scratch, bathe, crow.",
+   "Unaware the noose waits."
   ],
   "choices": [
    {
@@ -4039,78 +4043,6 @@
        },
        "spawn": "monkey",
        "pet_xp": 5,
-       "unlock": null,
-       "next_event": null
-      }
-     }
-    ]
-   },
-   {
-    "label": "Blowgun with curare-tipped darts —",
-    "requires": {},
-    "outcomes": [
-     {
-      "chance": 0.7,
-      "text": "Clean kills. Best hen for breeding, cock for the pot. No alarm raised.",
-      "effects": {
-       "items": {
-        "food": 6,
-        "feather": 8,
-        "herbs": -2
-       },
-       "hp": 0,
-       "morale": 10,
-       "rep": {
-        "utc": 0,
-        "tideborn": 0,
-        "free": 0
-       },
-       "spawn": null,
-       "pet_xp": 30,
-       "unlock": "blowgun_fowl",
-       "next_event": null
-      }
-     },
-     {
-      "chance": 0.2,
-      "text": "Dart misses, hits a parrot. It screams, flock erupts. Fowl vanish.",
-      "effects": {
-       "items": {
-        "herbs": -2,
-        "wood": -1,
-        "feather": -3
-       },
-       "hp": 0,
-       "morale": -5,
-       "rep": {
-        "utc": 0,
-        "tideborn": 0,
-        "free": 0
-       },
-       "spawn": "gull",
-       "pet_xp": 5,
-       "unlock": null,
-       "next_event": null
-      }
-     },
-     {
-      "chance": 0.1,
-      "text": "You nick your own thumb loading. Numbness spreads. Hour of panic.",
-      "effects": {
-       "items": {
-        "herbs": -2,
-        "wood": -1,
-        "feather": -3
-       },
-       "hp": -10,
-       "morale": -10,
-       "rep": {
-        "utc": 0,
-        "tideborn": 0,
-        "free": 0
-       },
-       "spawn": null,
-       "pet_xp": 0,
        "unlock": null,
        "next_event": null
       }
@@ -4208,8 +4140,9 @@
   "weight": 5,
   "cooldown_s": 0,
   "intro_lines": [
-   "The cave smells of brine, copper, and something floral —",
-   "Walls glitter with embedded shell. A pool reflects"
+   "The cave smells of brine, copper, and something floral.",
+   "Walls glitter with embedded shell.",
+   "A pool reflects torchlight twice over."
   ],
   "choices": [
    {
@@ -4348,7 +4281,7 @@
     ]
    }
   ],
-  "history_note": "Pedro Serrano on Serrana Bank used shells as rain catchers holding up to 12 gallons, dove for two stones to strike sparks, and built a fire hut from seaweed and wreck planks."
+  "history_note": "Green turtles haul out to nest at night; the Tromelin castaways ate more turtle meat than any other animal."
  },
  {
   "id": "wild_033",
@@ -4369,8 +4302,9 @@
   "weight": 5,
   "cooldown_s": 0,
   "intro_lines": [
-   "Night falls. The camp fire cracks. Whatever happened",
-   "Silas watches. Puck sleeps — or feigns it. The egg"
+   "Night falls.",
+   "The camp fire cracks.",
+   "Whatever happened in the cave follows you home."
   ],
   "choices": [
    {
@@ -4379,7 +4313,7 @@
     "outcomes": [
      {
       "chance": 0.4,
-      "text": "The egg hatches into a Mythos — not Sovereign, but kin. It imprints on Puck. UTC crystals glow red in its presence.",
+      "text": "The egg hatches into a Mythos — not Sovereign, but kin. It imprints on Puck. UTC crystals hum red in its presence.",
       "effects": {
        "items": {},
        "hp": 0,

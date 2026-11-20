@@ -19,8 +19,8 @@
   "cooldown_s": 86400,
   "intro_lines": [
    "A brig flies UTC ensigns but handles like a privateer.",
-   "Gunports stay shut. They signal: \"Heave to for inspection.\"",
-   "Tide-Puck bristles — the hull paint is fresh, the rigging"
+   "Gunports stay shut.",
+   "They signal: \"Heave to for inspection.\""
   ],
   "choices": [
    {
@@ -246,9 +246,9 @@
   "weight": 5,
   "cooldown_s": 0,
   "intro_lines": [
-   "Moonless night. The surf masks the *thup-thup* of oars.",
-   "Dark shapes glide through the reef channel — longboats",
-   "Tide-Puck wakes you with a wet nose and a low growl."
+   "Moonless night.",
+   "The surf masks the thup-thup of oars.",
+   "Dark shapes glide through the reef channel — longboats."
   ],
   "choices": [
    {
@@ -419,7 +419,7 @@
      },
      {
       "chance": 0.35,
-      "text": "They take the goods *and* a hostage — your carpenter.",
+      "text": "They take the goods and a hostage — your carpenter.",
       "effects": {
        "items": {
         "gold": -50,
@@ -485,9 +485,9 @@
   "weight": 5,
   "cooldown_s": 0,
   "intro_lines": [
-   "A arrow lands at your feet. Tied: a strip of sailcloth",
-   "\"Carpenter lives. Bring 200 gold, 10 powder, map fragment.",
-   "Tide-Puck sniffs the scrap — salt, tar, and the carpenter's"
+   "An arrow lands at your feet.",
+   "Tied: a strip of sailcloth, written in charcoal.",
+   "\"Carpenter lives. Bring 200 gold, 10 powder, map fragment."
   ],
   "choices": [
    {
@@ -608,7 +608,7 @@
      },
      {
       "chance": 0.2,
-      "text": "Tide-Puck corners a pirate — it's the carpenter, *turned*. He betrays you.",
+      "text": "Tide-Puck corners a pirate — it's the carpenter, turned. He betrays you.",
       "effects": {
        "items": {
         "wood": -30,
@@ -724,9 +724,9 @@
   "weight": 5,
   "cooldown_s": 172800,
   "intro_lines": [
-   "Your best cutlass goes missing. Then the powder measure.",
-   "A sailor swears he saw a monkey — but monkeys don't untie",
-   "Tide-Puck scratches at a loose floorboard in the storehouse."
+   "Your best cutlass goes missing.",
+   "Then the powder measure.",
+   "A sailor swears he saw a monkey."
   ],
   "choices": [
    {
@@ -735,7 +735,7 @@
     "outcomes": [
      {
       "chance": 0.55,
-      "text": "Next dawn, the cook's pockets jingle. He cracks fast — UTC *and* pirates.",
+      "text": "Next dawn, the cook's pockets jingle. He cracks fast — UTC and pirates.",
       "effects": {
        "items": {
         "gold": -20,
@@ -955,9 +955,9 @@
   "weight": 5,
   "cooldown_s": 0,
   "intro_lines": [
-   "Dawn raid. They don't want gold — they want your carpenter.",
-   "Grappling hooks on the palisade. Boarders shout: \"The",
-   "Your carpenter grabs a hatchet. \"I built these walls. I'll"
+   "Dawn raid.",
+   "They don't want gold — they want your carpenter.",
+   "Grappling hooks on the palisade. \"I built these walls."
   ],
   "choices": [
    {
@@ -1059,7 +1059,7 @@
      },
      {
       "chance": 0.3,
-      "text": "They take the goods *and* the carpenter. \"Changed our minds.\"",
+      "text": "They take the goods and the carpenter. \"Changed our minds.\"",
       "effects": {
        "items": {
         "gold": -100,
@@ -1080,7 +1080,7 @@
      },
      {
       "chance": 0.25,
-      "text": "Carpenter *refuses* to leave. \"They need me. I'll sabotage from inside.\"",
+      "text": "Carpenter refuses to leave. \"They need me. I'll sabotage from inside.\"",
       "effects": {
        "items": {
         "gold": -100,
@@ -1190,9 +1190,9 @@
   "weight": 5,
   "cooldown_s": 0,
   "intro_lines": [
-   "You pursue the pirates — or they lure you — into the narrow",
-   "Walls of coral close in. Ahead, a hulk lies scuttled across",
-   "Gunports open on both cliffs. The quartermaster's laugh"
+   "You pursue the pirates — or they lure you.",
+   "Walls of coral close in.",
+   "Ahead, a hulk lies scuttled across the fairway."
   ],
   "choices": [
    {
@@ -1249,7 +1249,7 @@
      },
      {
       "chance": 0.25,
-      "text": "The carpenter — *their* carpenter — springs the trap. Powder magazine blows.",
+      "text": "The carpenter — their carpenter — springs the trap. Powder magazine blows.",
       "effects": {
        "items": {
         "powder": -20,
@@ -1321,7 +1321,7 @@
      },
      {
       "chance": 0.2,
-      "text": "Tideborn scouts on the cliffs. They *help* — for a relic shard.",
+      "text": "Tideborn scouts on the cliffs. They help — for a relic shard.",
       "effects": {
        "items": {
         "relic_shard": -1,
@@ -1389,7 +1389,7 @@
      },
      {
       "chance": 0.2,
-      "text": "The carpenter *stabs* the quartermaster. Chaos. You flee in the confusion.",
+      "text": "The carpenter stabs the quartermaster. Chaos. You flee in the confusion.",
       "effects": {
        "items": {
         "gold": -150,
@@ -1433,9 +1433,9 @@
   "weight": 7,
   "cooldown_s": 172800,
   "intro_lines": [
-   "First light. Five longboats grind onto the sand, bows high.",
-   "Pirates wade ashore in shirtsleeves, cutlasses between",
-   "Their captain plants a boarding axe in the sand. \"This"
+   "First light.",
+   "Five longboats grind onto the sand, bows high.",
+   "Pirates wade ashore in shirtsleeves. \"This beach is ours.\""
   ],
   "choices": [
    {
@@ -1674,9 +1674,9 @@
   "weight": 5,
   "cooldown_s": 172800,
   "intro_lines": [
-   "A sloop anchors off the reef. Black flag. No shots fired.",
-   "A boat comes in under white flag. Quartermaster steps",
-   "\"Strike your colours. Join the Brethren. Or we burn you"
+   "A sloop anchors off the reef.",
+   "Black flag.",
+   "No shots fired. A boat comes in under white flag."
   ],
   "choices": [
    {
@@ -1706,7 +1706,7 @@
      },
      {
       "chance": 0.3,
-      "text": "Warning shot hits a mast. They *return fire* — heavy guns.",
+      "text": "Warning shot hits a mast. They return fire — heavy guns.",
       "effects": {
        "items": {
         "powder": -5,
@@ -1777,7 +1777,7 @@
      },
      {
       "chance": 0.3,
-      "text": "They make you careen *their* ships first. Months of unpaid labour.",
+      "text": "They make you careen their ships first. Months of unpaid labour.",
       "effects": {
        "items": {
         "wood": -20,
@@ -1845,7 +1845,7 @@
      },
      {
       "chance": 0.25,
-      "text": "He spits. \"Tribute's for kings. We'll take it *and* the island.\"",
+      "text": "He spits. \"Tribute's for kings. We'll take it and the island.\"",
       "effects": {
        "items": {
         "gold": -300,
@@ -1913,9 +1913,9 @@
   "weight": 6,
   "cooldown_s": 259200,
   "intro_lines": [
-   "You find a pirate careening camp — ship heeled, hull",
-   "Guns landed in a sand battery. Crew drunk on turtle and rum.",
-   "Tide-Puck circles downwind. The sentry snores against"
+   "You find a pirate careening camp — ship heeled.",
+   "Guns landed in a sand battery.",
+   "Crew drunk on turtle and rum. Tide-Puck circles downwind."
   ],
   "choices": [
    {
@@ -2045,7 +2045,7 @@
      },
      {
       "chance": 0.15,
-      "text": "The ship's carpenter *catches* you. He joins your camp instead.",
+      "text": "The ship's carpenter catches you. He joins your camp instead.",
       "effects": {
        "items": {
         "food": 60,
@@ -2162,9 +2162,9 @@
   "weight": 4,
   "cooldown_s": 345600,
   "intro_lines": [
-   "Your own crew turns. Quartermaster reads the articles aloud.",
-   "\"Defrauding the company. Theft between mates. The verdict",
-   "A longboat waits. One pistol. One shot. One bottle. One"
+   "Your own crew turns.",
+   "Quartermaster reads the articles aloud.",
+   "\"Defrauding the company. Theft between mates. One pistol."
   ],
   "choices": [
    {
@@ -2215,7 +2215,7 @@
      },
      {
       "chance": 0.25,
-      "text": "The quartermaster *tosses you a map fragment*. \"For old times.\"",
+      "text": "The quartermaster tosses you a map fragment. \"For old times.\"",
       "effects": {
        "items": {
         "powder": 1,
@@ -2334,7 +2334,7 @@
      },
      {
       "chance": 0.3,
-      "text": "Elders are bribed. Verdict stands. But they give you a *better* boat.",
+      "text": "Elders are bribed. Verdict stands. But they give you a better boat.",
       "effects": {
        "items": {
         "gold": -200,
@@ -2402,9 +2402,9 @@
   "weight": 8,
   "cooldown_s": 432000,
   "intro_lines": [
-   "A familiar cutter enters the lagoon — the haven's factor",
-   "\"The Brethren's share. Ten percent of all take. Back-tithe",
-   "His bodyguard rests hands on axes. The factor smiles. \"Or"
+   "A familiar cutter enters the lagoon — the haven's factor.",
+   "\"The Brethren's share.",
+   "Ten percent of all take. Back-tithe for three moons.\""
   ],
   "choices": [
    {
@@ -2532,7 +2532,7 @@
      },
      {
       "chance": 0.25,
-      "text": "Factor returns with a *royal pardon* for your crew. Mutiny brews.",
+      "text": "Factor returns with a royal pardon for your crew. Mutiny brews.",
       "effects": {
        "items": {
         "wood": -100,
@@ -2582,7 +2582,7 @@
      },
      {
       "chance": 0.3,
-      "text": "Factor escapes. Warns the Brethren. You're *hostis humani generis*.",
+      "text": "Factor escapes. Warns the Brethren. You're hostis humani generis.",
       "effects": {
        "items": {
         "map_fragment": -1

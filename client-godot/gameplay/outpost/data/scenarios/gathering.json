@@ -142,7 +142,7 @@
     "outcomes": [
      {
       "chance": 0.5,
-      "text": "You fill a basket with crab meat and small fish, but a urchin spine pierces your palm.",
+      "text": "You fill a basket with crab meat and small fish, but an urchin spine pierces your palm.",
       "effects": {
        "items": {
         "crab_meat": 2,
@@ -709,7 +709,7 @@
     ]
    }
   ],
-  "history_note": "Tromelin castaways struck sparks with a knife and two stones after their flint strikers wore to nothing."
+  "history_note": "The Tromelin castaways used flint strikers left by the French crew until the stones were worn to nothing."
  },
  {
   "id": "gath_007",
@@ -837,7 +837,7 @@
     ]
    }
   ],
-  "history_note": "Tromelin castaways wove a sail of feathers and used salvaged cordage to lash their coral walls."
+  "history_note": "The Tromelin castaways survived fifteen years by using everything: wreck timber, turtles, terns, reef fish and a single shrub."
  },
  {
   "id": "gath_008",
@@ -1438,7 +1438,7 @@
     ]
    }
   ],
-  "history_note": "Selkirk smoked and dried goat meat to survive four years on Juan Fernández."
+  "history_note": "In the heat and rain, Pedro Serrano's provisions spoiled within two months; meat had to be dried in the sun to last."
  },
  {
   "id": "gath_013",
@@ -1560,7 +1560,7 @@
     ]
    }
   ],
-  "history_note": "Serrano sun-dried strips and flipped turtles, provisions rotting in heat."
+  "history_note": "In the heat and rain, Pedro Serrano's provisions spoiled within two months; meat had to be dried in the sun to last."
  },
  {
   "id": "gath_014",
@@ -2280,7 +2280,7 @@
     ]
    }
   ],
-  "history_note": "Selkirk tamed feral cats after rats gnawed his feet at night."
+  "history_note": "Rats gnawed Alexander Selkirk's feet as he slept until he tamed feral cats to keep them off."
  },
  {
   "id": "gath_020",

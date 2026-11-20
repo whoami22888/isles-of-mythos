@@ -19,8 +19,8 @@
   "cooldown_s": 5400,
   "intro_lines": [
    "Puck worries a splintered oar handle, tail going.",
-   "You whistle. It tilts its head, unimpressed.",
-   "Fetch, then. First lesson of many."
+   "You whistle.",
+   "It tilts its head, unimpressed. Fetch, then."
   ],
   "choices": [
    {
@@ -197,9 +197,9 @@
   "weight": 6,
   "cooldown_s": 7200,
   "intro_lines": [
-   "Puck's nose drops. It digs with both forefeet.",
-   "Sand sprays your shins. It will not be stopped.",
-   "The rain has washed something loose in the dune."
+   "Puck's nose drops.",
+   "It digs with both forefeet.",
+   "Sand sprays your shins. It will not be stopped."
   ],
   "choices": [
    {
@@ -987,8 +987,8 @@
   "cooldown_s": 7200,
   "intro_lines": [
    "Puck works a scent line through the ferns.",
-   "Not a wild smell. Something carried.",
-   "It stops, hackles up, and looks back at you."
+   "Not a wild smell.",
+   "Something carried."
   ],
   "choices": [
    {
@@ -1165,8 +1165,8 @@
   "cooldown_s": 43200,
   "intro_lines": [
    "Puck digs at something under a scrap of canvas.",
-   "Not a shell. The sand there is the wrong shape.",
-   "It whines, digs harder, and will not be called off."
+   "Not a shell.",
+   "The sand there is the wrong shape."
   ],
   "choices": [
    {
@@ -1276,8 +1276,8 @@
   "cooldown_s": 6600,
   "intro_lines": [
    "Puck porpoises over the reef crest, hunting.",
-   "It dives. Bubbles, then nothing, then bubbles.",
-   "A grey shape slides past the far coral."
+   "It dives.",
+   "Bubbles, then nothing, then bubbles."
   ],
   "choices": [
    {
@@ -1454,9 +1454,9 @@
   "weight": 5,
   "cooldown_s": 0,
   "intro_lines": [
-   "He is UTC by his coat. Pressed, not willing.",
-   "His hands are bound with his own belt.",
-   "Puck licks the salt from his face and whines."
+   "He is UTC by his coat.",
+   "Pressed, not willing.",
+   "His hands are bound with his own belt."
   ],
   "choices": [
    {
@@ -1655,9 +1655,9 @@
   "weight": 5,
   "cooldown_s": 0,
   "intro_lines": [
-   "Puck is gone from the cot. You find it digging.",
-   "The canvas is shredded. Whatever is under it is metal.",
-   "It drags the thing to your feet and waits."
+   "Puck is gone from the cot.",
+   "You find it digging.",
+   "The canvas is shredded. Whatever is under it is metal."
   ],
   "choices": [
    {
@@ -1840,9 +1840,9 @@
   "weight": 6,
   "cooldown_s": 9000,
   "intro_lines": [
-   "You point Puck up the cliff path. It goes.",
-   "Ten minutes. Then a yelp, cut short.",
-   "Fog sits on the rocks like wet wool."
+   "You point Puck up the cliff path.",
+   "It goes.",
+   "Ten minutes. Then a yelp, cut short."
   ],
   "choices": [
    {
@@ -2220,7 +2220,7 @@
     ]
    }
   ],
-  "history_note": "Selkirk's tamed kid goats lived alongside his cats on Juan Fernandez."
+  "history_note": "Alexander Selkirk ran down feral goats on foot on Juan Fernandez and tamed kids for milk and company."
  },
  {
   "id": "pet_014",
@@ -2341,7 +2341,7 @@
     ]
    }
   ],
-  "history_note": "Selkirk tamed feral cats after rats gnawed his feet at night."
+  "history_note": "Rats gnawed Alexander Selkirk's feet as he slept until he tamed feral cats to keep them off."
  },
  {
   "id": "pet_015",

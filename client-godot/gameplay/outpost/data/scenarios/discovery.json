@@ -19,7 +19,8 @@
   "cooldown_s": 7200,
   "intro_lines": [
    "A lean-to of patched sailcloth flaps in the wind.",
-   "Cold ash in the fire pit. No footprints lead away."
+   "Cold ash in the fire pit.",
+   "No footprints lead away."
   ],
   "choices": [
    {
@@ -157,8 +158,8 @@
   "weight": 8,
   "cooldown_s": 14400,
   "intro_lines": [
-   "Lightning silhouettes a UTC sloop's mast, snapped",
-   "Dark-binding crystals still glow in the hold —"
+   "Lightning silhouettes a UTC sloop's mast.",
+   "Dark-binding crystals still hum in the hold."
   ],
   "choices": [
    {
@@ -346,7 +347,8 @@
   "weight": 6,
   "cooldown_s": 10800,
   "intro_lines": [
-   "A driftwood post driven deep. Carved arrows point three",
+   "A driftwood post driven deep.",
+   "Carved arrows point three ways.",
    "\"WATER 200 PACES\" — \"CAREENING BEACH\" — \"UTC WATCHTOWER\"."
   ],
   "choices": [
@@ -548,7 +550,8 @@
   "weight": 7,
   "cooldown_s": 172800,
   "intro_lines": [
-   "Blackened sand where tar kettles boiled. A keel's ghost",
+   "Blackened sand where tar kettles boiled.",
+   "A keel's ghost imprint remains.",
    "Broken cutlasses and a surgeon's saw half-buried"
   ],
   "choices": [
@@ -558,7 +561,7 @@
     "outcomes": [
      {
       "chance": 0.5,
-      "text": "Recover nails, hinges, a intact grappling hook.",
+      "text": "Recover nails, hinges, an intact grappling hook.",
       "effects": {
        "items": {
         "iron": 8,
@@ -735,8 +738,9 @@
   "weight": 9,
   "cooldown_s": 43200,
   "intro_lines": [
-   "A figure sits at your fire's edge. No boat on the horizon.",
-   "Salt-crusted coat. One hand on a cutlass, the other"
+   "A figure sits at your fire's edge.",
+   "No boat on the horizon.",
+   "Salt-crusted coat."
   ],
   "choices": [
    {
@@ -915,8 +919,9 @@
   "weight": 5,
   "cooldown_s": 0,
   "intro_lines": [
-   "Kestrel leads you to a cliffside cave. \"The cache. Half",
-   "Inside: chests spilling coin, relics — and a UTC signal"
+   "Kestrel leads you to a cliffside cave.",
+   "\"The cache.",
+   "Half yours.\" Inside: chests spilling coin, relics."
   ],
   "choices": [
    {
@@ -1034,7 +1039,8 @@
   "weight": 5,
   "cooldown_s": 0,
   "intro_lines": [
-   "Kestrel rows you to a sea cave at storm's height. \"The",
+   "Kestrel rows you to a sea cave at storm's height.",
+   "\"The ledger's here.\"",
    "Water rises. He hands you a key. \"For the chest."
   ],
   "choices": [

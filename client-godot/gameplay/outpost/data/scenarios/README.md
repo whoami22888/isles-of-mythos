@@ -17,7 +17,7 @@ Randomised, research-grounded event scenarios for the outpost event engine.
 | **Total** | **152** |
 
 Chained mini-stories: 19 chain starts, 61 next_event links, 30 follow-up scenarios.
-Rejected during QA: {'few_outcomes': 12, 'no_intro': 3}.
+Rejected during QA: {'note_fixed': 21, 'few_outcomes': 12, 'no_intro': 3}.
 
 ## Files
 - `<category>.json` - one JSON array per category (castaway, gathering, weather, sea, pirate, faction, discovery, mythos, pet, mystery).

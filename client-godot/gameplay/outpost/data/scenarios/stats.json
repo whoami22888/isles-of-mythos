@@ -15,6 +15,7 @@
  "chain_heads": 19,
  "chain_targets": 30,
  "rejected": {
+  "note_fixed": 21,
   "few_outcomes": 12,
   "no_intro": 3
  },

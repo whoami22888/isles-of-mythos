@@ -17,9 +17,9 @@
   "weight": 7,
   "cooldown_s": 3600,
   "intro_lines": [
-   "Third day of no wind. The sail hangs like wet laundry.",
-   "The sea is a hot coin. Your tongue sticks to your teeth.",
-   "Tide-Puck pants in the shade of the mast step."
+   "Third day of no wind.",
+   "The sail hangs like wet laundry.",
+   "The sea is a hot coin. Your tongue sticks to your teeth."
   ],
   "choices": [
    {
@@ -419,7 +419,7 @@
     ]
    }
   ],
-  "history_note": "Pedro Serrano's second castaway arrived quarrelsome and the two fought before they made peace — a stranger at sea is a wager either way you call it."
+  "history_note": "Ships sighted Pedro Serrano's smoke for years but stayed clear of the shoals around his cay."
  },
  {
   "id": "sea_003",
@@ -860,7 +860,7 @@
     ]
    }
   ],
-  "history_note": "Serrano salvaged lead basins to store water and watched his own provisions rot in the heat — what floats to you is worth only what it holds."
+  "history_note": "Ships sighted Pedro Serrano's smoke for years but stayed clear of the shoals around his cay."
  },
  {
   "id": "sea_005",
@@ -881,8 +881,8 @@
   "cooldown_s": 7200,
   "intro_lines": [
    "A triangular fin holds twenty yards off your quarter.",
-   "It has been there since noon. It is not leaving.",
-   "Tide-Puck will not go near the water side."
+   "It has been there since noon.",
+   "It is not leaving."
   ],
   "choices": [
    {
@@ -1313,9 +1313,9 @@
   "weight": 5,
   "cooldown_s": 6000,
   "intro_lines": [
-   "Something coils in the raft's lashings. Two somethings.",
-   "Banded, pale-bellied, thick as your wrist.",
-   "Tide-Puck has gone very still."
+   "Something coils in the raft's lashings.",
+   "Two somethings.",
+   "Banded, pale-bellied, thick as your wrist."
   ],
   "choices": [
    {
@@ -1533,12 +1533,12 @@
   "cooldown_s": 9000,
   "intro_lines": [
    "Your paddle trail lights up blue, then fades.",
-   "Every ripple burns cold fire. The sea is full of eyes.",
-   "Far out: a glow the size of a hill, moving slow."
+   "Every ripple burns cold fire.",
+   "The sea is full of eyes."
   ],
   "choices": [
    {
-    "label": "Paddle hard for the glow.",
+    "label": "Paddle hard for the hum.",
     "requires": {},
     "outcomes": [
      {
@@ -1564,7 +1564,7 @@
      },
      {
       "chance": 0.35,
-      "text": "The glow passes a mile off. The swell lifts you and sets you down, gentle.",
+      "text": "The hum passes a mile off. The swell lifts you and sets you down, gentle.",
       "effects": {
        "items": {},
        "hp": 0,
@@ -1626,7 +1626,7 @@
      },
      {
       "chance": 0.3,
-      "text": "The glow circles twice, then dives. The sea goes black and utterly quiet.",
+      "text": "The hum circles twice, then dives. The sea goes black and utterly quiet.",
       "effects": {
        "items": {},
        "hp": 0,
@@ -1744,8 +1744,8 @@
   "cooldown_s": 0,
   "intro_lines": [
    "The stranger's boat returns with a line and a spare oar.",
-   "\"You shared your water,\" he says. \"I pay what I owe.\"",
-   "He ties on and starts to pull."
+   "\"You shared your water,\" he says.",
+   "\"I pay what I owe.\" He ties on and starts to pull."
   ],
   "choices": [
    {
@@ -1962,8 +1962,8 @@
   "cooldown_s": 0,
   "intro_lines": [
    "He waited for dark, and for your eyes to get heavy.",
-   "The jug was a kindness. The knife is not.",
-   "Tide-Puck wakes you with a growl."
+   "The jug was a kindness.",
+   "The knife is not. Tide-Puck wakes you with a growl."
   ],
   "choices": [
    {
@@ -2185,8 +2185,8 @@
   "cooldown_s": 8400,
   "intro_lines": [
    "A three-master stands up on the reef, masts gone.",
-   "Her name-board reads MERIDIAN. UTC charter.",
-   "The surf is beating her to pieces, and there is smoke."
+   "Her name-board reads MERIDIAN.",
+   "UTC charter."
   ],
   "choices": [
    {
