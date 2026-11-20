@@ -115,7 +115,7 @@ func _clear_village() -> void:
 		var nm := str(mmi.name)
 		if "Summit" in nm or "Cliff" in nm or mmi.multimesh == null or mmi.multimesh.mesh == null:
 			continue
-		var mm := mmi.multimesh.duplicate() as MultiMesh
+		var mm := _copy_multimesh(mmi.multimesh)
 		mmi.multimesh = mm
 		var tall := "Palm" in nm or "Canopy" in nm or "Leeward" in nm or "Shrub" in nm or "Fern" in nm or "Understory" in nm or "Calathea" in nm
 		var r := mm.mesh.get_aabb().size.length() * 0.35
@@ -127,6 +127,24 @@ func _clear_village() -> void:
 			elif tall:
 				var rs := r * xf.basis.get_scale().x
 				_lens_items.append({"mm": mm, "i": i, "xf": mm.get_instance_transform(i), "pos": p + Vector3.UP * rs * 0.6, "r": rs})
+
+
+func _copy_multimesh(src: MultiMesh) -> MultiMesh:
+	var mm := MultiMesh.new()
+	mm.transform_format = src.transform_format
+	mm.use_colors = src.use_colors
+	mm.use_custom_data = src.use_custom_data
+	mm.mesh = src.mesh
+	mm.instance_count = src.instance_count
+	mm.visible_instance_count = src.visible_instance_count
+	mm.custom_aabb = src.custom_aabb
+	for i in src.instance_count:
+		mm.set_instance_transform(i, src.get_instance_transform(i))
+		if src.use_colors:
+			mm.set_instance_color(i, src.get_instance_color(i))
+		if src.use_custom_data:
+			mm.set_instance_custom_data(i, src.get_instance_custom_data(i))
+	return mm
 
 
 ## Hide tall foliage instances in front of the lens; restore once clear.
