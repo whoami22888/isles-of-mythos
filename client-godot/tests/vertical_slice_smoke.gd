@@ -24,6 +24,15 @@ func _init() -> void:
 		if child is Protocol:
 			has_protocol = true
 	_assert(has_protocol, "protocol client")
+	var command_protocol = Protocol.new()
+	_assert(not command_protocol.request_select_hotbar(-1), "hotbar selection must reject a negative slot")
+	_assert(not command_protocol.request_select_hotbar(8), "hotbar selection must reject a slot above seven")
+	_assert(not command_protocol.request_select_hotbar(0), "hotbar selection must require an authenticated session")
+	_assert(command_protocol.request_attack("", 1.0, 0.0).is_empty(), "attack must reject an empty target")
+	_assert(command_protocol.request_attack("creature:1:2:3", 2.0, 0.0).is_empty(), "attack must reject out-of-range facing values")
+	_assert(command_protocol.request_attack("creature:1:2:3", 0.0, 0.0).is_empty(), "attack must reject a zero facing vector")
+	_assert(command_protocol.request_attack("creature:1:2:3", 1.0, 0.0).is_empty(), "attack must require an authenticated session")
+	command_protocol.queue_free()
 	PlayerControllerRegression.run(root, Callable(self, "_assert"))
 	instance.queue_free()
 	await process_frame
