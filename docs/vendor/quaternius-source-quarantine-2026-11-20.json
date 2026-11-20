@@ -96,7 +96,7 @@
     "acquisition_environment": "temporary remote quarantine session",
     "reason": "The exact bytes were downloaded and SHA/ZIP integrity checked, but could not be materialized into the repository or a persistent attachment in this run. No archive or asset import commit was created."
   },
-  "next_action": "Materialize the original publisher bytes in a controlled quarantine workspace, capture per-file SHA-256 and dependency closure, resolve H05 licence-title mismatch and H06 missing embedded licence with publisher-specific evidence, then render in Godot 4.7.2 and compare to the owner reference before any production admission.",
+  "next_action": "Re-acquire H05 from its official publisher folder and persist the exact bytes; resolve H06's historical/current folder-ID mapping before acquisition. For both, capture per-file SHA-256 and dependency closure from the exact persisted bytes, retain original embedded licence files unchanged, then run Godot 4.7.2 import and actual visual comparison. Do not change vendor.lock.json or import any H05/H06 asset until these checks pass.",
   "latest_publisher_folder_observation": {
     "observed_date": "2026-11-20",
     "source": "public publisher-linked Google Drive folder listings, viewed without sign-in or modification",
@@ -227,6 +227,74 @@
       "evidence_required_before_admission": "Capture and hash the exact official pack-page content and CC0 deed at acquisition; preserve original embedded licence files unchanged; obtain a complete per-file SHA-256 manifest and dependency closure from the exact downloaded source bytes. Seek publisher clarification only if the captured pack-specific evidence or archive contents remain ambiguous.",
       "public_repository_rule": "Do not add H05/H06 source bytes or imported files until exact source bytes, per-file hashes, dependency closure and pack-specific licence evidence are persisted. If the CC0 pack-page evidence is retained and validated, public source redistribution is compatible with that CC0 grant; do not treat the global QAL page as automatically overriding the older pack-specific pages.",
       "next_evidence": "Persist the exact publisher folder contents in a controlled quarantine, generate a deterministic per-file SHA-256 manifest, preserve the original licence files unchanged, and bind the captured pack-page/CC0 evidence to the manifest."
+    }
+  },
+  "creator_license_evidence": {
+    "observed_at_utc": "2026-11-20T06:25:00Z",
+    "official_pack_pages": [
+      {
+        "id": "QH05-ULTIMATE-MONSTERS",
+        "url": "https://quaternius.com/packs/ultimatemonsters.html",
+        "page_release": "October 2022",
+        "page_license": "CC0",
+        "license_link": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "commercial_use_statement": true,
+        "creator_announcement_url": "https://www.patreon.com/quaternius/posts/ultimate-50-73633148",
+        "creator_announcement_date": "2022-10-22",
+        "creator_announcement_statement": "Free to use in any project, even commercially! (CC0)",
+        "official_download_folder_id": "18m4KpzpEzhC9wl7jzr6dUc0N8Jozr79C"
+      },
+      {
+        "id": "QH06-CUTE-ANIMATED-MONSTERS",
+        "url": "https://quaternius.com/packs/cutemonsters.html",
+        "page_release": "August 2020",
+        "page_license": "CC0",
+        "license_link": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "commercial_use_statement": true,
+        "creator_announcement_url": "https://www.patreon.com/quaternius/posts/cute-animated-20-39982825",
+        "creator_announcement_date": "2020-08-01",
+        "creator_announcement_statement": "Free for everyone to use in any project, even commercially! (CC0)",
+        "historical_creator_announcement_folder_id": "1-sKzV5R8k_f8bOrGNtIf4CWuVL3LJJcL",
+        "historical_folder_link_observation": "Current web fetch of the historical post's folder link returned 404; do not treat this ID as the currently downloadable folder."
+      }
+    ],
+    "current_global_license": {
+      "url": "https://quaternius.com/license.html",
+      "version": "Quaternius Asset License (QAL) v1.0",
+      "last_updated": "2026-08-28",
+      "relevant_section": "7",
+      "effect": "The publisher states changes do not apply retroactively to assets obtained under an earlier version; the version in effect at the time governs."
+    },
+    "assessment": {
+      "status": "PACK_SPECIFIC_CC0_EVIDENCE_CORROBORATED_ARCHIVE_ADMISSION_PENDING",
+      "finding": "Both pack-specific publisher pages currently display a CC0 badge linked to the CC0 1.0 deed and state commercial use. The creator's dated announcements independently state CC0 for the same named packs. The current global QAL page says changes are non-retroactive. This is stronger pack-specific licence evidence than the prior page-only record, but it does not verify the exact archive bytes, acquisition provenance, or per-file dependency closure. This is an evidence assessment, not legal advice.",
+      "h05_embedded_license_anomaly": "The archived License.txt title says Ultimate Platformer Pack while its body says CC0 1.0 Universal. Preserve the original file unchanged; the official pack page and creator announcement corroborate CC0 terms, but the title anomaly remains recorded.",
+      "h06_embedded_license_anomaly": "No embedded licence file was present in the previously observed archive. Preserve that absence; use the official pack page and creator announcement as separate source evidence rather than fabricating an embedded licence.",
+      "no_admission_effect": true
+    }
+  },
+  "archive_source_reconciliation": {
+    "observed_at_utc": "2026-11-20T06:25:00Z",
+    "h05": {
+      "official_folder_id": "18m4KpzpEzhC9wl7jzr6dUc0N8Jozr79C",
+      "prior_temporary_quarantine_sha256": "2c7c0987c59abee705fe2b4eb74000aaa02adce556eadedec5740cf99ec159ce",
+      "prior_archive_size_bytes": 46576830,
+      "persistence_status": "NOT_PERSISTED_TO_REPOSITORY_OR_NOTION",
+      "current_run_download_retest": "NOT_COMPLETED",
+      "canonical_pin_status": "HASH_RECORDED_BUT_BYTES_NOT_REPERSISTED"
+    },
+    "h06": {
+      "previously_observed_publisher_linked_folder_id": "1zLLO_7ZoWgUsS4uooYnVSErQYRu1VdS0",
+      "historical_creator_post_folder_id": "1-sKzV5R8k_f8bOrGNtIf4CWuVL3LJJcL",
+      "folder_mapping_status": "UNRESOLVED; THE TWO IDS MUST NOT BE SILENTLY TREATED AS THE SAME SOURCE",
+      "prior_archive_sha256_candidates": [
+        "da8b7cf52e0b84ff24cb851bf7d6844c5581451931dc4b6ccf10d9a7b32e5060",
+        "910725e79cc08c91a60bb3e95637b002f337c2c5a5f7c0df6e261366edc784f9"
+      ],
+      "canonical_sha256": null,
+      "persistence_status": "NOT_PERSISTED_TO_REPOSITORY_OR_NOTION",
+      "current_run_download_retest": "NOT_COMPLETED",
+      "canonical_pin_status": "NOT_CANONICAL; TWO EXPORT HASHES DIFFER AND FILE CONTENT EQUIVALENCE IS UNPROVEN"
     }
   }
 }
