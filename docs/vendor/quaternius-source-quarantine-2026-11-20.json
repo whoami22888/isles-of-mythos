@@ -218,10 +218,15 @@
       "summary": "CC0 deed states works may be copied, modified, distributed, and performed, including for commercial purposes."
     },
     "assessment": {
-      "status": "UNRESOLVED_NOT_ADMITTED",
-      "finding": "The two pack-specific pages display CC0 and predate the current global QAL v1.0 page. QAL section 7 is non-retroactive, which may preserve the earlier CC0 terms. This is evidence, not a legal determination. H05's embedded License.txt title mismatch and H06's missing embedded licence remain documented; neither is silently rewritten.",
-      "public_repository_rule": "Do not commit Quaternius source archives or standalone source assets to the public repository while QAL applicability remains unresolved. No H05/H06 files are imported.",
-      "next_evidence": "Persist original publisher bytes in a controlled quarantine environment, capture per-file SHA-256 and dependency closure, preserve the original licence files unchanged, and obtain pack-specific clarification or a versioned CC0 grant before admission."
+      "status": "PACK_PAGE_CC0_EVIDENCE_PRESENT_ARCHIVE_NOT_ADMITTED",
+      "finding": "Both official pack-specific pages currently display a CC0 badge, link to the CC0 1.0 deed, and state that the pack is free for personal and commercial projects. The current global QAL v1.0 page says it governs assets released under QAL and its Section 7 is non-retroactive. These facts support treating these two older, pack-specific CC0 listings as CC0 rather than automatically applying QAL to them. This is not a legal determination and does not resolve archive provenance anomalies.",
+      "embedded_document_anomalies": {
+        "H05": "Preserve the original embedded License.txt unchanged; its heading names 'Ultimate Platformer Pack'. Do not rewrite it to say Ultimate Monsters.",
+        "H06": "No embedded licence was found; retain the official pack-page CC0 evidence as a separate, hashed source record."
+      },
+      "evidence_required_before_admission": "Capture and hash the exact official pack-page content and CC0 deed at acquisition; preserve original embedded licence files unchanged; obtain a complete per-file SHA-256 manifest and dependency closure from the exact downloaded source bytes. Seek publisher clarification only if the captured pack-specific evidence or archive contents remain ambiguous.",
+      "public_repository_rule": "Do not add H05/H06 source bytes or imported files until exact source bytes, per-file hashes, dependency closure and pack-specific licence evidence are persisted. If the CC0 pack-page evidence is retained and validated, public source redistribution is compatible with that CC0 grant; do not treat the global QAL page as automatically overriding the older pack-specific pages.",
+      "next_evidence": "Persist the exact publisher folder contents in a controlled quarantine, generate a deterministic per-file SHA-256 manifest, preserve the original licence files unchanged, and bind the captured pack-page/CC0 evidence to the manifest."
     }
   }
 }
