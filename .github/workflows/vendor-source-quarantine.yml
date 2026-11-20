@@ -13,10 +13,11 @@ permissions:
 
 jobs:
   quarantine:
+    if: github.actor == 'whoami22888'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
-      contents: read
+      contents: write
     steps:
       - name: Fetch official Kenney archives into quarantine only
         shell: bash
@@ -201,6 +202,276 @@ jobs:
           if invalid:
               raise SystemExit("One or more source archives failed download/origin/integrity validation")
           PY
+      - name: Checkout Prompt 001 target branch for source admission
+        if: success()
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: build/prompt-001-vendor-lock-20261107
+          path: prompt001
+          token: ${{ secrets.GITHUB_TOKEN }}
+          persist-credentials: true
+      - name: Admit verified Kenney source archives to Prompt 001 lock
+        if: success()
+        shell: bash
+        env:
+          EXPECTED_TARGET_SHA: 2f1b4d858abdcf582a2418e3fd08ed736c73a365
+          TARGET_BRANCH: build/prompt-001-vendor-lock-20261107
+        run: |
+          set -euo pipefail
+          actual="$(git -C prompt001 rev-parse HEAD)"
+          if [ "$actual" != "$EXPECTED_TARGET_SHA" ]; then
+            echo "::error::Prompt 001 branch moved; expected $EXPECTED_TARGET_SHA, found $actual. No files were admitted."
+            exit 1
+          fi
+          python3 - <<'PY'
+          import hashlib, json, shutil, stat, struct, zipfile
+          from datetime import datetime, timezone
+          from pathlib import Path, PurePosixPath
+
+          packs = [
+              {
+                  "id": "H01",
+                  "archive": "kenney_pirate-kit.zip",
+                  "expected_sha256": "667ed2caf92954ddb98f7b7cede831fe99ab75063c26b25e23d32715bee9c943",
+                  "page": "https://kenney.nl/assets/pirate-kit",
+                  "url": "https://kenney.nl/media/pages/assets/pirate-kit/e6d4bb1525-1771333093/kenney_pirate-kit.zip",
+                  "pack_id": "kenney:H01-pirate-kit-2.1"
+              },
+              {
+                  "id": "H02",
+                  "archive": "kenney_watercraft-pack.zip",
+                  "expected_sha256": "cd1470c1cf441c7f46d0944ae6d0d897242365dc97677c5079b3238965d659f3",
+                  "page": "https://kenney.nl/assets/watercraft-kit",
+                  "url": "https://kenney.nl/media/pages/assets/watercraft-kit/a335cfed49-1713519620/kenney_watercraft-pack.zip",
+                  "pack_id": "kenney:H02-watercraft-kit-2.1"
+              },
+              {
+                  "id": "H03",
+                  "archive": "kenney_fantasy-town-kit_2.0.zip",
+                  "expected_sha256": "1a7530c09f4d2fa2cdee259876f089334f8b1f27fa86a0c4f54ef86cdd8676ef",
+                  "page": "https://kenney.nl/assets/fantasy-town-kit",
+                  "url": "https://kenney.nl/media/pages/assets/fantasy-town-kit/efe948d309-1754222374/kenney_fantasy-town-kit_2.0.zip",
+                  "pack_id": "kenney:H03-fantasy-town-kit-2.0"
+              },
+              {
+                  "id": "H04",
+                  "archive": "kenney_ui-pack-adventure.zip",
+                  "expected_sha256": "982e8ab66842509ee9214f9c2038e594cbe029f19d1dc177fecaad3b41a67ed3",
+                  "page": "https://kenney.nl/assets/ui-pack-adventure",
+                  "url": "https://kenney.nl/media/pages/assets/ui-pack-adventure/9a877376bc-1723597274/kenney_ui-pack-adventure.zip",
+                  "pack_id": "kenney:H04-ui-pack-adventure-1.1"
+              }
+          ]
+
+          def sha256(data):
+              return hashlib.sha256(data).hexdigest()
+
+          quarantine = Path("quarantine")
+          target = Path("prompt001")
+          manifest = json.loads((quarantine / "manifest.json").read_text())
+          records = {item["id"]: item for item in manifest["results"]}
+          lock_path = target / "vendor.lock.json"
+          lock = json.loads(lock_path.read_text())
+          if not isinstance(lock.get("assets"), list):
+              raise SystemExit("vendor.lock.json assets is not a list")
+
+          existing_paths = {item.get("path") for item in lock["assets"] if isinstance(item, dict)}
+          existing_pack_ids = {item.get("pack_id") for item in lock["assets"] if isinstance(item, dict)}
+          admission = {
+              "schema": "iom-vendor-source-admission:v1",
+              "status": "SOURCE_ARCHIVES_ADMITTED",
+              "admitted_at_utc": datetime.now(timezone.utc).isoformat(),
+              "scope": "archive-level source admission only; no individual asset is visually accepted",
+              "renderer_imported": False,
+              "visual_acceptance": "NOT_ACCEPTED",
+              "prompt_local_harvest_ids": ["H01", "H02", "H03", "H04"],
+              "global_harvest_parts_register_changed": False,
+              "sources": []
+          }
+
+          for pack in packs:
+              record = records.get(pack["id"])
+              if not record or record.get("status") != "QUARANTINED_BYTES_VERIFIED":
+                  raise SystemExit(f"{pack['id']} lacks a successful quarantine receipt")
+              archive = quarantine / "archives" / pack["archive"]
+              data = archive.read_bytes()
+              digest = sha256(data)
+              if digest != pack["expected_sha256"] or digest != record.get("archive_sha256"):
+                  raise SystemExit(f"{pack['id']} archive SHA-256 mismatch: {digest}")
+              if record.get("http_status") != "200" or not record.get("redirect_origin_allowed"):
+                  raise SystemExit(f"{pack['id']} did not come from the official HTTPS publisher origin")
+
+              with zipfile.ZipFile(archive) as zf:
+                  if zf.testzip() is not None:
+                      raise SystemExit(f"{pack['id']} ZIP CRC failure")
+                  infos = [info for info in zf.infolist() if not info.is_dir()]
+                  names = {info.filename for info in infos}
+                  if len(names) != len(infos):
+                      raise SystemExit(f"{pack['id']} duplicate archive member paths")
+                  expected_files = {item["path"]: item for item in record["files"]}
+                  if names != set(expected_files):
+                      raise SystemExit(f"{pack['id']} archive roster differs from quarantine manifest")
+                  for info in infos:
+                      name = info.filename
+                      path = PurePosixPath(name)
+                      mode = info.external_attr >> 16
+                      if path.is_absolute() or ".." in path.parts or "\\" in name or "\x00" in name:
+                          raise SystemExit(f"{pack['id']} unsafe member path: {name}")
+                      if stat.S_ISLNK(mode):
+                          raise SystemExit(f"{pack['id']} symlink member rejected: {name}")
+                      payload = zf.read(info)
+                      expected = expected_files[name]
+                      if len(payload) != expected["size_bytes"] or sha256(payload) != expected["sha256"]:
+                          raise SystemExit(f"{pack['id']} member hash/size mismatch: {name}")
+
+                  if "License.txt" not in names:
+                      raise SystemExit(f"{pack['id']} embedded License.txt missing")
+                  license_bytes = zf.read("License.txt")
+                  license_sha = sha256(license_bytes)
+                  license_text = license_bytes.decode("utf-8", errors="replace")
+                  license_candidate = next(
+                      (item for item in record.get("license_candidates", []) if item.get("path") == "License.txt"),
+                      None
+                  )
+                  if not license_candidate or license_candidate.get("sha256") != license_sha:
+                      raise SystemExit(f"{pack['id']} embedded license hash differs from quarantine receipt")
+                  if "Creative Commons Zero, CC0" not in license_text or "commercial purposes" not in license_text:
+                      raise SystemExit(f"{pack['id']} embedded license does not explicitly confirm CC0 commercial use")
+
+                  glb_count = 0
+                  glb_uri_count = 0
+                  for info in infos:
+                      if not info.filename.lower().endswith(".glb"):
+                          continue
+                      glb_count += 1
+                      glb = zf.read(info)
+                      if len(glb) < 20 or glb[:4] != b"glTF":
+                          raise SystemExit(f"{pack['id']} invalid GLB header: {info.filename}")
+                      version, declared_length = struct.unpack_from("<II", glb, 4)
+                      if version != 2 or declared_length != len(glb):
+                          raise SystemExit(f"{pack['id']} invalid GLB v2 length: {info.filename}")
+                      offset = 12
+                      document = None
+                      while offset + 8 <= len(glb):
+                          chunk_length, chunk_type = struct.unpack_from("<II", glb, offset)
+                          offset += 8
+                          chunk = glb[offset:offset + chunk_length]
+                          offset += chunk_length
+                          if offset > len(glb):
+                              raise SystemExit(f"{pack['id']} truncated GLB chunk: {info.filename}")
+                          if chunk_type == 0x4E4F534A:
+                              document = json.loads(chunk.rstrip(b"\x00 \t\r\n").decode("utf-8"))
+                      if document is None:
+                          raise SystemExit(f"{pack['id']} GLB JSON chunk missing: {info.filename}")
+                      for section in ("images", "buffers"):
+                          for dependency in document.get(section, []):
+                              uri = dependency.get("uri")
+                              if not uri:
+                                  continue
+                              if uri.startswith(("http://", "https://", "data:")):
+                                  raise SystemExit(f"{pack['id']} non-local GLB dependency rejected: {info.filename} -> {uri}")
+                              uri_path = PurePosixPath(uri)
+                              if uri_path.is_absolute() or ".." in uri_path.parts or "\\" in uri:
+                                  raise SystemExit(f"{pack['id']} unsafe GLB dependency: {info.filename} -> {uri}")
+                              resolved = str(PurePosixPath(info.filename).parent.joinpath(uri_path))
+                              if resolved not in names:
+                                  raise SystemExit(f"{pack['id']} missing GLB dependency: {info.filename} -> {uri}")
+                              glb_uri_count += 1
+
+              archive_rel = f"assets-src/kenney/{pack['id']}/{pack['archive']}"
+              license_rel = f"LICENSES/CC0-1.0-Kenney-{pack['id']}.txt"
+              archive_target = target / archive_rel
+              license_target = target / license_rel
+              archive_target.parent.mkdir(parents=True, exist_ok=True)
+              license_target.parent.mkdir(parents=True, exist_ok=True)
+              archive_target.write_bytes(data)
+              license_target.write_bytes(license_bytes)
+
+              entries = [
+                  {
+                      "path": archive_rel,
+                      "sha256": digest,
+                      "license": "CC0-1.0",
+                      "license_path": license_rel,
+                      "source_url": pack["url"],
+                      "vendor": "Kenney",
+                      "source_revision": digest,
+                      "pack_id": pack["pack_id"]
+                  },
+                  {
+                      "path": license_rel,
+                      "sha256": license_sha,
+                      "license": "CC0-1.0",
+                      "license_path": license_rel,
+                      "source_url": pack["url"],
+                      "vendor": "Kenney",
+                      "source_revision": digest,
+                      "pack_id": pack["pack_id"]
+                  }
+              ]
+              for entry in entries:
+                  if entry["path"] in existing_paths:
+                      raise SystemExit(f"Prompt 001 already locks {entry['path']}; refusing duplicate admission")
+                  lock["assets"].append(entry)
+                  existing_paths.add(entry["path"])
+              if pack["pack_id"] in existing_pack_ids:
+                  raise SystemExit(f"Prompt 001 already contains pack id {pack['pack_id']}")
+              existing_pack_ids.add(pack["pack_id"])
+
+              admission["sources"].append({
+                  "harvest_id": pack["id"],
+                  "pack_id": pack["pack_id"],
+                  "vendor": "Kenney",
+                  "publisher_page": pack["page"],
+                  "official_archive_url": pack["url"],
+                  "archive_path": archive_rel,
+                  "archive_size_bytes": len(data),
+                  "archive_sha256": digest,
+                  "license": "CC0-1.0",
+                  "license_path": license_rel,
+                  "license_sha256": license_sha,
+                  "license_text": next((line.strip() for line in license_text.splitlines() if line.strip()), ""),
+                  "zip_crc": "PASS",
+                  "file_count": len(infos),
+                  "extension_counts": record.get("extension_counts", {}),
+                  "glb_count": glb_count,
+                  "glb_dependency_references": glb_uri_count,
+                  "glb_dependency_closure": "PASS"
+              })
+
+          lock["assets"].sort(key=lambda item: item["path"])
+          lock_path.write_text(json.dumps(lock, indent=2) + "\n")
+          docs = target / "docs" / "vendor"
+          docs.mkdir(parents=True, exist_ok=True)
+          shutil.copy2(quarantine / "manifest.json", docs / "kenney-source-quarantine-manifest-2026-11-20.json")
+          (docs / "kenney-source-admission-2026-11-20.json").write_text(
+              json.dumps(admission, indent=2) + "\n"
+          )
+          (docs / "README.md").write_text(
+              "# Vendor source admission\n\n"
+              "Kenney H01-H04 original ZIP archives are admitted as hash-pinned source dependencies only. "
+              "The raw archives remain under assets-src/kenney/; no member has been imported into the Godot project "
+              "or accepted as premium visual art. The companion admission JSON and full quarantine manifest record "
+              "archive hashes, embedded CC0 notices, member hashes and GLB dependency closure. "
+              "Any selected asset still requires separate per-asset review, Godot 4.7.2 Mobile import/render evidence, "
+              "owner-reference visual comparison and applicable Android performance evidence. "
+              "Quaternius H05-H06 remain NOT ADMITTED pending their exact original archives and embedded licences.\n"
+          )
+
+          print(json.dumps({
+              "admitted_archive_count": len(admission["sources"]),
+              "admission": admission["sources"],
+              "vendor_lock_entries": len(lock["assets"])
+          }, indent=2))
+          PY
+          node prompt001/scripts/validate_vendor_lock.js
+          node --test prompt001/scripts/validate_vendor_lock.test.mjs
+          git -C prompt001 config user.name "github-actions[bot]"
+          git -C prompt001 config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git -C prompt001 add assets-src/kenney LICENSES/CC0-1.0-Kenney-H01.txt LICENSES/CC0-1.0-Kenney-H02.txt LICENSES/CC0-1.0-Kenney-H03.txt LICENSES/CC0-1.0-Kenney-H04.txt docs/vendor vendor.lock.json
+          git -C prompt001 diff --cached --check
+          git -C prompt001 commit -m "feat(assets): admit verified Kenney source archives H01-H04"
+          git -C prompt001 push origin "HEAD:refs/heads/$TARGET_BRANCH"
       - name: Upload original archives and quarantine receipts
         if: always()
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808
