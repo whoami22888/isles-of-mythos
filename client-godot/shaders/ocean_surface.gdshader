@@ -38,6 +38,31 @@ varying float swell_crest;
 uniform bool shoremap_bound = false;
 uniform vec2 near_patch_half_extent = vec2(92.0, 70.0);
 
+// Heightfield ring samples identify real nearby land; no periodic shoreline lattice.
+const vec2 RING_DIRS[12] = vec2[12](
+    vec2(1.0, 0.0), vec2(0.8660254, 0.5), vec2(0.5, 0.8660254), vec2(0.0, 1.0),
+    vec2(-0.5, 0.8660254), vec2(-0.8660254, 0.5), vec2(-1.0, 0.0), vec2(-0.8660254, -0.5),
+    vec2(-0.5, -0.8660254), vec2(0.0, -1.0), vec2(0.5, -0.8660254), vec2(0.8660254, -0.5)
+);
+
+float foam_hash(vec2 q) {
+    return fract(sin(dot(q, vec2(127.1, 311.7))) * 43758.5453);
+}
+
+// Fraction of sampled ring points whose real heightfield is land.
+float shore_land_fraction(vec2 p, float radius_m) {
+    float land_fraction = 0.0;
+    for (int i = 0; i < 12; i++) {
+        vec2 sample_position = p + RING_DIRS[i] * radius_m;
+        land_fraction += smoothstep(
+            SEA_LEVEL - 0.08,
+            SEA_LEVEL + 0.08,
+            shore_terrain_height(sample_position)
+        );
+    }
+    return land_fraction / 12.0;
+}
+
 void vertex() {
     float ocean_time = deterministic_capture ? capture_time_seconds : TIME;
     vec2 xz = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xz;
@@ -151,6 +176,17 @@ void fragment() {
     float depth_contact = coverage * (1.0 - smoothstep(0.08, 1.35, depth_m));
     float contact = max(terrain_contact, depth_contact);
 
+    // Limit the 24 heightfield taps to covered shoreline-contact pixels.
+    // This avoids paying the ring-sampling cost across the full ocean plane.
+    float water_here = (1.0 - smoothstep(SEA_LEVEL - 0.08, SEA_LEVEL + 0.08, floor_y)) * coverage;
+    float land_near = 0.0;
+    float land_far = 0.0;
+    if (water_here > 0.0 && contact > 0.0) {
+        land_near = shore_land_fraction(p, 1.1);
+        land_far = shore_land_fraction(p, 2.6);
+    }
+    float shore_band = clamp(land_near * 1.1 + land_far * 0.35, 0.0, 1.0);
+
     // Gentle micro normals. High-frequency normals plus a shiny roughness
     // produced a repeating diamond lattice under the mobile specular model.
     float micro_a = sin(dot(p, vec2(1.15, 0.72)) - ocean_time * 1.4 * wave_speed);
@@ -168,7 +204,22 @@ void fragment() {
                        * cos(p.y * 2.1 - ocean_time * 0.85 * wave_speed);
     foam_pattern += sin(p.x * 3.4 - p.y * 2.6 + ocean_time * 1.5 * wave_speed) * 0.35;
     float foam_motion = smoothstep(-0.15, 0.72, foam_pattern);
-    float shore_foam = contact * foam_motion * foam_amount;
+    vec2 foam_cell = floor(p * 3.5);
+    vec2 foam_cell_fraction = fract(p * 3.5);
+    foam_cell_fraction = foam_cell_fraction * foam_cell_fraction * (3.0 - 2.0 * foam_cell_fraction);
+    float breakup_noise = mix(
+        mix(foam_hash(foam_cell), foam_hash(foam_cell + vec2(1.0, 0.0)), foam_cell_fraction.x),
+        mix(foam_hash(foam_cell + vec2(0.0, 1.0)), foam_hash(foam_cell + vec2(1.0, 1.0)), foam_cell_fraction.x),
+        foam_cell_fraction.y
+    );
+    float breakup = 0.78 + 0.22 * breakup_noise;
+    // Sine motion is a gentle temporal modulation only; aperiodic breakup
+    // and real land occupancy define the shoreline shape.
+    float shore_foam = clamp(
+        contact * shore_band * breakup * mix(0.55, 1.0, foam_motion) * foam_amount * 0.9,
+        0.0,
+        1.0
+    );
 
     vec2 fwd = vessel_forward;
     float fwd_len = length(fwd);
