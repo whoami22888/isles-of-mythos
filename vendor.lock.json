@@ -3,6 +3,56 @@
   "version": "1.0.0",
   "assets": [
     {
+      "path": "LICENSES/CC0-1.0-Kenney-H01.txt",
+      "sha256": "5e99246a5a65fa3420a1a1c7a8616f096202c78866f73d7aacfe73c0aab0ca36",
+      "license": "CC0-1.0",
+      "license_path": "LICENSES/CC0-1.0-Kenney-H01.txt",
+      "source_url": "https://kenney.nl/media/pages/assets/pirate-kit/e6d4bb1525-1771333093/kenney_pirate-kit.zip",
+      "vendor": "Kenney",
+      "source_revision": "667ed2caf92954ddb98f7b7cede831fe99ab75063c26b25e23d32715bee9c943",
+      "pack_id": "kenney:H01-pirate-kit-2.1"
+    },
+    {
+      "path": "LICENSES/CC0-1.0-Kenney-H02.txt",
+      "sha256": "f5f520f81277128fb422aebe334d2f08e6d8e5f7face6008885d8ff920253724",
+      "license": "CC0-1.0",
+      "license_path": "LICENSES/CC0-1.0-Kenney-H02.txt",
+      "source_url": "https://kenney.nl/media/pages/assets/watercraft-kit/a335cfed49-1713519620/kenney_watercraft-pack.zip",
+      "vendor": "Kenney",
+      "source_revision": "cd1470c1cf441c7f46d0944ae6d0d897242365dc97677c5079b3238965d659f3",
+      "pack_id": "kenney:H02-watercraft-kit-2.1"
+    },
+    {
+      "path": "LICENSES/CC0-1.0-Kenney-H03.txt",
+      "sha256": "fb8e4817197ef9f62215e95b4451a0f09c769c8e03e416e3a2ce108dfa6117e4",
+      "license": "CC0-1.0",
+      "license_path": "LICENSES/CC0-1.0-Kenney-H03.txt",
+      "source_url": "https://kenney.nl/media/pages/assets/fantasy-town-kit/efe948d309-1754222374/kenney_fantasy-town-kit_2.0.zip",
+      "vendor": "Kenney",
+      "source_revision": "1a7530c09f4d2fa2cdee259876f089334f8b1f27fa86a0c4f54ef86cdd8676ef",
+      "pack_id": "kenney:H03-fantasy-town-kit-2.0"
+    },
+    {
+      "path": "LICENSES/CC0-1.0-Kenney-H04.txt",
+      "sha256": "593b79956190ca70b37ce5d0d1c71dd4b5fb4027d4d1d29a91814e950a36e6bd",
+      "license": "CC0-1.0",
+      "license_path": "LICENSES/CC0-1.0-Kenney-H04.txt",
+      "source_url": "https://kenney.nl/media/pages/assets/ui-pack-adventure/9a877376bc-1723597274/kenney_ui-pack-adventure.zip",
+      "vendor": "Kenney",
+      "source_revision": "982e8ab66842509ee9214f9c2038e594cbe029f19d1dc177fecaad3b41a67ed3",
+      "pack_id": "kenney:H04-ui-pack-adventure-1.1"
+    },
+    {
+      "path": "LICENSES/MIT-Corsairs.txt",
+      "sha256": "a19216d77b8a60728f66fd3db0f90406cc6e33948b3bc44ee552fddd864596ec",
+      "license": "MIT",
+      "license_path": "LICENSES/MIT-Corsairs.txt",
+      "source_url": "https://github.com/Elkhan-Isayev/corsairs/blob/22467f438be328924e6abf0578e970943eb0fd88/LICENSE",
+      "vendor": "Elkhan Isayev / Corsairs",
+      "source_revision": "22467f438be328924e6abf0578e970943eb0fd88",
+      "pack_id": "corsairs:naval-math"
+    },
+    {
       "path": "assets-src/corsairs/core/ammo.gd",
       "sha256": "1bca438a994524e4ad3d4ba3a1b7467aaf8d797e7e2fa729b66433f8921184a7",
       "license": "MIT",
@@ -43,16 +93,6 @@
       "pack_id": "corsairs:naval-math"
     },
     {
-      "path": "assets-src/corsairs/core/ship_types.gd",
-      "sha256": "403b3e66569afc23a97756a323bf23659865cbaa6f499daa3f0dbe2457ec765a",
-      "license": "MIT",
-      "license_path": "LICENSES/MIT-Corsairs.txt",
-      "source_url": "https://github.com/Elkhan-Isayev/corsairs/blob/22467f438be328924e6abf0578e970943eb0fd88/core/ship_types.gd",
-      "vendor": "Elkhan Isayev / Corsairs",
-      "source_revision": "22467f438be328924e6abf0578e970943eb0fd88",
-      "pack_id": "corsairs:naval-math"
-    },
-    {
       "path": "assets-src/corsairs/core/ship.gd",
       "sha256": "9cf88c63ee7100350e3989a2ed227a58914e659c5575e43467415ce9f73238c0",
       "license": "MIT",
@@ -63,14 +103,54 @@
       "pack_id": "corsairs:naval-math"
     },
     {
-      "path": "client-godot/assets/external/polyhaven/coast_rocks_05/coast_rocks_05_1k.gltf",
-      "sha256": "4b5e97d42b4d9e1999ee5961922adc6b5d81f4aad34219915def7975bb2a8eb7",
+      "path": "assets-src/corsairs/core/ship_types.gd",
+      "sha256": "403b3e66569afc23a97756a323bf23659865cbaa6f499daa3f0dbe2457ec765a",
+      "license": "MIT",
+      "license_path": "LICENSES/MIT-Corsairs.txt",
+      "source_url": "https://github.com/Elkhan-Isayev/corsairs/blob/22467f438be328924e6abf0578e970943eb0fd88/core/ship_types.gd",
+      "vendor": "Elkhan Isayev / Corsairs",
+      "source_revision": "22467f438be328924e6abf0578e970943eb0fd88",
+      "pack_id": "corsairs:naval-math"
+    },
+    {
+      "path": "assets-src/kenney/H01/kenney_pirate-kit.zip",
+      "sha256": "667ed2caf92954ddb98f7b7cede831fe99ab75063c26b25e23d32715bee9c943",
       "license": "CC0-1.0",
-      "license_path": "LICENSES/CC0-1.0-PolyHaven.txt",
-      "source_url": "https://polyhaven.com/a/coast_rocks_05",
-      "vendor": "Poly Haven",
-      "pack_id": "polyhaven:coast_rocks_05",
-      "source_identity": "polyhaven-file:coast_rocks_05/coast_rocks_05_1k.gltf@sha256:4b5e97d42b4d9e1999ee5961922adc6b5d81f4aad34219915def7975bb2a8eb7"
+      "license_path": "LICENSES/CC0-1.0-Kenney-H01.txt",
+      "source_url": "https://kenney.nl/media/pages/assets/pirate-kit/e6d4bb1525-1771333093/kenney_pirate-kit.zip",
+      "vendor": "Kenney",
+      "source_revision": "667ed2caf92954ddb98f7b7cede831fe99ab75063c26b25e23d32715bee9c943",
+      "pack_id": "kenney:H01-pirate-kit-2.1"
+    },
+    {
+      "path": "assets-src/kenney/H02/kenney_watercraft-pack.zip",
+      "sha256": "cd1470c1cf441c7f46d0944ae6d0d897242365dc97677c5079b3238965d659f3",
+      "license": "CC0-1.0",
+      "license_path": "LICENSES/CC0-1.0-Kenney-H02.txt",
+      "source_url": "https://kenney.nl/media/pages/assets/watercraft-kit/a335cfed49-1713519620/kenney_watercraft-pack.zip",
+      "vendor": "Kenney",
+      "source_revision": "cd1470c1cf441c7f46d0944ae6d0d897242365dc97677c5079b3238965d659f3",
+      "pack_id": "kenney:H02-watercraft-kit-2.1"
+    },
+    {
+      "path": "assets-src/kenney/H03/kenney_fantasy-town-kit_2.0.zip",
+      "sha256": "1a7530c09f4d2fa2cdee259876f089334f8b1f27fa86a0c4f54ef86cdd8676ef",
+      "license": "CC0-1.0",
+      "license_path": "LICENSES/CC0-1.0-Kenney-H03.txt",
+      "source_url": "https://kenney.nl/media/pages/assets/fantasy-town-kit/efe948d309-1754222374/kenney_fantasy-town-kit_2.0.zip",
+      "vendor": "Kenney",
+      "source_revision": "1a7530c09f4d2fa2cdee259876f089334f8b1f27fa86a0c4f54ef86cdd8676ef",
+      "pack_id": "kenney:H03-fantasy-town-kit-2.0"
+    },
+    {
+      "path": "assets-src/kenney/H04/kenney_ui-pack-adventure.zip",
+      "sha256": "982e8ab66842509ee9214f9c2038e594cbe029f19d1dc177fecaad3b41a67ed3",
+      "license": "CC0-1.0",
+      "license_path": "LICENSES/CC0-1.0-Kenney-H04.txt",
+      "source_url": "https://kenney.nl/media/pages/assets/ui-pack-adventure/9a877376bc-1723597274/kenney_ui-pack-adventure.zip",
+      "vendor": "Kenney",
+      "source_revision": "982e8ab66842509ee9214f9c2038e594cbe029f19d1dc177fecaad3b41a67ed3",
+      "pack_id": "kenney:H04-ui-pack-adventure-1.1"
     },
     {
       "path": "client-godot/assets/external/polyhaven/coast_rocks_05/coast_rocks_05.bin",
@@ -81,6 +161,16 @@
       "vendor": "Poly Haven",
       "pack_id": "polyhaven:coast_rocks_05",
       "source_identity": "polyhaven-file:coast_rocks_05/coast_rocks_05.bin@sha256:c46b19d62dd5d42d5f03bc7508e22fdc00ec88fa197b4fdf8db8e40929ea13cc"
+    },
+    {
+      "path": "client-godot/assets/external/polyhaven/coast_rocks_05/coast_rocks_05_1k.gltf",
+      "sha256": "4b5e97d42b4d9e1999ee5961922adc6b5d81f4aad34219915def7975bb2a8eb7",
+      "license": "CC0-1.0",
+      "license_path": "LICENSES/CC0-1.0-PolyHaven.txt",
+      "source_url": "https://polyhaven.com/a/coast_rocks_05",
+      "vendor": "Poly Haven",
+      "pack_id": "polyhaven:coast_rocks_05",
+      "source_identity": "polyhaven-file:coast_rocks_05/coast_rocks_05_1k.gltf@sha256:4b5e97d42b4d9e1999ee5961922adc6b5d81f4aad34219915def7975bb2a8eb7"
     },
     {
       "path": "client-godot/assets/external/polyhaven/coast_rocks_05/textures/coast_rocks_05_arm_1k.jpg",
@@ -163,16 +253,6 @@
       "source_identity": "polyhaven-file:coast_sand_rocks_02/coast_sand_rocks_02_rough_1k.jpg@sha256:02209fc6bb56673585fa29ab78f96651975317839292c31a96844ab7d90a413d"
     },
     {
-      "path": "client-godot/assets/external/polyhaven/coastal_cliff_01/coastal_cliff_01_1k.gltf",
-      "sha256": "2e6bb1f77965b314208b309ac89b94b8148c6a08ee6c9808cd71455e5475602d",
-      "license": "CC0-1.0",
-      "license_path": "LICENSES/CC0-1.0-PolyHaven.txt",
-      "source_url": "https://polyhaven.com/a/coastal_cliff_01",
-      "vendor": "Poly Haven",
-      "pack_id": "polyhaven:coastal_cliff_01",
-      "source_identity": "polyhaven-file:coastal_cliff_01/coastal_cliff_01_1k.gltf@sha256:2e6bb1f77965b314208b309ac89b94b8148c6a08ee6c9808cd71455e5475602d"
-    },
-    {
       "path": "client-godot/assets/external/polyhaven/coastal_cliff_01/coastal_cliff_01.bin",
       "sha256": "6833dfaf75e0d039e64bc09ad642c4be3361739f20048af32ad50fd8e6471a65",
       "license": "CC0-1.0",
@@ -181,6 +261,16 @@
       "vendor": "Poly Haven",
       "pack_id": "polyhaven:coastal_cliff_01",
       "source_identity": "polyhaven-file:coastal_cliff_01/coastal_cliff_01.bin@sha256:6833dfaf75e0d039e64bc09ad642c4be3361739f20048af32ad50fd8e6471a65"
+    },
+    {
+      "path": "client-godot/assets/external/polyhaven/coastal_cliff_01/coastal_cliff_01_1k.gltf",
+      "sha256": "2e6bb1f77965b314208b309ac89b94b8148c6a08ee6c9808cd71455e5475602d",
+      "license": "CC0-1.0",
+      "license_path": "LICENSES/CC0-1.0-PolyHaven.txt",
+      "source_url": "https://polyhaven.com/a/coastal_cliff_01",
+      "vendor": "Poly Haven",
+      "pack_id": "polyhaven:coastal_cliff_01",
+      "source_identity": "polyhaven-file:coastal_cliff_01/coastal_cliff_01_1k.gltf@sha256:2e6bb1f77965b314208b309ac89b94b8148c6a08ee6c9808cd71455e5475602d"
     },
     {
       "path": "client-godot/assets/external/polyhaven/coastal_cliff_01/textures/coastal_cliff_01_arm_1k.jpg",
@@ -323,16 +413,6 @@
       "source_identity": "polyhaven-file:dutch_ship_medium/textures/dutch_ship_medium_sails_nor_gl_1k.jpg@sha256:3ba665979b047c91386e89a855d1b9038f1c2e5cda116ecea1a54f976cf12fa4"
     },
     {
-      "path": "client-godot/assets/external/polyhaven/island_tree_01/island_tree_01_1k.gltf",
-      "sha256": "78e905a40670bfabb2760601d4d9a6c17193a50d68e6271c66893eb7bd75906d",
-      "license": "CC0-1.0",
-      "license_path": "LICENSES/CC0-1.0-PolyHaven.txt",
-      "source_url": "https://polyhaven.com/a/island_tree_01",
-      "vendor": "Poly Haven",
-      "pack_id": "polyhaven:island_tree_01",
-      "source_identity": "polyhaven-file:island_tree_01/island_tree_01_1k.gltf@sha256:78e905a40670bfabb2760601d4d9a6c17193a50d68e6271c66893eb7bd75906d"
-    },
-    {
       "path": "client-godot/assets/external/polyhaven/island_tree_01/island_tree_01.bin",
       "sha256": "1faa817b46e24ed6fc90d3ec72188a0dc5ac75e82c89b3dd3c5fdaecf7cc005c",
       "license": "CC0-1.0",
@@ -341,6 +421,16 @@
       "vendor": "Poly Haven",
       "pack_id": "polyhaven:island_tree_01",
       "source_identity": "polyhaven-file:island_tree_01/island_tree_01.bin@sha256:1faa817b46e24ed6fc90d3ec72188a0dc5ac75e82c89b3dd3c5fdaecf7cc005c"
+    },
+    {
+      "path": "client-godot/assets/external/polyhaven/island_tree_01/island_tree_01_1k.gltf",
+      "sha256": "78e905a40670bfabb2760601d4d9a6c17193a50d68e6271c66893eb7bd75906d",
+      "license": "CC0-1.0",
+      "license_path": "LICENSES/CC0-1.0-PolyHaven.txt",
+      "source_url": "https://polyhaven.com/a/island_tree_01",
+      "vendor": "Poly Haven",
+      "pack_id": "polyhaven:island_tree_01",
+      "source_identity": "polyhaven-file:island_tree_01/island_tree_01_1k.gltf@sha256:78e905a40670bfabb2760601d4d9a6c17193a50d68e6271c66893eb7bd75906d"
     },
     {
       "path": "client-godot/assets/external/polyhaven/island_tree_01/textures/island_tree_01_arm_1k.jpg",
@@ -433,16 +523,6 @@
       "source_identity": "polyhaven-file:island_tree_01/textures/island_tree_01_nor_gl_1k.jpg@sha256:ca22e428e1b1ebac47b2fc67ec355700c8779d6628d2fc6c3ebae9002988f63e"
     },
     {
-      "path": "client-godot/assets/external/polyhaven/island_tree_02/island_tree_02_1k.gltf",
-      "sha256": "d8c5d9ead41cdbef91a648f40ff60470faa19eb3a7010e59e44cb1a01250f75d",
-      "license": "CC0-1.0",
-      "license_path": "LICENSES/CC0-1.0-PolyHaven.txt",
-      "source_url": "https://polyhaven.com/a/island_tree_02",
-      "vendor": "Poly Haven",
-      "pack_id": "polyhaven:island_tree_02",
-      "source_identity": "polyhaven-file:island_tree_02/island_tree_02_1k.gltf@sha256:d8c5d9ead41cdbef91a648f40ff60470faa19eb3a7010e59e44cb1a01250f75d"
-    },
-    {
       "path": "client-godot/assets/external/polyhaven/island_tree_02/island_tree_02.bin",
       "sha256": "427d69ccc1ea12d1fb9c6af89691563b4a097f39a6f34c15be6e45ef5e5fd4ce",
       "license": "CC0-1.0",
@@ -451,6 +531,16 @@
       "vendor": "Poly Haven",
       "pack_id": "polyhaven:island_tree_02",
       "source_identity": "polyhaven-file:island_tree_02/island_tree_02.bin@sha256:427d69ccc1ea12d1fb9c6af89691563b4a097f39a6f34c15be6e45ef5e5fd4ce"
+    },
+    {
+      "path": "client-godot/assets/external/polyhaven/island_tree_02/island_tree_02_1k.gltf",
+      "sha256": "d8c5d9ead41cdbef91a648f40ff60470faa19eb3a7010e59e44cb1a01250f75d",
+      "license": "CC0-1.0",
+      "license_path": "LICENSES/CC0-1.0-PolyHaven.txt",
+      "source_url": "https://polyhaven.com/a/island_tree_02",
+      "vendor": "Poly Haven",
+      "pack_id": "polyhaven:island_tree_02",
+      "source_identity": "polyhaven-file:island_tree_02/island_tree_02_1k.gltf@sha256:d8c5d9ead41cdbef91a648f40ff60470faa19eb3a7010e59e44cb1a01250f75d"
     },
     {
       "path": "client-godot/assets/external/polyhaven/island_tree_02/textures/island_tree_02_arm_1k.jpg",
@@ -543,16 +633,6 @@
       "source_identity": "polyhaven-file:island_tree_02/textures/island_tree_02_nor_gl_1k.jpg@sha256:1580d5a42d02f4ede51bfb03972ab0aef3d8acafbd3692276879171007bb70ec"
     },
     {
-      "path": "client-godot/assets/external/polyhaven/rock_moss_set_01/rock_moss_set_01_1k.gltf",
-      "sha256": "c36675aca9c6b2be7785c2534cf413b03ec82a5a2a5407a2b1c0cdb0346c9727",
-      "license": "CC0-1.0",
-      "license_path": "LICENSES/CC0-1.0-PolyHaven.txt",
-      "source_url": "https://polyhaven.com/a/rock_moss_set_01",
-      "vendor": "Poly Haven",
-      "pack_id": "polyhaven:rock_moss_set_01",
-      "source_identity": "polyhaven-file:rock_moss_set_01/rock_moss_set_01_1k.gltf@sha256:c36675aca9c6b2be7785c2534cf413b03ec82a5a2a5407a2b1c0cdb0346c9727"
-    },
-    {
       "path": "client-godot/assets/external/polyhaven/rock_moss_set_01/rock_moss_set_01.bin",
       "sha256": "de8360e6175879aaf02c171911069cf5f1852547f9ca7f10e440085dbcc3315e",
       "license": "CC0-1.0",
@@ -561,6 +641,16 @@
       "vendor": "Poly Haven",
       "pack_id": "polyhaven:rock_moss_set_01",
       "source_identity": "polyhaven-file:rock_moss_set_01/rock_moss_set_01.bin@sha256:de8360e6175879aaf02c171911069cf5f1852547f9ca7f10e440085dbcc3315e"
+    },
+    {
+      "path": "client-godot/assets/external/polyhaven/rock_moss_set_01/rock_moss_set_01_1k.gltf",
+      "sha256": "c36675aca9c6b2be7785c2534cf413b03ec82a5a2a5407a2b1c0cdb0346c9727",
+      "license": "CC0-1.0",
+      "license_path": "LICENSES/CC0-1.0-PolyHaven.txt",
+      "source_url": "https://polyhaven.com/a/rock_moss_set_01",
+      "vendor": "Poly Haven",
+      "pack_id": "polyhaven:rock_moss_set_01",
+      "source_identity": "polyhaven-file:rock_moss_set_01/rock_moss_set_01_1k.gltf@sha256:c36675aca9c6b2be7785c2534cf413b03ec82a5a2a5407a2b1c0cdb0346c9727"
     },
     {
       "path": "client-godot/assets/external/polyhaven/rock_moss_set_01/textures/rock_moss_set_01_diff_1k.jpg",
@@ -701,16 +791,6 @@
       "vendor": "Poly Haven",
       "pack_id": "polyhaven:tree_small_02",
       "source_identity": "polyhaven-file:tree_small_02/tree_small_02.bin@sha256:8da6c3c389ad8748286d1b7488cd827f75ebdad9d8f59ef7dfb0916df5edc634"
-    },
-    {
-      "path": "LICENSES/MIT-Corsairs.txt",
-      "sha256": "a19216d77b8a60728f66fd3db0f90406cc6e33948b3bc44ee552fddd864596ec",
-      "license": "MIT",
-      "license_path": "LICENSES/MIT-Corsairs.txt",
-      "source_url": "https://github.com/Elkhan-Isayev/corsairs/blob/22467f438be328924e6abf0578e970943eb0fd88/LICENSE",
-      "vendor": "Elkhan Isayev / Corsairs",
-      "source_revision": "22467f438be328924e6abf0578e970943eb0fd88",
-      "pack_id": "corsairs:naval-math"
     }
   ]
 }

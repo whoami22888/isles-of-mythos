@@ -1,0 +1,3 @@
+# Vendor source admission
+
+Kenney H01-H04 original ZIP archives are admitted as hash-pinned source dependencies only. The raw archives remain under assets-src/kenney/; no member has been imported into the Godot project or accepted as premium visual art. The companion admission JSON and full quarantine manifest record archive hashes, embedded CC0 notices, member hashes and GLB dependency closure. Any selected asset still requires separate per-asset review, Godot 4.7.2 Mobile import/render evidence, owner-reference visual comparison and applicable Android performance evidence. Quaternius H05-H06 remain NOT ADMITTED pending their exact original archives and embedded licences.
