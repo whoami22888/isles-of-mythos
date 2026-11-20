@@ -242,6 +242,21 @@ func run() -> void:
 	var after_partial_retry := FileAccess.get_file_as_string(FallbackFactory.LOG_PATH)
 	check(retry_error == OK and after_partial_retry == before_partial_append + partial_record,
 		"Retry after a partial append must produce exactly one complete TSV record")
+	# Recover an unterminated record left behind when an earlier rollback could not complete.
+	var before_crash_recovery := after_partial_retry
+	var torn_file := FileAccess.open(FallbackFactory.LOG_PATH, FileAccess.READ_WRITE)
+	check(torn_file != null, "Torn-tail recovery fixture must open")
+	if torn_file != null:
+		torn_file.seek_end()
+		var torn_prefix := "mesh\tcrash_recovery_004"
+		var torn_write_ok := torn_file.store_string(torn_prefix)
+		torn_file.close()
+		check(torn_write_ok, "Torn-tail fixture must append its incomplete prefix")
+		var recovery_record := "mesh\tcrash_recovery_004.glb\n"
+		var recovery_error: int = FallbackFactory._append_log_line(recovery_record)
+		var recovered_text := FileAccess.get_file_as_string(FallbackFactory.LOG_PATH)
+		check(recovery_error == OK and recovered_text == before_crash_recovery + recovery_record,
+			"Next append must truncate a persisted partial TSV tail before writing one complete record")
 	# Simulate a new process: the in-memory set resets, but persisted log size stays bounded.
 	var restart_path := "res://_restart_repeat_004.glb"
 	var restart_key := "mesh:" + restart_path
