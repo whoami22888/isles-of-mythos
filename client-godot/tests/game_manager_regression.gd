@@ -122,6 +122,16 @@ static func run(tree: SceneTree, check: Callable) -> void:
 	replacement_protocol.player_state_received.emit({"inventory": {"resource.wood": 750}})
 	check.call(manager.get_resource_amount("wood") == 750, "The replacement protocol must drive the resource projection")
 
+	# An invalid candidate must not disconnect the currently working protocol.
+	var invalid_protocol := Node.new()
+	tree.root.add_child(invalid_protocol)
+	check.call(not manager.bind_protocol(invalid_protocol), "A replacement without the required authoritative signals must be rejected")
+	check.call(replacement_protocol.is_connected("player_state_received", Callable(manager, "_on_player_state_received")), "Rejecting an invalid replacement must preserve the active player-state connection")
+	check.call(replacement_protocol.is_connected("command_acknowledged", Callable(manager, "_on_command_acknowledged")), "Rejecting an invalid replacement must preserve the active ACK connection")
+	replacement_protocol.player_state_received.emit({"inventory": {"resource.wood": 625}})
+	check.call(manager.get_resource_amount("wood") == 625, "The active protocol must continue updating the projection after an invalid replacement")
+	invalid_protocol.queue_free()
+
 	check.call(manager.bind_protocol(null), "The GameManager protocol binding must be safely releasable")
 	manager.state_changed.disconnect(state_callback)
 	manager.resource_updated.disconnect(resource_callback)
