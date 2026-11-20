@@ -128,18 +128,43 @@ static func get_fallback_mesh(path: String, kind: String = "character") -> MeshI
 	return fallback
 
 
-static func load_mesh_or_fallback(path: String, kind: String = "character") -> Node3D:
-	var resource := _load_checked(path, PackedStringArray(["glb", "gltf", "fbx"]))
+static func instantiate_scene_or_null(
+	packed_scene: PackedScene,
+	path: String = "",
+	category: String = "other"
+) -> Node:
+	# A ResourceLoader result can be a PackedScene without a usable root. Check
+	# instantiability before calling instantiate(), then validate the returned node.
+	if packed_scene == null or not packed_scene.can_instantiate():
+		if not path.is_empty():
+			_log_missing(path, category)
+		return null
+	var instance := packed_scene.instantiate()
+	if not is_instance_valid(instance):
+		if not path.is_empty():
+			_log_missing(path, category)
+		return null
+	return instance
+
+
+static func mesh_resource_or_fallback(resource: Resource, path: String, kind: String = "character") -> Node3D:
 	if resource is PackedScene:
-		var instance := (resource as PackedScene).instantiate()
+		var instance := instantiate_scene_or_null(resource as PackedScene, path, "mesh")
 		if instance is Node3D:
 			return instance
-		instance.free()
+		if is_instance_valid(instance):
+			instance.free()
+		_log_missing(path, "mesh")
 	elif resource is Mesh:
 		var node := MeshInstance3D.new()
 		node.mesh = resource
 		return node
 	return get_fallback_mesh(path, kind)
+
+
+static func load_mesh_or_fallback(path: String, kind: String = "character") -> Node3D:
+	var resource := _load_checked(path, PackedStringArray(["glb", "gltf", "fbx"]))
+	return mesh_resource_or_fallback(resource, path, kind)
 
 
 static func _checkerboard_texture() -> Texture2D:

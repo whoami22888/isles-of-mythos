@@ -169,7 +169,9 @@ func _copy_longest_clip(library: AnimationLibrary, path: String, alias: String) 
 	var packed := RenderFallbackFactory.load_scene_or_null(path, "animation")
 	if packed == null:
 		return
-	var temp := packed.instantiate()
+	var temp := RenderFallbackFactory.instantiate_scene_or_null(packed, path, "animation")
+	if temp == null:
+		return
 	var source := temp.find_child("AnimationPlayer", true, false) as AnimationPlayer
 	var best: Animation = null
 	if source:
