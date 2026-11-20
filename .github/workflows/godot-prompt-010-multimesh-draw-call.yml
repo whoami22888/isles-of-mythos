@@ -70,6 +70,12 @@ jobs:
           echo "VK_ICD_FILENAMES=$lvp_icd" >> "$GITHUB_ENV"
           echo "XDG_RUNTIME_DIR=$RUNNER_TEMP/xdg-runtime" >> "$GITHUB_ENV"
 
+      - name: Import Godot project and register global script classes
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$RUNNER_TEMP/godot/godot" --headless --editor --path client-godot --quit --import
+
       - name: Execute rendered 512-instance draw-call regression
         shell: bash
         run: |
@@ -83,7 +89,7 @@ jobs:
             --rendering-driver vulkan \
             --audio-driver Dummy \
             --script res://tests/multimesh_instancer_render_test.gd 2>&1 | tee "$log"
-          if ! grep -Eiq 'Vulkan API' "$log"; then
+          if ! grep -Eiq 'Vulkan [0-9]+\.[0-9]+' "$log"; then
             echo "::error::Godot did not report a Vulkan API device; the render test cannot pass via an OpenGL fallback."
             exit 1
           fi
