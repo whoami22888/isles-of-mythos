@@ -8,6 +8,11 @@ const HUT := preload("res://assets/ashore/library/hut_hy3d/hut_hy3d.glb")
 const FIRE_PIT := preload("res://assets/ashore/library/stone_fire_pit/stone_fire_pit.glb")
 const STONE := preload("res://assets/ashore/library/stone_01/stone_01.glb")
 const LOG := preload("res://assets/ashore/library/log_dead_trunk_02/log_dead_trunk_02.glb")
+const DIRT_ALBEDO := preload("res://assets/external/polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_diff_1k.jpg")
+const DIRT_NORMAL := preload("res://assets/external/polyhaven/coast_sand_rocks_02/coast_sand_rocks_02_nor_gl_1k.jpg")
+
+static var _dirt_mat: StandardMaterial3D
+static var _rope_mat: StandardMaterial3D
 
 ## ground: Callable(x, z) -> float world height.
 var ground: Callable
@@ -70,15 +75,100 @@ func label(parent: Node3D, text: String, y: float, font: Font) -> Label3D:
 	return lab
 
 
-## Empty plot: a ring of stones and a marker stake.
+func _dirt() -> StandardMaterial3D:
+	if _dirt_mat == null:
+		_dirt_mat = StandardMaterial3D.new()
+		_dirt_mat.albedo_texture = DIRT_ALBEDO
+		_dirt_mat.normal_enabled = true
+		_dirt_mat.normal_texture = DIRT_NORMAL
+		_dirt_mat.albedo_color = Color(0.62, 0.5, 0.38)
+		_dirt_mat.roughness = 0.95
+		_dirt_mat.vertex_color_use_as_albedo = false
+		_dirt_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_DEPTH_PRE_PASS
+		_dirt_mat.uv1_scale = Vector3(0.45, 0.45, 1)
+		_dirt_mat.uv1_world_triplanar = true
+		_dirt_mat.uv1_triplanar = true
+	return _dirt_mat
+
+
+## Trampled-earth patch draped over the terrain, soft at the edge.
+func dirt_patch(parent: Node3D, radius: float) -> MeshInstance3D:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var rings := 6
+	var segs := 24
+	var c := parent.global_position
+	var pts: Array = []
+	for ri in rings + 1:
+		var row: Array = []
+		for si in segs:
+			var rr := radius * float(ri) / rings
+			var a := TAU * si / segs
+			var wob := 1.0 + 0.12 * sin(a * 3.0 + c.x) if ri == rings else 1.0
+			var wx := c.x + cos(a) * rr * wob
+			var wz := c.z + sin(a) * rr * wob
+			var wy := float(ground.call(wx, wz)) + 0.05 if ground.is_valid() else c.y
+			row.append([Vector3(wx, wy, wz) - c, 1.0 if ri < rings - 1 else (0.55 if ri == rings - 1 else 0.0)])
+		pts.append(row)
+	var col := func(alpha: float) -> Color: return Color(1, 1, 1, alpha)
+	for ri in rings:
+		for si in segs:
+			var a0: Array = pts[ri][si]
+			var a1: Array = pts[ri][(si + 1) % segs]
+			var b0: Array = pts[ri + 1][si]
+			var b1: Array = pts[ri + 1][(si + 1) % segs]
+			for v in [a0, b0, b1, a0, b1, a1]:
+				st.set_color(col.call(float(v[1])))
+				st.set_normal(Vector3.UP)
+				st.add_vertex(v[0])
+	var mesh := MeshInstance3D.new()
+	mesh.name = "Dirt"
+	mesh.mesh = st.commit()
+	var mat := _dirt().duplicate() as StandardMaterial3D
+	mat.vertex_color_use_as_albedo = true
+	mesh.material_override = mat
+	mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(mesh)
+	# Undo the site's yaw so the draped mesh lines up with the world terrain.
+	mesh.global_transform = Transform3D(Basis(), c)
+	return mesh
+
+
+func _rope_between(parent: Node3D, a: Vector3, b: Vector3) -> void:
+	if _rope_mat == null:
+		_rope_mat = StandardMaterial3D.new()
+		_rope_mat.albedo_color = Color(0.55, 0.45, 0.3)
+		_rope_mat.roughness = 1.0
+	var cyl := CylinderMesh.new()
+	cyl.top_radius = 0.022
+	cyl.bottom_radius = 0.022
+	cyl.radial_segments = 6
+	cyl.height = a.distance_to(b)
+	var m := MeshInstance3D.new()
+	m.mesh = cyl
+	m.material_override = _rope_mat
+	m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(m)
+	var mid := (a + b) * 0.5 - Vector3.UP * 0.06
+	var up := (b - a).normalized()
+	var side := up.cross(Vector3.FORWARD if absf(up.z) < 0.9 else Vector3.RIGHT).normalized()
+	m.global_transform = Transform3D(Basis(side, up, side.cross(up)).orthonormalized(), mid)
+
+
+## Empty plot: cleared dirt, four stakes and a rope boundary.
 func plot_marker(parent: Node3D) -> Node3D:
 	var root := Node3D.new()
 	root.name = "Marker"
 	parent.add_child(root)
-	for i in 8:
-		var a := TAU * i / 8.0
-		_piece(root, STONE, Vector3(cos(a) * 2.2, 0, sin(a) * 2.2), i * 47.0, 0.28)
-	post(root, Vector3(0, 0, 0), 1.3, 4.0)
+	dirt_patch(root, 3.4)
+	var tops: Array = []
+	var corners := [Vector3(-2.3, 0, -2.3), Vector3(2.3, 0, -2.3), Vector3(2.3, 0, 2.3), Vector3(-2.3, 0, 2.3)]
+	for k in corners.size():
+		var stake := post(root, corners[k], 1.05, (k % 2) * 3.0 - 1.5)
+		tops.append(stake.global_position + Vector3.UP * 0.85)
+	for k in tops.size():
+		_rope_between(root, tops[k], tops[(k + 1) % tops.size()])
+	_piece(root, Art.PLANKS, Vector3(1.2, 0, 2.9), 25, 0.3)
 	return root
 
 
@@ -100,6 +190,8 @@ func building(parent: Node3D, id: String, level: int) -> Node3D:
 	var root := Node3D.new()
 	root.name = "Body"
 	parent.add_child(root)
+	if id != "dock":
+		dirt_patch(root, 4.2 if id != "camp" else 5.5)
 	var s := 1.0 + 0.1 * (level - 1)
 	match id:
 		"camp":

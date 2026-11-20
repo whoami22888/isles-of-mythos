@@ -247,7 +247,9 @@ func _refresh_sites(force: bool = false) -> void:
 			var p := state.progress(id)
 			body.scale = Vector3(1.0, lerpf(0.12, 1.0, p), 1.0)
 		var tag: Label3D = site["tag"]
-		tag.visible = id == "camp" or state.is_unlocked(id)
+		var unlocked: bool = id == "camp" or state.is_unlocked(id)
+		var ready_now: bool = id != "camp" and not state.ready_amount(id).is_empty()
+		tag.visible = unlocked and (id == _focus or ready_now)
 		tag.text = _tag_text(id)
 
 
