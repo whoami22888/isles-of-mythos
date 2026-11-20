@@ -14,13 +14,13 @@ permissions:
   contents: read
 
 concurrency:
-  group: prompt-010-multimesh-render-\${{ github.event.pull_request.number || github.ref }}
+  group: prompt-010-multimesh-render-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: false
 
 env:
   GODOT_VERSION: 4.7.2
   GODOT_SHA256: cadd3204e728a35d3f13adb7fd0d7902636b79f6b95c40c265eb73b6c35329e4
-  SOURCE_SHA: \${{ github.event.pull_request.head.sha || github.sha }}
+  SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
 
 jobs:
   rendered-draw-call:
@@ -31,7 +31,7 @@ jobs:
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
-          ref: \${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
 
       - name: Install pinned Godot 4.7.2
@@ -125,9 +125,9 @@ jobs:
 
       - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
         with:
-          name: prompt-010-multimesh-vulkan-draw-call-\${{ github.event.pull_request.number || github.run_id }}
+          name: prompt-010-multimesh-vulkan-draw-call-${{ github.event.pull_request.number || github.run_id }}
           path: |
-            \${{ runner.temp }}/multimesh-vulkan-mobile.log
-            \${{ runner.temp }}/multimesh-vulkan-mobile.provenance.json
+            ${{ runner.temp }}/multimesh-vulkan-mobile.log
+            ${{ runner.temp }}/multimesh-vulkan-mobile.provenance.json
           if-no-files-found: error
           retention-days: 14
