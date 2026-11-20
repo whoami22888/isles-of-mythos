@@ -2554,7 +2554,7 @@
   "history_note": "Bartholomew Roberts used a captured Portuguese master to identify the richest ship in the fleet, demonstrating pirate intelligence-gathering and ransom tactics (Johnson 1724)."
  },
  {
-  "id": "fac_012",
+  "id": "fac_019",
   "category": "faction",
   "title": "A Pardon on the Table",
   "zones": [
@@ -2598,7 +2598,7 @@
        "spawn": null,
        "pet_xp": 0,
        "unlock": null,
-       "next_event": "fac_013"
+       "next_event": "fac_020"
       }
      },
      {
@@ -2616,7 +2616,7 @@
        "spawn": "utc_patrol",
        "pet_xp": 0,
        "unlock": null,
-       "next_event": "fac_013"
+       "next_event": "fac_020"
       }
      }
     ]
@@ -2640,7 +2640,7 @@
        "spawn": null,
        "pet_xp": 0,
        "unlock": null,
-       "next_event": "fac_014"
+       "next_event": "fac_021"
       }
      },
      {
@@ -2702,7 +2702,7 @@
        "spawn": null,
        "pet_xp": 0,
        "unlock": null,
-       "next_event": "fac_021"
+       "next_event": "fac_028"
       }
      }
     ]
@@ -2711,7 +2711,7 @@
   "history_note": "Woodes Rogers offered pardons to pirates at Nassau in 1718, splitting loyalties."
  },
  {
-  "id": "fac_013",
+  "id": "fac_020",
   "category": "faction",
   "title": "The Cutter's Escort",
   "zones": [
@@ -2826,7 +2826,7 @@
   "history_note": "Ships sighted Pedro Serrano's smoke for years but stayed clear of the shoals around his cay."
  },
  {
-  "id": "fac_014",
+  "id": "fac_021",
   "category": "faction",
   "title": "Articles Vote",
   "zones": [
@@ -2949,7 +2949,7 @@
   "history_note": "Bartholomew Roberts's articles allowed marooning for defrauding the company."
  },
  {
-  "id": "fac_015",
+  "id": "fac_022",
   "category": "faction",
   "title": "Crystal in the Reef",
   "zones": [
@@ -2993,7 +2993,7 @@
        "spawn": null,
        "pet_xp": 0,
        "unlock": null,
-       "next_event": "fac_016"
+       "next_event": "fac_023"
       }
      },
      {
@@ -3011,7 +3011,7 @@
        "spawn": "utc_patrol",
        "pet_xp": 0,
        "unlock": null,
-       "next_event": "fac_016"
+       "next_event": "fac_023"
       }
      }
     ]
@@ -3037,7 +3037,7 @@
        "spawn": null,
        "pet_xp": 0,
        "unlock": null,
-       "next_event": "fac_017"
+       "next_event": "fac_024"
       }
      },
      {
@@ -3064,7 +3064,7 @@
   "history_note": "UTC deploys dark-binding crystals that enrage the leviathan."
  },
  {
-  "id": "fac_016",
+  "id": "fac_023",
   "category": "faction",
   "title": "Sovereign's Calm",
   "zones": [
@@ -3183,7 +3183,7 @@
   "history_note": "Tideborn are ancient sea people with ruined arches and relics."
  },
  {
-  "id": "fac_017",
+  "id": "fac_024",
   "category": "faction",
   "title": "Crystal in Your Pocket",
   "zones": [
@@ -3298,7 +3298,7 @@
   "history_note": "Dark-binding crystals enrage the Abyssal Sovereign."
  },
  {
-  "id": "fac_018",
+  "id": "fac_025",
   "category": "faction",
   "title": "The Stranger's Terms",
   "zones": [
@@ -3342,7 +3342,7 @@
        "spawn": null,
        "pet_xp": 0,
        "unlock": null,
-       "next_event": "fac_019"
+       "next_event": "fac_026"
       }
      },
      {
@@ -3363,7 +3363,7 @@
        "spawn": null,
        "pet_xp": 0,
        "unlock": null,
-       "next_event": "fac_020"
+       "next_event": "fac_027"
       }
      }
     ]
@@ -3387,7 +3387,7 @@
        "spawn": null,
        "pet_xp": 0,
        "unlock": null,
-       "next_event": "fac_020"
+       "next_event": "fac_027"
       }
      },
      {
@@ -3414,7 +3414,7 @@
   "history_note": "Serrano quarrelled with a second castaway before reconciling."
  },
  {
-  "id": "fac_019",
+  "id": "fac_026",
   "category": "faction",
   "title": "The Stranger Returns",
   "zones": [
@@ -3531,7 +3531,7 @@
   "history_note": "Informants and deserters gave intelligence to pirate captains."
  },
  {
-  "id": "fac_020",
+  "id": "fac_027",
   "category": "faction",
   "title": "The Stranger's Revenge",
   "zones": [
@@ -3653,7 +3653,7 @@
   "history_note": "Pirate quarrels were settled ashore by pistol then cutlass."
  },
  {
-  "id": "fac_021",
+  "id": "fac_028",
   "category": "faction",
   "title": "Hostage on the Beach",
   "zones": [
@@ -3772,7 +3772,7 @@
   "history_note": "Pirates took hostages and demanded ransoms."
  },
  {
-  "id": "fac_022",
+  "id": "fac_029",
   "category": "faction",
   "title": "Three Flags, One Haven",
   "zones": [

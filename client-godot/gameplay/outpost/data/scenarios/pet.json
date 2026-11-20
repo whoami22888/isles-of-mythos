@@ -3265,5 +3265,2493 @@
    }
   ],
   "history_note": "Selkirk hid from Spanish ships and waited for English."
+ },
+ {
+  "id": "pet_023",
+  "category": "pet",
+  "title": "First Dive for Pearls",
+  "zones": [
+   "reef",
+   "sea"
+  ],
+  "trigger": {
+   "type": "action",
+   "chance": 0.15,
+   "min_day": 7,
+   "camp_level": 2,
+   "needs_item": null,
+   "weather": "clear"
+  },
+  "weight": 6,
+  "cooldown_s": 86400,
+  "intro_lines": [
+   "Tide-Puck circles the reef drop-off.",
+   "Moonlight shafts through thirty feet of water."
+  ],
+  "choices": [
+   {
+    "label": "Send Tide-Puck down with a weighted net",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.45,
+      "text": "Tide-Puck returns with a net heavy with pearl oysters — six perfect specimens.",
+      "effects": {
+       "items": {
+        "pearl": 6,
+        "shell": 12
+       },
+       "hp": 0,
+       "morale": 10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 2,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 80,
+       "unlock": null,
+       "next_event": "pet_024"
+      }
+     },
+     {
+      "chance": 0.35,
+      "text": "Tide-Puck surfaces coughing — a moray bit his flank. One pearl, a nasty wound.",
+      "effects": {
+       "items": {
+        "pearl": 1
+       },
+       "hp": -15,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "eel",
+       "pet_xp": 30,
+       "unlock": null,
+       "next_event": "pet_024"
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "The current seized him. Tide-Puck drags himself ashore, net empty, eyes wide with fear.",
+      "effects": {
+       "items": {},
+       "hp": -10,
+       "morale": -15,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": "pet_024"
+      }
+     }
+    ]
+   },
+   {
+    "label": "Dive together — you hold the line, he",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.55,
+      "text": "Teamwork pays. Thirty shells, twelve pearls. Tide-Puck nuzzles your hand, proud.",
+      "effects": {
+       "items": {
+        "pearl": 12,
+        "shell": 30,
+        "rope": -1
+       },
+       "hp": -5,
+       "morale": 15,
+       "rep": {
+        "utc": 0,
+        "tideborn": 3,
+        "free": 1
+       },
+       "spawn": null,
+       "pet_xp": 100,
+       "unlock": null,
+       "next_event": "pet_024"
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Shark shadow passes. You both bolt for the surface — half the catch lost.",
+      "effects": {
+       "items": {
+        "pearl": 4,
+        "shell": 10,
+        "rope": -1
+       },
+       "hp": 0,
+       "morale": 0,
+       "rep": {
+        "utc": 0,
+        "tideborn": 1,
+        "free": 0
+       },
+       "spawn": "shark",
+       "pet_xp": 40,
+       "unlock": null,
+       "next_event": "pet_024"
+      }
+     },
+     {
+      "chance": 0.15,
+      "text": "Rope snags on coral. You cut it free, but Tide-Puck panics — bolts for deep water.",
+      "effects": {
+       "items": {
+        "rope": -1
+       },
+       "hp": -5,
+       "morale": -20,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 5,
+       "unlock": null,
+       "next_event": "pet_024"
+      }
+     }
+    ]
+   },
+   {
+    "label": "Wait for low tide — wade the flats",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Patient work. Two dozen oysters, three pearls. Tide-Puck learns the rhythm of the flats.",
+      "effects": {
+       "items": {
+        "pearl": 3,
+        "shell": 24
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 1,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 50,
+       "unlock": null,
+       "next_event": "pet_024"
+      }
+     },
+     {
+      "chance": 0.25,
+      "text": "Stonefish spine in your heel. Tide-Puck drags you to shore, whining. Fever takes hold.",
+      "effects": {
+       "items": {},
+       "hp": -25,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 20,
+       "unlock": null,
+       "next_event": "pet_024"
+      }
+     },
+     {
+      "chance": 0.15,
+      "text": "Tide turns faster than expected. Basket lost. Tide-Puck retrieves it — empty.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 15,
+       "unlock": null,
+       "next_event": "pet_024"
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Pearl diving on breath-hold was practised by Bajau divers and Caribbean free-divers; oyster beds at 10–15 m yield 1–2% pearl-bearing shells (Frontiers Mar. Sci. 2019)."
+ },
+ {
+  "id": "pet_024",
+  "category": "pet",
+  "title": "The Pearl's Price",
+  "zones": [
+   "outpost",
+   "beach"
+  ],
+  "trigger": {
+   "type": "action",
+   "chance": 0.0,
+   "min_day": 7,
+   "camp_level": 2,
+   "needs_item": null,
+   "weather": "any"
+  },
+  "weight": 1,
+  "cooldown_s": 0,
+  "intro_lines": [
+   "Tide-Puck refuses his fish ration.",
+   "He paws at a pearl in your palm, then at his own flank.",
+   "The wound — or the fear — has settled deeper than skin."
+  ],
+  "choices": [
+   {
+    "label": "Trade the best pearl to Silas for herbs",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Silas grunts, mixes a poultice. Tide-Puck drinks it, sleeps twelve hours, wakes hungry.",
+      "effects": {
+       "items": {
+        "pearl": -1,
+        "herbs": 3,
+        "rum": 1
+       },
+       "hp": 20,
+       "morale": 10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 2
+       },
+       "spawn": null,
+       "pet_xp": 40,
+       "unlock": "pet_healer",
+       "next_event": "pet_025"
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Rum was watered. Poultice draws pus but leaves a limp. Tide-Puck favours the leg.",
+      "effects": {
+       "items": {
+        "pearl": -1,
+        "herbs": 2,
+        "rum": 1
+       },
+       "hp": 10,
+       "morale": 0,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 1
+       },
+       "spawn": null,
+       "pet_xp": 20,
+       "unlock": null,
+       "next_event": "pet_025"
+      }
+     },
+     {
+      "chance": 0.1,
+      "text": "Silas pockets the pearl, gives you seawater in a bottle. Tide-Puck growls at him.",
+      "effects": {
+       "items": {
+        "pearl": -1
+       },
+       "hp": -5,
+       "morale": -15,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -2
+       },
+       "spawn": null,
+       "pet_xp": 5,
+       "unlock": null,
+       "next_event": "pet_025"
+      }
+     }
+    ]
+   },
+   {
+    "label": "Let Tide-Puck chew mangrove bark — old",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Bark tannins close the wound. Tide-Puck's eyes clear. He brings you a crab next dawn.",
+      "effects": {
+       "items": {
+        "crab_meat": 2
+       },
+       "hp": 15,
+       "morale": 8,
+       "rep": {
+        "utc": 0,
+        "tideborn": 1,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 50,
+       "unlock": null,
+       "next_event": "pet_025"
+      }
+     },
+     {
+      "chance": 0.35,
+      "text": "Bark helps the flesh, not the fright. Tide-Puck shakes at the sight of deep water.",
+      "effects": {
+       "items": {},
+       "hp": 10,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 25,
+       "unlock": "pet_fear_deep",
+       "next_event": "pet_025"
+      }
+     },
+     {
+      "chance": 0.15,
+      "text": "Mangrove sap blisters his tongue. He retches, hides in the jungle for a day.",
+      "effects": {
+       "items": {},
+       "hp": -10,
+       "morale": -15,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 5,
+       "unlock": null,
+       "next_event": "pet_025"
+      }
+     }
+    ]
+   },
+   {
+    "label": "Press on — take him spear-fishing",
+    "requires": {
+     "pet_level": 2
+    },
+    "outcomes": [
+     {
+      "chance": 0.4,
+      "text": "He strikes a grouper clean. The kill steadies him. Bond deepens — he watches your back now.",
+      "effects": {
+       "items": {
+        "fish": 5
+       },
+       "hp": 5,
+       "morale": 12,
+       "rep": {
+        "utc": 0,
+        "tideborn": 2,
+        "free": 1
+       },
+       "spawn": null,
+       "pet_xp": 80,
+       "unlock": "pet_guardian",
+       "next_event": "pet_025"
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "He freezes at the drop-off. You spear the fish alone. He watches, ashamed.",
+      "effects": {
+       "items": {
+        "fish": 3
+       },
+       "hp": 0,
+       "morale": -8,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 20,
+       "unlock": "pet_fear_deep",
+       "next_event": "pet_025"
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Barracuda hits your stringer. Tide-Puck intercepts — takes the teeth meant for you.",
+      "effects": {
+       "items": {
+        "fish": -2
+       },
+       "hp": -20,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "shark",
+       "pet_xp": 30,
+       "unlock": "pet_guardian",
+       "next_event": "pet_025"
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Sailors used mangrove bark tannins for wound wash (RMG); rum-and-herb poultices were standard ship's medicine (Pirate Surgeon's Journal)."
+ },
+ {
+  "id": "pet_025",
+  "category": "pet",
+  "title": "Pearl Memory",
+  "zones": [
+   "outpost",
+   "reef"
+  ],
+  "trigger": {
+   "type": "action",
+   "chance": 0.0,
+   "min_day": 8,
+   "camp_level": 2,
+   "needs_item": null,
+   "weather": "any"
+  },
+  "weight": 1,
+  "cooldown_s": 0,
+  "intro_lines": [
+   "Weeks later, Tide-Puck stops at the same reef.",
+   "He does not dive — he points.",
+   "A single giant clam gapes."
+  ],
+  "choices": [
+   {
+    "label": "Harvest it — Tideborn relics resonate",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "The pearl hums in your pack. That night, Tideborn scouts leave a conch-shell offering at the gate.",
+      "effects": {
+       "items": {
+        "pearl": 1,
+        "relic_shard": 1
+       },
+       "hp": 0,
+       "morale": 10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 10,
+        "free": 0
+       },
+       "spawn": "tideborn_scout",
+       "pet_xp": 100,
+       "unlock": "tideborn_ally",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Clam snaps shut on your knife. Pearl lost, blade snapped. Tide-Puck retrieves the handle.",
+      "effects": {
+       "items": {
+        "iron": -1
+       },
+       "hp": -5,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 20,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "UTC launch appears on the horizon — someone saw the flash. Run.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -10,
+       "rep": {
+        "utc": -5,
+        "tideborn": 2,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 30,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Leave it — Tide-Puck remembers",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Tide-Puck circles the clam once, then leads you to a sunken crate: iron, sailcloth, a chart fragment.",
+      "effects": {
+       "items": {
+        "iron": 10,
+        "sailcloth": 5,
+        "map_fragment": 1
+       },
+       "hp": 0,
+       "morale": 8,
+       "rep": {
+        "utc": 0,
+        "tideborn": 5,
+        "free": 1
+       },
+       "spawn": null,
+       "pet_xp": 80,
+       "unlock": "pet_scout",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.25,
+      "text": "A free pirate diver beats you to it. He salutes with the pearl. \"Next round's on me.\"",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 5
+       },
+       "spawn": "free_pirates",
+       "pet_xp": 40,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.15,
+      "text": "Storm surge buries the site. Nothing remains but Tide-Puck's quiet certainty.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 0,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 30,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Crack it open on the spot — eat",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.45,
+      "text": "Meat feeds the camp for two days. Pearl funds a careening. Tide-Puck gets first bite.",
+      "effects": {
+       "items": {
+        "pearl": 1,
+        "food": 40,
+        "iron": -1
+       },
+       "hp": 10,
+       "morale": 15,
+       "rep": {
+        "utc": 0,
+        "tideborn": -2,
+        "free": 3
+       },
+       "spawn": null,
+       "pet_xp": 60,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Ciguatera in the clam's gut. You and Tide-Puck both convulse — hot/cold reversal for days.",
+      "effects": {
+       "items": {
+        "pearl": 1,
+        "iron": -1
+       },
+       "hp": -30,
+       "morale": -20,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": "ciguatera_survivor",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.25,
+      "text": "Pearl was a UTC tracker — dark crystal inside. Patrol homes in on your outpost that night.",
+      "effects": {
+       "items": {
+        "pearl": 1,
+        "iron": -1
+       },
+       "hp": 0,
+       "morale": -15,
+       "rep": {
+        "utc": -10,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 20,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Giant clams (Tridacna) host symbiotic algae; large specimens exceed 1 m and 200 kg. Ciguatera bioaccumulates in reef filter-feeders (Cleveland Clinic)."
+ },
+ {
+  "id": "pet_026",
+  "category": "pet",
+  "title": "Blood in the Scuppers",
+  "zones": [
+   "beach",
+   "outpost"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.12,
+   "min_day": 10,
+   "camp_level": 3,
+   "needs_item": null,
+   "weather": "storm"
+  },
+  "weight": 5,
+  "cooldown_s": 172800,
+  "intro_lines": [
+   "UTC cutter runs aground on the hidden shoal.",
+   "Boarding pikes flash in lantern light.",
+   "Tide-Puck launches from the shadows — not fleeing, hunting."
+  ],
+  "choices": [
+   {
+    "label": "Fight beside him — cutlass and claw",
+    "requires": {
+     "pet_level": 3
+    },
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "You drop the officer; Tide-Puck guts the bosun. Survivors swim for it. Bond forged in blood.",
+      "effects": {
+       "items": {
+        "iron": 5,
+        "powder": 10,
+        "rum": 2
+       },
+       "hp": -10,
+       "morale": 20,
+       "rep": {
+        "utc": -10,
+        "tideborn": 0,
+        "free": 5
+       },
+       "spawn": null,
+       "pet_xp": 150,
+       "unlock": "pet_berserker",
+       "next_event": "pet_027"
+      }
+     },
+     {
+      "chance": 0.35,
+      "text": "Pike catches your thigh. Tide-Puck drags you behind a crate, holds the line until sailors rally.",
+      "effects": {
+       "items": {
+        "iron": 3,
+        "powder": 5
+       },
+       "hp": -25,
+       "morale": 10,
+       "rep": {
+        "utc": -8,
+        "tideborn": 0,
+        "free": 3
+       },
+       "spawn": null,
+       "pet_xp": 100,
+       "unlock": "pet_guardian",
+       "next_event": "pet_027"
+      }
+     },
+     {
+      "chance": 0.15,
+      "text": "Too many. You're both pinned. Silas's gunners save you — but Tide-Puck is taken, caged.",
+      "effects": {
+       "items": {},
+       "hp": -20,
+       "morale": -30,
+       "rep": {
+        "utc": -5,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": "pet_captured",
+       "next_event": "pet_027"
+      }
+     }
+    ]
+   },
+   {
+    "label": "Order Tide-Puck to harass — you man",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.55,
+      "text": "Grapeshot rakes the deck. Tide-Puck hamstrings three men in the smoke. Cutter strikes colours.",
+      "effects": {
+       "items": {
+        "powder": -5,
+        "iron": 8,
+        "sailcloth": 10
+       },
+       "hp": 0,
+       "morale": 15,
+       "rep": {
+        "utc": -10,
+        "tideborn": 0,
+        "free": 4
+       },
+       "spawn": null,
+       "pet_xp": 120,
+       "unlock": "pet_striker",
+       "next_event": "pet_027"
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Gun misfires. Tide-Puck buys time with his life — a bayonet in his ribs. You drag him clear.",
+      "effects": {
+       "items": {
+        "powder": -3
+       },
+       "hp": -10,
+       "morale": -10,
+       "rep": {
+        "utc": -5,
+        "tideborn": 0,
+        "free": 2
+       },
+       "spawn": null,
+       "pet_xp": 60,
+       "unlock": "pet_guardian",
+       "next_event": "pet_027"
+      }
+     },
+     {
+      "chance": 0.15,
+      "text": "UTC officer shoots Tide-Puck mid-leap. He falls. You execute the officer. No quarter.",
+      "effects": {
+       "items": {
+        "powder": -2
+       },
+       "hp": -5,
+       "morale": -25,
+       "rep": {
+        "utc": -15,
+        "tideborn": 2,
+        "free": 3
+       },
+       "spawn": null,
+       "pet_xp": 40,
+       "unlock": "pet_martyr",
+       "next_event": "pet_027"
+      }
+     }
+    ]
+   },
+   {
+    "label": "Light the signal fire — call Silas's",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Sailors descend like wraiths. UTC breaks. Tide-Puck herds prisoners — proud, unscratched.",
+      "effects": {
+       "items": {
+        "tar": -1,
+        "iron": 10,
+        "rope": 5,
+        "rum": 3
+       },
+       "hp": 0,
+       "morale": 12,
+       "rep": {
+        "utc": -8,
+        "tideborn": 0,
+        "free": 6
+       },
+       "spawn": "free_pirates",
+       "pet_xp": 80,
+       "unlock": "pet_herder",
+       "next_event": "pet_027"
+      }
+     },
+     {
+      "chance": 0.25,
+      "text": "Fire draws a second UTC launch. Tide-Puck vanishes into the surf — returns at dawn with a UTC codebook.",
+      "effects": {
+       "items": {
+        "tar": -1,
+        "map_fragment": 1
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": -5,
+        "tideborn": 3,
+        "free": 2
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 100,
+       "unlock": "pet_spy",
+       "next_event": "pet_027"
+      }
+     },
+     {
+      "chance": 0.15,
+      "text": "Rain douses the fire. Tide-Puck fights alone on the beach. You find him at dawn, alive, surrounded by dead.",
+      "effects": {
+       "items": {
+        "tar": -1
+       },
+       "hp": 0,
+       "morale": -5,
+       "rep": {
+        "utc": -10,
+        "tideborn": 1,
+        "free": 2
+       },
+       "spawn": null,
+       "pet_xp": 90,
+       "unlock": "pet_survivor",
+       "next_event": "pet_027"
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Pirate swivel guns loaded grapeshot for anti-personnel work; boarding actions often decided by close-quarters ferocity (Johnson 1724)."
+ },
+ {
+  "id": "pet_027",
+  "category": "pet",
+  "title": "The Guardian's Lesson",
+  "zones": [
+   "outpost",
+   "jungle"
+  ],
+  "trigger": {
+   "type": "action",
+   "chance": 0.0,
+   "min_day": 11,
+   "camp_level": 3,
+   "needs_item": null,
+   "weather": "any"
+  },
+  "weight": 1,
+  "cooldown_s": 0,
+  "intro_lines": [
+   "Tide-Puck paces the palisade at midnight.",
+   "He stops, sniffs, growls low — nothing visible.",
+   "Silas's newest sailor, a boy named Finn, sleeps by the fire."
+  ],
+  "choices": [
+   {
+    "label": "Trust the instinct — post Finn on watch",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.55,
+      "text": "Finn spots UTC marines crawling through mangroves. Alarm raised. Camp survives the night.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 15,
+       "rep": {
+        "utc": -5,
+        "tideborn": 0,
+        "free": 5
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 100,
+       "unlock": "pet_sentry",
+       "next_event": "pet_028"
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Finn falls asleep again. Tide-Puck bites his ankle — the boy screams, alerting the camp anyway.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": -3,
+        "tideborn": 0,
+        "free": 2
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 60,
+       "unlock": null,
+       "next_event": "pet_028"
+      }
+     },
+     {
+      "chance": 0.15,
+      "text": "Tide-Puck was wrong — just a land crab. Finn resents the beast; sailors whisper 'cursed'.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -3
+       },
+       "spawn": null,
+       "pet_xp": 20,
+       "unlock": "pet_distrusted",
+       "next_event": "pet_028"
+      }
+     }
+    ]
+   },
+   {
+    "label": "Train the pair — drills at dawn",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Two weeks later, Finn and Tide-Puck move as one. The boy laughs when the beast 'speaks' in whistles.",
+      "effects": {
+       "items": {
+        "food": -10
+       },
+       "hp": 0,
+       "morale": 12,
+       "rep": {
+        "utc": 0,
+        "tideborn": 1,
+        "free": 4
+       },
+       "spawn": null,
+       "pet_xp": 120,
+       "unlock": "pet_partner",
+       "next_event": "pet_028"
+      }
+     },
+     {
+      "chance": 0.25,
+      "text": "Finn tries to ride Tide-Puck like a horse. Beast throws him — broken arm. Silas frowns.",
+      "effects": {
+       "items": {
+        "food": -5,
+        "herbs": 2
+       },
+       "hp": 0,
+       "morale": -8,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -2
+       },
+       "spawn": null,
+       "pet_xp": 30,
+       "unlock": null,
+       "next_event": "pet_028"
+      }
+     },
+     {
+      "chance": 0.15,
+      "text": "Finn deserts, stealing a boat. Tide-Puck tracks him to a UTC cutter — returns with the boy's knife.",
+      "effects": {
+       "items": {
+        "iron": 1
+       },
+       "hp": 0,
+       "morale": -5,
+       "rep": {
+        "utc": -3,
+        "tideborn": 0,
+        "free": -1
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 80,
+       "unlock": "pet_tracker",
+       "next_event": "pet_028"
+      }
+     }
+    ]
+   },
+   {
+    "label": "Assign Tide-Puck to guard the stores —",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Tide-Puck catches a monkey thief red-handed. Stores safe. Finn survives a raid unaided — grows hard.",
+      "effects": {
+       "items": {
+        "food": 5,
+        "hide": 2
+       },
+       "hp": 0,
+       "morale": 8,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 3
+       },
+       "spawn": "monkey",
+       "pet_xp": 70,
+       "unlock": "pet_warden",
+       "next_event": "pet_028"
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Monkeys swarm the stores. Tide-Puck fights them off but half the flour is scattered. Finn freezes.",
+      "effects": {
+       "items": {
+        "food": -15
+       },
+       "hp": 0,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "monkey",
+       "pet_xp": 40,
+       "unlock": null,
+       "next_event": "pet_028"
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Tide-Puck abandons the post to chase a scent. Rats eat the salt. Finn weeps; Silas flogs him.",
+      "effects": {
+       "items": {
+        "food": -20
+       },
+       "hp": 0,
+       "morale": -15,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -5
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": "pet_unreliable",
+       "next_event": "pet_028"
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Ships' cats and dogs were formal rat-catchers; Royal Navy victualling records list 'cat's meat' allowances (RMG)."
+ },
+ {
+  "id": "pet_028",
+  "category": "pet",
+  "title": "Standing the Watch",
+  "zones": [
+   "outpost",
+   "cliff"
+  ],
+  "trigger": {
+   "type": "action",
+   "chance": 0.0,
+   "min_day": 14,
+   "camp_level": 4,
+   "needs_item": null,
+   "weather": "fog"
+  },
+  "weight": 1,
+  "cooldown_s": 0,
+  "intro_lines": [
+   "Fog clings to the cliff tops.",
+   "Tide-Puck and Finn — now a pair — hold the northern blind.",
+   "A horn sounds from the sea. Not UTC. Not pirate."
+  ],
+  "choices": [
+   {
+    "label": "Send them to investigate — you ready",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "They return with a Tideborn scout — wounded, bearing a warning: the Abyssal Sovereign wakes.",
+      "effects": {
+       "items": {
+        "relic_shard": 1,
+        "map_fragment": 1
+       },
+       "hp": 0,
+       "morale": 10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 15,
+        "free": 2
+       },
+       "spawn": "tideborn_scout",
+       "pet_xp": 150,
+       "unlock": "tideborn_alliance",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "They find a UTC listening post. Finn copies the cipher; Tide-Puck kills the operator silently.",
+      "effects": {
+       "items": {
+        "map_fragment": 1
+       },
+       "hp": 0,
+       "morale": 8,
+       "rep": {
+        "utc": -8,
+        "tideborn": 0,
+        "free": 5
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 120,
+       "unlock": "intel_network",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Finn doesn't return. Tide-Puck drags his body from the surf — throat cut, UTC badge in hand.",
+      "effects": {
+       "items": {
+        "iron": 1
+       },
+       "hp": 0,
+       "morale": -30,
+       "rep": {
+        "utc": -10,
+        "tideborn": 0,
+        "free": -2
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 50,
+       "unlock": "pet_vengeful",
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Go yourself — leave the camp to Silas",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.45,
+      "text": "You find a Tideborn ruin entrance. Tide-Puck's bioluminescence keys the door. Relics within.",
+      "effects": {
+       "items": {
+        "relic_shard": 3,
+        "pearl": 2
+       },
+       "hp": -5,
+       "morale": 12,
+       "rep": {
+        "utc": 0,
+        "tideborn": 10,
+        "free": 1
+       },
+       "spawn": null,
+       "pet_xp": 100,
+       "unlock": "ruin_access",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.35,
+      "text": "UTC ambush on the cliff path. You and Tide-Puck fight free — Finn holds the rope for your escape.",
+      "effects": {
+       "items": {},
+       "hp": -15,
+       "morale": 5,
+       "rep": {
+        "utc": -10,
+        "tideborn": 0,
+        "free": 4
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 80,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "The horn was a whale. Fog lifts — you're exposed on the ridge. UTC schooner opens fire.",
+      "effects": {
+       "items": {},
+       "hp": -10,
+       "morale": -10,
+       "rep": {
+        "utc": -5,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 30,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Light the warning beacons — whatever it",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Beacons blaze. Free pirate fleet on the horizon answers — they anchor in your lee. Trade opens.",
+      "effects": {
+       "items": {
+        "tar": -3,
+        "gold": 20,
+        "rum": 10
+       },
+       "hp": 0,
+       "morale": 20,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 15
+       },
+       "spawn": "free_pirates",
+       "pet_xp": 80,
+       "unlock": "haven_status",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.25,
+      "text": "Beacons draw UTC frigates. You hold them off with shore batteries — but the camp burns.",
+      "effects": {
+       "items": {
+        "tar": -5,
+        "wood": -30,
+        "sailcloth": -10
+       },
+       "hp": -10,
+       "morale": -15,
+       "rep": {
+        "utc": -15,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 60,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.15,
+      "text": "The horn stops. Silence. Dawn reveals nothing — but Tide-Puck refuses to leave the cliff edge.",
+      "effects": {
+       "items": {
+        "tar": -2
+       },
+       "hp": 0,
+       "morale": 0,
+       "rep": {
+        "utc": 0,
+        "tideborn": 2,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 40,
+       "unlock": "pet_watcher",
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Pirate havens used beacon chains; Île Sainte-Marie's signal fires coordinated careening crews and warned of naval approach (Sailing the Black Flag)."
+ },
+ {
+  "id": "pet_029",
+  "category": "pet",
+  "title": "Bad Fish, Bad Dreams",
+  "zones": [
+   "reef",
+   "outpost"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.1,
+   "min_day": 15,
+   "camp_level": 3,
+   "needs_item": null,
+   "weather": "heat"
+  },
+  "weight": 5,
+  "cooldown_s": 172800,
+  "intro_lines": [
+   "You both ate the big grouper Silas caught.",
+   "Sweet flesh, firm — a feast.",
+   "Midnight: your hands burn like ice."
+  ],
+  "choices": [
+   {
+    "label": "Force coconut water and induced",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.55,
+      "text": "Violent purge. You survive the night shaking. Tide-Puck's eyes clear by dawn — weakened, alive.",
+      "effects": {
+       "items": {
+        "coconut": -6,
+        "fresh_water": -4
+       },
+       "hp": -15,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 40,
+       "unlock": "ciguatera_survivor",
+       "next_event": "pet_030"
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Tide-Puck aspirates vomit. He rasps for days. You carry him to the reef each dawn to breathe.",
+      "effects": {
+       "items": {
+        "coconut": -4,
+        "herbs": 3
+       },
+       "hp": -10,
+       "morale": -15,
+       "rep": {
+        "utc": 0,
+        "tideborn": 1,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 20,
+       "unlock": "pet_frail",
+       "next_event": "pet_030"
+      }
+     },
+     {
+      "chance": 0.15,
+      "text": "Nothing comes up. Toxin binds nerves. You both convulse for a week — nerves permanently crossed.",
+      "effects": {
+       "items": {
+        "coconut": -3
+       },
+       "hp": -20,
+       "morale": -20,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": "ciguatera_chronic",
+       "next_event": "pet_030"
+      }
+     }
+    ]
+   },
+   {
+    "label": "Seek Tideborn healers — they know",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Tideborn scout appears at the tide line. She trades a root paste for a pearl. Fever breaks in hours.",
+      "effects": {
+       "items": {
+        "pearl": -1,
+        "herbs": 5
+       },
+       "hp": 20,
+       "morale": 10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 8,
+        "free": 0
+       },
+       "spawn": "tideborn_scout",
+       "pet_xp": 80,
+       "unlock": "tideborn_medicine",
+       "next_event": "pet_030"
+      }
+     },
+     {
+      "chance": 0.25,
+      "text": "Scout demands the pearl and a favour — sabotage a UTC dark-binding crystal. You agree.",
+      "effects": {
+       "items": {
+        "pearl": -1
+       },
+       "hp": 15,
+       "morale": 5,
+       "rep": {
+        "utc": -5,
+        "tideborn": 10,
+        "free": 0
+       },
+       "spawn": "tideborn_scout",
+       "pet_xp": 60,
+       "unlock": "tideborn_debt",
+       "next_event": "pet_030"
+      }
+     },
+     {
+      "chance": 0.15,
+      "text": "Scout watches you convulse, says nothing. Leaves. You survive — but trust fractures.",
+      "effects": {
+       "items": {},
+       "hp": 5,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": -5,
+        "free": 0
+       },
+       "spawn": "tideborn_scout",
+       "pet_xp": 20,
+       "unlock": null,
+       "next_event": "pet_030"
+      }
+     }
+    ]
+   },
+   {
+    "label": "Ride it out — old sailors say",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.4,
+      "text": "Three days of hell. You wake gaunt, hands tingling. Tide-Puck never leaves your side — bond deepened.",
+      "effects": {
+       "items": {
+        "food": -10
+       },
+       "hp": -10,
+       "morale": 8,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 2
+       },
+       "spawn": null,
+       "pet_xp": 60,
+       "unlock": "ciguatera_survivor",
+       "next_event": "pet_030"
+      }
+     },
+     {
+      "chance": 0.35,
+      "text": "Tide-Puck's hind legs fail. You build a litter, haul him to tide pools daily. He recovers — scarred.",
+      "effects": {
+       "items": {
+        "wood": -5,
+        "rope": -2,
+        "food": -15
+       },
+       "hp": -5,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 1
+       },
+       "spawn": null,
+       "pet_xp": 40,
+       "unlock": "pet_lame",
+       "next_event": "pet_030"
+      }
+     },
+     {
+      "chance": 0.25,
+      "text": "You forget fire burns. Badly scarred hands. Tide-Puck learns to fetch, carry, open jars for you.",
+      "effects": {
+       "items": {},
+       "hp": -15,
+       "morale": 0,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 50,
+       "unlock": "pet_helper",
+       "next_event": "pet_030"
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Ciguatera from large reef predators (grouper, barracuda) causes hot-cold reversal; not destroyed by cooking (Cleveland Clinic)."
+ },
+ {
+  "id": "pet_030",
+  "category": "pet",
+  "title": "Storm-Drift",
+  "zones": [
+   "sea",
+   "isle"
+  ],
+  "trigger": {
+   "type": "action",
+   "chance": 0.0,
+   "min_day": 16,
+   "camp_level": 3,
+   "needs_item": null,
+   "weather": "storm"
+  },
+  "weight": 1,
+  "cooldown_s": 0,
+  "intro_lines": [
+   "Squall hits the fishing skiff.",
+   "Mast snaps.",
+   "You wake on an unknown cay — no outpost, no Silas."
+  ],
+  "choices": [
+   {
+    "label": "Follow Tide-Puck inland — he smells",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "He leads you to a limestone sinkhole — fresh water, crabs, shelter. A castaway's cache: rusted cutlass, flint.",
+      "effects": {
+       "items": {
+        "fresh_water": 10,
+        "crab_meat": 4,
+        "iron": 1,
+        "flint": 1
+       },
+       "hp": 10,
+       "morale": 10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "crab",
+       "pet_xp": 80,
+       "unlock": "pet_pathfinder",
+       "next_event": "pet_031"
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Water found — but feral boar claim the cay. Tide-Puck distracts them; you climb a palm to escape.",
+      "effects": {
+       "items": {
+        "fresh_water": 5
+       },
+       "hp": -5,
+       "morale": 0,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "boar",
+       "pet_xp": 50,
+       "unlock": null,
+       "next_event": "pet_031"
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Sinkhole is a UTC dumping ground. Barrels of dark-binding crystals. Tide-Puck growls — they pulse.",
+      "effects": {
+       "items": {
+        "relic_shard": 2
+       },
+       "hp": 0,
+       "morale": -10,
+       "rep": {
+        "utc": -5,
+        "tideborn": 3,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 60,
+       "unlock": "utc_intel",
+       "next_event": "pet_031"
+      }
+     }
+    ]
+   },
+   {
+    "label": "Build a raft from the skiff wreckage —",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.45,
+      "text": "Raft holds. Tide-Puck tows you against the current. Two days later, Silas's signal fire guides you in.",
+      "effects": {
+       "items": {
+        "rope": -10,
+        "wood": -20,
+        "sailcloth": -5
+       },
+       "hp": -10,
+       "morale": 15,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 5
+       },
+       "spawn": null,
+       "pet_xp": 100,
+       "unlock": "pet_tow",
+       "next_event": "pet_031"
+      }
+     },
+     {
+      "chance": 0.35,
+      "text": "Current too strong. You drift past the islands. Tide-Puck catches flying fish — you survive on raw meat.",
+      "effects": {
+       "items": {
+        "fish": 8,
+        "rope": -5
+       },
+       "hp": -5,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 60,
+       "unlock": null,
+       "next_event": "pet_031"
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Raft disintegrates. You swim the last mile, towing Tide-Puck. He saves you from a reef shark.",
+      "effects": {
+       "items": {},
+       "hp": -20,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "shark",
+       "pet_xp": 80,
+       "unlock": "pet_lifesaver",
+       "next_event": "pet_031"
+      }
+     }
+    ]
+   },
+   {
+    "label": "Climb the highest point — signal",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.55,
+      "text": "Free pirate sloop spots the flash. They lift you — captain owes Silas a debt. Passage home.",
+      "effects": {
+       "items": {
+        "scrap": -1
+       },
+       "hp": 5,
+       "morale": 12,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 8
+       },
+       "spawn": "free_pirates",
+       "pet_xp": 70,
+       "unlock": "pirate_favour",
+       "next_event": "pet_031"
+      }
+     },
+     {
+      "chance": 0.25,
+      "text": "UTC brig spots you. They take you aboard — not as prisoners, as 'guests'. Tide-Puck rides in a cage.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -15,
+       "rep": {
+        "utc": 5,
+        "tideborn": 0,
+        "free": -5
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 30,
+       "unlock": "utc_captive",
+       "next_event": "pet_031"
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "No one comes. Storm returns. You huddle in a cave, Tide-Puck warming your feet — like Selkirk's cats.",
+      "effects": {
+       "items": {},
+       "hp": -5,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 40,
+       "unlock": "pet_comfort",
+       "next_event": "pet_031"
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Alexander Selkirk tamed feral cats for warmth and rat control; Pedro Serrano used seaweed and wreck planks for fire on a waterless cay (RMG, Frontiers 2019)."
+ },
+ {
+  "id": "pet_031",
+  "category": "pet",
+  "title": "The Wild Kin",
+  "zones": [
+   "jungle",
+   "cave"
+  ],
+  "trigger": {
+   "type": "action",
+   "chance": 0.0,
+   "min_day": 18,
+   "camp_level": 4,
+   "needs_item": null,
+   "weather": "any"
+  },
+  "weight": 1,
+  "cooldown_s": 0,
+  "intro_lines": [
+   "Back at the outpost, Tide-Puck stops at the jungle edge.",
+   "His hackles rise.",
+   "A low whistle answers. Not tame."
+  ],
+  "choices": [
+   {
+    "label": "Let Tide-Puck meet him — kin recognise",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "They circle, sniff, touch snouts. The wild one follows you home. Two Mythos now guard the camp.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 20,
+       "rep": {
+        "utc": 0,
+        "tideborn": 5,
+        "free": 2
+       },
+       "spawn": "wild_mythos",
+       "pet_xp": 150,
+       "unlock": "second_mythos",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Wild one bites Tide-Puck — a test. Tide-Puck submits. Wild one leaves, but returns at night to hunt for camp.",
+      "effects": {
+       "items": {
+        "fish": 10,
+        "crab_meat": 5
+       },
+       "hp": -5,
+       "morale": 10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 3,
+        "free": 1
+       },
+       "spawn": "wild_mythos",
+       "pet_xp": 80,
+       "unlock": "wild_provider",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Wild one is UTC property — dark-binding collar hidden under mud. He drags Tide-Puck toward the sea.",
+      "effects": {
+       "items": {},
+       "hp": -10,
+       "morale": -20,
+       "rep": {
+        "utc": -10,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 40,
+       "unlock": "pet_stolen",
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Challenge the wild one — assert",
+    "requires": {
+     "pet_level": 5
+    },
+    "outcomes": [
+     {
+      "chance": 0.45,
+      "text": "You and Tide-Puck drive him off. He respects the loss. Weeks later, he returns with a mate — pack forms.",
+      "effects": {
+       "items": {},
+       "hp": -10,
+       "morale": 15,
+       "rep": {
+        "utc": 0,
+        "tideborn": 4,
+        "free": 3
+       },
+       "spawn": "wild_mythos",
+       "pet_xp": 120,
+       "unlock": "mythos_pack",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.35,
+      "text": "Wild one nearly kills Tide-Puck. You intervene with a spear — wound the wild one. He flees, hatred in his eyes.",
+      "effects": {
+       "items": {
+        "herbs": -3
+       },
+       "hp": -5,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": -2,
+        "free": 0
+       },
+       "spawn": "wild_mythos",
+       "pet_xp": 50,
+       "unlock": "blood_feud",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Tide-Puck refuses to fight. He lies down. Wild one sniffs, then guards you both through the night.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 8,
+       "rep": {
+        "utc": 0,
+        "tideborn": 6,
+        "free": 1
+       },
+       "spawn": "wild_mythos",
+       "pet_xp": 100,
+       "unlock": "wild_guardian",
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Offer food — buy peace with a trough",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Wild one eats, watches. Next dawn, a pile of pearls at the gate. He vanishes — but the gifts continue.",
+      "effects": {
+       "items": {
+        "fish": -20,
+        "pearl": 5
+       },
+       "hp": 0,
+       "morale": 12,
+       "rep": {
+        "utc": 0,
+        "tideborn": 8,
+        "free": 2
+       },
+       "spawn": "wild_mythos",
+       "pet_xp": 80,
+       "unlock": "wild_tribute",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.25,
+      "text": "He takes the fish and Tide-Puck's favourite toy. Returns at dusk with a UTC scout's severed hand.",
+      "effects": {
+       "items": {
+        "fish": -15,
+        "iron": 1
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": -8,
+        "tideborn": 2,
+        "free": 3
+       },
+       "spawn": "wild_mythos",
+       "pet_xp": 60,
+       "unlock": "wild_hunter",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.15,
+      "text": "Poisoned fish — UTC bait. Wild one convulses. Tide-Puck howls. You burn the body. No gifts come.",
+      "effects": {
+       "items": {
+        "fish": -10
+       },
+       "hp": 0,
+       "morale": -15,
+       "rep": {
+        "utc": -5,
+        "tideborn": -3,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 30,
+       "unlock": "utc_trap",
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Feral goats on Juan Fernández became living larders; Selkirk tamed kids for milk and company (DNB)."
+ },
+ {
+  "id": "pet_032",
+  "category": "pet",
+  "title": "Scent of Danger",
+  "zones": [
+   "jungle",
+   "cliff",
+   "cave"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.18,
+   "min_day": 5,
+   "camp_level": 2,
+   "needs_item": null,
+   "weather": "any"
+  },
+  "weight": 7,
+  "cooldown_s": 43200,
+  "intro_lines": [
+   "Tide-Puck freezes mid-step.",
+   "Nose up.",
+   "Ears flat. A scent you cannot smell."
+  ],
+  "choices": [
+   {
+    "label": "Trust him — backtrack and find another",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.65,
+      "text": "You circle the ridge. Later, a rockfall thunders down the path you'd have taken. Tide-Puck earns a fish.",
+      "effects": {
+       "items": {
+        "fish": 1
+       },
+       "hp": 0,
+       "morale": 8,
+       "rep": {
+        "utc": 0,
+        "tideborn": 1,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 50,
+       "unlock": "pet_scout",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.25,
+      "text": "Long detour costs daylight. You make camp in the open — mosquitoes feast. Tide-Puck sleeps on your face.",
+      "effects": {
+       "items": {},
+       "hp": -5,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 20,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.1,
+      "text": "The other path has a UTC ambush. Tide-Puck's warning saved you — but now they know you're near.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": -5,
+        "tideborn": 0,
+        "free": 2
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 60,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Press on carefully — send Tide-Puck",
+    "requires": {
+     "pet_level": 2
+    },
+    "outcomes": [
+     {
+      "chance": 0.55,
+      "text": "He flushes a stonefish from the sand — you avoid it. He finds a tide-pool cave: pearls, dry shelter.",
+      "effects": {
+       "items": {
+        "pearl": 3,
+        "shell": 10
+       },
+       "hp": 0,
+       "morale": 10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 2,
+        "free": 1
+       },
+       "spawn": null,
+       "pet_xp": 80,
+       "unlock": "pet_point",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "He signals 'big predator.' You ready spear — a tiger shark in the shallows. You skirt it unseen.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 1,
+        "free": 0
+       },
+       "spawn": "shark",
+       "pet_xp": 60,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.15,
+      "text": "He vanishes. Whistle brings no answer. Hours later he returns — dragging a monkey he killed.",
+      "effects": {
+       "items": {
+        "hide": 2,
+        "feather": 3
+       },
+       "hp": 0,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "monkey",
+       "pet_xp": 30,
+       "unlock": "pet_hunter",
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Test the air yourself — wet a finger",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Brine, rot, sulphur — volcanic vent ahead. Good for tar, bad for lungs. You harvest tar, retreat.",
+      "effects": {
+       "items": {
+        "tar": 8
+       },
+       "hp": -5,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 40,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Gun oil and tobacco — UTC patrol upwind. You ambush them, take their charts. Tide-Puck gets the rum.",
+      "effects": {
+       "items": {
+        "map_fragment": 1,
+        "rum": 2,
+        "powder": 5
+       },
+       "hp": -5,
+       "morale": 12,
+       "rep": {
+        "utc": -8,
+        "tideborn": 0,
+        "free": 4
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 70,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Nothing. Wind shifts. Tide-Puck looks at you like you're daft. A coconut falls — misses your head by inches.",
+      "effects": {
+       "items": {
+        "coconut": 1
+       },
+       "hp": 0,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 15,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Ships' animals warned of hazards; cats detected gas leaks, dogs sensed storms (RMG)."
+ },
+ {
+  "id": "pet_033",
+  "category": "pet",
+  "title": "Relic Retriever",
+  "zones": [
+   "reef",
+   "cave",
+   "isle"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.08,
+   "min_day": 20,
+   "camp_level": 5,
+   "needs_item": null,
+   "weather": "clear"
+  },
+  "weight": 4,
+  "cooldown_s": 172800,
+  "intro_lines": [
+   "Tide-Puck returns from a solo dive.",
+   "Not with fish — a coral-encrusted box in his jaws.",
+   "The lock bears the Tideborn spiral."
+  ],
+  "choices": [
+   {
+    "label": "Open it now — knowledge is survival",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Inside: a star-chart of the Abyssal Sovereign's migration. And a warning — UTC hunts the birthing grounds.",
+      "effects": {
+       "items": {
+        "relic_shard": 2,
+        "map_fragment": 1,
+        "iron": -1
+       },
+       "hp": 0,
+       "morale": 15,
+       "rep": {
+        "utc": -5,
+        "tideborn": 10,
+        "free": 2
+       },
+       "spawn": null,
+       "pet_xp": 100,
+       "unlock": "sovereign_track",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Dark-binding crystal shard inside. It screams when touched. Tide-Puck howls. You bury it deep.",
+      "effects": {
+       "items": {
+        "relic_shard": 1,
+        "iron": -1
+       },
+       "hp": -10,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 5,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 50,
+       "unlock": "dark_lore",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Trap — gas puffs out. You cough blood for days. Tide-Puck drags you to fresh air. Chart lost.",
+      "effects": {
+       "items": {
+        "iron": -1,
+        "herbs": -3
+       },
+       "hp": -25,
+       "morale": -15,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 20,
+       "unlock": "gas_scarred",
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Give it to Silas — he knows buyers",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.55,
+      "text": "Silas grins — 'Tideborn tech fetches triple in Sainte-Marie.' Gold, gunpowder, a new sail for the skiff.",
+      "effects": {
+       "items": {
+        "gold": 50,
+        "powder": 20,
+        "sailcloth": 10
+       },
+       "hp": 0,
+       "morale": 10,
+       "rep": {
+        "utc": 0,
+        "tideborn": -5,
+        "free": 8
+       },
+       "spawn": "free_pirates",
+       "pet_xp": 60,
+       "unlock": "haven_trade",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Silas's fence is a UTC informant. Patrol hits the outpost that night. You escape — barely.",
+      "effects": {
+       "items": {
+        "wood": -20,
+        "food": -15
+       },
+       "hp": -10,
+       "morale": -20,
+       "rep": {
+        "utc": -10,
+        "tideborn": 0,
+        "free": -3
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 40,
+       "unlock": "utc_infiltrated",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.15,
+      "text": "Silas refuses — 'Some things ain't for sale.' He hides it. Tide-Puck watches the spot, unblinking.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 3,
+        "free": 2
+       },
+       "spawn": null,
+       "pet_xp": 50,
+       "unlock": "silas_secret",
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Return it to the sea — some debts are",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Tideborn scouts meet you at the reef. They take the box, leave a pearl necklace — and a conch that calls them.",
+      "effects": {
+       "items": {
+        "pearl": 8,
+        "relic_shard": 1
+       },
+       "hp": 0,
+       "morale": 12,
+       "rep": {
+        "utc": 0,
+        "tideborn": 20,
+        "free": 0
+       },
+       "spawn": "tideborn_scout",
+       "pet_xp": 120,
+       "unlock": "tideborn_conch",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.25,
+      "text": "You drop it in the trench. Tide-Puck dives after — returns with a scale the size of a shield. Sovereign's scale.",
+      "effects": {
+       "items": {
+        "relic_shard": 3
+       },
+       "hp": 0,
+       "morale": 15,
+       "rep": {
+        "utc": 0,
+        "tideborn": 15,
+        "free": 1
+       },
+       "spawn": null,
+       "pet_xp": 150,
+       "unlock": "sovereign_scale",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.15,
+      "text": "UTC depth-charges the drop site. Concussion stuns you both. Box destroyed. Tide-Puck's ears ring for weeks.",
+      "effects": {
+       "items": {},
+       "hp": -15,
+       "morale": -10,
+       "rep": {
+        "utc": -8,
+        "tideborn": -5,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 30,
+       "unlock": "hearing_loss",
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Île Sainte-Marie's pirate economy fenced exotic goods; Adam Baldridge traded cattle for guns and iron (Sailing the Black Flag)."
  }
 ]

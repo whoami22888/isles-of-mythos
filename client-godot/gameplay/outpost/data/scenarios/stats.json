@@ -6,22 +6,22 @@
   "gathering": 33,
   "mystery": 22,
   "mythos": 33,
-  "pet": 22,
+  "pet": 33,
   "pirate": 33,
   "sea": 22,
   "weather": 21,
   "wildlife": 31
  },
- "total": 303,
- "chain_links": 187,
- "chain_heads": 40,
- "chain_targets": 76,
+ "total": 314,
+ "chain_links": 241,
+ "chain_heads": 43,
+ "chain_targets": 82,
  "rejected": {
   "note_fixed": 29,
   "few_choices": 4,
-  "no_intro": 3
+  "no_intro": 19
  },
  "engine": {
-  "kilo": 303
+  "kilo": 314
  }
 }

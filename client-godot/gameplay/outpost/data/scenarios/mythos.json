@@ -2266,7 +2266,7 @@
   "history_note": "Bartholomew Roberts' articles awarded 800 dollars for a lost limb and mandated weapons kept clean, reflecting pirate pragmatism (Johnson 1724)."
  },
  {
-  "id": "myth_012",
+  "id": "myth_018",
   "category": "mythos",
   "title": "Low-Tide Arch Ritual",
   "zones": [
@@ -2310,7 +2310,7 @@
        "spawn": null,
        "pet_xp": 10,
        "unlock": null,
-       "next_event": "myth_013"
+       "next_event": "myth_019"
       }
      },
      {
@@ -2356,7 +2356,7 @@
        "spawn": "tideborn_scout",
        "pet_xp": 0,
        "unlock": null,
-       "next_event": "myth_013"
+       "next_event": "myth_019"
       }
      },
      {
@@ -2383,7 +2383,7 @@
   "history_note": "Pedro Serrano survived eight years on a cay by catching rain in shells and eating raw shellfish."
  },
  {
-  "id": "myth_013",
+  "id": "myth_019",
   "category": "mythos",
   "title": "Tideborn Scout's Test",
   "zones": [
@@ -2500,7 +2500,7 @@
   "history_note": "Tromelin castaways built coral walls against the trade wind after storms destroyed their camp."
  },
  {
-  "id": "myth_014",
+  "id": "myth_020",
   "category": "mythos",
   "title": "Crystal-Bound Mythos",
   "zones": [
@@ -2545,7 +2545,7 @@
        "spawn": "wild_mythos",
        "pet_xp": 25,
        "unlock": null,
-       "next_event": "myth_015"
+       "next_event": "myth_021"
       }
      },
      {
@@ -2591,7 +2591,7 @@
        "spawn": null,
        "pet_xp": 0,
        "unlock": null,
-       "next_event": "myth_016"
+       "next_event": "myth_022"
       }
      },
      {
@@ -2618,7 +2618,7 @@
   "history_note": "UTC deploys dark-binding crystals that enrage the Abyssal Sovereign."
  },
  {
-  "id": "myth_015",
+  "id": "myth_021",
   "category": "mythos",
   "title": "Freed Mythos Gratitude",
   "zones": [
@@ -2734,7 +2734,7 @@
   "history_note": "Selkirk tamed kid goats for milk and company during four years alone."
  },
  {
-  "id": "myth_016",
+  "id": "myth_022",
   "category": "mythos",
   "title": "Crystal Shipment Intercepted",
   "zones": [
@@ -2849,7 +2849,7 @@
   "history_note": "Pirates used false flags and headland ambushes in narrow channels."
  },
  {
-  "id": "myth_017",
+  "id": "myth_023",
   "category": "mythos",
   "title": "Leviathan Song at Night",
   "zones": [
@@ -2892,7 +2892,7 @@
        "spawn": null,
        "pet_xp": 20,
        "unlock": null,
-       "next_event": "myth_018"
+       "next_event": "myth_024"
       }
      },
      {
@@ -2964,7 +2964,7 @@
   "history_note": "The Abyssal Sovereign broke both ships during the storm battle."
  },
  {
-  "id": "myth_018",
+  "id": "myth_024",
   "category": "mythos",
   "title": "Sovereign's Gift",
   "zones": [
@@ -3081,7 +3081,7 @@
   "history_note": "Tromelin castaways kept one fire alive fifteen years with salvaged timber."
  },
  {
-  "id": "myth_019",
+  "id": "myth_025",
   "category": "mythos",
   "title": "Relic Shard Resonance",
   "zones": [
@@ -3200,7 +3200,7 @@
   "history_note": "Blueprint lore: UTC dark-binding crystals enrage the Abyssal Sovereign and wild Mythos near them."
  },
  {
-  "id": "myth_020",
+  "id": "myth_026",
   "category": "mythos",
   "title": "Tideborn Arch at Dusk",
   "zones": [
@@ -3318,7 +3318,7 @@
   "history_note": "Serrano used shells as rain catchers and a fire hut on his cay."
  },
  {
-  "id": "myth_021",
+  "id": "myth_027",
   "category": "mythos",
   "title": "Crystal-Bound Mythos II",
   "zones": [
@@ -3438,7 +3438,7 @@
   "history_note": "UTC privateers hunt Tideborn relics and deploy dark-binding crystals."
  },
  {
-  "id": "myth_022",
+  "id": "myth_028",
   "category": "mythos",
   "title": "Mythos Companion's Dream",
   "zones": [
@@ -3550,7 +3550,7 @@
   "history_note": "Companion animals reduce despair for castaways, as Selkirk's cats did."
  },
  {
-  "id": "myth_023",
+  "id": "myth_029",
   "category": "mythos",
   "title": "The Puck's Nose",
   "zones": [
@@ -3594,7 +3594,7 @@
        "spawn": null,
        "pet_xp": 80,
        "unlock": "puck_glow",
-       "next_event": "myth_024"
+       "next_event": "myth_030"
       }
      },
      {
@@ -3614,7 +3614,7 @@
        "spawn": null,
        "pet_xp": 0,
        "unlock": null,
-       "next_event": "myth_024"
+       "next_event": "myth_030"
       }
      },
      {
@@ -3634,7 +3634,7 @@
        "spawn": null,
        "pet_xp": 10,
        "unlock": null,
-       "next_event": "myth_024"
+       "next_event": "myth_030"
       }
      }
     ]
@@ -3660,7 +3660,7 @@
        "spawn": null,
        "pet_xp": 20,
        "unlock": null,
-       "next_event": "myth_025"
+       "next_event": "myth_031"
       }
      },
      {
@@ -3680,7 +3680,7 @@
        "spawn": "wild_mythos",
        "pet_xp": 0,
        "unlock": null,
-       "next_event": "myth_025"
+       "next_event": "myth_031"
       }
      }
     ]
@@ -3731,7 +3731,7 @@
   "history_note": "Alexander Selkirk tamed feral cats to combat rats gnawing his feet, showing castaways form bonds with animals for survival and sanity."
  },
  {
-  "id": "myth_024",
+  "id": "myth_030",
   "category": "mythos",
   "title": "Glow-Touched",
   "zones": [
@@ -3862,7 +3862,7 @@
        "spawn": null,
        "pet_xp": 0,
        "unlock": null,
-       "next_event": "myth_026"
+       "next_event": "myth_032"
       }
      }
     ]
@@ -3908,7 +3908,7 @@
        "spawn": null,
        "pet_xp": 0,
        "unlock": null,
-       "next_event": "myth_026"
+       "next_event": "myth_032"
       }
      }
     ]
@@ -3917,7 +3917,7 @@
   "history_note": "Tromelin castaways kept one fire alive for 15 years using wreck timber and the island's single shrub, knowing relighting was near impossible in damp conditions."
  },
  {
-  "id": "myth_025",
+  "id": "myth_031",
   "category": "mythos",
   "title": "The Shard's Choice",
   "zones": [
@@ -4006,7 +4006,7 @@
        "spawn": null,
        "pet_xp": 0,
        "unlock": "shard_touched",
-       "next_event": "myth_027"
+       "next_event": "myth_033"
       }
      }
     ]
@@ -4035,7 +4035,7 @@
        "spawn": null,
        "pet_xp": 0,
        "unlock": null,
-       "next_event": "myth_028"
+       "next_event": "myth_034"
       }
      },
      {
@@ -4103,7 +4103,7 @@
        "spawn": "wild_mythos",
        "pet_xp": 0,
        "unlock": null,
-       "next_event": "myth_029"
+       "next_event": "myth_035"
       }
      },
      {
@@ -4132,7 +4132,7 @@
   "history_note": "Pirate articles under Bartholomew Roberts mandated equal shares of fresh food and liquor, with defrauding the company punished by marooning — choices carried weight."
  },
  {
-  "id": "myth_026",
+  "id": "myth_032",
   "category": "mythos",
   "title": "The Light That Wouldn't Die",
   "zones": [
@@ -4285,7 +4285,7 @@
        "spawn": null,
        "pet_xp": 0,
        "unlock": "puck_lost",
-       "next_event": "myth_030"
+       "next_event": "myth_036"
       }
      },
      {
@@ -4312,7 +4312,7 @@
   "history_note": "Pedro Serrano's smoke signals were ignored by passing ships fearful of shoals; castaways could not rely on rescue and had to choose concealment or confrontation."
  },
  {
-  "id": "myth_027",
+  "id": "myth_033",
   "category": "mythos",
   "title": "Shard-Fingers",
   "zones": [
@@ -4424,7 +4424,7 @@
        "spawn": "wild_mythos",
        "pet_xp": 0,
        "unlock": "beacon",
-       "next_event": "myth_031"
+       "next_event": "myth_037"
       }
      }
     ]
@@ -4493,7 +4493,7 @@
   "history_note": "Ada Blackjack taught herself to shoot, trap, and build a stove from kerosene cans while nursing a dying man — castaways improvise tools and skills from wreckage."
  },
  {
-  "id": "myth_028",
+  "id": "myth_034",
   "category": "mythos",
   "title": "The Factor's Return",
   "zones": [
@@ -4538,7 +4538,7 @@
        "spawn": null,
        "pet_xp": 0,
        "unlock": "utc_alliance",
-       "next_event": "myth_032"
+       "next_event": "myth_038"
       }
      },
      {
@@ -4675,7 +4675,7 @@
   "history_note": "Pirate havens operated on a chain of victuallers, receivers, and bribed protectors; dealing with corporate powers like UTC mirrored historical pirate dealings with colonial authorities."
  },
  {
-  "id": "myth_029",
+  "id": "myth_035",
   "category": "mythos",
   "title": "The Pool Remembers",
   "zones": [
@@ -4717,7 +4717,7 @@
        "spawn": null,
        "pet_xp": 50,
        "unlock": "sovereign_map",
-       "next_event": "myth_033"
+       "next_event": "myth_039"
       }
      },
      {
@@ -4825,7 +4825,7 @@
        "spawn": null,
        "pet_xp": 0,
        "unlock": "blood_map",
-       "next_event": "myth_033"
+       "next_event": "myth_039"
       }
      },
      {
@@ -4852,7 +4852,7 @@
   "history_note": "Pedro Serrano flipped sea turtles onto their backs and drank their blood when no rain came; castaways used every bodily resource for survival."
  },
  {
-  "id": "myth_030",
+  "id": "myth_036",
   "category": "mythos",
   "title": "Puck's Trail",
   "zones": [
@@ -4894,7 +4894,7 @@
        "spawn": "utc_patrol",
        "pet_xp": 0,
        "unlock": "puck_caged",
-       "next_event": "myth_032"
+       "next_event": "myth_038"
       }
      },
      {
@@ -5034,7 +5034,7 @@
   "history_note": "Alexander Selkirk hid from Spanish ships knowing they would enslave him, waiting years for an English vessel — castaways weigh concealment against the hope of rescue."
  },
  {
-  "id": "myth_031",
+  "id": "myth_037",
   "category": "mythos",
   "title": "Beacon of the Deep",
   "zones": [
@@ -5202,7 +5202,7 @@
        "spawn": "wild_mythos",
        "pet_xp": 0,
        "unlock": "marked",
-       "next_event": "myth_033"
+       "next_event": "myth_039"
       }
      }
     ]
@@ -5211,7 +5211,7 @@
   "history_note": "Tromelin castaways built 1.5m thick coral walls with backs to the trade wind after a storm destroyed their shelters; survival required adapting structures to environmental threats."
  },
  {
-  "id": "myth_032",
+  "id": "myth_038",
   "category": "mythos",
   "title": "The Binding Array",
   "zones": [
@@ -5392,7 +5392,7 @@
   "history_note": "Careening crews grounded ships at high tide, heeled them over to scrape teredo worms and weed, defenceless while guns were landed in beach batteries — vulnerability created opportunity."
  },
  {
-  "id": "myth_033",
+  "id": "myth_039",
   "category": "mythos",
   "title": "The Spine of the World",
   "zones": [
