@@ -188,6 +188,28 @@ func run() -> void:
 	var safe_log := FileAccess.get_file_as_string(FallbackFactory.LOG_PATH)
 	check(safe_log.contains("mesh\tres://_missing   unsafe_004.glb\n"), "Vertical tab, form feed and DEL must become spaces in one TSV record")
 	check(not safe_log.contains(String.chr(11)) and not safe_log.contains(String.chr(12)) and not safe_log.contains(String.chr(127)), "Raw C0/DEL controls must never enter missing-resource log")
+	# C1 controls (including NEL) and Unicode line/paragraph separators must also stay within one record.
+	var unicode_controls := ""
+	for codepoint in range(0x80, 0xA0):
+		unicode_controls += String.chr(codepoint)
+	unicode_controls += String.chr(0x2028) + String.chr(0x2029)
+	var unicode_path := "res://_unicode" + unicode_controls + "_unsafe_004.glb"
+	var unicode_asset := FallbackFactory.get_fallback_mesh(unicode_path)
+	unicode_asset.free()
+	var unicode_log := FileAccess.get_file_as_string(FallbackFactory.LOG_PATH)
+	var expected_unicode_line := "mesh\tres://_unicode" + " ".repeat(34) + "_unsafe_004.glb\n"
+	check(unicode_log.contains(expected_unicode_line), "C1 and Unicode line separators must become spaces in one TSV record")
+	for codepoint in range(0x80, 0xA0):
+		check(not unicode_log.contains(String.chr(codepoint)), "Raw C1 controls must never enter missing-resource log")
+	check(not unicode_log.contains(String.chr(0x2028)) and not unicode_log.contains(String.chr(0x2029)), "Unicode line and paragraph separators must never enter missing-resource log")
+	# A caller-supplied category must not inject a TSV column or a second record.
+	var category_path := "res://_category_injection_004.fbx"
+	var category_input := "mesh\\t__INJECTED_COLUMN_004__\\n__INJECTED_RECORD_004__"
+	var category_probe := FallbackFactory.load_scene_or_null(category_path, category_input)
+	check(category_probe == null, "Missing scene with an invalid category must fail safely")
+	var category_log := FileAccess.get_file_as_string(FallbackFactory.LOG_PATH)
+	check(category_log.contains("other\\t" + category_path + "\\n"), "Unknown categories must map to the fixed other field")
+	check(not category_log.contains("__INJECTED_COLUMN_004__") and not category_log.contains("__INJECTED_RECORD_004__"), "Caller-supplied category text must never enter the TSV log")
 	# A full log must be renamed to a bounded .1 generation, not truncated.
 	var full_log := FileAccess.open(FallbackFactory.LOG_PATH, FileAccess.WRITE)
 	check(full_log != null, "Log rotation fixture must open")

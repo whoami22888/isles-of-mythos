@@ -8,6 +8,7 @@ const ROTATED_LOG_PATH := "user://missing_assets.log.1"
 const CHECKER_SIZE := 32
 const MAX_LOGGED_PATHS := 1024
 const MAX_LOG_BYTES := 262144
+const LOG_CATEGORIES := ["scene", "animation", "mesh", "sprite", "texture", "audio", "other"]
 static var _logged_paths: Dictionary = {}
 static var _logged_path_order: Array[String] = []
 static var _logged_path_cursor := 0
@@ -25,12 +26,17 @@ static func _load_checked(path: String, extensions: PackedStringArray) -> Resour
 	return ResourceLoader.load(path)
 
 
+static func _safe_log_category(category: String) -> String:
+	# The first TSV column is a fixed field, never caller-controlled text.
+	return category if LOG_CATEGORIES.has(category) else "other"
+
+
 static func _safe_log_path(path: String) -> String:
-	# Keep the TSV record single-line and two-column, including for C0/DEL chars.
+	# Keep the TSV record single-line and two-column across C0/C1 controls and Unicode separators.
 	var result := ""
 	for index in range(mini(path.length(), 512)):
 		var codepoint := path.unicode_at(index)
-		if codepoint < 32 or codepoint == 127:
+		if codepoint < 32 or (codepoint >= 127 and codepoint <= 159) or codepoint == 0x2028 or codepoint == 0x2029:
 			result += " "
 		else:
 			result += path[index]
@@ -75,14 +81,15 @@ static func _append_log_line(line: String):
 
 
 static func _log_missing_with_writer(path: String, category: String, writer: Callable) -> void:
-	# Keep the TSV record single-line and two-column, including for C0/DEL chars.
+	# Normalize both fields before building the deduplication key or TSV record.
+	var safe_category := _safe_log_category(category)
 	var safe_path := _safe_log_path(path)
-	var key := category + ":" + safe_path
+	var key := safe_category + ":" + safe_path
 	if _logged_paths.has(key):
 		return
 	if not writer.is_valid():
 		return
-	var line := "%s\t%s\n" % [category, safe_path]
+	var line := "%s\t%s\n" % [safe_category, safe_path]
 	var write_error = writer.call(line)
 	# A failed or partial write must remain retryable after storage recovers.
 	if write_error != OK:
