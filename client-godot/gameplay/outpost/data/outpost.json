@@ -65,8 +65,81 @@
 					"forge": 1,
 					"watchtower": 1
 				}
+			},
+			{
+				"level": 4,
+				"title": "Plantation Outpost",
+				"cost": {
+					"wood": 420,
+					"stone": 300,
+					"iron": 60,
+					"food": 120
+				},
+				"seconds": 300,
+				"unlocks": [
+					"farm"
+				],
+				"requires": {
+					"barracks": 1
+				},
+				"storage_cap": 1.0,
+				"_blueprint": "Citadel L4: Farm & Dock"
+			},
+			{
+				"level": 5,
+				"title": "Breeding Grounds",
+				"cost": {
+					"wood": 760,
+					"stone": 520,
+					"iron": 120,
+					"food": 240
+				},
+				"seconds": 420,
+				"unlocks": [
+					"breeding_pen"
+				],
+				"requires": {
+					"farm": 1
+				},
+				"_blueprint": "Citadel L5: Breeding Pen (L1)"
+			},
+			{
+				"level": 6,
+				"title": "Garrison Stockade",
+				"cost": {
+					"wood": 1200,
+					"stone": 850,
+					"iron": 220,
+					"food": 400
+				},
+				"seconds": 600,
+				"unlocks": [],
+				"requires": {
+					"barracks": 3
+				},
+				"_blueprint": "Citadel L6: Barracks, Defensive Cannons"
+			},
+			{
+				"level": 7,
+				"title": "Fortified Citadel",
+				"cost": {
+					"wood": 1800,
+					"stone": 1300,
+					"iron": 360,
+					"food": 620
+				},
+				"seconds": 900,
+				"unlocks": [
+					"storage"
+				],
+				"requires": {
+					"breeding_pen": 1,
+					"barracks": 4
+				},
+				"_blueprint": "Citadel L7: Storage Vault, Watchtower"
 			}
-		]
+		],
+		"_note": "Levels 4-7 follow the Blueprint Citadel matrix (L4 Farm, L5 Breeding Pen, L6 Barracks, L7 Storage), scaled to outpost numbers (~1.7x per level)."
 	},
 	"buildings": {
 		"mill": {
@@ -233,6 +306,26 @@
 					},
 					"seconds": 180,
 					"crew_slots": 6
+				},
+				{
+					"cost": {
+						"wood": 420,
+						"stone": 300,
+						"iron": 80
+					},
+					"seconds": 360,
+					"crew_slots": 8,
+					"min_camp": 6
+				},
+				{
+					"cost": {
+						"wood": 700,
+						"stone": 480,
+						"iron": 140
+					},
+					"seconds": 540,
+					"crew_slots": 10,
+					"min_camp": 6
 				}
 			]
 		},
@@ -315,6 +408,96 @@
 					"cap": 0
 				}
 			]
+		},
+		"farm": {
+			"title": "Farm",
+			"plot": 7,
+			"blurb": "Yam and cassava rows the survivors cleared and planted.",
+			"levels": [
+				{
+					"cost": {
+						"wood": 160,
+						"stone": 60
+					},
+					"seconds": 120,
+					"produces": {
+						"food": 18
+					},
+					"cap": 120
+				},
+				{
+					"cost": {
+						"wood": 300,
+						"stone": 140,
+						"iron": 20
+					},
+					"seconds": 240,
+					"produces": {
+						"food": 30
+					},
+					"cap": 200
+				},
+				{
+					"cost": {
+						"wood": 520,
+						"stone": 260,
+						"iron": 50
+					},
+					"seconds": 420,
+					"produces": {
+						"food": 46
+					},
+					"cap": 320
+				}
+			]
+		},
+		"breeding_pen": {
+			"title": "Breeding Pen",
+			"plot": 8,
+			"blurb": "A fenced pen for tamed goats and piglets. (Stub: taming comes later.)",
+			"stub": true,
+			"levels": [
+				{
+					"cost": {
+						"wood": 240,
+						"stone": 120,
+						"food": 60
+					},
+					"seconds": 180,
+					"produces": {},
+					"cap": 0,
+					"animal_slots": 2
+				}
+			]
+		},
+		"storage": {
+			"title": "Storage Vault",
+			"plot": 9,
+			"blurb": "Dry, locked stores: every building can hold more before it stops.",
+			"levels": [
+				{
+					"cost": {
+						"wood": 600,
+						"stone": 500,
+						"iron": 120
+					},
+					"seconds": 480,
+					"produces": {},
+					"cap": 0,
+					"storage_bonus": 0.5
+				},
+				{
+					"cost": {
+						"wood": 1000,
+						"stone": 800,
+						"iron": 220
+					},
+					"seconds": 720,
+					"produces": {},
+					"cap": 0,
+					"storage_bonus": 1.0
+				}
+			]
 		}
 	},
 	"plots": [
@@ -359,6 +542,24 @@
 			"x": 8.6,
 			"z": 7.4,
 			"yaw": 15
+		},
+		{
+			"id": 7,
+			"x": 13.5,
+			"z": 8.5,
+			"yaw": 0
+		},
+		{
+			"id": 8,
+			"x": 3.0,
+			"z": 9.0,
+			"yaw": 20
+		},
+		{
+			"id": 9,
+			"x": 9.5,
+			"z": 10.0,
+			"yaw": 0
 		}
 	],
 	"camp_plot": {
@@ -808,8 +1009,8 @@
 			},
 			{
 				"kind": "flint",
-				"x": 2.0,
-				"z": 10.5
+				"x": 2.5,
+				"z": 5.5
 			},
 			{
 				"kind": "iron_seam",

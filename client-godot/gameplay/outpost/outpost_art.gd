@@ -263,6 +263,46 @@ func building(parent: Node3D, id: String, level: int, wrecked: bool = false) -> 
 				root.add_child(sail)
 				Art.fit_height(sail, 1.0)
 				sail.position = Vector3(0, h + 0.2, 0)
+		"farm":
+			var soil := StandardMaterial3D.new()
+			soil.albedo_color = Color(0.3, 0.22, 0.15)
+			soil.roughness = 0.95
+			var leaf := StandardMaterial3D.new()
+			leaf.albedo_color = Color(0.24, 0.36, 0.16)
+			leaf.roughness = 0.85
+			for r in 3 + level:
+				var row := MeshInstance3D.new()
+				var bm := BoxMesh.new()
+				bm.size = Vector3(4.2, 0.18, 0.5)
+				row.mesh = bm
+				row.material_override = soil
+				row.position = Vector3(0, 0.06, -1.6 + r * 0.8)
+				root.add_child(row)
+				for k in 6:
+					var pl := MeshInstance3D.new()
+					var sm := SphereMesh.new()
+					sm.radius = 0.16
+					sm.height = 0.26
+					pl.mesh = sm
+					pl.material_override = leaf
+					pl.position = Vector3(-1.8 + k * 0.72, 0.24, -1.6 + r * 0.8)
+					pl.scale = Vector3(1.0, 0.8 + 0.3 * ((k + r) % 3), 1.0)
+					root.add_child(pl)
+			for i in 5:
+				post(root, Vector3(-2.4 + i * 1.2, 0, 2.0), 1.0, (i % 3 - 1) * 2.0)
+			_piece(root, Art.BARRELS, Vector3(2.8, 0, 1.6), 0, 0.8)
+		"breeding_pen":
+			for i in 12:
+				var a := i * TAU / 12.0
+				post(root, Vector3(cos(a) * 2.4, 0, sin(a) * 2.0), 1.1, 0.0)
+			_piece(root, Art.CRATE_A, Vector3(1.0, 0, -0.8), 30, 0.5)
+			_piece(root, LOG, Vector3(-0.8, 0, 0.6), 70, 0.4)
+		"storage":
+			_piece(root, HUT, Vector3(0, 0, 0), 0, 2.8 * s)
+			_piece(root, Art.CRATE_A, Vector3(2.2, 0, 1.4), 10, 0.75)
+			_piece(root, Art.CRATE_A, Vector3(2.6, 0, 0.4), 40, 0.6)
+			_piece(root, Art.BARRELS, Vector3(-2.4, 0, 1.2), 0, 1.0)
+			_piece(root, Art.CHEST, Vector3(-1.2, 0, 2.2), 0, 0.6)
 		"training_post":
 			post(root, Vector3(-0.9, 0, 0), 1.7, 0.0)
 			post(root, Vector3(0.9, 0, 0), 1.7, 0.0)

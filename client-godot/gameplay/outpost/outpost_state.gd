@@ -169,6 +169,9 @@ func block_reason(id: String) -> String:
 		# Upgrades can't outgrow the camp.
 		if nl > camp_level:
 			return "Needs %s" % camp_title(nl)
+		var mc := int(level_row(id, nl).get("min_camp", 0))
+		if mc > camp_level:
+			return "Needs %s" % camp_title(mc)
 	if not affordable(cost(id, nl)):
 		return "Need " + cost_text(missing(cost(id, nl)))
 	return ""
@@ -247,7 +250,7 @@ func _produce(id: String, b: Dictionary, delta: float) -> void:
 	var makes: Dictionary = row.get("produces", {})
 	if makes.is_empty():
 		return
-	var cap := float(row.get("cap", 50))
+	var cap := float(row.get("cap", 50)) * (1.0 + storage_bonus())
 	var stock: Dictionary = b["stock"]
 	var eats: Dictionary = row.get("consumes", {})
 	for kind in makes.keys():
@@ -295,7 +298,7 @@ func collect(id: String) -> Dictionary:
 
 ## The single next goal shown on the HUD.
 func objective() -> String:
-	var order := ["mill", "dock", "palisade", "forge", "watchtower", "barracks"]
+	var order := ["mill", "dock", "palisade", "forge", "watchtower", "barracks", "farm", "breeding_pen", "storage"]
 	for id in order:
 		if is_unlocked(id) and level_of(id) == 0:
 			if is_building(id):
@@ -484,3 +487,9 @@ func add_item(kind: String, n: int) -> void:
 
 func count(kind: String) -> int:
 	return int(inv.get(kind, 0))
+
+
+## Storage Vault: extra production cap for every building (data-driven).
+func storage_bonus() -> float:
+	var lv := level_of("storage")
+	return float(level_row("storage", lv).get("storage_bonus", 0.0)) if lv > 0 else 0.0

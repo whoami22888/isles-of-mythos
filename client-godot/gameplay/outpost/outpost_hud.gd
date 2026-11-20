@@ -3,7 +3,7 @@ extends CanvasLayer
 ## build menu, joystick, and loot flying to the resource chips.
 
 const FONT_PATH := "res://assets/fonts/PirataOne-Regular.ttf"
-const ORDER := ["mill", "dock", "palisade", "forge", "watchtower", "barracks"]
+const ORDER := ["mill", "dock", "palisade", "forge", "watchtower", "barracks", "farm", "breeding_pen", "storage"]
 
 var world: Node
 var _font: Font
