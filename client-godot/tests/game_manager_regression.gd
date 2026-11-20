@@ -33,6 +33,7 @@ static func run(tree: SceneTree, check: Callable) -> void:
 	var protocol = Protocol.new()
 	tree.root.add_child(protocol)
 	check.call(manager.bind_protocol(protocol), "GameManager must bind to the existing authoritative protocol")
+	check.call(protocol.is_connected("command_acknowledged", Callable(manager, "_on_command_acknowledged")), "GameManager must subscribe to authoritative command ACKs")
 
 	protocol.player_state_received.emit({
 		"inventory": {
