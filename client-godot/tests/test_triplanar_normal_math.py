@@ -31,7 +31,7 @@ def reorient_projection(sample, face_sign, axis_index):
         return (sample[2] * face_sign, sample[0], sample[1] * face_sign)
     if axis_index == 1:
         return (sample[0], sample[2] * face_sign, -sample[1] * face_sign)
-    return (sample[0], sample[1], sample[2] * face_sign)
+    return (sample[0], sample[1] * face_sign, sample[2] * face_sign)
 
 
 def blend_normal(geometric_normal, samples, sharpness=4.0):
