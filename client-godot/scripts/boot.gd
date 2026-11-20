@@ -1330,10 +1330,12 @@ func _on_message(message: Dictionary) -> void:
             _open_login(false, false)
 
 func show_signed_out(reason: String) -> void:
+    GameManager.set_game_state(GameManager.GameState.MENU)
     _status.text = "Session ended (%s). Sign in again." % reason
     _open_login(false, false)
 
 func _on_auth_failed(reason: String) -> void:
+    GameManager.set_game_state(GameManager.GameState.MENU)
     _status.text = "Sign-in rejected (%s). Sign in again." % reason
     if _phase != Phase.LOGIN:
         _open_login(false, false)
@@ -1348,6 +1350,9 @@ func _launch_internal_gameplay(message: Dictionary) -> void:
     var scene_path := "res://gameplay/vertical_slice.tscn"
     if not _opening_battle_done():
         scene_path = "res://gameplay/opening_battle.tscn"
+        GameManager.set_game_state(GameManager.GameState.CINEMATIC)
+    else:
+        GameManager.set_game_state(GameManager.GameState.OVERWORLD)
     var gameplay = load(scene_path).instantiate()
     gameplay.begin_authenticated_session(_adapter._url, _adapter._token, _refresh_token)
     get_tree().root.add_child(gameplay)
