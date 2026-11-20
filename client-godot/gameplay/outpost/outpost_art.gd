@@ -204,8 +204,6 @@ func building(parent: Node3D, id: String, level: int) -> Node3D:
 				_piece(root, Art.CHEST, Vector3(-1.0, 0, 2.6), 10, 0.55)
 			if level >= 3:
 				_piece(root, HUT, Vector3(4.4, 0, -1.4), -30, 2.6)
-				for i in 6:
-					post(root, Vector3(-5.5 + i * 2.2, 0, -4.6), 3.2, 0.0)
 		"mill":
 			_piece(root, HUT, Vector3(0, 0, 0), 0, 2.7 * s)
 			_piece(root, Art.PLANKS, Vector3(2.4, 0, 1.4), 15, 0.6)

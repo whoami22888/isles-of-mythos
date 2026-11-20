@@ -23,6 +23,9 @@ var _rows := {}
 var _toast: Label
 var _toast_t := 0.0
 var _flies: Array = []
+var _tags: Array = []
+## Below the resource strip, camp line and objective line.
+const TAG_TOP := 150.0
 
 
 func _ready() -> void:
@@ -186,6 +189,7 @@ func push(state: Dictionary) -> void:
 	_action.visible = act != ""
 	_action.text = act
 	_build_btn.visible = not bool(state.get("cinematic", false))
+	_layout_tags(state.get("tags", []))
 	var rows: Dictionary = state.get("menu", {})
 	for id in _rows.keys():
 		var r: Dictionary = rows.get(id, {})
@@ -194,6 +198,49 @@ func push(state: Dictionary) -> void:
 		info.text = str(r.get("text", id))
 		go.text = str(r.get("button", "Build"))
 		go.disabled = not bool(r.get("can", false))
+
+
+## Place world labels, stacking any that overlap, below the top HUD band.
+func _layout_tags(tags: Array) -> void:
+	while _tags.size() < tags.size():
+		var lab := _label(26)
+		lab.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		add_child(lab)
+		move_child(lab, 0)
+		_tags.append(lab)
+	var rect := get_viewport().get_visible_rect().size
+	var placed: Array = []
+	var order := range(tags.size())
+	order.sort_custom(func(a, b): return (tags[a]["pos"] as Vector2).y < (tags[b]["pos"] as Vector2).y)
+	for k in _tags.size():
+		_tags[k].visible = k < tags.size()
+	for k in order:
+		var lab: Label = _tags[k]
+		lab.text = str(tags[k]["text"])
+		lab.add_theme_color_override("font_color", Color(1.0, 0.9, 0.62) if bool(tags[k]["focus"]) else Color(0.97, 0.93, 0.84))
+		lab.size = lab.get_minimum_size()
+		var p: Vector2 = tags[k]["pos"] - Vector2(lab.size.x * 0.5, lab.size.y)
+		p.x = clampf(p.x, 8.0, rect.x - lab.size.x - 8.0)
+		p.y = maxf(p.y, TAG_TOP)
+		var moved := true
+		var guard := 0
+		while moved and guard < 8:
+			moved = false
+			guard += 1
+			for r in placed:
+				if Rect2(p, lab.size).grow(4.0).intersects(r):
+					p.y = (r as Rect2).end.y + 4.0
+					moved = true
+		lab.position = p
+		placed.append(Rect2(p, lab.size))
+
+
+func tag_rects() -> Array:
+	var out: Array = []
+	for lab in _tags:
+		if lab.visible:
+			out.append(Rect2(lab.position, lab.size))
+	return out
 
 
 func _process(delta: float) -> void:

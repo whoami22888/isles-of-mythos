@@ -52,6 +52,9 @@ var _cam_yaw := deg_to_rad(192.0)
 ## [{mm, i, xf, pos, r}] tall foliage instances that can block the lens.
 var _lens_items: Array = []
 var _lens_hidden := {}
+var _cleared_meshes: PackedStringArray = []
+## Sites currently see-through because they sit between the lens and the player.
+var _ghosted := {}
 var _age := 0.0
 
 
@@ -128,6 +131,19 @@ func _build_world() -> void:
 ## Collapse foliage instances inside the clearing (per-scene multimesh copy)
 ## and remember the tall ones around it for the lens fade.
 func _clear_village() -> void:
+	# Rock slabs and cliff chunks the bay scene drops on the plateau.
+	var zone := CLEARING.grow(1.5)
+	for node in _slice.find_children("*", "MeshInstance3D", true, false):
+		var mi := node as MeshInstance3D
+		if mi.name == "IrregularCoastalTerrain" or mi.mesh == null:
+			continue
+		var box := mi.global_transform * mi.get_aabb()
+		if box.size.x > 30.0 or box.size.z > 30.0:
+			continue
+		var c := box.get_center()
+		if zone.has_point(Vector2(c.x, c.z)):
+			mi.visible = false
+			_cleared_meshes.append(str(_slice.get_path_to(mi)))
 	var dressing := _slice.get_node_or_null("TropicalBayDressing")
 	if dressing == null:
 		return
@@ -196,6 +212,32 @@ func _fade_lens() -> void:
 	_lens_hidden = want
 
 
+## Buildings between the lens and the castaway turn see-through.
+func _ghost_sites() -> void:
+	var eye := _camera.global_position
+	var head := _player.global_position + Vector3.UP * 1.0
+	for id in _sites.keys():
+		var body: Node3D = _sites[id].get("body")
+		var want := false
+		if body and is_instance_valid(body):
+			var box := Art.world_aabb(body).grow(0.2)
+			want = box.intersects_segment(eye, head) != null and not box.has_point(_player.global_position + Vector3.UP * 0.5)
+		if want != bool(_ghosted.get(id, false)):
+			_ghosted[id] = want
+			if body and is_instance_valid(body):
+				for g in body.find_children("*", "GeometryInstance3D", true, false):
+					if g.name != "Dirt":
+						(g as GeometryInstance3D).transparency = 0.72 if want else 0.0
+
+
+func ghosted() -> Array:
+	var out: Array = []
+	for id in _ghosted.keys():
+		if _ghosted[id]:
+			out.append(id)
+	return out
+
+
 func lens_hidden_count() -> int:
 	return _lens_hidden.size()
 
@@ -255,6 +297,7 @@ func _build_player() -> void:
 	_pet.add_child(body)
 	var lab := art.label(_pet, state.pet_name, 0.9, _font)
 	lab.name = "Name"
+	lab.visible = false
 	_pet.global_position = _player.global_position + Vector3(1.2, 0, 0.6)
 
 
@@ -288,7 +331,8 @@ func _refresh_sites(force: bool = false) -> void:
 		var tag: Label3D = site["tag"]
 		var unlocked: bool = id == "camp" or state.is_unlocked(id)
 		var ready_now: bool = id != "camp" and not state.ready_amount(id).is_empty()
-		tag.visible = unlocked and (id == _focus or ready_now)
+		site["show_tag"] = unlocked and (id == _focus or ready_now)
+		tag.visible = false
 		tag.text = _tag_text(id)
 
 
@@ -313,6 +357,7 @@ func _process(delta: float) -> void:
 	_follow_camera(delta, false)
 	_fade_lens()
 	_refresh_sites()
+	_ghost_sites()
 	_focus = _nearest_site(REACH)
 	_gather_focus = gather.nearest(_player.global_position) if gather else -1
 	_push()
@@ -528,7 +573,33 @@ func _push() -> void:
 		"objective": state.objective(),
 		"action": _action_text(),
 		"menu": _menu_rows(),
+		"tags": _screen_tags(),
 	})
+
+
+## World labels as HUD text: focused / ready plots, plus the pet's name only
+## when you stand still beside it and nothing else is labelled.
+func _screen_tags() -> Array:
+	var out: Array = []
+	for id in _sites.keys():
+		var site: Dictionary = _sites[id]
+		if not bool(site.get("show_tag", false)):
+			continue
+		var at: Vector3 = (site["plot"] as Vector3) + Vector3.UP * 3.6
+		if _camera.is_position_behind(at):
+			continue
+		var sp := _camera.unproject_position(at)
+		var vr := get_viewport().get_visible_rect().size
+		if sp.x < -40.0 or sp.x > vr.x + 40.0 or sp.y < 0.0 or sp.y > vr.y:
+			continue
+		out.append({"text": _tag_text(id), "pos": sp, "focus": id == _focus})
+	var stick_v: Vector2 = _hud.stick() if _hud else Vector2.ZERO
+	var idle: bool = stick_v.length() < 0.08
+	if out.is_empty() and idle and _pet.global_position.distance_to(_player.global_position) < 2.5:
+		var pa := _pet.global_position + Vector3.UP * 0.9
+		if not _camera.is_position_behind(pa):
+			out.append({"text": state.pet_name, "pos": _camera.unproject_position(pa), "focus": false})
+	return out
 
 
 ## Bot/test helper: walk instantly beside a site.
