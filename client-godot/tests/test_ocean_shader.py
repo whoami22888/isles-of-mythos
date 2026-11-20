@@ -35,6 +35,25 @@ def shader_stage_body(source: str, stage: str) -> str:
 
 
 class OceanShaderContractTests(unittest.TestCase):
+    def test_coastal_capture_embeds_verified_source_asset_hashes(self):
+        """Tie moving engine evidence to the exact licensed source asset bytes."""
+        capture = (CLIENT / "tests" / "render_coastal_fx_sequence.gd").read_text(encoding="utf-8")
+        workflow = (CLIENT.parent / ".github" / "workflows" / "iom-coastal-ship-fx.yml").read_text(encoding="utf-8")
+        for token in (
+            'const SOURCE_ASSET_MANIFEST := "res://assets/external-assets.json"',
+            'const SOURCE_ASSET_ROOT := "res://assets/external"',
+            "FileAccess.get_sha256(source_path)",
+            "actual_sha != expected_sha",
+            "ASSET-SHA256SUMS",
+            "ASSET-PROVENANCE.json",
+            "IOM_INTERNAL_ASSET_PROVENANCE",
+        ):
+            with self.subTest(token=token):
+                self.assertIn(token, capture)
+        self.assertIn("sha256sum frame_*.rgba render.log > SHA256SUMS", workflow)
+        self.assertIn("path: ${{ runner.temp }}/coastal-fx-frames/", workflow)
+
+
     """Guard production ocean features against accidental shader replacement."""
 
     @classmethod
