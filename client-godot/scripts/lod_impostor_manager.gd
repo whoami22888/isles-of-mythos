@@ -39,14 +39,17 @@ func _ready() -> void:
 	_mesh = get_node_or_null(mesh_path) as MeshInstance3D
 	_impostor = get_node_or_null(impostor_path) as Sprite3D
 
+	# Hide any pre-visible impostor before validating the high-detail source.
+	# An invalid mesh path must never leave a sprite masquerading as a safe fallback.
+	if is_instance_valid(_impostor):
+		_impostor.visible = false
+
 	if not is_instance_valid(_mesh):
 		push_warning("LodImpostorManager: mesh_path must resolve to a MeshInstance3D.")
 		set_process(false)
 		return
 
 	_mesh.visible = true
-	if is_instance_valid(_impostor):
-		_impostor.visible = false
 
 	if not is_instance_valid(_impostor):
 		_fail_safe()
@@ -69,6 +72,12 @@ func _ready() -> void:
 	_impostor.hframes = atlas_columns
 	_impostor.vframes = atlas_rows
 	_impostor.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_impostor.centered = true
+	_impostor.rotation = Vector3.ZERO
+	if not _configure_impostor_geometry():
+		_fail_safe()
+		set_process(false)
+		return
 	_show_full_detail = true
 	_valid = true
 	set_process(true)
@@ -178,6 +187,48 @@ func _update_impostor_frame() -> void:
 	if next_frame != _last_frame:
 		_impostor.frame = next_frame
 		_last_frame = next_frame
+
+
+func _configure_impostor_geometry() -> bool:
+	# Sprite3D uses one pixel_size for both axes. Fit its frame to the source
+	# mesh bounds so the impostor does not collapse to Sprite3D's 0.01 default
+	# or change apparent size when the LOD swap occurs.
+	var sprite_parent := _impostor.get_parent() as Node3D
+	if sprite_parent == null:
+		return false
+	var parent_transform := sprite_parent.global_transform
+	if absf(parent_transform.basis.determinant()) <= AABB_EPSILON_SQUARED:
+		return false
+
+	var frame_width := _impostor.texture.get_width() / atlas_columns
+	var frame_height := _impostor.texture.get_height() / atlas_rows
+	if frame_width <= 0 or frame_height <= 0:
+		return false
+
+	# Transform the mesh AABB into the Sprite3D parent's local space. This
+	# preserves offsets and non-uniform mesh scale without per-frame work.
+	var mesh_to_sprite_parent := parent_transform.affine_inverse() * _mesh.global_transform
+	var bounds_min := Vector3(INF, INF, INF)
+	var bounds_max := Vector3(-INF, -INF, -INF)
+	for corner_index in range(8):
+		var corner := mesh_to_sprite_parent * _local_bounds.get_endpoint(corner_index)
+		bounds_min = bounds_min.min(corner)
+		bounds_max = bounds_max.max(corner)
+
+	var bounds_size := bounds_max - bounds_min
+	var vertical_extent := bounds_size.y
+	var horizontal_extent := maxf(bounds_size.x, bounds_size.z)
+	if vertical_extent <= AABB_EPSILON_SQUARED or horizontal_extent <= AABB_EPSILON_SQUARED:
+		return false
+
+	_impostor.position = (bounds_min + bounds_max) * 0.5
+	_impostor.pixel_size = vertical_extent / float(frame_height)
+	_impostor.scale = Vector3(
+		horizontal_extent * float(frame_height) / (vertical_extent * float(frame_width)),
+		1.0,
+		1.0
+	)
+	return true
 
 
 func _has_valid_atlas() -> bool:
