@@ -66,7 +66,12 @@ static func run(tree: SceneTree, check: Callable) -> void:
 	protocol.command_acknowledged.emit("gather-1", {
 		"type": "resource_gathered",
 		"state": {
-			"inventory": {"resource.wood": 500},
+			"inventory": {
+				"resource.wood": 500,
+				"resource.steel": 5000000,
+				"resource.food": 1000000,
+				"resource.pearls": 4,
+			},
 			"gold": "750",
 			"triumphBadges": "12",
 		},
@@ -74,6 +79,7 @@ static func run(tree: SceneTree, check: Callable) -> void:
 	check.call(manager.get_resource_amount("wood") == 500, "A resource_gathered ACK must update the read-only projection")
 	check.call(resource_events.size() == resource_event_count + 1, "Only the authoritative ACK must emit the wood resource update")
 	check.call(resource_events.back().get("type") == "wood" and resource_events.back().get("amount") == 500, "resource_updated must report the authoritative new balance")
+	check.call(manager.get_resource_amount("steel") == 5000000 and manager.get_resource_amount("food") == 1000000 and manager.get_resource_amount("pearls") == 4, "A full gather ACK snapshot must preserve unrelated authoritative balances")
 
 	check.call(not manager.check_citadel_soft_wall(16, 12), "Level 15 to 16 must block when both resource and badge paths are insufficient")
 	check.call(soft_wall_events.size() == 1, "A blocked soft-wall preview must emit soft_wall_reached")
