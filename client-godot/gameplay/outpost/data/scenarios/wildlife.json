@@ -1,0 +1,482 @@
+[
+ {
+  "id": "boar",
+  "name": "Feral Boar",
+  "zones": [
+   "jungle",
+   "beach"
+  ],
+  "behaviour": "Roots in leaf litter at dawn and dusk; sows travel with piglets; raids crab burrows and turtle nests.",
+  "aggro": {
+   "default": "neutral",
+   "rules": [
+    "Charges if cornered within 4 m",
+    "Sow with piglets charges at 10 m",
+    "Flees when HP < 30%",
+    "Night: more active, roams near camp food"
+   ]
+  },
+  "hp": 120,
+  "damage": {
+   "tusk": 18,
+   "charge": 28
+  },
+  "drops": {
+   "food": [
+    3,
+    6
+   ],
+   "hide": [
+    1,
+    2
+   ]
+  },
+  "tameable": "piglet only (Camp Lv4 pen, trust 3 feedings)",
+  "pet_synergy": "Tide-Puck 'track' finds wallows; 'guard' warns of a charge 2 s early.",
+  "source": "Feral pigs introduced by sailors prey on crab juveniles and nests (SPREP)."
+ },
+ {
+  "id": "goat",
+  "name": "Wild Goat",
+  "zones": [
+   "cliff",
+   "jungle"
+  ],
+  "behaviour": "Grazes cliff ledges in small herds; flees uphill; kids follow nannies.",
+  "aggro": {
+   "default": "passive",
+   "rules": [
+    "Flees at 15 m",
+    "Billy butts if trapped (8 dmg)",
+    "Herd alarm spooks all goats in 30 m"
+   ]
+  },
+  "hp": 60,
+  "damage": {
+   "butt": 8
+  },
+  "drops": {
+   "food": [
+    2,
+    4
+   ],
+   "hide": [
+    1,
+    2
+   ]
+  },
+  "tameable": "yes - kids (milk, morale)",
+  "pet_synergy": "Tide-Puck 'track' (lv7) drives goats into snares.",
+  "source": "Selkirk ran down feral goats and tamed kids for milk (RMG)."
+ },
+ {
+  "id": "crab",
+  "name": "Coconut Crab",
+  "zones": [
+   "beach",
+   "jungle"
+  ],
+  "behaviour": "Nocturnal; hides in burrows by day; climbs palms; steals shiny items from camp.",
+  "aggro": {
+   "default": "defensive",
+   "rules": [
+    "Pinches if grabbed or stepped near burrow",
+    "Steals 1 scrap/gold from unguarded camp at night (10%)",
+    "Day: dormant in burrow"
+   ]
+  },
+  "hp": 45,
+  "damage": {
+   "claw": 14
+  },
+  "drops": {
+   "crab_meat": [
+    2,
+    3
+   ],
+   "shell": [
+    0,
+    1
+   ]
+  },
+  "tameable": "no",
+  "pet_synergy": "'dig' exposes burrows; Tide-Puck guard stops night theft.",
+  "source": "Coconut crab claws reach ~3,300 N; nocturnal burrowers (Current Biology)."
+ },
+ {
+  "id": "land_crab",
+  "name": "Land Crab Swarm",
+  "zones": [
+   "beach"
+  ],
+  "behaviour": "Mass migration to the sea to spawn after first heavy rains.",
+  "aggro": {
+   "default": "passive",
+   "rules": [
+    "Swarm blocks paths; easy gathering for 1 game day"
+   ]
+  },
+  "hp": 8,
+  "damage": {
+   "pinch": 2
+  },
+  "drops": {
+   "crab_meat": [
+    1,
+    1
+   ]
+  },
+  "tameable": "no",
+  "pet_synergy": "'fetch' gathers 3x crab meat during migration.",
+  "source": "Land crabs migrate en masse to spawn."
+ },
+ {
+  "id": "snake",
+  "name": "Sea Krait / Tree Boa",
+  "zones": [
+   "reef",
+   "beach",
+   "jungle"
+  ],
+  "behaviour": "Kraits come ashore at night among rocks; boas drape over trails.",
+  "aggro": {
+   "default": "defensive",
+   "rules": [
+    "Krait bites only if handled or trodden on (venom: -2 HP/s for 10 s)",
+    "Boa constricts if you walk under it at night"
+   ]
+  },
+  "hp": 30,
+  "damage": {
+   "bite": 10,
+   "venom_dot": 20
+  },
+  "drops": {
+   "hide": [
+    0,
+    1
+   ],
+   "food": [
+    0,
+    1
+   ]
+  },
+  "tameable": "no",
+  "pet_synergy": "'scout' marks snakes on trails; herbs cure venom.",
+  "source": "Sea kraits are venomous but placid and come ashore at night."
+ },
+ {
+  "id": "monkey",
+  "name": "Macaque Troop",
+  "zones": [
+   "jungle",
+   "outpost"
+  ],
+  "behaviour": "Troops of 5-12 raid camps for food and shiny tools; alarm calls on predators.",
+  "aggro": {
+   "default": "thief",
+   "rules": [
+    "Steals food/tools if stores unguarded",
+    "Mobs if a juvenile is grabbed",
+    "Alarm calls reveal hidden enemies within 25 m"
+   ]
+  },
+  "hp": 35,
+  "damage": {
+   "bite": 6
+  },
+  "drops": {
+   "food": [
+    0,
+    1
+   ]
+  },
+  "tameable": "juvenile (thief companion)",
+  "pet_synergy": "Tide-Puck 'guard' halves raids.",
+  "source": "Macaques raid camps and give alarm calls."
+ },
+ {
+  "id": "gull",
+  "name": "Gull / Frigatebird",
+  "zones": [
+   "beach",
+   "sea",
+   "cliff"
+  ],
+  "behaviour": "Flocks over fish schools; frigatebirds rob catches; colonies nest on cliffs.",
+  "aggro": {
+   "default": "pest",
+   "rules": [
+    "Steals drying fish (15%)",
+    "Colony mobs intruders near eggs"
+   ]
+  },
+  "hp": 12,
+  "damage": {
+   "peck": 2
+  },
+  "drops": {
+   "feather": [
+    1,
+    3
+   ],
+   "food": [
+    0,
+    1
+   ]
+  },
+  "tameable": "injured chick (spotter: reveals fish schools at sea)",
+  "pet_synergy": "Wheeling gulls mark fish; Tide-Puck 'fish' doubles yield under them.",
+  "source": "Tromelin castaways lived on sooty tern colonies (INRAP)."
+ },
+ {
+  "id": "turtle",
+  "name": "Green Sea Turtle",
+  "zones": [
+   "beach",
+   "reef"
+  ],
+  "behaviour": "Females nest on beaches at night; slow ashore, fast in water.",
+  "aggro": {
+   "default": "passive",
+   "rules": [
+    "Flees to sea; can be flipped on its back on land",
+    "Overhunting a beach stops nesting for 7 days"
+   ]
+  },
+  "hp": 90,
+  "damage": {},
+  "drops": {
+   "food": [
+    5,
+    8
+   ],
+   "shell": [
+    1,
+    1
+   ],
+   "fresh_water": [
+    0,
+    1
+   ]
+  },
+  "tameable": "no",
+  "pet_synergy": "'dig' finds nests; 'track' finds nesting beaches.",
+  "source": "Serrano flipped turtles, drank their blood, used shells as rain catchers."
+ },
+ {
+  "id": "shark",
+  "name": "Reef / Tiger Shark",
+  "zones": [
+   "reef",
+   "sea"
+  ],
+  "behaviour": "Reef sharks patrol drop-offs; tiger sharks hunt shallows at dusk; drawn by blood and thrashing.",
+  "aggro": {
+   "default": "hunter",
+   "rules": [
+    "Aggro if player bleeding or carrying speared catch",
+    "Dusk/night: tiger shark enters shallows",
+    "Retreats after a nose strike (stun)"
+   ]
+  },
+  "hp": 200,
+  "damage": {
+   "bite": 35
+  },
+  "drops": {
+   "food": [
+    4,
+    6
+   ],
+   "hide": [
+    1,
+    2
+   ]
+  },
+  "tameable": "no",
+  "pet_synergy": "Tide-Puck 'scout' warns of fins; 'lure' (lv8) draws it away.",
+  "source": "Sharks are drawn by blood and thrashing in shallows (NOAA reef hazards)."
+ },
+ {
+  "id": "ray",
+  "name": "Stingray",
+  "zones": [
+   "reef",
+   "beach"
+  ],
+  "behaviour": "Buried in sand flats.",
+  "aggro": {
+   "default": "passive",
+   "rules": [
+    "Strikes if stepped on (avoid with shuffle walk)",
+    "Barb wound: -15 HP and bleeding"
+   ]
+  },
+  "hp": 40,
+  "damage": {
+   "barb": 15
+  },
+  "drops": {
+   "food": [
+    2,
+    3
+   ]
+  },
+  "tameable": "no",
+  "pet_synergy": "'scout' marks buried rays.",
+  "source": "Stingray barb wounds when stepped on; shuffle feet."
+ },
+ {
+  "id": "eel",
+  "name": "Moray Eel",
+  "zones": [
+   "reef",
+   "cave"
+  ],
+  "behaviour": "Lives in crevices; bites hands reaching into holes.",
+  "aggro": {
+   "default": "ambush",
+   "rules": [
+    "Bites when player gathers from a crevice node (20%)",
+    "Never leaves its hole"
+   ]
+  },
+  "hp": 50,
+  "damage": {
+   "bite": 16
+  },
+  "drops": {
+   "fish": [
+    1,
+    2
+   ]
+  },
+  "tameable": "no",
+  "pet_synergy": "'scout' checks crevices first; eating moray risks ciguatera.",
+  "source": "Moray bites are ragged and bleed (NOAA); morays carry ciguatera."
+ },
+ {
+  "id": "stonefish",
+  "name": "Stonefish",
+  "zones": [
+   "reef"
+  ],
+  "behaviour": "Camouflaged on reef flats.",
+  "aggro": {
+   "default": "hazard",
+   "rules": [
+    "Sting on step: -25 HP, slowed 30 s; hot water at a fire halves it"
+   ]
+  },
+  "hp": 10,
+  "damage": {
+   "spine": 25
+  },
+  "drops": {},
+  "tameable": "no",
+  "pet_synergy": "Tide-Puck 'scout' (lv5) reveals stonefish.",
+  "source": "Stonefish stings cause intense, prolonged pain (NOAA)."
+ },
+ {
+  "id": "rat",
+  "name": "Ship Rat",
+  "zones": [
+   "outpost",
+   "beach"
+  ],
+  "behaviour": "Came ashore from wrecks; eat stores and gnaw sleepers at night.",
+  "aggro": {
+   "default": "pest",
+   "rules": [
+    "Eats 1 food/night from unprotected stores",
+    "Bites sleeping player (-2 HP, morale -2)"
+   ]
+  },
+  "hp": 5,
+  "damage": {
+   "bite": 2
+  },
+  "drops": {},
+  "tameable": "no",
+  "pet_synergy": "Tide-Puck 'guard' or a tamed cat halves losses.",
+  "source": "Rats gnawed Selkirk's feet; he tamed cats to keep them off (RMG)."
+ },
+ {
+  "id": "cat",
+  "name": "Feral Ship Cat",
+  "zones": [
+   "jungle",
+   "outpost"
+  ],
+  "behaviour": "Wary hunter of rats and birds.",
+  "aggro": {
+   "default": "passive",
+   "rules": [
+    "Flees; approaches after being fed fish 3 times"
+   ]
+  },
+  "hp": 20,
+  "damage": {
+   "claw": 3
+  },
+  "drops": {},
+  "tameable": "yes - ratter (protects stores)",
+  "pet_synergy": "Tide-Puck gets jealous (mood -8) for 1 day.",
+  "source": "Selkirk tamed feral cats; Ada Blackjack's cat Vic kept her company."
+ },
+ {
+  "id": "mosquito",
+  "name": "Mosquito Swarm",
+  "zones": [
+   "jungle",
+   "cave"
+  ],
+  "behaviour": "Dusk swarms near standing water.",
+  "aggro": {
+   "default": "hazard",
+   "rules": [
+    "Dusk exposure without a smoke fire: 5% fever chance per night"
+   ]
+  },
+  "hp": 1,
+  "damage": {
+   "fever": "-1 HP/min for 1 day"
+  },
+  "drops": {},
+  "tameable": "no",
+  "pet_synergy": "None; smoke fires and herbs counter it.",
+  "source": "Fever killed most of the Susanna's crew at St Mary's (Sailing the Black Flag)."
+ },
+ {
+  "id": "wild_mythos",
+  "name": "Wild Mythos",
+  "zones": [
+   "reef",
+   "cave",
+   "isle"
+  ],
+  "behaviour": "Varied creatures tied to Tideborn sites; crystal-maddened near UTC sites.",
+  "aggro": {
+   "default": "varies",
+   "rules": [
+    "Calm near Tideborn arches",
+    "Hostile within 40 m of a dark-binding crystal",
+    "Wounded ones can be befriended"
+   ]
+  },
+  "hp": 150,
+  "damage": {
+   "strike": 20
+  },
+  "drops": {
+   "relic_shard": [
+    0,
+    1
+   ]
+  },
+  "tameable": "yes - Free & Feed or Weaken & Capture (Blueprint)",
+  "pet_synergy": "Tide-Puck calms wild Mythos at trust 7+.",
+  "source": "Blueprint: dark-binding crystals enrage Mythos and the leviathan."
+ }
+]

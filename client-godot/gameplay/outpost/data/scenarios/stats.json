@@ -1,0 +1,16 @@
+{
+ "per_category": {
+  "castaway": 21,
+  "gathering": 22,
+  "sea": 11,
+  "wildlife": 11
+ },
+ "total": 65,
+ "chain_links": 13,
+ "chain_heads": 6,
+ "chain_targets": 9,
+ "rejected": {},
+ "engine": {
+  "kilo": 65
+ }
+}

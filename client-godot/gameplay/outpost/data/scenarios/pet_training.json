@@ -1,0 +1,239 @@
+{
+ "pet": "Tide-Puck",
+ "levels": [
+  {
+   "level": 1,
+   "xp_required": 0,
+   "unlocks": [
+    "follow",
+    "sniff (marks resource nodes)"
+   ]
+  },
+  {
+   "level": 2,
+   "xp_required": 100,
+   "unlocks": [
+    "fetch (small items, shells, coconuts)"
+   ]
+  },
+  {
+   "level": 3,
+   "xp_required": 250,
+   "unlocks": [
+    "dig (buried caches, turtle eggs, crab burrows)"
+   ]
+  },
+  {
+   "level": 4,
+   "xp_required": 450,
+   "unlocks": [
+    "guard (camp at night: rats, crabs, monkeys)"
+   ]
+  },
+  {
+   "level": 5,
+   "xp_required": 700,
+   "unlocks": [
+    "scout (marks hazards: stonefish, snakes, rays)"
+   ]
+  },
+  {
+   "level": 6,
+   "xp_required": 1000,
+   "unlocks": [
+    "fish (shallows and tide pools)"
+   ]
+  },
+  {
+   "level": 7,
+   "xp_required": 1400,
+   "unlocks": [
+    "track (animal trails, footprints, deserters)"
+   ]
+  },
+  {
+   "level": 8,
+   "xp_required": 1900,
+   "unlocks": [
+    "attack (bite + 1.5 s stun)",
+    "lure (draws sharks/boar away)"
+   ]
+  },
+  {
+   "level": 9,
+   "xp_required": 2500,
+   "unlocks": [
+    "dive (reef salvage, pearls)"
+   ]
+  },
+  {
+   "level": 10,
+   "xp_required": 3200,
+   "unlocks": [
+    "tide call (calms wild Mythos, warns of leviathan tremors)"
+   ]
+  }
+ ],
+ "xp_sources": [
+  {
+   "source": "successful command",
+   "xp": "5-20 by command tier"
+  },
+  {
+   "source": "scenario outcome pet_xp",
+   "xp": "per scenario file"
+  },
+  {
+   "source": "feeding fresh fish",
+   "xp": 5,
+   "daily_cap": 4
+  },
+  {
+   "source": "playing/grooming",
+   "xp": 3,
+   "daily_cap": 3
+  },
+  {
+   "source": "finding a cache via sniff/dig",
+   "xp": 25
+  },
+  {
+   "source": "defending camp at night",
+   "xp": 30
+  },
+  {
+   "source": "combat assist",
+   "xp": 10
+  }
+ ],
+ "commands": {
+  "fetch": {
+   "unlock_level": 2,
+   "base_success": 0.75,
+   "trust_bonus_per_point": 0.04,
+   "fail_results": [
+    "brings the wrong thing",
+    "drops it in the surf"
+   ]
+  },
+  "dig": {
+   "unlock_level": 3,
+   "base_success": 0.7,
+   "trust_bonus_per_point": 0.04,
+   "fail_results": [
+    "digs up a centipede",
+    "collapses a burrow"
+   ]
+  },
+  "guard": {
+   "unlock_level": 4,
+   "base_success": 0.8,
+   "trust_bonus_per_point": 0.04,
+   "fail_results": [
+    "falls asleep",
+    "chases a crab off into the dark"
+   ]
+  },
+  "scout": {
+   "unlock_level": 5,
+   "base_success": 0.7,
+   "trust_bonus_per_point": 0.04,
+   "fail_results": [
+    "misses a hazard",
+    "spooks game"
+   ]
+  },
+  "fish": {
+   "unlock_level": 6,
+   "base_success": 0.6,
+   "trust_bonus_per_point": 0.04,
+   "fail_results": [
+    "eats the catch",
+    "gets nipped by an eel"
+   ]
+  },
+  "track": {
+   "unlock_level": 7,
+   "base_success": 0.65,
+   "trust_bonus_per_point": 0.04,
+   "fail_results": [
+    "follows the wrong trail",
+    "runs off after a goat"
+   ]
+  },
+  "attack": {
+   "unlock_level": 8,
+   "base_success": 0.7,
+   "trust_bonus_per_point": 0.04,
+   "fail_results": [
+    "hesitates",
+    "gets hurt (pet HP -)"
+   ]
+  },
+  "dive": {
+   "unlock_level": 9,
+   "base_success": 0.6,
+   "trust_bonus_per_point": 0.04,
+   "fail_results": [
+    "surfaces empty",
+    "cuts a paw on coral"
+   ]
+  }
+ },
+ "mood": {
+  "range": [
+   0,
+   100
+  ],
+  "start": {
+   "free_and_feed": 70,
+   "weaken_and_capture": 35
+  },
+  "up": {
+   "fed fish": 8,
+   "praised after command": 4,
+   "rest by fire": 5,
+   "new zone explored": 3
+  },
+  "down": {
+   "spoiled food": -15,
+   "hit or harpooned": -25,
+   "ignored 1 day": -10,
+   "storm": -5,
+   "new tamed animal (jealousy)": -8
+  },
+  "effects": {
+   "<25": "refuses commands 50%, may wander off at night",
+   "25-60": "normal",
+   "60-85": "+10% command success",
+   "85+": "+20% success, warns of ambush 3 s early"
+  }
+ },
+ "trust": {
+  "range": [
+   0,
+   10
+  ],
+  "gain": "+1 per 200 XP earned while mood>60; Free & Feed path starts at 3, Capture path at 0",
+  "loss": "-1 if mood <25 for a full day; -2 if abandoned in a fight",
+  "effects": {
+   "3": "follows without leash",
+   "5": "fetches unprompted",
+   "7": "calms wild Mythos",
+   "10": "will not flee, sacrifices itself to save you once (revives at camp)"
+  }
+ },
+ "illness": [
+  {
+   "cause": "big reef fish (ciguatera)",
+   "effect": "no commands 1 day, mood -15",
+   "cure": "fresh_water + herbs"
+  },
+  {
+   "cause": "coral cut infection",
+   "effect": "slowed",
+   "cure": "herbs"
+  }
+ ],
+ "grounding": "Selkirk tamed cats and goats for company and pest control; Ada Blackjack's cat Vic kept her sane; companion trust grows through feeding and routine."
+}

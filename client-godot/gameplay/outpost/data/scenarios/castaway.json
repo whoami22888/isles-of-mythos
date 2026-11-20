@@ -1,0 +1,3210 @@
+[
+ {
+  "id": "cast_001",
+  "category": "castaway",
+  "title": "The Dune Line",
+  "zones": [
+   "beach",
+   "jungle"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.55,
+   "min_day": 1,
+   "camp_level": 0,
+   "needs_item": null,
+   "weather": "heat"
+  },
+  "weight": 9,
+  "cooldown_s": 3600,
+  "intro_lines": [
+   "Your tongue feels like a boot sole.",
+   "Tide-Puck paws at the sand behind the dune.",
+   "Salt everywhere. Not a drop to drink."
+  ],
+  "choices": [
+   {
+    "label": "Dig behind the dune line",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.55,
+      "text": "Brackish water seeps into the hole. It tastes of iron and mud, but it stays down.",
+      "effects": {
+       "items": {
+        "fresh_water": 2
+       },
+       "hp": 0,
+       "morale": 8,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": "brackish_well",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.45,
+      "text": "The hole collapses. You drink a mouthful of grit and salt, and your head pounds harder.",
+      "effects": {
+       "items": {},
+       "hp": -6,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Build a solar still from sailcloth",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "By dusk the cloth has beaded. Half a cup, warm and flat. You give Tide-Puck a lick.",
+      "effects": {
+       "items": {
+        "fresh_water": 1
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 8,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "A gull tears the cloth loose. You salvage the clear sheet and little else.",
+      "effects": {
+       "items": {
+        "sailcloth": -1
+       },
+       "hp": 0,
+       "morale": -4,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "The still works better than you feared. A full cup by noon, and a second by dusk.",
+      "effects": {
+       "items": {
+        "fresh_water": 2
+       },
+       "hp": 2,
+       "morale": 8,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 8,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Crack green coconuts",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "The water is sweet and cool. Too much will loosen your gut, so you ration it.",
+      "effects": {
+       "items": {
+        "coconut": 1,
+        "fresh_water": 2
+       },
+       "hp": 2,
+       "morale": 6,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "The nut is old and sour. You retch into the sand and your throat burns.",
+      "effects": {
+       "items": {
+        "coconut": 1
+       },
+       "hp": -3,
+       "morale": -4,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Squeeze moisture from fish flesh",
+    "requires": {
+     "fish": 1
+    },
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "You chew the raw flesh and wring the pulp into a shell. It is foul, but it is wet.",
+      "effects": {
+       "items": {
+        "fish": -1,
+        "fresh_water": 1
+       },
+       "hp": -2,
+       "morale": 2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.5,
+      "text": "The fish is half rotten. You gag it down and spend the afternoon doubled over.",
+      "effects": {
+       "items": {
+        "fish": -1
+       },
+       "hp": -5,
+       "morale": -6,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Digging behind the dune line for a brackish freshwater lens and drinking green coconut water in moderation were real castaway water strategies, while NOAA warns that seawater only worsens dehydration."
+ },
+ {
+  "id": "cast_002",
+  "category": "castaway",
+  "title": "A Spark in the Wet",
+  "zones": [
+   "beach",
+   "jungle"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.45,
+   "min_day": 1,
+   "camp_level": 0,
+   "needs_item": null,
+   "weather": "rain"
+  },
+  "weight": 8,
+  "cooldown_s": 5400,
+  "intro_lines": [
+   "Rain has soaked every scrap of tinder.",
+   "Your knife and a shard of flint are all you have.",
+   "Tide-Puck sneezes at the wet ash."
+  ],
+  "choices": [
+   {
+    "label": "Strike flint on the knife spine",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.45,
+      "text": "A spark catches in coconut-husk fibre. You cup it like a live thing and feed it.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "campfire",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.35,
+      "text": "Sparks hiss and die. Your knuckles are raw and the tinder is grey pulp.",
+      "effects": {
+       "items": {},
+       "hp": -2,
+       "morale": -6,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "The flint slips. The blade opens your thumb to the bone and the tinder is bloodied.",
+      "effects": {
+       "items": {},
+       "hp": -8,
+       "morale": -4,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Shield the tinder from the squall",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "The rain passes. Dry husk fibre, a steady spark, and flame at last.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 8,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "campfire",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "Hours lost. The cold settles into your shoulders and you cannot stop shaking.",
+      "effects": {
+       "items": {},
+       "hp": -5,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Keep the old ember in a shell",
+    "requires": {
+     "shell": 1
+    },
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "The shell shields the coal from the wind. You feed it driftwood and breathe it back.",
+      "effects": {
+       "items": {
+        "shell": -1
+       },
+       "hp": 0,
+       "morale": 7,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "campfire",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "The shell splits in the heat. The coal dies with it and you are left with ash.",
+      "effects": {
+       "items": {
+        "shell": -1
+       },
+       "hp": -2,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Tromelin's castaways kept a single fire alive for fifteen years with wreck timber and driftwood because relighting one in humid air was nearly impossible."
+ },
+ {
+  "id": "cast_003",
+  "category": "castaway",
+  "title": "Green-Black Sky",
+  "zones": [
+   "beach",
+   "jungle"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.5,
+   "min_day": 2,
+   "camp_level": 0,
+   "needs_item": null,
+   "weather": "storm"
+  },
+  "weight": 8,
+  "cooldown_s": 7200,
+  "intro_lines": [
+   "The wind shifts and the sky goes green-black.",
+   "Your scrap shelter will not survive this."
+  ],
+  "choices": [
+   {
+    "label": "Build a coral-stone windbreak",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.55,
+      "text": "You stack beachrock shoulder-high and brace it with wreck planks. The storm screams past.",
+      "effects": {
+       "items": {
+        "stone": -2,
+        "wood": -1
+       },
+       "hp": 0,
+       "morale": 8,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "storm_shelter",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.45,
+      "text": "The wall stands, but the rain finds you. You spend the night hunched and shivering.",
+      "effects": {
+       "items": {
+        "stone": -2,
+        "wood": -1
+       },
+       "hp": -6,
+       "morale": -4,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "storm_shelter",
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Lash sailcloth over a lean-to",
+    "requires": {
+     "sailcloth": 1,
+     "rope": 1
+    },
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "The canvas holds. You sleep dry for the first time in days and wake almost warm.",
+      "effects": {
+       "items": {
+        "sailcloth": -1,
+        "rope": -1
+       },
+       "hp": 4,
+       "morale": 10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "storm_shelter",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "A gust tears the canvas from the frame. You chase it into the surf and lose it.",
+      "effects": {
+       "items": {
+        "sailcloth": -1,
+        "rope": -1
+       },
+       "hp": -4,
+       "morale": -6,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Dig into the sand and let it bury you",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Sand insulates better than you expected. You wake stiff and gritty, but alive.",
+      "effects": {
+       "items": {},
+       "hp": -2,
+       "morale": 3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.5,
+      "text": "Water runs into the hole. You spend the night soaked, teeth chattering, eyes open.",
+      "effects": {
+       "items": {},
+       "hp": -8,
+       "morale": -6,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Tromelin's survivors built 1.5 m thick coral-and-beachrock walls with their backs to the trade wind after a storm destroyed their shelters."
+ },
+ {
+  "id": "cast_004",
+  "category": "castaway",
+  "title": "The Fat Grouper",
+  "zones": [
+   "reef",
+   "beach"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.4,
+   "min_day": 3,
+   "camp_level": 1,
+   "needs_item": null,
+   "weather": "any"
+  },
+  "weight": 7,
+  "cooldown_s": 5400,
+  "intro_lines": [
+   "You speared a fat grouper on the reef.",
+   "Tide-Puck refuses to touch it, whining."
+  ],
+  "choices": [
+   {
+    "label": "Roast it whole and eat your fill",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Rich, oily, filling. For an hour you are the richest man on this island.",
+      "effects": {
+       "items": {
+        "fish": 1
+       },
+       "hp": 8,
+       "morale": 10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "By dusk your lips tingle and hot and cold have swapped places. Ciguatera.",
+      "effects": {
+       "items": {
+        "fish": -1
+       },
+       "hp": -12,
+       "morale": -8,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "You eat half and bury the rest. Your gut twists hard, then holds.",
+      "effects": {
+       "items": {
+        "fish": 1
+       },
+       "hp": -3,
+       "morale": 2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Feed a strip to Tide-Puck first",
+    "requires": {
+     "pet_level": 1
+    },
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "The puck sniffs, gags, and turns away. You bury the fish and eat shellfish instead.",
+      "effects": {
+       "items": {
+        "fish": -1
+       },
+       "hp": 2,
+       "morale": 4,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 12,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "Tide-Puck eats it, then retches for hours. You feel like a monster.",
+      "effects": {
+       "items": {
+        "fish": -1
+       },
+       "hp": -2,
+       "morale": -8,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Eat only the small reef fish",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.8,
+      "text": "Small wrasses and damsels, grilled hot. Plain, safe, and enough.",
+      "effects": {
+       "items": {
+        "fish": 1
+       },
+       "hp": 5,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "One of them was not as small as you thought. Your stomach turns by dark.",
+      "effects": {
+       "items": {
+        "fish": 1
+       },
+       "hp": -5,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Big reef predators such as grouper and barracuda carry ciguatera toxin that cooking does not destroy, so islanders learned to eat small reef fish."
+ },
+ {
+  "id": "cast_005",
+  "category": "castaway",
+  "title": "Coral Crest",
+  "zones": [
+   "reef",
+   "beach"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.45,
+   "min_day": 2,
+   "camp_level": 0,
+   "needs_item": null,
+   "weather": "any"
+  },
+  "weight": 7,
+  "cooldown_s": 3600,
+  "intro_lines": [
+   "A wave shoves you onto the reef crest.",
+   "Your shin is laid open on the coral."
+  ],
+  "choices": [
+   {
+    "label": "Rinse it in the sea and bind it tight",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.55,
+      "text": "You pack the cut with crushed herbs and wrap it tight. It throbs, but it holds.",
+      "effects": {
+       "items": {
+        "herbs": -1,
+        "fibre": -1
+       },
+       "hp": -3,
+       "morale": 2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.45,
+      "text": "By morning the edges are red and hot. The wound is turning and the leg is stiff.",
+      "effects": {
+       "items": {
+        "herbs": -1,
+        "fibre": -1
+       },
+       "hp": -10,
+       "morale": -6,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Cauterise the cut with a firebrand",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "The pain is white and total, but the bleeding stops and the flesh seals.",
+      "effects": {
+       "items": {
+        "wood": -1
+       },
+       "hp": -5,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "cautery",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "The brand slips. You burn healthy skin and the wound weeps worse than before.",
+      "effects": {
+       "items": {
+        "wood": -1
+       },
+       "hp": -12,
+       "morale": -8,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Chew a herb poultice and rest",
+    "requires": {
+     "herbs": 1
+    },
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "The swelling goes down by the second day. You keep the leg and the lesson.",
+      "effects": {
+       "items": {
+        "herbs": -1
+       },
+       "hp": 4,
+       "morale": 3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Fever takes you. You hallucinate ships and wake to Tide-Puck licking your face.",
+      "effects": {
+       "items": {
+        "herbs": -1
+       },
+       "hp": -8,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 5,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "NOAA reef-hazard guidance stresses that coral cuts infect fast and urchin spines lodge deep, so prompt cleaning and rest matter more than bravado."
+ },
+ {
+  "id": "cast_006",
+  "category": "castaway",
+  "title": "A Sail Past the Shoals",
+  "zones": [
+   "cliff",
+   "beach"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.35,
+   "min_day": 3,
+   "camp_level": 0,
+   "needs_item": null,
+   "weather": "clear"
+  },
+  "weight": 8,
+  "cooldown_s": 10800,
+  "intro_lines": [
+   "A sail, white as a gull's wing, on the horizon.",
+   "It is heading past the shoals. It will not see you."
+  ],
+  "choices": [
+   {
+    "label": "Light three fires in a triangle",
+    "requires": {
+     "wood": 2
+    },
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Green leaves make a fat white column. The sail changes course. A boat is lowered.",
+      "effects": {
+       "items": {
+        "wood": -2
+       },
+       "hp": 0,
+       "morale": 20,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 5
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "rescued_contact",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "The fires burn, but the ship holds its line. Dusk swallows the sail entirely.",
+      "effects": {
+       "items": {
+        "wood": -2
+       },
+       "hp": 0,
+       "morale": -8,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "A squall kills the fires before the smoke can rise. The horizon empties.",
+      "effects": {
+       "items": {
+        "wood": -2
+       },
+       "hp": -2,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Flash a mirror from the cliff",
+    "requires": {
+     "scrap": 1
+    },
+    "outcomes": [
+     {
+      "chance": 0.55,
+      "text": "A pinpoint of sun stabs across the water. The ship answers with a lamp and a launch turns.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 5,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": "utc_signals",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.45,
+      "text": "The glare is lost in the swell. Your arms ache and the sail passes on.",
+      "effects": {
+       "items": {
+        "scrap": -1
+       },
+       "hp": -2,
+       "morale": -6,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Swim out and wave",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.4,
+      "text": "You make the breakers. A lookout spots you and a line is thrown across the swell.",
+      "effects": {
+       "items": {},
+       "hp": -8,
+       "morale": 18,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 3
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "rescued_contact",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.35,
+      "text": "The current drags you under twice. You crawl back to the sand, lungs burning.",
+      "effects": {
+       "items": {},
+       "hp": -12,
+       "morale": -6,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.25,
+      "text": "Something bumps your leg in the deep water. You turn back fast and do not look.",
+      "effects": {
+       "items": {},
+       "hp": -4,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "shark",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Castaways signalled with three fires in a triangle and green leaves for white smoke, yet ships often avoided dangerous shoals and ignored smoke, as Pedro Serrano discovered."
+ },
+ {
+  "id": "cast_007",
+  "category": "castaway",
+  "title": "The Large Quiet",
+  "zones": [
+   "beach",
+   "cave"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.4,
+   "min_day": 4,
+   "camp_level": 1,
+   "needs_item": null,
+   "weather": "night"
+  },
+  "weight": 6,
+  "cooldown_s": 7200,
+  "intro_lines": [
+   "The dark is very large and very quiet.",
+   "You have started talking to Tide-Puck.",
+   "You cannot remember your own voice."
+  ],
+  "choices": [
+   {
+    "label": "Keep a tally and a journal on a plank",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "Scratches on wood become days, and days become a plan. The dread loosens its grip.",
+      "effects": {
+       "items": {
+        "wood": -1
+       },
+       "hp": 0,
+       "morale": 12,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 5,
+       "unlock": "journal",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "The tally fills you with the size of the emptiness. You stop counting and sit.",
+      "effects": {
+       "items": {
+        "wood": -1
+       },
+       "hp": 0,
+       "morale": -8,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Ration the rum and drink to the crew",
+    "requires": {
+     "rum": 1
+    },
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "One mouthful, then the bottle corked. The warmth is borrowed, but it helps.",
+      "effects": {
+       "items": {
+        "rum": -1
+       },
+       "hp": 0,
+       "morale": 10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 2
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "You drink too deep. Morning finds you sick, salt-mouthed and ashamed.",
+      "effects": {
+       "items": {
+        "rum": -1
+       },
+       "hp": -4,
+       "morale": -6,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Walk the tideline to keep moving",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.55,
+      "text": "You walk until your legs ache. Sleep comes without dreams for once.",
+      "effects": {
+       "items": {},
+       "hp": -3,
+       "morale": 8,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.45,
+      "text": "The dark plays tricks. Every stump is a ship, every bird a shout. You run.",
+      "effects": {
+       "items": {},
+       "hp": -5,
+       "morale": -8,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Read aloud from the torn map",
+    "requires": {
+     "map_fragment": 1
+    },
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Names of places you have never seen. Your voice sounds strange and steady.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 9,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "The names blur. You realise you have read the same line six times.",
+      "effects": {
+       "items": {},
+       "hp": -1,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Alexander Selkirk read the Bible aloud to keep his speech and tamed cats for company, routines that castaway accounts credit with holding despair at bay."
+ },
+ {
+  "id": "cast_008",
+  "category": "castaway",
+  "title": "A Raft at Dawn",
+  "zones": [
+   "beach",
+   "sea"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.3,
+   "min_day": 5,
+   "camp_level": 1,
+   "needs_item": null,
+   "weather": "fog"
+  },
+  "weight": 7,
+  "cooldown_s": 14400,
+  "intro_lines": [
+   "A raft grinds onto the reef at dawn.",
+   "One man aboard, half-dead, salt-crusted.",
+   "He clutches a UTC water skin."
+  ],
+  "choices": [
+   {
+    "label": "Share water and hear him out",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "He drinks, then weeps. His name is Cobb, a deserter off a UTC tender.",
+      "effects": {
+       "items": {
+        "fresh_water": -1
+       },
+       "hp": 0,
+       "morale": 8,
+       "rep": {
+        "utc": -2,
+        "tideborn": 0,
+        "free": 2
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": "cast_009"
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "He drinks and says nothing. His eyes keep drifting to your stores.",
+      "effects": {
+       "items": {
+        "fresh_water": -1
+       },
+       "hp": 0,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": "cast_009"
+      }
+     }
+    ]
+   },
+   {
+    "label": "Bind him and take the water skin",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.65,
+      "text": "You take his skin and tie his wrists. He smiles at you, which is worse.",
+      "effects": {
+       "items": {
+        "fresh_water": 2
+       },
+       "hp": 0,
+       "morale": 2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -4
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": "cast_010"
+      }
+     },
+     {
+      "chance": 0.35,
+      "text": "He fights like a drowning man. You win, but he splits your brow open.",
+      "effects": {
+       "items": {
+        "fresh_water": 2
+       },
+       "hp": -4,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -4
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": "cast_010"
+      }
+     }
+    ]
+   },
+   {
+    "label": "Drive him back into the sea",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "You shove the raft off. He curses you in three languages and drifts away.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -12,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -5
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.5,
+      "text": "He refuses to go. You stand over him with a spar until he crawls off.",
+      "effects": {
+       "items": {},
+       "hp": -2,
+       "morale": -6,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -3
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "A second castaway could be salvation or danger: Pedro Serrano's companion quarrelled with him, while pirate articles punished theft between shipmates with marooning."
+ },
+ {
+  "id": "cast_009",
+  "category": "castaway",
+  "title": "Cobb Earns His Keep",
+  "zones": [
+   "beach",
+   "cliff"
+  ],
+  "trigger": {
+   "type": "action",
+   "chance": 0.0,
+   "min_day": 5,
+   "camp_level": 1,
+   "needs_item": null,
+   "weather": "any"
+  },
+  "weight": 6,
+  "cooldown_s": 0,
+  "intro_lines": [
+   "Cobb works without being asked.",
+   "He knows the reef, the tides, the UTC signals.",
+   "Too well, perhaps."
+  ],
+  "choices": [
+   {
+    "label": "Let him teach you the UTC signal code",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "Flags, lamps, the shape of a patrol's hull. You will see them coming now.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 8,
+       "rep": {
+        "utc": -3,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "utc_signals",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "He teaches you wrong on purpose, or you only suspect it. A wasted day.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -4,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Send him to scout the far headland",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.55,
+      "text": "He returns with a map fragment and a cut on his arm. He does not say whose.",
+      "effects": {
+       "items": {
+        "map_fragment": 1
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 5,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.45,
+      "text": "He comes back empty-handed and evasive. Something on that headland frightened him.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Search his sea chest while he sleeps",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Under a false bottom: a UTC dark-binding crystal, wrapped in oilcloth.",
+      "effects": {
+       "items": {
+        "relic_shard": 1
+       },
+       "hp": 0,
+       "morale": -4,
+       "rep": {
+        "utc": -5,
+        "tideborn": 2,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "He wakes. Neither of you speaks. The knife lies on the sand between you.",
+      "effects": {
+       "items": {},
+       "hp": -4,
+       "morale": -6,
+       "rep": {
+        "utc": -2,
+        "tideborn": 0,
+        "free": -2
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "A deserter told Bartholomew Roberts how HMS Swallow sailed best, and pirate crews routinely took skilled men for the knowledge they carried."
+ },
+ {
+  "id": "cast_010",
+  "category": "castaway",
+  "title": "What Cobb Really Wants",
+  "zones": [
+   "cave",
+   "beach"
+  ],
+  "trigger": {
+   "type": "action",
+   "chance": 0.0,
+   "min_day": 5,
+   "camp_level": 1,
+   "needs_item": null,
+   "weather": "night"
+  },
+  "weight": 6,
+  "cooldown_s": 0,
+  "intro_lines": [
+   "You wake to the sound of your water gourds moving.",
+   "Cobb is at the stores with your knife."
+  ],
+  "choices": [
+   {
+    "label": "Put the blade to his throat",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.55,
+      "text": "He drops the skin and begs. You let him live, and he never sleeps easy again.",
+      "effects": {
+       "items": {
+        "fresh_water": 1
+       },
+       "hp": 0,
+       "morale": 4,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -2
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "He is faster than he looked. The knife goes into your shoulder to the hilt.",
+      "effects": {
+       "items": {},
+       "hp": -14,
+       "morale": -6,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.15,
+      "text": "You drive him off the reef at spear-point. He curses until the surf takes him.",
+      "effects": {
+       "items": {},
+       "hp": -2,
+       "morale": -6,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -4
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Let him take the water and follow",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "He leads you to a tideborn arch with a fresh spring. He knew, and he was thirsty too.",
+      "effects": {
+       "items": {
+        "fresh_water": 3
+       },
+       "hp": 0,
+       "morale": 6,
+       "rep": {
+        "utc": 0,
+        "tideborn": 3,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "He leads you into a UTC patrol's lantern light. You run. He does not.",
+      "effects": {
+       "items": {},
+       "hp": -6,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -2
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Bar the cave mouth and wait for dawn",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.65,
+      "text": "You wedge the entrance with wreck timber. By dawn he is gone, and half your food.",
+      "effects": {
+       "items": {
+        "food": -2,
+        "wood": -1
+       },
+       "hp": 0,
+       "morale": -6,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.35,
+      "text": "He sets the bar alight. You drag the stores out through the smoke and lose some.",
+      "effects": {
+       "items": {
+        "food": -1,
+        "wood": -2
+       },
+       "hp": -6,
+       "morale": -4,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "When Serrano's second castaway turned on him they fought and later reconciled, a pattern that made distrust as dangerous as the sea itself."
+ },
+ {
+  "id": "cast_011",
+  "category": "castaway",
+  "title": "A Second Voice",
+  "zones": [
+   "beach",
+   "cliff"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.35,
+   "min_day": 14,
+   "camp_level": 1,
+   "needs_item": null,
+   "weather": "any"
+  },
+  "weight": 6,
+  "cooldown_s": 7200,
+  "intro_lines": [
+   "Smoke on the western headland.",
+   "Someone else survived the wreck.",
+   "They wave a torn sail."
+  ],
+  "choices": [
+   {
+    "label": "Signal with three fires",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "They pole a raft across the channel, weak but grateful. Shared rations buy trust.",
+      "effects": {
+       "items": {
+        "food": -2
+       },
+       "hp": 0,
+       "morale": 8,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": "cast_012"
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "They fear the Sovereign and refuse to cross; the smoke dies by dusk.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "The signal draws a UTC longboat instead; you scatter into the scrub.",
+      "effects": {
+       "items": {
+        "scrap": -1
+       },
+       "hp": -5,
+       "morale": -6,
+       "rep": {
+        "utc": -2,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Keep your distance",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "They vanish into the jungle. You stay alive, and alone.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "They leave a crate of salt pork on the rocks at dawn. No note.",
+      "effects": {
+       "items": {
+        "food": 3
+       },
+       "hp": 0,
+       "morale": 4,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Pedro Serrano shared his cay with a second castaway; they quarrelled, then reconciled."
+ },
+ {
+  "id": "cast_012",
+  "category": "castaway",
+  "title": "Stranger's Fire",
+  "zones": [
+   "beach",
+   "outpost"
+  ],
+  "trigger": {
+   "type": "action",
+   "chance": 0.0,
+   "min_day": 15,
+   "camp_level": 1,
+   "needs_item": null,
+   "weather": "any"
+  },
+  "weight": 5,
+  "cooldown_s": 0,
+  "intro_lines": [
+   "The stranger limps into camp.",
+   "Fever in his eyes, hands raw.",
+   "He asks for water, then silence."
+  ],
+  "choices": [
+   {
+    "label": "Nurse him with coconut water",
+    "requires": {
+     "coconut": 2
+    },
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "The fever breaks by morning. He swears an oath to your crew.",
+      "effects": {
+       "items": {
+        "coconut": -2
+       },
+       "hp": 0,
+       "morale": 6,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 1
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": "cast_013"
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "He recovers, but eyes your stores. Trust is thin.",
+      "effects": {
+       "items": {
+        "coconut": -2,
+        "food": -1
+       },
+       "hp": 0,
+       "morale": 2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": "cast_013"
+      }
+     }
+    ]
+   },
+   {
+    "label": "Turn him out before dawn",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "He staggers off. Your stores stay yours, and your conscience.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -4,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -1
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "He returns at night with two UTC privateers. You flee.",
+      "effects": {
+       "items": {
+        "scrap": -2
+       },
+       "hp": -8,
+       "morale": -9,
+       "rep": {
+        "utc": -2,
+        "tideborn": 0,
+        "free": -2
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Selkirk tamed kid goats for company; isolation warps judgement of strangers."
+ },
+ {
+  "id": "cast_013",
+  "category": "castaway",
+  "title": "Betrayal or Bond",
+  "zones": [
+   "outpost",
+   "jungle"
+  ],
+  "trigger": {
+   "type": "action",
+   "chance": 0.0,
+   "min_day": 16,
+   "camp_level": 1,
+   "needs_item": null,
+   "weather": "any"
+  },
+  "weight": 4,
+  "cooldown_s": 0,
+  "intro_lines": [
+   "He finds the relic shard cache.",
+   "Says he'll tell UTC for a pardon.",
+   "Your hand on your cutlass."
+  ],
+  "choices": [
+   {
+    "label": "Offer him a share of the haul",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "He takes the share, and later drags a wounded tideborn scout to safety. Bonded.",
+      "effects": {
+       "items": {
+        "relic_shard": -1
+       },
+       "hp": 0,
+       "morale": 10,
+       "rep": {
+        "utc": -1,
+        "tideborn": 2,
+        "free": 2
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "He takes the share, vanishes at dusk with your best knife.",
+      "effects": {
+       "items": {
+        "scrap": -1,
+        "relic_shard": -1
+       },
+       "hp": 0,
+       "morale": -7,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -2
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Maroon him with water and powder",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Articles upheld. He curses you from the rocks, then goes quiet.",
+      "effects": {
+       "items": {
+        "fresh_water": -1,
+        "powder": -1
+       },
+       "hp": 0,
+       "morale": 3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 1
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.5,
+      "text": "He signals a passing sloop; UTC learns your camp's position.",
+      "effects": {
+       "items": {},
+       "hp": -6,
+       "morale": -10,
+       "rep": {
+        "utc": -3,
+        "tideborn": 0,
+        "free": -1
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Roberts' articles punished defrauding the company with marooning and a bottle of water."
+ },
+ {
+  "id": "cast_014",
+  "category": "castaway",
+  "title": "Black Gums and Bleeding",
+  "zones": [
+   "outpost",
+   "jungle"
+  ],
+  "trigger": {
+   "type": "time",
+   "chance": 0.4,
+   "min_day": 21,
+   "camp_level": 1,
+   "needs_item": null,
+   "weather": "any"
+  },
+  "weight": 7,
+  "cooldown_s": 86400,
+  "intro_lines": [
+   "Your gums bleed when you chew.",
+   "Old scars reopen, slow to close.",
+   "Scurvy's grip tightens."
+  ],
+  "choices": [
+   {
+    "label": "Hunt greens and fruit",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Tide-Puck sniffs out a patch of wild cabbage palm. Chewing restores you.",
+      "effects": {
+       "items": {
+        "herbs": 2,
+        "food": 1
+       },
+       "hp": 6,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 4,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "You find only manchineel; the rash keeps you from eating.",
+      "effects": {
+       "items": {},
+       "hp": -4,
+       "morale": -6,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "A boar charges from the undergrowth; you flee with nothing.",
+      "effects": {
+       "items": {},
+       "hp": -7,
+       "morale": -4,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "boar",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Chew hide and drink coconut water",
+    "requires": {
+     "coconut": 1,
+     "hide": 1
+    },
+    "outcomes": [
+     {
+      "chance": 0.4,
+      "text": "The hide sits heavy; coconut water eases the thirst but not the sores.",
+      "effects": {
+       "items": {
+        "coconut": -1,
+        "hide": -1
+       },
+       "hp": -2,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.6,
+      "text": "The vitamin-starved body worsens; you collapse at dusk.",
+      "effects": {
+       "items": {
+        "coconut": -1
+       },
+       "hp": -9,
+       "morale": -8,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Scurvy struck sailors without fresh greens; Ada Blackjack nursed Lorne Knight until he died."
+ },
+ {
+  "id": "cast_015",
+  "category": "castaway",
+  "title": "Rotting Stores",
+  "zones": [
+   "outpost"
+  ],
+  "trigger": {
+   "type": "time",
+   "chance": 0.5,
+   "min_day": 7,
+   "camp_level": 1,
+   "needs_item": null,
+   "weather": "heat"
+  },
+  "weight": 6,
+  "cooldown_s": 43200,
+  "intro_lines": [
+   "The salt pork has gone green.",
+   "Maggots in the biscuit barrel.",
+   "Heat and rain have won."
+  ],
+  "choices": [
+   {
+    "label": "Smoke and dry what you can",
+    "requires": {
+     "wood": 2
+    },
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "You salvage half the meat over a slow fire. The rest feeds the crabs.",
+      "effects": {
+       "items": {
+        "wood": -2,
+        "food": 2
+       },
+       "hp": 0,
+       "morale": 2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "The fire flares; you scorch the lot. Smoke billows, and gulls come.",
+      "effects": {
+       "items": {
+        "wood": -2,
+        "food": -3
+       },
+       "hp": 0,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "gull",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Eat it raw and risk it",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.3,
+      "text": "Your gut holds. The protein buys a day of strength.",
+      "effects": {
+       "items": {
+        "food": 1
+       },
+       "hp": 3,
+       "morale": 1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.7,
+      "text": "Cramps and fever by midnight. You crawl to the beach.",
+      "effects": {
+       "items": {},
+       "hp": -10,
+       "morale": -6,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Serrano's provisions rotted in heat and rain; he sun-dried strips instead."
+ },
+ {
+  "id": "cast_016",
+  "category": "castaway",
+  "title": "Coral Cut Gone Wrong",
+  "zones": [
+   "reef",
+   "beach"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.4,
+   "min_day": 5,
+   "camp_level": 1,
+   "needs_item": null,
+   "weather": "any"
+  },
+  "weight": 6,
+  "cooldown_s": 28800,
+  "intro_lines": [
+   "A coral cut on your shin.",
+   "It's red, hot, swelling fast.",
+   "The reef has teeth."
+  ],
+  "choices": [
+   {
+    "label": "Clean with fresh water and herbs",
+    "requires": {
+     "fresh_water": 1,
+     "herbs": 1
+    },
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "The swelling fades. You keep the leg, and your footing.",
+      "effects": {
+       "items": {
+        "fresh_water": -1,
+        "herbs": -1
+       },
+       "hp": 4,
+       "morale": 3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Infection lingers; you limp for days but survive.",
+      "effects": {
+       "items": {
+        "fresh_water": -1,
+        "herbs": -1
+       },
+       "hp": -3,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Urinate on it and bind with cloth",
+    "requires": {
+     "fibre": 1
+    },
+    "outcomes": [
+     {
+      "chance": 0.4,
+      "text": "It stings, but the wound seals. Old sailor's trick.",
+      "effects": {
+       "items": {
+        "fibre": -1
+       },
+       "hp": 1,
+       "morale": 1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.6,
+      "text": "Fever sets in by nightfall. You shiver on the sand.",
+      "effects": {
+       "items": {
+        "fibre": -1
+       },
+       "hp": -8,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Coral cuts infect fast in tropical heat; NOAA lists reef hazards among castaway dangers."
+ },
+ {
+  "id": "cast_017",
+  "category": "castaway",
+  "title": "Talking to the Wind",
+  "zones": [
+   "outpost",
+   "cliff"
+  ],
+  "trigger": {
+   "type": "time",
+   "chance": 0.3,
+   "min_day": 28,
+   "camp_level": 1,
+   "needs_item": null,
+   "weather": "any"
+  },
+  "weight": 4,
+  "cooldown_s": 172800,
+  "intro_lines": [
+   "You catch yourself arguing aloud.",
+   "Tide-Puck tilts its head, listening.",
+   "The silence is eating you."
+  ],
+  "choices": [
+   {
+    "label": "Keep a daily tally and read aloud",
+    "requires": {
+     "scrap": 1
+    },
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "The routine steadies you. Speech stays sharp. Hope flickers.",
+      "effects": {
+       "items": {
+        "scrap": -1
+       },
+       "hp": 0,
+       "morale": 8,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 2,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "The journal soaks in a squall. You start again, stubborn.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Drink rum and sleep through it",
+    "requires": {
+     "rum": 1
+    },
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "A heavy, dreamless sleep. You wake hollow but rested.",
+      "effects": {
+       "items": {
+        "rum": -1
+       },
+       "hp": 4,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.5,
+      "text": "You wake shouting at nothing. Tide-Puck hides for hours.",
+      "effects": {
+       "items": {
+        "rum": -1
+       },
+       "hp": -2,
+       "morale": -9,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Selkirk read the Bible aloud to keep his speech; routines guard the mind."
+ },
+ {
+  "id": "cast_018",
+  "category": "castaway",
+  "title": "One Fire, Fifteen Years",
+  "zones": [
+   "outpost",
+   "beach"
+  ],
+  "trigger": {
+   "type": "action",
+   "chance": 0.25,
+   "min_day": 10,
+   "camp_level": 2,
+   "needs_item": null,
+   "weather": "rain"
+  },
+  "weight": 5,
+  "cooldown_s": 57600,
+  "intro_lines": [
+   "The rain soaks every tinder.",
+   "One ember left in the hearth.",
+   "If it dies, you start over."
+  ],
+  "choices": [
+   {
+    "label": "Shield it and feed dry husk",
+    "requires": {
+     "fibre": 2
+    },
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "The flame holds. Warmth and smoke through the night.",
+      "effects": {
+       "items": {
+        "fibre": -2
+       },
+       "hp": 2,
+       "morale": 4,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "A gust snuffs it. You spend hours with the bow drill.",
+      "effects": {
+       "items": {
+        "fibre": -2
+       },
+       "hp": -3,
+       "morale": -6,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Let it die, relight at dawn",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.4,
+      "text": "You sleep. At dawn the bow drill catches on the third try.",
+      "effects": {
+       "items": {},
+       "hp": 3,
+       "morale": 1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.6,
+      "text": "Humid air defeats the drill. Cold and dark till noon.",
+      "effects": {
+       "items": {},
+       "hp": -5,
+       "morale": -7,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Tromelin's castaways kept one fire alive fifteen years; flint strikers wore to nothing."
+ },
+ {
+  "id": "cast_019",
+  "category": "castaway",
+  "title": "Smoke on the Horizon",
+  "zones": [
+   "cliff",
+   "beach"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.3,
+   "min_day": 6,
+   "camp_level": 1,
+   "needs_item": null,
+   "weather": "clear"
+  },
+  "weight": 7,
+  "cooldown_s": 10800,
+  "intro_lines": [
+   "Three fires in a triangle.",
+   "A sloop passes, then turns away.",
+   "They fear the shoals."
+  ],
+  "choices": [
+   {
+    "label": "Add green leaves for white smoke",
+    "requires": {
+     "fibre": 2
+    },
+    "outcomes": [
+     {
+      "chance": 0.4,
+      "text": "The white column climbs. The sloop hesitates, then sails on.",
+      "effects": {
+       "items": {
+        "fibre": -2
+       },
+       "hp": 0,
+       "morale": -4,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.6,
+      "text": "The smoke draws a tideborn scout instead. They watch, then vanish.",
+      "effects": {
+       "items": {
+        "fibre": -2
+       },
+       "hp": 0,
+       "morale": 2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 1,
+        "free": 0
+       },
+       "spawn": "tideborn_scout",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Flash a mirror from the cliff",
+    "requires": {
+     "scrap": 1
+    },
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "A glint back. They lower a boat, then abort. Shoals win.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.5,
+      "text": "UTC privateers answer the flash. You duck into the cave.",
+      "effects": {
+       "items": {
+        "scrap": -1
+       },
+       "hp": -4,
+       "morale": -7,
+       "rep": {
+        "utc": -2,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Serrano's smoke was ignored by ships afraid of the shoals; signalling is no guarantee."
+ },
+ {
+  "id": "cast_020",
+  "category": "castaway",
+  "title": "Night Rain Catchment",
+  "zones": [
+   "outpost",
+   "beach"
+  ],
+  "trigger": {
+   "type": "action",
+   "chance": 0.45,
+   "min_day": 3,
+   "camp_level": 1,
+   "needs_item": null,
+   "weather": "rain"
+  },
+  "weight": 6,
+  "cooldown_s": 21600,
+  "intro_lines": [
+   "Rain drums the palm fronds.",
+   "Empty shells and a torn sail.",
+   "Water or nothing tonight."
+  ],
+  "choices": [
+   {
+    "label": "Rig sailcloth as a funnel",
+    "requires": {
+     "sailcloth": 1
+    },
+    "outcomes": [
+     {
+      "chance": 0.8,
+      "text": "Gallons pour into the basins. Clean water for days.",
+      "effects": {
+       "items": {
+        "sailcloth": -1,
+        "fresh_water": 4
+       },
+       "hp": 2,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "The wind tears the cloth; you salvage a trickle.",
+      "effects": {
+       "items": {
+        "sailcloth": -1,
+        "fresh_water": 1
+       },
+       "hp": 0,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Line shells and coconut husks",
+    "requires": {
+     "shell": 2,
+     "fibre": 1
+    },
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "A modest catch. Enough to stave off the thirst.",
+      "effects": {
+       "items": {
+        "shell": -2,
+        "fibre": -1,
+        "fresh_water": 2
+       },
+       "hp": 1,
+       "morale": 2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "Dust and grit ruin half of it. You drink anyway.",
+      "effects": {
+       "items": {
+        "shell": -2,
+        "fibre": -1,
+        "fresh_water": 1
+       },
+       "hp": -1,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Serrano used shells as rain catchers, holding up to twelve gallons."
+ },
+ {
+  "id": "cast_021",
+  "category": "castaway",
+  "title": "The Last Turtle",
+  "zones": [
+   "beach",
+   "reef"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.35,
+   "min_day": 12,
+   "camp_level": 1,
+   "needs_item": null,
+   "weather": "night"
+  },
+  "weight": 6,
+  "cooldown_s": 43200,
+  "intro_lines": [
+   "A green turtle hauls ashore.",
+   "Moonlight on her shell.",
+   "She's heavy, and she's yours."
+  ],
+  "choices": [
+   {
+    "label": "Flip her and save for morning",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "She's on her back by dawn. Meat, shell, and oil for weeks.",
+      "effects": {
+       "items": {
+        "food": 4,
+        "shell": 1
+       },
+       "hp": 3,
+       "morale": 4,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "She rights herself in the night and slips away.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -4,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Kill and butcher at once",
+    "requires": {
+     "iron": 1
+    },
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Fresh meat tonight. You salt the rest before it spoils.",
+      "effects": {
+       "items": {
+        "iron": -1,
+        "food": 3,
+        "hide": 1
+       },
+       "hp": 5,
+       "morale": 3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "Blood draws a reef shark into the shallows. You retreat.",
+      "effects": {
+       "items": {
+        "iron": -1,
+        "food": 1
+       },
+       "hp": -6,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "shark",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Serrano flipped sea turtles onto their backs and drank their blood when no rain fell."
+ }
+]

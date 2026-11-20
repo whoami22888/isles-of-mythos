@@ -1,0 +1,98 @@
+{
+ "wood": {
+  "name": "Wood",
+  "description": "Felled timber and split logs."
+ },
+ "stone": {
+  "name": "Stone",
+  "description": "Beach rock and coral block for walls."
+ },
+ "iron": {
+  "name": "Iron",
+  "description": "Salvaged nails, fittings and bar iron."
+ },
+ "food": {
+  "name": "Food",
+  "description": "Generic rations: dried, smoked or cooked."
+ },
+ "fibre": {
+  "name": "Fibre",
+  "description": "Coconut husk coir and palm fibre."
+ },
+ "rope": {
+  "name": "Rope",
+  "description": "Twisted fibre line."
+ },
+ "scrap": {
+  "name": "Scrap",
+  "description": "Wreck salvage: brass, chain, broken tools."
+ },
+ "gold": {
+  "name": "Gold",
+  "description": "Coin and plate, pieces of eight."
+ },
+ "relic_shard": {
+  "name": "Relic Shard",
+  "description": "Tideborn relic fragment; hums near water."
+ },
+ "coconut": {
+  "name": "Coconut",
+  "description": "Green nuts for water, brown for meat and husk."
+ },
+ "fresh_water": {
+  "name": "Fresh Water",
+  "description": "Rain, well or still water. Never seawater."
+ },
+ "fish": {
+  "name": "Fish",
+  "description": "Small reef fish. Big predators risk ciguatera."
+ },
+ "crab_meat": {
+  "name": "Crab Meat",
+  "description": "Land or coconut crab; cook it well."
+ },
+ "herbs": {
+  "name": "Herbs",
+  "description": "Bitter leaves and roots for wounds and fever."
+ },
+ "hide": {
+  "name": "Hide",
+  "description": "Goat or boar skin for clothing and bindings."
+ },
+ "feather": {
+  "name": "Feather",
+  "description": "Seabird feathers: fletching, tinder, even sails."
+ },
+ "flint": {
+  "name": "Flint",
+  "description": "Spark stone; strike with steel or a knife."
+ },
+ "shell": {
+  "name": "Shell",
+  "description": "Turtle and conch shells: vessels, scoops, trade."
+ },
+ "pearl": {
+  "name": "Pearl",
+  "description": "Lagoon oyster pearl; prized by havens."
+ },
+ "tar": {
+  "name": "Tar",
+  "description": "Pine pitch or salvaged tar for caulking hulls."
+ },
+ "sailcloth": {
+  "name": "Sailcloth",
+  "description": "Canvas from wrecks: shelter, rain catch, sails."
+ },
+ "powder": {
+  "name": "Powder",
+  "description": "Black powder. Useless once wet."
+ },
+ "rum": {
+  "name": "Rum",
+  "description": "Pirate currency, morale and wound wash."
+ },
+ "map_fragment": {
+  "name": "Map Fragment",
+  "description": "Torn chart piece; several make a route."
+ }
+}

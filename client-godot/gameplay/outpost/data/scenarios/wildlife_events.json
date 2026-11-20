@@ -1,0 +1,1739 @@
+[
+ {
+  "id": "wild_001",
+  "category": "wildlife",
+  "title": "Blood in the Shallows",
+  "zones": [
+   "reef",
+   "beach"
+  ],
+  "trigger": {
+   "type": "action",
+   "chance": 0.4,
+   "min_day": 1,
+   "camp_level": 1,
+   "needs_item": null,
+   "weather": "any"
+  },
+  "weight": 6,
+  "cooldown_s": 300,
+  "intro_lines": [
+   "Your cut drips into the tide pool.",
+   "A grey shape circles once, twice."
+  ],
+  "choices": [
+   {
+    "label": "Stand still, blade ready",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "The reef shark loses interest and slips away into deeper water.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "It bumps your leg; you kick free with a bruised shin but keep your footing.",
+      "effects": {
+       "items": {},
+       "hp": -5,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Teeth rake your calf. Tide-Puck drags you up the beach, bleeding.",
+      "effects": {
+       "items": {
+        "hide": -1
+       },
+       "hp": -25,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "shark",
+       "pet_xp": 5,
+       "unlock": null,
+       "next_event": "wild_002"
+      }
+     }
+    ]
+   },
+   {
+    "label": "Hurl a fish to distract it",
+    "requires": {
+     "fish": 1
+    },
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "The shark takes the fish and vanishes; you limp to shore.",
+      "effects": {
+       "items": {
+        "fish": -1
+       },
+       "hp": 0,
+       "morale": 2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "It ignores the fish and circles closer; you back away slowly.",
+      "effects": {
+       "items": {
+        "fish": -1
+       },
+       "hp": -3,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.1,
+      "text": "Two more sharks appear, drawn by the thrashing fish.",
+      "effects": {
+       "items": {
+        "fish": -1
+       },
+       "hp": -15,
+       "morale": -8,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "shark",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": "wild_002"
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Reef sharks are drawn by blood and thrashing in shallow water, a documented hazard for waders and fishers."
+ },
+ {
+  "id": "wild_002",
+  "category": "wildlife",
+  "title": "Tiger at Dusk",
+  "zones": [
+   "reef",
+   "sea"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.0,
+   "min_day": 2,
+   "camp_level": 1,
+   "needs_item": null,
+   "weather": "any"
+  },
+  "weight": 5,
+  "cooldown_s": 600,
+  "intro_lines": [
+   "The sun bleeds into the horizon.",
+   "A dark fin cuts the glassy water."
+  ],
+  "choices": [
+   {
+    "label": "Paddle for the reef shallows",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "You reach ankle-deep water; the tiger shark turns back to deep blue.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 8,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "It grazes your paddle; you stumble but gain the shallows.",
+      "effects": {
+       "items": {},
+       "hp": -8,
+       "morale": -4,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.1,
+      "text": "It strikes the boat; you swim hard for shore, losing gear.",
+      "effects": {
+       "items": {
+        "scrap": -2,
+        "rope": -1
+       },
+       "hp": -20,
+       "morale": -12,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "shark",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Play dead in the water",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.4,
+      "text": "The shark circles, nudges you, then drifts away at last.",
+      "effects": {
+       "items": {},
+       "hp": -2,
+       "morale": -6,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "It takes a test bite of your pack; you kick free, wounded.",
+      "effects": {
+       "items": {
+        "food": -2
+       },
+       "hp": -18,
+       "morale": -9,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "It drags you under briefly; Tide-Puck's barking drives it off.",
+      "effects": {
+       "items": {},
+       "hp": -30,
+       "morale": -15,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Tiger sharks hunt at dusk in shallow coastal water, a well-documented risk to swimmers and small boats."
+ },
+ {
+  "id": "wild_003",
+  "category": "wildlife",
+  "title": "Stingray in the Sand",
+  "zones": [
+   "beach",
+   "reef"
+  ],
+  "trigger": {
+   "type": "location",
+   "chance": 0.35,
+   "min_day": 1,
+   "camp_level": 1,
+   "needs_item": null,
+   "weather": "any"
+  },
+  "weight": 7,
+  "cooldown_s": 400,
+  "intro_lines": [
+   "A dimple in the sand shifts.",
+   "Something flat lies buried there."
+  ],
+  "choices": [
+   {
+    "label": "Shuffle your feet forward",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "The ray lifts and glides away; you pass unharmed.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "It startles; a wing brushes your ankle, no sting.",
+      "effects": {
+       "items": {},
+       "hp": -2,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.1,
+      "text": "The barb catches your foot; hot water is the only relief.",
+      "effects": {
+       "items": {
+        "fresh_water": -2
+       },
+       "hp": -15,
+       "morale": -8,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Probe with a stick first",
+    "requires": {
+     "wood": 1
+    },
+    "outcomes": [
+     {
+      "chance": 0.8,
+      "text": "The stick touches the ray; it bolts and leaves a shallow scrape.",
+      "effects": {
+       "items": {
+        "wood": -1
+       },
+       "hp": 0,
+       "morale": 4,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.15,
+      "text": "The ray ignores the stick; you retreat and go around.",
+      "effects": {
+       "items": {
+        "wood": -1
+       },
+       "hp": 0,
+       "morale": -1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.05,
+      "text": "The stick snaps; the ray stings your hand as you flinch.",
+      "effects": {
+       "items": {
+        "wood": -1
+       },
+       "hp": -12,
+       "morale": -6,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Stingrays bury in sand and injure when stepped on; shuffling feet is the standard avoidance."
+ },
+ {
+  "id": "wild_004",
+  "category": "wildlife",
+  "title": "Moray in the Crevice",
+  "zones": [
+   "reef",
+   "cave"
+  ],
+  "trigger": {
+   "type": "action",
+   "chance": 0.3,
+   "min_day": 1,
+   "camp_level": 1,
+   "needs_item": null,
+   "weather": "any"
+  },
+  "weight": 6,
+  "cooldown_s": 350,
+  "intro_lines": [
+   "Your hand reaches into a dark crack.",
+   "Teeth flash in the murk."
+  ],
+  "choices": [
+   {
+    "label": "Pull hand back slowly",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "The moray holds its ground; you withdraw with only a scare.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "It lunges but misses; your wrist grazes coral, stinging.",
+      "effects": {
+       "items": {},
+       "hp": -4,
+       "morale": -4,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.1,
+      "text": "Jaws clamp your fingers; Tide-Puck yanks your arm free, bleeding.",
+      "effects": {
+       "items": {},
+       "hp": -18,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "eel",
+       "pet_xp": 5,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Jab with a spear first",
+    "requires": {
+     "wood": 1,
+     "flint": 1
+    },
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "The moray retreats deep; you pry loose a cache of shells.",
+      "effects": {
+       "items": {
+        "shell": 2,
+        "wood": -1
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.35,
+      "text": "It bites the spear shaft; you keep the head but lose the shaft.",
+      "effects": {
+       "items": {
+        "wood": -1,
+        "flint": 1
+       },
+       "hp": -3,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.15,
+      "text": "It strikes past the spear and tears your palm before bolting.",
+      "effects": {
+       "items": {
+        "wood": -1
+       },
+       "hp": -14,
+       "morale": -7,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Moray eels bite when hands enter crevices and may carry ciguatera toxin."
+ },
+ {
+  "id": "wild_005",
+  "category": "wildlife",
+  "title": "Stonefish on the Reef",
+  "zones": [
+   "reef"
+  ],
+  "trigger": {
+   "type": "location",
+   "chance": 0.25,
+   "min_day": 2,
+   "camp_level": 1,
+   "needs_item": null,
+   "weather": "any"
+  },
+  "weight": 8,
+  "cooldown_s": 500,
+  "intro_lines": [
+   "A lump of rock that breathes.",
+   "You almost step on it."
+  ],
+  "choices": [
+   {
+    "label": "Freeze and back away",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "You freeze in time; the stonefish never moves. You retreat.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Your boot slips; you skin your knee but avoid the spines.",
+      "effects": {
+       "items": {},
+       "hp": -3,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.1,
+      "text": "A spine pierces your sole; hot water and a long, sick night.",
+      "effects": {
+       "items": {
+        "fresh_water": -3
+       },
+       "hp": -22,
+       "morale": -12,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Tide-Puck sniffs it out first",
+    "requires": {
+     "pet_level": 2
+    },
+    "outcomes": [
+     {
+      "chance": 0.85,
+      "text": "Tide-Puck growls and circles the spot; you step wide.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 6,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 8,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.1,
+      "text": "Tide-Puck sniffs too close and yelps; you carry him to camp.",
+      "effects": {
+       "items": {},
+       "hp": -2,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 3,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.05,
+      "text": "He startles the fish; it bolts and you lose the trail.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Stonefish venom spines cause severe pain and require hot-water immersion; they camouflage as rock."
+ },
+ {
+  "id": "wild_006",
+  "category": "wildlife",
+  "title": "Turtles at Moonrise",
+  "zones": [
+   "beach",
+   "isle"
+  ],
+  "trigger": {
+   "type": "time",
+   "chance": 0.4,
+   "min_day": 3,
+   "camp_level": 1,
+   "needs_item": null,
+   "weather": "clear"
+  },
+  "weight": 5,
+  "cooldown_s": 800,
+  "intro_lines": [
+   "Moonlight on the sand.",
+   "A turtle hauls herself up."
+  ],
+  "choices": [
+   {
+    "label": "Watch quietly from cover",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "She lays her eggs and returns to sea; you mark the nest.",
+      "effects": {
+       "items": {
+        "map_fragment": 1
+       },
+       "hp": 0,
+       "morale": 8,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "She aborts and slides back; the nest site is lost.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.1,
+      "text": "A second turtle mistakes you for a predator and charges.",
+      "effects": {
+       "items": {},
+       "hp": -6,
+       "morale": -4,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Flip her for meat and shell",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "You secure meat and a shell vessel; the nest is ruined.",
+      "effects": {
+       "items": {
+        "crab_meat": 2,
+        "shell": 1
+       },
+       "hp": 0,
+       "morale": -4,
+       "rep": {
+        "utc": 0,
+        "tideborn": -3,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "She rights herself and bites your hand before escaping.",
+      "effects": {
+       "items": {},
+       "hp": -8,
+       "morale": -6,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Two more turtles arrive; you herd them into a pen.",
+      "effects": {
+       "items": {
+        "crab_meat": 3,
+        "shell": 2
+       },
+       "hp": 0,
+       "morale": 3,
+       "rep": {
+        "utc": 0,
+        "tideborn": -5,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Sea turtles nest at night and were historically flipped onto their backs to capture."
+ },
+ {
+  "id": "wild_007",
+  "category": "wildlife",
+  "title": "Frigatebird Shadow",
+  "zones": [
+   "cliff",
+   "sea",
+   "beach"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.3,
+   "min_day": 1,
+   "camp_level": 1,
+   "needs_item": null,
+   "weather": "clear"
+  },
+  "weight": 4,
+  "cooldown_s": 450,
+  "intro_lines": [
+   "A black bird hangs motionless.",
+   "It drops a fish at your feet."
+  ],
+  "choices": [
+   {
+    "label": "Take the dropped fish",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "The frigatebird shrieks and dives; you gain a free meal.",
+      "effects": {
+       "items": {
+        "fish": 1
+       },
+       "hp": 0,
+       "morale": 4,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "It snatches the fish back and steals a shiny trinket.",
+      "effects": {
+       "items": {
+        "scrap": -1
+       },
+       "hp": 0,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "gull",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "More frigatebirds arrive, harassing you for scraps.",
+      "effects": {
+       "items": {},
+       "hp": -2,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "gull",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Throw a stone to drive it off",
+    "requires": {
+     "stone": 1
+    },
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "It wheels away; you keep your peace and your things.",
+      "effects": {
+       "items": {
+        "stone": -1
+       },
+       "hp": 0,
+       "morale": 1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "The stone misses; the bird circles but does not land.",
+      "effects": {
+       "items": {
+        "stone": -1
+       },
+       "hp": 0,
+       "morale": -1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.1,
+      "text": "You hit a companion bird; the flock mobs you briefly.",
+      "effects": {
+       "items": {
+        "stone": -1
+       },
+       "hp": -5,
+       "morale": -6,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "gull",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Frigatebirds steal fish and shiny objects, a known nuisance to sailors and castaways."
+ },
+ {
+  "id": "wild_008",
+  "category": "wildlife",
+  "title": "Tern Colony Eggs",
+  "zones": [
+   "cliff",
+   "isle"
+  ],
+  "trigger": {
+   "type": "location",
+   "chance": 0.35,
+   "min_day": 2,
+   "camp_level": 1,
+   "needs_item": null,
+   "weather": "any"
+  },
+  "weight": 6,
+  "cooldown_s": 700,
+  "intro_lines": [
+   "Thousands of terns wheel overhead.",
+   "Eggs lie in shallow scrapes."
+  ],
+  "choices": [
+   {
+    "label": "Gather eggs at dawn",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "You fill a sack with eggs; the colony screams but holds.",
+      "effects": {
+       "items": {
+        "food": 4
+       },
+       "hp": 0,
+       "morale": 6,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Terns dive and peck; you retreat with a few eggs.",
+      "effects": {
+       "items": {
+        "food": 1
+       },
+       "hp": -4,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "gull",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "You slip on guano; eggs break and birds swarm.",
+      "effects": {
+       "items": {
+        "food": -1
+       },
+       "hp": -6,
+       "morale": -8,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "gull",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Set snares for adult birds",
+    "requires": {
+     "rope": 1,
+     "fibre": 2
+    },
+    "outcomes": [
+     {
+      "chance": 0.4,
+      "text": "Two terns caught; you smoke the meat for travel.",
+      "effects": {
+       "items": {
+        "rope": -1,
+        "fibre": -2,
+        "food": 3,
+        "feather": 2
+       },
+       "hp": 0,
+       "morale": 4,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "Snares tangle; you free one bird and lose the rope.",
+      "effects": {
+       "items": {
+        "rope": -1,
+        "fibre": -2
+       },
+       "hp": -2,
+       "morale": -4,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Colony abandons the site; nothing gained but guilt.",
+      "effects": {
+       "items": {
+        "rope": -1,
+        "fibre": -2
+       },
+       "hp": 0,
+       "morale": -9,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Tern colonies provided eggs and meat to castaways such as those on Tromelin Island."
+ },
+ {
+  "id": "wild_009",
+  "category": "wildlife",
+  "title": "Fever Mosquitoes",
+  "zones": [
+   "jungle",
+   "outpost",
+   "isle"
+  ],
+  "trigger": {
+   "type": "time",
+   "chance": 0.45,
+   "min_day": 5,
+   "camp_level": 1,
+   "needs_item": null,
+   "weather": "rain"
+  },
+  "weight": 7,
+  "cooldown_s": 600,
+  "intro_lines": [
+   "Dusk brings a whining cloud.",
+   "Your skin prickles and burns."
+  ],
+  "choices": [
+   {
+    "label": "Smoke a smudge fire",
+    "requires": {
+     "wood": 2,
+     "fibre": 1
+    },
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Smoke drives them off; you sleep soundly at last.",
+      "effects": {
+       "items": {
+        "wood": -2,
+        "fibre": -1
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Smoke stings your eyes; fewer bites but a restless night.",
+      "effects": {
+       "items": {
+        "wood": -2,
+        "fibre": -1
+       },
+       "hp": -2,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.1,
+      "text": "Fire catches a palm; you beat it out, exhausted.",
+      "effects": {
+       "items": {
+        "wood": -2,
+        "fibre": -1
+       },
+       "hp": -8,
+       "morale": -9,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Endure and apply herbs",
+    "requires": {
+     "herbs": 1
+    },
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Herbs soothe the bites; no fever takes hold.",
+      "effects": {
+       "items": {
+        "herbs": -1
+       },
+       "hp": 0,
+       "morale": 2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.35,
+      "text": "Bites swell; you shiver through a mild fever by morning.",
+      "effects": {
+       "items": {
+        "herbs": -1
+       },
+       "hp": -10,
+       "morale": -6,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.15,
+      "text": "Fever spikes; you sweat through two days in the shade.",
+      "effects": {
+       "items": {
+        "herbs": -1,
+        "fresh_water": -2
+       },
+       "hp": -25,
+       "morale": -12,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Mosquitoes spread fever among camped sailors, a common killer on tropical havens."
+ },
+ {
+  "id": "wild_010",
+  "category": "wildlife",
+  "title": "Parrot That Talks",
+  "zones": [
+   "jungle",
+   "outpost"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.3,
+   "min_day": 4,
+   "camp_level": 1,
+   "needs_item": null,
+   "weather": "any"
+  },
+  "weight": 4,
+  "cooldown_s": 500,
+  "intro_lines": [
+   "A green parrot watches you.",
+   "It repeats your own words."
+  ],
+  "choices": [
+   {
+    "label": "Teach it a useful phrase",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "It learns to call out 'sail!' on cue; a handy lookout.",
+      "effects": {
+       "items": {
+        "feather": 1
+       },
+       "hp": 0,
+       "morale": 8,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "It learns nothing useful but squawks all night.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -4,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "It flies off, carrying a shiny button from your coat.",
+      "effects": {
+       "items": {
+        "scrap": -1
+       },
+       "hp": 0,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Catch it for trade",
+    "requires": {
+     "rope": 1,
+     "fibre": 1
+    },
+    "outcomes": [
+     {
+      "chance": 0.4,
+      "text": "You net it; a haven buyer will pay well for a talker.",
+      "effects": {
+       "items": {
+        "rope": -1,
+        "fibre": -1
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 2
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "It bites your finger and escapes, squawking insults.",
+      "effects": {
+       "items": {
+        "rope": -1,
+        "fibre": -1
+       },
+       "hp": -3,
+       "morale": -4,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "The flock descends; you flee, losing the net.",
+      "effects": {
+       "items": {
+        "rope": -1,
+        "fibre": -1
+       },
+       "hp": -5,
+       "morale": -7,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Parrots mimicked speech and were sold in pirate havens as prized curiosities."
+ },
+ {
+  "id": "wild_011",
+  "category": "wildlife",
+  "title": "Crab That Steals",
+  "zones": [
+   "beach",
+   "jungle"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.35,
+   "min_day": 3,
+   "camp_level": 1,
+   "needs_item": null,
+   "weather": "night"
+  },
+  "weight": 5,
+  "cooldown_s": 400,
+  "intro_lines": [
+   "Something clicks in the dark.",
+   "Your knife is gone."
+  ],
+  "choices": [
+   {
+    "label": "Track it by sound",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "You find the burrow and recover the knife plus a pearl.",
+      "effects": {
+       "items": {
+        "scrap": 1,
+        "pearl": 1
+       },
+       "hp": 0,
+       "morale": 7,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "The burrow is empty; the trail vanishes in sand.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "You stumble into a second crab; it pinches hard.",
+      "effects": {
+       "items": {},
+       "hp": -6,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "crab",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Bait the burrow with fish",
+    "requires": {
+     "fish": 1
+    },
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "The crab emerges; you reclaim your knife and more.",
+      "effects": {
+       "items": {
+        "fish": -1,
+        "scrap": 1,
+        "shell": 1
+       },
+       "hp": 0,
+       "morale": 6,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "A larger crab takes the bait and the knife both.",
+      "effects": {
+       "items": {
+        "fish": -1
+       },
+       "hp": 0,
+       "morale": -6,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "crab",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.1,
+      "text": "Nothing comes; ants eat the fish by morning.",
+      "effects": {
+       "items": {
+        "fish": -1
+       },
+       "hp": 0,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Coconut crabs scavenge and steal shiny objects, with claws strong enough to crush."
+ }
+]
