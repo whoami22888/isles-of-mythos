@@ -121,14 +121,14 @@
         {
           "name": "Atlas_Monsters.png",
           "type": "file",
-          "size_bytes": 9216,
-          "drive_file_id": "1CtLGgAKj-6a6GGNVNQT7GRPM7uyo9Fj8"
+          "drive_file_id": "1CtLGgAKj-6a6GGNVNQT7GRPM7uyo9Fj8",
+          "size_label": "9 KB"
         },
         {
           "name": "Color Guide.png",
           "type": "file",
-          "size_bytes": 64512,
-          "drive_file_id": "11rPu1EL2rJusR1Sz2LQ5s9WfR7iVViRO"
+          "drive_file_id": "11rPu1EL2rJusR1Sz2LQ5s9WfR7iVViRO",
+          "size_label": "63 KB"
         },
         {
           "name": "License.txt",
@@ -139,8 +139,8 @@
         {
           "name": "Preview.jpg",
           "type": "file",
-          "size_bytes": 443392,
-          "drive_file_id": "1P7Mr76R_3ZzTtYCJ7aDtaQ84Yb9C3owY"
+          "drive_file_id": "1P7Mr76R_3ZzTtYCJ7aDtaQ84Yb9C3owY",
+          "size_label": "433 KB"
         }
       ],
       "license_file_title_mismatch": "Ultimate Platformer Pack",
@@ -177,8 +177,8 @@
         {
           "name": "Preview.jpg",
           "type": "file",
-          "size_bytes": 505856,
-          "drive_file_id": "1S-j0FDZMdDbjmEmlUzukx--R108czpgD"
+          "drive_file_id": "1S-j0FDZMdDbjmEmlUzukx--R108czpgD",
+          "size_label": "494 KB"
         }
       ],
       "root_license_document": "ABSENT",
