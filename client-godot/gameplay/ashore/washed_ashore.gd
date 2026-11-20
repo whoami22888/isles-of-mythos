@@ -573,6 +573,18 @@ func on_end_closed() -> void:
 	_end_open = false
 	_end_dismissed = true
 	_save()
+	go_outpost()
+
+
+const OUTPOST_SCENE := "res://gameplay/outpost/outpost.tscn"
+
+## Chapter 2 hand-off: the outpost reads this chapter's save (inventory, pet
+## name) on first entry. Only swaps scenes when this island is the running
+## scene, so test harnesses that host it under root stay put.
+func go_outpost() -> void:
+	_save()
+	if is_inside_tree() and get_tree().current_scene == self:
+		get_tree().call_deferred("change_scene_to_file", OUTPOST_SCENE)
 
 
 func on_research_toggle() -> void:
@@ -3844,7 +3856,7 @@ func _action_caption() -> String:
 
 
 func _end_lines() -> Array:
-	var lure := ["The leviathan wreck.", OFFSHORE_WARNING, "To be continued."]
+	var lure := ["The leviathan wreck.", OFFSHORE_WARNING, "Chapter 2: Gathering the Scattered"]
 	if _choice == "tame":
 		var lines: Array = []
 		if _rare:

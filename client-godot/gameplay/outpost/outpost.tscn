@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://gameplay/outpost/outpost.gd" id="1_outpost"]
+
+[node name="Outpost" type="Node3D"]
+script = ExtResource("1_outpost")
