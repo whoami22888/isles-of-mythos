@@ -76,26 +76,47 @@ func modify_resource(resource_type: String, amount: int) -> bool:
 
 
 func bind_protocol(protocol: Node) -> bool:
-	if protocol == _protocol:
-		return true
-	_unbind_protocol()
 	if protocol == null:
+		_unbind_protocol()
 		return true
+	if protocol == _protocol:
+		return is_instance_valid(protocol)
+	if not is_instance_valid(protocol):
+		return false
 	if not protocol.has_signal("player_state_received") or not protocol.has_signal("command_acknowledged"):
 		return false
 
-	_protocol = protocol
+	# Prepare the replacement completely before releasing the active protocol.
+	# A rejected or partially-connectable candidate must not interrupt live state.
 	var player_state_callable := Callable(self, "_on_player_state_received")
 	var command_ack_callable := Callable(self, "_on_command_acknowledged")
-	var player_state_error := protocol.connect("player_state_received", player_state_callable)
-	var command_ack_error := protocol.connect("command_acknowledged", command_ack_callable)
-	if player_state_error != OK or command_ack_error != OK:
-		_unbind_protocol()
-		return false
-
 	var tree_exit_callable := Callable(self, "_on_protocol_tree_exiting")
+	var added_player_state := false
+	var added_command_ack := false
+	if not protocol.is_connected("player_state_received", player_state_callable):
+		var player_state_error := protocol.connect("player_state_received", player_state_callable)
+		if player_state_error != OK:
+			return false
+		added_player_state = true
+	if not protocol.is_connected("command_acknowledged", command_ack_callable):
+		var command_ack_error := protocol.connect("command_acknowledged", command_ack_callable)
+		if command_ack_error != OK:
+			if added_player_state:
+				protocol.disconnect("player_state_received", player_state_callable)
+			return false
+		added_command_ack = true
 	if not protocol.tree_exiting.is_connected(tree_exit_callable):
-		protocol.tree_exiting.connect(tree_exit_callable, CONNECT_ONE_SHOT)
+		var tree_exit_error := protocol.tree_exiting.connect(tree_exit_callable, CONNECT_ONE_SHOT)
+		if tree_exit_error != OK:
+			if added_command_ack:
+				protocol.disconnect("command_acknowledged", command_ack_callable)
+			if added_player_state:
+				protocol.disconnect("player_state_received", player_state_callable)
+			return false
+
+	# The candidate is valid and subscribed; now swap the active binding.
+	_unbind_protocol()
+	_protocol = protocol
 	return true
 
 
