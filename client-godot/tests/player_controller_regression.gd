@@ -97,9 +97,9 @@ static func run(tree: SceneTree, check: Callable) -> void:
 	player.apply_authoritative_state({"selectedHotbarSlot": 3})
 	check.call(player.use_selected_hotbar("resource:1:2:3", Vector2.ZERO) == "gather-1", "Shovel use must use the server-authoritative gather command")
 	check.call(protocol.gather_requests == ["resource:1:2:3"], "Shovel must not mutate inventory locally")
+	check.call(player.use_selected_hotbar("resource:1:2:3", Vector2.ZERO) == "gather-2", "Shovel gather must not require a facing vector")
 
 	check.call(player.use_selected_hotbar("", Vector2(1.0, 0.0)).is_empty(), "Hotbar use must reject an empty target id")
-	check.call(player.use_selected_hotbar("creature:1:2:3", Vector2.ZERO).is_empty() == false, "Shovel use must not require a facing vector")
 
 	protocol.combat_result_received.emit("attack-1", {"damage": 20, "killed": false})
 	check.call(combat_events.size() == 1 and combat_events[0].request_id == "attack-1", "Combat results must be forwarded to the player controller")
