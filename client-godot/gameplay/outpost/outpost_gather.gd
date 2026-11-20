@@ -35,6 +35,12 @@ func setup(data: Dictionary) -> void:
 		root.add_child(body)
 		Art.fit_height(body, 6.5 if kind == "tree" else 1.1)
 		var box := Art.world_aabb(body)
+		# Wide flat rock meshes: cap the footprint, not just the height.
+		var wide := maxf(box.size.x, box.size.z)
+		var cap := 4.5 if kind == "tree" else 1.7
+		if wide > cap:
+			body.scale *= cap / wide
+			box = Art.world_aabb(body)
 		body.global_position.y += root.global_position.y - box.position.y - (0.15 if kind == "tree" else 0.25)
 		nodes.append({"kind": kind, "root": root, "body": body, "hp": _hits(kind), "left": 0.0, "pos": root.global_position, "rest": body.position})
 

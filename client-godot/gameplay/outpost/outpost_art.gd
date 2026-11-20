@@ -137,11 +137,11 @@ func dirt_patch(parent: Node3D, radius: float) -> MeshInstance3D:
 func _rope_between(parent: Node3D, a: Vector3, b: Vector3) -> void:
 	if _rope_mat == null:
 		_rope_mat = StandardMaterial3D.new()
-		_rope_mat.albedo_color = Color(0.55, 0.45, 0.3)
+		_rope_mat.albedo_color = Color(0.36, 0.29, 0.2)
 		_rope_mat.roughness = 1.0
 	var cyl := CylinderMesh.new()
-	cyl.top_radius = 0.022
-	cyl.bottom_radius = 0.022
+	cyl.top_radius = 0.016
+	cyl.bottom_radius = 0.016
 	cyl.radial_segments = 6
 	cyl.height = a.distance_to(b)
 	var m := MeshInstance3D.new()
@@ -266,8 +266,9 @@ func building(parent: Node3D, id: String, level: int) -> Node3D:
 				Art.fit_height(sail, 1.0)
 				sail.position = Vector3(0, h + 0.2, 0)
 		"palisade":
-			var n := 8 + 3 * level
+			var n := 9 + 3 * level
 			for i in n:
-				var x := (i - (n - 1) * 0.5) * 0.62
-				post(root, Vector3(x, 0, absf(x) * 0.12), 2.0 + 0.4 * level + (0.25 if i % 2 == 0 else 0.0), (i % 3 - 1) * 2.5)
+				var x := (i - (n - 1) * 0.5) * 0.5
+				var stake := post(root, Vector3(x, 0, absf(x) * 0.12), 1.6 + 0.2 * level + (0.18 if i % 2 == 0 else 0.0), (i % 3 - 1) * 2.5)
+				stake.scale = Vector3(0.6, 1.0, 0.6)
 	return root
