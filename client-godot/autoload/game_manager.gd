@@ -129,7 +129,7 @@ func _on_player_state_received(state: Dictionary) -> void:
 func _on_command_acknowledged(_request_id: String, message: Dictionary) -> void:
 	var state_debug: Variant = message.get("state")
 	var inventory_debug: Variant = state_debug.get("inventory") if state_debug is Dictionary else null
-	print("GAME_MANAGER_ACK_HANDLER keys=", message.keys(), " state_type=", typeof(state_debug), " state_is_dictionary=", state_debug is Dictionary, " inventory_type=", typeof(inventory_debug), " inventory_is_dictionary=", inventory_debug is Dictionary, " wood=", inventory_debug.get("resource.wood") if inventory_debug is Dictionary else "n/a")
+	print("GAME_MANAGER_ACK_HANDLER id=", get_instance_id(), " before=", get_resource_amount("wood"), " keys=", message.keys(), " state_type=", typeof(state_debug), " state_is_dictionary=", state_debug is Dictionary, " inventory_type=", typeof(inventory_debug), " inventory_is_dictionary=", inventory_debug is Dictionary, " wood=", inventory_debug.get("resource.wood") if inventory_debug is Dictionary else "n/a")
 	var state: Variant = message.get("state")
 	if state is Dictionary:
 		_apply_authoritative_player_state(state)
@@ -138,6 +138,7 @@ func _on_command_acknowledged(_request_id: String, message: Dictionary) -> void:
 
 
 func _apply_authoritative_player_state(state: Dictionary) -> void:
+	print("GAME_MANAGER_APPLY_STATE id=", get_instance_id(), " inventory_type=", typeof(state.get("inventory")), " wood=", state.get("inventory", {}).get("resource.wood", "missing"))
 	var inventory: Variant = state.get("inventory")
 	if inventory is Dictionary:
 		_apply_inventory_resource("wood", inventory, "resource.wood")
@@ -156,6 +157,7 @@ func _apply_authoritative_player_state(state: Dictionary) -> void:
 
 
 func _apply_inventory_resource(resource_type: String, inventory: Dictionary, item_id: String) -> void:
+	print("GAME_MANAGER_APPLY_INVENTORY id=", get_instance_id(), " type=", resource_type, " item=", item_id, " value=", inventory.get(item_id, "missing"), " parsed=", _parse_nonnegative_integer(inventory.get(item_id, 0)))
 	var amount: Variant = _parse_nonnegative_integer(inventory.get(item_id, 0))
 	if amount == null:
 		return
@@ -172,6 +174,7 @@ func _parse_nonnegative_integer(value: Variant) -> Variant:
 
 
 func _set_authoritative_resource(resource_type: String, amount: int) -> void:
+	print("GAME_MANAGER_SET_RESOURCE id=", get_instance_id(), " type=", resource_type, " amount=", amount, " has=", _player_resources.has(resource_type), " current=", _player_resources.get(resource_type, "missing"))
 	if not _player_resources.has(resource_type):
 		return
 	if int(_player_resources[resource_type]) == amount:
