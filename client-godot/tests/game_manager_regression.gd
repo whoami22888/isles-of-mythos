@@ -76,7 +76,19 @@ static func run(tree: SceneTree, check: Callable) -> void:
 
 	check.call(not manager.check_citadel_soft_wall(16, 12), "Level 15 to 16 must block when both resource and badge paths are insufficient")
 	check.call(soft_wall_events.size() == 1, "A blocked soft-wall preview must emit soft_wall_reached")
-	check.call(manager.check_citadel_soft_wall(16, 500), "The 500-badge path must satisfy the client preview")
+	check.call(not manager.check_citadel_soft_wall(16, 500), "A caller-supplied badge count must not override the authoritative snapshot")
+	check.call(soft_wall_events.size() == 2, "A rejected badge override must remain a blocked preview")
+	protocol.player_state_received.emit({
+		"inventory": {
+			"resource.wood": 500,
+			"resource.steel": 0,
+			"resource.food": 0,
+			"resource.pearls": 4,
+		},
+		"gold": "750",
+		"triumphBadges": "500",
+	})
+	check.call(manager.check_citadel_soft_wall(16, 500), "The 500-badge path must pass only after the authoritative snapshot confirms it")
 	check.call(manager.check_citadel_soft_wall(15, 0), "The earlier citadel levels must not be blocked by the level-16 soft wall")
 	check.call(not manager.check_citadel_soft_wall(17, 500), "Unspecified levels beyond the defined soft wall must fail closed")
 
