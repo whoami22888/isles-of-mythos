@@ -55,7 +55,9 @@ static func _repair_incomplete_log_tail() -> int:
 	if size_before < 0:
 		file.close()
 		return FAILED
-	if size_before == 0 or size_before > MAX_LOG_BYTES:
+	if size_before == 0 or size_before >= MAX_LOG_BYTES:
+		# At-cap and oversized logs are handled by the bounded rotation/removal path
+		# in _append_log_line(); do not reject them as an unrecognized torn tail.
 		file.close()
 		return OK
 	file.seek(0)
