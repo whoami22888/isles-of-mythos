@@ -83,6 +83,39 @@ func run() -> void:
 				var expected_global_y := coastal.to_global(Vector3(0.0, expected_local_y, 0.0)).y
 				var terrain_hit_position: Vector3 = terrain_hit["position"]
 				check(absf(terrain_hit_position.y - expected_global_y) < 0.1, "camera collision matches the analytic coastal height")
+
+			# The camera-only HeightMapShape3D is intentionally a 1 m grid while
+			# the rendered mesh is denser. Probe steep shore, beach, islet, cliff
+			# and edge samples to prove the approximation error stays inside the
+			# configured camera clearance rather than letting the camera clip.
+			var terrain_probe_points: Array[Vector2] = [
+				Vector2(-19.5, -4.5),
+				Vector2(0.5, -0.5),
+				Vector2(-21.0, 0.5),
+				Vector2(23.5, 8.5),
+				Vector2(30.0, 25.0),
+			]
+			for probe in terrain_probe_points:
+				var probe_from := coastal.to_global(Vector3(probe.x, 100.0, probe.y))
+				var probe_to := coastal.to_global(Vector3(probe.x, -100.0, probe.y))
+				var probe_ray := PhysicsRayQueryParameters3D.create(
+					probe_from,
+					probe_to,
+					CameraZoomController.CAMERA_TERRAIN_COLLISION_LAYER
+				)
+				var probe_hit: Dictionary = world.get_world_3d().direct_space_state.intersect_ray(probe_ray)
+				check(not probe_hit.is_empty(), "camera collision covers terrain probe %s" % [probe])
+				if not probe_hit.is_empty():
+					var probe_local_y := float(coastal.call("_terrain_height", probe.x, probe.y))
+					var probe_expected_y := coastal.to_global(Vector3(probe.x, probe_local_y, probe.y)).y
+					var probe_actual_y: float = probe_hit["position"].y
+					check(
+						absf(probe_actual_y - probe_expected_y) <= cam.collision_clearance * 0.8,
+						"camera collision approximation exceeds clearance at %s (error=%f)" % [
+							probe,
+							absf(probe_actual_y - probe_expected_y),
+						]
+					)
 	cam.terrain_collision_mask = 0
 	world._follow_camera()
 	check(cam.top_level, "camera transform is independent of the parent scene")
