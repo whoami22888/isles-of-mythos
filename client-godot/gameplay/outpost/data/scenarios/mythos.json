@@ -2,6 +2,2272 @@
  {
   "id": "myth_001",
   "category": "mythos",
+  "title": "Tide-Pool Glimmer",
+  "zones": [
+   "beach",
+   "reef"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.15,
+   "min_day": 3,
+   "camp_level": 2,
+   "needs_item": null,
+   "weather": "night"
+  },
+  "weight": 7,
+  "cooldown_s": 86400,
+  "intro_lines": [
+   "Tide-Puck bristles at the water's edge, ears flat.",
+   "Bioluminescence pulses in the shallows — not plankton."
+  ],
+  "choices": [
+   {
+    "label": "Wade in quietly with a net",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "You scoop a luminous juvenile Mythos — Tide-Puck chirps approval.",
+      "effects": {
+       "items": {
+        "relic_shard": 1
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 2,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 30,
+       "unlock": null,
+       "next_event": "myth_002"
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "The net tears; the creature slips away, leaving a shard in the mesh.",
+      "effects": {
+       "items": {
+        "relic_shard": 1,
+        "fibre": -1
+       },
+       "hp": -5,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 1,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": "myth_002"
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "A parent surfaces, shrieking — you retreat bleeding.",
+      "effects": {
+       "items": {},
+       "hp": -20,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": -3,
+        "free": 0
+       },
+       "spawn": "wild_mythos",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": "myth_003"
+      }
+     }
+    ]
+   },
+   {
+    "label": "Harpoon the hum from shore",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.4,
+      "text": "Iron sinks deep; the beast thrashes, lighting the reef red.",
+      "effects": {
+       "items": {
+        "hide": 2,
+        "relic_shard": 1
+       },
+       "hp": -10,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": -5,
+        "free": 1
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": "myth_003"
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "The shaft glances off chitin; the creature vanishes, mocking.",
+      "effects": {
+       "items": {
+        "iron": -1
+       },
+       "hp": 0,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": -2,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": "myth_003"
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Tide-Puck bites your ankle — the harpoon misses, rope burns hands.",
+      "effects": {
+       "items": {
+        "rope": -1
+       },
+       "hp": -15,
+       "morale": -8,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Retreat and mark the pool",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "You map the spot; Tide-Puck guards it through the night.",
+      "effects": {
+       "items": {
+        "map_fragment": 1
+       },
+       "hp": 0,
+       "morale": 3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 1,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 20,
+       "unlock": "tidepool_marked",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Morning tide erases your markers; the pool is gone.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Alexander Selkirk tamed feral cats and kid goats for company during his four-year isolation on Juan Fernández, learning to read animal behaviour for survival (RMG)."
+ },
+ {
+  "id": "myth_002",
+  "category": "mythos",
+  "title": "Wounded Light",
+  "zones": [
+   "reef",
+   "cave"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.0,
+   "min_day": 3,
+   "camp_level": 2,
+   "needs_item": null,
+   "weather": "any"
+  },
+  "weight": 5,
+  "cooldown_s": 172800,
+  "intro_lines": [
+   "The juvenile lies in a tidal cave, flank gashed by coral.",
+   "Its light dims with each breath; Tide-Puck whines."
+  ],
+  "choices": [
+   {
+    "label": "Feed it fish and bind the wound",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "The creature accepts food; its hum steadies, scanning you.",
+      "effects": {
+       "items": {
+        "fish": -2,
+        "fibre": -1,
+        "herbs": -1
+       },
+       "hp": 0,
+       "morale": 10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 5,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 50,
+       "unlock": "mythos_ally_juvenile",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "It eats but the wound festers; you earn a wary truce.",
+      "effects": {
+       "items": {
+        "fish": -2,
+        "herbs": -1
+       },
+       "hp": -5,
+       "morale": 2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 2,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 20,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.1,
+      "text": "A shard in the meat cuts its throat — light dies in your hands.",
+      "effects": {
+       "items": {
+        "fish": -2,
+        "relic_shard": 1
+       },
+       "hp": 0,
+       "morale": -15,
+       "rep": {
+        "utc": 0,
+        "tideborn": -8,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Bind it with rope and train obedience",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.4,
+      "text": "Rope holds; the Mythos submits, eyes burning with hate.",
+      "effects": {
+       "items": {
+        "rope": -1
+       },
+       "hp": -10,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": -3,
+        "free": 2
+       },
+       "spawn": null,
+       "pet_xp": 40,
+       "unlock": "mythos_bound",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "It screams — a sound like tearing kelp — parents answer.",
+      "effects": {
+       "items": {
+        "rope": -1
+       },
+       "hp": -25,
+       "morale": -15,
+       "rep": {
+        "utc": 0,
+        "tideborn": -5,
+        "free": 0
+       },
+       "spawn": "wild_mythos",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Tide-Puck tears the knots; the juvenile flees into deep water.",
+      "effects": {
+       "items": {
+        "rope": -1
+       },
+       "hp": 0,
+       "morale": -8,
+       "rep": {
+        "utc": 0,
+        "tideborn": 1,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Leave it be and withdraw",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "You leave fresh fish at the entrance; tide carries it in.",
+      "effects": {
+       "items": {
+        "fish": -1
+       },
+       "hp": 0,
+       "morale": 3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 3,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 15,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "Next dawn the cave is empty — only a single scale remains.",
+      "effects": {
+       "items": {
+        "relic_shard": 1
+       },
+       "hp": 0,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 1,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Coral cuts infect quickly in tropical heat, and reef hazards such as urchin spines lodge deep (NOAA)."
+ },
+ {
+  "id": "myth_003",
+  "category": "mythos",
+  "title": "Parent's Wrath",
+  "zones": [
+   "reef",
+   "beach"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.0,
+   "min_day": 3,
+   "camp_level": 2,
+   "needs_item": null,
+   "weather": "storm"
+  },
+  "weight": 5,
+  "cooldown_s": 172800,
+  "intro_lines": [
+   "The adult Mythos circles the shallows.",
+   "Tide-Puck hides behind your legs; the surf crashes red."
+  ],
+  "choices": [
+   {
+    "label": "Stand ground with cutlass and torch",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.3,
+      "text": "Fire drives it back; the beast retreats, trailing blood.",
+      "effects": {
+       "items": {
+        "tar": -1
+       },
+       "hp": -15,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": -2,
+        "free": 3
+       },
+       "spawn": null,
+       "pet_xp": 20,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.5,
+      "text": "It lunges through flame; claws rake your shoulder.",
+      "effects": {
+       "items": {
+        "tar": -1
+       },
+       "hp": -30,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": -3,
+        "free": 1
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "A wave knocks you down; the creature flees into deep.",
+      "effects": {
+       "items": {
+        "tar": -1
+       },
+       "hp": -10,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": -1,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Flee to the jungle treeline",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "You scramble up the beach; the beast cannot follow on land.",
+      "effects": {
+       "items": {},
+       "hp": -5,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 5,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Your foot catches a root; the surf drags you back toward it.",
+      "effects": {
+       "items": {},
+       "hp": -20,
+       "morale": -8,
+       "rep": {
+        "utc": 0,
+        "tideborn": -1,
+        "free": 0
+       },
+       "spawn": "wild_mythos",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Toss your catch into the surf as",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "The parent snatches the fish, hum softening; it dives away.",
+      "effects": {
+       "items": {
+        "fish": -3
+       },
+       "hp": 0,
+       "morale": 8,
+       "rep": {
+        "utc": 0,
+        "tideborn": 4,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 30,
+       "unlock": "tideborn_truce",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "It takes the meat but screams — a warning, not thanks.",
+      "effects": {
+       "items": {
+        "fish": -3
+       },
+       "hp": 0,
+       "morale": 2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 1,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "The offering enrages it further; a tail-strike shatters your ribs.",
+      "effects": {
+       "items": {
+        "fish": -3
+       },
+       "hp": -40,
+       "morale": -15,
+       "rep": {
+        "utc": 0,
+        "tideborn": -5,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "The Tromelin castaways kept one fire alive for fifteen years using wreck timber and the island's single shrub, knowing relighting was near-impossible in humidity (Archaeology Mag 2014)."
+ },
+ {
+  "id": "myth_004",
+  "category": "mythos",
+  "title": "Crystal Blight",
+  "zones": [
+   "jungle",
+   "cliff"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.12,
+   "min_day": 7,
+   "camp_level": 5,
+   "needs_item": null,
+   "weather": "fog"
+  },
+  "weight": 6,
+  "cooldown_s": 129600,
+  "intro_lines": [
+   "UTC dark-binding crystals jut from the ridge.",
+   "Boars and monkeys convulse nearby, eyes milky."
+  ],
+  "choices": [
+   {
+    "label": "Shatter the crystal with iron tools",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "The crystal screams as it breaks; maddened beasts collapse, freed.",
+      "effects": {
+       "items": {
+        "iron": -1,
+        "relic_shard": 2
+       },
+       "hp": -10,
+       "morale": 10,
+       "rep": {
+        "utc": -5,
+        "tideborn": 3,
+        "free": 2
+       },
+       "spawn": null,
+       "pet_xp": 30,
+       "unlock": null,
+       "next_event": "myth_005"
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Shards explode outward; you take crystalline shrapnel.",
+      "effects": {
+       "items": {
+        "iron": -1
+       },
+       "hp": -25,
+       "morale": -5,
+       "rep": {
+        "utc": -2,
+        "tideborn": 1,
+        "free": 1
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": "myth_005"
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "The shockwave summons a UTC patrol investigating the silence.",
+      "effects": {
+       "items": {
+        "iron": -1
+       },
+       "hp": 0,
+       "morale": -10,
+       "rep": {
+        "utc": -3,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": "myth_005"
+      }
+     }
+    ]
+   },
+   {
+    "label": "Study the crystal's resonance carefully",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.4,
+      "text": "You map its frequency; Tide-Puck howls at a harmonic you hear too.",
+      "effects": {
+       "items": {
+        "map_fragment": 1,
+        "relic_shard": 1
+       },
+       "hp": -5,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 2,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 40,
+       "unlock": "crystal_lore",
+       "next_event": "myth_006"
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "The hum enters your skull; visions of the Abyssal Sovereign rise.",
+      "effects": {
+       "items": {
+        "relic_shard": 1
+       },
+       "hp": -15,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 3,
+        "free": -1
+       },
+       "spawn": null,
+       "pet_xp": 20,
+       "unlock": "leviathan_dream",
+       "next_event": "myth_006"
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "A maddened boar charges while you're distracted; tusk gores leg.",
+      "effects": {
+       "items": {},
+       "hp": -30,
+       "morale": -8,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "boar",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": "myth_006"
+      }
+     }
+    ]
+   },
+   {
+    "label": "Lure the beasts away with burning tar",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Fire and smoke draw the creatures off; crystals remain intact.",
+      "effects": {
+       "items": {
+        "tar": -1,
+        "fibre": -1
+       },
+       "hp": 0,
+       "morale": 3,
+       "rep": {
+        "utc": -1,
+        "tideborn": 0,
+        "free": 1
+       },
+       "spawn": null,
+       "pet_xp": 15,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "Wind shifts; flames catch your clothes and the jungle canopy.",
+      "effects": {
+       "items": {
+        "tar": -1,
+        "fibre": -1,
+        "sailcloth": -1
+       },
+       "hp": -20,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": -2,
+        "free": -1
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Feral pigs introduced by sailors root up ground and charge when cornered, their tusks causing deep leg wounds (SPREP)."
+ },
+ {
+  "id": "myth_005",
+  "category": "mythos",
+  "title": "Scout's Judgment",
+  "zones": [
+   "jungle",
+   "cliff"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.0,
+   "min_day": 7,
+   "camp_level": 5,
+   "needs_item": null,
+   "weather": "clear"
+  },
+  "weight": 4,
+  "cooldown_s": 172800,
+  "intro_lines": [
+   "The crystal dust settles.",
+   "A Tideborn scout steps from the mist,",
+   "shell-armour clicking, trident lowered — watching you."
+  ],
+  "choices": [
+   {
+    "label": "Offer the shards and speak openly",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "The scout accepts; marks your hand with bioluminescent ink.",
+      "effects": {
+       "items": {
+        "relic_shard": -2
+       },
+       "hp": 0,
+       "morale": 10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 8,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 30,
+       "unlock": "tideborn_friend",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "They take the shards but warn: 'The Sovereign dreams of you.'",
+      "effects": {
+       "items": {
+        "relic_shard": -2
+       },
+       "hp": 0,
+       "morale": 3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 4,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 15,
+       "unlock": "leviathan_warning",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.1,
+      "text": "A hidden UTC sniper drops the scout; you flee into fog.",
+      "effects": {
+       "items": {
+        "relic_shard": -2
+       },
+       "hp": -10,
+       "morale": -10,
+       "rep": {
+        "utc": -2,
+        "tideborn": -5,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Seize the scout as leverage",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.4,
+      "text": "Rope binds them; their kin will come. You hold a hostage.",
+      "effects": {
+       "items": {
+        "rope": -1
+       },
+       "hp": -5,
+       "morale": -5,
+       "rep": {
+        "utc": 2,
+        "tideborn": -8,
+        "free": 3
+       },
+       "spawn": "tideborn_scout",
+       "pet_xp": 0,
+       "unlock": "tideborn_hostage",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "They dissolve into humming mist; only a scale remains in rope.",
+      "effects": {
+       "items": {
+        "rope": -1,
+        "relic_shard": 1
+       },
+       "hp": 0,
+       "morale": -8,
+       "rep": {
+        "utc": 0,
+        "tideborn": -5,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "The scout's trident pierces your gut before you close.",
+      "effects": {
+       "items": {
+        "rope": -1
+       },
+       "hp": -50,
+       "morale": -20,
+       "rep": {
+        "utc": 0,
+        "tideborn": -10,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Drive them off with warning shots",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "Powder flashes; the scout retreats, signalling the ridge.",
+      "effects": {
+       "items": {
+        "powder": -1
+       },
+       "hp": 0,
+       "morale": 2,
+       "rep": {
+        "utc": 1,
+        "tideborn": -4,
+        "free": 1
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "The shot hits — the scout falls, light fading from their eyes.",
+      "effects": {
+       "items": {
+        "powder": -1,
+        "relic_shard": 1
+       },
+       "hp": 0,
+       "morale": -15,
+       "rep": {
+        "utc": 1,
+        "tideborn": -10,
+        "free": -2
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "tideborn_enemy",
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Bartholomew Roberts' articles mandated quarrels be settled ashore by pistol then cutlass, first blood wins (Johnson 1724)."
+ },
+ {
+  "id": "myth_006",
+  "category": "mythos",
+  "title": "Sovereign's Dream",
+  "zones": [
+   "cave",
+   "outpost"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.0,
+   "min_day": 7,
+   "camp_level": 5,
+   "needs_item": null,
+   "weather": "night"
+  },
+  "weight": 4,
+  "cooldown_s": 172800,
+  "intro_lines": [
+   "Sleep takes you.",
+   "The Abyssal Sovereign's eye opens in the deep,",
+   "bioluminescent tendrils brushing your mind."
+  ],
+  "choices": [
+   {
+    "label": "Follow the vision to the coordinates",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "You wake with the route burned into memory; Tide-Puck nods.",
+      "effects": {
+       "items": {
+        "map_fragment": 2
+       },
+       "hp": 0,
+       "morale": 8,
+       "rep": {
+        "utc": 0,
+        "tideborn": 5,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 40,
+       "unlock": "sunken_city_route",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "The vision fractures; you recall only fragmented depths.",
+      "effects": {
+       "items": {
+        "map_fragment": 1
+       },
+       "hp": -10,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 2,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 15,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "The Sovereign's gaze lingers; you wake screaming, ears bleeding.",
+      "effects": {
+       "items": {},
+       "hp": -20,
+       "morale": -15,
+       "rep": {
+        "utc": 0,
+        "tideborn": 3,
+        "free": -2
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "sovereign_marked",
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Ignore it as fever-dream and tend",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "Dawn comes normal; the dream fades like tide-foam.",
+      "effects": {
+       "items": {
+        "wood": -1
+       },
+       "hp": 5,
+       "morale": 2,
+       "rep": {
+        "utc": 0,
+        "tideborn": -1,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 5,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Tide-Puck refuses food all day, staring at the sea.",
+      "effects": {
+       "items": {
+        "wood": -1,
+        "fish": -1
+       },
+       "hp": 0,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 1,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Share the vision with Silas and the crew",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Silas orders extra watch; the crew murmurs of old legends.",
+      "effects": {
+       "items": {
+        "rum": -1
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 2,
+        "free": 3
+       },
+       "spawn": null,
+       "pet_xp": 20,
+       "unlock": "crew_aware",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Half the crew demands marooning you for 'cursed talk'.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -15,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -5
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "mutiny_risk",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "A UTC deserter in your crew slips away that night.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -5,
+       "rep": {
+        "utc": 2,
+        "tideborn": 0,
+        "free": -3
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Ada Blackjack nursed Lorne Knight through scurvy until he died, then barricaded his body against animals while teaching herself to hunt alone (NPS)."
+ },
+ {
+  "id": "myth_007",
+  "category": "mythos",
+  "title": "Humming Stores",
+  "zones": [
+   "outpost"
+  ],
+  "trigger": {
+   "type": "location",
+   "chance": 0.08,
+   "min_day": 10,
+   "camp_level": 8,
+   "needs_item": "relic_shard",
+   "weather": "any"
+  },
+  "weight": 5,
+  "cooldown_s": 259200,
+  "intro_lines": [
+   "The storage hut vibrates at night.",
+   "a chord that makes teeth ache and Tide-Puck's fur stand up."
+  ],
+  "choices": [
+   {
+    "label": "Separate the shards into lead-lined",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "The humming stops; shards grow cold, safe to handle.",
+      "effects": {
+       "items": {
+        "scrap": -3
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 1,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 20,
+       "unlock": "shards_contained",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "One shard cracks, releasing a puff of luminous gas.",
+      "effects": {
+       "items": {
+        "scrap": -3,
+        "relic_shard": -1
+       },
+       "hp": -5,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 2,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Arrange them in a circle per Tideborn",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "The chord resolves into a tone that points due west.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 8,
+       "rep": {
+        "utc": 0,
+        "tideborn": 4,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 30,
+       "unlock": "westward_call",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Light bridges the shards — a beacon UTC ships can see.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -5,
+       "rep": {
+        "utc": 3,
+        "tideborn": 1,
+        "free": -2
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": "utc_beacon",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "The circle burns a permanent mark into the hut floor.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 2,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 15,
+       "unlock": "permanent_mark",
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Grind one shard into powder for study",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.4,
+      "text": "Powder hums in water — reveals hidden Tideborn script on maps.",
+      "effects": {
+       "items": {
+        "relic_shard": -1,
+        "map_fragment": 1
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 3,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 25,
+       "unlock": "relic_powder",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "Dust infiltrates your lungs; coughing fits for days.",
+      "effects": {
+       "items": {
+        "relic_shard": -1
+       },
+       "hp": -15,
+       "morale": -8,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "lung_damage",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "The powder ignites spontaneously, burning the hut.",
+      "effects": {
+       "items": {
+        "relic_shard": -1,
+        "wood": -5,
+        "sailcloth": -2
+       },
+       "hp": -10,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": -2,
+        "free": -1
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "The Tromelin castaways stored water in salvaged lead basins, using a triton shell as ladle, preserving resources for fifteen years (INRAP)."
+ },
+ {
+  "id": "myth_008",
+  "category": "mythos",
+  "title": "Net-Caught Mythos",
+  "zones": [
+   "reef",
+   "sea"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.1,
+   "min_day": 5,
+   "camp_level": 3,
+   "needs_item": null,
+   "weather": "rain"
+  },
+  "weight": 6,
+  "cooldown_s": 172800,
+  "intro_lines": [
+   "UTC longliners haul a thrashing Mythos.",
+   "The net tears; the creature drags buoys toward your reef."
+  ],
+  "choices": [
+   {
+    "label": "Cut it free with knife and rope",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "The net falls away; the Mythos circles once, then dives deep.",
+      "effects": {
+       "items": {
+        "rope": 2,
+        "iron": 1
+       },
+       "hp": -5,
+       "morale": 8,
+       "rep": {
+        "utc": -2,
+        "tideborn": 5,
+        "free": 1
+       },
+       "spawn": null,
+       "pet_xp": 40,
+       "unlock": "mythos_freed",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "A stray filament wraps your wrist; the beast drags you under.",
+      "effects": {
+       "items": {
+        "rope": 1
+       },
+       "hp": -25,
+       "morale": -5,
+       "rep": {
+        "utc": -1,
+        "tideborn": 3,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 20,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.1,
+      "text": "UTC spotters fire; splinters rake the deck as you cut.",
+      "effects": {
+       "items": {
+        "rope": 1,
+        "sailcloth": -1
+       },
+       "hp": -15,
+       "morale": -8,
+       "rep": {
+        "utc": -3,
+        "tideborn": 2,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Harpoon it and claim the carcass",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Iron finds heart; you tow a fortune in hide and crystal-bone.",
+      "effects": {
+       "items": {
+        "hide": 4,
+        "relic_shard": 3,
+        "iron": -1
+       },
+       "hp": -10,
+       "morale": 5,
+       "rep": {
+        "utc": 1,
+        "tideborn": -8,
+        "free": 4
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "mythos_slayer",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "The harpoon snaps; the beast thrashes, smashing your boat.",
+      "effects": {
+       "items": {
+        "iron": -1,
+        "wood": -3
+       },
+       "hp": -20,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": -5,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Tide-Puck leaps onto the creature — both vanish beneath waves.",
+      "effects": {
+       "items": {
+        "iron": -1
+       },
+       "hp": -15,
+       "morale": -20,
+       "rep": {
+        "utc": 0,
+        "tideborn": -3,
+        "free": -2
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "puck_lost",
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Signal the UTC ship to 'assist'",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "They tow it off, tossing you a barrel of salt pork for silence.",
+      "effects": {
+       "items": {
+        "food": 10
+       },
+       "hp": 0,
+       "morale": 3,
+       "rep": {
+        "utc": 5,
+        "tideborn": -3,
+        "free": -2
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "utc_bribe",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "They ignore you; the net cuts deep, the Mythos screams.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -8,
+       "rep": {
+        "utc": 1,
+        "tideborn": -5,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Their captain recognizes you — a boarding party deploys.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -10,
+       "rep": {
+        "utc": -5,
+        "tideborn": 0,
+        "free": -3
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Pirates careened ships on sloping beaches at high tide, heeling over to scrape teredo worm and weed while defenceless (JMU thesis)."
+ },
+ {
+  "id": "myth_009",
+  "category": "mythos",
+  "title": "Archway Whisper",
+  "zones": [
+   "cave",
+   "cliff"
+  ],
+  "trigger": {
+   "type": "location",
+   "chance": 0.07,
+   "min_day": 12,
+   "camp_level": 10,
+   "needs_item": null,
+   "weather": "fog"
+  },
+  "weight": 5,
+  "cooldown_s": 345600,
+  "intro_lines": [
+   "Bioluminescent arches span the sea-cave — Tideborn ruins.",
+   "Each step echoes with voices speaking in tidal rhythms."
+  ],
+  "choices": [
+   {
+    "label": "Press a relic shard into the central",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "The arch flares; a holographic map of leviathan migration appears.",
+      "effects": {
+       "items": {
+        "relic_shard": -1,
+        "map_fragment": 3
+       },
+       "hp": 0,
+       "morale": 10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 6,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 40,
+       "unlock": "leviathan_paths",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "The shard shatters; the map is incomplete, fragmented.",
+      "effects": {
+       "items": {
+        "relic_shard": -1,
+        "map_fragment": 1
+       },
+       "hp": -5,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 3,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 20,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "The arch screams — a sonic blast shatters your eardrums.",
+      "effects": {
+       "items": {
+        "relic_shard": -1
+       },
+       "hp": -30,
+       "morale": -15,
+       "rep": {
+        "utc": 0,
+        "tideborn": 1,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "hearing_loss",
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Trace the humming script with charcoal",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "You copy a warning: 'The Sovereign wakes when crystals bleed.'",
+      "effects": {
+       "items": {
+        "map_fragment": 2
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 4,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 30,
+       "unlock": "sovereign_warning",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "The script shifts under your hand — the rubbing is nonsense.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 1,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Sleep beneath the arches to catch dreams",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.4,
+      "text": "Visions of the sunken city flood you — coordinates burn clear.",
+      "effects": {
+       "items": {
+        "map_fragment": 2
+       },
+       "hp": 0,
+       "morale": 8,
+       "rep": {
+        "utc": 0,
+        "tideborn": 5,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 35,
+       "unlock": "city_dream",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "You wake clutching a living pearl; the arches dim.",
+      "effects": {
+       "items": {
+        "pearl": 1
+       },
+       "hp": -10,
+       "morale": 3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 2,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 15,
+       "unlock": "pearl_gift",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Tideborn scouts find you; you're bound and taken inland.",
+      "effects": {
+       "items": {},
+       "hp": -5,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": -3,
+        "free": -2
+       },
+       "spawn": "tideborn_scout",
+       "pet_xp": 0,
+       "unlock": "tideborn_captive",
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Pedro Serrano used seaweed, shells, and wreck planks as fuel on Serrana Bank, diving for two stones to strike sparks with his knife (Frontiers 2019)."
+ },
+ {
+  "id": "myth_010",
+  "category": "mythos",
+  "title": "Leviathan Lullaby",
+  "zones": [
+   "beach",
+   "outpost"
+  ],
+  "trigger": {
+   "type": "time",
+   "chance": 0.05,
+   "min_day": 15,
+   "camp_level": 12,
+   "needs_item": null,
+   "weather": "night"
+  },
+  "weight": 4,
+  "cooldown_s": 432000,
+  "intro_lines": [
+   "The Abyssal Sovereign's song vibrates through the sand",
+   "a subsonic hymn that makes coconuts fall and Tide-Puck howl."
+  ],
+  "choices": [
+   {
+    "label": "Walk into the surf and listen until dawn",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "The song resolves into words: a warning of UTC crystal fleets.",
+      "effects": {
+       "items": {
+        "map_fragment": 2
+       },
+       "hp": -5,
+       "morale": 10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 6,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 50,
+       "unlock": "utc_fleet_warning",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Hypothermia sets in; crew hauls you out blue-lipped.",
+      "effects": {
+       "items": {},
+       "hp": -20,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 2,
+        "free": 1
+       },
+       "spawn": null,
+       "pet_xp": 20,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "A riptide pulls you out; Tide-Puck bites the rope to save you.",
+      "effects": {
+       "items": {
+        "rope": -1
+       },
+       "hp": -15,
+       "morale": -8,
+       "rep": {
+        "utc": 0,
+        "tideborn": 3,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 30,
+       "unlock": "puck_hero",
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Beat drums to drown the song and rally",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Rhythm breaks the trance; crew cheers, morale surges.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 15,
+       "rep": {
+        "utc": 0,
+        "tideborn": -2,
+        "free": 5
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": "crew_unity",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "The drums enrage the Sovereign — a tentacle smashes the dock.",
+      "effects": {
+       "items": {
+        "wood": -10,
+        "rope": -2
+       },
+       "hp": -10,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": -5,
+        "free": -2
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "sovereign_anger",
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Record the frequency in a water-filled",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "The shell captures a perfect tone — a key to Tideborn locks.",
+      "effects": {
+       "items": {
+        "shell": -1,
+        "relic_shard": 1
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 4,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 30,
+       "unlock": "resonance_key",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Water boils in the shell; steam burns your fingers.",
+      "effects": {
+       "items": {
+        "shell": -1
+       },
+       "hp": -10,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 1,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "The tone shatters the shell — and your hearing for days.",
+      "effects": {
+       "items": {
+        "shell": -1
+       },
+       "hp": -15,
+       "morale": -8,
+       "rep": {
+        "utc": 0,
+        "tideborn": 2,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "hearing_loss",
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Alexander Selkirk read the Bible aloud to keep his speech during four years alone, maintaining routine against despair (DNB)."
+ },
+ {
+  "id": "myth_011",
+  "category": "mythos",
+  "title": "Harness or Harpoon",
+  "zones": [
+   "reef",
+   "cave"
+  ],
+  "trigger": {
+   "type": "action",
+   "chance": 0.06,
+   "min_day": 20,
+   "camp_level": 15,
+   "needs_item": "relic_shard",
+   "weather": "clear"
+  },
+  "weight": 8,
+  "cooldown_s": 604800,
+  "intro_lines": [
+   "An ancient Tideborn harness lies in the grotto.",
+   "shaped for a Mythos mount.",
+   "A harpoon rack sits beside it."
+  ],
+  "choices": [
+   {
+    "label": "Bind the harness and seek a wild Mythos",
+    "requires": {
+     "pet_level": 3
+    },
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "A juvenile accepts the harness; you ride the reef currents.",
+      "effects": {
+       "items": {
+        "relic_shard": -1,
+        "fibre": -2
+       },
+       "hp": 0,
+       "morale": 20,
+       "rep": {
+        "utc": 0,
+        "tideborn": 8,
+        "free": 2
+       },
+       "spawn": null,
+       "pet_xp": 100,
+       "unlock": "mythos_mount",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "The harness fits but the beast bucks — you cling, bruised.",
+      "effects": {
+       "items": {
+        "relic_shard": -1,
+        "fibre": -2
+       },
+       "hp": -15,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 4,
+        "free": 1
+       },
+       "spawn": null,
+       "pet_xp": 50,
+       "unlock": "mythos_mount",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "The kelp-cord strangles the creature — it dies in your arms.",
+      "effects": {
+       "items": {
+        "relic_shard": -1,
+        "fibre": -2
+       },
+       "hp": 0,
+       "morale": -20,
+       "rep": {
+        "utc": 0,
+        "tideborn": -10,
+        "free": -3
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "tideborn_curse",
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Take the harpoon and hunt",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.4,
+      "text": "You strike a sub-adult; the reef runs red. Power surges in you.",
+      "effects": {
+       "items": {
+        "hide": 6,
+        "relic_shard": 4,
+        "iron": -1
+       },
+       "hp": -10,
+       "morale": 10,
+       "rep": {
+        "utc": 3,
+        "tideborn": -15,
+        "free": 5
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "sovereign_bane",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "The harpoon misses; the Sovereign's eye opens in the deep.",
+      "effects": {
+       "items": {
+        "iron": -1
+       },
+       "hp": 0,
+       "morale": -15,
+       "rep": {
+        "utc": 0,
+        "tideborn": -8,
+        "free": 0
+       },
+       "spawn": "wild_mythos",
+       "pet_xp": 0,
+       "unlock": "sovereign_hunted",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Tide-Puck intercepts the throw — the harpoon pins your foot.",
+      "effects": {
+       "items": {
+        "iron": -1
+       },
+       "hp": -30,
+       "morale": -20,
+       "rep": {
+        "utc": 0,
+        "tideborn": -2,
+        "free": -2
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "puck_betrayal",
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Leave both and seal the grotto",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "The grotto vanishes; the choice waits for a worthier hand.",
+      "effects": {
+       "items": {
+        "stone": -5
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 3,
+        "free": 1
+       },
+       "spawn": null,
+       "pet_xp": 20,
+       "unlock": "grotto_sealed",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "A tremor cracks the seal — the harness pulses, waiting still.",
+      "effects": {
+       "items": {
+        "stone": -5
+       },
+       "hp": 0,
+       "morale": 2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 2,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Bartholomew Roberts' articles awarded 800 dollars for a lost limb and mandated weapons kept clean, reflecting pirate pragmatism (Johnson 1724)."
+ },
+ {
+  "id": "myth_012",
+  "category": "mythos",
   "title": "Low-Tide Arch Ritual",
   "zones": [
    "beach",
@@ -44,7 +2310,7 @@
        "spawn": null,
        "pet_xp": 10,
        "unlock": null,
-       "next_event": "myth_002"
+       "next_event": "myth_013"
       }
      },
      {
@@ -90,7 +2356,7 @@
        "spawn": "tideborn_scout",
        "pet_xp": 0,
        "unlock": null,
-       "next_event": "myth_002"
+       "next_event": "myth_013"
       }
      },
      {
@@ -117,7 +2383,7 @@
   "history_note": "Pedro Serrano survived eight years on a cay by catching rain in shells and eating raw shellfish."
  },
  {
-  "id": "myth_002",
+  "id": "myth_013",
   "category": "mythos",
   "title": "Tideborn Scout's Test",
   "zones": [
@@ -234,7 +2500,7 @@
   "history_note": "Tromelin castaways built coral walls against the trade wind after storms destroyed their camp."
  },
  {
-  "id": "myth_003",
+  "id": "myth_014",
   "category": "mythos",
   "title": "Crystal-Bound Mythos",
   "zones": [
@@ -279,7 +2545,7 @@
        "spawn": "wild_mythos",
        "pet_xp": 25,
        "unlock": null,
-       "next_event": "myth_004"
+       "next_event": "myth_015"
       }
      },
      {
@@ -325,7 +2591,7 @@
        "spawn": null,
        "pet_xp": 0,
        "unlock": null,
-       "next_event": "myth_005"
+       "next_event": "myth_016"
       }
      },
      {
@@ -352,7 +2618,7 @@
   "history_note": "UTC deploys dark-binding crystals that enrage the Abyssal Sovereign."
  },
  {
-  "id": "myth_004",
+  "id": "myth_015",
   "category": "mythos",
   "title": "Freed Mythos Gratitude",
   "zones": [
@@ -468,7 +2734,7 @@
   "history_note": "Selkirk tamed kid goats for milk and company during four years alone."
  },
  {
-  "id": "myth_005",
+  "id": "myth_016",
   "category": "mythos",
   "title": "Crystal Shipment Intercepted",
   "zones": [
@@ -583,7 +2849,7 @@
   "history_note": "Pirates used false flags and headland ambushes in narrow channels."
  },
  {
-  "id": "myth_006",
+  "id": "myth_017",
   "category": "mythos",
   "title": "Leviathan Song at Night",
   "zones": [
@@ -626,7 +2892,7 @@
        "spawn": null,
        "pet_xp": 20,
        "unlock": null,
-       "next_event": "myth_007"
+       "next_event": "myth_018"
       }
      },
      {
@@ -698,7 +2964,7 @@
   "history_note": "The Abyssal Sovereign broke both ships during the storm battle."
  },
  {
-  "id": "myth_007",
+  "id": "myth_018",
   "category": "mythos",
   "title": "Sovereign's Gift",
   "zones": [
@@ -815,7 +3081,7 @@
   "history_note": "Tromelin castaways kept one fire alive fifteen years with salvaged timber."
  },
  {
-  "id": "myth_008",
+  "id": "myth_019",
   "category": "mythos",
   "title": "Relic Shard Resonance",
   "zones": [
@@ -934,7 +3200,7 @@
   "history_note": "Blueprint lore: UTC dark-binding crystals enrage the Abyssal Sovereign and wild Mythos near them."
  },
  {
-  "id": "myth_009",
+  "id": "myth_020",
   "category": "mythos",
   "title": "Tideborn Arch at Dusk",
   "zones": [
@@ -1052,7 +3318,7 @@
   "history_note": "Serrano used shells as rain catchers and a fire hut on his cay."
  },
  {
-  "id": "myth_010",
+  "id": "myth_021",
   "category": "mythos",
   "title": "Crystal-Bound Mythos II",
   "zones": [
@@ -1172,7 +3438,7 @@
   "history_note": "UTC privateers hunt Tideborn relics and deploy dark-binding crystals."
  },
  {
-  "id": "myth_011",
+  "id": "myth_022",
   "category": "mythos",
   "title": "Mythos Companion's Dream",
   "zones": [
@@ -1282,5 +3548,2071 @@
    }
   ],
   "history_note": "Companion animals reduce despair for castaways, as Selkirk's cats did."
+ },
+ {
+  "id": "myth_023",
+  "category": "mythos",
+  "title": "The Puck's Nose",
+  "zones": [
+   "beach",
+   "outpost"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.15,
+   "min_day": 3,
+   "camp_level": 1,
+   "needs_item": null,
+   "weather": "any"
+  },
+  "weight": 6,
+  "cooldown_s": 7200,
+  "intro_lines": [
+   "Tide-Puck freezes mid-step, nostrils flared.",
+   "A faint pulse hums beneath the sand — something old.",
+   "The pup digs, uncovering a shard of iridescent coral."
+  ],
+  "choices": [
+   {
+    "label": "Let Tide-Puck eat it",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.4,
+      "text": "The shard dissolves on its tongue; bioluminescence ripples through its fur. It sneezes a cloud of humming spores.",
+      "effects": {
+       "items": {
+        "relic_shard": -1
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 2,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 80,
+       "unlock": "puck_glow",
+       "next_event": "myth_024"
+      }
+     },
+     {
+      "chance": 0.35,
+      "text": "The pup chokes, retching bile laced with light. Its hide blisters where the shard touched.",
+      "effects": {
+       "items": {
+        "relic_shard": -1
+       },
+       "hp": -15,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": -1,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": "myth_024"
+      }
+     },
+     {
+      "chance": 0.25,
+      "text": "Nothing happens. The shard passes whole. Tide-Puck looks at you with mild disappointment.",
+      "effects": {
+       "items": {
+        "relic_shard": -1
+       },
+       "hp": 0,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": "myth_024"
+      }
+     }
+    ]
+   },
+   {
+    "label": "Pry it from its jaws",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "You wrestle the shard free, fingers numb from cold light. Tide-Puck whines, circling your legs.",
+      "effects": {
+       "items": {
+        "relic_shard": 1
+       },
+       "hp": -5,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 1,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 20,
+       "unlock": null,
+       "next_event": "myth_025"
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "The pup snaps — not at you, but at the air above the shard. A tendril of dark water lashes your hand.",
+      "effects": {
+       "items": {
+        "relic_shard": 1
+       },
+       "hp": -12,
+       "morale": -8,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "wild_mythos",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": "myth_025"
+      }
+     }
+    ]
+   },
+   {
+    "label": "Bury it deeper",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "You kick sand over the hum. Tide-Puck pads away, uninterested. The pulse fades.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 0,
+       "rep": {
+        "utc": 1,
+        "tideborn": -2,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "The ground trembles. The buried shard screams — a sound like tearing kelp. Something answers from the deep.",
+      "effects": {
+       "items": {},
+       "hp": -8,
+       "morale": -12,
+       "rep": {
+        "utc": 0,
+        "tideborn": -1,
+        "free": -1
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Alexander Selkirk tamed feral cats to combat rats gnawing his feet, showing castaways form bonds with animals for survival and sanity."
+ },
+ {
+  "id": "myth_024",
+  "category": "mythos",
+  "title": "Glow-Touched",
+  "zones": [
+   "outpost",
+   "jungle"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.0,
+   "min_day": 4,
+   "camp_level": 1,
+   "needs_item": null,
+   "weather": "night"
+  },
+  "weight": 5,
+  "cooldown_s": 10800,
+  "intro_lines": [
+   "Tide-Puck's fur pulses with each heartbeat.",
+   "Insects swarm its light; the pup snaps them from the air.",
+   "Shadows stretch wrong — fleeing the hum, not the light."
+  ],
+  "choices": [
+   {
+    "label": "Use the pup as a lure",
+    "requires": {
+     "pet_level": 2
+    },
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Crabs and fish flock to the hum. You net a haul while Tide-Puck basks in the feast.",
+      "effects": {
+       "items": {
+        "fish": 8,
+        "crab_meat": 4
+       },
+       "hp": 0,
+       "morale": 10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 1,
+        "free": 2
+       },
+       "spawn": null,
+       "pet_xp": 50,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Something large circles the light. A reef shark beaches itself snapping at the pup. You drive it off.",
+      "effects": {
+       "items": {
+        "fish": 3
+       },
+       "hp": -10,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "shark",
+       "pet_xp": 30,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "The hum draws a UTC patrol's night glasses. They log the anomaly. Your camp is marked.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -8,
+       "rep": {
+        "utc": -5,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Wash the hum away",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.65,
+      "text": "Fresh water dulls the light. Tide-Puck shivers, coat returning to normal. The night feels safer.",
+      "effects": {
+       "items": {
+        "fresh_water": -2
+       },
+       "hp": 0,
+       "morale": 3,
+       "rep": {
+        "utc": 1,
+        "tideborn": -1,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 20,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.35,
+      "text": "The water hisses on its fur — steam rising. The shard's essence resists. The pup whimpers, light flaring brighter.",
+      "effects": {
+       "items": {
+        "fresh_water": -2
+       },
+       "hp": -5,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": "myth_026"
+      }
+     }
+    ]
+   },
+   {
+    "label": "Cover it with a tarp",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.8,
+      "text": "Darkness returns. Tide-Puck sleeps. You breathe easier. The sailcloth smells of ozone after.",
+      "effects": {
+       "items": {
+        "sailcloth": -1
+       },
+       "hp": 0,
+       "morale": 2,
+       "rep": {
+        "utc": 1,
+        "tideborn": -1,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "The tarp dissolves where it touches the pup. Threads unravel into humming dust. The light spreads.",
+      "effects": {
+       "items": {
+        "sailcloth": -1
+       },
+       "hp": 0,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 1,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": "myth_026"
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Tromelin castaways kept one fire alive for 15 years using wreck timber and the island's single shrub, knowing relighting was near impossible in damp conditions."
+ },
+ {
+  "id": "myth_025",
+  "category": "mythos",
+  "title": "The Shard's Choice",
+  "zones": [
+   "outpost",
+   "cave"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.0,
+   "min_day": 5,
+   "camp_level": 2,
+   "needs_item": "relic_shard",
+   "weather": "any"
+  },
+  "weight": 7,
+  "cooldown_s": 14400,
+  "intro_lines": [
+   "The shard on your workbench hums.",
+   "Three paths lie open: grind it, sell it, or wake it.",
+   "Tide-Puck growls at the sound — a low, wet rattle."
+  ],
+  "choices": [
+   {
+    "label": "Grind it for pigment",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Powder hums like crushed stars. Your sails catch night winds; crew morale soars.",
+      "effects": {
+       "items": {
+        "relic_shard": -1,
+        "stone": -1,
+        "sailcloth": 2
+       },
+       "hp": 0,
+       "morale": 15,
+       "rep": {
+        "utc": 0,
+        "tideborn": 2,
+        "free": 3
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "ghost_sails",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Dust infiltrates your lungs. You cough blood that glitters. The pigment works, but at a cost.",
+      "effects": {
+       "items": {
+        "relic_shard": -1,
+        "stone": -1,
+        "sailcloth": 2
+       },
+       "hp": -20,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 1,
+        "free": 1
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "ghost_sails",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "The mortar shatters. Shard fragments embed in your hands. They do not come out.",
+      "effects": {
+       "items": {
+        "relic_shard": -1,
+        "stone": -1
+       },
+       "hp": -15,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "shard_touched",
+       "next_event": "myth_027"
+      }
+     }
+    ]
+   },
+   {
+    "label": "Sell to a UTC factor",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "The factor pays well — gold and a quiet promise. Your camp gains supplies; UTC gains a weapon.",
+      "effects": {
+       "items": {
+        "relic_shard": -1,
+        "gold": 50,
+        "powder": 10,
+        "food": 20
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 10,
+        "tideborn": -5,
+        "free": -2
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": "myth_028"
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "The factor's escort recognizes you. They take the shard, your gold, and leave you bound for the warship.",
+      "effects": {
+       "items": {
+        "relic_shard": -1,
+        "gold": -20
+       },
+       "hp": -10,
+       "morale": -15,
+       "rep": {
+        "utc": -10,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Submerge it in the tide-pool",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.4,
+      "text": "The pool erupts in light. A Tideborn scout surfaces, bows, and leaves a pearl. The shard is gone.",
+      "effects": {
+       "items": {
+        "relic_shard": -1,
+        "pearl": 1
+       },
+       "hp": 0,
+       "morale": 10,
+       "rep": {
+        "utc": -2,
+        "tideborn": 8,
+        "free": 0
+       },
+       "spawn": "tideborn_scout",
+       "pet_xp": 40,
+       "unlock": "tideborn_friend",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.35,
+      "text": "The water boils. Something vast brushes the pool's floor. The shard sinks deeper. You hear laughter.",
+      "effects": {
+       "items": {
+        "relic_shard": -1
+       },
+       "hp": 0,
+       "morale": -8,
+       "rep": {
+        "utc": 0,
+        "tideborn": 1,
+        "free": 0
+       },
+       "spawn": "wild_mythos",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": "myth_029"
+      }
+     },
+     {
+      "chance": 0.25,
+      "text": "Nothing. The shard sits inert. Tide-Puck laps the water, indifferent. A waste.",
+      "effects": {
+       "items": {
+        "relic_shard": -1
+       },
+       "hp": 0,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": -1,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Pirate articles under Bartholomew Roberts mandated equal shares of fresh food and liquor, with defrauding the company punished by marooning — choices carried weight."
+ },
+ {
+  "id": "myth_026",
+  "category": "mythos",
+  "title": "The Light That Wouldn't Die",
+  "zones": [
+   "outpost",
+   "beach"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.0,
+   "min_day": 6,
+   "camp_level": 2,
+   "needs_item": null,
+   "weather": "night"
+  },
+  "weight": 4,
+  "cooldown_s": 10800,
+  "intro_lines": [
+   "Dawn breaks but Tide-Puck still hums — brighter now.",
+   "The light paints your shelter walls in impossible colours.",
+   "A UTC cutter appears on the horizon, glass trained on you."
+  ],
+  "choices": [
+   {
+    "label": "Flee into the jungle",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.55,
+      "text": "You vanish into the canopy. The cutter's boats find only an empty camp and warm coals.",
+      "effects": {
+       "items": {
+        "food": -5,
+        "fresh_water": -3
+       },
+       "hp": -5,
+       "morale": -5,
+       "rep": {
+        "utc": 2,
+        "tideborn": 0,
+        "free": 1
+       },
+       "spawn": null,
+       "pet_xp": 20,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.45,
+      "text": "The hum betrays you. Marines track the light through foliage. A volley cracks overhead.",
+      "effects": {
+       "items": {},
+       "hp": -25,
+       "morale": -15,
+       "rep": {
+        "utc": -5,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Stand and fight",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.4,
+      "text": "A warning shot across their bow. They hesitate, then withdraw — logging the encounter.",
+      "effects": {
+       "items": {
+        "powder": -5
+       },
+       "hp": 0,
+       "morale": 10,
+       "rep": {
+        "utc": -3,
+        "tideborn": 0,
+        "free": 3
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.35,
+      "text": "They return fire. Your cover splinters. Tide-Puck's light makes you a beacon.",
+      "effects": {
+       "items": {
+        "powder": -10
+       },
+       "hp": -30,
+       "morale": -20,
+       "rep": {
+        "utc": -5,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.25,
+      "text": "Your shot hits their powder store. The cutter burns. No witnesses. But the hum remains.",
+      "effects": {
+       "items": {
+        "powder": -15
+       },
+       "hp": -10,
+       "morale": 5,
+       "rep": {
+        "utc": -10,
+        "tideborn": 2,
+        "free": 5
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "utc_enemy",
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Offer the pup to them",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "The officer takes Tide-Puck. They sail. Your camp is safe. The silence is worse than cannon fire.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -30,
+       "rep": {
+        "utc": 5,
+        "tideborn": -10,
+        "free": -5
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "puck_lost",
+       "next_event": "myth_030"
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "The officer laughs. \"We want the source, not the dog.\" They shell the beach. You run.",
+      "effects": {
+       "items": {},
+       "hp": -20,
+       "morale": -15,
+       "rep": {
+        "utc": -5,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Pedro Serrano's smoke signals were ignored by passing ships fearful of shoals; castaways could not rely on rescue and had to choose concealment or confrontation."
+ },
+ {
+  "id": "myth_027",
+  "category": "mythos",
+  "title": "Shard-Fingers",
+  "zones": [
+   "outpost",
+   "cave"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.0,
+   "min_day": 7,
+   "camp_level": 3,
+   "needs_item": null,
+   "weather": "any"
+  },
+  "weight": 5,
+  "cooldown_s": 14400,
+  "intro_lines": [
+   "Your fingertips end in crystalline points, numb and cold.",
+   "Wood warms where you touch it; stone sings.",
+   "Tide-Puck refuses to let you pet it."
+  ],
+  "choices": [
+   {
+    "label": "Carve a totem",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "The totem drinks rain and hums. Fresh water collects in its bowl — pure, sweet, endless.",
+      "effects": {
+       "items": {
+        "wood": -3,
+        "fresh_water": 10
+       },
+       "hp": 0,
+       "morale": 10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 3,
+        "free": 1
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "water_totem",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "The wood bleeds sap that hardens into shards. Your fingers lengthen. The totem watches.",
+      "effects": {
+       "items": {
+        "wood": -3,
+        "relic_shard": 2
+       },
+       "hp": -10,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 1,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "shard_touched",
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Plunge hands into fire",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Flames sear the crystals to slag. Pain blanks your mind. Fingers heal — human again. The gift is gone.",
+      "effects": {
+       "items": {
+        "wood": -5
+       },
+       "hp": -20,
+       "morale": 5,
+       "rep": {
+        "utc": 1,
+        "tideborn": -3,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.5,
+      "text": "Fire feeds the shards. They grow up your arms. You become a beacon. Tide-Puck howls.",
+      "effects": {
+       "items": {
+        "wood": -5
+       },
+       "hp": -15,
+       "morale": -15,
+       "rep": {
+        "utc": -2,
+        "tideborn": 5,
+        "free": 0
+       },
+       "spawn": "wild_mythos",
+       "pet_xp": 0,
+       "unlock": "beacon",
+       "next_event": "myth_031"
+      }
+     }
+    ]
+   },
+   {
+    "label": "Seek a Tideborn healer",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.4,
+      "text": "A scout finds you. Her touch dissolves the crystals into seawater. You owe a debt.",
+      "effects": {
+       "items": {},
+       "hp": 5,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 5,
+        "free": 0
+       },
+       "spawn": "tideborn_scout",
+       "pet_xp": 20,
+       "unlock": "tideborn_debt",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.35,
+      "text": "They study you instead. \"A successful binding.\" You are taken to their ruins.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": -2,
+        "free": 0
+       },
+       "spawn": "tideborn_scout",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.25,
+      "text": "No one comes. The crystals reach your wrists. You carve runes into your shelter walls to remember.",
+      "effects": {
+       "items": {},
+       "hp": -5,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "runecarver",
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Ada Blackjack taught herself to shoot, trap, and build a stove from kerosene cans while nursing a dying man — castaways improvise tools and skills from wreckage."
+ },
+ {
+  "id": "myth_028",
+  "category": "mythos",
+  "title": "The Factor's Return",
+  "zones": [
+   "beach",
+   "outpost"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.0,
+   "min_day": 10,
+   "camp_level": 3,
+   "needs_item": null,
+   "weather": "fog"
+  },
+  "weight": 4,
+  "cooldown_s": 172800,
+  "intro_lines": [
+   "The UTC cutter returns.",
+   "No flag.",
+   "No warning shot. \"The shard woke something."
+  ],
+  "choices": [
+   {
+    "label": "Hear them out",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "A binding crystal has fractured. The Sovereign stirs. UTC offers gold, powder, and a truce to help rebind it.",
+      "effects": {
+       "items": {
+        "gold": 100,
+        "powder": 20
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 5,
+        "tideborn": -3,
+        "free": -2
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "utc_alliance",
+       "next_event": "myth_032"
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "It's a trap. Marines rise from the surf. The factor draws a hidden pistol.",
+      "effects": {
+       "items": {},
+       "hp": -20,
+       "morale": -15,
+       "rep": {
+        "utc": -5,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "A Tideborn arrow takes the factor mid-sentence. The cutter flees. You have a body and a message.",
+      "effects": {
+       "items": {
+        "map_fragment": 1
+       },
+       "hp": 0,
+       "morale": 0,
+       "rep": {
+        "utc": -5,
+        "tideborn": 5,
+        "free": 0
+       },
+       "spawn": "tideborn_scout",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Kill the factor",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "One shot. The cutter retreats. UTC marks you for death. Free pirates cheer the news.",
+      "effects": {
+       "items": {
+        "powder": -5
+       },
+       "hp": 0,
+       "morale": 10,
+       "rep": {
+        "utc": -10,
+        "tideborn": 0,
+        "free": 8
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "utc_enemy",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "The factor wears armour under the coat. Your shot fails. His men swarm the beach.",
+      "effects": {
+       "items": {
+        "powder": -10
+       },
+       "hp": -30,
+       "morale": -20,
+       "rep": {
+        "utc": -5,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Send them to the Tideborn",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.55,
+      "text": "\"The ruins know more than I do.\" The factor leaves. A scout watches from the cliffs. The truce holds — for now.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 2,
+        "tideborn": 3,
+        "free": 0
+       },
+       "spawn": "tideborn_scout",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.45,
+      "text": "The factor finds the arches. He returns with a relic and a grin. \"Thank you.\" UTC power grows.",
+      "effects": {
+       "items": {
+        "relic_shard": 1
+       },
+       "hp": 0,
+       "morale": -5,
+       "rep": {
+        "utc": 8,
+        "tideborn": -5,
+        "free": -2
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Pirate havens operated on a chain of victuallers, receivers, and bribed protectors; dealing with corporate powers like UTC mirrored historical pirate dealings with colonial authorities."
+ },
+ {
+  "id": "myth_029",
+  "category": "mythos",
+  "title": "The Pool Remembers",
+  "zones": [
+   "reef",
+   "cave"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.0,
+   "min_day": 8,
+   "camp_level": 3,
+   "needs_item": null,
+   "weather": "night"
+  },
+  "weight": 5,
+  "cooldown_s": 14400,
+  "intro_lines": [
+   "The tide-pool where you sank the shard now hums at low",
+   "Fish swim in perfect spirals.",
+   "Crabs march in lines."
+  ],
+  "choices": [
+   {
+    "label": "Listen with your hands in the water",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.45,
+      "text": "Visions: the Sovereign's spine is a mountain range. The binding crystals are nails. One is loose.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 0,
+       "rep": {
+        "utc": 0,
+        "tideborn": 5,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 50,
+       "unlock": "sovereign_map",
+       "next_event": "myth_033"
+      }
+     },
+     {
+      "chance": 0.35,
+      "text": "The water freezes your hands. Numbness climbs. You pull back, but the cold stays in your bones.",
+      "effects": {
+       "items": {},
+       "hp": -15,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 1,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "cold_touched",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Something bites. Not a fish. You yank back a finger missing to the knuckle. The pool laughs.",
+      "effects": {
+       "items": {},
+       "hp": -20,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "wild_mythos",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Poison the pool",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "The hum dies. The voice screams — a sound that cracks your eardrums. Silence returns.",
+      "effects": {
+       "items": {
+        "herbs": -5
+       },
+       "hp": -10,
+       "morale": 5,
+       "rep": {
+        "utc": 1,
+        "tideborn": -5,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "pool_killed",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "The poison clouds. The water turns red. A tentacle lashes out, dragging you in. Tide-Puck bites it.",
+      "effects": {
+       "items": {
+        "herbs": -5
+       },
+       "hp": -25,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "wild_mythos",
+       "pet_xp": 30,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Feed it blood",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Your palm across the surface. The pool drinks. The voice whispers coordinates. A UTC cache. A Tideborn vault.",
+      "effects": {
+       "items": {
+        "map_fragment": 2
+       },
+       "hp": -10,
+       "morale": 0,
+       "rep": {
+        "utc": -1,
+        "tideborn": 2,
+        "free": 1
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "blood_map",
+       "next_event": "myth_033"
+      }
+     },
+     {
+      "chance": 0.5,
+      "text": "The pool takes more than offered. Your arm goes numb to the shoulder. The voice demands more.",
+      "effects": {
+       "items": {},
+       "hp": -20,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 1,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "blood_debt",
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Pedro Serrano flipped sea turtles onto their backs and drank their blood when no rain came; castaways used every bodily resource for survival."
+ },
+ {
+  "id": "myth_030",
+  "category": "mythos",
+  "title": "Puck's Trail",
+  "zones": [
+   "jungle",
+   "cliff"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.0,
+   "min_day": 12,
+   "camp_level": 4,
+   "needs_item": null,
+   "weather": "rain"
+  },
+  "weight": 4,
+  "cooldown_s": 172800,
+  "intro_lines": [
+   "Weeks after the cutter took Tide-Puck, a track appears.",
+   "Glowing paw prints in the mud, leading inland.",
+   "They pulse — a heartbeat you feel in your chest."
+  ],
+  "choices": [
+   {
+    "label": "Follow the prints",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "A UTC camp. Tide-Puck in a cage of dark crystal — draining its light to power a binding array.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": -3,
+        "tideborn": 2,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": "puck_caged",
+       "next_event": "myth_032"
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "The prints end at a cliff. Tide-Puck's collar lies there, cut. No body. The rain washes the hum away.",
+      "effects": {
+       "items": {
+        "shell": 1
+       },
+       "hp": 0,
+       "morale": -20,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "puck_gone",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Free pirates ambush you. \"The dog's worth gold to UTC.\" They want your map to the camp.",
+      "effects": {
+       "items": {},
+       "hp": -15,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -3
+       },
+       "spawn": "free_pirates",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Burn the trail",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "Flames eat the prints. The pulse in your chest stops. You mourn. The camp sleeps safer tonight.",
+      "effects": {
+       "items": {
+        "tar": -1
+       },
+       "hp": 0,
+       "morale": -10,
+       "rep": {
+        "utc": 2,
+        "tideborn": -2,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "puck_mourned",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Fire flares green. The prints burn into the soil — permanent, humming. UTC will find them. So will others.",
+      "effects": {
+       "items": {
+        "tar": -1
+       },
+       "hp": -5,
+       "morale": -5,
+       "rep": {
+        "utc": -2,
+        "tideborn": 1,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Leave an offering",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.55,
+      "text": "Next dawn: a single humming scale on your doorstep. Tide-Puck lives. It knows you wait.",
+      "effects": {
+       "items": {
+        "fish": -3,
+        "feather": 1
+       },
+       "hp": 0,
+       "morale": 10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 2,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "puck_lives",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.45,
+      "text": "The fish rots. No scale. The prints fade. Whatever watched decides you're not worth the effort.",
+      "effects": {
+       "items": {
+        "fish": -3
+       },
+       "hp": 0,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Alexander Selkirk hid from Spanish ships knowing they would enslave him, waiting years for an English vessel — castaways weigh concealment against the hope of rescue."
+ },
+ {
+  "id": "myth_031",
+  "category": "mythos",
+  "title": "Beacon of the Deep",
+  "zones": [
+   "outpost",
+   "cliff"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.0,
+   "min_day": 15,
+   "camp_level": 5,
+   "needs_item": null,
+   "weather": "storm"
+  },
+  "weight": 6,
+  "cooldown_s": 259200,
+  "intro_lines": [
+   "Lightning strikes your shelter — and grounds in your arms.",
+   "The crystals drink the bolt.",
+   "You are the lightning rod. So does the Sovereign."
+  ],
+  "choices": [
+   {
+    "label": "Guide the Sovereign to UTC",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "The leviathan rises. The cutter fleet breaks. UTC burns. You ride the wave back to shore, changed.",
+      "effects": {
+       "items": {},
+       "hp": -10,
+       "morale": 20,
+       "rep": {
+        "utc": -20,
+        "tideborn": 10,
+        "free": 10
+       },
+       "spawn": "wild_mythos",
+       "pet_xp": 100,
+       "unlock": "sovereign_ally",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "The Sovereign ignores your intent. It takes everything — UTC, Tideborn, your camp. You survive. Barely.",
+      "effects": {
+       "items": {
+        "wood": -20,
+        "stone": -20,
+        "food": -30
+       },
+       "hp": -30,
+       "morale": -20,
+       "rep": {
+        "utc": -10,
+        "tideborn": -10,
+        "free": -10
+       },
+       "spawn": "wild_mythos",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "The crystals shatter. The beacon dies. The Sovereign screams — a sound that stops hearts. You wake days later.",
+      "effects": {
+       "items": {},
+       "hp": -20,
+       "morale": -15,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "shard_broken",
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Draw the Tideborn instead",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Scouts swarm the beach. They bind your arms with kelp-rope. \"The beacon serves.\" You are taken.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 8,
+        "free": -5
+       },
+       "spawn": "tideborn_scout",
+       "pet_xp": 0,
+       "unlock": "tideborn_servant",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "A Tideborn elder arrives. She severs the crystals with a song. You are free. The light remains in your eyes.",
+      "effects": {
+       "items": {
+        "pearl": 1
+       },
+       "hp": 5,
+       "morale": 10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 5,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "freed_beacon",
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Ground yourself in the sea",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "You walk into the surf. The ocean drinks the lightning. The crystals go dark. You are human again. Cold. Whole.",
+      "effects": {
+       "items": {},
+       "hp": 10,
+       "morale": 5,
+       "rep": {
+        "utc": 1,
+        "tideborn": -1,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "The sea rejects you. A riptide spits you back. The crystals flare. The Sovereign knows now.",
+      "effects": {
+       "items": {},
+       "hp": -15,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 2,
+        "free": 0
+       },
+       "spawn": "wild_mythos",
+       "pet_xp": 0,
+       "unlock": "marked",
+       "next_event": "myth_033"
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Tromelin castaways built 1.5m thick coral walls with backs to the trade wind after a storm destroyed their shelters; survival required adapting structures to environmental threats."
+ },
+ {
+  "id": "myth_032",
+  "category": "mythos",
+  "title": "The Binding Array",
+  "zones": [
+   "cave",
+   "reef"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.0,
+   "min_day": 18,
+   "camp_level": 6,
+   "needs_item": null,
+   "weather": "any"
+  },
+  "weight": 7,
+  "cooldown_s": 345600,
+  "intro_lines": [
+   "The UTC array hums with stolen light.",
+   "Tide-Puck is the battery.",
+   "Dark crystals pulse around the cavern."
+  ],
+  "choices": [
+   {
+    "label": "Shatter the array",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Iron meets dark crystal. The array explodes. Tide-Puck is flung free — you catch it. The Sovereign roars, unbound.",
+      "effects": {
+       "items": {
+        "iron": -3
+       },
+       "hp": -15,
+       "morale": 15,
+       "rep": {
+        "utc": -10,
+        "tideborn": 5,
+        "free": 5
+       },
+       "spawn": "wild_mythos",
+       "pet_xp": 80,
+       "unlock": "array_broken",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "The backlash hurls you against the wall. Tide-Puck takes the blast. Its fur goes dark. It does not move.",
+      "effects": {
+       "items": {
+        "iron": -3
+       },
+       "hp": -25,
+       "morale": -30,
+       "rep": {
+        "utc": -5,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": "puck_lost",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "UTC guards swarm. You fight free but the array holds. Tide-Puck screams as they drag you out.",
+      "effects": {
+       "items": {
+        "iron": -3
+       },
+       "hp": -20,
+       "morale": -15,
+       "rep": {
+        "utc": -5,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Repair the crack",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.55,
+      "text": "Your shard seals the crack. The array stabilizes. The UTC officer salutes. Tide-Puck's light steadies — contained.",
+      "effects": {
+       "items": {
+        "relic_shard": -1
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 10,
+        "tideborn": -5,
+        "free": -3
+       },
+       "spawn": null,
+       "pet_xp": 20,
+       "unlock": "utc_alliance",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.45,
+      "text": "The shard feeds the crack. Dark crystal spreads up your arm. The officer orders you chained — \"volunteer.\"",
+      "effects": {
+       "items": {
+        "relic_shard": -1
+       },
+       "hp": -10,
+       "morale": -10,
+       "rep": {
+        "utc": 5,
+        "tideborn": -2,
+        "free": -5
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": "bound",
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Steal Tide-Puck and run",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "You snatch the pup. The array wails. UTC gives chase. You reach the jungle. The binding weakens behind you.",
+      "effects": {
+       "items": {},
+       "hp": -10,
+       "morale": 10,
+       "rep": {
+        "utc": -8,
+        "tideborn": 3,
+        "free": 2
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 50,
+       "unlock": "puck_rescued",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "A dark crystal spikes through your leg. You fall. Tide-Puck bites the crystal — shatters it. The array breaks.",
+      "effects": {
+       "items": {},
+       "hp": -20,
+       "morale": 5,
+       "rep": {
+        "utc": -5,
+        "tideborn": 5,
+        "free": 3
+       },
+       "spawn": "wild_mythos",
+       "pet_xp": 100,
+       "unlock": "array_broken",
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Careening crews grounded ships at high tide, heeled them over to scrape teredo worms and weed, defenceless while guns were landed in beach batteries — vulnerability created opportunity."
+ },
+ {
+  "id": "myth_033",
+  "category": "mythos",
+  "title": "The Spine of the World",
+  "zones": [
+   "reef",
+   "cliff",
+   "cave"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.0,
+   "min_day": 22,
+   "camp_level": 7,
+   "needs_item": null,
+   "weather": "clear"
+  },
+  "weight": 8,
+  "cooldown_s": 432000,
+  "intro_lines": [
+   "At lowest tide, the water pulls back — far back.",
+   "A ridge of bone and coral breaches the surface",
+   "Three nails of dark crystal protrude. One is loose."
+  ],
+  "choices": [
+   {
+    "label": "Drive the nail deeper",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Iron bites bone. The Sovereign shudders — asleep again. The tide rushes back. UTC camps celebrate. Tideborn weep.",
+      "effects": {
+       "items": {
+        "iron": -2
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 8,
+        "tideborn": -8,
+        "free": -2
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "sovereign_bound",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "The bone bleeds black ichor. It burns your hands. The nail goes in, but the Sovereign wakes. One eye opens.",
+      "effects": {
+       "items": {
+        "iron": -2
+       },
+       "hp": -20,
+       "morale": -10,
+       "rep": {
+        "utc": -2,
+        "tideborn": 3,
+        "free": 0
+       },
+       "spawn": "wild_mythos",
+       "pet_xp": 0,
+       "unlock": "sovereign_wakes",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Your hammer shatters. The nail flies loose. The ridge sinks. The tide returns with a wall of water.",
+      "effects": {
+       "items": {
+        "iron": -2
+       },
+       "hp": -15,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Pull the nail free",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.45,
+      "text": "The nail sings as it leaves the bone. The Sovereign breathes — a wave of pure force. You ride it. Free.",
+      "effects": {
+       "items": {
+        "rope": -1,
+        "relic_shard": 3
+       },
+       "hp": -10,
+       "morale": 20,
+       "rep": {
+        "utc": -10,
+        "tideborn": 10,
+        "free": 5
+       },
+       "spawn": "wild_mythos",
+       "pet_xp": 100,
+       "unlock": "sovereign_free",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.35,
+      "text": "The rope snaps. The nail drops back. The Sovereign thrashes — tsunami scours the island. Your camp is gone.",
+      "effects": {
+       "items": {
+        "rope": -1,
+        "wood": -30,
+        "stone": -20,
+        "food": -20
+       },
+       "hp": -30,
+       "morale": -25,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "A Tideborn elder catches the nail. \"Fool.\" She drives it back in. You are bound, gagged, left on the reef.",
+      "effects": {
+       "items": {
+        "rope": -1
+       },
+       "hp": -15,
+       "morale": -15,
+       "rep": {
+        "utc": 0,
+        "tideborn": -5,
+        "free": 0
+       },
+       "spawn": "tideborn_scout",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Study the nail's resonance",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "You press your shard-touched fingers to the crystal. Memories flood: the Sovereign is the islands. The binding is the tide.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 0,
+       "rep": {
+        "utc": 0,
+        "tideborn": 5,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "tide_master",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "The resonance shatters your mind. You babble coordinates, depths, names of dead Tideborn. Your crew binds you.",
+      "effects": {
+       "items": {},
+       "hp": -10,
+       "morale": -20,
+       "rep": {
+        "utc": 0,
+        "tideborn": 2,
+        "free": -3
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "madness",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "A UTC sniper takes the shot. You fall. The nail glints in your dead hand. The tide covers all.",
+      "effects": {
+       "items": {},
+       "hp": -100,
+       "morale": 0,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Pedro Serrano and a second castaway quarrelled then reconciled on Serrana Bank; isolated survivors' choices affect not only themselves but the fragile social order they create."
  }
 ]
