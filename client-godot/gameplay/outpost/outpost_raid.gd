@@ -47,6 +47,10 @@ const RAID_TYPES := {
 		"row": {}, "hp": 1.0},
 	"frontal_weak": {"title": "They broke in the surf!", "sub": "What's left of the wave staggers ashore", "warning": 4.0, "horn": true,
 		"row": {"deckhand": 2, "musketeer": 1}, "hp": 0.8, "loot": {"iron": 8, "gold": 10}},
+	"patrol": {"title": "UTC patrol!", "sub": "A Company boat checks the cove", "warning": 6.0, "horn": true,
+		"row": {"deckhand": 2, "musketeer": 1}, "hp": 0.9, "loot": {"iron": 6, "gold": 8, "powder": 1}},
+	"pirates": {"title": "Free pirates!", "sub": "Black-flag rovers want your stores", "warning": 6.0, "horn": true,
+		"row": {"deckhand": 3, "brute": 1}, "hp": 0.9, "loot": {"gold": 14, "rum": 1}},
 	"frontal_warned": {"title": "Just as he said", "sub": "You knew where they'd land", "warning": 20.0, "horn": true,
 		"row": {}, "hp": 0.9},
 }

@@ -17,7 +17,7 @@ const DEFAULTS := {
 	"goat": {"hp": 40, "damage": 0, "speed": 1.4, "aggro": 0.0, "zones": ["jungle", "camp"], "time": "day", "drops": {"meat": 2, "hide": 1}, "passive": true, "weight": 2},
 }
 const SPAWN_POINTS := {
-	"beach": [Vector3(4, 0, 2.2), Vector3(15, 0, 2.0), Vector3(22, 0, 2.6), Vector3(9, 0, 1.8)],
+	"beach": [Vector3(3.5, 0, 3.0), Vector3(8, 0, 1.5), Vector3(13, 0, 2.6), Vector3(17, 0, 5.6)],
 	"jungle": [Vector3(0.5, 0, 8), Vector3(23, 0, 12), Vector3(1.0, 0, 16), Vector3(22, 0, 18), Vector3(12, 0, 21)],
 	"camp": [Vector3(8, 0, 15), Vector3(16, 0, 9)],
 }
@@ -44,11 +44,31 @@ func setup(data = null) -> void:
 					base.merge(rows[k], true)
 					kinds[k] = base
 		elif rows is Array:
+			# Bestiary rows (wildlife.json): take hp, zones and drops for the
+			# animals this AI drives; damage may be {attack: n}; drops [min,max].
 			for r in rows:
-				if r is Dictionary and r.has("id"):
-					var base2: Dictionary = kinds.get(str(r["id"]), {})
-					base2.merge(r, true)
-					kinds[str(r["id"])] = base2
+				if r is Dictionary and kinds.has(str(r.get("id", ""))):
+					var k2: Dictionary = kinds[str(r["id"])]
+					if r.has("hp"):
+						k2["hp"] = float(r["hp"])
+					var zs: Array = []
+					for z in r.get("zones", []):
+						var m: String = {"reef": "beach", "sea": "beach", "outpost": "camp", "cliff": "jungle", "cave": "jungle"}.get(str(z), str(z))
+						if m in ["beach", "camp", "jungle"] and not (m in zs):
+							zs.append(m)
+					if not zs.is_empty():
+						k2["zones"] = zs
+					var dm = r.get("damage", null)
+					if dm is Dictionary and float(k2.get("damage", 0)) > 0.0:
+						var best := 0.0
+						for dk in dm.keys():
+							if not ("dot" in str(dk)):
+								best = maxf(best, float(dm[dk]))
+						k2["damage"] = best
+					elif dm is float or dm is int:
+						k2["damage"] = float(dm)
+					if r.get("drops", null) is Dictionary:
+						k2["drops"] = r["drops"]
 	rng.seed = int(host.state.ext.get("director", {}).get("seed", 1)) + 77 if host and host.state else 77
 
 
@@ -276,7 +296,13 @@ func hurt(a: Dictionary, dmg: float, from: Vector3) -> Dictionary:
 		a["state"] = "chase"
 	if float(a["hp"]) > 0.0:
 		return {}
-	var drops: Dictionary = (_row(a).get("drops", {}) as Dictionary).duplicate()
+	var drops: Dictionary = {}
+	var dd: Dictionary = _row(a).get("drops", {})
+	for k in dd.keys():
+		var v = dd[k]
+		var n2: int = rng.randi_range(int(v[0]), int(v[1])) if v is Array else int(v)
+		if n2 > 0:
+			drops[k] = n2
 	if str(a.get("carry", "")) != "":
 		drops[a["carry"]] = int(drops.get(a["carry"], 0)) + int(a.get("carry_n", 1))
 	a["state"] = "dead"

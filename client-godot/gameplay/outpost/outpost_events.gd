@@ -18,15 +18,19 @@ signal pet_xp_gained(amount: int)
 signal night_began(day: int)
 
 const DIR := "res://gameplay/outpost/data/scenarios"
-const NON_SCENARIO := ["items.json", "wildlife.json", "pet_training.json"]
+const NON_SCENARIO := ["items.json", "wildlife.json", "pet_training.json", "stats.json"]
+## The player stands in one of 3 map zones; scenario zones alias onto them.
+const ZONE_ALIAS := {"beach": ["beach", "reef", "sea", "isle", "shore"], "camp": ["camp", "outpost"], "jungle": ["jungle", "cliff", "cave", "isle"]}
 const PHASES := ["quiet", "rising", "spike", "breather"]
 ## Phase -> [min secs, max secs, roll interval, max intensity]
 const PHASE_CFG := {"quiet": [70.0, 120.0, 38.0, 1], "rising": [90.0, 150.0, 24.0, 2],
 	"spike": [40.0, 70.0, 14.0, 3], "breather": [50.0, 90.0, 55.0, 1]}
 const DAY_SECONDS := 480.0
-const WEATHERS := ["clear", "rain", "storm", "fog"]
-## Markov weights: from -> [clear, rain, storm, fog]
-const WEATHER_NEXT := {"clear": [5, 2, 0.5, 1.5], "rain": [3, 2, 1.5, 0.5], "storm": [2, 3, 0.5, 0.5], "fog": [3, 1, 0.2, 1]}
+## Named system actions; unnamed action-trigger scenarios ignore these.
+const SPECIAL_ACTIONS := ["night_no_watchtower", "nightfall", "loot_utc_relic", "kill_raider"]
+const WEATHERS := ["clear", "rain", "storm", "fog", "heat"]
+## Markov weights: from -> [clear, rain, storm, fog, heat]
+const WEATHER_NEXT := {"clear": [5, 2, 0.5, 1.5, 1.5], "rain": [3, 2, 1.5, 0.5, 0.2], "storm": [2, 3, 0.5, 0.5, 0], "fog": [3, 1, 0.2, 1, 0.3], "heat": [3, 0.5, 0.8, 0.2, 2]}
 
 var host: Node = null   # outpost.gd (optional)
 var st                  # OutpostState
@@ -258,13 +262,25 @@ func ineligible(row: Dictionary, ctx: Dictionary, action: String = "") -> String
 	var tr: Dictionary = row.get("trigger", {})
 	var ty := str(tr.get("type", "random"))
 	if action != "":
-		if ty != "action" or str(tr.get("action", "")) != action:
+		# Named action triggers match exactly; unnamed ones fire on any
+		# ordinary player action (gathering, hunting, building).
+		var want := str(tr.get("action", "")) if tr.get("action", null) != null else ""
+		if ty != "action" or (want != "" and want != action) or (want == "" and action in SPECIAL_ACTIONS):
 			return "not this action"
+		if float(tr.get("chance", 1.0)) <= 0.0:
+			return "chain only"
 	elif ty == "action":
 		return "waits for an action"
+	elif float(tr.get("chance", 1.0)) <= 0.0:
+		return "chain only"
 	var zones: Array = row.get("zones", [])
-	if not zones.is_empty() and not ("any" in zones) and not (str(ctx["zone"]) in zones):
-		return "zone"
+	if not zones.is_empty() and not ("any" in zones):
+		var ok_zone := false
+		for zz in ZONE_ALIAS.get(str(ctx["zone"]), [str(ctx["zone"])]):
+			if zz in zones:
+				ok_zone = true
+		if not ok_zone:
+			return "zone"
 	if int(ctx["day"]) < int(tr.get("min_day", 0)):
 		return "too early"
 	if int(ctx["camp_level"]) < int(tr.get("camp_level", 0)):
@@ -272,7 +288,11 @@ func ineligible(row: Dictionary, ctx: Dictionary, action: String = "") -> String
 	var w = tr.get("weather", null)
 	if w != null and str(w) != "" and str(w) != "any":
 		var ws: Array = w if w is Array else [str(w)]
-		if not (str(ctx["weather"]) in ws):
+		var ok_w := false
+		for wv in ws:
+			if str(wv) == str(ctx["weather"]) or (str(wv) == "night" and bool(ctx["night"])) or (str(wv) == "day" and not bool(ctx["night"])):
+				ok_w = true
+		if not ok_w:
 			return "weather"
 	var item = tr.get("needs_item", null)
 	if item != null and str(item) != "" and st.count(str(item)) <= 0:

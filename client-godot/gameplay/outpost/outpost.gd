@@ -507,6 +507,8 @@ func _nearest_site(radius: float) -> String:
 		if id != "camp" and not state.is_unlocked(id):
 			continue
 		var d := (_sites[id]["plot"] as Vector3).distance_to(_player.global_position)
+		if id == "training_post" and d > 2.4:
+			continue   # small prop wedged between huts: only when right beside it
 		if d < best_d:
 			best_d = d
 			best = id
@@ -578,6 +580,8 @@ func strike(i: int) -> Dictionary:
 	var got: Dictionary = gather.strike(i)
 	if got.is_empty():
 		return got
+	if events and gather.nodes[i]["hp"] <= 0:
+		events.notify("gather_" + gather.kind_of(i))
 	for k in got.keys():
 		state.inv[str(k)] = int(state.inv.get(str(k), 0)) + int(got[k])
 	fly_from_world(target + Vector3.UP * 1.2, got)
@@ -1022,8 +1026,33 @@ func _on_spawn_requested(what: String) -> void:
 		if raid:
 			raid.start_raid(what.substr(5))
 		return
-	if get("wildlife") != null and get("wildlife").has_method("spawn_kind"):
-		get("wildlife").spawn_kind(what)
+	match what:
+		"utc_patrol":
+			if raid: raid.start_raid("patrol")
+			return
+		"free_pirates":
+			if raid: raid.start_raid("pirates")
+			return
+		"shark", "eel", "ray", "stonefish":
+			if zone_at_player() == "beach":
+				hurt_player(12.0 if what == "shark" else 7.0, _player.global_position + Vector3(0, 0, -1))
+				_toast({"shark": "A fin cuts the shallows. Teeth!", "eel": "An eel strikes from the rocks!", "ray": "A ray's barb in the surf!", "stonefish": "Stonefish spine underfoot!"}[what])
+			else:
+				_toast("Something big moves out on the reef.")
+			return
+		"tideborn_scout":
+			_toast("A Tideborn scout watches from the treeline, then is gone.")
+			return
+		"wild_mythos":
+			camera_kick(0.3)
+			_toast("The ground shudders. Something ancient stirs under the island.")
+			return
+		"land_crab":
+			what = "crab"
+		"rat":
+			what = "monkey"
+	if wildlife:
+		wildlife.spawn_kind(what)
 
 
 func _find_sun() -> DirectionalLight3D:

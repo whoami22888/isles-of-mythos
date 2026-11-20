@@ -39,7 +39,20 @@ func setup(state, cfg = null) -> void:
 	if p.is_empty():
 		p = {"level": 1, "xp": 0, "trust": 40, "mood": 70}
 	st.ext["pet"] = p
-	if cfg is Dictionary:
+	if cfg is Dictionary and cfg.get("levels", null) is Array:
+		# pet_training.json: levels [{level, xp_required, unlocks: ["fetch (..)"]}]
+		xp_table = []
+		unlocks = {}
+		for lv in cfg["levels"]:
+			xp_table.append(int(lv.get("xp_required", 0)))
+			for u in lv.get("unlocks", []):
+				var word := str(u).split(" ")[0].to_lower()
+				if word in COMMANDS:
+					unlocks[word] = int(lv.get("level", xp_table.size()))
+		for c in COMMANDS:
+			if not unlocks.has(c):
+				unlocks[c] = UNLOCKS[c]
+	elif cfg is Dictionary:
 		xp_table = cfg.get("xp_table", XP_TABLE)
 		var u = cfg.get("unlocks", cfg.get("commands", null))
 		if u is Dictionary:
@@ -266,7 +279,7 @@ func nearest_dig(at: Vector3, r: float) -> int:
 
 func _place_dig_spots() -> void:
 	const W := preload("res://gameplay/outpost/outpost_wildlife.gd")
-	var cands := [Vector3(3.5, 0, 3.0), Vector3(13, 0, 2.6), Vector3(20, 0, 3.4), Vector3(5, 0, 6.5), Vector3(13, 0, 16), Vector3(17, 0, 4.5)]
+	var cands := [Vector3(3.5, 0, 3.0), Vector3(8, 0, 1.5), Vector3(11, 0, 2.4), Vector3(4.5, 0, 6.0), Vector3(13, 0, 16), Vector3(17, 0, 5.8)]
 	while dig_spots.size() < 3:
 		var c: Vector3 = cands[rng.randi() % cands.size()]
 		var dup := false

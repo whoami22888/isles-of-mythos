@@ -61,6 +61,9 @@ func run() -> void:
 		check(p.y > scene._water_y + 0.1, "site %s on dry land" % id)
 	scene.stand_at("mill")
 	await frames(3)
+	# Scripted economy/raid walkthrough: no random events or wildlife in the way.
+	scene.events.paused = true
+	scene.wildlife.auto_spawn = false
 	check(scene._focus == "mill", "player at mill plot, action '%s'" % scene._action_text())
 	await shot("outpost_plots")
 	scene._hud._action.emit_signal("pressed")
@@ -103,11 +106,14 @@ func run() -> void:
 	scene._player.global_position = Vector3(tp.x, scene.ground_y(tp.x, tp.z + 1.8), tp.z + 1.8)
 	await frames(2)
 	check(scene._action_text() == "Chop", "action shows Chop near a tree ('%s')" % scene._action_text())
+	# Chapter 2 tools: a stone axe + pick (normal hits/yield); crits can add more.
+	scene.gather.tools.t.merge({"axe": "stone", "pick": "stone", "dur": {"axe": 60, "pick": 60}}, true)
+	scene.gather.nodes[tree_i]["hp"] = scene.gather._hits("tree")
 	var w0 := int(st.inv["wood"])
 	for k in 4:
 		scene.on_action()
 		await frames(12)
-	check(int(st.inv["wood"]) == w0 + 4 * 3 + 4, "tree felled for 16 wood (%d -> %d)" % [w0, int(st.inv["wood"])])
+	check(int(st.inv["wood"]) >= w0 + 4 * 3 + 4, "tree felled for 16+ wood (%d -> %d)" % [w0, int(st.inv["wood"])])
 	check(float(scene.gather.nodes[tree_i]["left"]) > 0.0, "tree down, respawning")
 	var rock_i := -1
 	for i in scene.gather.nodes.size():
@@ -120,7 +126,7 @@ func run() -> void:
 	var s0 := int(st.inv["stone"])
 	scene.on_action()
 	await frames(12)
-	check(int(st.inv["stone"]) == s0 + 2, "rock struck for stone")
+	check(int(st.inv["stone"]) >= s0 + 2, "rock struck for stone (%d -> %d, action %s)" % [s0, int(st.inv["stone"]), scene._action_text()])
 	# Milestone 2: survive raid wave 1 using the HUD action (Strike).
 	# IOM_BOT_WAVE=3 / IOM_BOT_NODODGE=1 are balance probes (not CI gates).
 	var probe_wave := int(OS.get_environment("IOM_BOT_WAVE")) if OS.get_environment("IOM_BOT_WAVE") != "" else 1
