@@ -24,7 +24,7 @@ function repo(files = {}, lock, manifest) {
 }
 const entry = (over = {}) => ({
   path: "vendor/kit/palm.glb", sha256: sha("palm"), license: "CC0-1.0",
-  license_path: "vendor/kit/LICENSE.txt", source_url: "https://polyhaven.com/a/palm",
+  license_path: "vendor/kit/LICENSE.txt", license_sha256: sha("CC0"), source_url: "https://polyhaven.com/a/palm",
   vendor: "Test Fixture Vendor", source_revision: "1234567890abcdef1234567890abcdef12345678", pack_id: "test-vendor:kit", ...over
 });
 const good = { "vendor/kit/palm.glb": "palm", "vendor/kit/LICENSE.txt": "CC0" };
@@ -58,6 +58,19 @@ test("a missing, whitespace-only, or absent license_path is rejected", () => {
   const noFile = { "vendor/kit/palm.glb": "palm" };
   assert.match(validateVendorLock(repo(noFile, { version: "1.0.0", assets: [entry()] })).join("\n"), /license file/i);
 });
+test("a missing or malformed license_sha256 is rejected", () => {
+  const { license_sha256, ...rest } = entry();
+  assert.match(validateVendorLock(repo(good, { version: "1.0.0", assets: [rest] })).join("\n"), /license_sha256/);
+  for (const value of ["", " ", "A".repeat(64), "a".repeat(63)]) {
+    assert.match(validateVendorLock(repo(good, { version: "1.0.0", assets: [entry({ license_sha256: value })] })).join("\n"), /license_sha256/);
+  }
+});
+test("a modified license file fails its independently pinned SHA-256", () => {
+  const files = { ...good, "vendor/kit/LICENSE.txt": "changed license text" };
+  const errors = validateVendorLock(repo(files, { version: "1.0.0", assets: [entry()] })).join("\n");
+  assert.match(errors, /license sha256 mismatch/);
+});
+
 test("licences outside the allowlist are rejected", () => {
   const errs = validateVendorLock(repo(good, { version: "1.0.0", assets: [entry({ license: "CC-BY-NC-4.0" })] }));
   assert.match(errs.join("\n"), /license/i);
@@ -238,6 +251,15 @@ test("all present locked source imports continue to pass", () => {
   assert.deepEqual(validateVendorLock(repo(files, { version: "1.0.0", assets: [sourceEntry()] })), []);
 });
 
+
+test("every committed vendor entry pins the exact bytes of its licence file", () => {
+  const lock = JSON.parse(readFileSync(new URL("../vendor.lock.json", import.meta.url), "utf8"));
+  for (const asset of lock.assets) {
+    const licenseBytes = readFileSync(new URL(`../${asset.license_path}`, import.meta.url));
+    const actual = createHash("sha256").update(licenseBytes).digest("hex");
+    assert.equal(asset.license_sha256, actual, asset.path);
+  }
+});
 
 test("committed Corsairs naval-math sources pin the immutable upstream revision and MIT notice", () => {
   const lock = JSON.parse(readFileSync(new URL("../vendor.lock.json", import.meta.url), "utf8"));

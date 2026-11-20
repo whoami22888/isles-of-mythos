@@ -13,7 +13,7 @@ const { join, relative, resolve, sep, isAbsolute, extname } = require("node:path
 const LICENSES = new Set(["CC0-1.0", "CC-BY-4.0", "CC-BY-SA-4.0", "MIT", "Apache-2.0", "OFL-1.1"]); // same as validate_godot_assets.py
 const HASH = /^[0-9a-f]{64}$/;
 const TOP_KEYS = new Set(["$schema", "version", "assets"]);
-const ENTRY_KEYS = new Set(["path", "sha256", "license", "license_path", "source_url", "vendor", "source_revision", "source_identity", "pack_id"]);
+const ENTRY_KEYS = new Set(["path", "sha256", "license", "license_path", "license_sha256", "source_url", "vendor", "source_revision", "source_identity", "pack_id"]);
 const EXTERNAL_DIR = join("client-godot", "assets", "external");
 const GODOT_SIDECARS = new Set([".import", ".uid"]);
 const { validateAssetSourceTree } = require("./validate_asset_src.js");
@@ -145,11 +145,21 @@ function validateVendorLock(root = resolve(__dirname, "..")) {
       }
     }
     if (asset.pack_id !== undefined && (typeof asset.pack_id !== "string" || !asset.pack_id.trim())) errors.push(`${at}: pack_id must be a non-empty string when provided`);
+    let licenseAbs = null;
     if (typeof asset.license_path !== "string" || !asset.license_path.trim()) {
       errors.push(`${at}: license_path is required`);
     } else {
-      const licenseAbs = inside(root, asset.license_path);
-      if (!licenseAbs || !existsSync(licenseAbs) || !lstatSync(licenseAbs).isFile()) errors.push(`${at}: license file not found at ${asset.license_path}`);
+      licenseAbs = inside(root, asset.license_path);
+      if (!licenseAbs || !existsSync(licenseAbs) || !lstatSync(licenseAbs).isFile()) {
+        errors.push(`${at}: license file not found at ${asset.license_path}`);
+        licenseAbs = null;
+      }
+    }
+    if (typeof asset.license_sha256 !== "string" || !HASH.test(asset.license_sha256)) {
+      errors.push(`${at}: license_sha256 must be 64 lowercase hex characters`);
+    } else if (licenseAbs) {
+      const actualLicense = sha256File(licenseAbs);
+      if (actualLicense !== asset.license_sha256) errors.push(`${at}: license sha256 mismatch for ${asset.license_path} (expected ${asset.license_sha256}, actual ${actualLicense})`);
     }
     if (!existsSync(abs) || lstatSync(abs).isSymbolicLink() || !lstatSync(abs).isFile()) {
       return errors.push(`${at}: file not found or not a regular file: ${asset.path}`);

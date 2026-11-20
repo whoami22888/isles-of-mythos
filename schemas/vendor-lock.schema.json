@@ -27,7 +27,8 @@
           "path",
           "sha256",
           "source_url",
-          "vendor"
+          "vendor",
+          "license_sha256"
         ],
         "properties": {
           "path": {
@@ -76,6 +77,10 @@
             "type": "string",
             "description": "Immutable per-file Poly Haven source identity; not a vendor pack revision or archive hash.",
             "pattern": "^polyhaven-file:[a-z0-9_-]+/[A-Za-z0-9._/-]+@sha256:[0-9a-f]{64}$"
+          },
+          "license_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
           }
         },
         "oneOf": [

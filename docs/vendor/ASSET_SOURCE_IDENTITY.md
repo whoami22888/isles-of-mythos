@@ -3,6 +3,7 @@
 ## Pin semantics
 
 - `sha256` is the digest of the exact file bytes admitted to the repository.
+- `license_sha256` pins the exact bytes at `license_path`, independently of the asset digest; the validator recomputes it for every lock entry and rejects missing or altered licence evidence.
 - `source_revision` is reserved for an immutable upstream revision, such as a
   Git commit, or the SHA-256 of the original source archive. Never copy a file's
   own SHA-256 into this field and call it a pack revision.
