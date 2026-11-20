@@ -73,9 +73,10 @@ func request_move_intent(direction: Vector2) -> bool:
 		return false
 	if not is_finite(direction.x) or not is_finite(direction.y):
 		return false
-	if direction.length_squared() < MIN_DIRECTION_LENGTH_SQUARED:
+	var direction_length := direction.length()
+	if not is_finite(direction_length) or direction_length < sqrt(MIN_DIRECTION_LENGTH_SQUARED):
 		return false
-	var normalized := direction.normalized()
+	var normalized := direction / direction_length
 	return bool(_protocol.call("request_move", normalized.x, normalized.y))
 
 
@@ -102,9 +103,12 @@ func use_selected_hotbar(target_id: String, facing: Vector2) -> String:
 	if not item_id is String:
 		return ""
 	if WEAPON_ITEMS.has(item_id):
-		if not is_finite(facing.x) or not is_finite(facing.y) or facing.length_squared() < MIN_DIRECTION_LENGTH_SQUARED:
+		if not is_finite(facing.x) or not is_finite(facing.y):
 			return ""
-		var direction := facing.normalized()
+		var facing_length := facing.length()
+		if not is_finite(facing_length) or facing_length < sqrt(MIN_DIRECTION_LENGTH_SQUARED):
+			return ""
+		var direction := facing / facing_length
 		var attack_id: Variant = _protocol.call("request_attack", target_id, direction.x, direction.y)
 		return attack_id if attack_id is String else ""
 	if item_id == GATHER_TOOL_ITEM:
