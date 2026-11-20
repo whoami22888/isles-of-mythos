@@ -127,6 +127,7 @@ func _on_player_state_received(state: Dictionary) -> void:
 
 
 func _on_command_acknowledged(_request_id: String, message: Dictionary) -> void:
+	print("GAME_MANAGER_ACK_HANDLER keys=", message.keys(), " state_type=", typeof(message.get("state")))
 	var state: Variant = message.get("state")
 	if state is Dictionary:
 		_apply_authoritative_player_state(state)
