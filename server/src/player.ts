@@ -21,6 +21,9 @@ async function reserveAttackCooldown(client: PoolClient, userId: string, cooldow
 export const PLAYER_MAX_HEALTH = 100;
 export const PLAYER_MAX_HUNGER = 100;
 export const PLAYER_MAX_OXYGEN = 100;
+export const PLAYER_HUNGER_DECAY_PER_SECOND = 0.5;
+export const PLAYER_OXYGEN_DECAY_PER_SECOND = 2;
+export const PLAYER_STARVATION_DAMAGE_PER_SECOND = 2;
 export const PLAYER_LAND_SPEED = 4;
 export const PLAYER_WATER_SPEED = 2.5;
 export const PLAYER_HITBOX_WIDTH = 0.7;
@@ -92,10 +95,10 @@ function applyPlayerSimulation(state: PlayerState, dx: number, dy: number, dt: n
   const tile = tileAtWorld(Math.floor(state.x), Math.floor(state.y));
   const inWater = tile === TileKind.Ocean || tile === TileKind.Shallow || tile === TileKind.Reef;
   state.stamina = clamp(state.stamina + safeDt * 12, 0, state.maxStamina);
-  state.hunger = clamp(state.hunger - safeDt * 0.12, 0, PLAYER_MAX_HUNGER);
-  state.oxygen = inWater ? clamp(state.oxygen - safeDt * 0.35, 0, PLAYER_MAX_OXYGEN)
+  state.hunger = clamp(state.hunger - safeDt * PLAYER_HUNGER_DECAY_PER_SECOND, 0, PLAYER_MAX_HUNGER);
+  state.oxygen = inWater ? clamp(state.oxygen - safeDt * PLAYER_OXYGEN_DECAY_PER_SECOND, 0, PLAYER_MAX_OXYGEN)
     : clamp(state.oxygen + safeDt * 0.8, 0, PLAYER_MAX_OXYGEN);
-  if (state.hunger === 0 || state.oxygen === 0) state.health = clamp(state.health - safeDt * 2, 0, PLAYER_MAX_HEALTH);
+  if (state.hunger === 0 || state.oxygen === 0) state.health = clamp(state.health - safeDt * PLAYER_STARVATION_DAMAGE_PER_SECOND, 0, PLAYER_MAX_HEALTH);
   return state;
 }
 
