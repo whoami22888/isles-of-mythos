@@ -58,10 +58,11 @@ var _build_lean_to: Button
 var _build_storage: Button
 var _place_btn: Button
 var _cancel_btn: Button
-var _sub_panel: Button
+var _sub_panel: Control
 var _tool_glyph: Control
 var _sub_speaker: Label
 var _sub_text: Label
+var _sub_skip: Button
 var _menu_btn: Button
 var _journal_panel: PanelContainer
 var _journal_box: VBoxContainer
@@ -448,44 +449,49 @@ func _build_widgets() -> void:
 
 
 func _build_story_widgets() -> void:
-	# Subtitle strip: speaker in gold, one or two lines, tap to skip.
-	_sub_panel = Button.new()
+	# Subtitle strip: top-centre band, text ignores clicks so the stick
+	# (x<538, y>302 at 1280x720) and Strike stay free. Skip is a small
+	# top-right button in the safe area below Log.
+	_sub_panel = Panel.new()
 	_sub_panel.name = "Subtitle"
-	_sub_panel.flat = false
-	_sub_panel.focus_mode = Control.FOCUS_NONE
-	_sub_panel.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-	_sub_panel.offset_left = -560
-	_sub_panel.offset_right = 560
-	_sub_panel.offset_top = -300
-	_sub_panel.offset_bottom = -180
+	_sub_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_sub_panel.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	_sub_panel.offset_left = -360
+	_sub_panel.offset_right = 360
+	_sub_panel.offset_top = 88
+	_sub_panel.offset_bottom = 248
 	var flat := StyleBoxFlat.new()
 	flat.bg_color = Color(0.02, 0.04, 0.06, 0.62)
 	flat.set_corner_radius_all(10)
-	for st in ["normal", "hover", "pressed", "focus"]:
-		_sub_panel.add_theme_stylebox_override(st, flat)
-	_sub_panel.pressed.connect(func() -> void:
-		if world and world.has_method("on_sub_skip"):
-			world.on_sub_skip())
+	_sub_panel.add_theme_stylebox_override("panel", flat)
 	_sub_panel.visible = false
 	add_child(_sub_panel)
-	_sub_speaker = _label(26)
+	_sub_speaker = _label(34)
 	_sub_speaker.add_theme_color_override("font_color", Color(0.98, 0.8, 0.42))
 	_sub_speaker.position = Vector2(24, 8)
 	_sub_speaker.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_sub_panel.add_child(_sub_speaker)
-	_sub_text = _label(32)
+	_sub_text = _label(42)
 	_sub_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_sub_text.max_lines_visible = 2
-	_sub_text.position = Vector2(24, 40)
-	_sub_text.size = Vector2(1000, 76)
+	_sub_text.position = Vector2(24, 46)
+	_sub_text.size = Vector2(672, 110)
 	_sub_text.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_sub_panel.add_child(_sub_text)
-	var hint := _label(18)
-	hint.text = "tap to skip"
-	hint.modulate = Color(1, 1, 1, 0.45)
-	hint.position = Vector2(990, 10)
-	hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_sub_panel.add_child(hint)
+	_sub_skip = _button("Skip", 18)
+	_sub_skip.name = "SubtitleSkip"
+	_sub_skip.custom_minimum_size = Vector2(96, 40)
+	_sub_skip.focus_mode = Control.FOCUS_NONE
+	_sub_skip.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_sub_skip.offset_left = -200
+	_sub_skip.offset_right = -92
+	_sub_skip.offset_top = 80
+	_sub_skip.offset_bottom = 126
+	_sub_skip.visible = false
+	_sub_skip.pressed.connect(func() -> void:
+		if world and world.has_method("on_sub_skip"):
+			world.on_sub_skip())
+	add_child(_sub_skip)
 	# One menu button (top right): pauses and shows the story journal.
 	_menu_btn = _button("Log", 18)
 	_menu_btn.set_anchors_preset(Control.PRESET_TOP_RIGHT)
@@ -526,6 +532,8 @@ func _apply_story() -> void:
 		return
 	var text := str(_state.get("sub_text", ""))
 	_sub_panel.visible = text != "" and not _journal_panel.visible
+	if _sub_skip:
+		_sub_skip.visible = _sub_panel.visible
 	_sub_speaker.text = str(_state.get("sub_speaker", ""))
 	_sub_text.text = text
 	_menu_btn.visible = not bool(_state.get("skip", false))
@@ -839,6 +847,8 @@ func _over_button(at: Vector2) -> bool:
 	for child in get_children():
 		if child is Control and (child as Control).is_visible_in_tree():
 			var c := child as Control
+			if c.mouse_filter == Control.MOUSE_FILTER_IGNORE:
+				continue
 			if (c is Button or c is PanelContainer) and c.get_global_rect().has_point(at):
 				return true
 	return false
