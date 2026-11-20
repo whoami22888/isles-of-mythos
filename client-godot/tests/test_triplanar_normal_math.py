@@ -217,7 +217,10 @@ class StylizedPbrShaderContractTests(unittest.TestCase):
         """Back-facing lights must not contribute the shadow tint as direct light."""
         guard = "if (n_dot_l > 0.0) {"
         self.assertIn(guard, self.light)
-        self.assertNotIn("return;", self.light)
+        light_code = "\n".join(
+            line.split("//", 1)[0] for line in self.light.splitlines()
+        )
+        self.assertNotIn("return;", light_code)
         guarded_body = self.light.split(guard, 1)[1].rsplit("\n}", 1)[0]
         self.assertIn("DIFFUSE_LIGHT +=", guarded_body)
         self.assertIn("SPECULAR_LIGHT +=", guarded_body)
