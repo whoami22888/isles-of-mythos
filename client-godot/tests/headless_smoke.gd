@@ -226,6 +226,22 @@ func run() -> void:
 	check(FallbackFactory._logged_paths.has(retry_key), "Successful retry must mark the path as logged")
 	FallbackFactory._log_missing_with_writer(retry_path, "mesh", fail_then_succeed)
 	check(write_attempts[0] == 2, "Successful retry must deduplicate subsequent writes")
+	# A failed append may already have written a prefix. It must be truncated before retry.
+	var before_partial_append := FileAccess.get_file_as_string(FallbackFactory.LOG_PATH)
+	var partial_record := "mesh\tpartial_retry_004.glb\n"
+	var partial_prefix_written := [false]
+	var partial_writer := func(file: FileAccess, _line: String) -> bool:
+		partial_prefix_written[0] = file.store_string("mesh\tpartial_retry_004")
+		return false
+	var partial_error: int = FallbackFactory._append_log_line(partial_record, partial_writer)
+	check(partial_prefix_written[0], "Partial-write fixture must append a prefix before reporting failure")
+	check(partial_error == FAILED, "A writer that reports failure must fail the append")
+	var after_partial_failure := FileAccess.get_file_as_string(FallbackFactory.LOG_PATH)
+	check(after_partial_failure == before_partial_append, "Failed partial append must roll the log back to its original byte length")
+	var retry_error: int = FallbackFactory._append_log_line(partial_record)
+	var after_partial_retry := FileAccess.get_file_as_string(FallbackFactory.LOG_PATH)
+	check(retry_error == OK and after_partial_retry == before_partial_append + partial_record,
+		"Retry after a partial append must produce exactly one complete TSV record")
 	# Simulate a new process: the in-memory set resets, but persisted log size stays bounded.
 	var restart_path := "res://_restart_repeat_004.glb"
 	var restart_key := "mesh:" + restart_path
