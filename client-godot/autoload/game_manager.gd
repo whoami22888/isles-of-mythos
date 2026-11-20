@@ -163,7 +163,7 @@ func _parse_nonnegative_integer(value: Variant) -> Variant:
 	if value is int:
 		return value if value >= 0 else null
 	if value is String and value.is_valid_int():
-		var parsed := value.to_int()
+		var parsed: int = value.to_int()
 		return parsed if parsed >= 0 else null
 	return null
 
@@ -187,9 +187,9 @@ func check_citadel_soft_wall(target_level: int, badges: int) -> bool:
 	if target_level != SOFT_WALL_TARGET_LEVEL or badges < 0:
 		return false
 
-	var authoritative_badges := min(badges, get_resource_amount("triumph_badges"))
-	var has_badge_override := authoritative_badges >= SOFT_WALL_BADGES
-	var has_resource_requirements := (
+	var authoritative_badges: int = mini(badges, get_resource_amount("triumph_badges"))
+	var has_badge_override: bool = authoritative_badges >= SOFT_WALL_BADGES
+	var has_resource_requirements: bool = (
 		get_resource_amount("wood") >= SOFT_WALL_WOOD
 		and get_resource_amount("steel") >= SOFT_WALL_STEEL
 		and get_resource_amount("food") >= SOFT_WALL_FOOD
