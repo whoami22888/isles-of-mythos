@@ -86,7 +86,26 @@ func _run() -> void:
         quit(1)
         return
 
-    var sample_position := Vector2i(front_image.get_width() / 2, front_image.get_height() / 2)
+    var camera := scene.get_node_or_null("Camera3D") as Camera3D
+    if camera == null:
+        push_error("Prompt 005 shader test scene must include its Camera3D")
+        scene.queue_free()
+        quit(1)
+        return
+    if camera.is_position_behind(mobile_mesh.global_position):
+        push_error("Prompt 005 mobile mesh is behind the diagnostic camera")
+        scene.queue_free()
+        quit(1)
+        return
+
+    var projected_sample := camera.unproject_position(mobile_mesh.global_position)
+    var sample_position := Vector2i(roundi(projected_sample.x), roundi(projected_sample.y))
+    var viewport_bounds := Rect2i(Vector2i.ZERO, front_image.get_size())
+    if not viewport_bounds.has_point(sample_position):
+        push_error("Prompt 005 mobile mesh projects outside the diagnostic viewport")
+        scene.queue_free()
+        quit(1)
+        return
     var front_pixel := front_image.get_pixel(sample_position.x, sample_position.y)
     mobile_material.set_shader_parameter("mobile_key_light_direction", Vector3(0.0, 0.0, -1.0))
     for frame_index in range(2):
@@ -112,6 +131,64 @@ func _run() -> void:
         scene.queue_free()
         quit(1)
         return
+
+    # The mobile vertex-lighting path must still use the triplanar normal map
+    # when building its fragment-space toon ramp (light() is not called here).
+    mobile_material.set_shader_parameter("mobile_key_light_direction", Vector3(0.0, 0.0, 1.0))
+    mobile_material.set_shader_parameter("use_normal_texture", true)
+    mobile_material.set_shader_parameter("use_triplanar", true)
+
+    var flat_normal_image := Image.create(1, 1, false, Image.FORMAT_RGBA8)
+    flat_normal_image.fill(Color(0.5, 0.5, 1.0, 1.0))
+    var flat_normal_texture := ImageTexture.new()
+    flat_normal_texture.set_image(flat_normal_image)
+    mobile_material.set_shader_parameter("normal_texture", flat_normal_texture)
+    for frame_index in range(2):
+        await process_frame
+    await RenderingServer.frame_post_draw
+
+    var flat_normal_capture: Image = root.get_viewport().get_texture().get_image()
+    if flat_normal_capture == null or flat_normal_capture.is_empty():
+        push_error("Vulkan Mobile did not produce a flat-normal-map frame")
+        scene.queue_free()
+        quit(1)
+        return
+    var flat_normal_pixel := flat_normal_capture.get_pixel(sample_position.x, sample_position.y)
+
+    var rotated_normal_image := Image.create(1, 1, false, Image.FORMAT_RGBA8)
+    rotated_normal_image.fill(Color(1.0, 0.5, 0.5, 1.0))
+    var rotated_normal_texture := ImageTexture.new()
+    rotated_normal_texture.set_image(rotated_normal_image)
+    mobile_material.set_shader_parameter("normal_texture", rotated_normal_texture)
+    for frame_index in range(2):
+        await process_frame
+    await RenderingServer.frame_post_draw
+
+    var rotated_normal_capture: Image = root.get_viewport().get_texture().get_image()
+    if rotated_normal_capture == null or rotated_normal_capture.is_empty():
+        push_error("Vulkan Mobile did not produce a triplanar-normal-map frame")
+        scene.queue_free()
+        quit(1)
+        return
+    var rotated_normal_pixel := rotated_normal_capture.get_pixel(sample_position.x, sample_position.y)
+    var normal_map_delta := Vector3(
+        flat_normal_pixel.r,
+        flat_normal_pixel.g,
+        flat_normal_pixel.b
+    ).distance_to(Vector3(
+        rotated_normal_pixel.r,
+        rotated_normal_pixel.g,
+        rotated_normal_pixel.b
+    ))
+    if normal_map_delta < 0.05:
+        push_error(
+            "Mobile triplanar normal map did not affect the fragment ramp (delta=%f)"
+            % normal_map_delta
+        )
+        scene.queue_free()
+        quit(1)
+        return
+    back_image = rotated_normal_capture
 
     var first_pixel := back_image.get_pixel(0, 0)
     var first_vector := Vector4(first_pixel.r, first_pixel.g, first_pixel.b, first_pixel.a)

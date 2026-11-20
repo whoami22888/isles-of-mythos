@@ -73,6 +73,18 @@ func run() -> void:
         "Water depth tint must attenuate from the bound terrain heightfield")
     check(shader_source.contains("abs(SEA_LEVEL - floor_y)"),
         "Shoreline foam must cover exposed sand and submerged waterline")
+    check(shader_source.contains("const vec2 RING_DIRS[12]"),
+        "Shoreline foam must use bounded heightfield ring samples")
+    check(shader_source.contains("shore_land_fraction(p, 1.1)")
+        and shader_source.contains("shore_land_fraction(p, 2.6)"),
+        "Shoreline foam must detect nearby land at both physical radii")
+    check(shader_source.contains("if (water_here > 0.0 && contact > 0.0)"),
+        "Heightfield ring taps must be limited to covered shoreline pixels")
+    check(shader_source.contains("float breakup = 0.78 + 0.22 * breakup_noise;")
+        and shader_source.contains("mix(0.55, 1.0, foam_motion)"),
+        "Aperiodic breakup must define foam shape; sine motion may only modulate it")
+    check(not shader_source.contains("contact * foam_motion * foam_amount"),
+        "Periodic sine lattice must not directly gate shoreline foam")
     var shoreline_source: String = FileAccess.get_file_as_string("res://shaders/coastal_shore_sampler.gdshaderinc")
     check(shoreline_source.contains("smoothstep(0.0, 0.12, uv.x)"),
         "Terrain coverage edge must feather to avoid a rectangular ocean seam")

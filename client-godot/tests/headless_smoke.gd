@@ -72,6 +72,22 @@ func run() -> void:
 	check(performance_adapter != null, "Dynamic resolution adapter must be registered as an autoload")
 	if performance_adapter != null:
 		performance_adapter.monitoring_enabled = false
+		# Deterministic 2-second artificial frame load exercises the actual rolling ring buffer.
+		performance_adapter._clear_window()
+		for frame_index in range(80):
+			performance_adapter._record_sample(frame_index * 25000, 25.0, 40.0, 25.0)
+		var rolling_summary: Vector2 = performance_adapter._summarize_window(2000000)
+		var rolling_average_ms := rolling_summary.x / maxf(rolling_summary.y, 1.0)
+		var rolling_fps := 1000.0 / maxf(rolling_average_ms, 0.001)
+		var rolling_metrics: Dictionary = performance_adapter.get_metrics_snapshot()
+		check(is_equal_approx(rolling_summary.y, 80.0), "Rolling window must retain all 80 synthetic 25 ms frames")
+		check(is_equal_approx(rolling_average_ms, 25.0) and is_equal_approx(rolling_fps, 40.0), "Two seconds of artificial load must measure 25 ms / 40 FPS")
+		check(is_equal_approx(float(rolling_metrics.get("engine_fps_monitor", 0.0)), 40.0), "TIME_FPS samples must be retained in the rolling window")
+		check(is_equal_approx(float(rolling_metrics.get("engine_process_ms_monitor", 0.0)), 25.0), "TIME_PROCESS samples must be retained in the rolling window")
+		performance_adapter._set_scale(1.0)
+		performance_adapter.apply_metrics_sample(rolling_fps, rolling_average_ms, 0.5)
+		check(is_equal_approx(viewport.scaling_3d_scale, 0.95), "Injected 40 FPS rolling load must lower only 3D scale by 0.05")
+		performance_adapter._clear_window()
 
 	var low_fps_step := PerformancePolicy.next_policy_state(1.0, 47.9, 16.0, 0.0, 0.5)
 	check(is_equal_approx(low_fps_step.x, 0.95) and is_equal_approx(low_fps_step.y, 0.0), "FPS below 48 must lower 3D scale by 0.05")
@@ -174,6 +190,70 @@ func run() -> void:
 	check(missing_texture != null, "Missing skin texture must return a checkerboard texture")
 	var missing_animation := FallbackFactory.load_scene_or_null("res://_missing_animation_004.fbx", "animation")
 	check(missing_animation == null, "Missing FBX animation scene must fail safely")
+	# A PackedScene resource may exist but have no instantiable root; it must
+	# become a diagnostic fallback rather than dereferencing a null instance.
+	var empty_scene := PackedScene.new()
+	check(not empty_scene.can_instantiate(), "Empty PackedScene fixture must be non-instantiable")
+	var empty_scene_fallback := FallbackFactory.mesh_resource_or_fallback(
+		empty_scene, "res://_empty_scene_004.glb", "character"
+	)
+	check(empty_scene_fallback is MeshInstance3D and empty_scene_fallback.mesh is CapsuleMesh,
+		"Non-instantiable PackedScene must use a capsule diagnostic")
+	if empty_scene_fallback != null:
+		empty_scene_fallback.free()
+	# A valid PackedScene with a non-3D root is instantiated safely, type-checked,
+	# freed and replaced with the requested diagnostic primitive.
+	var control_root := Control.new()
+	var control_scene := PackedScene.new()
+	check(control_scene.pack(control_root) == OK, "Non-3D PackedScene fixture must pack")
+	control_root.free()
+	var control_instance := FallbackFactory.instantiate_scene_or_null(control_scene)
+	check(control_instance is Control, "Valid non-3D PackedScene must instantiate for caller type validation")
+	if is_instance_valid(control_instance):
+		control_instance.free()
+	var non_3d_fallback := FallbackFactory.mesh_resource_or_fallback(
+		control_scene, "res://_non_3d_scene_004.glb", "building"
+	)
+	check(non_3d_fallback is MeshInstance3D and non_3d_fallback.mesh is BoxMesh,
+		"Non-3D PackedScene must use a box diagnostic")
+	non_3d_fallback.free()
+	# A valid Node3D scene can still be visually empty; it must not bypass the fallback.
+	var empty_3d_root := Node3D.new()
+	var empty_3d_scene := PackedScene.new()
+	check(empty_3d_scene.pack(empty_3d_root) == OK, "Empty Node3D fixture must pack")
+	empty_3d_root.free()
+	var empty_3d_fallback := FallbackFactory.mesh_resource_or_fallback(
+		empty_3d_scene, "res://_empty_3d_scene_004.glb", "character"
+	)
+	check(empty_3d_fallback is MeshInstance3D and empty_3d_fallback.mesh is CapsuleMesh,
+		"Node3D without a renderable mesh must use a capsule diagnostic")
+	if is_instance_valid(empty_3d_fallback):
+		empty_3d_fallback.free()
+
+	# A real mesh nested under a Node3D root remains valid.
+	var valid_3d_root := Node3D.new()
+	var valid_mesh_instance := MeshInstance3D.new()
+	valid_mesh_instance.mesh = BoxMesh.new()
+	valid_3d_root.add_child(valid_mesh_instance)
+	valid_mesh_instance.owner = valid_3d_root
+	var valid_3d_scene := PackedScene.new()
+	check(valid_3d_scene.pack(valid_3d_root) == OK, "Renderable Node3D fixture must pack")
+	valid_3d_root.free()
+	var valid_3d_instance := FallbackFactory.mesh_resource_or_fallback(
+		valid_3d_scene, "res://_valid_3d_scene_004.glb", "character"
+	)
+	check(valid_3d_instance.name != "MissingAssetDiagnostic" and FallbackFactory._has_renderable_mesh(valid_3d_instance),
+		"Node3D scene with a real mesh must remain loaded")
+	valid_3d_instance.free()
+
+	# Empty Mesh resources are also invalid visual payloads.
+	var empty_mesh_fallback := FallbackFactory.mesh_resource_or_fallback(
+		ArrayMesh.new(), "res://_empty_mesh_004.glb", "building"
+	)
+	check(empty_mesh_fallback is MeshInstance3D and empty_mesh_fallback.mesh is BoxMesh,
+		"Mesh resource with no surfaces must use a box diagnostic")
+	empty_mesh_fallback.free()
+
 	var asset_log := FileAccess.open("user://missing_assets.log", FileAccess.READ)
 	check(asset_log != null, "Missing asset paths must be written to the user log")
 	if asset_log != null:
@@ -202,6 +282,22 @@ func run() -> void:
 	check(FallbackFactory._logged_paths.has(retry_key), "Successful retry must mark the path as logged")
 	FallbackFactory._log_missing_with_writer(retry_path, "mesh", fail_then_succeed)
 	check(write_attempts[0] == 2, "Successful retry must deduplicate subsequent writes")
+	# A failed append may already have written a prefix. It must be truncated before retry.
+	var before_partial_append := FileAccess.get_file_as_string(FallbackFactory.LOG_PATH)
+	var partial_record := "mesh\tpartial_retry_004.glb\n"
+	var partial_prefix_written := [false]
+	var partial_writer := func(file: FileAccess, _line: String) -> bool:
+		partial_prefix_written[0] = file.store_string("mesh\tpartial_retry_004")
+		return false
+	var partial_error: int = FallbackFactory._append_log_line(partial_record, partial_writer)
+	check(partial_prefix_written[0], "Partial-write fixture must append a prefix before reporting failure")
+	check(partial_error == FAILED, "A writer that reports failure must fail the append")
+	var after_partial_failure := FileAccess.get_file_as_string(FallbackFactory.LOG_PATH)
+	check(after_partial_failure == before_partial_append, "Failed partial append must roll the log back to its original byte length")
+	var retry_error: int = FallbackFactory._append_log_line(partial_record)
+	var after_partial_retry := FileAccess.get_file_as_string(FallbackFactory.LOG_PATH)
+	check(retry_error == OK and after_partial_retry == before_partial_append + partial_record,
+		"Retry after a partial append must produce exactly one complete TSV record")
 	# Simulate a new process: the in-memory set resets, but persisted log size stays bounded.
 	var restart_path := "res://_restart_repeat_004.glb"
 	var restart_key := "mesh:" + restart_path
@@ -209,6 +305,8 @@ func run() -> void:
 	FallbackFactory._log_missing(restart_path, "mesh")
 	var first_session_bytes := FileAccess.get_file_as_string(FallbackFactory.LOG_PATH).to_utf8_buffer().size()
 	FallbackFactory._logged_paths.clear()
+	FallbackFactory._logged_path_order.clear()
+	FallbackFactory._logged_path_cursor = 0
 	FallbackFactory._log_missing(restart_path, "mesh")
 	var second_session_bytes := FileAccess.get_file_as_string(FallbackFactory.LOG_PATH).to_utf8_buffer().size()
 	check(second_session_bytes > first_session_bytes, "A restarted client may repeat a missing path")
@@ -226,6 +324,28 @@ func run() -> void:
 	var safe_log := FileAccess.get_file_as_string(FallbackFactory.LOG_PATH)
 	check(safe_log.contains("mesh\tres://_missing   unsafe_004.glb\n"), "Vertical tab, form feed and DEL must become spaces in one TSV record")
 	check(not safe_log.contains(String.chr(11)) and not safe_log.contains(String.chr(12)) and not safe_log.contains(String.chr(127)), "Raw C0/DEL controls must never enter missing-resource log")
+	# C1 controls (including NEL) and Unicode line/paragraph separators must also stay within one record.
+	var unicode_controls := ""
+	for codepoint in range(0x80, 0xA0):
+		unicode_controls += String.chr(codepoint)
+	unicode_controls += String.chr(0x2028) + String.chr(0x2029)
+	var unicode_path := "res://_unicode" + unicode_controls + "_unsafe_004.glb"
+	var unicode_asset := FallbackFactory.get_fallback_mesh(unicode_path)
+	unicode_asset.free()
+	var unicode_log := FileAccess.get_file_as_string(FallbackFactory.LOG_PATH)
+	var expected_unicode_line := "mesh\tres://_unicode" + " ".repeat(34) + "_unsafe_004.glb\n"
+	check(unicode_log.contains(expected_unicode_line), "C1 and Unicode line separators must become spaces in one TSV record")
+	for codepoint in range(0x80, 0xA0):
+		check(not unicode_log.contains(String.chr(codepoint)), "Raw C1 controls must never enter missing-resource log")
+	check(not unicode_log.contains(String.chr(0x2028)) and not unicode_log.contains(String.chr(0x2029)), "Unicode line and paragraph separators must never enter missing-resource log")
+	# A caller-supplied category must not inject a TSV column or a second record.
+	var category_path := "res://_category_injection_004.fbx"
+	var category_input := "mesh" + String.chr(9) + "__INJECTED_COLUMN_004__" + String.chr(10) + "__INJECTED_RECORD_004__"
+	var category_probe := FallbackFactory.load_scene_or_null(category_path, category_input)
+	check(category_probe == null, "Missing scene with an invalid category must fail safely")
+	var category_log := FileAccess.get_file_as_string(FallbackFactory.LOG_PATH)
+	check(category_log.contains("other" + String.chr(9) + category_path + String.chr(10)), "Unknown categories must map to the fixed other field")
+	check(not category_log.contains("__INJECTED_COLUMN_004__") and not category_log.contains("__INJECTED_RECORD_004__"), "Caller-supplied category text must never enter the TSV log")
 	# A full log must be renamed to a bounded .1 generation, not truncated.
 	var full_log := FileAccess.open(FallbackFactory.LOG_PATH, FileAccess.WRITE)
 	check(full_log != null, "Log rotation fixture must open")
@@ -277,6 +397,30 @@ func run() -> void:
 			if archived_size != null:
 				check(archived_size.get_length() <= FallbackFactory.MAX_LOG_BYTES, "Oversized legacy log must not grow the archive beyond its cap")
 				archived_size.close()
+	# The dedupe cache is a bounded FIFO, not a hard limit on diagnostic logging.
+	FallbackFactory._logged_paths.clear()
+	FallbackFactory._logged_path_order.clear()
+	FallbackFactory._logged_path_cursor = 0
+	var capped_lines: Array[String] = []
+	var capture_line := func(line: String):
+		capped_lines.append(line)
+		return OK
+	for index in range(FallbackFactory.MAX_LOGGED_PATHS + 1):
+		var cap_path := "res://_dedupe_cap_%04d.glb" % index
+		FallbackFactory._log_missing_with_writer(cap_path, "mesh", capture_line)
+	check(capped_lines.size() == FallbackFactory.MAX_LOGGED_PATHS + 1, "New unique paths must still be logged after the dedupe cache fills")
+	check(FallbackFactory._logged_paths.size() == FallbackFactory.MAX_LOGGED_PATHS, "In-memory dedupe dictionary must stay bounded")
+	check(FallbackFactory._logged_path_order.size() == FallbackFactory.MAX_LOGGED_PATHS, "In-memory dedupe order must stay bounded")
+	check(not FallbackFactory._logged_paths.has("mesh:res://_dedupe_cap_0000.glb"), "The oldest dedupe key must be evicted")
+	check(FallbackFactory._logged_paths.has("mesh:res://_dedupe_cap_1024.glb"), "The newest dedupe key must be retained")
+	FallbackFactory._log_missing_with_writer("res://_dedupe_cap_1024.glb", "mesh", capture_line)
+	check(capped_lines.size() == FallbackFactory.MAX_LOGGED_PATHS + 1, "A recent duplicate must still be suppressed")
+	FallbackFactory._log_missing_with_writer("res://_dedupe_cap_0000.glb", "mesh", capture_line)
+	check(capped_lines.size() == FallbackFactory.MAX_LOGGED_PATHS + 2, "An evicted path must be logged again when it reappears")
+	check(FallbackFactory._logged_paths.size() == FallbackFactory.MAX_LOGGED_PATHS, "FIFO eviction must keep the cache at its fixed cap")
+	FallbackFactory._logged_paths.clear()
+	FallbackFactory._logged_path_order.clear()
+	FallbackFactory._logged_path_cursor = 0
 	adapter.queue_free()
 	scene.queue_free()
 	print("IOM-00 connection checks: %s failures" % _failures)
