@@ -337,8 +337,16 @@ class OceanShaderContractTests(unittest.TestCase):
             ),
             re.compile(
                 r"""
-                float \s+ shore_foam \s* = \s*
-                contact \s* \* \s* foam_motion \s* \* \s* foam_amount
+                float \s+ shore_foam \s* = \s* clamp \s*
+                \(
+                    \s* contact \s* \* \s* shore_band \s* \* \s*
+                    breakup \s* \* \s* mix \s*
+                    \(
+                        \s* 0\.55 \s*, \s* 1\.0 \s*, \s* foam_motion \s*
+                    \)
+                    \s* \* \s* foam_amount \s* \* \s* 0\.9 \s*,
+                    \s* 0\.0 \s*, \s* 1\.0 \s*
+                \)
                 """,
                 re.VERBOSE,
             ),
