@@ -162,6 +162,12 @@ func _ready() -> void:
 	get_viewport().size_changed.connect(_on_viewport_resized)
 	_client = Protocol.new()
 	add_child(_client)
+	# Resolve the autoload by node path instead of a compile-time singleton identifier.
+	# This script is also preloaded by isolated SceneTree smoke tests, where GDScript
+	# may parse it before autoload singleton names are available.
+	var game_manager := get_node_or_null("/root/GameManager")
+	if game_manager == null or not game_manager.has_method("bind_protocol") or not bool(game_manager.call("bind_protocol", _client)):
+		push_error("GameManager could not bind authoritative protocol signals")
 	_client.status_changed.connect(_on_transport_status)
 	_client.authenticated.connect(_on_authenticated)
 	_client.player_state_received.connect(_on_player_state)
