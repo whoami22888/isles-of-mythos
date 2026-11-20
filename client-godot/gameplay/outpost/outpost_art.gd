@@ -186,7 +186,7 @@ func scaffold(parent: Node3D, r: float, h: float) -> Node3D:
 
 ## The finished building for `id` at `level` (1..3). Higher levels add props
 ## and grow the footprint a little.
-func building(parent: Node3D, id: String, level: int) -> Node3D:
+func building(parent: Node3D, id: String, level: int, wrecked: bool = false) -> Node3D:
 	var root := Node3D.new()
 	root.name = "Body"
 	parent.add_child(root)
@@ -264,9 +264,15 @@ func building(parent: Node3D, id: String, level: int) -> Node3D:
 				Art.fit_height(sail, 1.0)
 				sail.position = Vector3(0, h + 0.2, 0)
 		"palisade":
-			var n := 9 + 3 * level
+			# Spans the whole beach approach (raiders must breach it).
+			var n := 20
 			for i in n:
-				var x := (i - (n - 1) * 0.5) * 0.5
-				var stake := post(root, Vector3(x, 0, absf(x) * 0.12), 1.6 + 0.2 * level + (0.18 if i % 2 == 0 else 0.0), (i % 3 - 1) * 2.5)
+				var x := (i - (n - 1) * 0.5) * 0.72
+				var tall := 1.6 + 0.2 * level + (0.18 if i % 2 == 0 else 0.0)
+				var lean := (i % 3 - 1) * 2.5
+				if wrecked and i % 3 != 0:
+					tall *= 0.35
+					lean = (i % 2 * 2 - 1) * 35.0
+				var stake := post(root, Vector3(x, 0, absf(x) * 0.04), tall, lean)
 				stake.scale = Vector3(0.6, 1.0, 0.6)
 	return root

@@ -55,7 +55,7 @@ func run() -> void:
 	while scene.raid.phase != "fight" and w < 120 * 30:
 		await frames(1)
 		w += 1
-	check(scene.raid.phase == "fight" and scene.raid.enemies_alive() == 3, "wave 1 ashore with 3 raiders (%d)" % scene.raid.enemies_alive())
+	check(scene.raid.phase == "fight" and scene.raid.enemies_alive() == 4, "wave 1 ashore with 4 raiders (%d)" % scene.raid.enemies_alive())
 	# Damage + repair a building directly.
 	var mill_hp: float = st.max_hp("mill")
 	st.damage("mill", mill_hp + 10)

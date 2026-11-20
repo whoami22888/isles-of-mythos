@@ -324,7 +324,7 @@ func _refresh_sites(force: bool = false) -> void:
 	for id in _sites.keys():
 		var site: Dictionary = _sites[id]
 		var lv: int = state.camp_level if id == "camp" else state.level_of(id)
-		var key := "%d:%s:%s" % [lv, state.is_building(id), state.is_unlocked(id) if id != "camp" else true]
+		var key := "%d:%s:%s:%s" % [lv, state.is_building(id), state.is_unlocked(id) if id != "camp" else true, state.is_damaged(id)]
 		var root: Node3D = site["root"]
 		if key != site["shown"] or force:
 			site["shown"] = key
@@ -335,7 +335,7 @@ func _refresh_sites(force: bool = false) -> void:
 			var building := state.is_building(id)
 			var show_lv := lv + 1 if building else lv
 			if show_lv >= 1:
-				site["body"] = art.building(root, id, show_lv)
+				site["body"] = art.building(root, id, show_lv, state.is_damaged(id))
 			else:
 				site["body"] = null
 				if id == "camp" or state.is_unlocked(id):
@@ -717,7 +717,7 @@ func hurt_player(dmg: float, from: Vector3) -> void:
 	if not player_alive() or _dodge_t > 0.0:
 		return
 	player_hp -= dmg
-	damage_number(_player.global_position + Vector3.UP * 2.1, int(dmg), false)
+	damage_number(_player.global_position + Vector3.UP * 2.1, int(dmg), false, _player)
 	camera_kick(0.1)
 	if player_hp <= 0.0:
 		player_hp = 0.0
@@ -787,7 +787,24 @@ func site_hit(id: String) -> void:
 			_sites[id]["shown"] = ""
 
 
-func damage_number(at: Vector3, n: int, enemy: bool) -> void:
+var _numbers := {}   # instance id -> {lab, n, t}
+var _num_side := 1.0
+
+
+## Floating damage numbers. Rapid hits on the same target merge into one
+## number; new numbers alternate left/right so they don't stack.
+func damage_number(at: Vector3, n: int, enemy: bool, key: Object = null) -> void:
+	var kid := key.get_instance_id() if key else 0
+	var now := Time.get_ticks_msec() / 1000.0 + _age
+	if kid != 0 and _numbers.has(kid):
+		var e: Dictionary = _numbers[kid]
+		if is_instance_valid(e["lab"]) and _age - float(e["t"]) < 0.45:
+			e["n"] = int(e["n"]) + n
+			e["t"] = _age
+			(e["lab"] as Label3D).text = str(e["n"])
+			(e["lab"] as Label3D).modulate.a = 1.0
+			return
+	_num_side = -_num_side
 	var lab := Label3D.new()
 	lab.text = str(n)
 	lab.font = _font
@@ -800,10 +817,13 @@ func damage_number(at: Vector3, n: int, enemy: bool) -> void:
 	lab.outline_modulate = Color(0.05, 0.03, 0.02, 0.9)
 	lab.modulate = Color(1.0, 0.93, 0.7) if enemy else Color(0.95, 0.35, 0.3)
 	add_child(lab)
-	lab.global_position = at + Vector3(randf_range(-0.3, 0.3), 0, 0)
+	var right := _camera.global_transform.basis.x
+	lab.global_position = at + right * (0.35 * _num_side)
+	if kid != 0:
+		_numbers[kid] = {"lab": lab, "n": n, "t": _age}
 	var t := lab.create_tween()
-	t.tween_property(lab, "global_position", lab.global_position + Vector3.UP * 0.9, 0.7)
-	t.parallel().tween_property(lab, "modulate:a", 0.0, 0.7).set_delay(0.3)
+	t.tween_property(lab, "global_position", lab.global_position + Vector3.UP * 0.9 + right * 0.25 * _num_side, 0.9)
+	t.parallel().tween_property(lab, "modulate:a", 0.0, 0.5).set_delay(0.5)
 	t.tween_callback(lab.queue_free)
 
 

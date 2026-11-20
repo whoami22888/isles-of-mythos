@@ -375,10 +375,10 @@
     "units": {
       "deckhand": {
         "title": "Deckhand",
-        "hp": 60,
-        "damage": 8,
+        "hp": 150,
+        "damage": 15,
         "range": 1.6,
-        "cooldown": 1.1,
+        "cooldown": 1.7,
         "speed": 2.6,
         "shirt": [
           0.45,
@@ -386,14 +386,15 @@
           0.14
         ],
         "scale": 1.0,
-        "weapon": "cutlass"
+        "weapon": "cutlass",
+        "windup": 0.55
       },
       "musketeer": {
         "title": "Musketeer",
-        "hp": 45,
-        "damage": 14,
+        "hp": 70,
+        "damage": 16,
         "range": 9.0,
-        "cooldown": 3.6,
+        "cooldown": 4.0,
         "speed": 2.2,
         "shirt": [
           0.16,
@@ -402,14 +403,15 @@
         ],
         "scale": 1.0,
         "ranged": true,
-        "shot_speed": 13.0
+        "shot_speed": 13.0,
+        "windup": 0.9
       },
       "brute": {
         "title": "Brute",
-        "hp": 180,
-        "damage": 18,
+        "hp": 260,
+        "damage": 24,
         "range": 1.9,
-        "cooldown": 1.8,
+        "cooldown": 2.4,
         "speed": 1.8,
         "shirt": [
           0.3,
@@ -417,14 +419,15 @@
           0.22
         ],
         "scale": 1.22,
-        "weapon": "cutlass"
+        "weapon": "cutlass",
+        "windup": 0.85
       },
       "captain": {
         "title": "Captain",
-        "hp": 260,
+        "hp": 340,
         "damage": 20,
         "range": 1.8,
-        "cooldown": 1.2,
+        "cooldown": 1.6,
         "speed": 2.4,
         "shirt": [
           0.1,
@@ -432,14 +435,16 @@
           0.09
         ],
         "scale": 1.12,
-        "weapon": "cutlass"
+        "weapon": "cutlass",
+        "windup": 0.6,
+        "hat": "tricorn"
       },
       "sailor": {
         "title": "Sailor",
-        "hp": 90,
-        "damage": 10,
+        "hp": 120,
+        "damage": 12,
         "range": 1.6,
-        "cooldown": 1.0,
+        "cooldown": 1.2,
         "speed": 2.8,
         "shirt": [
           0.62,
@@ -448,14 +453,15 @@
         ],
         "scale": 1.0,
         "weapon": "cutlass",
-        "crew": true
+        "crew": true,
+        "windup": 0.4
       },
       "crew_musketeer": {
         "title": "Musketeer",
-        "hp": 60,
-        "damage": 12,
+        "hp": 70,
+        "damage": 14,
         "range": 9.0,
-        "cooldown": 3.2,
+        "cooldown": 3.4,
         "speed": 2.4,
         "shirt": [
           0.24,
@@ -465,7 +471,8 @@
         "scale": 1.0,
         "ranged": true,
         "shot_speed": 13.0,
-        "crew": true
+        "crew": true,
+        "windup": 0.7
       }
     },
     "crew_train": {
@@ -486,10 +493,10 @@
     },
     "waves": [
       {
-        "deckhand": 3
+        "deckhand": 4
       },
       {
-        "deckhand": 3,
+        "deckhand": 4,
         "musketeer": 1
       },
       {
@@ -499,9 +506,9 @@
         "captain": 1
       },
       {
-        "deckhand": 3,
+        "deckhand": 4,
         "musketeer": 2,
-        "brute": 2,
+        "brute": 1,
         "captain": 1
       },
       {
@@ -536,10 +543,10 @@
       }
     ],
     "player": {
-      "hp": 120,
+      "hp": 150,
       "damage": 26,
       "range": 2.2,
-      "cooldown": 0.42,
+      "cooldown": 0.6,
       "knockback": 2.2,
       "dodge_distance": 3.4,
       "dodge_seconds": 0.35,
@@ -550,7 +557,10 @@
       "stun": 1.2,
       "cooldown": 3.0,
       "range": 7.0
-    }
+    },
+    "max_player_attackers": 2,
+    "palisade_span": 7.0,
+    "player_damage_taken": 1.0
   },
   "gather": {
     "_note": "Strikeable nodes around the outpost (same strike/chip/fly feel as the island).",

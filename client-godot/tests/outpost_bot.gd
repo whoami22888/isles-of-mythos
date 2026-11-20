@@ -33,6 +33,13 @@ func shot(name: String) -> void:
 	root.get_viewport().get_texture().get_image().save_png(dir.path_join(name + ".png"))
 	say("shot " + name)
 
+## True when a raider's wind-up on the player is about to land.
+func _incoming() -> bool:
+	for u in scene.raid.units:
+		if u["team"] == "enemy" and float(u["dead"]) < 0.0 and u["target"] is String and u["target"] == "player" and float(u["wind"]) > 0.0 and float(u["wind"]) < 0.3:
+			return true
+	return false
+
 func run() -> void:
 	for f in ["user://washed_ashore.cfg", "user://outpost.cfg"]:
 		if FileAccess.file_exists(f):
@@ -115,13 +122,20 @@ func run() -> void:
 	await frames(12)
 	check(int(st.inv["stone"]) == s0 + 2, "rock struck for stone")
 	# Milestone 2: survive raid wave 1 using the HUD action (Strike).
+	# IOM_BOT_WAVE=3 / IOM_BOT_NODODGE=1 are balance probes (not CI gates).
+	var probe_wave := int(OS.get_environment("IOM_BOT_WAVE")) if OS.get_environment("IOM_BOT_WAVE") != "" else 1
+	var no_dodge := OS.get_environment("IOM_BOT_NODODGE") != ""
+	scene.raid.wave = probe_wave - 1
 	scene.raid.start_warning()
 	var w := 0
 	while scene.raid.phase != "fight" and w < 90 * 30:
 		await frames(1)
 		w += 1
-	check(scene.raid.enemies_alive() == 3, "wave 1 landed (%d raiders) after %.0fs warning" % [scene.raid.enemies_alive(), w / 30.0])
+	if probe_wave == 1:
+		check(scene.raid.enemies_alive() == 4, "wave 1 landed (%d raiders) after %.0fs warning" % [scene.raid.enemies_alive(), w / 30.0])
 	var deaths := 0
+	var dodges := 0
+	var hp_low := 999.0
 	var was_alive := true
 	var g := 0
 	while scene.raid.enemies_alive() > 0 and g < 120 * 30:
@@ -133,16 +147,22 @@ func run() -> void:
 				var np := me.move_toward(at, 4.6 / 30.0)
 				np.y = scene.ground_y(np.x, np.z)
 				scene._player.global_position = np
+			elif not no_dodge and _incoming() and scene._dodge_t <= 0.0:
+				# Read the telegraph: roll sideways out of the closing ring.
+				scene.on_dodge()
+				dodges += 1
 			elif scene._action_text() == "Strike":
 				scene._hud._action.emit_signal("pressed")
 		if was_alive and not scene.player_alive():
 			deaths += 1
+			say("PROBE first death at %.1fs into the fight" % (g / 30.0)) if deaths == 1 else null
 		was_alive = scene.player_alive()
+		hp_low = minf(hp_low, scene.player_hp)
 		if g == 45:
 			await shot("raid_fight")
 		await frames(1)
 		g += 1
-	check(scene.raid.enemies_alive() == 0, "wave 1 repelled in %.1fs, player HP %d, deaths %d, pet bites %d" % [g / 30.0, int(scene.player_hp), deaths, scene.pet_bites])
+	check(scene.raid.enemies_alive() == 0, "wave 1 repelled in %.1fs, player HP %d (low %d), deaths %d, dodges %d, pet bites %d" % [g / 30.0, int(scene.player_hp), int(hp_low), deaths, dodges, scene.pet_bites])
 	check(deaths == 0, "player survived wave 1")
 	await frames(3)
 	check(int(st.inv.get("gold", 0)) >= 5, "raid loot: gold %d iron %d" % [int(st.inv.get("gold", 0)), int(st.inv.get("iron", 0))])

@@ -9,6 +9,7 @@ signal wave_started(n: int)
 signal wave_cleared(n: int, loot: Dictionary)
 
 const Art := preload("res://gameplay/opening/opening_art.gd")
+const Gear := preload("res://gameplay/outpost/outpost_gear.gd")
 const HIT := preload("res://assets/opening/audio/hit.ogg")
 const SWING := preload("res://assets/opening/audio/swing.ogg")
 const CHEER := preload("res://assets/opening/audio/cheer.ogg")
@@ -229,10 +230,16 @@ func spawn(kind: String, team: String, at: Vector3, hp_scale: float = 1.0) -> Di
 	Art.fit_height(rig, 1.78 * float(row.get("scale", 1.0)))
 	if str(row.get("weapon", "")) == "cutlass":
 		Art.arm_with_cutlass(rig)
+	var height := 1.78 * float(row.get("scale", 1.0))
+	var gun: Node3D = null
+	if bool(row.get("ranged", false)):
+		gun = Gear.musket(node, height)
+	if str(row.get("hat", "")) == "tricorn":
+		Gear.tricorn(rig)
 	# Darken skin/trousers slightly per faction so crew and raiders read apart.
 	var hpv := float(row.get("hp", 50)) * hp_scale
-	var u := {"kind": kind, "team": team, "node": node, "rig": rig, "hp": hpv, "max": hpv, "cd": randf_range(0.2, 0.8),
-		"stun": 0.0, "kb": Vector3.ZERO, "target": null, "tid": "", "dead": -1.0, "flash": 0.0, "home": at}
+	var u := {"kind": kind, "team": team, "node": node, "rig": rig, "hp": hpv, "max": hpv, "cd": randf_range(0.8, 1.6),
+		"stun": 0.0, "kb": Vector3.ZERO, "target": null, "tid": "", "dead": -1.0, "flash": 0.0, "home": at, "wind": 0.0, "gun": gun, "h": height, "tele": null, "engaged": false}
 	node.look_at(at + Vector3(0, 0, 1 if team == "enemy" else -1), Vector3.UP)
 	units.append(u)
 	return u
@@ -258,13 +265,17 @@ func _pick_target(u: Dictionary) -> void:
 	u["target"] = null
 	u["tid"] = ""
 	if u["team"] == "enemy":
+		var ranged := bool(unit_row(u["kind"]).get("ranged", false))
+		var walled := _south(me) and palisade_line() < INF and not ranged
 		for o in units:
+			if walled and not _south(o["node"].global_position):
+				continue
 			if o["team"] == "crew" and float(o["dead"]) < 0.0:
 				var d: float = me.distance_to(o["node"].global_position)
 				if d < 5.0 + (float(unit_row(u["kind"]).get("range", 1.5)) if unit_row(u["kind"]).get("ranged", false) else 0.0) and d < best_d:
 					best_d = d
 					u["target"] = o
-		if host.player_alive():
+		if host.player_alive() and not (walled and not _south(host._player.global_position)):
 			var dp: float = me.distance_to(host._player.global_position)
 			if dp < 5.0 + (6.0 if unit_row(u["kind"]).get("ranged", false) else 0.0) and dp < best_d:
 				best_d = dp
@@ -308,12 +319,50 @@ func _target_pos(u: Dictionary) -> Vector3:
 func _stop_dist(u: Dictionary) -> float:
 	var row := unit_row(u["kind"])
 	var r := float(row.get("range", 1.6))
+	if u["target"] is String and u["target"] == "player" and not bool(u["engaged"]):
+		return maxf(r, 3.2)
 	if u["target"] == null and str(u["tid"]) != "":
 		return r + (0.6 if str(u["tid"]) == "palisade" else 2.6)
 	return r
 
 
+## Palisade line (world z) while it stands, else INF. Raiders south of it
+## can't cross until it is breached.
+func palisade_line() -> float:
+	var st = host.state
+	if st.level_of("palisade") <= 0 or st.hp_of("palisade") <= 0.0:
+		return INF
+	return host.site_pos("palisade").z - 0.7
+
+
+func _south(p: Vector3) -> bool:
+	return p.z < palisade_line() + 0.05
+
+
+## At most N raiders may fight the player at once; the rest hang back.
+func _assign_slots() -> void:
+	var cap := int(cfg.get("max_player_attackers", 2))
+	var cands: Array = []
+	for u in units:
+		u["engaged"] = false
+		if u["team"] == "enemy" and float(u["dead"]) < 0.0 and u["target"] is String and u["target"] == "player":
+			cands.append(u)
+	var me: Vector3 = host._player.global_position
+	cands.sort_custom(func(a, b): return (a["node"] as Node3D).global_position.distance_to(me) < (b["node"] as Node3D).global_position.distance_to(me))
+	for i in mini(cap, cands.size()):
+		cands[i]["engaged"] = true
+
+
+func attackers_on_player() -> int:
+	var n := 0
+	for u in units:
+		if u["team"] == "enemy" and float(u["dead"]) < 0.0 and float(u["wind"]) > 0.0 and u["target"] is String and u["target"] == "player":
+			n += 1
+	return n
+
+
 func _tick_units(delta: float) -> void:
+	_assign_slots()
 	_retarget -= delta
 	var re := _retarget <= 0.0
 	if re:
@@ -358,9 +407,26 @@ func _tick_units(delta: float) -> void:
 			_walk(u, goal, _stop_dist(u), delta)
 			continue
 		node.look_at(Vector3(goal.x, node.global_position.y, goal.z), Vector3.UP)
+		if float(u["wind"]) > 0.0:
+			u["wind"] = float(u["wind"]) - delta
+			_telegraph(u, 1.0 - float(u["wind"]) / maxf(float(row.get("windup", 0.5)), 0.01))
+			if float(u["wind"]) <= 0.0:
+				u["wind"] = 0.0
+				_telegraph(u, -1.0)
+				u["cd"] = float(row.get("cooldown", 1.2))
+				_attack(u, goal)
+			continue
+		var on_player: bool = u["target"] is String and u["target"] == "player"
+		if on_player and not bool(u["engaged"]):
+			Art.play(u["rig"], "SwordIdle" if str(row.get("weapon", "")) == "cutlass" else "Idle")
+			continue
 		if float(u["cd"]) <= 0.0:
-			u["cd"] = float(row.get("cooldown", 1.2))
-			_attack(u, goal)
+			u["wind"] = float(row.get("windup", 0.5))
+			if u["gun"]:
+				Gear.aim(u["gun"], float(u["h"]))
+				Art.play(u["rig"], "SwordIdle", 0.1)
+			else:
+				Art.play(u["rig"], "Attack", 0.1, 0.55)
 		elif not (u["rig"].get_meta("clips") as AnimationPlayer).is_playing() or (u["rig"].get_meta("clips") as AnimationPlayer).current_animation in ["Walk", "Run"]:
 			Art.play(u["rig"], "SwordIdle" if str(row.get("weapon", "")) == "cutlass" else "Idle")
 
@@ -386,6 +452,11 @@ func _walk(u: Dictionary, goal: Vector3, stop: float, delta: float) -> void:
 	next.y = float(host.ground_y(next.x, next.z))
 	if next.y < float(host._water_y) - 0.6:
 		next.y = float(host._water_y) - 0.6
+	if u["team"] == "enemy":
+		var line := palisade_line()
+		if node.global_position.z <= line + 0.05 and next.z > line:
+			next.z = line
+			next.y = float(host.ground_y(next.x, next.z))
 	node.global_position = next
 	node.look_at(next + dir, Vector3.UP)
 	Art.play(u["rig"], "Run")
@@ -395,12 +466,18 @@ func _attack(u: Dictionary, goal: Vector3) -> void:
 	var row := unit_row(u["kind"])
 	var dmg := float(row.get("damage", 8))
 	if bool(row.get("ranged", false)):
-		Art.play(u["rig"], "Punch", 0.08)
 		_fire(u, goal, dmg, float(row.get("shot_speed", 12.0)))
+		if u["gun"]:
+			Gear.puff(self, (u["gun"].get_node("Muzzle") as Node3D).global_position)
+			var gun: Node3D = u["gun"]
+			var h := float(u["h"])
+			get_tree().create_timer(0.6).timeout.connect(func(): if is_instance_valid(gun): Gear.carry(gun, h))
 		return
-	Art.play(u["rig"], "Attack", 0.08)
 	_play(SWING, -10.0, randf_range(0.9, 1.1))
-	_deal(u, dmg)
+	# The blow lands only if the target is still in reach (dodge/backstep).
+	var reach := Vector2(goal.x - u["node"].global_position.x, goal.z - u["node"].global_position.z).length()
+	if reach <= float(row.get("range", 1.6)) + 0.7 or str(u["tid"]) != "":
+		_deal(u, dmg)
 
 
 func _deal(u: Dictionary, dmg: float) -> void:
@@ -417,6 +494,8 @@ func _deal(u: Dictionary, dmg: float) -> void:
 ## Musket ball: a small dark lead shot with a thin smoke-grey trail.
 func _fire(u: Dictionary, goal: Vector3, dmg: float, speed: float) -> void:
 	var from: Vector3 = (u["node"] as Node3D).global_position + Vector3.UP * 1.35
+	if u["gun"]:
+		from = (u["gun"].get_node("Muzzle") as Node3D).global_position
 	var to := goal + Vector3.UP * 1.0
 	var ball := MeshInstance3D.new()
 	var sm := SphereMesh.new()
@@ -489,7 +568,8 @@ func hurt(u: Dictionary, dmg: float, from: Vector3, knock: float) -> void:
 	u["kb"] = away.normalized() * knock * (0.5 if u["kind"] in ["brute", "captain"] else 1.0) * 3.0
 	u["flash"] = 0.12
 	_tint(u, true)
-	host.damage_number(node.global_position + Vector3.UP * 2.0, int(dmg), u["team"] == "enemy")
+	# Wind-ups have armour: hitting doesn't cancel the blow, dodging does.
+	host.damage_number(node.global_position + Vector3.UP * 2.0, int(dmg), u["team"] == "enemy", node)
 	_play(HIT, -6.0, randf_range(0.9, 1.15))
 	if float(u["hp"]) <= 0.0:
 		u["dead"] = 0.0
@@ -500,7 +580,39 @@ func hurt(u: Dictionary, dmg: float, from: Vector3, knock: float) -> void:
 		Art.play(u["rig"], "Hit", 0.05)
 
 
+## Wind-up telegraph: a dark-red ring on the ground that closes in as the
+## blow comes (lit, semi-transparent, no emission). k < 0 removes it.
+func _telegraph(u: Dictionary, k: float) -> void:
+	var ring: MeshInstance3D = u["tele"]
+	if k < 0.0:
+		if ring and is_instance_valid(ring):
+			ring.visible = false
+		return
+	if ring == null or not is_instance_valid(ring):
+		ring = MeshInstance3D.new()
+		var c := CylinderMesh.new()
+		c.top_radius = 0.9
+		c.bottom_radius = 0.9
+		c.height = 0.02
+		c.radial_segments = 24
+		ring.mesh = c
+		var m := StandardMaterial3D.new()
+		m.albedo_color = Color(0.55, 0.08, 0.06, 0.45)
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		m.roughness = 1.0
+		ring.material_override = m
+		ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		(u["node"] as Node3D).add_child(ring)
+		u["tele"] = ring
+	ring.visible = true
+	ring.position = Vector3(0, 0.06, -0.6)
+	var r := lerpf(1.3, 0.35, clampf(k, 0.0, 1.0))
+	ring.scale = Vector3(r, 1, r)
+
+
 func stun(u: Dictionary, secs: float) -> void:
+	u["wind"] = 0.0
+	_telegraph(u, -1.0)
 	u["stun"] = maxf(float(u["stun"]), secs)
 
 
