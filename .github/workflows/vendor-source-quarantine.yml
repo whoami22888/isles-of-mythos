@@ -1,0 +1,186 @@
+name: Vendor source quarantine — Kenney H01-H04 only
+run-name: Kenney source quarantine ${{ github.sha }}
+
+on:
+  push:
+    branches:
+      - scratch/vendor-source-quarantine-20261120
+    paths:
+      - .github/workflows/vendor-source-quarantine.yml
+
+permissions:
+  contents: read
+
+jobs:
+  quarantine:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Fetch official Kenney archives into quarantine only
+        shell: bash
+        run: |
+          set -u
+          mkdir -p quarantine/archives quarantine/licenses
+          cat > quarantine/sources.json <<'JSON'
+          [
+            {"id":"H01","pack":"Kenney Pirate Kit","page":"https://kenney.nl/assets/pirate-kit","url":"https://kenney.nl/media/pages/assets/pirate-kit/e6d4bb1525-1771333093/kenney_pirate-kit.zip","expected_remote_sha256":"667ed2caf92954ddb98f7b7cede831fe99ab75063c26b25e23d32715bee9c943"},
+            {"id":"H02","pack":"Kenney Watercraft Kit","page":"https://kenney.nl/assets/watercraft-kit","url":"https://kenney.nl/media/pages/assets/watercraft-kit/a335cfed49-1713519620/kenney_watercraft-pack.zip","expected_remote_sha256":null},
+            {"id":"H03","pack":"Kenney Fantasy Town Kit","page":"https://kenney.nl/assets/fantasy-town-kit","url":"https://kenney.nl/media/pages/assets/fantasy-town-kit/efe948d309-1754222374/kenney_fantasy-town-kit_2.0.zip","expected_remote_sha256":null},
+            {"id":"H04","pack":"Kenney UI Pack - Adventure","page":"https://kenney.nl/assets/ui-pack-adventure","url":"https://kenney.nl/media/pages/assets/ui-pack-adventure/9a877376bc-1723597274/kenney_ui-pack-adventure.zip","expected_remote_sha256":null}
+          ]
+          JSON
+          failed=0
+          fetch_one() {
+            local id="$1" file="$2" url="$3"
+            echo "Fetching $id from the official Kenney endpoint"
+            if curl --fail --location --silent --show-error --retry 3 --retry-all-errors --connect-timeout 15 --max-time 180 --max-filesize 100000000 --output "quarantine/archives/$file" --write-out '%{url_effective}' "$url" > "quarantine/archives/$file.effective-url"; then
+              echo "$id download complete ($(stat -c '%s' "quarantine/archives/$file") bytes)"
+            else
+              echo "::error::$id official archive download failed"
+              rm -f "quarantine/archives/$file"
+              failed=1
+            fi
+          }
+          fetch_one H01 kenney_pirate-kit.zip "https://kenney.nl/media/pages/assets/pirate-kit/e6d4bb1525-1771333093/kenney_pirate-kit.zip"
+          fetch_one H02 kenney_watercraft-pack.zip "https://kenney.nl/media/pages/assets/watercraft-kit/a335cfed49-1713519620/kenney_watercraft-pack.zip"
+          fetch_one H03 kenney_fantasy-town-kit_2.0.zip "https://kenney.nl/media/pages/assets/fantasy-town-kit/efe948d309-1754222374/kenney_fantasy-town-kit_2.0.zip"
+          fetch_one H04 kenney_ui-pack-adventure.zip "https://kenney.nl/media/pages/assets/ui-pack-adventure/9a877376bc-1723597274/kenney_ui-pack-adventure.zip"
+          python3 - <<'PY'
+          import hashlib, json, os, stat, zipfile
+          from collections import Counter
+          from datetime import datetime, timezone
+          from pathlib import Path, PurePosixPath
+          from urllib.parse import urlparse
+
+          root = Path("quarantine")
+          sources = json.loads((root / "sources.json").read_text())
+          results = []
+          invalid = False
+          for source in sources:
+              archive = root / "archives" / {
+                  "H01": "kenney_pirate-kit.zip",
+                  "H02": "kenney_watercraft-pack.zip",
+                  "H03": "kenney_fantasy-town-kit_2.0.zip",
+                  "H04": "kenney_ui-pack-adventure.zip",
+              }[source["id"]]
+              record = {**source, "status": "MISSING", "files": [], "license_candidates": []}
+              if not archive.is_file():
+                  results.append(record)
+                  invalid = True
+                  continue
+              data_hash = hashlib.sha256()
+              with archive.open("rb") as stream:
+                  for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                      data_hash.update(chunk)
+              record["archive_size_bytes"] = archive.stat().st_size
+              record["archive_sha256"] = data_hash.hexdigest()
+              record["previous_remote_digest_match"] = (
+                  None if not source.get("expected_remote_sha256")
+                  else data_hash.hexdigest() == source["expected_remote_sha256"]
+              )
+              effective_path = archive.with_name(archive.name + ".effective-url")
+              effective = effective_path.read_text().strip() if effective_path.exists() else ""
+              parsed = urlparse(effective)
+              record["effective_origin"] = f"{parsed.scheme}://{parsed.netloc}" if parsed.scheme and parsed.netloc else None
+              record["effective_path"] = parsed.path if parsed.path else None
+              record["redirect_origin_allowed"] = parsed.scheme == "https" and parsed.hostname in {"kenney.nl", "www.kenney.nl"}
+              if not record["redirect_origin_allowed"]:
+                  record["status"] = "REJECTED_REDIRECT_ORIGIN"
+                  invalid = True
+                  results.append(record)
+                  continue
+              try:
+                  with zipfile.ZipFile(archive) as zf:
+                      infos = zf.infolist()
+                      if len(infos) > 10000:
+                          raise ValueError("archive entry count exceeds 10000")
+                      bad = zf.testzip()
+                      if bad is not None:
+                          raise ValueError(f"CRC failure in {bad}")
+                      names = [i.filename for i in infos if not i.is_dir()]
+                      if len(names) != len(set(names)):
+                          raise ValueError("duplicate file paths in archive")
+                      total_uncompressed = 0
+                      extensions = Counter()
+                      for info in infos:
+                          if info.is_dir():
+                              continue
+                          name = info.filename
+                          path = PurePosixPath(name)
+                          mode = info.external_attr >> 16
+                          if path.is_absolute() or ".." in path.parts or "\\" in name or "\x00" in name:
+                              raise ValueError(f"unsafe archive path: {name}")
+                          if stat.S_ISLNK(mode):
+                              raise ValueError(f"symlink entry rejected: {name}")
+                          if info.file_size > 100 * 1024 * 1024:
+                              raise ValueError(f"member exceeds 100 MiB: {name}")
+                          total_uncompressed += info.file_size
+                          if total_uncompressed > 512 * 1024 * 1024:
+                              raise ValueError("uncompressed archive exceeds 512 MiB")
+                          digest = hashlib.sha256()
+                          payload = bytearray() if any(k in path.name.lower() for k in ("license", "licence", "readme", "credit", "notice")) else None
+                          with zf.open(info) as member:
+                              for chunk in iter(lambda: member.read(1024 * 1024), b""):
+                                  digest.update(chunk)
+                                  if payload is not None:
+                                      payload.extend(chunk)
+                          suffix = path.suffix.lower() or "[no-extension]"
+                          extensions[suffix] += 1
+                          item = {"path": name, "size_bytes": info.file_size, "sha256": digest.hexdigest(), "extension": suffix}
+                          record["files"].append(item)
+                          if payload is not None:
+                              safe_name = Path(name).name
+                              out = root / "licenses" / source["id"] / safe_name
+                              out.parent.mkdir(parents=True, exist_ok=True)
+                              out.write_bytes(payload)
+                              text = payload.decode("utf-8", errors="replace")
+                              record["license_candidates"].append({
+                                  "path": name, "size_bytes": info.file_size, "sha256": digest.hexdigest(),
+                                  "quarantine_copy": str(out), "text_preview": text[:12000]
+                              })
+                      record["entry_count"] = len(infos)
+                      record["file_count"] = len(record["files"])
+                      record["uncompressed_bytes"] = total_uncompressed
+                      record["extension_counts"] = dict(sorted(extensions.items()))
+                      record["zip_crc"] = "PASS"
+                      record["status"] = "QUARANTINED_BYTES_VERIFIED"
+              except Exception as exc:
+                  record["status"] = "REJECTED_ARCHIVE"
+                  record["archive_error"] = str(exc)
+                  invalid = True
+              results.append(record)
+          manifest = {
+              "schema": "iom-vendor-quarantine-manifest:v1",
+              "acquired_at_utc": datetime.now(timezone.utc).isoformat(),
+              "classification": "QUARANTINE_ONLY_NOT_VENDOR_ADMISSION",
+              "no_extraction_to_assets_src": True,
+              "no_godot_import": True,
+              "results": results,
+          }
+          (root / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
+          if invalid:
+              (root / "quarantine-status.txt").write_text("INCOMPLETE_OR_REJECTED — inspect manifest; no source admission.\n")
+          else:
+              (root / "quarantine-status.txt").write_text("ALL_FOUR_ARCHIVES_DOWNLOADED_AND_STRUCTURALLY_VALIDATED — NOT ADMITTED.\n")
+          summary = [
+              f"## Kenney source quarantine",
+              f"- Classification: `QUARANTINE_ONLY_NOT_VENDOR_ADMISSION`",
+              f"- Acquired: {manifest['acquired_at_utc']}",
+          ]
+          for result in results:
+              summary.append(f"- {result['id']} {result['pack']}: {result['status']}; bytes={result.get('archive_size_bytes')}; sha256={result.get('archive_sha256')}; files={result.get('file_count')}; license candidates={len(result.get('license_candidates', []))}")
+          Path(os.environ["GITHUB_STEP_SUMMARY"]).write_text("\n".join(summary) + "\n")
+          if invalid:
+              raise SystemExit("One or more source archives failed download/origin/integrity validation")
+          PY
+      - name: Upload original archives and quarantine receipts
+        if: always()
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808
+        with:
+          name: kenney-source-quarantine-20261120
+          path: quarantine/
+          retention-days: 7
+          compression-level: 0
+          if-no-files-found: error
