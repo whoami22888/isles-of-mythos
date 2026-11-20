@@ -1,4 +1,4 @@
-extends Node3D
+extends "res://entities/player/player.gd"
 ## Presentation-only avatar for the server-authoritative player in the
 ## vertical slice. The node's position is still written by the world from
 ## server state (body centre, feet + feet_offset); this script only decides how
@@ -59,6 +59,7 @@ func _ready() -> void:
 	_body.position = Vector3(0.0, -feet_offset, 0.0)
 	add_child(_body)
 	_mount_character()
+	super._ready()
 
 func is_character_mounted() -> bool:
 	return _character != null
