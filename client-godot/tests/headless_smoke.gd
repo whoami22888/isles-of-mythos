@@ -257,6 +257,26 @@ func run() -> void:
 		var recovered_text := FileAccess.get_file_as_string(FallbackFactory.LOG_PATH)
 		check(recovery_error == OK and recovered_text == before_crash_recovery + recovery_record,
 			"Next append must truncate a persisted partial TSV tail before writing one complete record")
+	# An unrecognized unterminated tail cannot be repaired safely; fail closed and preserve bytes.
+	var before_unrecognized_tail := FileAccess.get_file_as_string(FallbackFactory.LOG_PATH)
+	for invalid_tail in ["legacy-corrupt-tail", "legacy\tcorrupt-tail"]:
+		var invalid_tail_file := FileAccess.open(FallbackFactory.LOG_PATH, FileAccess.WRITE)
+		check(invalid_tail_file != null, "Unrecognized-tail fixture must open")
+		if invalid_tail_file != null:
+			var fixture_write_ok := invalid_tail_file.store_string(before_unrecognized_tail + invalid_tail)
+			invalid_tail_file.close()
+			check(fixture_write_ok, "Unrecognized-tail fixture must persist its incomplete tail")
+			var before_refusal := FileAccess.get_file_as_string(FallbackFactory.LOG_PATH)
+			var refusal_error: int = FallbackFactory._append_log_line("mesh\tmust_not_append_004.glb\n")
+			var after_refusal := FileAccess.get_file_as_string(FallbackFactory.LOG_PATH)
+			check(refusal_error == FAILED, "Unrecognized unterminated tail must refuse a new append")
+			check(after_refusal == before_refusal, "Refused append must preserve unrecognized legacy bytes")
+			var restore_file := FileAccess.open(FallbackFactory.LOG_PATH, FileAccess.WRITE)
+			check(restore_file != null, "Unrecognized-tail fixture must restore the original log")
+			if restore_file != null:
+				var restore_ok := restore_file.store_string(before_unrecognized_tail)
+				restore_file.close()
+				check(restore_ok, "Unrecognized-tail fixture must restore the original log bytes")
 	# Simulate a new process: the in-memory set resets, but persisted log size stays bounded.
 	var restart_path := "res://_restart_repeat_004.glb"
 	var restart_key := "mesh:" + restart_path
