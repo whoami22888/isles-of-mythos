@@ -1,0 +1,178 @@
+{
+ "scenarios": [
+  {
+   "id": "sample_boar_tracks",
+   "category": "wildlife",
+   "title": "Fresh tracks",
+   "zones": [
+    "jungle",
+    "camp"
+   ],
+   "trigger": {
+    "type": "random",
+    "chance": 0.7
+   },
+   "weight": 3,
+   "cooldown_s": 300,
+   "intro_lines": [
+    "Cloven tracks churn the mud. Something heavy rooted here last night."
+   ],
+   "choices": [
+    {
+     "label": "Follow the tracks",
+     "outcomes": [
+      {
+       "chance": 0.6,
+       "text": "A boar bursts from the ferns!",
+       "effects": {
+        "spawn": "boar"
+       }
+      },
+      {
+       "chance": 0.4,
+       "text": "They lead to a stand of wild yams.",
+       "effects": {
+        "items": {
+         "food": 8
+        }
+       }
+      }
+     ]
+    },
+    {
+     "label": "Let the pup track it",
+     "outcomes": [
+      {
+       "chance": 1,
+       "text": "The pup leads you straight to it.",
+       "effects": {
+        "spawn": "boar",
+        "pet_xp": 12
+       }
+      }
+     ],
+     "requires": {
+      "pet_level": 5
+     }
+    },
+    {
+     "label": "Leave it be",
+     "outcomes": [
+      {
+       "chance": 1,
+       "text": "Best not to tangle with tusks today.",
+       "effects": {}
+      }
+     ]
+    }
+   ],
+   "history_note": "Feral pigs were a staple on Caribbean islands."
+  },
+  {
+   "id": "sample_monkey_raid",
+   "category": "wildlife",
+   "title": "Chattering in the canopy",
+   "zones": [
+    "camp"
+   ],
+   "trigger": {
+    "type": "random",
+    "chance": 0.7
+   },
+   "weight": 2,
+   "cooldown_s": 300,
+   "intro_lines": [
+    "Monkeys watch the stash from the palms."
+   ],
+   "choices": [
+    {
+     "label": "Throw stones",
+     "outcomes": [
+      {
+       "chance": 0.7,
+       "text": "They scatter, shrieking.",
+       "effects": {
+        "items": {
+         "stone": -2
+        }
+       }
+      },
+      {
+       "chance": 0.3,
+       "text": "One darts in anyway.",
+       "effects": {
+        "spawn": "monkey"
+       }
+      }
+     ]
+    },
+    {
+     "label": "Ignore them",
+     "outcomes": [
+      {
+       "chance": 1,
+       "text": "A thief swings down.",
+       "effects": {
+        "spawn": "monkey"
+       }
+      }
+     ]
+    }
+   ],
+   "history_note": ""
+  },
+  {
+   "id": "sample_gull_flock",
+   "category": "wildlife",
+   "title": "Gulls over the dock",
+   "zones": [
+    "beach",
+    "camp"
+   ],
+   "trigger": {
+    "type": "time",
+    "time": "day",
+    "chance": 0.6
+   },
+   "weight": 2,
+   "cooldown_s": 300,
+   "intro_lines": [
+    "A screaming flock wheels over the drying fish."
+   ],
+   "choices": [
+    {
+     "label": "Cover the catch",
+     "outcomes": [
+      {
+       "chance": 1,
+       "text": "The gulls give up.",
+       "effects": {
+        "items": {
+         "wood": -2
+        }
+       }
+      }
+     ],
+     "requires": {
+      "items": {
+       "wood": 2
+      }
+     }
+    },
+    {
+     "label": "Let them be",
+     "outcomes": [
+      {
+       "chance": 1,
+       "text": "One dives for the fish.",
+       "effects": {
+        "spawn": "gull"
+       }
+      }
+     ]
+    }
+   ],
+   "history_note": ""
+  }
+ ]
+}

@@ -1,0 +1,224 @@
+{
+ "scenarios": [
+  {
+   "id": "sample_rain_catch",
+   "category": "survival",
+   "title": "Rain at last",
+   "zones": [
+    "camp",
+    "jungle"
+   ],
+   "trigger": {
+    "type": "random",
+    "chance": 0.9,
+    "weather": [
+     "rain",
+     "storm"
+    ]
+   },
+   "weight": 3,
+   "cooldown_s": 400,
+   "intro_lines": [
+    "Fat drops hammer the palm fronds.",
+    "Fresh water, if you can catch it."
+   ],
+   "choices": [
+    {
+     "label": "Spread the sailcloth",
+     "outcomes": [
+      {
+       "chance": 0.8,
+       "text": "You fill every cask you own.",
+       "effects": {
+        "items": {
+         "water": 6
+        },
+        "morale": 4
+       }
+      },
+      {
+       "chance": 0.2,
+       "text": "The wind tears the cloth loose.",
+       "effects": {
+        "items": {
+         "water": 2
+        }
+       }
+      }
+     ]
+    },
+    {
+     "label": "Shelter and wait it out",
+     "outcomes": [
+      {
+       "chance": 1,
+       "text": "You stay dry. The casks stay low.",
+       "effects": {
+        "morale": 1
+       }
+      }
+     ]
+    }
+   ],
+   "history_note": "Catching rain was a castaway's first water."
+  },
+  {
+   "id": "sample_driftwood",
+   "category": "survival",
+   "title": "Wreckage on the tide",
+   "zones": [
+    "beach"
+   ],
+   "trigger": {
+    "type": "random",
+    "chance": 0.8
+   },
+   "weight": 3,
+   "cooldown_s": 300,
+   "intro_lines": [
+    "The tide brings in splintered planks and a barrel."
+   ],
+   "choices": [
+    {
+     "label": "Haul the planks",
+     "outcomes": [
+      {
+       "chance": 0.7,
+       "text": "Good dry timber.",
+       "effects": {
+        "items": {
+         "wood": 12
+        }
+       }
+      },
+      {
+       "chance": 0.3,
+       "text": "A crab clamps your hand under a plank.",
+       "effects": {
+        "items": {
+         "wood": 8
+        },
+        "hp": -6,
+        "spawn": "crab"
+       }
+      }
+     ]
+    },
+    {
+     "label": "Pry open the barrel",
+     "outcomes": [
+      {
+       "chance": 0.5,
+       "text": "Salt pork, still sealed.",
+       "effects": {
+        "items": {
+         "food": 10
+        }
+       }
+      },
+      {
+       "chance": 0.3,
+       "text": "Seawater and rot.",
+       "effects": {
+        "morale": -2
+       }
+      },
+      {
+       "chance": 0.2,
+       "text": "A UTC seal on the lid. And a relic inside.",
+       "effects": {
+        "items": {
+         "relic": 1
+        },
+        "unlock": "utc_relic_found"
+       }
+      }
+     ]
+    }
+   ],
+   "history_note": "Wrecks fed castaways for months."
+  },
+  {
+   "id": "sample_fever",
+   "category": "survival",
+   "title": "Fever",
+   "zones": [
+    "any"
+   ],
+   "trigger": {
+    "type": "random",
+    "chance": 0.5,
+    "min_day": 2,
+    "weather": [
+     "rain",
+     "fog"
+    ]
+   },
+   "weight": 1,
+   "cooldown_s": 900,
+   "intro_lines": [
+    "One of the survivors burns with fever.",
+    "The others keep their distance."
+   ],
+   "choices": [
+    {
+     "label": "Brew bark tea",
+     "outcomes": [
+      {
+       "chance": 0.75,
+       "text": "The fever breaks by morning.",
+       "effects": {
+        "morale": 6
+       }
+      },
+      {
+       "chance": 0.25,
+       "text": "It doesn't help. He's weak for days.",
+       "effects": {
+        "morale": -4
+       }
+      }
+     ],
+     "requires": {
+      "items": {
+       "wood": 3
+      }
+     }
+    },
+    {
+     "label": "Trade herbs from the Tideborn",
+     "outcomes": [
+      {
+       "chance": 1,
+       "text": "Their bitter leaf works.",
+       "effects": {
+        "morale": 8,
+        "rep": {
+         "tideborn": 3
+        }
+       }
+      }
+     ],
+     "requires": {
+      "rep": {
+       "tideborn": 5
+      }
+     }
+    },
+    {
+     "label": "Isolate him",
+     "outcomes": [
+      {
+       "chance": 1,
+       "text": "He survives, but resents you.",
+       "effects": {
+        "morale": -6
+       }
+      }
+     ]
+    }
+   ],
+   "history_note": "Fevers killed more castaways than pirates did."
+  }
+ ]
+}

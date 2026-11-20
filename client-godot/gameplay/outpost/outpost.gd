@@ -13,6 +13,7 @@ extends Node3D
 
 const Rescue := preload("res://gameplay/outpost/outpost_rescue.gd")
 const Raid := preload("res://gameplay/outpost/outpost_raid.gd")
+const Events := preload("res://gameplay/outpost/outpost_events.gd")
 const Gather := preload("res://gameplay/outpost/outpost_gather.gd")
 const State := preload("res://gameplay/outpost/outpost_state.gd")
 const OutpostArt := preload("res://gameplay/outpost/outpost_art.gd")
@@ -115,6 +116,15 @@ func _ready() -> void:
 	_hud.set_script(load("res://gameplay/outpost/outpost_hud.gd"))
 	_hud.world = self
 	add_child(_hud)
+	events = Events.new()
+	events.name = "Events"
+	events.host = self
+	add_child(events)
+	events.setup(state)
+	events.zone_fn = Callable(self, "zone_at_player")
+	events.spawn_requested.connect(_on_spawn_requested)
+	events.build_ui(_hud, _font)
+	_sun = _find_sun()
 	_refresh_sites(true)
 	_toast(str(state.data.get("welcome_line", "")) if state.camp_level == 1 and state.level_of("mill") == 0 else "Welcome back to the outpost")
 	_push()
@@ -413,9 +423,12 @@ func _process(delta: float) -> void:
 	_focus = _nearest_site(REACH)
 	_gather_focus = gather.nearest(_player.global_position) if gather else -1
 	_push()
+	_light_by_clock()
 	_save_t += delta
 	if _save_t > 5.0:
 		_save_t = 0.0
+		if events:
+			events.save_state()
 		state.save()
 
 
@@ -811,6 +824,9 @@ func _pet_lunge(at: Vector3) -> void:
 	t.tween_property(body, "position", rest, 0.22).set_trans(Tween.TRANS_BACK)
 	t.parallel().tween_property(body, "scale", base, 0.22)
 var rescue: Node3D
+var events: Node
+var _sun: DirectionalLight3D
+var _sun_base := 1.0
 var respawn_override := Vector3.INF
 ## Camera distance multiplier (renders use < 1 for close side-on shots).
 var cam_zoom := 1.0
@@ -920,4 +936,49 @@ func stand_at(id: String) -> void:
 
 
 func _exit_tree() -> void:
+	if events:
+		events.save_state()
 	state.save()
+
+
+# --- Chapter 2 systems glue -------------------------------------------------------
+
+## Which scenario zone the castaway stands in.
+func zone_at_player() -> String:
+	return zone_of(_player.global_position)
+
+
+func zone_of(p: Vector3) -> String:
+	if p.z < 4.5:
+		return "beach"
+	if p.x < 2.5 or p.x > 20.5 or p.z > 19.0:
+		return "jungle"
+	return "camp"
+
+
+func _on_spawn_requested(what: String) -> void:
+	if what.begins_with("raid:"):
+		if raid:
+			raid.start_raid(what.substr(5))
+		return
+	if get("wildlife") != null and get("wildlife").has_method("spawn_kind"):
+		get("wildlife").spawn_kind(what)
+
+
+func _find_sun() -> DirectionalLight3D:
+	for n in find_children("*", "DirectionalLight3D", true, false):
+		_sun_base = (n as DirectionalLight3D).light_energy
+		return n
+	return null
+
+
+## Day/night and weather dim the sun (no new lights, no glow).
+func _light_by_clock() -> void:
+	if _sun == null or events == null:
+		return
+	var k := lerpf(0.22, 1.0, events.daylight())
+	match events.weather():
+		"rain": k *= 0.7
+		"storm": k *= 0.5
+		"fog": k *= 0.8
+	_sun.light_energy = _sun_base * k

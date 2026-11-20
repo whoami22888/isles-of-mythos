@@ -36,6 +36,9 @@ var _sub_t := 0.0
 var _log_btn: Button
 var _log: PanelContainer
 var _log_box: VBoxContainer
+## Controls added by the Chapter 2 systems (event card, pet panel...) that
+## must swallow taps instead of steering the joystick.
+var extra: Array = []
 ## Below the resource strip, camp line and objective line.
 const TAG_TOP := 150.0
 
@@ -408,6 +411,9 @@ func _process(delta: float) -> void:
 func _over_button(p: Vector2) -> bool:
 	for c in [_action, _build_btn, _menu, _dodge, _log_btn, _log]:
 		if c.visible and c.get_global_rect().has_point(p):
+			return true
+	for c in extra:
+		if is_instance_valid(c) and c.is_visible_in_tree() and c.get_global_rect().has_point(p):
 			return true
 	return false
 

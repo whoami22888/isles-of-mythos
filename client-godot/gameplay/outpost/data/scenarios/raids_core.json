@@ -1,0 +1,522 @@
+{
+ "scenarios": [
+  {
+   "id": "raid_night_sneak",
+   "category": "raid",
+   "title": "Shapes on the sand",
+   "zones": [
+    "any"
+   ],
+   "trigger": {
+    "type": "action",
+    "action": "night_no_watchtower",
+    "chance": 0.55,
+    "camp_level": 2
+   },
+   "weight": 3,
+   "cooldown_s": 600,
+   "intro_lines": [
+    "No watch on the cliff tonight.",
+    "Oars creak below the camp. Low voices. No lanterns."
+   ],
+   "choices": [
+    {
+     "label": "Grab the cutlass and meet them",
+     "outcomes": [
+      {
+       "chance": 1,
+       "text": "Three cutthroats creep up the beach toward the stash.",
+       "effects": {
+        "spawn": "raid:night_sneak"
+       }
+      }
+     ]
+    },
+    {
+     "label": "Douse the fire and hide the stash",
+     "outcomes": [
+      {
+       "chance": 0.6,
+       "text": "They poke about in the dark, curse, and row away with a sack of food.",
+       "effects": {
+        "items": {
+         "food": -8
+        },
+        "morale": -5
+       }
+      },
+      {
+       "chance": 0.4,
+       "text": "They find the stash anyway. Steel in the dark.",
+       "effects": {
+        "spawn": "raid:night_sneak"
+       }
+      }
+     ]
+    },
+    {
+     "label": "Send the pup to bark them off",
+     "outcomes": [
+      {
+       "chance": 0.5,
+       "text": "The pup's snarling sends them scrambling back to the boat.",
+       "effects": {
+        "pet_xp": 15,
+        "morale": 5
+       }
+      },
+      {
+       "chance": 0.5,
+       "text": "They laugh at the pup and come on.",
+       "effects": {
+        "spawn": "raid:night_sneak",
+        "pet_xp": 8
+       }
+      }
+     ],
+     "requires": {
+      "pet_level": 2
+     }
+    }
+   ],
+   "history_note": "Night raids on unwatched camps were the privateers' cheapest prize."
+  },
+  {
+   "id": "raid_parley",
+   "category": "raid",
+   "title": "A white flag",
+   "zones": [
+    "beach",
+    "camp"
+   ],
+   "trigger": {
+    "type": "random",
+    "chance": 0.6,
+    "camp_level": 2,
+    "rep_max": {
+     "utc": 10
+    }
+   },
+   "weight": 2,
+   "cooldown_s": 900,
+   "intro_lines": [
+    "A UTC longboat rows in under a white flag.",
+    "An officer calls for a parley on the sand."
+   ],
+   "choices": [
+    {
+     "label": "Walk down and hear him out",
+     "outcomes": [
+      {
+       "chance": 0.45,
+       "text": "It was a trap. Musketeers rise from the bilge.",
+       "effects": {
+        "spawn": "raid:ambush",
+        "rep": {
+         "utc": -5
+        }
+       }
+      },
+      {
+       "chance": 0.35,
+       "text": "He offers iron for your silence about the wreck.",
+       "effects": {
+        "items": {
+         "iron": 12
+        },
+        "rep": {
+         "utc": 5,
+         "free": -3
+        }
+       }
+      },
+      {
+       "chance": 0.2,
+       "text": "He only wants water. He leaves you a bottle of rum.",
+       "effects": {
+        "items": {
+         "rum": 1
+        },
+        "rep": {
+         "utc": 3
+        }
+       }
+      }
+     ]
+    },
+    {
+     "label": "Fire a warning shot",
+     "outcomes": [
+      {
+       "chance": 0.6,
+       "text": "They row off, cursing. They'll be back.",
+       "effects": {
+        "rep": {
+         "utc": -8
+        },
+        "notoriety": 5
+       }
+      },
+      {
+       "chance": 0.4,
+       "text": "They take it as war and storm the beach.",
+       "effects": {
+        "spawn": "raid:frontal",
+        "rep": {
+         "utc": -10
+        }
+       }
+      }
+     ],
+     "requires": {
+      "items": {
+       "iron": 2
+      }
+     }
+    },
+    {
+     "label": "Stay hidden in the treeline",
+     "outcomes": [
+      {
+       "chance": 1,
+       "text": "They wait an hour, then burn your drying rack out of spite.",
+       "effects": {
+        "items": {
+         "food": -6
+        },
+        "morale": -4
+       }
+      }
+     ]
+    }
+   ],
+   "history_note": "Privateers used false flags of truce to lure out shore parties."
+  },
+  {
+   "id": "raid_ransom",
+   "category": "raid",
+   "title": "The ransom note",
+   "zones": [
+    "camp"
+   ],
+   "trigger": {
+    "type": "random",
+    "chance": 0.5,
+    "camp_level": 2,
+    "min_day": 2
+   },
+   "weight": 2,
+   "cooldown_s": 900,
+   "intro_lines": [
+    "A note pinned to the palisade with a knife.",
+    "'50 gold or we burn the mill.' Sails sit offshore."
+   ],
+   "choices": [
+    {
+     "label": "Pay them",
+     "outcomes": [
+      {
+       "chance": 0.7,
+       "text": "They take the gold. For now.",
+       "effects": {
+        "items": {
+         "gold": -50
+        },
+        "morale": -6,
+        "rep": {
+         "utc": 4
+        }
+       }
+      },
+      {
+       "chance": 0.3,
+       "text": "They take the gold and burn it anyway.",
+       "effects": {
+        "items": {
+         "gold": -50
+        },
+        "spawn": "raid:frontal",
+        "morale": -10
+       }
+      }
+     ],
+     "requires": {
+      "items": {
+       "gold": 50
+      }
+     }
+    },
+    {
+     "label": "Refuse and man the wall",
+     "outcomes": [
+      {
+       "chance": 1,
+       "text": "The longboats come at dusk.",
+       "effects": {
+        "spawn": "raid:frontal",
+        "notoriety": 6
+       }
+      }
+     ]
+    },
+    {
+     "label": "Offer salt fish instead",
+     "outcomes": [
+      {
+       "chance": 0.5,
+       "text": "Hungry men take fish. They grumble off.",
+       "effects": {
+        "items": {
+         "food": -20
+        }
+       }
+      },
+      {
+       "chance": 0.5,
+       "text": "They laugh. Then they come.",
+       "effects": {
+        "spawn": "raid:frontal"
+       }
+      }
+     ],
+     "requires": {
+      "items": {
+       "food": 20
+      }
+     }
+    }
+   ],
+   "history_note": "Extortion of coastal settlements was routine privateer business."
+  },
+  {
+   "id": "raid_frontal",
+   "category": "raid",
+   "title": "Sails in force",
+   "zones": [
+    "any"
+   ],
+   "trigger": {
+    "type": "random",
+    "chance": 0.4,
+    "camp_level": 2,
+    "min_notoriety": 20
+   },
+   "weight": 2,
+   "cooldown_s": 1200,
+   "intro_lines": [
+    "Three longboats. Drums. A captain in a tricorn at the bow.",
+    "They mean to take the whole outpost."
+   ],
+   "choices": [
+    {
+     "label": "Sound the horn, everyone to the wall",
+     "outcomes": [
+      {
+       "chance": 1,
+       "text": "They hit the beach in force.",
+       "effects": {
+        "spawn": "raid:frontal"
+       }
+      }
+     ]
+    },
+    {
+     "label": "Ambush them in the surf with crew",
+     "outcomes": [
+      {
+       "chance": 0.6,
+       "text": "Your crew catches them wading. Half the wave breaks.",
+       "effects": {
+        "spawn": "raid:frontal_weak",
+        "rep": {
+         "free": 5
+        }
+       }
+      },
+      {
+       "chance": 0.4,
+       "text": "The ambush is spotted. Full assault.",
+       "effects": {
+        "spawn": "raid:frontal"
+       }
+      }
+     ],
+     "requires": {
+      "crew": 1
+     }
+    }
+   ],
+   "history_note": "Large raids answered settlements that grew notorious."
+  },
+  {
+   "id": "raid_deserter",
+   "category": "raid",
+   "title": "A deserter's warning",
+   "zones": [
+    "beach"
+   ],
+   "trigger": {
+    "type": "random",
+    "chance": 0.5,
+    "camp_level": 2
+   },
+   "weight": 2,
+   "cooldown_s": 1200,
+   "intro_lines": [
+    "A half-drowned sailor in UTC blue crawls out of the surf.",
+    "'They're coming for your camp. Two nights, maybe less.'"
+   ],
+   "choices": [
+    {
+     "label": "Shelter him and listen",
+     "outcomes": [
+      {
+       "chance": 0.7,
+       "text": "He tells you where they'll land. You have time to prepare.",
+       "effects": {
+        "unlock": "deserter_intel",
+        "rep": {
+         "free": 6,
+         "utc": -4
+        },
+        "next_event": "raid_frontal_warned",
+        "next_delay": 60
+       }
+      },
+      {
+       "chance": 0.3,
+       "text": "He bolts at night with your food.",
+       "effects": {
+        "items": {
+         "food": -10
+        },
+        "morale": -3
+       }
+      }
+     ]
+    },
+    {
+     "label": "Turn him in to the UTC",
+     "outcomes": [
+      {
+       "chance": 1,
+       "text": "The UTC pays a few coins. The others look away.",
+       "effects": {
+        "items": {
+         "gold": 10
+        },
+        "rep": {
+         "utc": 8,
+         "free": -10
+        },
+        "morale": -8
+       }
+      }
+     ]
+    },
+    {
+     "label": "Leave him on the sand",
+     "outcomes": [
+      {
+       "chance": 1,
+       "text": "By morning he's gone. So is a flint knife.",
+       "effects": {
+        "items": {
+         "flint": -1
+        }
+       }
+      }
+     ]
+    }
+   ],
+   "history_note": "Deserters from privateer crews often traded warnings for shelter."
+  },
+  {
+   "id": "raid_frontal_warned",
+   "category": "raid",
+   "title": "They came as he said",
+   "zones": [
+    "any"
+   ],
+   "trigger": {
+    "type": "action",
+    "action": "__chain_only",
+    "chance": 1
+   },
+   "weight": 1,
+   "cooldown_s": 0,
+   "intro_lines": [
+    "Exactly where the deserter said.",
+    "You're ready this time."
+   ],
+   "choices": [
+    {
+     "label": "Hold the wall",
+     "outcomes": [
+      {
+       "chance": 1,
+       "text": "They land into your prepared line.",
+       "effects": {
+        "spawn": "raid:frontal_warned"
+       }
+      }
+     ]
+    }
+   ],
+   "history_note": ""
+  },
+  {
+   "id": "raid_relic_vengeance",
+   "category": "raid",
+   "title": "They want it back",
+   "zones": [
+    "any"
+   ],
+   "trigger": {
+    "type": "action",
+    "action": "loot_utc_relic",
+    "chance": 0.8
+   },
+   "weight": 3,
+   "cooldown_s": 600,
+   "intro_lines": [
+    "The relic you took was the company's.",
+    "A UTC cutter tacks toward your beach."
+   ],
+   "choices": [
+    {
+     "label": "Fight for it",
+     "outcomes": [
+      {
+       "chance": 1,
+       "text": "They land hard.",
+       "effects": {
+        "spawn": "raid:frontal"
+       }
+      }
+     ]
+    },
+    {
+     "label": "Bury it and lie",
+     "outcomes": [
+      {
+       "chance": 0.5,
+       "text": "They search and find nothing. They'll remember.",
+       "effects": {
+        "notoriety": 5
+       }
+      },
+      {
+       "chance": 0.5,
+       "text": "A dog sniffs it out. Swords drawn.",
+       "effects": {
+        "spawn": "raid:night_sneak"
+       }
+      }
+     ]
+    }
+   ],
+   "history_note": "The Company hunted anyone holding its relics."
+  }
+ ]
+}

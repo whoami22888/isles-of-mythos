@@ -33,6 +33,8 @@ var rescue_phase := ""
 var raft_left := -1.0
 var silas_joined := false
 var journal: Array = []   # [{title, text}]
+## Chapter 2 systems (director, pet, tools, wildlife) persist here by key.
+var ext: Dictionary = {}
 
 
 func load_data(path: String = DATA_PATH) -> bool:
@@ -420,7 +422,7 @@ func to_dict() -> Dictionary:
 		"buildings": buildings.duplicate(true), "welcomed": welcomed,
 		"hp": hp.duplicate(), "waves_done": waves_done, "crew_queue": crew_queue.duplicate(true),
 		"crew_ready": crew_ready.duplicate(), "relics": relics,
-		"rescue_phase": rescue_phase, "raft_left": raft_left, "silas_joined": silas_joined, "journal": journal.duplicate(true)}
+		"rescue_phase": rescue_phase, "raft_left": raft_left, "silas_joined": silas_joined, "journal": journal.duplicate(true), "ext": ext.duplicate(true)}
 
 
 func from_dict(d: Dictionary) -> void:
@@ -441,6 +443,7 @@ func from_dict(d: Dictionary) -> void:
 	raft_left = float(d.get("raft_left", -1.0))
 	silas_joined = bool(d.get("silas_joined", false))
 	journal = (d.get("journal", []) as Array).duplicate(true)
+	ext = (d.get("ext", {}) as Dictionary).duplicate(true)
 	var bs: Dictionary = d.get("buildings", {})
 	for id in bs.keys():
 		if buildings.has(id):
@@ -472,3 +475,12 @@ func load_save() -> bool:
 		return false
 	from_dict(parsed)
 	return true
+
+
+## Add (or remove, negative) any item, resource or not. Never below zero.
+func add_item(kind: String, n: int) -> void:
+	inv[kind] = maxi(int(inv.get(kind, 0)) + n, 0)
+
+
+func count(kind: String) -> int:
+	return int(inv.get(kind, 0))

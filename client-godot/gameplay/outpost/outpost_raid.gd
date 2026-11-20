@@ -34,6 +34,22 @@ var freeze := 0.0
 ## player anywhere (the rescue fight on the northern isle).
 var hold := false
 var arena := false
+## Raids are chosen by the event director (outpost_events.gd); the old fixed
+## countdown only runs when milestone2.fixed_timer is true.
+var raid_kind := ""
+var _pending: Dictionary = {}
+const RAID_TYPES := {
+	"night_sneak": {"title": "Night raiders!", "sub": "Cutthroats creeping up from the surf", "warning": 3.0, "horn": false,
+		"row": {"deckhand": 3}, "landing": {"x": 19.0, "z": 1.6}, "hp": 0.85, "loot": {"iron": 6, "gold": 6}},
+	"ambush": {"title": "Ambush!", "sub": "The white flag was a lie", "warning": 0.6, "horn": false,
+		"row": {"musketeer": 2, "deckhand": 2}, "near_player": true, "hp": 1.0, "loot": {"iron": 10, "gold": 12}},
+	"frontal": {"title": "Sails on the horizon!", "sub": "Full assault on the outpost", "warning": 8.0, "horn": true,
+		"row": {}, "hp": 1.0},
+	"frontal_weak": {"title": "They broke in the surf!", "sub": "What's left of the wave staggers ashore", "warning": 4.0, "horn": true,
+		"row": {"deckhand": 2, "musketeer": 1}, "hp": 0.8, "loot": {"iron": 8, "gold": 10}},
+	"frontal_warned": {"title": "Just as he said", "sub": "You knew where they'd land", "warning": 20.0, "horn": true,
+		"row": {}, "hp": 0.9},
+}
 
 
 func setup(data: Dictionary) -> void:
@@ -101,7 +117,20 @@ func active() -> bool:
 
 ## Seconds until the next raid while idle (for the HUD), else 0.
 func eta() -> float:
-	return timer if phase == "idle" and _armed else 0.0
+	return timer if phase == "idle" and _armed and bool(cfg.get("fixed_timer", false)) else 0.0
+
+
+## Director entry point: start a raid of `kind` (see RAID_TYPES).
+func start_raid(kind: String) -> bool:
+	if phase != "idle":
+		return false
+	raid_kind = kind
+	_pending = RAID_TYPES.get(kind, RAID_TYPES["frontal"])
+	start_warning()
+	timer = float(_pending.get("warning", 8.0)) + (float(host.state.warning_seconds()) if bool(_pending.get("horn", true)) else 0.0)
+	var t := str(_pending.get("title", "Raid!"))
+	host.banner(t, str(_pending.get("sub", "")))
+	return true
 
 
 # --- Director ---------------------------------------------------------------
@@ -116,7 +145,7 @@ func _process(delta: float) -> void:
 		timer = float(cfg.get("raid_interval", 180))
 	match phase:
 		"idle":
-			if _armed and not hold:
+			if _armed and not hold and bool(cfg.get("fixed_timer", false)):
 				timer -= delta
 				if timer <= 0.0:
 					start_warning()
@@ -143,7 +172,8 @@ func start_warning() -> void:
 		return
 	phase = "warning"
 	timer = float(cfg.get("warning_seconds", 8)) + float(host.state.warning_seconds())
-	_play(_horn(), -3.0)
+	if bool(_pending.get("horn", true)):
+		_play(_horn(), -3.0)
 	host.banner("Sails on the horizon!", "UTC privateers  ·  wave %d  ·  landing in %ds" % [wave + 1, int(timer)])
 	boat = Node3D.new()
 	boat.name = "Longboat"
@@ -175,6 +205,14 @@ func _spawn_wave() -> void:
 	var row: Dictionary = rows[clampi(wave - 1, 0, rows.size() - 1)]
 	var scale_hp := 1.0 + float(cfg.get("wave_hp_scale", 0.1)) * maxi(wave - rows.size(), 0)
 	var land: Dictionary = cfg.get("landing", {"x": 11, "z": 1})
+	if not _pending.is_empty():
+		if not (_pending.get("row", {}) as Dictionary).is_empty():
+			row = _pending["row"]
+		scale_hp *= float(_pending.get("hp", 1.0))
+		land = _pending.get("landing", land)
+		if bool(_pending.get("near_player", false)):
+			var pp: Vector3 = host._player.global_position
+			land = {"x": pp.x, "z": maxf(pp.z - 4.0, 1.5)}
 	var i := 0
 	for kind in ["deckhand", "musketeer", "brute", "captain"]:
 		for k in int(row.get(kind, 0)):
@@ -194,6 +232,10 @@ func _victory() -> void:
 	st.waves_done = wave
 	var rewards: Array = cfg.get("rewards", [])
 	var loot: Dictionary = (rewards[clampi(wave - 1, 0, rewards.size() - 1)] as Dictionary).duplicate()
+	if _pending.has("loot"):
+		loot = (_pending["loot"] as Dictionary).duplicate()
+	_pending = {}
+	raid_kind = ""
 	for k in loot.keys():
 		if k == "relic_shard":
 			st.relics += int(loot[k])
@@ -210,6 +252,8 @@ func _victory() -> void:
 			u["node"].queue_free()
 	units = units.filter(func(u): return u["team"] != "enemy")
 	wave_cleared.emit(wave, loot)
+	if loot.has("relic_shard") and host.get("events") != null:
+		host.events.call_deferred("notify", "loot_utc_relic")
 	st.save()
 
 
@@ -582,6 +626,8 @@ func hurt(u: Dictionary, dmg: float, from: Vector3, knock: float) -> void:
 		Art.play(u["rig"], "Death", 0.05)
 		if u["team"] == "enemy":
 			kills += 1
+			if u["team"] == "enemy" and host.get("events") != null:
+				host.events.notify("kill_raider")
 	else:
 		Art.play(u["rig"], "Hit", 0.05)
 
