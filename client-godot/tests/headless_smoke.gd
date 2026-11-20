@@ -161,6 +161,43 @@ func run() -> void:
 	check(non_3d_fallback is MeshInstance3D and non_3d_fallback.mesh is BoxMesh,
 		"Non-3D PackedScene must use a box diagnostic")
 	non_3d_fallback.free()
+	# A valid Node3D scene can still be visually empty; it must not bypass the fallback.
+	var empty_3d_root := Node3D.new()
+	var empty_3d_scene := PackedScene.new()
+	check(empty_3d_scene.pack(empty_3d_root) == OK, "Empty Node3D fixture must pack")
+	empty_3d_root.free()
+	var empty_3d_fallback := FallbackFactory.mesh_resource_or_fallback(
+		empty_3d_scene, "res://_empty_3d_scene_004.glb", "character"
+	)
+	check(empty_3d_fallback is MeshInstance3D and empty_3d_fallback.mesh is CapsuleMesh,
+		"Node3D without a renderable mesh must use a capsule diagnostic")
+	if is_instance_valid(empty_3d_fallback):
+		empty_3d_fallback.free()
+
+	# A real mesh nested under a Node3D root remains valid.
+	var valid_3d_root := Node3D.new()
+	var valid_mesh_instance := MeshInstance3D.new()
+	valid_mesh_instance.mesh = BoxMesh.new()
+	valid_3d_root.add_child(valid_mesh_instance)
+	valid_mesh_instance.owner = valid_3d_root
+	var valid_3d_scene := PackedScene.new()
+	check(valid_3d_scene.pack(valid_3d_root) == OK, "Renderable Node3D fixture must pack")
+	valid_3d_root.free()
+	var valid_3d_instance := FallbackFactory.mesh_resource_or_fallback(
+		valid_3d_scene, "res://_valid_3d_scene_004.glb", "character"
+	)
+	check(valid_3d_instance.name != "MissingAssetDiagnostic" and FallbackFactory._has_renderable_mesh(valid_3d_instance),
+		"Node3D scene with a real mesh must remain loaded")
+	valid_3d_instance.free()
+
+	# Empty Mesh resources are also invalid visual payloads.
+	var empty_mesh_fallback := FallbackFactory.mesh_resource_or_fallback(
+		ArrayMesh.new(), "res://_empty_mesh_004.glb", "building"
+	)
+	check(empty_mesh_fallback is MeshInstance3D and empty_mesh_fallback.mesh is BoxMesh,
+		"Mesh resource with no surfaces must use a box diagnostic")
+	empty_mesh_fallback.free()
+
 	var asset_log := FileAccess.open("user://missing_assets.log", FileAccess.READ)
 	check(asset_log != null, "Missing asset paths must be written to the user log")
 	if asset_log != null:

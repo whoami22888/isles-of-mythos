@@ -147,18 +147,40 @@ static func instantiate_scene_or_null(
 	return instance
 
 
+static func _has_renderable_mesh(node: Node) -> bool:
+	if node is MeshInstance3D:
+		var mesh := (node as MeshInstance3D).mesh
+		if mesh != null and mesh.get_surface_count() > 0:
+			return true
+	elif node is MultiMeshInstance3D:
+		var multimesh := (node as MultiMeshInstance3D).multimesh
+		if (
+			multimesh != null
+			and multimesh.mesh != null
+			and multimesh.mesh.get_surface_count() > 0
+			and multimesh.instance_count > 0
+			and multimesh.visible_instance_count != 0
+		):
+			return true
+	for child in node.get_children():
+		if _has_renderable_mesh(child):
+			return true
+	return false
+
+
 static func mesh_resource_or_fallback(resource: Resource, path: String, kind: String = "character") -> Node3D:
 	if resource is PackedScene:
 		var instance := instantiate_scene_or_null(resource as PackedScene, path, "mesh")
-		if instance is Node3D:
+		if instance is Node3D and _has_renderable_mesh(instance):
 			return instance
 		if is_instance_valid(instance):
 			instance.free()
-		_log_missing(path, "mesh")
 	elif resource is Mesh:
-		var node := MeshInstance3D.new()
-		node.mesh = resource
-		return node
+		var mesh := resource as Mesh
+		if mesh.get_surface_count() > 0:
+			var node := MeshInstance3D.new()
+			node.mesh = mesh
+			return node
 	return get_fallback_mesh(path, kind)
 
 
