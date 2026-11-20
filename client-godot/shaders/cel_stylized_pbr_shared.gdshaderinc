@@ -148,7 +148,11 @@ void fragment() {
 }
 
 void light() {
-    float n_dot_l = max(dot(NORMAL, LIGHT), 0.0);
+    float n_dot_l = dot(NORMAL, LIGHT);
+    // The shadow palette is not direct illumination for a back-facing light.
+    if (n_dot_l <= 0.0) {
+        return;
+    }
     float n_dot_v = clamp(dot(NORMAL, VIEW), 0.0, 1.0);
     float softness = max(toon_ramp_smoothness, 0.001);
     float mid_band = smoothstep(0.4 - softness, 0.4 + softness, n_dot_l);
@@ -167,8 +171,9 @@ void light() {
 
     float surface_roughness = clamp(ROUGHNESS, 0.04, 1.0);
     float specular_power = mix(128.0, 4.0, surface_roughness);
+    // SPECULAR_AMOUNT already reflects the fragment SPECULAR output; apply it once.
     float specular_lobe = pow(max(dot(reflect(-LIGHT, NORMAL), VIEW), 0.0), specular_power)
-        * (1.0 - surface_roughness) * specular_amount * SPECULAR_AMOUNT;
-    vec3 f0 = mix(vec3(0.04 * specular_amount), ALBEDO, METALLIC);
+        * (1.0 - surface_roughness) * SPECULAR_AMOUNT;
+    vec3 f0 = mix(vec3(0.04), ALBEDO, METALLIC);
     SPECULAR_LIGHT += f0 * LIGHT_COLOR * ATTENUATION * specular_lobe;
 }
