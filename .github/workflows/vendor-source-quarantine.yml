@@ -469,7 +469,12 @@ jobs:
           git -C prompt001 config user.name "github-actions[bot]"
           git -C prompt001 config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git -C prompt001 add assets-src/kenney LICENSES/CC0-1.0-Kenney-H01.txt LICENSES/CC0-1.0-Kenney-H02.txt LICENSES/CC0-1.0-Kenney-H03.txt LICENSES/CC0-1.0-Kenney-H04.txt docs/vendor vendor.lock.json
-          git -C prompt001 diff --cached --check
+          # Keep the publisher's exact embedded CC0 notice bytes; their SHA-256 is locked.
+          git -C prompt001 diff --cached --check -- . \
+            ':!LICENSES/CC0-1.0-Kenney-H01.txt' \
+            ':!LICENSES/CC0-1.0-Kenney-H02.txt' \
+            ':!LICENSES/CC0-1.0-Kenney-H03.txt' \
+            ':!LICENSES/CC0-1.0-Kenney-H04.txt'
           git -C prompt001 commit -m "feat(assets): admit verified Kenney source archives H01-H04"
           git -C prompt001 push origin "HEAD:refs/heads/$TARGET_BRANCH"
       - name: Upload original archives and quarantine receipts
