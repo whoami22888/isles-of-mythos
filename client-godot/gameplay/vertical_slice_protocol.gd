@@ -20,7 +20,7 @@ const MAX_PENDING := 8
 ## returned by gather_resource, so they are attributed only when no gather is
 ## pending.
 const CRAFT_ERROR_CODES := ["RECIPE_NOT_FOUND", "INSUFFICIENT_INVENTORY", "INVENTORY_LIMIT"]
-const ATTACK_ERROR_CODES := ["PLAYER_DEAD", "PLAYER_STUNNED", "COMBAT_IN_PROGRESS", "INVALID_MESSAGE", "NO_AMMO", "COMBAT_COOLDOWN", "NO_STAMINA", "OUT_OF_RANGE"]
+const ATTACK_ERROR_CODES := ["AUTH_REQUIRED", "PLAYER_DEAD", "PLAYER_STUNNED", "COMBAT_IN_PROGRESS", "INVALID_MESSAGE", "NO_AMMO", "COMBAT_COOLDOWN", "NO_STAMINA", "OUT_OF_RANGE"]
 ## `_authenticated` is owned by the base adapter (it also drives reconnect/resync); this subclass reuses it.
 var _pending: Dictionary = {}
 var _crypto := Crypto.new()
