@@ -204,11 +204,11 @@ func run() -> void:
 	check(not unicode_log.contains(String.chr(0x2028)) and not unicode_log.contains(String.chr(0x2029)), "Unicode line and paragraph separators must never enter missing-resource log")
 	# A caller-supplied category must not inject a TSV column or a second record.
 	var category_path := "res://_category_injection_004.fbx"
-	var category_input := "mesh\\t__INJECTED_COLUMN_004__\\n__INJECTED_RECORD_004__"
+	var category_input := "mesh" + String.chr(9) + "__INJECTED_COLUMN_004__" + String.chr(10) + "__INJECTED_RECORD_004__"
 	var category_probe := FallbackFactory.load_scene_or_null(category_path, category_input)
 	check(category_probe == null, "Missing scene with an invalid category must fail safely")
 	var category_log := FileAccess.get_file_as_string(FallbackFactory.LOG_PATH)
-	check(category_log.contains("other\\t" + category_path + "\\n"), "Unknown categories must map to the fixed other field")
+	check(category_log.contains("other" + String.chr(9) + category_path + String.chr(10)), "Unknown categories must map to the fixed other field")
 	check(not category_log.contains("__INJECTED_COLUMN_004__") and not category_log.contains("__INJECTED_RECORD_004__"), "Caller-supplied category text must never enter the TSV log")
 	# A full log must be renamed to a bounded .1 generation, not truncated.
 	var full_log := FileAccess.open(FallbackFactory.LOG_PATH, FileAccess.WRITE)
