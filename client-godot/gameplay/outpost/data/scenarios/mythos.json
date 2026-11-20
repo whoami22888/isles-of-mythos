@@ -1,0 +1,1286 @@
+[
+ {
+  "id": "myth_001",
+  "category": "mythos",
+  "title": "Low-Tide Arch Ritual",
+  "zones": [
+   "beach",
+   "cliff"
+  ],
+  "trigger": {
+   "type": "location",
+   "chance": 0.4,
+   "min_day": 1,
+   "camp_level": 1,
+   "needs_item": null,
+   "weather": "clear"
+  },
+  "weight": 6,
+  "cooldown_s": 1800,
+  "intro_lines": [
+   "Tideborn arches hum as water drains.",
+   "Relic shards warm in your pocket."
+  ],
+  "choices": [
+   {
+    "label": "Step through the arch at low tide",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.4,
+      "text": "Shards ring; Tide-Puck finds a hidden cache of shells.",
+      "effects": {
+       "items": {
+        "relic_shard": 1,
+        "shell": 3
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 2,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": "myth_002"
+      }
+     },
+     {
+      "chance": 0.6,
+      "text": "The arch collapses; shards cut your hands.",
+      "effects": {
+       "items": {
+        "relic_shard": -1
+       },
+       "hp": -15,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": -1,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Watch from the cliff",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "You map the ritual; Tideborn scout notices you.",
+      "effects": {
+       "items": {
+        "map_fragment": 1
+       },
+       "hp": 0,
+       "morale": 2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 1,
+        "free": 0
+       },
+       "spawn": "tideborn_scout",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": "myth_002"
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Nothing happens; tide returns early.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Pedro Serrano survived eight years on a cay by catching rain in shells and eating raw shellfish."
+ },
+ {
+  "id": "myth_002",
+  "category": "mythos",
+  "title": "Tideborn Scout's Test",
+  "zones": [
+   "jungle",
+   "beach"
+  ],
+  "trigger": {
+   "type": "action",
+   "chance": 0.0,
+   "min_day": 2,
+   "camp_level": 1,
+   "needs_item": null,
+   "weather": "any"
+  },
+  "weight": 5,
+  "cooldown_s": 3600,
+  "intro_lines": [
+   "A scout steps from the mangroves.",
+   "She watches Tide-Puck closely."
+  ],
+  "choices": [
+   {
+    "label": "Offer a relic shard",
+    "requires": {
+     "relic_shard": 1
+    },
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "She accepts; grants passage to a relic cache.",
+      "effects": {
+       "items": {
+        "relic_shard": -1,
+        "pearl": 1
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 4,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 15,
+       "unlock": "tideborn_cache",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "She refuses; shards are sacred, not trade.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": -2,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Ignore her and walk on",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "She vanishes; later your camp is watched.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": -3,
+        "free": 0
+       },
+       "spawn": "tideborn_scout",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.5,
+      "text": "She follows and warns of a UTC patrol.",
+      "effects": {
+       "items": {
+        "map_fragment": 1
+       },
+       "hp": 0,
+       "morale": 3,
+       "rep": {
+        "utc": -1,
+        "tideborn": 2,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Tromelin castaways built coral walls against the trade wind after storms destroyed their camp."
+ },
+ {
+  "id": "myth_003",
+  "category": "mythos",
+  "title": "Crystal-Bound Mythos",
+  "zones": [
+   "cave",
+   "reef"
+  ],
+  "trigger": {
+   "type": "location",
+   "chance": 0.3,
+   "min_day": 3,
+   "camp_level": 2,
+   "needs_item": null,
+   "weather": "fog"
+  },
+  "weight": 7,
+  "cooldown_s": 2400,
+  "intro_lines": [
+   "Dark crystals pulse in a flooded cave.",
+   "A small Mythos thrashes, bound."
+  ],
+  "choices": [
+   {
+    "label": "Free it with a blade",
+    "requires": {
+     "iron": 1
+    },
+    "outcomes": [
+     {
+      "chance": 0.45,
+      "text": "It breaks free and nuzzles Tide-Puck.",
+      "effects": {
+       "items": {
+        "iron": -1
+       },
+       "hp": -10,
+       "morale": 8,
+       "rep": {
+        "utc": -1,
+        "tideborn": 3,
+        "free": 0
+       },
+       "spawn": "wild_mythos",
+       "pet_xp": 25,
+       "unlock": null,
+       "next_event": "myth_004"
+      }
+     },
+     {
+      "chance": 0.55,
+      "text": "Crystal shatters; shards embed in your arm.",
+      "effects": {
+       "items": {
+        "relic_shard": 2
+       },
+       "hp": -20,
+       "morale": -4,
+       "rep": {
+        "utc": 0,
+        "tideborn": -1,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Harvest the crystals",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "UTC-grade crystals; Tide-Puck whines in distress.",
+      "effects": {
+       "items": {
+        "relic_shard": 3
+       },
+       "hp": 0,
+       "morale": -6,
+       "rep": {
+        "utc": 2,
+        "tideborn": -4,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": "myth_005"
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "The Mythos bites; crystals crumble to dust.",
+      "effects": {
+       "items": {},
+       "hp": -12,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 1,
+        "free": 0
+       },
+       "spawn": "wild_mythos",
+       "pet_xp": 5,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "UTC deploys dark-binding crystals that enrage the Abyssal Sovereign."
+ },
+ {
+  "id": "myth_004",
+  "category": "mythos",
+  "title": "Freed Mythos Gratitude",
+  "zones": [
+   "jungle",
+   "outpost"
+  ],
+  "trigger": {
+   "type": "action",
+   "chance": 0.0,
+   "min_day": 4,
+   "camp_level": 2,
+   "needs_item": null,
+   "weather": "any"
+  },
+  "weight": 4,
+  "cooldown_s": 5400,
+  "intro_lines": [
+   "The freed Mythos shadows your camp.",
+   "It leaves gifts at dawn."
+  ],
+  "choices": [
+   {
+    "label": "Train it alongside Tide-Puck",
+    "requires": {
+     "food": 2
+    },
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "Both companions learn a new foraging trick.",
+      "effects": {
+       "items": {
+        "food": -2
+       },
+       "hp": 0,
+       "morale": 6,
+       "rep": {
+        "utc": 0,
+        "tideborn": 2,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 40,
+       "unlock": "mythos_bond",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "They fight; the new Mythos bolts.",
+      "effects": {
+       "items": {},
+       "hp": -5,
+       "morale": -4,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "wild_mythos",
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Release it to the wild",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.8,
+      "text": "It calls once, then vanishes into surf.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 3,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 5,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "It returns at night with a pearl.",
+      "effects": {
+       "items": {
+        "pearl": 1
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 2,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Selkirk tamed kid goats for milk and company during four years alone."
+ },
+ {
+  "id": "myth_005",
+  "category": "mythos",
+  "title": "Crystal Shipment Intercepted",
+  "zones": [
+   "sea",
+   "isle"
+  ],
+  "trigger": {
+   "type": "action",
+   "chance": 0.0,
+   "min_day": 4,
+   "camp_level": 2,
+   "needs_item": null,
+   "weather": "any"
+  },
+  "weight": 6,
+  "cooldown_s": 3600,
+  "intro_lines": [
+   "UTC cutter approaches your cove.",
+   "Crystals rattle in its hold."
+  ],
+  "choices": [
+   {
+    "label": "Ambush from the headland",
+    "requires": {
+     "powder": 1
+    },
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Cutter flees; you seize crystal crates.",
+      "effects": {
+       "items": {
+        "powder": -1,
+        "relic_shard": 4
+       },
+       "hp": -8,
+       "morale": 4,
+       "rep": {
+        "utc": -4,
+        "tideborn": 2,
+        "free": 2
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.5,
+      "text": "UTC marines land; you barely escape.",
+      "effects": {
+       "items": {},
+       "hp": -25,
+       "morale": -6,
+       "rep": {
+        "utc": -2,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Let it pass",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "They sail on, unaware of you.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 0,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "A scout marks your outpost on a chart.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -3,
+       "rep": {
+        "utc": -1,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Pirates used false flags and headland ambushes in narrow channels."
+ },
+ {
+  "id": "myth_006",
+  "category": "mythos",
+  "title": "Leviathan Song at Night",
+  "zones": [
+   "sea",
+   "cliff"
+  ],
+  "trigger": {
+   "type": "time",
+   "chance": 0.35,
+   "min_day": 5,
+   "camp_level": 3,
+   "needs_item": null,
+   "weather": "night"
+  },
+  "weight": 8,
+  "cooldown_s": 7200,
+  "intro_lines": [
+   "A low hum vibrates the rocks.",
+   "Tide-Puck howls at the moon."
+  ],
+  "choices": [
+   {
+    "label": "Sing back to the deep",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.4,
+      "text": "The hum softens; a relic shard washes ashore.",
+      "effects": {
+       "items": {
+        "relic_shard": 1
+       },
+       "hp": 0,
+       "morale": 8,
+       "rep": {
+        "utc": 0,
+        "tideborn": 3,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 20,
+       "unlock": null,
+       "next_event": "myth_007"
+      }
+     },
+     {
+      "chance": 0.6,
+      "text": "The sea churns; your boat is smashed.",
+      "effects": {
+       "items": {
+        "wood": -3,
+        "rope": -1
+       },
+       "hp": -15,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": -1,
+        "free": 0
+       },
+       "spawn": "shark",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Plug your ears and sleep",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "You rest; Tide-Puck guards the door.",
+      "effects": {
+       "items": {},
+       "hp": 5,
+       "morale": 2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 5,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Nightmares; you wake exhausted and shaken.",
+      "effects": {
+       "items": {},
+       "hp": -5,
+       "morale": -6,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "The Abyssal Sovereign broke both ships during the storm battle."
+ },
+ {
+  "id": "myth_007",
+  "category": "mythos",
+  "title": "Sovereign's Gift",
+  "zones": [
+   "beach",
+   "reef"
+  ],
+  "trigger": {
+   "type": "action",
+   "chance": 0.0,
+   "min_day": 6,
+   "camp_level": 3,
+   "needs_item": null,
+   "weather": "any"
+  },
+  "weight": 5,
+  "cooldown_s": 86400,
+  "intro_lines": [
+   "A vast shape surfaces at dawn.",
+   "It leaves something on the sand."
+  ],
+  "choices": [
+   {
+    "label": "Take the gift freely",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "A pearl the size of a fist; Tide-Puck bows.",
+      "effects": {
+       "items": {
+        "pearl": 2,
+        "relic_shard": 1
+       },
+       "hp": 0,
+       "morale": 10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 5,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 30,
+       "unlock": "sovereign_favour",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "The gift dissolves into salt and foam.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 1,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 5,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Offer food in return",
+    "requires": {
+     "fish": 2
+    },
+    "outcomes": [
+     {
+      "chance": 0.8,
+      "text": "The leviathan accepts; calm seas follow.",
+      "effects": {
+       "items": {
+        "fish": -2
+       },
+       "hp": 5,
+       "morale": 8,
+       "rep": {
+        "utc": 0,
+        "tideborn": 4,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 20,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "It ignores you; a storm brews offshore.",
+      "effects": {
+       "items": {},
+       "hp": -5,
+       "morale": -4,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Tromelin castaways kept one fire alive fifteen years with salvaged timber."
+ },
+ {
+  "id": "myth_008",
+  "category": "mythos",
+  "title": "Relic Shard Resonance",
+  "zones": [
+   "outpost",
+   "cave"
+  ],
+  "trigger": {
+   "type": "action",
+   "chance": 0.25,
+   "min_day": 2,
+   "camp_level": 1,
+   "needs_item": "relic_shard",
+   "weather": "any"
+  },
+  "weight": 4,
+  "cooldown_s": 1200,
+  "intro_lines": [
+   "Three shards hum in unison.",
+   "Tide-Puck spins in circles."
+  ],
+  "choices": [
+   {
+    "label": "Place them in a circle",
+    "requires": {
+     "relic_shard": 3
+    },
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "A map of Tideborn arches appears in light.",
+      "effects": {
+       "items": {
+        "relic_shard": -3,
+        "map_fragment": 2
+       },
+       "hp": 0,
+       "morale": 6,
+       "rep": {
+        "utc": 0,
+        "tideborn": 3,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 15,
+       "unlock": "arch_map",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.5,
+      "text": "The circle cracks; shards scatter.",
+      "effects": {
+       "items": {
+        "relic_shard": -1
+       },
+       "hp": -8,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": -1,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Keep them apart",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.8,
+      "text": "Hum fades; nothing more happens.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 0,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 2,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "One shard cracks and cuts your palm.",
+      "effects": {
+       "items": {
+        "relic_shard": -1
+       },
+       "hp": -6,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Blueprint lore: UTC dark-binding crystals enrage the Abyssal Sovereign and wild Mythos near them."
+ },
+ {
+  "id": "myth_009",
+  "category": "mythos",
+  "title": "Tideborn Arch at Dusk",
+  "zones": [
+   "beach",
+   "cliff"
+  ],
+  "trigger": {
+   "type": "location",
+   "chance": 0.2,
+   "min_day": 4,
+   "camp_level": 2,
+   "needs_item": null,
+   "weather": "fog"
+  },
+  "weight": 5,
+  "cooldown_s": 3600,
+  "intro_lines": [
+   "Fog thickens around a stone arch.",
+   "Footprints lead through and vanish."
+  ],
+  "choices": [
+   {
+    "label": "Follow the footprints",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.4,
+      "text": "You find a Tideborn cache of herbs and shells.",
+      "effects": {
+       "items": {
+        "herbs": 2,
+        "shell": 4
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 2,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.6,
+      "text": "The arch loops back; you are lost for hours.",
+      "effects": {
+       "items": {},
+       "hp": -10,
+       "morale": -4,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Mark the arch and leave",
+    "requires": {
+     "shell": 1
+    },
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "Tideborn later reward your restraint.",
+      "effects": {
+       "items": {
+        "shell": -1,
+        "relic_shard": 1
+       },
+       "hp": 0,
+       "morale": 3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 3,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 5,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "A UTC scout finds your marks instead.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -2,
+       "rep": {
+        "utc": 1,
+        "tideborn": -1,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Serrano used shells as rain catchers and a fire hut on his cay."
+ },
+ {
+  "id": "myth_010",
+  "category": "mythos",
+  "title": "Crystal-Bound Mythos II",
+  "zones": [
+   "cave",
+   "isle"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.15,
+   "min_day": 7,
+   "camp_level": 4,
+   "needs_item": null,
+   "weather": "storm"
+  },
+  "weight": 6,
+  "cooldown_s": 7200,
+  "intro_lines": [
+   "Lightning reveals a second bound Mythos.",
+   "Crystals sing a sharp, cruel note."
+  ],
+  "choices": [
+   {
+    "label": "Free it with Tide-Puck's help",
+    "requires": {
+     "pet_level": 2
+    },
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Together they shatter the crystals; it flees free.",
+      "effects": {
+       "items": {
+        "relic_shard": 2
+       },
+       "hp": -12,
+       "morale": 7,
+       "rep": {
+        "utc": -2,
+        "tideborn": 4,
+        "free": 0
+       },
+       "spawn": "wild_mythos",
+       "pet_xp": 35,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.5,
+      "text": "Crystals explode; Tide-Puck is stunned.",
+      "effects": {
+       "items": {},
+       "hp": -18,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": -1,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Report it to UTC patrol",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "UTC pays in gold and crystals.",
+      "effects": {
+       "items": {
+        "gold": 3,
+        "relic_shard": 2
+       },
+       "hp": 0,
+       "morale": -3,
+       "rep": {
+        "utc": 4,
+        "tideborn": -6,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "They seize your camp supplies as thanks.",
+      "effects": {
+       "items": {
+        "food": -3,
+        "wood": -5
+       },
+       "hp": 0,
+       "morale": -6,
+       "rep": {
+        "utc": 2,
+        "tideborn": -3,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "UTC privateers hunt Tideborn relics and deploy dark-binding crystals."
+ },
+ {
+  "id": "myth_011",
+  "category": "mythos",
+  "title": "Mythos Companion's Dream",
+  "zones": [
+   "outpost"
+  ],
+  "trigger": {
+   "type": "time",
+   "chance": 0.2,
+   "min_day": 3,
+   "camp_level": 1,
+   "needs_item": null,
+   "weather": "night"
+  },
+  "weight": 3,
+  "cooldown_s": 5400,
+  "intro_lines": [
+   "Tide-Puck sleeps and twitches.",
+   "It dreams of drowned arches."
+  ],
+  "choices": [
+   {
+    "label": "Wake and comfort it",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "It settles; morning brings a foraging find.",
+      "effects": {
+       "items": {
+        "food": 2,
+        "herbs": 1
+       },
+       "hp": 0,
+       "morale": 4,
+       "rep": {
+        "utc": 0,
+        "tideborn": 1,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 12,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "It snaps awake and nips your hand.",
+      "effects": {
+       "items": {},
+       "hp": -4,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Let it dream",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "It wakes calm and alert to danger.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 2,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 15,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "It sleepwalks into the surf; you rescue it.",
+      "effects": {
+       "items": {},
+       "hp": -6,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 5,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Companion animals reduce despair for castaways, as Selkirk's cats did."
+ }
+]

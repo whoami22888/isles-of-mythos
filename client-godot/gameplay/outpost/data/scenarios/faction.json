@@ -2552,5 +2552,1383 @@
    }
   ],
   "history_note": "Bartholomew Roberts used a captured Portuguese master to identify the richest ship in the fleet, demonstrating pirate intelligence-gathering and ransom tactics (Johnson 1724)."
+ },
+ {
+  "id": "fac_012",
+  "category": "faction",
+  "title": "A Pardon on the Table",
+  "zones": [
+   "outpost",
+   "cliff"
+  ],
+  "trigger": {
+   "type": "location",
+   "chance": 0.25,
+   "min_day": 5,
+   "camp_level": 2,
+   "needs_item": null,
+   "weather": "clear"
+  },
+  "weight": 7,
+  "cooldown_s": 600,
+  "intro_lines": [
+   "A UTC cutter anchors offshore.",
+   "An officer waves a parchment.",
+   "Pardon for naming a pirate crew."
+  ],
+  "choices": [
+   {
+    "label": "Accept the pardon",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "You name Silas's crew. UTC spares you; pirates mark you traitor.",
+      "effects": {
+       "items": {
+        "gold": 3
+       },
+       "hp": 0,
+       "morale": -10,
+       "rep": {
+        "utc": 20,
+        "tideborn": 0,
+        "free": -30
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": "fac_013"
+      }
+     },
+     {
+      "chance": 0.5,
+      "text": "UTC voids the pardon anyway. You are branded and hunted by both sides.",
+      "effects": {
+       "items": {},
+       "hp": -5,
+       "morale": -15,
+       "rep": {
+        "utc": -10,
+        "tideborn": 0,
+        "free": -20
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": "fac_013"
+      }
+     }
+    ]
+   },
+   {
+    "label": "Refuse outright",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Officer leaves. Free pirates hear of your loyalty and vote to admit you.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": -5,
+        "tideborn": 0,
+        "free": 15
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": "fac_014"
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "UTC fires a warning shot. You flee with nothing gained.",
+      "effects": {
+       "items": {},
+       "hp": -3,
+       "morale": -5,
+       "rep": {
+        "utc": -10,
+        "tideborn": 0,
+        "free": 5
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Stall for time",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "You buy a day. Tideborn scouts spot the cutter and warn you.",
+      "effects": {
+       "items": {
+        "map_fragment": 1
+       },
+       "hp": 0,
+       "morale": 0,
+       "rep": {
+        "utc": 0,
+        "tideborn": 10,
+        "free": 0
+       },
+       "spawn": "tideborn_scout",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.5,
+      "text": "Officer sees through the stall. He takes a hostage.",
+      "effects": {
+       "items": {},
+       "hp": -5,
+       "morale": -10,
+       "rep": {
+        "utc": -5,
+        "tideborn": 0,
+        "free": -5
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": "fac_021"
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Woodes Rogers offered pardons to pirates at Nassau in 1718, splitting loyalties."
+ },
+ {
+  "id": "fac_013",
+  "category": "faction",
+  "title": "The Cutter's Escort",
+  "zones": [
+   "sea",
+   "isle"
+  ],
+  "trigger": {
+   "type": "action",
+   "chance": 0.0,
+   "min_day": 5,
+   "camp_level": 2,
+   "needs_item": null,
+   "weather": "any"
+  },
+  "weight": 6,
+  "cooldown_s": 0,
+  "intro_lines": [
+   "UTC marines escort you.",
+   "Pirate sails appear on the horizon.",
+   "They know your face."
+  ],
+  "choices": [
+   {
+    "label": "Fight with UTC",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "UTC guns win. You reach port but pirates swear blood vengeance.",
+      "effects": {
+       "items": {
+        "gold": 2
+       },
+       "hp": -10,
+       "morale": -5,
+       "rep": {
+        "utc": 15,
+        "tideborn": 0,
+        "free": -25
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.5,
+      "text": "Pirates board. UTC flees. They leave you adrift.",
+      "effects": {
+       "items": {},
+       "hp": -15,
+       "morale": -10,
+       "rep": {
+        "utc": -20,
+        "tideborn": 0,
+        "free": -10
+       },
+       "spawn": "free_pirates",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Jump ship to pirates",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "You leap. Pirates spare you for intel on UTC routes.",
+      "effects": {
+       "items": {
+        "rum": 1
+       },
+       "hp": -5,
+       "morale": 5,
+       "rep": {
+        "utc": -25,
+        "tideborn": 0,
+        "free": 20
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "You miss the boat. UTC hauls you back in irons.",
+      "effects": {
+       "items": {},
+       "hp": -8,
+       "morale": -15,
+       "rep": {
+        "utc": -10,
+        "tideborn": 0,
+        "free": -5
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Ships sighted Pedro Serrano's smoke for years but stayed clear of the shoals around his cay."
+ },
+ {
+  "id": "fac_014",
+  "category": "faction",
+  "title": "Articles Vote",
+  "zones": [
+   "outpost",
+   "beach"
+  ],
+  "trigger": {
+   "type": "action",
+   "chance": 0.0,
+   "min_day": 5,
+   "camp_level": 2,
+   "needs_item": null,
+   "weather": "any"
+  },
+  "weight": 7,
+  "cooldown_s": 0,
+  "intro_lines": [
+   "Free pirates gather at camp.",
+   "Articles are read aloud.",
+   "Your admission is put to vote."
+  ],
+  "choices": [
+   {
+    "label": "Speak your case",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "You are voted in. Share of plunder and a berth.",
+      "effects": {
+       "items": {
+        "rum": 1,
+        "gold": 1
+       },
+       "hp": 0,
+       "morale": 10,
+       "rep": {
+        "utc": -5,
+        "tideborn": 0,
+        "free": 25
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "pirate_articles",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "Vote fails. You are marooned with a pistol and water.",
+      "effects": {
+       "items": {
+        "powder": 1,
+        "fresh_water": 1
+       },
+       "hp": -5,
+       "morale": -15,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -20
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Bribe with gold",
+    "requires": {
+     "gold": 2
+    },
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "Gold sways the vote. You are admitted, barely.",
+      "effects": {
+       "items": {
+        "gold": -2
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 15
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "pirate_articles",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Bribe seen as cheating. Ears and nose threatened; you flee.",
+      "effects": {
+       "items": {
+        "gold": -2
+       },
+       "hp": -5,
+       "morale": -20,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -30
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Bartholomew Roberts's articles allowed marooning for defrauding the company."
+ },
+ {
+  "id": "fac_015",
+  "category": "faction",
+  "title": "Crystal in the Reef",
+  "zones": [
+   "reef",
+   "cave"
+  ],
+  "trigger": {
+   "type": "location",
+   "chance": 0.3,
+   "min_day": 8,
+   "camp_level": 3,
+   "needs_item": null,
+   "weather": "clear"
+  },
+  "weight": 8,
+  "cooldown_s": 720,
+  "intro_lines": [
+   "A Tideborn scout surfaces.",
+   "A dark-binding crystal pulses below.",
+   "She demands you destroy it."
+  ],
+  "choices": [
+   {
+    "label": "Destroy the crystal",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Crystal shatters. Leviathan calms; Tideborn trust you.",
+      "effects": {
+       "items": {
+        "relic_shard": 1
+       },
+       "hp": -5,
+       "morale": 5,
+       "rep": {
+        "utc": -5,
+        "tideborn": 20,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": "fac_016"
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "Shards cut you. UTC patrol hears the blast.",
+      "effects": {
+       "items": {},
+       "hp": -10,
+       "morale": -5,
+       "rep": {
+        "utc": -10,
+        "tideborn": 10,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": "fac_016"
+      }
+     }
+    ]
+   },
+   {
+    "label": "Keep the crystal",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "You pocket it. Tideborn brand you enemy; UTC wants it.",
+      "effects": {
+       "items": {
+        "scrap": 1
+       },
+       "hp": 0,
+       "morale": -5,
+       "rep": {
+        "utc": 10,
+        "tideborn": -30,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": "fac_017"
+      }
+     },
+     {
+      "chance": 0.5,
+      "text": "It pulses and enrages a nearby shark. You drop it and run.",
+      "effects": {
+       "items": {},
+       "hp": -8,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": -10,
+        "free": 0
+       },
+       "spawn": "shark",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "UTC deploys dark-binding crystals that enrage the leviathan."
+ },
+ {
+  "id": "fac_016",
+  "category": "faction",
+  "title": "Sovereign's Calm",
+  "zones": [
+   "sea",
+   "reef"
+  ],
+  "trigger": {
+   "type": "action",
+   "chance": 0.0,
+   "min_day": 8,
+   "camp_level": 3,
+   "needs_item": null,
+   "weather": "any"
+  },
+  "weight": 6,
+  "cooldown_s": 0,
+  "intro_lines": [
+   "The leviathan surfaces calmly.",
+   "Tideborn arches hum faintly.",
+   "They offer a relic in thanks."
+  ],
+  "choices": [
+   {
+    "label": "Accept the relic",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "You receive a shard. UTC sensors detect the hum.",
+      "effects": {
+       "items": {
+        "relic_shard": 2,
+        "pearl": 1
+       },
+       "hp": 0,
+       "morale": 10,
+       "rep": {
+        "utc": -10,
+        "tideborn": 25,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 5,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Relic is cursed with salt-rot. Your gear degrades.",
+      "effects": {
+       "items": {
+        "rope": -1,
+        "sailcloth": -1
+       },
+       "hp": -3,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 15,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Decline politely",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Tideborn respect your restraint and share fish.",
+      "effects": {
+       "items": {
+        "fish": 3
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 10,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "They feel insulted and withdraw to the deep.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": -10,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Tideborn are ancient sea people with ruined arches and relics."
+ },
+ {
+  "id": "fac_017",
+  "category": "faction",
+  "title": "Crystal in Your Pocket",
+  "zones": [
+   "outpost",
+   "jungle"
+  ],
+  "trigger": {
+   "type": "action",
+   "chance": 0.0,
+   "min_day": 8,
+   "camp_level": 3,
+   "needs_item": null,
+   "weather": "any"
+  },
+  "weight": 6,
+  "cooldown_s": 0,
+  "intro_lines": [
+   "The crystal hums at night.",
+   "UTC agents come asking.",
+   "Tideborn shadows watch from trees."
+  ],
+  "choices": [
+   {
+    "label": "Sell to UTC",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "UTC pays well. Tideborn mark you for death.",
+      "effects": {
+       "items": {
+        "gold": 5
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 25,
+        "tideborn": -40,
+        "free": 0
+       },
+       "spawn": "tideborn_scout",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "UTC takes it by force and leaves you beaten.",
+      "effects": {
+       "items": {},
+       "hp": -15,
+       "morale": -10,
+       "rep": {
+        "utc": -5,
+        "tideborn": -20,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Return to Tideborn",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "They accept your repentance and grant safe passage.",
+      "effects": {
+       "items": {
+        "relic_shard": 1
+       },
+       "hp": 0,
+       "morale": 8,
+       "rep": {
+        "utc": -10,
+        "tideborn": 20,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Too late; they already declared war on you.",
+      "effects": {
+       "items": {},
+       "hp": -10,
+       "morale": -15,
+       "rep": {
+        "utc": 0,
+        "tideborn": -25,
+        "free": 0
+       },
+       "spawn": "tideborn_scout",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Dark-binding crystals enrage the Abyssal Sovereign."
+ },
+ {
+  "id": "fac_018",
+  "category": "faction",
+  "title": "The Stranger's Terms",
+  "zones": [
+   "isle",
+   "beach"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.2,
+   "min_day": 3,
+   "camp_level": 1,
+   "needs_item": null,
+   "weather": "fog"
+  },
+  "weight": 7,
+  "cooldown_s": 900,
+  "intro_lines": [
+   "A stranger offers to hide you.",
+   "He wants a cut of your stash.",
+   "Pirates or UTC could follow."
+  ],
+  "choices": [
+   {
+    "label": "Trust the stranger",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "He hides you well and shares food. Later he saves you.",
+      "effects": {
+       "items": {
+        "food": 2
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 5
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": "fac_019"
+      }
+     },
+     {
+      "chance": 0.5,
+      "text": "He robs you at dawn and vanishes into fog.",
+      "effects": {
+       "items": {
+        "gold": -2,
+        "rum": -1
+       },
+       "hp": -3,
+       "morale": -15,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -5
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": "fac_020"
+      }
+     }
+    ]
+   },
+   {
+    "label": "Refuse and fight",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "You drive him off. He swears revenge.",
+      "effects": {
+       "items": {},
+       "hp": -5,
+       "morale": 0,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -5
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": "fac_020"
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "He yields and leaves peacefully. No harm done.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Serrano quarrelled with a second castaway before reconciling."
+ },
+ {
+  "id": "fac_019",
+  "category": "faction",
+  "title": "The Stranger Returns",
+  "zones": [
+   "outpost",
+   "cliff"
+  ],
+  "trigger": {
+   "type": "action",
+   "chance": 0.0,
+   "min_day": 3,
+   "camp_level": 1,
+   "needs_item": null,
+   "weather": "any"
+  },
+  "weight": 6,
+  "cooldown_s": 0,
+  "intro_lines": [
+   "The stranger returns at dusk.",
+   "He brings UTC soldiers behind him.",
+   "Or does he?"
+  ],
+  "choices": [
+   {
+    "label": "Let him in",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "He betrays you. UTC storms the camp.",
+      "effects": {
+       "items": {
+        "scrap": -2
+       },
+       "hp": -15,
+       "morale": -20,
+       "rep": {
+        "utc": -15,
+        "tideborn": 0,
+        "free": -10
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "He lied to UTC; he saves you instead.",
+      "effects": {
+       "items": {
+        "gold": 2
+       },
+       "hp": 0,
+       "morale": 10,
+       "rep": {
+        "utc": -10,
+        "tideborn": 0,
+        "free": 15
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Ambush him",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "You capture him. He begs for mercy.",
+      "effects": {
+       "items": {
+        "rope": 1
+       },
+       "hp": -3,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 5
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "He escapes and warns UTC of your position.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -10,
+       "rep": {
+        "utc": -10,
+        "tideborn": 0,
+        "free": -5
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Informants and deserters gave intelligence to pirate captains."
+ },
+ {
+  "id": "fac_020",
+  "category": "faction",
+  "title": "The Stranger's Revenge",
+  "zones": [
+   "jungle",
+   "cave"
+  ],
+  "trigger": {
+   "type": "action",
+   "chance": 0.0,
+   "min_day": 3,
+   "camp_level": 1,
+   "needs_item": null,
+   "weather": "any"
+  },
+  "weight": 6,
+  "cooldown_s": 0,
+  "intro_lines": [
+   "The stranger leads pirates to you.",
+   "He wants his cut, by force.",
+   "Your camp is exposed."
+  ],
+  "choices": [
+   {
+    "label": "Pay him off",
+    "requires": {
+     "gold": 2
+    },
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "He takes the gold and leaves. Pirates disperse.",
+      "effects": {
+       "items": {
+        "gold": -2
+       },
+       "hp": 0,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -5
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "He takes gold and attacks anyway. You flee.",
+      "effects": {
+       "items": {
+        "gold": -2
+       },
+       "hp": -10,
+       "morale": -15,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -15
+       },
+       "spawn": "free_pirates",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Fight back",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "You hold the camp. Stranger retreats wounded.",
+      "effects": {
+       "items": {
+        "hide": 1
+       },
+       "hp": -8,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 10
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.5,
+      "text": "Overwhelmed, you lose supplies and run.",
+      "effects": {
+       "items": {
+        "food": -2,
+        "wood": -3
+       },
+       "hp": -12,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -10
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Pirate quarrels were settled ashore by pistol then cutlass."
+ },
+ {
+  "id": "fac_021",
+  "category": "faction",
+  "title": "Hostage on the Beach",
+  "zones": [
+   "beach",
+   "isle"
+  ],
+  "trigger": {
+   "type": "action",
+   "chance": 0.0,
+   "min_day": 5,
+   "camp_level": 2,
+   "needs_item": null,
+   "weather": "any"
+  },
+  "weight": 7,
+  "cooldown_s": 0,
+  "intro_lines": [
+   "UTC holds a sailor hostage.",
+   "They want the crystal or your crew.",
+   "Tideborn watch from the surf."
+  ],
+  "choices": [
+   {
+    "label": "Trade the crystal",
+    "requires": {
+     "scrap": 1
+    },
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Hostage freed. UTC leaves; Tideborn despise the trade.",
+      "effects": {
+       "items": {
+        "scrap": -1
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 10,
+        "tideborn": -15,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "UTC takes crystal and keeps hostage. You are played.",
+      "effects": {
+       "items": {
+        "scrap": -1
+       },
+       "hp": 0,
+       "morale": -15,
+       "rep": {
+        "utc": -5,
+        "tideborn": -10,
+        "free": -5
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Attack UTC",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "You rout them. Hostage saved; UTC swears revenge.",
+      "effects": {
+       "items": {
+        "powder": 1
+       },
+       "hp": -10,
+       "morale": 10,
+       "rep": {
+        "utc": -20,
+        "tideborn": 10,
+        "free": 5
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.5,
+      "text": "Attack fails. Hostage is killed in crossfire.",
+      "effects": {
+       "items": {},
+       "hp": -15,
+       "morale": -25,
+       "rep": {
+        "utc": -10,
+        "tideborn": -5,
+        "free": -10
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Pirates took hostages and demanded ransoms."
+ },
+ {
+  "id": "fac_022",
+  "category": "faction",
+  "title": "Three Flags, One Haven",
+  "zones": [
+   "outpost",
+   "cliff",
+   "sea"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.15,
+   "min_day": 12,
+   "camp_level": 5,
+   "needs_item": null,
+   "weather": "storm"
+  },
+  "weight": 9,
+  "cooldown_s": 1200,
+  "intro_lines": [
+   "UTC, Tideborn, and pirates converge.",
+   "Your outpost sits between them.",
+   "Choose a flag to fly."
+  ],
+  "choices": [
+   {
+    "label": "Fly UTC colours",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "UTC spares you; pirates and Tideborn attack.",
+      "effects": {
+       "items": {
+        "gold": 3
+       },
+       "hp": -10,
+       "morale": -5,
+       "rep": {
+        "utc": 25,
+        "tideborn": -20,
+        "free": -25
+       },
+       "spawn": "free_pirates",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.5,
+      "text": "UTC claims your outpost as a garrison. You lose it.",
+      "effects": {
+       "items": {},
+       "hp": -5,
+       "morale": -20,
+       "rep": {
+        "utc": 15,
+        "tideborn": -10,
+        "free": -15
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Fly pirate black",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Pirates join you; UTC bombards from sea.",
+      "effects": {
+       "items": {
+        "rum": 2
+       },
+       "hp": -12,
+       "morale": 5,
+       "rep": {
+        "utc": -25,
+        "tideborn": 0,
+        "free": 30
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "Tideborn shun you for siding with raiders.",
+      "effects": {
+       "items": {},
+       "hp": -5,
+       "morale": -10,
+       "rep": {
+        "utc": -15,
+        "tideborn": -15,
+        "free": 20
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Raise Tideborn sigil",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Tideborn defend you; UTC and pirates withdraw.",
+      "effects": {
+       "items": {
+        "relic_shard": 1
+       },
+       "hp": -5,
+       "morale": 10,
+       "rep": {
+        "utc": -20,
+        "tideborn": 30,
+        "free": -10
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "All three factions turn on the heretic.",
+      "effects": {
+       "items": {},
+       "hp": -20,
+       "morale": -25,
+       "rep": {
+        "utc": -15,
+        "tideborn": -15,
+        "free": -15
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Pirates flew false flags and raised the black at close range."
  }
 ]

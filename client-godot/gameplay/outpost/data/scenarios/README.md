@@ -6,19 +6,20 @@ Randomised, research-grounded event scenarios for the outpost event engine.
 | Category | Scenarios |
 |---|---|
 | castaway | 32 |
-| discovery | 11 |
-| faction | 11 |
-| gathering | 30 |
+| discovery | 32 |
+| faction | 22 |
+| gathering | 33 |
 | mystery | 22 |
+| mythos | 11 |
 | pet | 22 |
 | pirate | 33 |
 | sea | 22 |
 | weather | 21 |
-| wildlife | 25 |
-| **Total** | **229** |
+| wildlife | 31 |
+| **Total** | **281** |
 
-Chained mini-stories: 30 chain starts, 141 next_event links, 49 follow-up scenarios.
-Rejected during QA: {'note_fixed': 24, 'few_outcomes': 23, 'no_intro': 3}.
+Chained mini-stories: 37 chain starts, 159 next_event links, 62 follow-up scenarios.
+Rejected during QA: {'note_fixed': 28, 'few_choices': 4, 'no_intro': 3}.
 
 ## Files
 - `<category>.json` - one JSON array per category (castaway, gathering, weather, sea, pirate, faction, discovery, mythos, pet, mystery).

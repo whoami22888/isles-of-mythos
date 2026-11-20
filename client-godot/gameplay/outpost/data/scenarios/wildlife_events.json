@@ -184,6 +184,140 @@
   "history_note": "Feral pigs were put ashore by sailors as living larders and charge with tusks when cornered with young."
  },
  {
+  "id": "wild_002",
+  "category": "wildlife",
+  "title": "Kids on the Crag",
+  "zones": [
+   "cliff"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.12,
+   "min_day": 3,
+   "camp_level": 2,
+   "needs_item": null,
+   "weather": "clear"
+  },
+  "weight": 6,
+  "cooldown_s": 86400,
+  "intro_lines": [
+   "Nanny goats watch from the cliff ledge.",
+   "A kid bleats beneath an overhang."
+  ],
+  "choices": [
+   {
+    "label": "Climb down after the kid",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "You catch the kid and it follows you back to camp.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Loose shale gives way under your boot and you slide.",
+      "effects": {
+       "items": {},
+       "hp": -12,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "The nanny butts you from the ledge above.",
+      "effects": {
+       "items": {},
+       "hp": -8,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Toss saltfish to lure them",
+    "requires": {
+     "fish": 2
+    },
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "The herd trails the fish down; you rope a kid.",
+      "effects": {
+       "items": {
+        "fish": -2,
+        "rope": -1
+       },
+       "hp": 0,
+       "morale": 2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Gulls swarm the bait and the goats scatter.",
+      "effects": {
+       "items": {
+        "fish": -2
+       },
+       "hp": 0,
+       "morale": 0,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "gull",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Sailors left goats as living larders on islands such as Juan Fernández, where castaways tamed kids for milk."
+ },
+ {
   "id": "wild_003",
   "category": "wildlife",
   "title": "The Night Thieves",
@@ -359,6 +493,228 @@
    }
   ],
   "history_note": "Coconut crabs climb palms, strike with claws of roughly 3,300 newtons, and steal shiny objects."
+ },
+ {
+  "id": "wild_004",
+  "category": "wildlife",
+  "title": "The Red Carpet",
+  "zones": [
+   "beach"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.13,
+   "min_day": 5,
+   "camp_level": 1,
+   "needs_item": null,
+   "weather": "rain"
+  },
+  "weight": 6,
+  "cooldown_s": 172800,
+  "intro_lines": [
+   "The beach crawls with thousands of red shells.",
+   "Every step crunches underfoot."
+  ],
+  "choices": [
+   {
+    "label": "Gather crabs for the pot",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "You fill a sack before the tide turns back.",
+      "effects": {
+       "items": {
+        "crab_meat": 4
+       },
+       "hp": 0,
+       "morale": 2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "A crab pinches your thumb; the catch spoils in the heat.",
+      "effects": {
+       "items": {},
+       "hp": -4,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Cross barefoot to the reef",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "You shuffle past the claws and reach the pools.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "gull",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "Barbed legs rake your shins and you limp back.",
+      "effects": {
+       "items": {},
+       "hp": -7,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Land crabs migrate en masse to the sea to spawn, and beaches can crawl with thousands of red shells."
+ },
+ {
+  "id": "wild_005",
+  "category": "wildlife",
+  "title": "The Banded Sleepers",
+  "zones": [
+   "reef"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.11,
+   "min_day": 4,
+   "camp_level": 2,
+   "needs_item": null,
+   "weather": "night"
+  },
+  "weight": 5,
+  "cooldown_s": 86400,
+  "intro_lines": [
+   "A blue-black coil rests on a coral shelf.",
+   "It flicks its tongue at the lantern light."
+  ],
+  "choices": [
+   {
+    "label": "Harvest the shed skin",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "You gather a shed skin; the krait does not stir.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.5,
+      "text": "It wakes and fastens on your wrist.",
+      "effects": {
+       "items": {},
+       "hp": -25,
+       "morale": -8,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "snake",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Gather eggs nearby",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "You collect four leathery eggs from the sand.",
+      "effects": {
+       "items": {
+        "food": 3
+       },
+       "hp": 0,
+       "morale": 1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "The mother strikes as you reach; you flee burned.",
+      "effects": {
+       "items": {},
+       "hp": -16,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "snake",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Sea kraits are venomous but placid snakes that come ashore at night on tropical reefs."
  },
  {
   "id": "wild_006",
@@ -678,6 +1034,349 @@
    }
   ],
   "history_note": "Macaques raid camps for food and shiny tools, and their alarm calls warn of predators."
+ },
+ {
+  "id": "wild_009",
+  "category": "wildlife",
+  "title": "The Judas in Your Tent",
+  "zones": [
+   "outpost"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.0,
+   "min_day": 7,
+   "camp_level": 3,
+   "needs_item": null,
+   "weather": "any"
+  },
+  "weight": 8,
+  "cooldown_s": 86400,
+  "intro_lines": [
+   "Your guest is gone at dawn.",
+   "UTC sails appear on the horizon."
+  ],
+  "choices": [
+   {
+    "label": "Man the beach battery",
+    "requires": {
+     "powder": 2
+    },
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Grapeshot rakes the longboat and they withdraw.",
+      "effects": {
+       "items": {
+        "powder": -2
+       },
+       "hp": 0,
+       "morale": 2,
+       "rep": {
+        "utc": -5,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "UTC marines storm ashore before you can reload.",
+      "effects": {
+       "items": {
+        "powder": -2
+       },
+       "hp": -18,
+       "morale": -9,
+       "rep": {
+        "utc": -12,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Flee into the jungle with Tide-Puck",
+    "requires": {
+     "pet_level": 1
+    },
+    "outcomes": [
+     {
+      "chance": 0.8,
+      "text": "Tide-Puck sniffs a hidden trail into the canopy.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 5,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Hounds and torchlight find your camp by midday.",
+      "effects": {
+       "items": {},
+       "hp": -6,
+       "morale": -7,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Alexander Selkirk hid from Spanish ships on Juan Fernández, fearing enslavement, until English sails appeared."
+ },
+ {
+  "id": "wild_010",
+  "category": "wildlife",
+  "title": "The Debt Repaid",
+  "zones": [
+   "beach"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.0,
+   "min_day": 7,
+   "camp_level": 3,
+   "needs_item": null,
+   "weather": "any"
+  },
+  "weight": 8,
+  "cooldown_s": 86400,
+  "intro_lines": [
+   "A canoe beaches itself at your camp.",
+   "The stranger steps out with four armed sailors."
+  ],
+  "choices": [
+   {
+    "label": "Hear them out",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "They are free pirates who drive off the patrol hunting you.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 4,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 5
+       },
+       "spawn": "free_pirates",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "They demand half your stores as payment for his rescue.",
+      "effects": {
+       "items": {
+        "food": -3
+       },
+       "hp": 0,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "free_pirates",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Drive them off at knifepoint",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "They laugh and sail away, leaving you to your enemies.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "A shot rings out and you dive behind the longhouse.",
+      "effects": {
+       "items": {},
+       "hp": -10,
+       "morale": -8,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "A second castaway reached Serrana Bank; after quarrelling with Serrano, the two reconciled and survived together."
+ },
+ {
+  "id": "wild_011",
+  "category": "wildlife",
+  "title": "The White Kid",
+  "zones": [
+   "cliff"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.1,
+   "min_day": 4,
+   "camp_level": 2,
+   "needs_item": null,
+   "weather": "any"
+  },
+  "weight": 5,
+  "cooldown_s": 86400,
+  "intro_lines": [
+   "A white kid stands alone on a narrow ledge.",
+   "The nanny watches from stone above."
+  ],
+  "choices": [
+   {
+    "label": "Rope the kid and lead it down",
+    "requires": {
+     "rope": 2
+    },
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "The kid follows, bleating; your camp gains a milk goat.",
+      "effects": {
+       "items": {
+        "rope": -2
+       },
+       "hp": 0,
+       "morale": 2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "The kid panics and leaps; the nanny rains stones.",
+      "effects": {
+       "items": {
+        "rope": -2
+       },
+       "hp": -10,
+       "morale": -4,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Climb up and befriend it with greens",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "You share wild cabbage and the kid nuzzles your hand.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.5,
+      "text": "The ledge crumbles under your boot and you slide.",
+      "effects": {
+       "items": {},
+       "hp": -12,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Alexander Selkirk ran down feral goats on foot and tamed kids for milk during four years alone."
  },
  {
   "id": "wild_012",

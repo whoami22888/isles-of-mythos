@@ -1451,6 +1451,276 @@
   "history_note": "Selkirk on Juan Fernández cut rotten timber for his huts and was nearly buried by a collapsing trunk (DNB)."
  },
  {
+  "id": "gath_013",
+  "category": "gathering",
+  "title": "Beehive in the log",
+  "zones": [
+   "jungle"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.18,
+   "min_day": 4,
+   "camp_level": 2,
+   "needs_item": null,
+   "weather": "any"
+  },
+  "weight": 6,
+  "cooldown_s": 3000,
+  "intro_lines": [
+   "A hollow log by the stream hums low.",
+   "Bees have moved in.",
+   "The wax and honey are worth more than the wood."
+  ],
+  "choices": [
+   {
+    "label": "Smoke them out, take the honey",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.4,
+      "text": "The swarm boils out, stinging your arms. You grab a honeycomb and run.",
+      "effects": {
+       "items": {
+        "food": 3
+       },
+       "hp": -8,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 3,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "You get the comb but a few bees follow you home.",
+      "effects": {
+       "items": {
+        "food": 2
+       },
+       "hp": -5,
+       "morale": 0,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 2,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "The hive collapses and the honey smears in the mud.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Break the log for timber",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "The log splits clean. You lose the wax, keep the wood.",
+      "effects": {
+       "items": {
+        "wood": 5
+       },
+       "hp": 0,
+       "morale": 0,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Angry bees pour out and chase you into the stream.",
+      "effects": {
+       "items": {
+        "wood": 2
+       },
+       "hp": -10,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Wild bee colonies in tropical hollows yield comb and wax; smoking them out is the only safe harvest (survival manuals)."
+ },
+ {
+  "id": "gath_014",
+  "category": "gathering",
+  "title": "Manchineel in the grove",
+  "zones": [
+   "beach"
+  ],
+  "trigger": {
+   "type": "location",
+   "chance": 0.9,
+   "min_day": 1,
+   "camp_level": 1,
+   "needs_item": "coconut",
+   "weather": "any"
+  },
+  "weight": 8,
+  "cooldown_s": 1800,
+  "intro_lines": [
+   "The grove has a mean tree: pale bark.",
+   "It is a manchineel.",
+   "Every part of it burns."
+  ],
+  "choices": [
+   {
+    "label": "Pick a coconut anyway",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "You knock a nut free. Sap drips on your forearm; the skin blisters red.",
+      "effects": {
+       "items": {
+        "coconut": 2
+       },
+       "hp": -8,
+       "morale": 0,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "You swallow a mouth of juice going down. Your throat swells.",
+      "effects": {
+       "items": {
+        "coconut": 1
+       },
+       "hp": -20,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "A green apple drops and bursts on your foot, raising welts.",
+      "effects": {
+       "items": {},
+       "hp": -10,
+       "morale": 0,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Use a long stick to pull nuts clear",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "You rake three coconuts clear of the burning tree. Safe.",
+      "effects": {
+       "items": {
+        "coconut": 3
+       },
+       "hp": 0,
+       "morale": 3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 2,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "The branch snaps and you fall into the undergrowth.",
+      "effects": {
+       "items": {},
+       "hp": -8,
+       "morale": 0,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "The manchineel's sap causes phorbol-induced blistering; even rain dripping from its leaves burns skin (ACEP)."
+ },
+ {
   "id": "gath_015",
   "category": "gathering",
   "title": "The beds are picked bare",
@@ -2409,6 +2679,141 @@
    }
   ],
   "history_note": "Tromelin's castaways built their escape boat entirely from storm-washed wreck timbers (Archaeology Mag 2014)."
+ },
+ {
+  "id": "gath_021",
+  "category": "gathering",
+  "title": "Booby nests on the cliff",
+  "zones": [
+   "cliff"
+  ],
+  "trigger": {
+   "type": "action",
+   "chance": 0.8,
+   "min_day": 4,
+   "camp_level": 3,
+   "needs_item": "rope",
+   "weather": "clear"
+  },
+  "weight": 7,
+  "cooldown_s": 3000,
+  "intro_lines": [
+   "The booby nests cling to the cliff.",
+   "One wrong hold and the fall ends you."
+  ],
+  "choices": [
+   {
+    "label": "Rappel and take the eggs",
+    "requires": {
+     "rope": 1
+    },
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "You descend, fill your sling with six eggs. Climb back up.",
+      "effects": {
+       "items": {
+        "food": 3
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 3,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "A loose hold sends you swinging. You cut free and land in the tide.",
+      "effects": {
+       "items": {
+        "food": 1
+       },
+       "hp": -15,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "An adult booby stabs your hand with its bill.",
+      "effects": {
+       "items": {},
+       "hp": -10,
+       "morale": 0,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Scavenge the fallen nests below",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "Three broken eggs lie in the scree. Enough for a meal.",
+      "effects": {
+       "items": {
+        "food": 2
+       },
+       "hp": 0,
+       "morale": 2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "A sea krait slides over the rocks near your feet.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "snake",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Tromelin's castaways ate sooty tern eggs by the tens of thousands from cliff and ledge colonies (INRAP)."
  },
  {
   "id": "gath_022",

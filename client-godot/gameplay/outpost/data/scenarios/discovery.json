@@ -1,6 +1,2922 @@
 [
  {
+  "id": "disc_001",
+  "category": "discovery",
+  "title": "The Tarred Hold",
+  "zones": [
+   "reef",
+   "sea"
+  ],
+  "trigger": {
+   "type": "location",
+   "chance": 0.35,
+   "min_day": 3,
+   "camp_level": 1,
+   "needs_item": null,
+   "weather": "clear"
+  },
+  "weight": 7,
+  "cooldown_s": 7200,
+  "intro_lines": [
+   "A UTC tender lies keel-up on the reef shelf.",
+   "Its hold is sealed with tar and chain.",
+   "Tide-Puck whines at the dark water."
+  ],
+  "choices": [
+   {
+    "label": "Dive the hold before the tide turns",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.55,
+      "text": "You pry a crate free: hard tack, dry powder, good scrap.",
+      "effects": {
+       "items": {
+        "food": 3,
+        "powder": 2,
+        "scrap": 2
+       },
+       "hp": -6,
+       "morale": 2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.25,
+      "text": "A moray lunges from the hold. You surface bleeding.",
+      "effects": {
+       "items": {
+        "food": 1
+       },
+       "hp": -14,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "eel",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "The chain gives and the hold floods. You lose the crate.",
+      "effects": {
+       "items": {},
+       "hp": -8,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Send Tide-Puck to scent the hold",
+    "requires": {
+     "pet_level": 2
+    },
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Puck paws at a crate of UTC crystal shards. You take them.",
+      "effects": {
+       "items": {
+        "relic_shard": 2,
+        "scrap": 2
+       },
+       "hp": 0,
+       "morale": 2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 12,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Puck recoils, hackles up. You leave the hold alone.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 8,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "A UTC patrol boat rounds the headland. You swim for rock.",
+      "effects": {
+       "items": {},
+       "hp": -6,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Mark it and sell the bearings at a haven",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "A fence pays for the coordinates and asks nothing.",
+      "effects": {
+       "items": {
+        "gold": 18
+       },
+       "hp": 0,
+       "morale": 1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 2
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "The buyer is UTC. He takes the bearings and your knife.",
+      "effects": {
+       "items": {
+        "scrap": -1
+       },
+       "hp": 0,
+       "morale": -2,
+       "rep": {
+        "utc": 3,
+        "tideborn": 0,
+        "free": -4
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Word spreads that you found a hold and lost it.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -4,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -2
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Careening crews heeled ships on tidal beaches to scrape and tar hulls, and castaways salvaged wreck timber, lead and iron for reuse, as Tromelin's survivors did with salvaged lead basins."
+ },
+ {
+  "id": "disc_002",
+  "category": "discovery",
+  "title": "Two Huts and a Goatskin Coat",
+  "zones": [
+   "cliff",
+   "isle"
+  ],
+  "trigger": {
+   "type": "location",
+   "chance": 0.3,
+   "min_day": 5,
+   "camp_level": 2,
+   "needs_item": null,
+   "weather": "fog"
+  },
+  "weight": 6,
+  "cooldown_s": 5400,
+  "intro_lines": [
+   "Two huts of stone and sailcloth, roofless now.",
+   "A goatskin coat hangs on a peg, stiff with salt.",
+   "Something scratched tallies into the doorpost."
+  ],
+  "choices": [
+   {
+    "label": "Read the tally marks and the journal",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.65,
+      "text": "The journal names a freshwater seep and a goat run. You copy it.",
+      "effects": {
+       "items": {
+        "map_fragment": 1,
+        "fresh_water": 1
+       },
+       "hp": 0,
+       "morale": 2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "The pages crumble. You save only a scrap of the chart.",
+      "effects": {
+       "items": {
+        "map_fragment": 1
+       },
+       "hp": 0,
+       "morale": -1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.15,
+      "text": "You disturb a nest of centipedes in the bedding.",
+      "effects": {
+       "items": {},
+       "hp": -9,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Take the goatskin coat and the knife",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "The coat is rank but warm. The knife still holds an edge.",
+      "effects": {
+       "items": {
+        "hide": 2,
+        "scrap": 1
+       },
+       "hp": 0,
+       "morale": 1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.25,
+      "text": "The coat tears apart in your hands, rotten at the seams.",
+      "effects": {
+       "items": {
+        "hide": 1
+       },
+       "hp": 0,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.15,
+      "text": "A rusted blade hidden in the sleeve opens your wrist.",
+      "effects": {
+       "items": {
+        "scrap": 1
+       },
+       "hp": -7,
+       "morale": -1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Dig beneath the sleeping hut",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "A turtle shell of rainwater, still sealed with wax.",
+      "effects": {
+       "items": {
+        "fresh_water": 3,
+        "shell": 1
+       },
+       "hp": 0,
+       "morale": 2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Only roots and rat bones. The cache was emptied long ago.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "The pit collapses on your arm. You wrench it free.",
+      "effects": {
+       "items": {},
+       "hp": -8,
+       "morale": -1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Alexander Selkirk survived Juan Fernandez alone for four years and four months in goatskin clothes, taming feral cats and kid goats and keeping two huts, one to sleep in and one to cook."
+ },
+ {
+  "id": "disc_003",
+  "category": "discovery",
+  "title": "The Cache Behind the Waterfall",
+  "zones": [
+   "cave",
+   "jungle"
+  ],
+  "trigger": {
+   "type": "action",
+   "chance": 0.25,
+   "min_day": 6,
+   "camp_level": 3,
+   "needs_item": null,
+   "weather": "any"
+  },
+  "weight": 7,
+  "cooldown_s": 7200,
+  "intro_lines": [
+   "Behind the waterfall, a dry shelf of black rock.",
+   "A chest of tarred hides, bound with green chain.",
+   "Tide-Puck sneezes at the mildew."
+  ],
+  "choices": [
+   {
+    "label": "Break the chain with iron and stone",
+    "requires": {
+     "iron": 2
+    },
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Inside: powder, coin and a pistol wrapped in oilcloth.",
+      "effects": {
+       "items": {
+        "powder": 3,
+        "gold": 12,
+        "scrap": 2
+       },
+       "hp": 0,
+       "morale": 2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 1
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.25,
+      "text": "A decoy. The real cache lies under the flagstones.",
+      "effects": {
+       "items": {
+        "gold": 6,
+        "relic_shard": 1
+       },
+       "hp": 0,
+       "morale": 2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 3,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.15,
+      "text": "The powder is damp, but the flask still burns your hands.",
+      "effects": {
+       "items": {
+        "powder": 1
+       },
+       "hp": -10,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Pry the lid with a knife and patience",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Coin, a chart, and a captain's written articles.",
+      "effects": {
+       "items": {
+        "gold": 10,
+        "map_fragment": 1
+       },
+       "hp": 0,
+       "morale": 1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 2
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "The lid splinters. You salvage only loose coin.",
+      "effects": {
+       "items": {
+        "gold": 4
+       },
+       "hp": 0,
+       "morale": -1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "A spring trap snaps at your fingers.",
+      "effects": {
+       "items": {
+        "gold": 2
+       },
+       "hp": -12,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Leave it sealed and mark the cave",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.55,
+      "text": "You notch the rock and keep the place for a leaner season.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 4,
+       "unlock": "waterfall_cache",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.25,
+      "text": "Someone came before you. The mark is already cut.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "free_pirates",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "You trip on the chain and gash your shin on rock.",
+      "effects": {
+       "items": {},
+       "hp": -6,
+       "morale": -1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "At Ile Sainte-Marie from 1690 Adam Baldridge traded cattle to careening crews for guns, powder and iron, and pirates scuttled ships to block the harbour mouth."
+ },
+ {
   "id": "disc_004",
+  "category": "discovery",
+  "title": "The Bottle in the Wrack",
+  "zones": [
+   "beach"
+  ],
+  "trigger": {
+   "type": "time",
+   "chance": 0.3,
+   "min_day": 4,
+   "camp_level": 1,
+   "needs_item": null,
+   "weather": "storm"
+  },
+  "weight": 5,
+  "cooldown_s": 9000,
+  "intro_lines": [
+   "A green glass bottle rolls in with the weed.",
+   "Wax seal, a sailor's knot, a folded chart.",
+   "The ink has run, but the soundings hold."
+  ],
+  "choices": [
+   {
+    "label": "Follow the chart at first light",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.75,
+      "text": "It points to a sea cave that opens only at low tide.",
+      "effects": {
+       "items": {
+        "map_fragment": 1
+       },
+       "hp": 0,
+       "morale": 2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": "disc_005"
+      }
+     },
+     {
+      "chance": 0.25,
+      "text": "You misread the run of the soundings and lose a day.",
+      "effects": {
+       "items": {},
+       "hp": -5,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": "disc_005"
+      }
+     }
+    ]
+   },
+   {
+    "label": "Sell the chart to a passing crew",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "A turtling crew pays in coin and a jar of water.",
+      "effects": {
+       "items": {
+        "gold": 8,
+        "fresh_water": 2
+       },
+       "hp": 0,
+       "morale": 1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 1
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "They laugh, take the chart, and leave you the bottle.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -1
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "The crew is UTC. They note your face and your camp.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -2,
+       "rep": {
+        "utc": 3,
+        "tideborn": 0,
+        "free": -3
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Copy it, then burn the original",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "You keep your copy and the bottle's wax for sealing.",
+      "effects": {
+       "items": {
+        "map_fragment": 1
+       },
+       "hp": 0,
+       "morale": 1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 3,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "The chart burns faster than you meant. Only half survives.",
+      "effects": {
+       "items": {
+        "map_fragment": 1
+       },
+       "hp": 0,
+       "morale": -1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Castaways carved tallies and kept journals to hold their minds together, and Selkirk read aloud from the Bible to keep his speech."
+ },
+ {
+  "id": "disc_005",
+  "category": "discovery",
+  "title": "The Cave That Breathes",
+  "zones": [
+   "cave",
+   "reef"
+  ],
+  "trigger": {
+   "type": "location",
+   "chance": 0.0,
+   "min_day": 4,
+   "camp_level": 1,
+   "needs_item": null,
+   "weather": "clear"
+  },
+  "weight": 4,
+  "cooldown_s": 0,
+  "intro_lines": [
+   "The sea cave breathes: in with the swell, out again.",
+   "A ledge of dry crates above the waterline.",
+   "UTC marks stencilled on every lid."
+  ],
+  "choices": [
+   {
+    "label": "Crack a crate and take the manifest",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "A ledger lists crystal crates and the buyer's name.",
+      "effects": {
+       "items": {
+        "relic_shard": 1,
+        "scrap": 2
+       },
+       "hp": 0,
+       "morale": 2,
+       "rep": {
+        "utc": -2,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "utc_manifest",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.25,
+      "text": "The crate holds chain and shackles, not cargo.",
+      "effects": {
+       "items": {
+        "iron": 2
+       },
+       "hp": 0,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.15,
+      "text": "A swell lifts you into the rock. The manifest is lost.",
+      "effects": {
+       "items": {},
+       "hp": -10,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Wait in the dark for whoever owns this",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Boots on stone. A lone figure enters, unarmed.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 5,
+       "unlock": null,
+       "next_event": "disc_006"
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Two voices, arguing in Tideborn. You slip out unseen.",
+      "effects": {
+       "items": {
+        "relic_shard": 1
+       },
+       "hp": 0,
+       "morale": 1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 2,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "A lantern sweeps the ledge. You hold your breath an hour.",
+      "effects": {
+       "items": {},
+       "hp": -4,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Roll a tar barrel into the channel",
+    "requires": {
+     "rope": 1
+    },
+    "outcomes": [
+     {
+      "chance": 0.55,
+      "text": "It sinks in the channel and draws eyes. You take the small crates.",
+      "effects": {
+       "items": {
+        "tar": 3,
+        "wood": 4
+       },
+       "hp": 0,
+       "morale": 2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.25,
+      "text": "The barrel lodges and bobs. You abandon it and swim.",
+      "effects": {
+       "items": {
+        "wood": 2
+       },
+       "hp": -6,
+       "morale": -1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "The noise carries. A horn sounds somewhere above.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Captured masters were pressed into service to identify the richest prizes, and prize cargoes were recorded in ledgers before division."
+ },
+ {
+  "id": "disc_006",
+  "category": "discovery",
+  "title": "The Scribe in Grey Rags",
+  "zones": [
+   "cave",
+   "cliff"
+  ],
+  "trigger": {
+   "type": "location",
+   "chance": 0.0,
+   "min_day": 5,
+   "camp_level": 1,
+   "needs_item": null,
+   "weather": "night"
+  },
+  "weight": 4,
+  "cooldown_s": 0,
+  "intro_lines": [
+   "She wears UTC grey cut down to rags.",
+   "Tideborn ink on her wrists, half-scrubbed.",
+   "She sets down a knife, blade toward herself."
+  ],
+  "choices": [
+   {
+    "label": "Share your water and hear her out",
+    "requires": {
+     "fresh_water": 1
+    },
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "She was the ledger's scribe. She names the crystal buyer.",
+      "effects": {
+       "items": {
+        "relic_shard": 2
+       },
+       "hp": 0,
+       "morale": 2,
+       "rep": {
+        "utc": -5,
+        "tideborn": 4,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 8,
+       "unlock": "buyer_name",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.25,
+      "text": "She drinks, then asks the way to your camp.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -2,
+       "rep": {
+        "utc": 2,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.15,
+      "text": "The water was drugged. You wake stripped of your haul.",
+      "effects": {
+       "items": {
+        "relic_shard": -1
+       },
+       "hp": -12,
+       "morale": -4,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Take her knife and tie her down",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.55,
+      "text": "She talks fast: crystals, a buyer, a rendezvous.",
+      "effects": {
+       "items": {
+        "scrap": 2
+       },
+       "hp": 0,
+       "morale": 1,
+       "rep": {
+        "utc": -3,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "buyer_name",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "She twists free and puts the blade in your shoulder.",
+      "effects": {
+       "items": {},
+       "hp": -15,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "tideborn_scout",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.15,
+      "text": "You cannot do it. She spits, names you coward, and is gone.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 1,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Kill her and take the ledger",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "It is quick. The ledger is yours, and so is the weight of it.",
+      "effects": {
+       "items": {
+        "relic_shard": 3,
+        "gold": 10
+       },
+       "hp": 0,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": -8,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "buyer_name",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "She is faster than she looks and marks your arm badly.",
+      "effects": {
+       "items": {},
+       "hp": -18,
+       "morale": -4,
+       "rep": {
+        "utc": 0,
+        "tideborn": -4,
+        "free": 0
+       },
+       "spawn": "tideborn_scout",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Her scout whistle brings answers from the cliff top.",
+      "effects": {
+       "items": {},
+       "hp": -8,
+       "morale": -4,
+       "rep": {
+        "utc": 0,
+        "tideborn": -3,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Walk away and let her keep the cave",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.65,
+      "text": "You leave her the crates. She calls a warning after you.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 3,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 6,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.35,
+      "text": "Halfway down the cliff you hear the crates being broken open.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Archaeologists at Tromelin found tools carefully stored and repaired, signs the castaways planned for a long stay."
+ },
+ {
+  "id": "disc_007",
+  "category": "discovery",
+  "title": "The Arch That Wakes in Rain",
+  "zones": [
+   "jungle",
+   "cave",
+   "isle"
+  ],
+  "trigger": {
+   "type": "location",
+   "chance": 0.3,
+   "min_day": 8,
+   "camp_level": 4,
+   "needs_item": null,
+   "weather": "rain"
+  },
+  "weight": 6,
+  "cooldown_s": 10800,
+  "intro_lines": [
+   "An arch of black coral, half-swallowed by figs.",
+   "The carvings only show when the stone is wet.",
+   "Something watches from the fern line."
+  ],
+  "choices": [
+   {
+    "label": "Trace the wet inscriptions",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.55,
+      "text": "The marks warm and answer: a path, a warning, a name.",
+      "effects": {
+       "items": {
+        "relic_shard": 2
+       },
+       "hp": 0,
+       "morale": 2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 4,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": "arch_reading",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.25,
+      "text": "The stone cuts you and the faint light dies.",
+      "effects": {
+       "items": {},
+       "hp": -9,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 1,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "A scout steps from the ferns, spear low, and studies your hands.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 2,
+        "free": 0
+       },
+       "spawn": "tideborn_scout",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Copy the carvings onto sailcloth",
+    "requires": {
+     "sailcloth": 1
+    },
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Charcoal and cloth: a rubbing worth more than coin.",
+      "effects": {
+       "items": {
+        "map_fragment": 1,
+        "relic_shard": 1
+       },
+       "hp": 0,
+       "morale": 2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 1,
+        "free": 1
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.25,
+      "text": "The rain smears it all to grey pulp.",
+      "effects": {
+       "items": {
+        "sailcloth": -1
+       },
+       "hp": 0,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.15,
+      "text": "The scout takes the cloth and leaves you the charcoal.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 1,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Leave an offering at the arch foot",
+    "requires": {
+     "pearl": 1
+    },
+    "outcomes": [
+     {
+      "chance": 0.65,
+      "text": "The pearl is taken. A hand-shaped mark is left in thanks.",
+      "effects": {
+       "items": {
+        "relic_shard": 1
+       },
+       "hp": 0,
+       "morale": 3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 6,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 5,
+       "unlock": "tideborn_favour",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Nothing comes. The pearl sits there, mocking you.",
+      "effects": {
+       "items": {
+        "pearl": -1
+       },
+       "hp": 0,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": -1,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.15,
+      "text": "Coconut crabs drag the pearl into the dark.",
+      "effects": {
+       "items": {
+        "pearl": -1
+       },
+       "hp": 0,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "crab",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Break off a carved stone and run",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.45,
+      "text": "The stone is heavy and faintly humming. You get clear.",
+      "effects": {
+       "items": {
+        "stone": 3,
+        "relic_shard": 2
+       },
+       "hp": 0,
+       "morale": 1,
+       "rep": {
+        "utc": 0,
+        "tideborn": -5,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "The arch groans and falling coral breaks your shoulder.",
+      "effects": {
+       "items": {
+        "stone": 1
+       },
+       "hp": -16,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": -4,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.25,
+      "text": "The scout is faster. You drop the stone and flee.",
+      "effects": {
+       "items": {},
+       "hp": -6,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": -2,
+        "free": 0
+       },
+       "spawn": "tideborn_scout",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Tromelin's castaways built walls 1.5 m thick from coral and beachrock with their backs to the trade wind, and such masonry outlasts the builders."
+ },
+ {
+  "id": "disc_008",
+  "category": "discovery",
+  "title": "The Careening That Never Finished",
+  "zones": [
+   "beach",
+   "isle"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.25,
+   "min_day": 5,
+   "camp_level": 2,
+   "needs_item": null,
+   "weather": "clear"
+  },
+  "weight": 6,
+  "cooldown_s": 7200,
+  "intro_lines": [
+   "A hull lies heeled on the slope, ribs to the sky.",
+   "Tar pots, a dead fire, a battery of spiked guns.",
+   "The teredo worm has done its work."
+  ],
+  "choices": [
+   {
+    "label": "Strip the hull for timber and iron",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Good oak ribs, iron bolts, and a pot of tar still soft.",
+      "effects": {
+       "items": {
+        "wood": 5,
+        "iron": 3,
+        "tar": 2
+       },
+       "hp": 0,
+       "morale": 1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 1
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.25,
+      "text": "The hull shifts on the slope. You jump clear, barely.",
+      "effects": {
+       "items": {
+        "wood": 3
+       },
+       "hp": -7,
+       "morale": -1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.15,
+      "text": "The crew's ghosts are only crabs. One takes your thumb.",
+      "effects": {
+       "items": {
+        "crab_meat": 1
+       },
+       "hp": -8,
+       "morale": -1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 1
+       },
+       "spawn": "crab",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Fire the beach battery at a passing sail",
+    "requires": {
+     "powder": 2
+    },
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "The shot falls short, but the sail changes course away.",
+      "effects": {
+       "items": {
+        "scrap": 1
+       },
+       "hp": 0,
+       "morale": 2,
+       "rep": {
+        "utc": -2,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "A gun bursts its breech. Splinters open your cheek.",
+      "effects": {
+       "items": {
+        "iron": 2
+       },
+       "hp": -13,
+       "morale": -1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "The sail answers with a ranging shot. You scatter.",
+      "effects": {
+       "items": {},
+       "hp": -4,
+       "morale": -2,
+       "rep": {
+        "utc": -1,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Search the tents and the dead fire",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.55,
+      "text": "Written articles, a tally stick, and rum still sealed.",
+      "effects": {
+       "items": {
+        "rum": 2,
+        "map_fragment": 1
+       },
+       "hp": 0,
+       "morale": 2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 2
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "articles_copy",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.25,
+      "text": "Rats have been here. Only bone and wet powder.",
+      "effects": {
+       "items": {
+        "powder": 1
+       },
+       "hp": 0,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "A boar has claimed the camp and charges from the tent.",
+      "effects": {
+       "items": {},
+       "hp": -11,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "boar",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Pirate crews careened on sloping beaches at high tide, landed their guns in a beach battery, and were defenceless while the hull was scraped."
+ },
+ {
+  "id": "disc_009",
+  "category": "discovery",
+  "title": "Red Hands, Cold Water",
+  "zones": [
+   "cave"
+  ],
+  "trigger": {
+   "type": "action",
+   "chance": 0.2,
+   "min_day": 6,
+   "camp_level": 3,
+   "needs_item": null,
+   "weather": "heat"
+  },
+  "weight": 5,
+  "cooldown_s": 7200,
+  "intro_lines": [
+   "Cold air breathes from a crack in the cliff.",
+   "Hand stencils in red ochre, older than the trees.",
+   "A seep of water darkens the far wall."
+  ],
+  "choices": [
+   {
+    "label": "Dig out the seep behind the dune line",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Brackish, then sweet: a freshwater lens, thin but true.",
+      "effects": {
+       "items": {
+        "fresh_water": 3
+       },
+       "hp": 0,
+       "morale": 3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "cave_well",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.25,
+      "text": "The hole fills with sand and salt water.",
+      "effects": {
+       "items": {},
+       "hp": -4,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.15,
+      "text": "The roof shifts. Grit and stone come down on you.",
+      "effects": {
+       "items": {},
+       "hp": -12,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Study the paintings by torchlight",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.55,
+      "text": "Boats, a serpent of lights, a hand holding a shard.",
+      "effects": {
+       "items": {
+        "relic_shard": 1
+       },
+       "hp": 0,
+       "morale": 2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 1,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 6,
+       "unlock": "leviathan_wall",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.25,
+      "text": "Your smoke blackens the ochre. You have ruined it.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -4,
+       "rep": {
+        "utc": 0,
+        "tideborn": -1,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Bats burst from the roof and beat out your torch.",
+      "effects": {
+       "items": {},
+       "hp": -5,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Camp in the mouth and rest out the heat",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.65,
+      "text": "Shade, cool air, sleep without sun. You wake clear-headed.",
+      "effects": {
+       "items": {},
+       "hp": 8,
+       "morale": 3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Centipedes in the bedding. Your arm swells hot.",
+      "effects": {
+       "items": {},
+       "hp": -10,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.15,
+      "text": "You wake to a crab dragging off your rations.",
+      "effects": {
+       "items": {
+        "food": -2
+       },
+       "hp": 0,
+       "morale": -1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "crab",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Castaways found brackish water by digging behind the dune line and caught rain in shells and salvaged basins, as Serrano did with his shells."
+ },
+ {
+  "id": "disc_010",
+  "category": "discovery",
+  "title": "What the Boobies Stole",
+  "zones": [
+   "cliff",
+   "reef"
+  ],
+  "trigger": {
+   "type": "location",
+   "chance": 0.25,
+   "min_day": 4,
+   "camp_level": 1,
+   "needs_item": null,
+   "weather": "clear"
+  },
+  "weight": 6,
+  "cooldown_s": 6000,
+  "intro_lines": [
+   "A booby nest of stolen rope and fish bones.",
+   "Under it: a tarred coat and a brass chart case.",
+   "The owner is a skeleton on the rocks below."
+  ],
+  "choices": [
+   {
+    "label": "Climb down for the chart case",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.55,
+      "text": "A fragment: soundings, a marked cay, a date.",
+      "effects": {
+       "items": {
+        "map_fragment": 1,
+        "scrap": 1
+       },
+       "hp": 0,
+       "morale": 1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.25,
+      "text": "The rock gives. You slide the last two fathoms.",
+      "effects": {
+       "items": {
+        "map_fragment": 1
+       },
+       "hp": -14,
+       "morale": -1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "The case holds only sand and a dead beetle.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Take the eggs and leave the dead man be",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Three eggs, warm, and a nest of dry fibre for tinder.",
+      "effects": {
+       "items": {
+        "food": 2,
+        "fibre": 2
+       },
+       "hp": 0,
+       "morale": 1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.25,
+      "text": "The colony rises screaming and strikes your head.",
+      "effects": {
+       "items": {
+        "food": 1
+       },
+       "hp": -8,
+       "morale": -1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "gull",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.15,
+      "text": "The eggs are addled and stink. You gag and drop them.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Bury the sailor and read his coat",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Stitched in the lining: a name, a ship, a share of a prize.",
+      "effects": {
+       "items": {
+        "map_fragment": 1,
+        "gold": 5
+       },
+       "hp": 0,
+       "morale": 2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 2
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.25,
+      "text": "The coat crumbles. You bury him with a shell for a marker.",
+      "effects": {
+       "items": {
+        "shell": 1
+       },
+       "hp": 0,
+       "morale": 1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 1
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.15,
+      "text": "A knife in the lining opens your palm to the bone.",
+      "effects": {
+       "items": {
+        "scrap": 1
+       },
+       "hp": -6,
+       "morale": -1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Seabird colonies on tropical cays supplied eggs and meat to castaways, and nests were lined with whatever fibre and salvage the birds could steal."
+ },
+ {
+  "id": "disc_011",
+  "category": "discovery",
+  "title": "The Neighbour Who Left in a Hurry",
+  "zones": [
+   "outpost",
+   "beach"
+  ],
+  "trigger": {
+   "type": "time",
+   "chance": 0.2,
+   "min_day": 7,
+   "camp_level": 5,
+   "needs_item": null,
+   "weather": "night"
+  },
+  "weight": 5,
+  "cooldown_s": 14400,
+  "intro_lines": [
+   "A neighbour's outpost, gate open, fire gone to ash.",
+   "Pallets split, water butt tipped out.",
+   "Someone left in a hurry, or was taken."
+  ],
+  "choices": [
+   {
+    "label": "Search the wreck of the camp",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.55,
+      "text": "Stores the raiders missed: rope, tar, a sealed keg.",
+      "effects": {
+       "items": {
+        "rope": 3,
+        "tar": 2,
+        "rum": 1
+       },
+       "hp": 0,
+       "morale": 1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.25,
+      "text": "A trip-line snaps and a spiked plank takes your calf.",
+      "effects": {
+       "items": {},
+       "hp": -12,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "The owner returns with friends and does not believe you.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -3
+       },
+       "spawn": "free_pirates",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Mend the gate and leave water",
+    "requires": {
+     "fresh_water": 1
+    },
+    "outcomes": [
+     {
+      "chance": 0.65,
+      "text": "You fix the hinge and leave a full shell. Word will travel.",
+      "effects": {
+       "items": {
+        "wood": -1
+       },
+       "hp": 0,
+       "morale": 3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 5
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "The owner's dog is still here, half-starved, and bites.",
+      "effects": {
+       "items": {},
+       "hp": -7,
+       "morale": -1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 1
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.15,
+      "text": "You work too long. A UTC patrol crests the ridge.",
+      "effects": {
+       "items": {},
+       "hp": -5,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Salvage the palisade and go",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Good stakes and rope, taken in the dark.",
+      "effects": {
+       "items": {
+        "wood": 4,
+        "rope": 2
+       },
+       "hp": 0,
+       "morale": -1,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -1
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.25,
+      "text": "A bell-wire runs to a powder charge. You cut it in time.",
+      "effects": {
+       "items": {
+        "scrap": 1
+       },
+       "hp": -6,
+       "morale": -2,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -1
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.15,
+      "text": "The owner's lookout saw you. A horn sounds inland.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -4
+       },
+       "spawn": "free_pirates",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Archaeologists at Tromelin found tools carefully stored and repaired, signs the castaways planned for a long stay."
+ },
+ {
+  "id": "disc_012",
+  "category": "discovery",
+  "title": "Powder Cache in the Dunes",
+  "zones": [
+   "beach",
+   "jungle"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.08,
+   "min_day": 5,
+   "camp_level": 2,
+   "needs_item": null,
+   "weather": "clear"
+  },
+  "weight": 6,
+  "cooldown_s": 86400,
+  "intro_lines": [
+   "Tide-Puck digs frantically at a sand ridge.",
+   "A rusted flintlock mechanism protrudes from the lid."
+  ],
+  "choices": [
+   {
+    "label": "Disarm the trigger carefully",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.55,
+      "text": "The catch releases cleanly. Twenty pounds of dry powder and a bag of shot are yours.",
+      "effects": {
+       "items": {
+        "powder": 20,
+        "scrap": 5
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "A spring snaps. Flash-burn sears your hands, but the powder survives.",
+      "effects": {
+       "items": {
+        "powder": 20
+       },
+       "hp": -15,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 5,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.15,
+      "text": "The barrel detonates. Shrapnel tears your side; powder lost to the wind.",
+      "effects": {
+       "items": {},
+       "hp": -35,
+       "morale": -15,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Smash it open from a distance",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "A rock from twenty paces splits the stave. Half the powder dampens in sand.",
+      "effects": {
+       "items": {
+        "powder": 10
+       },
+       "hp": 0,
+       "morale": 0,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 5,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Impact fires the trap. Blast hurls sand and splinters; you keep your fingers.",
+      "effects": {
+       "items": {
+        "powder": 5
+       },
+       "hp": -10,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Pirates cached powder in sealed barrels on careening beaches; Selkirk found Spanish stores on Juan Fernández but dared not touch unfamiliar mechanisms."
+ },
+ {
+  "id": "disc_013",
+  "category": "discovery",
+  "title": "The Drowning Grotto",
+  "zones": [
+   "cave",
+   "reef"
+  ],
+  "trigger": {
+   "type": "time",
+   "chance": 0.12,
+   "min_day": 10,
+   "camp_level": 3,
+   "needs_item": "rope",
+   "weather": "any"
+  },
+  "weight": 7,
+  "cooldown_s": 172800,
+  "intro_lines": [
+   "A sea cave yawns at low tide.",
+   "Water already laps the entrance."
+  ],
+  "choices": [
+   {
+    "label": "Swim deep for the relic glint",
+    "requires": {
+     "pet_level": 2
+    },
+    "outcomes": [
+     {
+      "chance": 0.4,
+      "text": "Tide-Puck herds you through a chimney to an air pocket. A Tideborn idol rests on a ledge.",
+      "effects": {
+       "items": {
+        "relic_shard": 3,
+        "pearl": 1
+       },
+       "hp": -5,
+       "morale": 10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 5,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 30,
+       "unlock": "tideborn_shrine",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "Current slams you into barnacles. The relic slips deeper; you surface bleeding.",
+      "effects": {
+       "items": {},
+       "hp": -20,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "shark",
+       "pet_xp": 5,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Roof collapses behind you. Trapped in darkness until ebb — hours of cold terror.",
+      "effects": {
+       "items": {},
+       "hp": -15,
+       "morale": -20,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Anchor a line and probe the shallows",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Grappling hook snags a corroded chest. Salt-eaten charts and a silvered spyglass inside.",
+      "effects": {
+       "items": {
+        "map_fragment": 1,
+        "scrap": 3
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "Line parts on razor coral. Chest stays; you haul back only frayed fibres.",
+      "effects": {
+       "items": {
+        "rope": -1
+       },
+       "hp": -5,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Serrano on Serrana Bank dove for fire stones in flooded caves; Tromelin castaways timed reef crossings by the moon to avoid drowning."
+ },
+ {
+  "id": "disc_014",
+  "category": "discovery",
+  "title": "Collapsed Guano Mine",
+  "zones": [
+   "cliff",
+   "cave"
+  ],
+  "trigger": {
+   "type": "location",
+   "chance": 0.09,
+   "min_day": 15,
+   "camp_level": 4,
+   "needs_item": "iron",
+   "weather": "clear"
+  },
+  "weight": 5,
+  "cooldown_s": 259200,
+  "intro_lines": [
+   "Timbers groan beneath a cliff overhang — a guano mine.",
+   "A shaft yawns, blocked by a fall of coral rag and rusted"
+  ],
+  "choices": [
+   {
+    "label": "Clear the fall with pick and sweat",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Two days' labour opens a crawlspace. Crystalline nitrate crusts the walls — pure fertiliser and bomb-stuff.",
+      "effects": {
+       "items": {
+        "scrap": 10,
+        "powder": 15
+       },
+       "hp": -10,
+       "morale": 5,
+       "rep": {
+        "utc": -5,
+        "tideborn": 0,
+        "free": 5
+       },
+       "spawn": null,
+       "pet_xp": 20,
+       "unlock": "nitrate_source",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Secondary collapse pins your leg. Tide-Puck fetches help; you lose a day and the iron pick.",
+      "effects": {
+       "items": {
+        "iron": -1
+       },
+       "hp": -25,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 15,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Bad air — hydrogen sulphide. You stagger out vomiting, pick abandoned in the dark.",
+      "effects": {
+       "items": {
+        "iron": -1
+       },
+       "hp": -30,
+       "morale": -15,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Lower Tide-Puck to scout first",
+    "requires": {
+     "pet_level": 3
+    },
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "Companion returns with a chunk of nitrate and a warning: deeper shafts flooded, unstable.",
+      "effects": {
+       "items": {
+        "scrap": 5,
+        "powder": 5
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 25,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Puck doesn't return. Frantic digging finds him shaken but alive beside a nest of sea kraits.",
+      "effects": {
+       "items": {},
+       "hp": -5,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "snake",
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Guano mining on Pacific islands used convict labour; collapses and toxic gas killed many — Tromelin's castaways avoided the island's lone shaft for this reason."
+ },
+ {
+  "id": "disc_015",
   "category": "discovery",
   "title": "The Weeping Spring",
   "zones": [
@@ -185,7 +3101,147 @@
   "history_note": "Macaque troops raid camps for food and give alarm calls when predators approach."
  },
  {
-  "id": "disc_006",
+  "id": "disc_016",
+  "category": "discovery",
+  "title": "Careening Cove Hidden by Mangroves",
+  "zones": [
+   "beach",
+   "reef"
+  ],
+  "trigger": {
+   "type": "action",
+   "chance": 0.15,
+   "min_day": 20,
+   "camp_level": 5,
+   "needs_item": "sailcloth",
+   "weather": "clear"
+  },
+  "weight": 6,
+  "cooldown_s": 345600,
+  "intro_lines": [
+   "A narrow channel behind mangrove roots opens onto a sloping",
+   "Old tar pots and a shattered capstan lie half-buried.",
+   "Someone cared for hulls here."
+  ],
+  "choices": [
+   {
+    "label": "Careen your vessel now, tide permitting",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Tide lifts, you heel, scrape worm-tunnels clean, re-tar the bottom. Speed restored.",
+      "effects": {
+       "items": {
+        "tar": -1,
+        "scrap": 5
+       },
+       "hp": -5,
+       "morale": 15,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 10
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": "careening_cove",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.25,
+      "text": "Spring tide surges early. Ship slides off blocks, crushes a gunport. Costly repair.",
+      "effects": {
+       "items": {
+        "wood": -10,
+        "iron": -5
+       },
+       "hp": -10,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.15,
+      "text": "UTC cutter spots the mast tops. You cut anchor and run, hull half-scraped.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -15,
+       "rep": {
+        "utc": -10,
+        "tideborn": 0,
+        "free": 5
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Fortify the cove as a hidden base",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "Palisade and a concealed boom. Now you can careen, repair, and vanish in hours.",
+      "effects": {
+       "items": {
+        "wood": -20,
+        "rope": -5
+       },
+       "hp": 0,
+       "morale": 10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 15
+       },
+       "spawn": null,
+       "pet_xp": 15,
+       "unlock": "hidden_haven",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Free pirates find your work. They claim half the cove — or they'll burn it.",
+      "effects": {
+       "items": {
+        "wood": -10
+       },
+       "hp": 0,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -5
+       },
+       "spawn": "free_pirates",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Pirates chose island haunts for careening beaches — Sainte-Marie's bay held scuttled ships as barriers; teredo worm ate hulls in weeks without tarring."
+ },
+ {
+  "id": "disc_017",
   "category": "discovery",
   "title": "The Crow's Nest Ridge",
   "zones": [
@@ -369,7 +3425,146 @@
   "history_note": "Pirate lookouts on headlands gave hours of warning — Roberts at Tobago saw HMS Swallow's topsails and slipped away; Serrano's smoke signals were ignored by ships fearing shoals."
  },
  {
-  "id": "disc_009",
+  "id": "disc_018",
+  "category": "discovery",
+  "title": "Ruined Battery of the Old Company",
+  "zones": [
+   "cliff",
+   "beach"
+  ],
+  "trigger": {
+   "type": "location",
+   "chance": 0.08,
+   "min_day": 12,
+   "camp_level": 3,
+   "needs_item": "powder",
+   "weather": "fog"
+  },
+  "weight": 6,
+  "cooldown_s": 259200,
+  "intro_lines": [
+   "Fog clings to a stone embrasure.",
+   "Four carriage-guns point seaward, breeches spiked.",
+   "A powder magazine yawns behind, door rusted but sealed."
+  ],
+  "choices": [
+   {
+    "label": "Drill the spikes and remount the guns",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.55,
+      "text": "Iron drills bite. Two guns roar again — your cove now has teeth.",
+      "effects": {
+       "items": {
+        "iron": -2,
+        "scrap": 5
+       },
+       "hp": -5,
+       "morale": 15,
+       "rep": {
+        "utc": -5,
+        "tideborn": 0,
+        "free": 10
+       },
+       "spawn": null,
+       "pet_xp": 15,
+       "unlock": "battery_restored",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Drill snaps in a breech. One gun salvageable; the others stay spiked.",
+      "effects": {
+       "items": {
+        "iron": -1,
+        "scrap": 2
+       },
+       "hp": 0,
+       "morale": 0,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 5,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.15,
+      "text": "Spark hits residue. Magazine vents — concussion deafens you for days.",
+      "effects": {
+       "items": {},
+       "hp": -20,
+       "morale": -15,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Break the magazine seal for powder",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Keystone lifts. Barrels intact — forty pounds of serviceable grain powder.",
+      "effects": {
+       "items": {
+        "powder": 40
+       },
+       "hp": 0,
+       "morale": 10,
+       "rep": {
+        "utc": -5,
+        "tideborn": 0,
+        "free": 5
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "Damp ate the cakes. Crumbling dust — useless for guns, fair for blasting.",
+      "effects": {
+       "items": {
+        "powder": 10
+       },
+       "hp": 0,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Pirates landed guns in beach batteries while careening — Roberts at Ouidah; UTC forts on the Guinea coast mounted spiked guns to deny them to rivals."
+ },
+ {
+  "id": "disc_020",
   "category": "discovery",
   "title": "Midnight Mangrove Betrayal",
   "zones": [
@@ -487,7 +3682,7 @@
   "history_note": "Pirates were betrayed by recruits — Roberts' men deserted to the Navy; UTC used dark-binding crystals to turn Tideborn against each other."
  },
  {
-  "id": "disc_010",
+  "id": "disc_021",
   "category": "discovery",
   "title": "Midnight Mangrove Redemption",
   "zones": [
@@ -606,7 +3801,148 @@
   "history_note": "Ada Blackjack nursed a dying man alone; Selkirk's companionship with tamed goats and cats preserved his mind — mercy can forge alliances in isolation."
  },
  {
-  "id": "disc_012",
+  "id": "disc_022",
+  "category": "discovery",
+  "title": "Coconut Crab Midden",
+  "zones": [
+   "beach",
+   "jungle"
+  ],
+  "trigger": {
+   "type": "time",
+   "chance": 0.1,
+   "min_day": 4,
+   "camp_level": 1,
+   "needs_item": null,
+   "weather": "night"
+  },
+  "weight": 5,
+  "cooldown_s": 172800,
+  "intro_lines": [
+   "Moonlight reveals a carpet of claws clicking.",
+   "Their midden glints: stolen cutlery, a compass."
+  ],
+  "choices": [
+   {
+    "label": "Wade in with a net and sack",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Sack full of meat and the amulet. Claws shred your boots but the prize is worth it.",
+      "effects": {
+       "items": {
+        "crab_meat": 20,
+        "relic_shard": 1,
+        "rope": -1
+       },
+       "hp": -10,
+       "morale": 10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 5,
+        "free": 0
+       },
+       "spawn": "crab",
+       "pet_xp": 15,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "A giant male severs a tendon. You limp away with only meat.",
+      "effects": {
+       "items": {
+        "crab_meat": 15
+       },
+       "hp": -25,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "crab",
+       "pet_xp": 5,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Swarm overwhelms. You flee, sack lost, boots gone.",
+      "effects": {
+       "items": {},
+       "hp": -15,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "crab",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Bait a trap and wait till dawn",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "Dawn finds the trap heavy. Meat, a spyglass, and the amulet — no blood spilled.",
+      "effects": {
+       "items": {
+        "crab_meat": 15,
+        "scrap": 2,
+        "relic_shard": 1,
+        "fish": -1
+       },
+       "hp": 0,
+       "morale": 10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 5,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Monkeys raid the trap. You recover only scattered shell.",
+      "effects": {
+       "items": {
+        "fish": -1
+       },
+       "hp": 0,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "monkey",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Coconut crabs steal shiny objects and migrate en masse; Selkirk ate them on Juan Fernández; Tromelin castaways gathered reef crustaceans by torchlight."
+ },
+ {
+  "id": "disc_023",
   "category": "discovery",
   "title": "Hollow Camp",
   "zones": [
@@ -746,7 +4082,162 @@
   "history_note": "Alexander Selkirk built two huts on Juan Fernández — one to sleep, one to cook — and hid from Spanish ships that would have enslaved him."
  },
  {
-  "id": "disc_014",
+  "id": "disc_024",
+  "category": "discovery",
+  "title": "Causeway of Whispers",
+  "zones": [
+   "reef",
+   "isle"
+  ],
+  "trigger": {
+   "type": "time",
+   "chance": 0.08,
+   "min_day": 10,
+   "camp_level": 3,
+   "needs_item": null,
+   "weather": "clear"
+  },
+  "weight": 7,
+  "cooldown_s": 10800,
+  "intro_lines": [
+   "Low tide reveals a spine of basalt arches across",
+   "Bioluminescent algae pulse in the joints — Tideborn work."
+  ],
+  "choices": [
+   {
+    "label": "Cross carefully at slack water",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Reach the far isle. Find a tide-pool shrine with offerings.",
+      "effects": {
+       "items": {
+        "pearl": 1,
+        "shell": 3,
+        "herbs": 2
+       },
+       "hp": 0,
+       "morale": 10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 5,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 20,
+       "unlock": "tideborn_shrine",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.25,
+      "text": "A wave catches your boots. Current drags you — Tide-Puck pulls you free.",
+      "effects": {
+       "items": {},
+       "hp": -10,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 15,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.15,
+      "text": "UTC divers surface beneath the arches. They spot you.",
+      "effects": {
+       "items": {},
+       "hp": -5,
+       "morale": -10,
+       "rep": {
+        "utc": -10,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Harvest humming algae for lanterns",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Fill shells with living light. Useful in caves.",
+      "effects": {
+       "items": {
+        "shell": -2,
+        "herbs": 3
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": -2,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": "bioluminescent_lantern",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Algae dies on contact. The arches dim slightly.",
+      "effects": {
+       "items": {
+        "shell": -1
+       },
+       "hp": 0,
+       "morale": -3,
+       "rep": {
+        "utc": 0,
+        "tideborn": -5,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "A Tideborn scout watches from the reef. Silent judgment.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 0,
+       "rep": {
+        "utc": 0,
+        "tideborn": -10,
+        "free": 0
+       },
+       "spawn": "tideborn_scout",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Tromelin castaways built 1.5 m thick coral walls with backs to the trade wind; the sea reclaims what people build."
+ },
+ {
+  "id": "disc_025",
   "category": "discovery",
   "title": "Iron Coffin at the Reef",
   "zones": [
@@ -935,7 +4426,146 @@
   "history_note": "UTC deploys dark-binding crystals that enrage the Abyssal Sovereign; the leviathan broke both Mythos Wake and the UTC warship in the storm."
  },
  {
-  "id": "disc_016",
+  "id": "disc_026",
+  "category": "discovery",
+  "title": "Buried Trade Cache",
+  "zones": [
+   "jungle",
+   "cliff"
+  ],
+  "trigger": {
+   "type": "action",
+   "chance": 0.15,
+   "min_day": 7,
+   "camp_level": 3,
+   "needs_item": "map_fragment",
+   "weather": "any"
+  },
+  "weight": 5,
+  "cooldown_s": 86400,
+  "intro_lines": [
+   "An X carved into a kapok tree.",
+   "Tide-Puck digs frantically.",
+   "A rusted strongbox surfaces, barnacled but sealed."
+  ],
+  "choices": [
+   {
+    "label": "Pry it open with a crowbar",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Salted pork, rum, and a UTC officer's signet ring.",
+      "effects": {
+       "items": {
+        "food": 10,
+        "rum": 3,
+        "relic_shard": 1,
+        "iron": -1
+       },
+       "hp": 5,
+       "morale": 15,
+       "rep": {
+        "utc": -5,
+        "tideborn": 0,
+        "free": 5
+       },
+       "spawn": null,
+       "pet_xp": 15,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Powder keg inside — damp fuse. One spark and it's over.",
+      "effects": {
+       "items": {
+        "powder": 5,
+        "iron": -1
+       },
+       "hp": 0,
+       "morale": 0,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": "damp_powder",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Trap triggers. Poison needle in the latch. Fever takes hold.",
+      "effects": {
+       "items": {
+        "iron": -1
+       },
+       "hp": -25,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Rebury it and watch for claimants",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Two free pirates dig it up at dusk. You follow them home.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 10
+       },
+       "spawn": "free_pirates",
+       "pet_xp": 10,
+       "unlock": "pirate_haven_hint",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "UTC landing party recovers it. They burn your marker tree.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -5,
+       "rep": {
+        "utc": -10,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Archaeologists at Tromelin found tools carefully stored and repaired, signs the castaways planned for a long stay."
+ },
+ {
+  "id": "disc_027",
   "category": "discovery",
   "title": "Signpost of the Marooned",
   "zones": [
@@ -1138,7 +4768,7 @@
   "history_note": "Pedro Serrano used shells as rain catchers on Serrana Bank; ships ignored his smoke for fear of shoals — signposts save lives when read right."
  },
  {
-  "id": "disc_017",
+  "id": "disc_028",
   "category": "discovery",
   "title": "Ruined Careening Camp",
   "zones": [
@@ -1326,7 +4956,287 @@
   "history_note": "Careening crews grounded ships at high tide on sloping beaches, heeled them over, scraped teredo worm and weed, then coated hulls with tar, tallow, and turtle fat."
  },
  {
-  "id": "disc_020",
+  "id": "disc_029",
+  "category": "discovery",
+  "title": "Message in a Black Bottle",
+  "zones": [
+   "beach",
+   "sea"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.07,
+   "min_day": 8,
+   "camp_level": 2,
+   "needs_item": null,
+   "weather": "rain"
+  },
+  "weight": 5,
+  "cooldown_s": 86400,
+  "intro_lines": [
+   "A sealed UTC bottle washes up.",
+   "Wax stamp unbroken.",
+   "Inside: coordinates and a single word — \"RUN\"."
+  ],
+  "choices": [
+   {
+    "label": "Decode the coordinates",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Points to a UTC black site. Prisoners. Tideborn. Experiments.",
+      "effects": {
+       "items": {
+        "map_fragment": -1,
+        "relic_shard": 1
+       },
+       "hp": 0,
+       "morale": 10,
+       "rep": {
+        "utc": -10,
+        "tideborn": 10,
+        "free": 5
+       },
+       "spawn": null,
+       "pet_xp": 20,
+       "unlock": "utc_blacksite",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Coordinates are a trap. UTC ambush waits at the location.",
+      "effects": {
+       "items": {
+        "map_fragment": -1
+       },
+       "hp": -15,
+       "morale": -10,
+       "rep": {
+        "utc": -15,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "The bottle explodes — dark-binding crystal shard inside.",
+      "effects": {
+       "items": {
+        "relic_shard": 1
+       },
+       "hp": -20,
+       "morale": -15,
+       "rep": {
+        "utc": 0,
+        "tideborn": -5,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Deliver it to Quartermaster Silas",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "Silas reads the cipher. \"Old shipmate's hand. He's alive.\"",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 20,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 10
+       },
+       "spawn": null,
+       "pet_xp": 15,
+       "unlock": "silas_contact",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Silas burns it. \"Some messages are curses. We stay hidden.\"",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Ada Blackjack kept a diary on Wrangel Island; writing preserved her mind when three men walked off over ice and never returned."
+ },
+ {
+  "id": "disc_030",
+  "category": "discovery",
+  "title": "Sunken Shrine in the Blue Hole",
+  "zones": [
+   "cave",
+   "reef"
+  ],
+  "trigger": {
+   "type": "location",
+   "chance": 0.06,
+   "min_day": 25,
+   "camp_level": 6,
+   "needs_item": "pearl",
+   "weather": "clear"
+  },
+  "weight": 8,
+  "cooldown_s": 259200,
+  "intro_lines": [
+   "A cenote opens in the reef floor.",
+   "Tide-Puck refuses the edge.",
+   "Down, down — Tideborn arches hum in the dark water."
+  ],
+  "choices": [
+   {
+    "label": "Dive with weighted line",
+    "requires": {
+     "pet_level": 4
+    },
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Touch the central altar. A vision: the Sovereign's true name.",
+      "effects": {
+       "items": {
+        "rope": -1,
+        "pearl": -1
+       },
+       "hp": -10,
+       "morale": 20,
+       "rep": {
+        "utc": 0,
+        "tideborn": 15,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 50,
+       "unlock": "sovereign_name",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Pressure ruptures your sinuses. Blood in the water. Eels come.",
+      "effects": {
+       "items": {
+        "rope": -1,
+        "pearl": -1
+       },
+       "hp": -25,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "eel",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "A Tideborn guardian blocks the ascent. You leave the pearl.",
+      "effects": {
+       "items": {
+        "pearl": -1,
+        "relic_shard": 1
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 5,
+        "free": 0
+       },
+       "spawn": "tideborn_scout",
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Lower Tide-Puck in a harness",
+    "requires": {
+     "pet_level": 5
+    },
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "He returns with a crystal fragment pulsing in his jaws.",
+      "effects": {
+       "items": {
+        "relic_shard": 2
+       },
+       "hp": 0,
+       "morale": 15,
+       "rep": {
+        "utc": -5,
+        "tideborn": 10,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 60,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "He surfaces shaking. The depths changed him. Eyes hum faint.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 5,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 30,
+       "unlock": "tidepuck_changed",
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Tromelin castaways kept one fire alive for 15 years with wreck timber and the island's single shrub; some sacred fires must not go out."
+ },
+ {
+  "id": "disc_031",
   "category": "discovery",
   "title": "The Stranger at the Fire",
   "zones": [
@@ -1371,7 +5281,7 @@
        "spawn": null,
        "pet_xp": 15,
        "unlock": null,
-       "next_event": "disc_021"
+       "next_event": "disc_032"
       }
      },
      {
@@ -1420,7 +5330,7 @@
        "spawn": null,
        "pet_xp": 10,
        "unlock": null,
-       "next_event": "disc_022"
+       "next_event": "disc_033"
       }
      },
      {
@@ -1507,7 +5417,7 @@
   "history_note": "Bartholomew Roberts' articles: quarrels settled ashore by pistol then cutlass, first blood wins; deserters gave intelligence to enemies."
  },
  {
-  "id": "disc_021",
+  "id": "disc_032",
   "category": "discovery",
   "title": "Kestrel's Ledger — The Betrayal",
   "zones": [
@@ -1627,7 +5537,7 @@
   "history_note": "Pirate justice: defrauding the company meant marooning with a gun, shot, bottle of water, bottle of powder; betrayal was paid in blood."
  },
  {
-  "id": "disc_022",
+  "id": "disc_033",
   "category": "discovery",
   "title": "Kestrel's Ledger — The Debt Paid",
   "zones": [
