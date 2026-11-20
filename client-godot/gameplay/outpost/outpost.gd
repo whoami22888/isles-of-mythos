@@ -138,6 +138,11 @@ func _ready() -> void:
 	add_child(pet_sys)
 	pet_sys.build_ui(_hud, _font)
 	events.pet_xp_gained.connect(pet_sys.add_xp)
+	bag = load("res://gameplay/outpost/outpost_bag.gd").new()
+	bag.name = "Bag"
+	add_child(bag)
+	bag.setup(self)
+	bag.build_ui(_hud, _font)
 	_sun = _find_sun()
 	_refresh_sites(true)
 	_toast(str(state.data.get("welcome_line", "")) if state.camp_level == 1 and state.level_of("mill") == 0 else "Welcome back to the outpost")
@@ -890,6 +895,7 @@ var rescue: Node3D
 var events: Node
 var wildlife: Node3D
 var pet_sys: Node3D
+var bag: Node
 var _sun: DirectionalLight3D
 var _sun_base := 1.0
 var respawn_override := Vector3.INF
