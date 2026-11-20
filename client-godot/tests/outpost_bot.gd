@@ -114,6 +114,38 @@ func run() -> void:
 	scene.on_action()
 	await frames(12)
 	check(int(st.inv["stone"]) == s0 + 2, "rock struck for stone")
+	# Milestone 2: survive raid wave 1 using the HUD action (Strike).
+	scene.raid.start_warning()
+	var w := 0
+	while scene.raid.phase != "fight" and w < 90 * 30:
+		await frames(1)
+		w += 1
+	check(scene.raid.enemies_alive() == 3, "wave 1 landed (%d raiders) after %.0fs warning" % [scene.raid.enemies_alive(), w / 30.0])
+	var deaths := 0
+	var was_alive := true
+	var g := 0
+	while scene.raid.enemies_alive() > 0 and g < 120 * 30:
+		var u: Dictionary = scene.raid.nearest_enemy(scene._player.global_position, 999.0)
+		if not u.is_empty():
+			var at: Vector3 = u["node"].global_position
+			var me: Vector3 = scene._player.global_position
+			if me.distance_to(at) > 1.8:
+				var np := me.move_toward(at, 4.6 / 30.0)
+				np.y = scene.ground_y(np.x, np.z)
+				scene._player.global_position = np
+			elif scene._action_text() == "Strike":
+				scene._hud._action.emit_signal("pressed")
+		if was_alive and not scene.player_alive():
+			deaths += 1
+		was_alive = scene.player_alive()
+		if g == 45:
+			await shot("raid_fight")
+		await frames(1)
+		g += 1
+	check(scene.raid.enemies_alive() == 0, "wave 1 repelled in %.1fs, player HP %d, deaths %d, pet bites %d" % [g / 30.0, int(scene.player_hp), deaths, scene.pet_bites])
+	check(deaths == 0, "player survived wave 1")
+	await frames(3)
+	check(int(st.inv.get("gold", 0)) >= 5, "raid loot: gold %d iron %d" % [int(st.inv.get("gold", 0)), int(st.inv.get("iron", 0))])
 	scene._cam_yaw = deg_to_rad(25.0)
 	scene.stand_at("camp")
 	await shot("outpost_built")
