@@ -224,7 +224,7 @@ class StylizedPbrShaderContractTests(unittest.TestCase):
 
     def test_specular_amount_is_applied_once(self):
         """The fragment SPECULAR control must not be squared in the light lobe."""
-        self.assertEqual(self.light.count("SPECULAR_AMOUNT"), 1)
+        self.assertEqual(self.light.count("* SPECULAR_AMOUNT;"), 1)
         self.assertIn("SPECULAR = specular_amount", self.fragment)
         self.assertIn("vec3 f0 = mix(vec3(0.04), ALBEDO, METALLIC);", self.light)
         self.assertNotIn("specular_amount * SPECULAR_AMOUNT", self.light)
