@@ -170,6 +170,25 @@ test("incoming assets-src import with verified vendor and revision passes", () =
   const files = { "assets-src/H01/palm.glb": "palm", "vendor/kit/LICENSE.txt": "CC0" };
   assert.deepEqual(validateVendorLock(repo(files, { version: "1.0.0", assets: [sourceEntry()] })), []);
 });
+
+test("a 64-character source revision for a source archive must match the exact archive SHA-256", () => {
+  const path = "assets-src/H01/kenney-pirate-kit.zip";
+  const bytes = "archive bytes";
+  const digest = sha(bytes);
+  const files = { [path]: bytes, "vendor/kit/LICENSE.txt": "CC0" };
+  const base = {
+    path,
+    sha256: digest,
+    source_url: "https://kenney.nl/media/pages/assets/pirate-kit/archive.zip",
+    pack_id: "kenney:H01-pirate-kit-2.1"
+  };
+  const mismatched = sourceEntry({ ...base, source_revision: sha("different archive") });
+  const errors = validateVendorLock(repo(files, { version: "1.0.0", assets: [mismatched] })).join("\n");
+  assert.match(errors, /archive source_revision must equal sha256/);
+
+  const matching = sourceEntry({ ...base, source_revision: digest });
+  assert.deepEqual(validateVendorLock(repo(files, { version: "1.0.0", assets: [matching] })), []);
+});
 test("incoming assets-src unlisted binary is rejected with its real SHA-256", () => {
   const errs = validateVendorLock(repo({ "assets-src/H01/palm.glb": "palm" })).join("\n");
   assert.match(errs, /unlisted import/);

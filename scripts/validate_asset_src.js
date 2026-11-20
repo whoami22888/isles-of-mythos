@@ -73,6 +73,15 @@ function validateAssetSourceTree(repositoryRoot, lockEntries) {
       if (typeof record.source_revision !== "string" || !REVISION.test(record.source_revision)) {
         errors.push(`assets-src: ${rel} must pin a 40/64-character hexadecimal source_revision`);
       }
+
+      // A 64-character source_revision on a source archive is the archive digest,
+      // not an arbitrary second hash. Keep it bound to the exact bytes we admitted.
+      if (/\.(?:zip|7z|tar|tgz|tar\.gz)$/i.test(rel) &&
+          typeof record.source_revision === "string" &&
+          record.source_revision.length === 64 &&
+          record.source_revision !== actual) {
+        errors.push(`assets-src: archive source_revision must equal sha256 ${rel} (expected ${record.source_revision}, actual ${actual})`);
+      }
     }
   }
   inspect(sourceRoot);
