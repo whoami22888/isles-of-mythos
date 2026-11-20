@@ -228,10 +228,10 @@ func run() -> void:
 	check(write_attempts[0] == 2, "Successful retry must deduplicate subsequent writes")
 	# A failed append may already have written a prefix. It must be truncated before retry.
 	var before_partial_append := FileAccess.get_file_as_string(FallbackFactory.LOG_PATH)
-	var partial_record := "mesh\\tpartial_retry_004.glb\\n"
+	var partial_record := "mesh\tpartial_retry_004.glb\n"
 	var partial_prefix_written := [false]
 	var partial_writer := func(file: FileAccess, _line: String) -> bool:
-		partial_prefix_written[0] = file.store_string("mesh\\tpartial_retry_004")
+		partial_prefix_written[0] = file.store_string("mesh\tpartial_retry_004")
 		return false
 	var partial_error := FallbackFactory._append_log_line(partial_record, partial_writer)
 	check(partial_prefix_written[0], "Partial-write fixture must append a prefix before reporting failure")
