@@ -43,7 +43,7 @@ static func _safe_log_path(path: String) -> String:
 	return result
 
 
-static func _append_log_line(line: String):
+static func _append_log_line(line: String, writer: Callable = Callable()):
 	var entry_bytes := line.to_utf8_buffer().size()
 	var exists := FileAccess.file_exists(LOG_PATH)
 	var existing_size := 0
@@ -70,12 +70,25 @@ static func _append_log_line(line: String):
 		return FAILED
 	file.seek_end()
 	var size_before := file.get_length()
-	file.store_string(line)
+	if size_before < 0:
+		file.close()
+		return FAILED
+	var write_succeeded := false
+	if writer.is_valid():
+		write_succeeded = bool(writer.call(file, line))
+	else:
+		write_succeeded = file.store_string(line)
 	file.flush()
 	var write_error := file.get_error()
 	var size_after := file.get_length()
+	if not write_succeeded or write_error != OK or size_after != size_before + entry_bytes:
+		# A short/failed append must not leave a prefix that corrupts the next TSV retry.
+		# Resize while the file is still open, then flush the rollback before closing.
+		var rollback_error := file.resize(size_before)
+		if rollback_error == OK:
+			file.flush()
 	file.close()
-	if write_error != OK or size_before < 0 or size_after != size_before + entry_bytes:
+	if not write_succeeded or write_error != OK or size_after != size_before + entry_bytes:
 		return FAILED
 	return OK
 
