@@ -4,6 +4,8 @@ extends SceneTree
 ## No generated image is suitable for owner-facing display without review.
 
 const FRAME_COUNT := 72
+const SOURCE_ASSET_MANIFEST := "res://assets/external-assets.json"
+const SOURCE_ASSET_ROOT := "res://assets/external"
 var _previous_bytes := PackedByteArray()
 var _changed_frames := 0
 
@@ -15,6 +17,98 @@ func _init() -> void:
 func _fail(reason: String) -> void:
     push_error(reason)
     quit(1)
+
+
+func _write_source_asset_provenance(directory: String) -> bool:
+    if not FileAccess.file_exists(SOURCE_ASSET_MANIFEST):
+        _fail("Missing source asset manifest: " + SOURCE_ASSET_MANIFEST)
+        return false
+    var source_manifest_text := FileAccess.get_file_as_string(SOURCE_ASSET_MANIFEST)
+    if source_manifest_text.is_empty():
+        _fail("Source asset manifest is empty")
+        return false
+    var parsed: Variant = JSON.parse_string(source_manifest_text)
+    if typeof(parsed) != TYPE_DICTIONARY:
+        _fail("Source asset manifest is not a JSON object")
+        return false
+    var manifest: Dictionary = parsed
+    if int(manifest.get("schema_version", -1)) != 1:
+        _fail("Unsupported source asset manifest schema")
+        return false
+    var assets_value: Variant = manifest.get("assets", null)
+    if typeof(assets_value) != TYPE_ARRAY:
+        _fail("Source asset manifest has no assets array")
+        return false
+    var assets: Array = assets_value
+    if assets.is_empty():
+        _fail("Source asset manifest has no assets")
+        return false
+
+    var seen_paths: Dictionary = {}
+    var checksum_lines: Array[String] = []
+    for entry_value in assets:
+        if typeof(entry_value) != TYPE_DICTIONARY:
+            _fail("Source asset manifest contains a non-object entry")
+            return false
+        var entry: Dictionary = entry_value
+        var relative_path := str(entry.get("path", "")).strip_edges()
+        var expected_sha := str(entry.get("sha256", "")).to_lower()
+        var source_url := str(entry.get("source_url", "")).strip_edges()
+        var license_id := str(entry.get("license", "")).strip_edges()
+        var license_url := str(entry.get("license_url", "")).strip_edges()
+        if relative_path.is_empty() or relative_path.begins_with("/") or relative_path.contains("\\"):
+            _fail("Unsafe source asset path in manifest: " + relative_path)
+            return false
+        var path_parts := relative_path.split("/")
+        if path_parts.has("..") or path_parts.has("") or expected_sha.length() != 64:
+            _fail("Invalid source asset path or SHA-256: " + relative_path)
+            return false
+        if source_url.is_empty() or license_id.is_empty() or license_url.is_empty():
+            _fail("Missing source or licence metadata for: " + relative_path)
+            return false
+        if seen_paths.has(relative_path):
+            _fail("Duplicate source asset path: " + relative_path)
+            return false
+        seen_paths[relative_path] = true
+        var source_path := SOURCE_ASSET_ROOT.path_join(relative_path)
+        if not FileAccess.file_exists(source_path):
+            _fail("Missing source asset file: " + source_path)
+            return false
+        var actual_sha := FileAccess.get_sha256(source_path).to_lower()
+        if actual_sha != expected_sha:
+            _fail("Source asset SHA-256 mismatch for %s expected=%s actual=%s" % [
+                relative_path, expected_sha, actual_sha
+            ])
+            return false
+        checksum_lines.append("%s  %s" % [actual_sha, relative_path])
+
+    checksum_lines.sort()
+    var checksum_path := directory.path_join("ASSET-SHA256SUMS")
+    var checksum_file := FileAccess.open(checksum_path, FileAccess.WRITE)
+    if checksum_file == null:
+        _fail("Could not write ASSET-SHA256SUMS")
+        return false
+    checksum_file.store_string("\n".join(checksum_lines) + "\n")
+    checksum_file.close()
+
+    var provenance_path := directory.path_join("ASSET-PROVENANCE.json")
+    var provenance_file := FileAccess.open(provenance_path, FileAccess.WRITE)
+    if provenance_file == null:
+        _fail("Could not write ASSET-PROVENANCE.json")
+        return false
+    provenance_file.store_string(source_manifest_text)
+    provenance_file.close()
+
+    var source_manifest_sha := FileAccess.get_sha256(SOURCE_ASSET_MANIFEST).to_lower()
+    var copied_manifest_sha := FileAccess.get_sha256(provenance_path).to_lower()
+    var checksum_manifest_sha := FileAccess.get_sha256(checksum_path).to_lower()
+    if source_manifest_sha.length() != 64 or copied_manifest_sha != source_manifest_sha or checksum_manifest_sha.length() != 64:
+        _fail("Source asset provenance manifest checksum verification failed")
+        return false
+    print("IOM_INTERNAL_ASSET_PROVENANCE source_manifest_sha256=%s copied_manifest_sha256=%s checksums_sha256=%s entries=%d" % [
+        source_manifest_sha, copied_manifest_sha, checksum_manifest_sha, checksum_lines.size()
+    ])
+    return true
 
 
 func _record() -> void:
@@ -34,6 +128,8 @@ func _record() -> void:
         )
         return
     print("IOM_INTERNAL_RENDERER driver=%s method=%s" % [rendering_driver, rendering_method])
+    if not _write_source_asset_provenance(directory):
+        return
     var start_frame := int(OS.get_environment("IOM_FX_START_FRAME")) if OS.has_environment("IOM_FX_START_FRAME") else 0
     var end_frame := int(OS.get_environment("IOM_FX_END_FRAME")) if OS.has_environment("IOM_FX_END_FRAME") else FRAME_COUNT
     if start_frame != 0 or end_frame != FRAME_COUNT:

@@ -37,7 +37,7 @@ material_override = SubResource("ShaderMaterial_cel_stylized_pbr_desktop")
 
 [node name="Camera3D" type="Camera3D" parent="."]
 position = Vector3(0, 1.8, 4)
-rotation_degrees = Vector3(-22, 0, 0)
+rotation_degrees = Vector3(-24.2, 0, 0)
 current = true
 fov = 50.0
 

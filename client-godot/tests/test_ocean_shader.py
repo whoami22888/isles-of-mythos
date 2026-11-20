@@ -35,6 +35,25 @@ def shader_stage_body(source: str, stage: str) -> str:
 
 
 class OceanShaderContractTests(unittest.TestCase):
+    def test_coastal_capture_embeds_verified_source_asset_hashes(self):
+        """Tie moving engine evidence to the exact licensed source asset bytes."""
+        capture = (CLIENT / "tests" / "render_coastal_fx_sequence.gd").read_text(encoding="utf-8")
+        workflow = (CLIENT.parent / ".github" / "workflows" / "iom-coastal-ship-fx.yml").read_text(encoding="utf-8")
+        for token in (
+            'const SOURCE_ASSET_MANIFEST := "res://assets/external-assets.json"',
+            'const SOURCE_ASSET_ROOT := "res://assets/external"',
+            "FileAccess.get_sha256(source_path)",
+            "actual_sha != expected_sha",
+            "ASSET-SHA256SUMS",
+            "ASSET-PROVENANCE.json",
+            "IOM_INTERNAL_ASSET_PROVENANCE",
+        ):
+            with self.subTest(token=token):
+                self.assertIn(token, capture)
+        self.assertIn("sha256sum frame_*.rgba render.log > SHA256SUMS", workflow)
+        self.assertIn("path: ${{ runner.temp }}/coastal-fx-frames/", workflow)
+
+
     """Guard production ocean features against accidental shader replacement."""
 
     @classmethod
@@ -184,6 +203,32 @@ class OceanShaderContractTests(unittest.TestCase):
         self.assertRegex(vertex_body, r"NORMAL\s*=\s*normalize")
 
 
+    def test_shoreline_foam_uses_heightfield_ring_mask_and_aperiodic_breakup(self):
+        """Keep shoreline foam tied to nearby land without a repeating sine lattice."""
+        for token in (
+            "const vec2 RING_DIRS[12]",
+            "float foam_hash(vec2 q)",
+            "float shore_land_fraction(vec2 p, float radius_m)",
+            "for (int i = 0; i < 12; i++)",
+            "shore_terrain_height(sample_position)",
+        ):
+            with self.subTest(token=token):
+                self.assertIn(token, self.code)
+
+        fragment_body = shader_stage_body(self.code, "fragment")
+        for token in (
+            "if (water_here > 0.0 && contact > 0.0)",
+            "shore_land_fraction(p, 1.1)",
+            "shore_land_fraction(p, 2.6)",
+            "float shore_band = clamp(land_near * 1.1 + land_far * 0.35, 0.0, 1.0);",
+            "float breakup = 0.78 + 0.22 * breakup_noise;",
+            "mix(0.55, 1.0, foam_motion)",
+            "contact * shore_band * breakup",
+        ):
+            with self.subTest(token=token):
+                self.assertIn(token, fragment_body)
+        self.assertNotIn("contact * foam_motion * foam_amount", fragment_body)
+
     def test_dual_gerstner_waves_and_scene_controls_are_live(self):
         """Require two world-space Gerstner trains, analytic normals, and exposed controls."""
         declarations = (
@@ -311,8 +356,16 @@ class OceanShaderContractTests(unittest.TestCase):
             ),
             re.compile(
                 r"""
-                float \s+ shore_foam \s* = \s*
-                contact \s* \* \s* foam_motion \s* \* \s* foam_amount
+                float \s+ shore_foam \s* = \s* clamp \s*
+                \(
+                    \s* contact \s* \* \s* shore_band \s* \* \s*
+                    breakup \s* \* \s* mix \s*
+                    \(
+                        \s* 0\.55 \s*, \s* 1\.0 \s*, \s* foam_motion \s*
+                    \)
+                    \s* \* \s* foam_amount \s* \* \s* 0\.9 \s*,
+                    \s* 0\.0 \s*, \s* 1\.0 \s*
+                \)
                 """,
                 re.VERBOSE,
             ),

@@ -8,7 +8,10 @@ const ROTATED_LOG_PATH := "user://missing_assets.log.1"
 const CHECKER_SIZE := 32
 const MAX_LOGGED_PATHS := 1024
 const MAX_LOG_BYTES := 262144
+const LOG_CATEGORIES := ["scene", "animation", "mesh", "sprite", "texture", "audio", "other"]
 static var _logged_paths: Dictionary = {}
+static var _logged_path_order: Array[String] = []
+static var _logged_path_cursor := 0
 
 
 static func _allowed_path(path: String, extensions: PackedStringArray) -> bool:
@@ -23,19 +26,24 @@ static func _load_checked(path: String, extensions: PackedStringArray) -> Resour
 	return ResourceLoader.load(path)
 
 
+static func _safe_log_category(category: String) -> String:
+	# The first TSV column is a fixed field, never caller-controlled text.
+	return category if LOG_CATEGORIES.has(category) else "other"
+
+
 static func _safe_log_path(path: String) -> String:
-	# Keep the TSV record single-line and two-column, including for C0/DEL chars.
+	# Keep the TSV record single-line and two-column across C0/C1 controls and Unicode separators.
 	var result := ""
 	for index in range(mini(path.length(), 512)):
 		var codepoint := path.unicode_at(index)
-		if codepoint < 32 or codepoint == 127:
+		if codepoint < 32 or (codepoint >= 127 and codepoint <= 159) or codepoint == 0x2028 or codepoint == 0x2029:
 			result += " "
 		else:
 			result += path[index]
 	return result
 
 
-static func _append_log_line(line: String):
+static func _append_log_line(line: String, writer: Callable = Callable()):
 	var entry_bytes := line.to_utf8_buffer().size()
 	var exists := FileAccess.file_exists(LOG_PATH)
 	var existing_size := 0
@@ -62,29 +70,53 @@ static func _append_log_line(line: String):
 		return FAILED
 	file.seek_end()
 	var size_before := file.get_length()
-	file.store_string(line)
+	if size_before < 0:
+		file.close()
+		return FAILED
+	var write_succeeded := false
+	if writer.is_valid():
+		write_succeeded = bool(writer.call(file, line))
+	else:
+		write_succeeded = file.store_string(line)
 	file.flush()
 	var write_error := file.get_error()
 	var size_after := file.get_length()
+	if not write_succeeded or write_error != OK or size_after != size_before + entry_bytes:
+		# A short/failed append must not leave a prefix that corrupts the next TSV retry.
+		# Resize while the file is still open, then flush the rollback before closing.
+		var rollback_error := file.resize(size_before)
+		if rollback_error == OK:
+			file.flush()
 	file.close()
-	if write_error != OK or size_before < 0 or size_after != size_before + entry_bytes:
+	if not write_succeeded or write_error != OK or size_after != size_before + entry_bytes:
 		return FAILED
 	return OK
 
 
 static func _log_missing_with_writer(path: String, category: String, writer: Callable) -> void:
-	# Keep the TSV record single-line and two-column, including for C0/DEL chars.
+	# Normalize both fields before building the deduplication key or TSV record.
+	var safe_category := _safe_log_category(category)
 	var safe_path := _safe_log_path(path)
-	var key := category + ":" + safe_path
-	if _logged_paths.has(key) or _logged_paths.size() >= MAX_LOGGED_PATHS:
+	var key := safe_category + ":" + safe_path
+	if _logged_paths.has(key):
 		return
 	if not writer.is_valid():
 		return
-	var line := "%s\t%s\n" % [category, safe_path]
+	var line := "%s\t%s\n" % [safe_category, safe_path]
 	var write_error = writer.call(line)
 	# A failed or partial write must remain retryable after storage recovers.
 	if write_error != OK:
 		return
+	# Keep only the most recent unique paths in memory. The bounded disk log
+	# continues recording new paths after this cache fills instead of silently
+	# dropping every later diagnostic.
+	if _logged_path_order.size() < MAX_LOGGED_PATHS:
+		_logged_path_order.append(key)
+	else:
+		var evicted_key: String = _logged_path_order[_logged_path_cursor]
+		_logged_paths.erase(evicted_key)
+		_logged_path_order[_logged_path_cursor] = key
+		_logged_path_cursor = (_logged_path_cursor + 1) % MAX_LOGGED_PATHS
 	_logged_paths[key] = true
 
 
@@ -109,18 +141,65 @@ static func get_fallback_mesh(path: String, kind: String = "character") -> MeshI
 	return fallback
 
 
+static func instantiate_scene_or_null(
+	packed_scene: PackedScene,
+	path: String = "",
+	category: String = "other"
+) -> Node:
+	# A ResourceLoader result can be a PackedScene without a usable root. Check
+	# instantiability before calling instantiate(), then validate the returned node.
+	if packed_scene == null or not packed_scene.can_instantiate():
+		if not path.is_empty():
+			_log_missing(path, category)
+		return null
+	var instance := packed_scene.instantiate()
+	if not is_instance_valid(instance):
+		if not path.is_empty():
+			_log_missing(path, category)
+		return null
+	return instance
+
+
+static func _has_renderable_mesh(node: Node) -> bool:
+	if node is MeshInstance3D:
+		var mesh := (node as MeshInstance3D).mesh
+		if mesh != null and mesh.get_surface_count() > 0:
+			return true
+	elif node is MultiMeshInstance3D:
+		var multimesh := (node as MultiMeshInstance3D).multimesh
+		if (
+			multimesh != null
+			and multimesh.mesh != null
+			and multimesh.mesh.get_surface_count() > 0
+			and multimesh.instance_count > 0
+			and multimesh.visible_instance_count != 0
+		):
+			return true
+	for child in node.get_children():
+		if _has_renderable_mesh(child):
+			return true
+	return false
+
+
+static func mesh_resource_or_fallback(resource: Resource, path: String, kind: String = "character") -> Node3D:
+	if resource is PackedScene:
+		var instance := instantiate_scene_or_null(resource as PackedScene, path, "mesh")
+		if instance is Node3D and _has_renderable_mesh(instance):
+			return instance
+		if is_instance_valid(instance):
+			instance.free()
+	elif resource is Mesh:
+		var mesh := resource as Mesh
+		if mesh.get_surface_count() > 0:
+			var node := MeshInstance3D.new()
+			node.mesh = mesh
+			return node
+	return get_fallback_mesh(path, kind)
+
+
 static func load_mesh_or_fallback(path: String, kind: String = "character") -> Node3D:
 	var resource := _load_checked(path, PackedStringArray(["glb", "gltf", "fbx"]))
-	if resource is PackedScene:
-		var instance := (resource as PackedScene).instantiate()
-		if instance is Node3D:
-			return instance
-		instance.free()
-	elif resource is Mesh:
-		var node := MeshInstance3D.new()
-		node.mesh = resource
-		return node
-	return get_fallback_mesh(path, kind)
+	return mesh_resource_or_fallback(resource, path, kind)
 
 
 static func _checkerboard_texture() -> Texture2D:
