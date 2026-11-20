@@ -1,0 +1,83 @@
+{
+  "_note": "Chapter 2 'Gathering the Scattered' - Milestone 1 outpost. Placeholder tuning: retune freely. Times are seconds, production is per minute.",
+  "save_path": "user://outpost.cfg",
+  "ashore_save": "user://washed_ashore.cfg",
+  "resources": ["wood", "stone", "food", "iron"],
+  "welcome_stash": {"wood": 60, "stone": 40, "food": 20, "iron": 0},
+  "welcome_line": "The scattered survivors pooled what they saved from the wreck.",
+  "camp": {
+    "id": "camp",
+    "title": "Camp",
+    "levels": [
+      {"level": 1, "title": "Survivor Camp", "cost": {}, "seconds": 0, "unlocks": ["mill", "dock", "palisade"]},
+      {"level": 2, "title": "Outpost", "cost": {"wood": 120, "stone": 80}, "seconds": 90, "unlocks": ["forge", "watchtower"], "requires": {"mill": 1, "dock": 1}},
+      {"level": 3, "title": "Stockade Citadel", "cost": {"wood": 220, "stone": 160, "iron": 30}, "seconds": 180, "unlocks": ["barracks"], "requires": {"forge": 1, "watchtower": 1}}
+    ]
+  },
+  "buildings": {
+    "mill": {
+      "title": "Lumber Mill", "plot": 0, "blurb": "Saws driftwood and felled palms into timber.",
+      "levels": [
+        {"cost": {"wood": 30, "stone": 10}, "seconds": 30, "produces": {"wood": 12}, "cap": 40},
+        {"cost": {"wood": 70, "stone": 40}, "seconds": 75, "produces": {"wood": 24}, "cap": 90},
+        {"cost": {"wood": 140, "stone": 90, "iron": 10}, "seconds": 150, "produces": {"wood": 40}, "cap": 160}
+      ]
+    },
+    "dock": {
+      "title": "Fishing Dock", "plot": 1, "blurb": "Nets and lines off the shallows.",
+      "levels": [
+        {"cost": {"wood": 25, "stone": 5}, "seconds": 30, "produces": {"food": 10}, "cap": 30},
+        {"cost": {"wood": 60, "stone": 30}, "seconds": 75, "produces": {"food": 20}, "cap": 70},
+        {"cost": {"wood": 120, "stone": 60, "iron": 8}, "seconds": 150, "produces": {"food": 34}, "cap": 130}
+      ]
+    },
+    "forge": {
+      "title": "Forge", "plot": 2, "blurb": "Smelts island stone into rough iron.",
+      "levels": [
+        {"cost": {"wood": 60, "stone": 50}, "seconds": 60, "produces": {"iron": 4}, "consumes": {"stone": 6}, "cap": 20},
+        {"cost": {"wood": 110, "stone": 90, "iron": 12}, "seconds": 120, "produces": {"iron": 8}, "consumes": {"stone": 10}, "cap": 45},
+        {"cost": {"wood": 180, "stone": 150, "iron": 30}, "seconds": 180, "produces": {"iron": 14}, "consumes": {"stone": 16}, "cap": 80}
+      ]
+    },
+    "barracks": {
+      "title": "Barracks", "plot": 3, "blurb": "Bunks and a drill yard. Train crew here (Milestone 2).",
+      "levels": [
+        {"cost": {"wood": 120, "stone": 80, "iron": 20}, "seconds": 90, "crew_slots": 2},
+        {"cost": {"wood": 180, "stone": 120, "iron": 40}, "seconds": 150, "crew_slots": 4},
+        {"cost": {"wood": 260, "stone": 180, "iron": 70}, "seconds": 180, "crew_slots": 6}
+      ]
+    },
+    "watchtower": {
+      "title": "Watchtower", "plot": 4, "blurb": "Spots privateer sails early (Milestone 2 raid warning).",
+      "levels": [
+        {"cost": {"wood": 70, "stone": 30}, "seconds": 45, "warning_seconds": 20},
+        {"cost": {"wood": 120, "stone": 60, "iron": 10}, "seconds": 90, "warning_seconds": 35},
+        {"cost": {"wood": 180, "stone": 100, "iron": 25}, "seconds": 150, "warning_seconds": 50}
+      ]
+    },
+    "palisade": {
+      "title": "Palisade", "plot": 5, "blurb": "Sharpened stakes across the beach approach.",
+      "levels": [
+        {"cost": {"wood": 40}, "seconds": 30, "hp": 300},
+        {"cost": {"wood": 90, "stone": 40}, "seconds": 75, "hp": 650},
+        {"cost": {"wood": 160, "stone": 100, "iron": 15}, "seconds": 150, "hp": 1100}
+      ]
+    }
+  },
+  "plots": [
+    {"id": 0, "x": 4.0, "z": 15.0, "yaw": 160},
+    {"id": 1, "x": 22.0, "z": 5.5, "yaw": 200},
+    {"id": 2, "x": 21.0, "z": 15.5, "yaw": 220},
+    {"id": 3, "x": 10.0, "z": 18.5, "yaw": 180},
+    {"id": 4, "x": 26.0, "z": 11.0, "yaw": 250},
+    {"id": 5, "x": 12.0, "z": 4.5, "yaw": 180}
+  ],
+  "camp_plot": {"x": 14.0, "z": 11.0, "yaw": 190},
+  "player_start": {"x": 12.0, "z": 7.5},
+  "milestone2": {
+    "_note": "Hooks only. Raids target the palisade; crew from the Barracks fight beside the player.",
+    "raid_faction": "UTC privateers",
+    "first_raid_after_camp_level": 2,
+    "crew_types": ["deckhand", "musketeer"]
+  }
+}
