@@ -98,7 +98,7 @@ func _ready() -> void:
 	_menu_box = VBoxContainer.new()
 	_menu_box.add_theme_constant_override("separation", 6)
 	_menu.add_child(_menu_box)
-	for id in ["camp"] + ORDER + ["train_sailor", "train_crew_musketeer"]:
+	for id in ["camp"] + ORDER + ["training_post", "train_sailor", "train_crew_musketeer", "craft_stone_axe", "craft_stone_pick", "craft_iron_axe", "craft_iron_pick"]:
 		var row := HBoxContainer.new()
 		var info := _label(24)
 		info.custom_minimum_size = Vector2(420, 0)

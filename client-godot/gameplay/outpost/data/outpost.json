@@ -640,11 +640,12 @@
 		"player_damage_taken": 1.0
 	},
 	"gather": {
-		"_note": "Strikeable nodes around the outpost (same strike/chip/fly feel as the island).",
+		"_note": "Strikeable nodes. tool: axe|pick|hands; min_tier: hands|stone|iron; hits are base hits (tool tier scales them); rare: per-hit chance.",
 		"respawn_seconds": 45,
 		"reach": 2.6,
 		"kinds": {
 			"tree": {
+				"tool": "axe",
 				"hits": 4,
 				"yield": {
 					"wood": 3
@@ -653,13 +654,129 @@
 					"wood": 4
 				}
 			},
+			"palm": {
+				"tool": "axe",
+				"hits": 3,
+				"yield": {
+					"wood": 2
+				},
+				"finish": {
+					"wood": 3,
+					"fiber": 2
+				},
+				"height": 6.0
+			},
+			"hardwood": {
+				"tool": "axe",
+				"min_tier": "stone",
+				"hits": 6,
+				"yield": {
+					"wood": 5
+				},
+				"finish": {
+					"wood": 8,
+					"hardwood": 2
+				}
+			},
+			"bamboo": {
+				"tool": "axe",
+				"hits": 2,
+				"yield": {
+					"bamboo": 2
+				},
+				"finish": {
+					"bamboo": 3
+				}
+			},
+			"coconut_palm": {
+				"tool": "axe",
+				"hits": 3,
+				"yield": {
+					"coconut": 1
+				},
+				"finish": {
+					"wood": 3,
+					"coconut": 2
+				},
+				"rare": {
+					"pearl": 0.0
+				}
+			},
+			"berry_bush": {
+				"tool": "hands",
+				"hits": 2,
+				"yield": {
+					"berries": 2
+				},
+				"finish": {
+					"food": 3
+				},
+				"verb": "Pick",
+				"height": 1.1
+			},
 			"rock": {
+				"tool": "pick",
 				"hits": 5,
 				"yield": {
 					"stone": 2
 				},
 				"finish": {
 					"stone": 4
+				}
+			},
+			"flint": {
+				"tool": "pick",
+				"hits": 3,
+				"yield": {
+					"flint": 1
+				},
+				"finish": {
+					"flint": 2,
+					"stone": 1
+				}
+			},
+			"iron_seam": {
+				"tool": "pick",
+				"min_tier": "stone",
+				"hits": 7,
+				"yield": {
+					"iron": 1
+				},
+				"finish": {
+					"iron": 4,
+					"stone": 2
+				},
+				"rare": {
+					"map_fragment": 0.01
+				}
+			},
+			"fishing_spot": {
+				"tool": "hands",
+				"hits": 3,
+				"yield": {
+					"fish": 1
+				},
+				"finish": {
+					"fish": 2
+				},
+				"verb": "Fish",
+				"rare": {
+					"pearl": 0.02
+				}
+			},
+			"tide_pool": {
+				"tool": "hands",
+				"hits": 2,
+				"yield": {
+					"food": 1
+				},
+				"finish": {
+					"shell": 2,
+					"food": 2
+				},
+				"verb": "Forage",
+				"rare": {
+					"pearl": 0.05
 				}
 			}
 		},
@@ -670,12 +787,12 @@
 				"z": 7.5
 			},
 			{
-				"kind": "tree",
+				"kind": "palm",
 				"x": 3.5,
 				"z": 13.0
 			},
 			{
-				"kind": "tree",
+				"kind": "hardwood",
 				"x": 14.0,
 				"z": 15.5
 			},
@@ -690,14 +807,49 @@
 				"z": 6.2
 			},
 			{
-				"kind": "rock",
+				"kind": "flint",
 				"x": 2.0,
 				"z": 10.5
 			},
 			{
-				"kind": "rock",
+				"kind": "iron_seam",
 				"x": 20.5,
 				"z": 7.0
+			},
+			{
+				"kind": "bamboo",
+				"x": 21.5,
+				"z": 16.5
+			},
+			{
+				"kind": "coconut_palm",
+				"x": 14.0,
+				"z": 3.6
+			},
+			{
+				"kind": "berry_bush",
+				"x": 12.8,
+				"z": 17.0
+			},
+			{
+				"kind": "fishing_spot",
+				"x": 8.0,
+				"z": 0.2
+			},
+			{
+				"kind": "tide_pool",
+				"x": 18.0,
+				"z": 2.4
+			},
+			{
+				"kind": "palm",
+				"x": 5.0,
+				"z": 4.0
+			},
+			{
+				"kind": "flint",
+				"x": 9.0,
+				"z": 3.6
 			}
 		]
 	},

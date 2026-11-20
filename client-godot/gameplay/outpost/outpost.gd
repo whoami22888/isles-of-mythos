@@ -523,7 +523,7 @@ func _action_text() -> String:
 	if _focus != "" and state.needs_repair(_focus) and not state.is_building(_focus):
 		return "Repair (%s)" % State.cost_text(state.repair_cost(_focus))
 	if _gather_focus >= 0 and (_focus == "" or _site_idle(_focus)):
-		return "Chop" if gather.kind_of(_gather_focus) == "tree" else "Mine"
+		return gather.verb(gather.kind_of(_gather_focus))
 	if _focus == "":
 		return ""
 	if _focus != "camp" and not state.ready_amount(_focus).is_empty():
@@ -604,6 +604,10 @@ func interact(id: String) -> void:
 
 
 func on_build(id: String) -> void:
+	if id.begins_with("craft_"):
+		var why_c: String = gather.tools.craft(id.substr(6))
+		_toast(why_c if why_c != "" else "Crafted a %s" % gather.tools.RECIPES[id.substr(6)]["title"])
+		return
 	if id.begins_with("train_"):
 		var kind := id.substr(6)
 		var why0: String = state.train(kind)
@@ -682,6 +686,13 @@ func _menu_rows() -> Dictionary:
 				queued += 1
 		rows["train_" + kind] = {"text": "Train %s  ·  %s  ·  %ds%s" % [raid.unit_row(kind).get("title", kind), State.cost_text(tr.get("cost", {})), int(tr.get("seconds", 20)), "  ·  %d queued" % queued if queued else ""],
 			"can": state.level_of("barracks") > 0, "button": "Train"}
+	var tl = gather.tools
+	for rid in tl.RECIPES.keys():
+		var rc: Dictionary = tl.RECIPES[rid]
+		var why_r: String = tl.craft_block(rid)
+		var slot: String = rc["slot"]
+		rows["craft_" + rid] = {"text": "Craft %s  ·  %s  ·  now: %s %s (%d uses)  ·  Gathering skill %d%s" % [rc["title"], State.cost_text(rc["cost"]), tl.tier(slot), slot, int(tl.t["dur"].get(slot, 0)), tl.skill_level(), "  ·  " + why_r if why_r != "" and not why_r.begins_with("Need ") else ""],
+			"can": why_r == "", "button": "Craft"}
 	return rows
 
 
