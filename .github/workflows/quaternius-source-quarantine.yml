@@ -1,0 +1,73 @@
+name: Quaternius source quarantine — H05/H06 only
+run-name: Quaternius source quarantine \${{ github.sha }}
+
+on:
+  push:
+    branches:
+      - scratch/quaternius-source-quarantine-20261120
+    paths:
+      - .github/workflows/quaternius-source-quarantine.yml
+      - scripts/quaternius_source_quarantine.py
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quaternius-source-quarantine
+  cancel-in-progress: false
+
+jobs:
+  acquire:
+    if: github.actor == 'whoami22888' && github.ref_name == 'scratch/quaternius-source-quarantine-20261120'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: \${{ github.ref }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install pinned acquisition tooling
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m venv "$RUNNER_TEMP/iom-quaternius-venv"
+          "$RUNNER_TEMP/iom-quaternius-venv/bin/pip" install --disable-pip-version-check playwright==1.56.0 requests==2.32.5
+          "$RUNNER_TEMP/iom-quaternius-venv/bin/python" -m playwright install --with-deps chromium
+
+      - name: Download official publisher folders and verify exact bytes
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$RUNNER_TEMP/iom-quaternius-venv/bin/python" scripts/quaternius_source_quarantine.py
+
+      - name: Retain quarantine evidence artifact
+        if: always()
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
+        with:
+          name: quaternius-source-quarantine-\${{ github.sha }}
+          path: quarantine/quaternius/
+          if-no-files-found: warn
+          retention-days: 30
+          compression-level: 1
+
+      - name: Persist exact publisher ZIP bytes in the quarantine branch
+        if: success()
+        shell: bash
+        env:
+          GH_TOKEN: \${{ github.token }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add quarantine/quaternius/archives quarantine/quaternius/licenses quarantine/quaternius/evidence quarantine/quaternius/manifest.json quarantine/quaternius/summary.md
+          if git diff --cached --quiet; then
+            echo "No verified quarantine bytes or evidence to persist."
+            exit 1
+          fi
+          git commit -m "chore(quarantine): persist official Quaternius H05-H06 source evidence"
+          token_b64="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          git -c http.extraheader="AUTHORIZATION: basic $token_b64" push origin "HEAD:refs/heads/scratch/quaternius-source-quarantine-20261120"
