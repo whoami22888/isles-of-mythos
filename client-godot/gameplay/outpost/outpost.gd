@@ -55,6 +55,18 @@ var _lens_hidden := {}
 var _age := 0.0
 
 
+var _endpoint := ""
+var _token := ""
+var _refresh := ""
+
+
+## Boot hands the authenticated session here (kept for Milestone 2 sync).
+func begin_authenticated_session(url: String, token: String, refresh: String = "") -> void:
+	_endpoint = url
+	_token = token
+	_refresh = refresh
+
+
 func _ready() -> void:
 	_font = load(FONT_PATH)
 	state.load_data()

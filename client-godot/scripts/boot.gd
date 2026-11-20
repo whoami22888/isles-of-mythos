@@ -1348,11 +1348,16 @@ func _launch_internal_gameplay(message: Dictionary) -> void:
     var scene_path := "res://gameplay/ashore/washed_ashore.tscn"
     if not _opening_battle_done():
         scene_path = "res://gameplay/opening_battle.tscn"
+    elif FileAccess.file_exists(OUTPOST_SAVE):
+        # Chapter 2 started: returning players resume at the outpost.
+        scene_path = "res://gameplay/outpost/outpost.tscn"
     var gameplay = load(scene_path).instantiate()
     gameplay.begin_authenticated_session(_adapter._url, _adapter._token, _refresh_token)
     get_tree().root.add_child(gameplay)
     get_tree().current_scene = gameplay
     queue_free()
+
+const OUTPOST_SAVE := "user://outpost.cfg"
 
 func _opening_battle_done() -> bool:
     var cfg := ConfigFile.new()
