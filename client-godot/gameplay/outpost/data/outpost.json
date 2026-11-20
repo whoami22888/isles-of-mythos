@@ -6,7 +6,8 @@
     "wood",
     "stone",
     "food",
-    "iron"
+    "iron",
+    "gold"
   ],
   "welcome_stash": {
     "wood": 80,
@@ -347,13 +348,209 @@
     "z": 7.0
   },
   "milestone2": {
-    "_note": "Hooks only. Raids target the palisade; crew from the Barracks fight beside the player.",
+    "_note": "Raids (Milestone 2). Times in seconds. HP/damage are flat numbers.",
     "raid_faction": "UTC privateers",
     "first_raid_after_camp_level": 2,
-    "crew_types": [
-      "deckhand",
-      "musketeer"
-    ]
+    "raid_interval": 180,
+    "warning_seconds": 8,
+    "landing": {
+      "x": 11.0,
+      "z": 1.2
+    },
+    "boat": {
+      "x": 11.0,
+      "z": -2.2
+    },
+    "max_enemies": 8,
+    "max_crew": 6,
+    "building_hp": {
+      "camp": 600,
+      "mill": 250,
+      "dock": 200,
+      "forge": 300,
+      "barracks": 350,
+      "watchtower": 220
+    },
+    "repair_wood_per_level": 15,
+    "units": {
+      "deckhand": {
+        "title": "Deckhand",
+        "hp": 60,
+        "damage": 8,
+        "range": 1.6,
+        "cooldown": 1.1,
+        "speed": 2.6,
+        "shirt": [
+          0.45,
+          0.18,
+          0.14
+        ],
+        "scale": 1.0,
+        "weapon": "cutlass"
+      },
+      "musketeer": {
+        "title": "Musketeer",
+        "hp": 45,
+        "damage": 14,
+        "range": 9.0,
+        "cooldown": 3.6,
+        "speed": 2.2,
+        "shirt": [
+          0.16,
+          0.2,
+          0.32
+        ],
+        "scale": 1.0,
+        "ranged": true,
+        "shot_speed": 13.0
+      },
+      "brute": {
+        "title": "Brute",
+        "hp": 180,
+        "damage": 18,
+        "range": 1.9,
+        "cooldown": 1.8,
+        "speed": 1.8,
+        "shirt": [
+          0.3,
+          0.26,
+          0.22
+        ],
+        "scale": 1.22,
+        "weapon": "cutlass"
+      },
+      "captain": {
+        "title": "Captain",
+        "hp": 260,
+        "damage": 20,
+        "range": 1.8,
+        "cooldown": 1.2,
+        "speed": 2.4,
+        "shirt": [
+          0.1,
+          0.09,
+          0.09
+        ],
+        "scale": 1.12,
+        "weapon": "cutlass"
+      },
+      "sailor": {
+        "title": "Sailor",
+        "hp": 90,
+        "damage": 10,
+        "range": 1.6,
+        "cooldown": 1.0,
+        "speed": 2.8,
+        "shirt": [
+          0.62,
+          0.6,
+          0.5
+        ],
+        "scale": 1.0,
+        "weapon": "cutlass",
+        "crew": true
+      },
+      "crew_musketeer": {
+        "title": "Musketeer",
+        "hp": 60,
+        "damage": 12,
+        "range": 9.0,
+        "cooldown": 3.2,
+        "speed": 2.4,
+        "shirt": [
+          0.24,
+          0.38,
+          0.3
+        ],
+        "scale": 1.0,
+        "ranged": true,
+        "shot_speed": 13.0,
+        "crew": true
+      }
+    },
+    "crew_train": {
+      "sailor": {
+        "cost": {
+          "food": 20,
+          "wood": 10
+        },
+        "seconds": 20
+      },
+      "crew_musketeer": {
+        "cost": {
+          "food": 20,
+          "iron": 8
+        },
+        "seconds": 30
+      }
+    },
+    "waves": [
+      {
+        "deckhand": 3
+      },
+      {
+        "deckhand": 3,
+        "musketeer": 1
+      },
+      {
+        "deckhand": 3,
+        "musketeer": 2,
+        "brute": 1,
+        "captain": 1
+      },
+      {
+        "deckhand": 3,
+        "musketeer": 2,
+        "brute": 2,
+        "captain": 1
+      },
+      {
+        "deckhand": 3,
+        "musketeer": 2,
+        "brute": 2,
+        "captain": 1
+      }
+    ],
+    "wave_hp_scale": 0.12,
+    "rewards": [
+      {
+        "iron": 6,
+        "gold": 5
+      },
+      {
+        "iron": 10,
+        "gold": 8
+      },
+      {
+        "iron": 14,
+        "gold": 12
+      },
+      {
+        "iron": 18,
+        "gold": 16
+      },
+      {
+        "iron": 25,
+        "gold": 25,
+        "relic_shard": 1
+      }
+    ],
+    "player": {
+      "hp": 120,
+      "damage": 26,
+      "range": 2.2,
+      "cooldown": 0.42,
+      "knockback": 2.2,
+      "dodge_distance": 3.4,
+      "dodge_seconds": 0.35,
+      "respawn_seconds": 3.0
+    },
+    "pet": {
+      "damage": 6,
+      "stun": 1.2,
+      "cooldown": 3.0,
+      "range": 7.0
+    }
   },
   "gather": {
     "_note": "Strikeable nodes around the outpost (same strike/chip/fly feel as the island).",

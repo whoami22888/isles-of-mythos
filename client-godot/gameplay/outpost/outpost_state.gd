@@ -22,6 +22,12 @@ var buildings: Dictionary = {}
 var camp_building := false
 var camp_left := 0.0
 var welcomed := false
+## Milestone 2: building HP (id -> float), damaged buildings stop producing.
+var hp: Dictionary = {}
+var waves_done := 0
+var crew_queue: Array = []   # [{"kind": String, "left": float}]
+var crew_ready: Array = []   # kinds trained and waiting to be fielded
+var relics := 0
 
 
 func load_data(path: String = DATA_PATH) -> bool:
@@ -212,6 +218,7 @@ func tick(delta: float) -> void:
 			camp_left = 0.0
 			camp_level += 1
 			camp_levelled.emit(camp_level)
+	tick_crew(delta)
 	for id in buildings.keys():
 		var b: Dictionary = buildings[id]
 		if bool(b["building"]):
@@ -227,7 +234,7 @@ func tick(delta: float) -> void:
 
 func _produce(id: String, b: Dictionary, delta: float) -> void:
 	var lv := int(b["level"])
-	if lv <= 0:
+	if lv <= 0 or is_damaged(id):
 		return
 	var row := level_row(id, lv)
 	var makes: Dictionary = row.get("produces", {})
@@ -313,12 +320,94 @@ func warning_seconds() -> float:
 	return float(level_row("watchtower", lv).get("warning_seconds", 0)) if lv > 0 else 0.0
 
 
+# --- Milestone 2: HP, repair, crew ---------------------------------------
+
+func m2() -> Dictionary:
+	return data.get("milestone2", {})
+
+
+func max_hp(id: String) -> float:
+	if id == "palisade":
+		return float(palisade_hp())
+	var lv := camp_level if id == "camp" else level_of(id)
+	if lv <= 0:
+		return 0.0
+	return float(m2().get("building_hp", {}).get(id, 200)) * (1.0 + 0.5 * (lv - 1))
+
+
+func hp_of(id: String) -> float:
+	return float(hp.get(id, max_hp(id)))
+
+
+func damage(id: String, amount: float) -> void:
+	hp[id] = maxf(hp_of(id) - amount, 0.0)
+
+
+func is_damaged(id: String) -> bool:
+	return max_hp(id) > 0.0 and hp_of(id) <= 0.0
+
+
+func repair_cost(id: String) -> Dictionary:
+	var lv := camp_level if id == "camp" else level_of(id)
+	var frac := 1.0 - hp_of(id) / maxf(max_hp(id), 1.0)
+	return {"wood": int(ceil(float(m2().get("repair_wood_per_level", 15)) * maxi(lv, 1) * frac))}
+
+
+func needs_repair(id: String) -> bool:
+	return max_hp(id) > 0.0 and hp_of(id) < max_hp(id) - 0.5
+
+
+func repair(id: String) -> bool:
+	if not needs_repair(id):
+		return false
+	var c := repair_cost(id)
+	if not affordable(c):
+		return false
+	for key in c.keys():
+		inv[str(key)] = int(inv.get(str(key), 0)) - int(c[key])
+	hp.erase(id)
+	return true
+
+
+func train(kind: String) -> String:
+	var row: Dictionary = m2().get("crew_train", {}).get(kind, {})
+	if row.is_empty():
+		return "Unknown crew"
+	if level_of("barracks") <= 0:
+		return "Needs a Barracks"
+	if crew_queue.size() + crew_ready.size() + fielded >= crew_slots():
+		return "Barracks full (%d slots)" % crew_slots()
+	var c: Dictionary = row.get("cost", {})
+	if not affordable(c):
+		return "Need " + cost_text(missing(c))
+	for key in c.keys():
+		inv[str(key)] = int(inv.get(str(key), 0)) - int(c[key])
+	crew_queue.append({"kind": kind, "left": float(row.get("seconds", 20))})
+	return ""
+
+
+## Crew currently on the field (set by the raid director).
+var fielded := 0
+
+
+func tick_crew(delta: float) -> void:
+	if crew_queue.is_empty():
+		return
+	var head: Dictionary = crew_queue[0]
+	head["left"] = float(head["left"]) - delta
+	if float(head["left"]) <= 0.0:
+		crew_queue.pop_front()
+		crew_ready.append(str(head["kind"]))
+
+
 # --- Save -------------------------------------------------------------------
 
 func to_dict() -> Dictionary:
 	return {"inv": inv.duplicate(), "pet_name": pet_name, "camp_level": camp_level,
 		"camp_building": camp_building, "camp_left": camp_left,
-		"buildings": buildings.duplicate(true), "welcomed": welcomed}
+		"buildings": buildings.duplicate(true), "welcomed": welcomed,
+		"hp": hp.duplicate(), "waves_done": waves_done, "crew_queue": crew_queue.duplicate(true),
+		"crew_ready": crew_ready.duplicate(), "relics": relics}
 
 
 func from_dict(d: Dictionary) -> void:
@@ -330,6 +419,11 @@ func from_dict(d: Dictionary) -> void:
 	camp_building = bool(d.get("camp_building", false))
 	camp_left = float(d.get("camp_left", 0.0))
 	welcomed = bool(d.get("welcomed", false))
+	hp = (d.get("hp", {}) as Dictionary).duplicate()
+	waves_done = int(d.get("waves_done", 0))
+	crew_queue = (d.get("crew_queue", []) as Array).duplicate(true)
+	crew_ready = (d.get("crew_ready", []) as Array).duplicate()
+	relics = int(d.get("relics", 0))
 	var bs: Dictionary = d.get("buildings", {})
 	for id in bs.keys():
 		if buildings.has(id):
