@@ -87,6 +87,33 @@ func run() -> void:
 	check(int(st.inv["wood"]) > before and scene._hud.flying() == 0, "wood collected %d -> %d" % [before, int(st.inv["wood"])])
 	check(st.level_of("dock") == 1 and st.level_of("palisade") == 1, "dock + palisade built")
 	say("objective: " + st.objective())
+	# Strike a tree until it falls.
+	var tree_i := -1
+	for i in scene.gather.nodes.size():
+		if scene.gather.kind_of(i) == "tree":
+			tree_i = i
+	var tp: Vector3 = scene.gather.nodes[tree_i]["pos"]
+	scene._player.global_position = Vector3(tp.x, scene.ground_y(tp.x, tp.z + 1.8), tp.z + 1.8)
+	await frames(2)
+	check(scene._action_text() == "Chop", "action shows Chop near a tree ('%s')" % scene._action_text())
+	var w0 := int(st.inv["wood"])
+	for k in 4:
+		scene.on_action()
+		await frames(12)
+	check(int(st.inv["wood"]) == w0 + 4 * 3 + 4, "tree felled for 16 wood (%d -> %d)" % [w0, int(st.inv["wood"])])
+	check(float(scene.gather.nodes[tree_i]["left"]) > 0.0, "tree down, respawning")
+	var rock_i := -1
+	for i in scene.gather.nodes.size():
+		if scene.gather.kind_of(i) == "rock":
+			rock_i = i
+			break
+	var rp: Vector3 = scene.gather.nodes[rock_i]["pos"]
+	scene._player.global_position = Vector3(rp.x, scene.ground_y(rp.x, rp.z - 1.6), rp.z - 1.6)
+	await frames(2)
+	var s0 := int(st.inv["stone"])
+	scene.on_action()
+	await frames(12)
+	check(int(st.inv["stone"]) == s0 + 2, "rock struck for stone")
 	scene._cam_yaw = deg_to_rad(25.0)
 	scene.stand_at("camp")
 	await shot("outpost_built")

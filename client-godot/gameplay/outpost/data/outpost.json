@@ -354,5 +354,67 @@
       "deckhand",
       "musketeer"
     ]
+  },
+  "gather": {
+    "_note": "Strikeable nodes around the outpost (same strike/chip/fly feel as the island).",
+    "respawn_seconds": 45,
+    "reach": 2.6,
+    "kinds": {
+      "tree": {
+        "hits": 4,
+        "yield": {
+          "wood": 3
+        },
+        "finish": {
+          "wood": 4
+        }
+      },
+      "rock": {
+        "hits": 5,
+        "yield": {
+          "stone": 2
+        },
+        "finish": {
+          "stone": 4
+        }
+      }
+    },
+    "nodes": [
+      {
+        "kind": "tree",
+        "x": 2.0,
+        "z": 7.5
+      },
+      {
+        "kind": "tree",
+        "x": 3.5,
+        "z": 13.0
+      },
+      {
+        "kind": "tree",
+        "x": 14.0,
+        "z": 15.5
+      },
+      {
+        "kind": "tree",
+        "x": 20.0,
+        "z": 11.5
+      },
+      {
+        "kind": "rock",
+        "x": 15.5,
+        "z": 6.2
+      },
+      {
+        "kind": "rock",
+        "x": 2.0,
+        "z": 10.5
+      },
+      {
+        "kind": "rock",
+        "x": 20.5,
+        "z": 7.0
+      }
+    ]
   }
 }

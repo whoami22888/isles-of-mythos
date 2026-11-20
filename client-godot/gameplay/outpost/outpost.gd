@@ -11,6 +11,7 @@ extends Node3D
 ## Barracks crew fighting beside the player) will hang off the state signals
 ## building_done / camp_levelled and read palisade_hp() / crew_slots().
 
+const Gather := preload("res://gameplay/outpost/outpost_gather.gd")
 const State := preload("res://gameplay/outpost/outpost_state.gd")
 const OutpostArt := preload("res://gameplay/outpost/outpost_art.gd")
 const Art := preload("res://gameplay/opening/opening_art.gd")
@@ -30,6 +31,9 @@ const REACH := 4.8
 var state = State.new()
 var art = OutpostArt.new()
 var raid_director: Node = null
+var gather: Node3D
+var _gather_focus := -1
+var _kick := 0.0
 var _slice: Node3D
 var _water_y := 0.0
 var _terrain_tm: TriangleMesh
@@ -62,6 +66,11 @@ func _ready() -> void:
 	art.ground = Callable(self, "ground_y")
 	_build_world()
 	_build_sites()
+	gather = Gather.new()
+	gather.name = "Gather"
+	gather.host = self
+	add_child(gather)
+	gather.setup(state.data.get("gather", {}))
 	_build_player()
 	_hud = CanvasLayer.new()
 	_hud.set_script(load("res://gameplay/outpost/outpost_hud.gd"))
@@ -293,6 +302,7 @@ func _process(delta: float) -> void:
 	_fade_lens()
 	_refresh_sites()
 	_focus = _nearest_site(REACH)
+	_gather_focus = gather.nearest(_player.global_position) if gather else -1
 	_push()
 	_save_t += delta
 	if _save_t > 5.0:
@@ -307,7 +317,9 @@ func _move(delta: float) -> void:
 	input += Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	input = input.limit_length(1.0)
 	if input.length() < 0.08:
-		Art.play(_rig, "Idle")
+		var anim: AnimationPlayer = _rig.get_meta("clips") if _rig.has_meta("clips") else null
+		if anim == null or anim.current_animation != "Attack" or not anim.is_playing():
+			Art.play(_rig, "Idle")
 		return
 	var fwd := Vector3(-sin(_cam_yaw), 0, -cos(_cam_yaw))
 	var right := Vector3(cos(_cam_yaw), 0, -sin(_cam_yaw))
@@ -340,6 +352,9 @@ func _follow_camera(delta: float, snap: bool) -> void:
 	eye.y = maxf(eye.y, ground_y(eye.x, eye.z) + 2.0)
 	_camera.global_position = eye if snap else _camera.global_position.lerp(eye, clampf(delta * 4.0, 0.0, 1.0))
 	_camera.look_at(target, Vector3.UP)
+	if _kick > 0.0:
+		_camera.global_position += Vector3(randf_range(-1, 1), randf_range(-1, 1), 0) * _kick
+		_kick = maxf(_kick - delta * 0.9, 0.0)
 
 
 func snap_camera() -> void:
@@ -360,6 +375,8 @@ func _nearest_site(radius: float) -> String:
 
 
 func _action_text() -> String:
+	if _gather_focus >= 0 and (_focus == "" or _site_idle(_focus)):
+		return "Chop" if gather.kind_of(_gather_focus) == "tree" else "Mine"
 	if _focus == "":
 		return ""
 	if _focus != "camp" and not state.ready_amount(_focus).is_empty():
@@ -373,10 +390,44 @@ func _action_text() -> String:
 	return ("Build %s" % state.title(_focus)) if lv == 0 else ("Upgrade %s" % state.title(_focus))
 
 
+## A site with nothing to do right now (lets a nearby tree/rock take the button).
+func _site_idle(id: String) -> bool:
+	if id != "camp" and not state.ready_amount(id).is_empty():
+		return false
+	return state.is_building(id) or state.block_reason(id) != ""
+
+
 func on_action() -> void:
+	if _gather_focus >= 0 and (_focus == "" or _site_idle(_focus)):
+		strike(_gather_focus)
+		return
 	if _focus == "":
 		return
 	interact(_focus)
+
+
+func strike(i: int) -> Dictionary:
+	var target: Vector3 = gather.nodes[i]["pos"]
+	_player.look_at(Vector3(target.x, _player.global_position.y, target.z), Vector3.UP)
+	Art.play(_rig, "Attack", 0.08)
+	var got: Dictionary = gather.strike(i)
+	if got.is_empty():
+		return got
+	for k in got.keys():
+		state.inv[str(k)] = int(state.inv.get(str(k), 0)) + int(got[k])
+	fly_from_world(target + Vector3.UP * 1.2, got)
+	return got
+
+
+func fly_from_world(at: Vector3, got: Dictionary) -> void:
+	var screen := _camera.unproject_position(at) if not _camera.is_position_behind(at) else get_viewport().get_visible_rect().size * 0.5
+	for kind in got.keys():
+		if _hud:
+			_hud.fly(screen, str(kind), int(got[kind]))
+
+
+func camera_kick(amount: float) -> void:
+	_kick = maxf(_kick, amount)
 
 
 ## Tap or action on a site: collect if stocked, otherwise build/upgrade.
@@ -405,11 +456,7 @@ func collect(id: String) -> Dictionary:
 	var got: Dictionary = state.collect(id)
 	if got.is_empty():
 		return got
-	var at := (_sites[id]["plot"] as Vector3) + Vector3.UP * 2.0
-	var screen := _camera.unproject_position(at) if not _camera.is_position_behind(at) else get_viewport().get_visible_rect().size * 0.5
-	for kind in got.keys():
-		if _hud:
-			_hud.fly(screen, str(kind), int(got[kind]))
+	fly_from_world((_sites[id]["plot"] as Vector3) + Vector3.UP * 2.0, got)
 	state.save()
 	return got
 
