@@ -1,0 +1,139 @@
+name: Prompt 010 Vulkan Mobile MultiMesh draw-call regression
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/godot-prompt-010-multimesh-draw-call.yml"
+      - "client-godot/scripts/multimesh_instancer.gd"
+      - "client-godot/tests/multimesh_instancer_regression.gd"
+      - "client-godot/tests/multimesh_instancer_render_test.gd"
+      - "client-godot/tests/multimesh_instancer_test.tscn"
+      - "client-godot/tests/multimesh_instancer_test_scene.gd"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prompt-010-multimesh-render-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+
+env:
+  GODOT_VERSION: 4.7.2
+  GODOT_SHA256: cadd3204e728a35d3f13adb7fd0d7902636b79f6b95c40c265eb73b6c35329e4
+  SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  rendered-draw-call:
+    name: Godot 4.7.2 Vulkan Mobile MultiMesh draw-call regression
+    if: github.event.pull_request.head.ref == 'build/prompt-010-multimesh-instancer-20261120'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Install pinned Godot 4.7.2
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/godot"
+          curl --fail --location --retry 3 -o "$RUNNER_TEMP/godot/godot.zip" "https://github.com/godotengine/godot/releases/download/4.7.2-stable/Godot_v4.7.2-stable_linux.x86_64.zip"
+          echo "$GODOT_SHA256  $RUNNER_TEMP/godot/godot.zip" | sha256sum --check
+          unzip -q "$RUNNER_TEMP/godot/godot.zip" -d "$RUNNER_TEMP/godot/bin"
+          install "$RUNNER_TEMP/godot/bin/Godot_v4.7.2-stable_linux.x86_64" "$RUNNER_TEMP/godot/godot"
+          "$RUNNER_TEMP/godot/godot" --version | grep -F "4.7.2.stable"
+
+      - name: Install pinned software Vulkan renderer
+        shell: bash
+        run: |
+          set -euo pipefail
+          mirror_file=/etc/apt/apt-mirrors.txt
+          if [ -s "$mirror_file" ]; then
+            sudo sed -E -i 's|https?://[^[:space:]]*\.ec2\.archive\.ubuntu\.com/ubuntu/?|https://archive.ubuntu.com/ubuntu|g' "$mirror_file"
+          fi
+          for source_file in /etc/apt/sources.list /etc/apt/sources.list.d/*.sources /etc/apt/sources.list.d/*.list; do
+            if [ -f "$source_file" ]; then
+              sudo sed -E -i 's|https?://[^[:space:]]*\.ec2\.archive\.ubuntu\.com/ubuntu/?|https://archive.ubuntu.com/ubuntu|g' "$source_file"
+            fi
+          done
+          timeout 180s sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15 update
+          timeout 180s sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15 install --no-install-recommends -y mesa-vulkan-drivers xvfb xauth
+          lvp_icd="$(find /usr/share/vulkan/icd.d -maxdepth 1 -type f -name 'lvp_icd*.json' -print -quit)"
+          if [ -z "$lvp_icd" ]; then
+            echo "::error::Mesa Lavapipe Vulkan ICD is unavailable."
+            exit 1
+          fi
+          mkdir -p "$RUNNER_TEMP/xdg-runtime"
+          chmod 700 "$RUNNER_TEMP/xdg-runtime"
+          echo "VK_ICD_FILENAMES=$lvp_icd" >> "$GITHUB_ENV"
+          echo "XDG_RUNTIME_DIR=$RUNNER_TEMP/xdg-runtime" >> "$GITHUB_ENV"
+
+      - name: Import Godot project and register global script classes
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$RUNNER_TEMP/godot/godot" --headless --editor --path client-godot --quit --import
+
+      - name: Execute rendered 512-instance draw-call regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          log="$RUNNER_TEMP/multimesh-vulkan-mobile.log"
+          timeout 120s xvfb-run --auto-servernum --server-args="-screen 0 1280x720x24" \
+            "$RUNNER_TEMP/godot/godot" \
+            --path client-godot \
+            --display-driver x11 \
+            --rendering-method mobile \
+            --rendering-driver vulkan \
+            --audio-driver Dummy \
+            --script res://tests/multimesh_instancer_render_test.gd 2>&1 | tee "$log"
+          if ! grep -Eiq 'Vulkan [0-9]+\.[0-9]+' "$log"; then
+            echo "::error::Godot did not report a Vulkan API device; the render test cannot pass via an OpenGL fallback."
+            exit 1
+          fi
+          if grep -Eiq 'OpenGL API|OpenGL ES API' "$log"; then
+            echo "::error::Godot selected an OpenGL renderer instead of Vulkan."
+            exit 1
+          fi
+          if ! grep -Eq 'MULTIMESH_DRAW_CALL_DIAGNOSTIC .*method=mobile .*delta=1' "$log"; then
+            echo "::error::512 MultiMesh instances did not produce the required single rendered draw call."
+            exit 1
+          fi
+          if ! grep -Eq 'MULTIMESH_RENDER_TEST_COMPLETE method=mobile' "$log"; then
+            echo "::error::The non-headless MultiMesh regression did not complete."
+            exit 1
+          fi
+          source_sha="$(git rev-parse HEAD)"
+          test "$source_sha" = "$SOURCE_SHA"
+          script_sha="$(sha256sum client-godot/tests/multimesh_instancer_render_test.gd | cut -d' ' -f1)"
+          instancer_sha="$(sha256sum client-godot/scripts/multimesh_instancer.gd | cut -d' ' -f1)"
+          log_sha="$(sha256sum "$log" | cut -d' ' -f1)"
+          cat > "$RUNNER_TEMP/multimesh-vulkan-mobile.provenance.json" <<EOF
+          {
+            "code_sha": "$source_sha",
+            "workflow_run_id": "$GITHUB_RUN_ID",
+            "workflow_run_attempt": "$GITHUB_RUN_ATTEMPT",
+            "godot_version": "4.7.2.stable",
+            "renderer": "mobile",
+            "driver": "vulkan",
+            "test": "512 MultiMesh instances; one draw call",
+            "draw_call_delta": 1,
+            "test_script_sha256": "$script_sha",
+            "instancer_source_sha256": "$instancer_sha",
+            "renderer_log_sha256": "$log_sha",
+            "classification": "ENGINE_DIAGNOSTIC_ONLY_NOT_PHYSICAL_DEVICE_ACCEPTANCE"
+          }
+          EOF
+          python3 -m json.tool "$RUNNER_TEMP/multimesh-vulkan-mobile.provenance.json" >/dev/null
+          echo "Prompt 010 rendered MultiMesh draw-call regression: PASS (512 instances, one draw call, Vulkan Mobile)." >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
+        with:
+          name: prompt-010-multimesh-vulkan-draw-call-${{ github.event.pull_request.number || github.run_id }}
+          path: |
+            ${{ runner.temp }}/multimesh-vulkan-mobile.log
+            ${{ runner.temp }}/multimesh-vulkan-mobile.provenance.json
+          if-no-files-found: error
+          retention-days: 14
