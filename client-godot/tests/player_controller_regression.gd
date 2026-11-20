@@ -33,13 +33,13 @@ class MockProtocol:
 		return "gather-%d" % gather_requests.size()
 
 
-static func run(tree: SceneTree, check: Callable) -> void:
+static func run(root: Node, check: Callable) -> void:
 	var player = PlayerController.new()
 	player.name = "PlayerControllerRegression"
-	tree.root.add_child(player)
+	root.add_child(player)
 	var protocol = MockProtocol.new()
 	protocol.name = "MockPlayerProtocol"
-	tree.root.add_child(protocol)
+	root.add_child(protocol)
 
 	check.call(player.get_node_or_null("FallbackBody") is MeshInstance3D, "PlayerController must create a fallback capsule when no mesh is assigned")
 	check.call(player.set_protocol(protocol), "PlayerController must bind the authenticated protocol adapter")
