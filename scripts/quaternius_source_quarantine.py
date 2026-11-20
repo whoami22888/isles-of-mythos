@@ -127,8 +127,14 @@ def click_drive_download(browser, pack: dict, destination: Path) -> dict:
         result["page_title"] = page.title()
         result["body_excerpt"] = body_text[:3000]
 
+        # Public Drive folder pages expose the bulk action as a visible div[role=button]
+        # labelled "Download all", not as an aria-labelled native button. Match that exact
+        # action first; per-file Download buttons are only exposed on row hover.
         candidates = [
-            page.get_by_role("button", name=re.compile("download", re.I)),
+            page.locator('[role="button"]').filter(
+                has_text=re.compile(r"^\\s*Download all\\s*$", re.I)
+            ),
+            page.get_by_text("Download all", exact=True),
             page.locator('[aria-label*="Download" i]'),
             page.locator('[data-tooltip*="Download" i]'),
         ]
