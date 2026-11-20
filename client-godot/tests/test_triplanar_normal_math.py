@@ -215,12 +215,12 @@ class StylizedPbrShaderContractTests(unittest.TestCase):
 
     def test_back_facing_lights_do_not_add_direct_diffuse(self):
         """Back-facing lights must not contribute the shadow tint as direct light."""
-        guard = "if (n_dot_l <= 0.0) {\n        return;\n    }"
+        guard = "if (n_dot_l > 0.0) {"
         self.assertIn(guard, self.light)
-        self.assertLess(
-            self.light.index(guard),
-            self.light.index("DIFFUSE_LIGHT +="),
-        )
+        self.assertNotIn("return;", self.light)
+        guarded_body = self.light.split(guard, 1)[1].rsplit("\n}", 1)[0]
+        self.assertIn("DIFFUSE_LIGHT +=", guarded_body)
+        self.assertIn("SPECULAR_LIGHT +=", guarded_body)
 
     def test_specular_amount_is_applied_once(self):
         """The fragment SPECULAR control must not be squared in the light lobe."""
