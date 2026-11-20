@@ -531,10 +531,11 @@ func build_ui(hud: CanvasLayer, font: Font) -> void:
 	hud.add_child(_ui)
 	_clock_lab = Label.new()
 	_clock_lab.add_theme_font_size_override("font_size", 24)
+	_clock_lab.name = "Clock"
 	_clock_lab.add_theme_color_override("font_color", Color(0.95, 0.9, 0.78))
 	_clock_lab.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
 	_clock_lab.add_theme_constant_override("outline_size", 6)
-	_clock_lab.position = Vector2(26, 112)
+	_clock_lab.position = Vector2(26, 152)
 	_ui.add_child(_clock_lab)
 	_card = PanelContainer.new()
 	_card.name = "EventCard"
@@ -551,7 +552,7 @@ func build_ui(hud: CanvasLayer, font: Font) -> void:
 	_card.anchor_bottom = 0.5
 	_card.offset_left = -430
 	_card.offset_right = 430
-	_card.offset_top = -260
+	_card.offset_top = -200
 	_card.grow_vertical = Control.GROW_DIRECTION_BOTH
 	_card.visible = false
 	_ui.add_child(_card)

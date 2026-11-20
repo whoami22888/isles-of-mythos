@@ -356,9 +356,30 @@ func _animate(a: Dictionary, delta: float) -> void:
 
 # --- Art: composed, matte, stylised-realistic ------------------------------------
 
-static func _mat(c: Color, rough: float = 0.85) -> StandardMaterial3D:
+static var _grain: NoiseTexture2D
+
+
+## Matte material with a fine mottled grain (fur, shell, hide) so composed
+## shapes don't read as smooth plastic toys.
+static func _mat(c: Color, rough: float = 0.92) -> StandardMaterial3D:
+	if _grain == null:
+		var n := FastNoiseLite.new()
+		n.frequency = 0.09
+		n.fractal_octaves = 4
+		_grain = NoiseTexture2D.new()
+		_grain.width = 128
+		_grain.height = 128
+		_grain.seamless = true
+		_grain.noise = n
+		var g := Gradient.new()
+		g.set_color(0, Color(0.62, 0.6, 0.58))
+		g.set_color(1, Color(1.05, 1.03, 1.0))
+		_grain.color_ramp = g
 	var m := StandardMaterial3D.new()
 	m.albedo_color = c
+	m.albedo_texture = _grain
+	m.uv1_triplanar = true
+	m.uv1_scale = Vector3(6, 6, 6)
 	m.roughness = rough
 	return m
 
@@ -401,22 +422,27 @@ static func build_body(kind: String) -> Node3D:
 	var sph := _sphere()
 	match kind:
 		"boar":
-			var hide := Color(0.24, 0.18, 0.14)
-			_part(b, sph, Vector3(0, 0.52, 0.05), Vector3(0.62, 0.58, 1.05), hide)
+			var hide := Color(0.2, 0.16, 0.13)
+			_part(b, sph, Vector3(0, 0.5, 0.12), Vector3(0.56, 0.52, 1.1), hide)
+			_part(b, sph, Vector3(0, 0.56, -0.25), Vector3(0.6, 0.62, 0.6), hide.darkened(0.1))   # heavy shoulders
 			_part(b, sph, Vector3(0, 0.66, 0.1), Vector3(0.18, 0.2, 0.9), Color(0.16, 0.12, 0.1))   # bristle ridge
-			_part(b, sph, Vector3(0, 0.5, -0.55), Vector3(0.42, 0.42, 0.5), hide)
-			_part(b, _cyl(0.1, 0.14), Vector3(0, 0.44, -0.86), Vector3(1, 0.3, 1), Color(0.36, 0.26, 0.22), Vector3(90, 0, 0))
+			_part(b, sph, Vector3(0, 0.44, -0.62), Vector3(0.36, 0.38, 0.5), hide)
+			_part(b, _cyl(0.07, 0.13), Vector3(0, 0.36, -0.9), Vector3(1, 0.32, 1), Color(0.26, 0.2, 0.17), Vector3(105, 0, 0))
+			_part(b, _cyl(0.075, 0.075), Vector3(0, 0.32, -1.06), Vector3(1, 0.03, 0.8), Color(0.3, 0.22, 0.2), Vector3(105, 0, 0))   # snout disc
 			for sx in [-1, 1]:
 				_part(b, _cyl(0.0, 0.025), Vector3(0.1 * sx, 0.45, -0.85), Vector3(1, 0.16, 1), Color(0.86, 0.82, 0.7), Vector3(-30, 0, 15 * sx))
 				_part(b, sph, Vector3(0.14 * sx, 0.72, -0.5), Vector3(0.07, 0.14, 0.05), hide)
 				for sz in [-0.32, 0.38]:
 					_part(b, _cyl(0.05, 0.04), Vector3(0.18 * sx, 0.18, sz), Vector3(1, 0.36, 1), Color(0.18, 0.14, 0.11))
 		"crab":
-			var shell := Color(0.62, 0.24, 0.14)
-			_part(b, sph, Vector3(0, 0.1, 0), Vector3(0.34, 0.12, 0.26), shell)
+			var shell := Color(0.4, 0.2, 0.14)
+			_part(b, sph, Vector3(0, 0.1, 0), Vector3(0.34, 0.1, 0.26), shell)
+			_part(b, sph, Vector3(0, 0.13, 0.02), Vector3(0.26, 0.06, 0.18), shell.lightened(0.08))
 			for sx in [-1, 1]:
 				for i in 3:
-					_part(b, _cyl(0.012, 0.012), Vector3(0.2 * sx, 0.06, -0.06 + i * 0.08), Vector3(1, 0.22, 1), shell.darkened(0.2), Vector3(0, 0, 60 * sx))
+					var z := -0.06 + i * 0.08
+					_part(b, _cyl(0.014, 0.016), Vector3(0.2 * sx, 0.1, z), Vector3(1, 0.14, 1), shell.darkened(0.15), Vector3(0, 0, 70 * sx))
+					_part(b, _cyl(0.008, 0.013), Vector3(0.3 * sx, 0.05, z), Vector3(1, 0.12, 1), shell.darkened(0.25), Vector3(0, 0, -25 * sx))
 				_part(b, sph, Vector3(0.17 * sx, 0.1, -0.2), Vector3(0.1, 0.07, 0.13), shell.lightened(0.05))
 				_part(b, sph, Vector3(0.06 * sx, 0.18, -0.12), Vector3(0.025, 0.05, 0.025), Color(0.08, 0.06, 0.05))
 		"snake":
@@ -426,14 +452,15 @@ static func build_body(kind: String) -> Node3D:
 				_part(b, sph, Vector3(0, r, -0.2 + i * 0.13), Vector3(r * 2.2, r * 1.8, 0.2), scale_c.lerp(Color(0.5, 0.42, 0.22), float(i % 2) * 0.4))
 			_part(b, sph, Vector3(0, 0.07, -0.3), Vector3(0.13, 0.08, 0.17), scale_c.darkened(0.15))
 		"monkey":
-			var fur := Color(0.36, 0.25, 0.16)
-			_part(b, sph, Vector3(0, 0.42, 0), Vector3(0.3, 0.38, 0.28), fur)
+			var fur := Color(0.24, 0.18, 0.12)
+			_part(b, sph, Vector3(0, 0.42, 0.02), Vector3(0.24, 0.36, 0.22), fur)
 			_part(b, sph, Vector3(0, 0.72, -0.06), Vector3(0.24, 0.23, 0.22), fur)
-			_part(b, sph, Vector3(0, 0.7, -0.16), Vector3(0.15, 0.13, 0.08), Color(0.62, 0.48, 0.38))
+			_part(b, sph, Vector3(0, 0.7, -0.16), Vector3(0.13, 0.11, 0.07), Color(0.45, 0.35, 0.28))
 			for sx in [-1, 1]:
 				_part(b, _cyl(0.03, 0.035), Vector3(0.17 * sx, 0.36, -0.05), Vector3(1, 0.42, 1), fur, Vector3(20, 0, 10 * sx))
 				_part(b, _cyl(0.035, 0.04), Vector3(0.1 * sx, 0.14, 0.04), Vector3(1, 0.3, 1), fur)
-				_part(b, sph, Vector3(0.12 * sx, 0.76, -0.04), Vector3(0.07, 0.08, 0.03), Color(0.55, 0.42, 0.33))
+				_part(b, sph, Vector3(0.12 * sx, 0.76, -0.04), Vector3(0.05, 0.06, 0.02), Color(0.4, 0.3, 0.24))
+				_part(b, sph, Vector3(0.045 * sx, 0.74, -0.2), Vector3(0.022, 0.022, 0.01), Color(0.05, 0.04, 0.03))
 			for i in 5:
 				_part(b, sph, Vector3(0, 0.3 + i * 0.07, 0.2 + i * 0.07), Vector3(0.05, 0.05, 0.1), fur)
 		"gull":

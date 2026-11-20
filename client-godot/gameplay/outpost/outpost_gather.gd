@@ -9,8 +9,9 @@ const ROCK := preload("res://assets/opening/library/coast_rocks_03/coast_rocks_0
 const STONE := preload("res://assets/ashore/library/stone_01/stone_01.glb")
 const CHOP := preload("res://assets/ashore/audio/chop.ogg")
 const STONE_HIT := preload("res://assets/ashore/audio/stone_hit.ogg")
-const PALM_A := preload("res://assets/ashore/models/palm_a.glb")
-const PALM_B := preload("res://assets/ashore/models/palm_b.glb")
+## Realistic palm (the ashore palm_a/b set reads low-poly and cartoony).
+const PALM_A := preload("res://assets/generated/palm_v2/palm_v2_mobile.glb")
+const PALM_B := PALM_A
 const BUSH := preload("res://assets/ashore/models/bush.glb")
 const Tools := preload("res://gameplay/outpost/outpost_tools.gd")
 const W := preload("res://gameplay/outpost/outpost_wildlife.gd")
@@ -46,9 +47,8 @@ func setup(data: Dictionary) -> void:
 			gy = float(host._water_y) + 0.03
 		root.global_position = Vector3(x, gy, z)
 		root.rotation_degrees.y = fmod(x * 37.0 + z * 11.0, 360.0)
-		var body := _art(kind)
+		var body := _art(kind, root)
 		body.name = "Body"
-		root.add_child(body)
 		if body.get_meta("fit", true):
 			var tall := float(_kind_row(kind).get("height", 6.5 if kind in WOODY else 1.1))
 			Art.fit_height(body, tall)
@@ -71,13 +71,15 @@ func verb(kind: String) -> String:
 	return str(_kind_row(kind).get("verb", "Chop" if kind in WOODY else "Mine"))
 
 
-func _art(kind: String) -> Node3D:
+## Builds the node's body under `parent` (already in the tree, so fit_height
+## measures real world bounds).
+func _art(kind: String, parent: Node3D) -> Node3D:
 	var b: Node3D
 	match kind:
 		"palm":
 			b = Art.spawn(PALM_A)
 		"coconut_palm":
-			b = Node3D.new()
+			b = _holder(parent)
 			var p := Art.spawn(PALM_B)
 			b.add_child(p)
 			Art.fit_height(p, 6.0)
@@ -85,35 +87,49 @@ func _art(kind: String) -> Node3D:
 				W._part(b, W._sphere(), Vector3(cos(i * 1.6) * 0.3, 5.3, sin(i * 1.6) * 0.3), Vector3.ONE * 0.24, Color(0.36, 0.26, 0.14))
 			b.set_meta("fit", false)
 		"bamboo":
-			b = Node3D.new()
-			for i in 7:
-				var h := 3.2 + float((i * 37) % 13) / 8.0
-				var at := Vector3(cos(i * 2.4) * 0.45 * (i % 3), h * 0.5, sin(i * 2.4) * 0.45 * (i % 3))
-				W._part(b, W._cyl(0.05, 0.06), at, Vector3(1, h, 1), Color(0.5, 0.55, 0.27).lerp(Color(0.62, 0.58, 0.36), (i % 3) / 3.0), Vector3((i % 3 - 1) * 4.0, 0, (i % 2) * 5.0))
-				for k in 3:
-					W._part(b, W._sphere(), at + Vector3(0.18, h * 0.3 + k * 0.4 - 0.2, 0), Vector3(0.5, 0.03, 0.12), Color(0.38, 0.47, 0.22), Vector3(0, i * 50 + k * 120, -20))
+			b = _holder(parent)
+			for i in 13:
+				var h := 3.4 + float((i * 37) % 17) / 7.0
+				var rad := 0.25 + 0.55 * float((i * 53) % 7) / 7.0
+				var base := Vector3(cos(i * 2.4) * rad, 0, sin(i * 2.4) * rad)
+				var lean := Vector3((i % 3 - 1) * 3.0, 0, ((i * 7) % 5 - 2) * 2.0)
+				var stalk := Node3D.new()
+				stalk.position = base
+				stalk.rotation_degrees = lean
+				b.add_child(stalk)
+				var col := Color(0.42, 0.5, 0.22).lerp(Color(0.6, 0.56, 0.32), float(i % 4) / 4.0)
+				var thick := 0.055 + 0.02 * float(i % 3)
+				W._part(stalk, W._cyl(thick, thick * 1.1), Vector3(0, h * 0.5, 0), Vector3(1, h, 1), col)
+				for k in int(h / 0.6):
+					W._part(stalk, W._cyl(thick * 1.25, thick * 1.25), Vector3(0, 0.5 + k * 0.6, 0), Vector3(1, 0.04, 1), col.darkened(0.25))
+				for k in 5:
+					W._part(stalk, W._sphere(), Vector3(cos(k * 1.3) * 0.32, h - 0.9 + k * 0.22, sin(k * 1.3) * 0.32), Vector3(0.7, 0.02, 0.1), Color(0.3, 0.42, 0.17), Vector3(0, k * 72 + i * 20, -25))
 			b.set_meta("fit", false)
 		"flint":
-			b = Node3D.new()
+			b = _holder(parent)
 			var r := Art.spawn(STONE)
 			b.add_child(r)
 			Art.fit_height(r, 0.55)
 			for i in 4:
-				W._part(b, BoxMesh.new(), Vector3(cos(i * 1.7) * 0.5, 0.08, sin(i * 1.7) * 0.5), Vector3(0.22, 0.1, 0.14), Color(0.17, 0.18, 0.2), Vector3(20, i * 70, 15))
+				W._part(b, W._sphere(), Vector3(cos(i * 1.7) * 0.42, 0.02, sin(i * 1.7) * 0.42), Vector3(0.16, 0.06, 0.11), Color(0.3, 0.29, 0.28), Vector3(10, i * 70, 8))
 			b.set_meta("fit", false)
 		"iron_seam":
-			b = Node3D.new()
-			var r2 := Art.spawn(ROCK)
+			b = _holder(parent)
+			var r2 := Art.spawn(STONE)
 			b.add_child(r2)
-			Art.fit_height(r2, 1.3)
+			Art.fit_height(r2, 1.15)
 			var bx := Art.world_aabb(r2)
-			if maxf(bx.size.x, bx.size.z) > 2.0:
-				r2.scale *= 2.0 / maxf(bx.size.x, bx.size.z)
-			for i in 5:
-				W._part(b, W._sphere(), Vector3(cos(i * 1.3) * 0.5, 0.35 + (i % 2) * 0.3, sin(i * 1.3) * 0.45), Vector3(0.32, 0.1, 0.22), Color(0.42, 0.2, 0.1), Vector3(30, i * 40, 10))
+			if maxf(bx.size.x, bx.size.z) > 1.8:
+				r2.scale *= 1.8 / maxf(bx.size.x, bx.size.z)
+			r2.position.y -= 0.12
+			var rb := Art.world_aabb(r2)
+			var top := rb.position.y + rb.size.y - b.global_position.y
+			for i in 7:
+				var a := i * 0.9
+				W._part(b, BoxMesh.new(), Vector3(cos(a) * rb.size.x * 0.32, top * (0.35 + 0.08 * (i % 3)), sin(a) * rb.size.z * 0.32), Vector3(0.26, 0.12, 0.18), Color(0.33, 0.19, 0.11).lerp(Color(0.25, 0.22, 0.2), float(i % 2) * 0.5), Vector3(25 + i * 11, i * 47, 15 * (i % 3)))
 			b.set_meta("fit", false)
 		"berry_bush":
-			b = Node3D.new()
+			b = _holder(parent)
 			var bu := Art.spawn(BUSH)
 			b.add_child(bu)
 			Art.fit_height(bu, 1.1)
@@ -121,7 +137,7 @@ func _art(kind: String) -> Node3D:
 				W._part(b, W._sphere(), Vector3(cos(i * 0.9) * 0.45, 0.5 + (i % 3) * 0.18, sin(i * 0.9) * 0.45), Vector3.ONE * 0.08, Color(0.5, 0.06, 0.1))
 			b.set_meta("fit", false)
 		"fishing_spot":
-			b = Node3D.new()
+			b = _holder(parent)
 			for i in 3:
 				var tm := TorusMesh.new()
 				tm.inner_radius = 0.5 + i * 0.45
@@ -129,16 +145,27 @@ func _art(kind: String) -> Node3D:
 				W._part(b, tm, Vector3.ZERO, Vector3(1, 0.05, 1), Color(0.75, 0.82, 0.85, 1.0))
 			b.set_meta("fit", false)
 		"tide_pool":
-			b = Node3D.new()
+			b = _holder(parent)
 			W._part(b, W._cyl(0.9, 0.9), Vector3(0, 0.02, 0), Vector3(1, 0.04, 0.8), Color(0.12, 0.2, 0.22))
 			for i in 8:
 				W._part(b, W._sphere(), Vector3(cos(i * 0.8) * 1.0, 0.06, sin(i * 0.8) * 0.82), Vector3(0.28, 0.16, 0.22), Color(0.36, 0.34, 0.3))
 			b.set_meta("fit", false)
 		"rock":
 			b = Art.spawn(ROCK)
+			parent.add_child(b)
 		_:
 			b = Art.spawn(TREE)
+			parent.add_child(b)
+	if b.get_parent() == null:
+		parent.add_child(b)
 	return b
+
+
+func _holder(parent: Node3D) -> Node3D:
+	var h := Node3D.new()
+	parent.add_child(h)
+	h.set_meta("fit", false)
+	return h
 
 
 func _hits(kind: String) -> int:

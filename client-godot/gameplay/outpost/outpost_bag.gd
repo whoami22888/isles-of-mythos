@@ -107,7 +107,8 @@ func build_ui(hud: CanvasLayer, font: Font) -> void:
 		_title.add_theme_font_override("font", font)
 	v.add_child(_title)
 	var scroll := ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(1000, 520)
+	scroll.custom_minimum_size = Vector2(1000, 160)
+	scroll.name = "Scroll"
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	v.add_child(scroll)
 	_grid = GridContainer.new()
@@ -148,6 +149,9 @@ func refresh() -> void:
 		_grid.remove_child(c)
 	var tl = host.gather.tools if host.get("gather") != null else null
 	_title.text = "Bag  ·  %d kinds%s" % [rs.size(), ("  ·  Axe: %s  ·  Pick: %s  ·  Gathering %d" % [tl.tier("axe"), tl.tier("pick"), tl.skill_level()]) if tl else ""]
+	var sc := _grid.get_parent() as Control
+	sc.custom_minimum_size.y = clampf(ceil(rs.size() / 3.0) * 74.0, 80.0, 520.0)
+	_panel.reset_size()
 	for r in rs:
 		var cell := HBoxContainer.new()
 		cell.custom_minimum_size = Vector2(320, 64)
