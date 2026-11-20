@@ -185,5 +185,43 @@
       "archive_downloaded_or_hashed_in_this_observation": false
     },
     "admission_effect": "NONE; no bytes imported, no licence assertion changed, no SHA-256 or revision fabricated"
+  },
+  "publisher_license_observation": {
+    "observed_at_utc": "2026-11-20T06:20:00Z",
+    "pack_pages": [
+      {
+        "id": "QH05-ULTIMATE-MONSTERS",
+        "url": "https://quaternius.com/packs/ultimatemonsters.html",
+        "stated_release": "October 2022",
+        "page_license_label": "CC0",
+        "linked_license": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "commercial_use_statement": true
+      },
+      {
+        "id": "QH06-CUTE-ANIMATED-MONSTERS",
+        "url": "https://quaternius.com/packs/cutemonsters.html",
+        "stated_release": "August 2020",
+        "page_license_label": "CC0",
+        "linked_license": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "commercial_use_statement": true
+      }
+    ],
+    "current_global_license": {
+      "url": "https://quaternius.com/license.html",
+      "version": "Quaternius Asset License (QAL) v1.0",
+      "last_updated": "2026-08-28",
+      "section_3a": "Prohibits reselling or redistributing the assets themselves as standalone assets, asset packs, stock files, templates, or similar products.",
+      "section_7": "Changes do not apply retroactively to assets already obtained under an earlier version; the version in effect at the time governs."
+    },
+    "cc0_deed": {
+      "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "summary": "CC0 deed states works may be copied, modified, distributed, and performed, including for commercial purposes."
+    },
+    "assessment": {
+      "status": "UNRESOLVED_NOT_ADMITTED",
+      "finding": "The two pack-specific pages display CC0 and predate the current global QAL v1.0 page. QAL section 7 is non-retroactive, which may preserve the earlier CC0 terms. This is evidence, not a legal determination. H05's embedded License.txt title mismatch and H06's missing embedded licence remain documented; neither is silently rewritten.",
+      "public_repository_rule": "Do not commit Quaternius source archives or standalone source assets to the public repository while QAL applicability remains unresolved. No H05/H06 files are imported.",
+      "next_evidence": "Persist original publisher bytes in a controlled quarantine environment, capture per-file SHA-256 and dependency closure, preserve the original licence files unchanged, and obtain pack-specific clarification or a versioned CC0 grant before admission."
+    }
   }
 }
