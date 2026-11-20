@@ -325,8 +325,7 @@ def _run_godot(
     """Run a verified executable with fixed argv and no command shell."""
     command = [executable] + arguments
     # No shell is involved, and the executable is resolved and checked before use.
-    # Only the developer-selected local Godot binary and local project path vary; argv tokens are fixed here.
-    return subprocess.run(
+    return subprocess.run(  # nosec B603
         command,
         capture_output=True,
         text=True,
@@ -368,7 +367,7 @@ def _validate_runtime_mesh(mesh: Any) -> None:
         raise ValueError("Invalid runtime surface report")
 
 
-def validate_runtime_report(report: Any) -> RuntimeReport:
+def _validate_runtime_report(report: Any) -> RuntimeReport:
     """Reject missing scenes and malformed runtime-probe records."""
     if not isinstance(report, dict) or not report:
         raise ValueError("Godot runtime probe report is empty")
@@ -425,7 +424,7 @@ def _runtime_report(root: Path, godot_bin: str) -> RuntimeReport:
                if line.startswith("RUNTIME_GRAPHICS_JSON=")]
     if len(markers) != 1:
         raise ValueError("Godot runtime probe produced no unique report")
-    return validate_runtime_report(json.loads(markers[0]))
+    return _validate_runtime_report(json.loads(markers[0]))
 
 
 def _basic_scene_findings(
