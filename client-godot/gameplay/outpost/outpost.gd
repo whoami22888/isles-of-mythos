@@ -14,6 +14,8 @@ extends Node3D
 const Rescue := preload("res://gameplay/outpost/outpost_rescue.gd")
 const Raid := preload("res://gameplay/outpost/outpost_raid.gd")
 const Events := preload("res://gameplay/outpost/outpost_events.gd")
+const Wildlife := preload("res://gameplay/outpost/outpost_wildlife.gd")
+const PetSys := preload("res://gameplay/outpost/outpost_pet.gd")
 const Gather := preload("res://gameplay/outpost/outpost_gather.gd")
 const State := preload("res://gameplay/outpost/outpost_state.gd")
 const OutpostArt := preload("res://gameplay/outpost/outpost_art.gd")
@@ -124,6 +126,18 @@ func _ready() -> void:
 	events.zone_fn = Callable(self, "zone_at_player")
 	events.spawn_requested.connect(_on_spawn_requested)
 	events.build_ui(_hud, _font)
+	wildlife = Wildlife.new()
+	wildlife.name = "Wildlife"
+	wildlife.host = self
+	add_child(wildlife)
+	wildlife.setup(events.extra_data.get("wildlife", null))
+	pet_sys = PetSys.new()
+	pet_sys.name = "PetSys"
+	pet_sys.host = self
+	pet_sys.setup(state, events.extra_data.get("pet_training", null))
+	add_child(pet_sys)
+	pet_sys.build_ui(_hud, _font)
+	events.pet_xp_gained.connect(pet_sys.add_xp)
 	_sun = _find_sun()
 	_refresh_sites(true)
 	_toast(str(state.data.get("welcome_line", "")) if state.camp_level == 1 and state.level_of("mill") == 0 else "Welcome back to the outpost")
@@ -415,7 +429,10 @@ func _process(delta: float) -> void:
 	else:
 		_move(delta)
 	if not _pet_bite(delta):
-		_follow_pet(delta)
+		if pet_sys and pet_sys.controls_pet():
+			pet_sys.drive(delta)
+		else:
+			_follow_pet(delta)
 	_follow_camera(delta, false)
 	_fade_lens()
 	_refresh_sites()
@@ -501,6 +518,8 @@ func _action_text() -> String:
 		return rescue.action_text()
 	if raid and raid.active() and player_alive() and not raid.nearest_enemy(_player.global_position, 3.2).is_empty():
 		return "Strike"
+	if wildlife and not wildlife.nearest(_player.global_position, 2.8).is_empty():
+		return "Strike"
 	if _focus != "" and state.needs_repair(_focus) and not state.is_building(_focus):
 		return "Repair (%s)" % State.cost_text(state.repair_cost(_focus))
 	if _gather_focus >= 0 and (_focus == "" or _site_idle(_focus)):
@@ -533,6 +552,9 @@ func on_action() -> void:
 		return
 	if raid and raid.active() and not raid.nearest_enemy(_player.global_position, 3.2).is_empty():
 		strike_enemy()
+		return
+	if wildlife and not wildlife.nearest(_player.global_position, 2.8).is_empty():
+		strike_animal()
 		return
 	if _focus != "" and state.needs_repair(_focus) and not state.is_building(_focus):
 		if state.repair(_focus):
@@ -739,6 +761,30 @@ func strike_enemy() -> bool:
 	return true
 
 
+## Cutlass swing at the nearest animal; drops land in the pack.
+func strike_animal() -> Dictionary:
+	if _strike_cd > 0.0 or not player_alive():
+		return {}
+	var pc: Dictionary = state.m2().get("player", {})
+	var a: Dictionary = wildlife.nearest(_player.global_position, 2.8)
+	Art.play(_rig, "Attack", 0.06)
+	_strike_cd = float(pc.get("cooldown", 0.42))
+	if a.is_empty():
+		return {}
+	var at: Vector3 = (a["node"] as Node3D).global_position
+	_player.look_at(Vector3(at.x, _player.global_position.y, at.z), Vector3.UP)
+	damage_number(at + Vector3.UP * 0.9, int(pc.get("damage", 26)), true, a["node"])
+	camera_kick(0.08)
+	Input.vibrate_handheld(30, 0.6)
+	var drops: Dictionary = wildlife.hurt(a, float(pc.get("damage", 26)), _player.global_position)
+	if not drops.is_empty() and (get("pet_sys") == null):
+		for k in drops.keys():
+			state.add_item(str(k), int(drops[k]))
+		fly_from_world(at + Vector3.UP, drops)
+		_toast("Got " + State.cost_text(drops))
+	return drops
+
+
 func on_dodge() -> void:
 	if not player_alive() or _dodge_t > 0.0:
 		return
@@ -800,6 +846,8 @@ func _pet_bite(delta: float) -> bool:
 		_pet_lunge(at)
 		raid.stun(_pet_target, float(pcfg.get("stun", 1.2)))
 		pet_bites += 1
+		if pet_sys:
+			pet_sys.on_bite()
 	return true
 
 
@@ -825,6 +873,8 @@ func _pet_lunge(at: Vector3) -> void:
 	t.parallel().tween_property(body, "scale", base, 0.22)
 var rescue: Node3D
 var events: Node
+var wildlife: Node3D
+var pet_sys: Node3D
 var _sun: DirectionalLight3D
 var _sun_base := 1.0
 var respawn_override := Vector3.INF

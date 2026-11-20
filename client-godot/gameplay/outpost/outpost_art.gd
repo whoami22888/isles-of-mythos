@@ -263,6 +263,13 @@ func building(parent: Node3D, id: String, level: int, wrecked: bool = false) -> 
 				root.add_child(sail)
 				Art.fit_height(sail, 1.0)
 				sail.position = Vector3(0, h + 0.2, 0)
+		"training_post":
+			post(root, Vector3(-0.9, 0, 0), 1.7, 0.0)
+			post(root, Vector3(0.9, 0, 0), 1.7, 0.0)
+			var bar := post(root, Vector3(-0.9, 1.6, 0), 1.8, 0.0)
+			bar.rotation_degrees.z = -90.0
+			_piece(root, Art.CRATE_A, Vector3(1.6, 0, 0.9), 20, 0.45)
+			_piece(root, Art.BARRELS, Vector3(-1.7, 0, 0.8), 0, 0.7)
 		"palisade":
 			# Spans the whole beach approach (raiders must breach it).
 			var n := 20

@@ -1,826 +1,849 @@
 {
-  "_note": "Chapter 2 'Gathering the Scattered' - Milestone 1 outpost. Placeholder tuning: retune freely. Times are seconds, production is per minute.",
-  "save_path": "user://outpost.cfg",
-  "ashore_save": "user://washed_ashore.cfg",
-  "resources": [
-    "wood",
-    "stone",
-    "food",
-    "iron",
-    "gold"
-  ],
-  "welcome_stash": {
-    "wood": 80,
-    "stone": 40,
-    "food": 20,
-    "iron": 0
-  },
-  "welcome_line": "The scattered survivors pooled what they saved from the wreck.",
-  "camp": {
-    "id": "camp",
-    "title": "Camp",
-    "levels": [
-      {
-        "level": 1,
-        "title": "Survivor Camp",
-        "cost": {},
-        "seconds": 0,
-        "unlocks": [
-          "mill",
-          "dock",
-          "palisade"
-        ]
-      },
-      {
-        "level": 2,
-        "title": "Outpost",
-        "cost": {
-          "wood": 120,
-          "stone": 80
-        },
-        "seconds": 90,
-        "unlocks": [
-          "forge",
-          "watchtower"
-        ],
-        "requires": {
-          "mill": 1,
-          "dock": 1
-        }
-      },
-      {
-        "level": 3,
-        "title": "Stockade Citadel",
-        "cost": {
-          "wood": 220,
-          "stone": 160,
-          "iron": 30
-        },
-        "seconds": 180,
-        "unlocks": [
-          "barracks"
-        ],
-        "requires": {
-          "forge": 1,
-          "watchtower": 1
-        }
-      }
-    ]
-  },
-  "buildings": {
-    "mill": {
-      "title": "Lumber Mill",
-      "plot": 0,
-      "blurb": "Saws driftwood and felled palms into timber.",
-      "levels": [
-        {
-          "cost": {
-            "wood": 30,
-            "stone": 10
-          },
-          "seconds": 30,
-          "produces": {
-            "wood": 12
-          },
-          "cap": 40
-        },
-        {
-          "cost": {
-            "wood": 70,
-            "stone": 40
-          },
-          "seconds": 75,
-          "produces": {
-            "wood": 24
-          },
-          "cap": 90
-        },
-        {
-          "cost": {
-            "wood": 140,
-            "stone": 90,
-            "iron": 10
-          },
-          "seconds": 150,
-          "produces": {
-            "wood": 40
-          },
-          "cap": 160
-        }
-      ]
-    },
-    "dock": {
-      "title": "Fishing Dock",
-      "plot": 1,
-      "blurb": "Nets and lines off the shallows.",
-      "levels": [
-        {
-          "cost": {
-            "wood": 25,
-            "stone": 5
-          },
-          "seconds": 30,
-          "produces": {
-            "food": 10
-          },
-          "cap": 30
-        },
-        {
-          "cost": {
-            "wood": 60,
-            "stone": 30
-          },
-          "seconds": 75,
-          "produces": {
-            "food": 20
-          },
-          "cap": 70
-        },
-        {
-          "cost": {
-            "wood": 120,
-            "stone": 60,
-            "iron": 8
-          },
-          "seconds": 150,
-          "produces": {
-            "food": 34
-          },
-          "cap": 130
-        }
-      ]
-    },
-    "forge": {
-      "title": "Forge",
-      "plot": 2,
-      "blurb": "Smelts island stone into rough iron.",
-      "levels": [
-        {
-          "cost": {
-            "wood": 60,
-            "stone": 50
-          },
-          "seconds": 60,
-          "produces": {
-            "iron": 4
-          },
-          "consumes": {
-            "stone": 6
-          },
-          "cap": 20
-        },
-        {
-          "cost": {
-            "wood": 110,
-            "stone": 90,
-            "iron": 12
-          },
-          "seconds": 120,
-          "produces": {
-            "iron": 8
-          },
-          "consumes": {
-            "stone": 10
-          },
-          "cap": 45
-        },
-        {
-          "cost": {
-            "wood": 180,
-            "stone": 150,
-            "iron": 30
-          },
-          "seconds": 180,
-          "produces": {
-            "iron": 14
-          },
-          "consumes": {
-            "stone": 16
-          },
-          "cap": 80
-        }
-      ]
-    },
-    "barracks": {
-      "title": "Barracks",
-      "plot": 3,
-      "blurb": "Bunks and a drill yard. Train crew here (Milestone 2).",
-      "levels": [
-        {
-          "cost": {
-            "wood": 120,
-            "stone": 80,
-            "iron": 20
-          },
-          "seconds": 90,
-          "crew_slots": 2
-        },
-        {
-          "cost": {
-            "wood": 180,
-            "stone": 120,
-            "iron": 40
-          },
-          "seconds": 150,
-          "crew_slots": 4
-        },
-        {
-          "cost": {
-            "wood": 260,
-            "stone": 180,
-            "iron": 70
-          },
-          "seconds": 180,
-          "crew_slots": 6
-        }
-      ]
-    },
-    "watchtower": {
-      "title": "Watchtower",
-      "plot": 4,
-      "blurb": "Spots privateer sails early (Milestone 2 raid warning).",
-      "levels": [
-        {
-          "cost": {
-            "wood": 70,
-            "stone": 30
-          },
-          "seconds": 45,
-          "warning_seconds": 20
-        },
-        {
-          "cost": {
-            "wood": 120,
-            "stone": 60,
-            "iron": 10
-          },
-          "seconds": 90,
-          "warning_seconds": 35
-        },
-        {
-          "cost": {
-            "wood": 180,
-            "stone": 100,
-            "iron": 25
-          },
-          "seconds": 150,
-          "warning_seconds": 50
-        }
-      ]
-    },
-    "palisade": {
-      "title": "Palisade",
-      "plot": 5,
-      "blurb": "Sharpened stakes across the beach approach.",
-      "levels": [
-        {
-          "cost": {
-            "wood": 25
-          },
-          "seconds": 30,
-          "hp": 300
-        },
-        {
-          "cost": {
-            "wood": 90,
-            "stone": 40
-          },
-          "seconds": 75,
-          "hp": 650
-        },
-        {
-          "cost": {
-            "wood": 160,
-            "stone": 100,
-            "iron": 15
-          },
-          "seconds": 150,
-          "hp": 1100
-        }
-      ]
-    }
-  },
-  "plots": [
-    {
-      "id": 0,
-      "x": 6.0,
-      "z": 9.5,
-      "yaw": 10
-    },
-    {
-      "id": 1,
-      "x": 4.0,
-      "z": 3.2,
-      "yaw": 0
-    },
-    {
-      "id": 2,
-      "x": 16.0,
-      "z": 12.0,
-      "yaw": -20
-    },
-    {
-      "id": 3,
-      "x": 16.5,
-      "z": 16.5,
-      "yaw": -10
-    },
-    {
-      "id": 4,
-      "x": 18.0,
-      "z": 8.5,
-      "yaw": 0
-    },
-    {
-      "id": 5,
-      "x": 10.5,
-      "z": 5.6,
-      "yaw": 0
-    }
-  ],
-  "camp_plot": {
-    "x": 11.5,
-    "z": 12.0,
-    "yaw": 0
-  },
-  "player_start": {
-    "x": 11.0,
-    "z": 7.0
-  },
-  "milestone2": {
-    "_note": "Raids (Milestone 2). Times in seconds. HP/damage are flat numbers.",
-    "raid_faction": "UTC privateers",
-    "first_raid_after_camp_level": 2,
-    "raid_interval": 180,
-    "warning_seconds": 8,
-    "landing": {
-      "x": 11.0,
-      "z": 1.2
-    },
-    "boat": {
-      "x": 11.0,
-      "z": -2.2
-    },
-    "max_enemies": 8,
-    "max_crew": 6,
-    "building_hp": {
-      "camp": 600,
-      "mill": 250,
-      "dock": 200,
-      "forge": 300,
-      "barracks": 350,
-      "watchtower": 220
-    },
-    "repair_wood_per_level": 15,
-    "units": {
-      "deckhand": {
-        "title": "Deckhand",
-        "hp": 150,
-        "damage": 15,
-        "range": 1.6,
-        "cooldown": 1.7,
-        "speed": 2.6,
-        "shirt": [
-          0.45,
-          0.18,
-          0.14
-        ],
-        "scale": 1.0,
-        "weapon": "cutlass",
-        "windup": 0.55
-      },
-      "musketeer": {
-        "title": "Musketeer",
-        "hp": 70,
-        "damage": 16,
-        "range": 9.0,
-        "cooldown": 4.0,
-        "speed": 2.2,
-        "shirt": [
-          0.16,
-          0.2,
-          0.32
-        ],
-        "scale": 1.0,
-        "ranged": true,
-        "shot_speed": 13.0,
-        "windup": 0.9
-      },
-      "brute": {
-        "title": "Brute",
-        "hp": 260,
-        "damage": 24,
-        "range": 1.9,
-        "cooldown": 2.4,
-        "speed": 1.8,
-        "shirt": [
-          0.3,
-          0.26,
-          0.22
-        ],
-        "scale": 1.22,
-        "weapon": "cutlass",
-        "windup": 0.85
-      },
-      "captain": {
-        "title": "Captain",
-        "hp": 340,
-        "damage": 20,
-        "range": 1.8,
-        "cooldown": 1.6,
-        "speed": 2.4,
-        "shirt": [
-          0.1,
-          0.09,
-          0.09
-        ],
-        "scale": 1.12,
-        "weapon": "cutlass",
-        "windup": 0.6,
-        "hat": "tricorn"
-      },
-      "sailor": {
-        "title": "Sailor",
-        "hp": 120,
-        "damage": 12,
-        "range": 1.6,
-        "cooldown": 1.2,
-        "speed": 2.8,
-        "shirt": [
-          0.62,
-          0.6,
-          0.5
-        ],
-        "scale": 1.0,
-        "weapon": "cutlass",
-        "crew": true,
-        "windup": 0.4
-      },
-      "crew_musketeer": {
-        "title": "Musketeer",
-        "hp": 70,
-        "damage": 14,
-        "range": 9.0,
-        "cooldown": 3.4,
-        "speed": 2.4,
-        "shirt": [
-          0.24,
-          0.38,
-          0.3
-        ],
-        "scale": 1.0,
-        "ranged": true,
-        "shot_speed": 13.0,
-        "crew": true,
-        "windup": 0.7
-      },
-      "harpooner": {
-        "title": "Harpooner",
-        "hp": 110,
-        "damage": 22,
-        "range": 3.2,
-        "cooldown": 1.6,
-        "windup": 0.5,
-        "speed": 2.6,
-        "shirt": [
-          0.2,
-          0.32,
-          0.4
-        ],
-        "scale": 1.0,
-        "weapon": "cutlass",
-        "crew": true
-      },
-      "silas": {
-        "title": "Silas",
-        "hp": 400,
-        "damage": 0,
-        "range": 1.0,
-        "cooldown": 9,
-        "speed": 2.0,
-        "shirt": [
-          0.55,
-          0.12,
-          0.1
-        ],
-        "scale": 1.0,
-        "weapon": "cutlass"
-      },
-      "prisoner": {
-        "title": "Sailor",
-        "hp": 100,
-        "damage": 0,
-        "range": 1.0,
-        "cooldown": 9,
-        "speed": 2.4,
-        "shirt": [
-          0.62,
-          0.6,
-          0.5
-        ],
-        "scale": 1.0
-      }
-    },
-    "crew_train": {
-      "sailor": {
-        "cost": {
-          "food": 20,
-          "wood": 10
-        },
-        "seconds": 20
-      },
-      "crew_musketeer": {
-        "cost": {
-          "food": 20,
-          "iron": 8
-        },
-        "seconds": 30
-      },
-      "harpooner": {
-        "cost": {
-          "food": 30,
-          "iron": 12
-        },
-        "seconds": 35,
-        "requires": "silas"
-      }
-    },
-    "waves": [
-      {
-        "deckhand": 4
-      },
-      {
-        "deckhand": 4,
-        "musketeer": 1
-      },
-      {
-        "deckhand": 3,
-        "musketeer": 2,
-        "brute": 1,
-        "captain": 1
-      },
-      {
-        "deckhand": 4,
-        "musketeer": 2,
-        "brute": 1,
-        "captain": 1
-      },
-      {
-        "deckhand": 3,
-        "musketeer": 2,
-        "brute": 2,
-        "captain": 1
-      }
-    ],
-    "wave_hp_scale": 0.12,
-    "rewards": [
-      {
-        "iron": 6,
-        "gold": 5
-      },
-      {
-        "iron": 10,
-        "gold": 8
-      },
-      {
-        "iron": 14,
-        "gold": 12
-      },
-      {
-        "iron": 18,
-        "gold": 16
-      },
-      {
-        "iron": 25,
-        "gold": 25,
-        "relic_shard": 1
-      }
-    ],
-    "player": {
-      "hp": 150,
-      "damage": 26,
-      "range": 2.2,
-      "cooldown": 0.6,
-      "knockback": 2.2,
-      "dodge_distance": 3.4,
-      "dodge_seconds": 0.35,
-      "respawn_seconds": 3.0
-    },
-    "pet": {
-      "damage": 6,
-      "stun": 1.2,
-      "cooldown": 3.0,
-      "range": 7.0
-    },
-    "max_player_attackers": 2,
-    "palisade_span": 7.0,
-    "player_damage_taken": 1.0
-  },
-  "gather": {
-    "_note": "Strikeable nodes around the outpost (same strike/chip/fly feel as the island).",
-    "respawn_seconds": 45,
-    "reach": 2.6,
-    "kinds": {
-      "tree": {
-        "hits": 4,
-        "yield": {
-          "wood": 3
-        },
-        "finish": {
-          "wood": 4
-        }
-      },
-      "rock": {
-        "hits": 5,
-        "yield": {
-          "stone": 2
-        },
-        "finish": {
-          "stone": 4
-        }
-      }
-    },
-    "nodes": [
-      {
-        "kind": "tree",
-        "x": 2.0,
-        "z": 7.5
-      },
-      {
-        "kind": "tree",
-        "x": 3.5,
-        "z": 13.0
-      },
-      {
-        "kind": "tree",
-        "x": 14.0,
-        "z": 15.5
-      },
-      {
-        "kind": "tree",
-        "x": 20.0,
-        "z": 11.5
-      },
-      {
-        "kind": "rock",
-        "x": 15.5,
-        "z": 6.2
-      },
-      {
-        "kind": "rock",
-        "x": 2.0,
-        "z": 10.5
-      },
-      {
-        "kind": "rock",
-        "x": 20.5,
-        "z": 7.0
-      }
-    ]
-  },
-  "milestone3": {
-    "_note": "Silas rescue (Blueprint Act 2). Story text: Grok Bot draft (no REPLY B-012 from ChatGPT yet).",
-    "bottle_after_waves": 2,
-    "bottle": {
-      "x": 7.0,
-      "z": 1.6
-    },
-    "raft": {
-      "cost": {
-        "wood": 60,
-        "food": 20
-      },
-      "seconds": 40
-    },
-    "raft_speed": 3.6,
-    "island2": {
-      "x": -18.0,
-      "z": -128.0,
-      "yaw": 180.0,
-      "scale": 0.55
-    },
-    "harpooner_slots": 2,
-    "waves": [
-      {
-        "deckhand": 3
-      },
-      {
-        "deckhand": 2,
-        "musketeer": 2
-      }
-    ],
-    "boss": {
-      "kind": "captain",
-      "hp": 520,
-      "charge_every": 6.5,
-      "charge_windup": 1.0,
-      "charge_speed": 11.0,
-      "charge_time": 0.7,
-      "charge_damage": 32
-    },
-    "story": {
-      "bottle": {
-        "title": "A Bottle on the Tide",
-        "lines": [
-          [
-            "First Mate",
-            "A bottle, sealed with Silas's own wax."
-          ],
-          [
-            "Silas (letter)",
-            "\"Alive. UTC holds me on the isle to the north.\""
-          ],
-          [
-            "Silas (letter)",
-            "\"Three of our lads with me. Bring steel, Mate.\""
-          ]
-        ],
-        "journal": "A bottle washed up sealed with Silas's wax. He is alive, held by the UTC on the island to the north with three of our sailors."
-      },
-      "raft": {
-        "title": "The Raft",
-        "lines": [
-          [
-            "First Mate",
-            "Lash the logs tight. She only has to float once."
-          ],
-          [
-            "{pet}",
-            "*slaps the planks with a flipper, ready*"
-          ]
-        ],
-        "journal": "We lashed a raft together at the dock. Small, ugly, and it floats. That is enough."
-      },
-      "voyage": {
-        "title": "Across the Strait",
-        "lines": [
-          [
-            "First Mate",
-            "Steady. Smoke on the far shore. That's their camp."
-          ]
-        ],
-        "journal": "We crossed the strait under a patched sail. Smoke rose from a stockade on the northern isle."
-      },
-      "stockade": {
-        "title": "The Stockade",
-        "lines": [
-          [
-            "UTC Captain",
-            "\"The Mythos mate! The Company pays double for you.\""
-          ],
-          [
-            "First Mate",
-            "Then come and collect."
-          ]
-        ],
-        "journal": "The UTC built a stockade on the beach and caged our men inside. Their captain knew my face."
-      },
-      "freed": {
-        "title": "Silas",
-        "lines": [
-          [
-            "Silas",
-            "\"Took your time, Mate. Thought the sea had you.\""
-          ],
-          [
-            "Silas",
-            "\"The Sovereign spat me out. The Company caught me.\""
-          ],
-          [
-            "Silas",
-            "\"Get us home. We've a debt to settle.\""
-          ]
-        ],
-        "journal": "Silas is alive, thinner and angrier. Three sailors with him. He says the Company knew the Sovereign would rise."
-      },
-      "home": {
-        "title": "The Crew Returns",
-        "lines": [
-          [
-            "Silas",
-            "\"A palisade and a forge? You've been busy.\""
-          ],
-          [
-            "Silas",
-            "\"I'll drill the lads. Harpoons for the next raid.\""
-          ]
-        ],
-        "journal": "Silas took the Barracks in hand. Two more bunks, and he is teaching the crew the harpoon."
-      },
-      "flag": {
-        "title": "Flag & Fortress",
-        "lines": [
-          [
-            "Silas",
-            "\"That's no privateer. That's a Company warship.\""
-          ],
-          [
-            "First Mate",
-            "Then they're coming for all of us."
-          ]
-        ],
-        "journal": "A UTC warship's flag on the horizon. Not a raid this time. A fleet."
-      }
-    }
-  }
+	"_note": "Chapter 2 'Gathering the Scattered' - Milestone 1 outpost. Placeholder tuning: retune freely. Times are seconds, production is per minute.",
+	"save_path": "user://outpost.cfg",
+	"ashore_save": "user://washed_ashore.cfg",
+	"resources": [
+		"wood",
+		"stone",
+		"food",
+		"iron",
+		"gold"
+	],
+	"welcome_stash": {
+		"wood": 80,
+		"stone": 40,
+		"food": 20,
+		"iron": 0
+	},
+	"welcome_line": "The scattered survivors pooled what they saved from the wreck.",
+	"camp": {
+		"id": "camp",
+		"title": "Camp",
+		"levels": [
+			{
+				"level": 1,
+				"title": "Survivor Camp",
+				"cost": {},
+				"seconds": 0,
+				"unlocks": [
+					"mill",
+					"dock",
+					"palisade",
+					"training_post"
+				]
+			},
+			{
+				"level": 2,
+				"title": "Outpost",
+				"cost": {
+					"wood": 120,
+					"stone": 80
+				},
+				"seconds": 90,
+				"unlocks": [
+					"forge",
+					"watchtower"
+				],
+				"requires": {
+					"mill": 1,
+					"dock": 1
+				}
+			},
+			{
+				"level": 3,
+				"title": "Stockade Citadel",
+				"cost": {
+					"wood": 220,
+					"stone": 160,
+					"iron": 30
+				},
+				"seconds": 180,
+				"unlocks": [
+					"barracks"
+				],
+				"requires": {
+					"forge": 1,
+					"watchtower": 1
+				}
+			}
+		]
+	},
+	"buildings": {
+		"mill": {
+			"title": "Lumber Mill",
+			"plot": 0,
+			"blurb": "Saws driftwood and felled palms into timber.",
+			"levels": [
+				{
+					"cost": {
+						"wood": 30,
+						"stone": 10
+					},
+					"seconds": 30,
+					"produces": {
+						"wood": 12
+					},
+					"cap": 40
+				},
+				{
+					"cost": {
+						"wood": 70,
+						"stone": 40
+					},
+					"seconds": 75,
+					"produces": {
+						"wood": 24
+					},
+					"cap": 90
+				},
+				{
+					"cost": {
+						"wood": 140,
+						"stone": 90,
+						"iron": 10
+					},
+					"seconds": 150,
+					"produces": {
+						"wood": 40
+					},
+					"cap": 160
+				}
+			]
+		},
+		"dock": {
+			"title": "Fishing Dock",
+			"plot": 1,
+			"blurb": "Nets and lines off the shallows.",
+			"levels": [
+				{
+					"cost": {
+						"wood": 25,
+						"stone": 5
+					},
+					"seconds": 30,
+					"produces": {
+						"food": 10
+					},
+					"cap": 30
+				},
+				{
+					"cost": {
+						"wood": 60,
+						"stone": 30
+					},
+					"seconds": 75,
+					"produces": {
+						"food": 20
+					},
+					"cap": 70
+				},
+				{
+					"cost": {
+						"wood": 120,
+						"stone": 60,
+						"iron": 8
+					},
+					"seconds": 150,
+					"produces": {
+						"food": 34
+					},
+					"cap": 130
+				}
+			]
+		},
+		"forge": {
+			"title": "Forge",
+			"plot": 2,
+			"blurb": "Smelts island stone into rough iron.",
+			"levels": [
+				{
+					"cost": {
+						"wood": 60,
+						"stone": 50
+					},
+					"seconds": 60,
+					"produces": {
+						"iron": 4
+					},
+					"consumes": {
+						"stone": 6
+					},
+					"cap": 20
+				},
+				{
+					"cost": {
+						"wood": 110,
+						"stone": 90,
+						"iron": 12
+					},
+					"seconds": 120,
+					"produces": {
+						"iron": 8
+					},
+					"consumes": {
+						"stone": 10
+					},
+					"cap": 45
+				},
+				{
+					"cost": {
+						"wood": 180,
+						"stone": 150,
+						"iron": 30
+					},
+					"seconds": 180,
+					"produces": {
+						"iron": 14
+					},
+					"consumes": {
+						"stone": 16
+					},
+					"cap": 80
+				}
+			]
+		},
+		"barracks": {
+			"title": "Barracks",
+			"plot": 3,
+			"blurb": "Bunks and a drill yard. Train crew here (Milestone 2).",
+			"levels": [
+				{
+					"cost": {
+						"wood": 120,
+						"stone": 80,
+						"iron": 20
+					},
+					"seconds": 90,
+					"crew_slots": 2
+				},
+				{
+					"cost": {
+						"wood": 180,
+						"stone": 120,
+						"iron": 40
+					},
+					"seconds": 150,
+					"crew_slots": 4
+				},
+				{
+					"cost": {
+						"wood": 260,
+						"stone": 180,
+						"iron": 70
+					},
+					"seconds": 180,
+					"crew_slots": 6
+				}
+			]
+		},
+		"watchtower": {
+			"title": "Watchtower",
+			"plot": 4,
+			"blurb": "Spots privateer sails early (Milestone 2 raid warning).",
+			"levels": [
+				{
+					"cost": {
+						"wood": 70,
+						"stone": 30
+					},
+					"seconds": 45,
+					"warning_seconds": 20
+				},
+				{
+					"cost": {
+						"wood": 120,
+						"stone": 60,
+						"iron": 10
+					},
+					"seconds": 90,
+					"warning_seconds": 35
+				},
+				{
+					"cost": {
+						"wood": 180,
+						"stone": 100,
+						"iron": 25
+					},
+					"seconds": 150,
+					"warning_seconds": 50
+				}
+			]
+		},
+		"palisade": {
+			"title": "Palisade",
+			"plot": 5,
+			"blurb": "Sharpened stakes across the beach approach.",
+			"levels": [
+				{
+					"cost": {
+						"wood": 25
+					},
+					"seconds": 30,
+					"hp": 300
+				},
+				{
+					"cost": {
+						"wood": 90,
+						"stone": 40
+					},
+					"seconds": 75,
+					"hp": 650
+				},
+				{
+					"cost": {
+						"wood": 160,
+						"stone": 100,
+						"iron": 15
+					},
+					"seconds": 150,
+					"hp": 1100
+				}
+			]
+		},
+		"training_post": {
+			"title": "Training Post",
+			"plot": 6,
+			"blurb": "A post, a rope and a sack of fish heads: where the pup learns.",
+			"levels": [
+				{
+					"cost": {
+						"wood": 25,
+						"stone": 10
+					},
+					"seconds": 20,
+					"produces": {},
+					"cap": 0
+				}
+			]
+		}
+	},
+	"plots": [
+		{
+			"id": 0,
+			"x": 6.0,
+			"z": 9.5,
+			"yaw": 10
+		},
+		{
+			"id": 1,
+			"x": 4.0,
+			"z": 3.2,
+			"yaw": 0
+		},
+		{
+			"id": 2,
+			"x": 16.0,
+			"z": 12.0,
+			"yaw": -20
+		},
+		{
+			"id": 3,
+			"x": 16.5,
+			"z": 16.5,
+			"yaw": -10
+		},
+		{
+			"id": 4,
+			"x": 18.0,
+			"z": 8.5,
+			"yaw": 0
+		},
+		{
+			"id": 5,
+			"x": 10.5,
+			"z": 5.6,
+			"yaw": 0
+		},
+		{
+			"id": 6,
+			"x": 20.0,
+			"z": 14.2,
+			"yaw": 15
+		}
+	],
+	"camp_plot": {
+		"x": 11.5,
+		"z": 12.0,
+		"yaw": 0
+	},
+	"player_start": {
+		"x": 11.0,
+		"z": 7.0
+	},
+	"milestone2": {
+		"_note": "Raids (Milestone 2). Times in seconds. HP/damage are flat numbers.",
+		"raid_faction": "UTC privateers",
+		"first_raid_after_camp_level": 2,
+		"raid_interval": 180,
+		"warning_seconds": 8,
+		"landing": {
+			"x": 11.0,
+			"z": 1.2
+		},
+		"boat": {
+			"x": 11.0,
+			"z": -2.2
+		},
+		"max_enemies": 8,
+		"max_crew": 6,
+		"building_hp": {
+			"camp": 600,
+			"mill": 250,
+			"dock": 200,
+			"forge": 300,
+			"barracks": 350,
+			"watchtower": 220
+		},
+		"repair_wood_per_level": 15,
+		"units": {
+			"deckhand": {
+				"title": "Deckhand",
+				"hp": 150,
+				"damage": 15,
+				"range": 1.6,
+				"cooldown": 1.7,
+				"speed": 2.6,
+				"shirt": [
+					0.45,
+					0.18,
+					0.14
+				],
+				"scale": 1.0,
+				"weapon": "cutlass",
+				"windup": 0.55
+			},
+			"musketeer": {
+				"title": "Musketeer",
+				"hp": 70,
+				"damage": 16,
+				"range": 9.0,
+				"cooldown": 4.0,
+				"speed": 2.2,
+				"shirt": [
+					0.16,
+					0.2,
+					0.32
+				],
+				"scale": 1.0,
+				"ranged": true,
+				"shot_speed": 13.0,
+				"windup": 0.9
+			},
+			"brute": {
+				"title": "Brute",
+				"hp": 260,
+				"damage": 24,
+				"range": 1.9,
+				"cooldown": 2.4,
+				"speed": 1.8,
+				"shirt": [
+					0.3,
+					0.26,
+					0.22
+				],
+				"scale": 1.22,
+				"weapon": "cutlass",
+				"windup": 0.85
+			},
+			"captain": {
+				"title": "Captain",
+				"hp": 340,
+				"damage": 20,
+				"range": 1.8,
+				"cooldown": 1.6,
+				"speed": 2.4,
+				"shirt": [
+					0.1,
+					0.09,
+					0.09
+				],
+				"scale": 1.12,
+				"weapon": "cutlass",
+				"windup": 0.6,
+				"hat": "tricorn"
+			},
+			"sailor": {
+				"title": "Sailor",
+				"hp": 120,
+				"damage": 12,
+				"range": 1.6,
+				"cooldown": 1.2,
+				"speed": 2.8,
+				"shirt": [
+					0.62,
+					0.6,
+					0.5
+				],
+				"scale": 1.0,
+				"weapon": "cutlass",
+				"crew": true,
+				"windup": 0.4
+			},
+			"crew_musketeer": {
+				"title": "Musketeer",
+				"hp": 70,
+				"damage": 14,
+				"range": 9.0,
+				"cooldown": 3.4,
+				"speed": 2.4,
+				"shirt": [
+					0.24,
+					0.38,
+					0.3
+				],
+				"scale": 1.0,
+				"ranged": true,
+				"shot_speed": 13.0,
+				"crew": true,
+				"windup": 0.7
+			},
+			"harpooner": {
+				"title": "Harpooner",
+				"hp": 110,
+				"damage": 22,
+				"range": 3.2,
+				"cooldown": 1.6,
+				"windup": 0.5,
+				"speed": 2.6,
+				"shirt": [
+					0.2,
+					0.32,
+					0.4
+				],
+				"scale": 1.0,
+				"weapon": "cutlass",
+				"crew": true
+			},
+			"silas": {
+				"title": "Silas",
+				"hp": 400,
+				"damage": 0,
+				"range": 1.0,
+				"cooldown": 9,
+				"speed": 2.0,
+				"shirt": [
+					0.55,
+					0.12,
+					0.1
+				],
+				"scale": 1.0,
+				"weapon": "cutlass"
+			},
+			"prisoner": {
+				"title": "Sailor",
+				"hp": 100,
+				"damage": 0,
+				"range": 1.0,
+				"cooldown": 9,
+				"speed": 2.4,
+				"shirt": [
+					0.62,
+					0.6,
+					0.5
+				],
+				"scale": 1.0
+			}
+		},
+		"crew_train": {
+			"sailor": {
+				"cost": {
+					"food": 20,
+					"wood": 10
+				},
+				"seconds": 20
+			},
+			"crew_musketeer": {
+				"cost": {
+					"food": 20,
+					"iron": 8
+				},
+				"seconds": 30
+			},
+			"harpooner": {
+				"cost": {
+					"food": 30,
+					"iron": 12
+				},
+				"seconds": 35,
+				"requires": "silas"
+			}
+		},
+		"waves": [
+			{
+				"deckhand": 4
+			},
+			{
+				"deckhand": 4,
+				"musketeer": 1
+			},
+			{
+				"deckhand": 3,
+				"musketeer": 2,
+				"brute": 1,
+				"captain": 1
+			},
+			{
+				"deckhand": 4,
+				"musketeer": 2,
+				"brute": 1,
+				"captain": 1
+			},
+			{
+				"deckhand": 3,
+				"musketeer": 2,
+				"brute": 2,
+				"captain": 1
+			}
+		],
+		"wave_hp_scale": 0.12,
+		"rewards": [
+			{
+				"iron": 6,
+				"gold": 5
+			},
+			{
+				"iron": 10,
+				"gold": 8
+			},
+			{
+				"iron": 14,
+				"gold": 12
+			},
+			{
+				"iron": 18,
+				"gold": 16
+			},
+			{
+				"iron": 25,
+				"gold": 25,
+				"relic_shard": 1
+			}
+		],
+		"player": {
+			"hp": 150,
+			"damage": 26,
+			"range": 2.2,
+			"cooldown": 0.6,
+			"knockback": 2.2,
+			"dodge_distance": 3.4,
+			"dodge_seconds": 0.35,
+			"respawn_seconds": 3.0
+		},
+		"pet": {
+			"damage": 6,
+			"stun": 1.2,
+			"cooldown": 3.0,
+			"range": 7.0
+		},
+		"max_player_attackers": 2,
+		"palisade_span": 7.0,
+		"player_damage_taken": 1.0
+	},
+	"gather": {
+		"_note": "Strikeable nodes around the outpost (same strike/chip/fly feel as the island).",
+		"respawn_seconds": 45,
+		"reach": 2.6,
+		"kinds": {
+			"tree": {
+				"hits": 4,
+				"yield": {
+					"wood": 3
+				},
+				"finish": {
+					"wood": 4
+				}
+			},
+			"rock": {
+				"hits": 5,
+				"yield": {
+					"stone": 2
+				},
+				"finish": {
+					"stone": 4
+				}
+			}
+		},
+		"nodes": [
+			{
+				"kind": "tree",
+				"x": 2.0,
+				"z": 7.5
+			},
+			{
+				"kind": "tree",
+				"x": 3.5,
+				"z": 13.0
+			},
+			{
+				"kind": "tree",
+				"x": 14.0,
+				"z": 15.5
+			},
+			{
+				"kind": "tree",
+				"x": 20.0,
+				"z": 11.5
+			},
+			{
+				"kind": "rock",
+				"x": 15.5,
+				"z": 6.2
+			},
+			{
+				"kind": "rock",
+				"x": 2.0,
+				"z": 10.5
+			},
+			{
+				"kind": "rock",
+				"x": 20.5,
+				"z": 7.0
+			}
+		]
+	},
+	"milestone3": {
+		"_note": "Silas rescue (Blueprint Act 2). Story text: Grok Bot draft (no REPLY B-012 from ChatGPT yet).",
+		"bottle_after_waves": 2,
+		"bottle": {
+			"x": 7.0,
+			"z": 1.6
+		},
+		"raft": {
+			"cost": {
+				"wood": 60,
+				"food": 20
+			},
+			"seconds": 40
+		},
+		"raft_speed": 3.6,
+		"island2": {
+			"x": -18.0,
+			"z": -128.0,
+			"yaw": 180.0,
+			"scale": 0.55
+		},
+		"harpooner_slots": 2,
+		"waves": [
+			{
+				"deckhand": 3
+			},
+			{
+				"deckhand": 2,
+				"musketeer": 2
+			}
+		],
+		"boss": {
+			"kind": "captain",
+			"hp": 520,
+			"charge_every": 6.5,
+			"charge_windup": 1.0,
+			"charge_speed": 11.0,
+			"charge_time": 0.7,
+			"charge_damage": 32
+		},
+		"story": {
+			"bottle": {
+				"title": "A Bottle on the Tide",
+				"lines": [
+					[
+						"First Mate",
+						"A bottle, sealed with Silas's own wax."
+					],
+					[
+						"Silas (letter)",
+						"\"Alive. UTC holds me on the isle to the north.\""
+					],
+					[
+						"Silas (letter)",
+						"\"Three of our lads with me. Bring steel, Mate.\""
+					]
+				],
+				"journal": "A bottle washed up sealed with Silas's wax. He is alive, held by the UTC on the island to the north with three of our sailors."
+			},
+			"raft": {
+				"title": "The Raft",
+				"lines": [
+					[
+						"First Mate",
+						"Lash the logs tight. She only has to float once."
+					],
+					[
+						"{pet}",
+						"*slaps the planks with a flipper, ready*"
+					]
+				],
+				"journal": "We lashed a raft together at the dock. Small, ugly, and it floats. That is enough."
+			},
+			"voyage": {
+				"title": "Across the Strait",
+				"lines": [
+					[
+						"First Mate",
+						"Steady. Smoke on the far shore. That's their camp."
+					]
+				],
+				"journal": "We crossed the strait under a patched sail. Smoke rose from a stockade on the northern isle."
+			},
+			"stockade": {
+				"title": "The Stockade",
+				"lines": [
+					[
+						"UTC Captain",
+						"\"The Mythos mate! The Company pays double for you.\""
+					],
+					[
+						"First Mate",
+						"Then come and collect."
+					]
+				],
+				"journal": "The UTC built a stockade on the beach and caged our men inside. Their captain knew my face."
+			},
+			"freed": {
+				"title": "Silas",
+				"lines": [
+					[
+						"Silas",
+						"\"Took your time, Mate. Thought the sea had you.\""
+					],
+					[
+						"Silas",
+						"\"The Sovereign spat me out. The Company caught me.\""
+					],
+					[
+						"Silas",
+						"\"Get us home. We've a debt to settle.\""
+					]
+				],
+				"journal": "Silas is alive, thinner and angrier. Three sailors with him. He says the Company knew the Sovereign would rise."
+			},
+			"home": {
+				"title": "The Crew Returns",
+				"lines": [
+					[
+						"Silas",
+						"\"A palisade and a forge? You've been busy.\""
+					],
+					[
+						"Silas",
+						"\"I'll drill the lads. Harpoons for the next raid.\""
+					]
+				],
+				"journal": "Silas took the Barracks in hand. Two more bunks, and he is teaching the crew the harpoon."
+			},
+			"flag": {
+				"title": "Flag & Fortress",
+				"lines": [
+					[
+						"Silas",
+						"\"That's no privateer. That's a Company warship.\""
+					],
+					[
+						"First Mate",
+						"Then they're coming for all of us."
+					]
+				],
+				"journal": "A UTC warship's flag on the horizon. Not a raid this time. A fleet."
+			}
+		}
+	}
 }
