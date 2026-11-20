@@ -158,6 +158,9 @@ class StylizedPbrShaderContractTests(unittest.TestCase):
         cls.scene = read_utf8(
             test_directory / "cel_stylized_pbr_shader_test.tscn"
         )
+        cls.test_script = read_utf8(
+            test_directory / "cel_stylized_pbr_shader_compile_test.gd"
+        )
         cls.vertex = cls.shared.split("void vertex()", 1)[1].split(
             "void fragment()", 1
         )[0]
@@ -256,6 +259,13 @@ class StylizedPbrShaderContractTests(unittest.TestCase):
         self.assertIn("cel_stylized_pbr.gdshader", self.scene)
         self.assertIn("cel_stylized_pbr_mobile.gdshader", self.scene)
         self.assertIn("material_override = SubResource", self.scene)
+
+    def test_capture_samples_projected_mobile_mesh(self):
+        """The Vulkan regression must sample the mesh, not an arbitrary viewport pixel."""
+        self.assertIn('get_node_or_null("Camera3D") as Camera3D', self.test_script)
+        self.assertIn("camera.is_position_behind(mobile_mesh.global_position)", self.test_script)
+        self.assertIn("camera.unproject_position(mobile_mesh.global_position)", self.test_script)
+        self.assertIn("rotation_degrees = Vector3(24.2, 0, 0)", self.scene)
 
 
 if __name__ == "__main__":
