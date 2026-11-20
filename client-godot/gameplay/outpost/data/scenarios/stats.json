@@ -2,7 +2,7 @@
  "per_category": {
   "castaway": 32,
   "discovery": 32,
-  "faction": 22,
+  "faction": 32,
   "gathering": 33,
   "mystery": 22,
   "mythos": 33,
@@ -12,15 +12,15 @@
   "weather": 21,
   "wildlife": 31
  },
- "total": 314,
- "chain_links": 241,
- "chain_heads": 43,
- "chain_targets": 82,
+ "total": 324,
+ "chain_links": 245,
+ "chain_heads": 45,
+ "chain_targets": 86,
  "rejected": {
-  "note_fixed": 29,
+  "note_fixed": 30,
   "few_choices": 4
  },
  "engine": {
-  "kilo": 314
+  "kilo": 324
  }
 }

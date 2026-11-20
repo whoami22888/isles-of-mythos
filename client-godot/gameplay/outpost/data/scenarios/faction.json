@@ -3930,5 +3930,1368 @@
    }
   ],
   "history_note": "Pirates flew false flags and raised the black at close range."
+ },
+ {
+  "id": "fac_023",
+  "category": "faction",
+  "title": "The Company Man's Offer",
+  "zones": [
+   "outpost",
+   "beach"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.12,
+   "min_day": 14,
+   "camp_level": 3,
+   "needs_item": null,
+   "weather": "any"
+  },
+  "weight": 7,
+  "cooldown_s": 86400,
+  "intro_lines": [
+   "A UTC launch cuts through the surf.",
+   "A midshipman steps ashore, uniform salt-stained."
+  ],
+  "choices": [
+   {
+    "label": "Hear the UTC proposal",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "He offers powder and salted pork for weekly coordinates of Tideborn ruins. You take the goods.",
+      "effects": {
+       "items": {
+        "powder": 15,
+        "food": 20
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 10,
+        "tideborn": -5,
+        "free": -5
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": "fac_024"
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "He smiles, but his eyes flick to your Mythos companion. The deal sours before it's struck.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -10,
+       "rep": {
+        "utc": -5,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Turn them away at gunpoint",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "The midshipman salutes coldly and rows back. His warship logs your position.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": -15,
+        "tideborn": 5,
+        "free": 5
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "A sniper's round kicks up sand at your feet. The launch flees; you're marked.",
+      "effects": {
+       "items": {},
+       "hp": -15,
+       "morale": -15,
+       "rep": {
+        "utc": -20,
+        "tideborn": 5,
+        "free": 5
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "UTC mirrors the East India Company's use of local informants and parlay tactics to map rival strongholds, as documented in pirate trial records from 1718–1720."
+ },
+ {
+  "id": "fac_024",
+  "category": "faction",
+  "title": "The Informant's Return",
+  "zones": [
+   "outpost",
+   "jungle"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.0,
+   "min_day": 21,
+   "camp_level": 3,
+   "needs_item": null,
+   "weather": "fog"
+  },
+  "weight": 1,
+  "cooldown_s": 172800,
+  "intro_lines": [
+   "The same midshipman slips through the treeline at dusk.",
+   "He presses a dark-binding crystal into your palm — pulsing."
+  ],
+  "choices": [
+   {
+    "label": "Plant the crystal at the nearest ruin",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "The crystal flares. Leviathan roars miles away. UTC gains a tether; you gain their trust.",
+      "effects": {
+       "items": {
+        "relic_shard": -3
+       },
+       "hp": 0,
+       "morale": -10,
+       "rep": {
+        "utc": 20,
+        "tideborn": -15,
+        "free": -10
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": "utc_tether",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Tideborn scouts ambush you mid-ritual. The crystal shatters. You flee empty-handed.",
+      "effects": {
+       "items": {
+        "relic_shard": -3,
+        "powder": -10
+       },
+       "hp": -20,
+       "morale": -15,
+       "rep": {
+        "utc": -10,
+        "tideborn": 10,
+        "free": 0
+       },
+       "spawn": "tideborn_scout",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "The crystal bonds to your Tide-Puck. It shrieks, eyes humming violet. Something old wakes.",
+      "effects": {
+       "items": {},
+       "hp": -10,
+       "morale": -20,
+       "rep": {
+        "utc": 5,
+        "tideborn": -10,
+        "free": -5
+       },
+       "spawn": "wild_mythos",
+       "pet_xp": 50,
+       "unlock": "corrupted_companion",
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Crush the crystal and warn the Tideborn",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "A scout watches you grind it to dust. She nods, vanishes. The reef feels lighter.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 10,
+       "rep": {
+        "utc": -20,
+        "tideborn": 20,
+        "free": 5
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "tideborn_trust",
+       "next_event": "fac_025"
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "The midshipman draws a pistol. Your Tide-Puck tackles him. The shot goes wild. He escapes.",
+      "effects": {
+       "items": {},
+       "hp": -10,
+       "morale": -5,
+       "rep": {
+        "utc": -15,
+        "tideborn": 10,
+        "free": 5
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 20,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Dark-binding crystals parallel the 'infernal machines' privateers used to mark Spanish treasure fleets, per Admiralty Prize Court depositions 1708–1715."
+ },
+ {
+  "id": "fac_025",
+  "category": "faction",
+  "title": "The Scout's Debt",
+  "zones": [
+   "reef",
+   "cave"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.0,
+   "min_day": 28,
+   "camp_level": 4,
+   "needs_item": null,
+   "weather": "night"
+  },
+  "weight": 1,
+  "cooldown_s": 172800,
+  "intro_lines": [
+   "Bioluminescence paints the reef cave.",
+   "A Tideborn scout waits, trident lowered.",
+   "She offers a map to a Sovereign scale."
+  ],
+  "choices": [
+   {
+    "label": "Accept the dive",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.55,
+      "text": "You retrieve a scale the size of a shield. The scout sings your name to the arches.",
+      "effects": {
+       "items": {
+        "relic_shard": 5,
+        "pearl": 2
+       },
+       "hp": -15,
+       "morale": 15,
+       "rep": {
+        "utc": -5,
+        "tideborn": 25,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 30,
+       "unlock": "sovereign_scale",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.35,
+      "text": "Pressure nearly bursts your lungs. The scout drags you up, scale lost. She says nothing.",
+      "effects": {
+       "items": {},
+       "hp": -30,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 5,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 10,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.1,
+      "text": "A juvenile leviathan circles. The scout shoves you into a crevice, takes the hit herself.",
+      "effects": {
+       "items": {
+        "relic_shard": 3
+       },
+       "hp": -10,
+       "morale": -20,
+       "rep": {
+        "utc": 0,
+        "tideborn": 15,
+        "free": 0
+       },
+       "spawn": "wild_mythos",
+       "pet_xp": 0,
+       "unlock": "tideborn_martyr",
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Demand payment upfront",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "She tosses a pouch of pearls and a fragment of star-metal. 'Return alive for the rest.'",
+      "effects": {
+       "items": {
+        "pearl": 4,
+        "relic_shard": 2
+       },
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 10,
+        "free": 5
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Her eyes harden. 'We do not bargain with surface-dwellers.' She swims away.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": -10,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Tideborn oral contracts mirror Polynesian tapu exchanges where witnesses and symbolic gifts bound agreements without writing, per ethnographic records from the 1760s Pacific voyages."
+ },
+ {
+  "id": "fac_026",
+  "category": "faction",
+  "title": "Quartermaster's Court",
+  "zones": [
+   "outpost",
+   "beach"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.1,
+   "min_day": 10,
+   "camp_level": 2,
+   "needs_item": null,
+   "weather": "clear"
+  },
+  "weight": 8,
+  "cooldown_s": 86400,
+  "intro_lines": [
+   "Free pirates gather on the careening beach.",
+   "Quartermaster Bale raises a cutlass.",
+   "A carpenter's been caught skimming tar."
+  ],
+  "choices": [
+   {
+    "label": "Enforce the Articles strictly",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "The carpenter screams as Bale works. He's rowed to the cay with a bottle and pistol. Discipline holds.",
+      "effects": {
+       "items": {
+        "tar": -5
+       },
+       "hp": 0,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 15
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "articles_enforced",
+       "next_event": "fac_027"
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "His mates mutter. That night, three desert in the longboat, taking charts and powder.",
+      "effects": {
+       "items": {
+        "powder": -20,
+        "map_fragment": -2
+       },
+       "hp": 0,
+       "morale": -15,
+       "rep": {
+        "utc": 5,
+        "tideborn": 0,
+        "free": -10
+       },
+       "spawn": "free_pirates",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Argue for lashes and restitution",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.55,
+      "text": "Bale grins, orders the cat. The carpenter walks away bleeding but whole. Tar stores refilled.",
+      "effects": {
+       "items": {
+        "tar": 10
+       },
+       "hp": 0,
+       "morale": 10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 5
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "merciful_quarter",
+       "next_event": "fac_028"
+      }
+     },
+     {
+      "chance": 0.45,
+      "text": "Bale calls you soft. A vote is called. You lose 2–1. The carpenter loses his ears anyway.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -5
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Under Bartholomew Roberts' articles every man had a vote, and the captain and quartermaster took two shares."
+ },
+ {
+  "id": "fac_027",
+  "category": "faction",
+  "title": "The Marooned Man's Fire",
+  "zones": [
+   "beach",
+   "isle"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.0,
+   "min_day": 17,
+   "camp_level": 2,
+   "needs_item": null,
+   "weather": "night"
+  },
+  "weight": 1,
+  "cooldown_s": 172800,
+  "intro_lines": [
+   "Smoke rises from the punishment cay.",
+   "The carpenter waves a burning shirt.",
+   "He signals: UTC launch approaching."
+  ],
+  "choices": [
+   {
+    "label": "Row out and silence him",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.65,
+      "text": "You cut his throat before the launch lands. UTC rows back empty. Secrets kept.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -15,
+       "rep": {
+        "utc": -10,
+        "tideborn": 0,
+        "free": 10
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "ruthless_reputation",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.35,
+      "text": "UTC marines fire as you approach. The carpenter laughs, burns. You retreat wounded.",
+      "effects": {
+       "items": {},
+       "hp": -25,
+       "morale": -20,
+       "rep": {
+        "utc": 5,
+        "tideborn": 0,
+        "free": -5
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Let him talk, prepare an ambush",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "The launch enters the kill zone. Your gunners rake it. Prisoners, powder, and a UTC cipher.",
+      "effects": {
+       "items": {
+        "powder": 30,
+        "scrap": 10,
+        "map_fragment": 1
+       },
+       "hp": 0,
+       "morale": 15,
+       "rep": {
+        "utc": -15,
+        "tideborn": 5,
+        "free": 15
+       },
+       "spawn": "free_pirates",
+       "pet_xp": 0,
+       "unlock": "utc_cipher",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "The carpenter betrays the ambush. UTC lands a full company. You fight a retreat.",
+      "effects": {
+       "items": {
+        "food": -20,
+        "powder": -15
+       },
+       "hp": -20,
+       "morale": -20,
+       "rep": {
+        "utc": 10,
+        "tideborn": 0,
+        "free": -15
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Alexander Selkirk hid from Spanish ships for fear of enslavement; marooned pirates similarly faced capture or death if discovered by hostile powers, per Dampier's 1709 account."
+ },
+ {
+  "id": "fac_028",
+  "category": "faction",
+  "title": "The Carpenter's Ledger",
+  "zones": [
+   "outpost",
+   "jungle"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.0,
+   "min_day": 17,
+   "camp_level": 2,
+   "needs_item": null,
+   "weather": "rain"
+  },
+  "weight": 1,
+  "cooldown_s": 172800,
+  "intro_lines": [
+   "The carpenter slips you a waterlogged ledger.",
+   "'UTC pays for careening schedules.'",
+   "Names, dates, coves — every free haven in the chain."
+  ],
+  "choices": [
+   {
+    "label": "Burn the ledger, keep him close",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Ashes float on the rain. The carpenter weeps, then works. No one knows you had it.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": 5,
+       "rep": {
+        "utc": -5,
+        "tideborn": 0,
+        "free": 10
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "secret_kept",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "Bale finds the ashes. 'You protected a spy.' The carpenter's lashed. You're watched.",
+      "effects": {
+       "items": {},
+       "hp": 0,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -10
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Sell the ledger to the highest bidder",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "A UTC cutter buys it for gold and a pardon letter. The carpenter vanishes. You're rich, marked.",
+      "effects": {
+       "items": {
+        "gold": 200
+       },
+       "hp": 0,
+       "morale": 10,
+       "rep": {
+        "utc": 15,
+        "tideborn": -10,
+        "free": -20
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": "utc_pardon",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Free pirates intercept the meet. They take the ledger, your gold, and two fingers.",
+      "effects": {
+       "items": {
+        "gold": -150
+       },
+       "hp": -15,
+       "morale": -20,
+       "rep": {
+        "utc": -5,
+        "tideborn": 0,
+        "free": 5
+       },
+       "spawn": "free_pirates",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "Tideborn scouts rise from the surf. They take the ledger, leave pearls. 'The chain holds.'",
+      "effects": {
+       "items": {
+        "pearl": 6,
+        "gold": -50
+       },
+       "hp": 0,
+       "morale": 0,
+       "rep": {
+        "utc": -10,
+        "tideborn": 15,
+        "free": -5
+       },
+       "spawn": "tideborn_scout",
+       "pet_xp": 0,
+       "unlock": "tideborn_chain",
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Adam Baldridge's Sainte-Marie trading post (1690–1697) sold careening intelligence to pirates and navies alike; his ledger's capture by islanders ended his operation."
+ },
+ {
+  "id": "fac_029",
+  "category": "faction",
+  "title": "The Oath of Salt and Bone",
+  "zones": [
+   "reef",
+   "cave"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.08,
+   "min_day": 30,
+   "camp_level": 5,
+   "needs_item": "relic_shard",
+   "weather": "storm"
+  },
+  "weight": 5,
+  "cooldown_s": 259200,
+  "intro_lines": [
+   "Tideborn elders wait in the submerged arch.",
+   "Lightning shows their coral-crowned heads.",
+   "They offer kinship — drink the Sovereign's blood."
+  ],
+  "choices": [
+   {
+    "label": "Drink and swear",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "Fire in your veins. Gills flutter at your neck. The elders name you Kin-of-the-Deep.",
+      "effects": {
+       "items": {
+        "relic_shard": -3,
+        "pearl": 5
+       },
+       "hp": -20,
+       "morale": 20,
+       "rep": {
+        "utc": -20,
+        "tideborn": 30,
+        "free": -10
+       },
+       "spawn": null,
+       "pet_xp": 50,
+       "unlock": "tideborn_kinship",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Your body rejects the ichor. You vomit black bile. The elders mourn, cast you out.",
+      "effects": {
+       "items": {
+        "relic_shard": -3
+       },
+       "hp": -35,
+       "morale": -20,
+       "rep": {
+        "utc": 0,
+        "tideborn": -10,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.2,
+      "text": "The Sovereign's voice booms through the water. Another anchor. You surface changed.",
+      "effects": {
+       "items": {
+        "relic_shard": -3,
+        "pearl": 10
+       },
+       "hp": -10,
+       "morale": 10,
+       "rep": {
+        "utc": -15,
+        "tideborn": 25,
+        "free": -5
+       },
+       "spawn": "wild_mythos",
+       "pet_xp": 100,
+       "unlock": "sovereign_anchor",
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Refuse, offer relics instead",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "The eldest inclines her head. 'Trade honors the old ways.' You leave with a coral key.",
+      "effects": {
+       "items": {
+        "relic_shard": -5,
+        "shell": 10
+       },
+       "hp": 0,
+       "morale": 10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 15,
+        "free": 5
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "tideborn_trader",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "A young scout spits. 'Coward.' He challenges you. Blood in the water. You win, barely.",
+      "effects": {
+       "items": {
+        "relic_shard": -5
+       },
+       "hp": -25,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 5,
+        "free": 0
+       },
+       "spawn": "tideborn_scout",
+       "pet_xp": 20,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Polynesian blood-oath ceremonies (recorded by Cook 1773) bound outsiders to tribes through shared ritual ingestion, creating kinship stronger than law — violation meant death."
+ },
+ {
+  "id": "fac_030",
+  "category": "faction",
+  "title": "The Press Gang's Mistake",
+  "zones": [
+   "beach",
+   "jungle"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.1,
+   "min_day": 7,
+   "camp_level": 1,
+   "needs_item": null,
+   "weather": "fog"
+  },
+  "weight": 6,
+  "cooldown_s": 86400,
+  "intro_lines": [
+   "UTC longboats ghost through the mist.",
+   "Press gang — pikes, clubs, warrant lists.",
+   "They mistake your camp for a fishing village."
+  ],
+  "choices": [
+   {
+    "label": "Feign compliance, sabotage their launch",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "You stove their rudder and cut water casks. They row in circles cursing. You vanish inland.",
+      "effects": {
+       "items": {
+        "wood": 10,
+        "rope": 5
+       },
+       "hp": 0,
+       "morale": 10,
+       "rep": {
+        "utc": -10,
+        "tideborn": 0,
+        "free": 5
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "A midshipman spots the damage. Muskets crack. You flee, leaving supplies behind.",
+      "effects": {
+       "items": {
+        "food": -15,
+        "fresh_water": -10
+       },
+       "hp": -10,
+       "morale": -10,
+       "rep": {
+        "utc": -5,
+        "tideborn": 0,
+        "free": 0
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Fight them on the sand",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.55,
+      "text": "Your crew cuts them down. The warrant lists name UTC captains. Intelligence windfall.",
+      "effects": {
+       "items": {
+        "map_fragment": 2,
+        "scrap": 10
+       },
+       "hp": -15,
+       "morale": 15,
+       "rep": {
+        "utc": -20,
+        "tideborn": 5,
+        "free": 10
+       },
+       "spawn": "free_pirates",
+       "pet_xp": 0,
+       "unlock": "utc_warrants",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.45,
+      "text": "Too many. You're driven into the jungle. They burn your lean-to. Camp level drops.",
+      "effects": {
+       "items": {
+        "wood": -20,
+        "fibre": -15,
+        "sailcloth": -5
+       },
+       "hp": -20,
+       "morale": -20,
+       "rep": {
+        "utc": 10,
+        "tideborn": 0,
+        "free": -10
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Royal Navy press gangs routinely seized merchant crews in Caribbean ports 1700–1720; resistance was common and often successful when locals had terrain advantage, per Colonial Office records."
+ },
+ {
+  "id": "fac_031",
+  "category": "faction",
+  "title": "The Haven Master's Tax",
+  "zones": [
+   "outpost",
+   "beach"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.09,
+   "min_day": 20,
+   "camp_level": 4,
+   "needs_item": null,
+   "weather": "clear"
+  },
+  "weight": 6,
+  "cooldown_s": 172800,
+  "intro_lines": [
+   "A sloop anchors in your cove.",
+   "Haven Master Vane rows ashore, scales in hand.",
+   "'Protection isn't free. Twenty percent of all take."
+  ],
+  "choices": [
+   {
+    "label": "Pay the tithe, buy time",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.7,
+      "text": "Gold and rum change hands. Vane's clerk marks your hull. 'Safe passage, Captain.'",
+      "effects": {
+       "items": {
+        "gold": -100,
+        "rum": -10
+       },
+       "hp": 0,
+       "morale": -5,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 10
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "haven_access",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.3,
+      "text": "Vane weighs your gold, spits. 'Light weight.' He takes double. His men laugh.",
+      "effects": {
+       "items": {
+        "gold": -200,
+        "rum": -10
+       },
+       "hp": 0,
+       "morale": -15,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 5
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Challenge Vane to single combat",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.45,
+      "text": "First blood yours. Vane yields the haven. His quartermaster swears fealty to you.",
+      "effects": {
+       "items": {
+        "gold": 50,
+        "rum": 20
+       },
+       "hp": -10,
+       "morale": 25,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": 20
+       },
+       "spawn": "free_pirates",
+       "pet_xp": 0,
+       "unlock": "haven_master",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.55,
+      "text": "Vane's dirty. Sand in eyes, knife in ribs. You're carried back, camp leaderless for days.",
+      "effects": {
+       "items": {
+        "gold": -50
+       },
+       "hp": -30,
+       "morale": -25,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -15
+       },
+       "spawn": "free_pirates",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Burn the sloop, declare independence",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.5,
+      "text": "The sloop becomes a pyre. Vane escapes swimming. Every free captain hears your name.",
+      "effects": {
+       "items": {
+        "powder": -20,
+        "tar": -10
+       },
+       "hp": 0,
+       "morale": 20,
+       "rep": {
+        "utc": 5,
+        "tideborn": 0,
+        "free": 15
+       },
+       "spawn": "free_pirates",
+       "pet_xp": 0,
+       "unlock": "free_haven",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.5,
+      "text": "Vane's hidden grapeshot shreds your crew. The haven closes to you forever.",
+      "effects": {
+       "items": {
+        "powder": -20,
+        "food": -30
+       },
+       "hp": -25,
+       "morale": -20,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -20
+       },
+       "spawn": "free_pirates",
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Nassau's pirate republic (1713–1718) operated on tribute from visiting crews; Woodes Rogers' 1718 pardon offer split the haven between those who accepted and those who burned their ships rather than submit."
+ },
+ {
+  "id": "fac_032",
+  "category": "faction",
+  "title": "The Relic Broker's Game",
+  "zones": [
+   "cave",
+   "outpost"
+  ],
+  "trigger": {
+   "type": "random",
+   "chance": 0.07,
+   "min_day": 25,
+   "camp_level": 5,
+   "needs_item": "relic_shard",
+   "weather": "night"
+  },
+  "weight": 5,
+  "cooldown_s": 259200,
+  "intro_lines": [
+   "A hooded figure waits in the lava tube.",
+   "Three chests.",
+   "One holds a Tideborn cipher. 'Choose. Wrong choice..."
+  ],
+  "choices": [
+   {
+    "label": "Pick the iron-bound chest (UTC)",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Gold bars and a UTC officer's signet ring. A patrol will recognise it — or hunt you.",
+      "effects": {
+       "items": {
+        "gold": 300,
+        "relic_shard": -2
+       },
+       "hp": 0,
+       "morale": 10,
+       "rep": {
+        "utc": 10,
+        "tideborn": -5,
+        "free": -5
+       },
+       "spawn": "utc_patrol",
+       "pet_xp": 0,
+       "unlock": "utc_signet",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "The chest triggers a gas trap. You wake in a UTC brig. Camp loses contact for days.",
+      "effects": {
+       "items": {
+        "relic_shard": -2,
+        "gold": -100,
+        "food": -20
+       },
+       "hp": -15,
+       "morale": -20,
+       "rep": {
+        "utc": -5,
+        "tideborn": 0,
+        "free": -10
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Pick the coral-latched chest (Tideborn)",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "A living map — coral that grows toward the nearest Sovereign scale. The broker nods.",
+      "effects": {
+       "items": {
+        "relic_shard": -2,
+        "pearl": 8,
+        "map_fragment": 3
+       },
+       "hp": 0,
+       "morale": 15,
+       "rep": {
+        "utc": -10,
+        "tideborn": 20,
+        "free": 0
+       },
+       "spawn": null,
+       "pet_xp": 20,
+       "unlock": "living_map",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "The map demands blood. Your Tide-Puck howls. The broker vanishes. You're marked.",
+      "effects": {
+       "items": {
+        "relic_shard": -2
+       },
+       "hp": -10,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 10,
+        "free": -5
+       },
+       "spawn": "wild_mythos",
+       "pet_xp": 30,
+       "unlock": "blood_map",
+       "next_event": null
+      }
+     }
+    ]
+   },
+   {
+    "label": "Pick the tar-sealed chest (Pirate)",
+    "requires": {},
+    "outcomes": [
+     {
+      "chance": 0.6,
+      "text": "Charts to every careening cove in the chain. A note: 'For the next King of the Brethren.'",
+      "effects": {
+       "items": {
+        "relic_shard": -2,
+        "map_fragment": 5,
+        "tar": 10
+       },
+       "hp": 0,
+       "morale": 15,
+       "rep": {
+        "utc": -5,
+        "tideborn": 0,
+        "free": 20
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": "brethren_charts",
+       "next_event": null
+      }
+     },
+     {
+      "chance": 0.4,
+      "text": "The charts are decades old. Reefs shifted. Your carpenter curses. Wasted shards.",
+      "effects": {
+       "items": {
+        "relic_shard": -2
+       },
+       "hp": 0,
+       "morale": -10,
+       "rep": {
+        "utc": 0,
+        "tideborn": 0,
+        "free": -5
+       },
+       "spawn": null,
+       "pet_xp": 0,
+       "unlock": null,
+       "next_event": null
+      }
+     }
+    ]
+   }
+  ],
+  "history_note": "Île Sainte-Marie's 1697 uprising killed ~30 pirates after Baldridge's traders chewed islanders on cattle deals; brokers who played factions against each other often vanished, per French East India Company reports."
  }
 ]
