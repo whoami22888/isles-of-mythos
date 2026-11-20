@@ -121,12 +121,19 @@ func run() -> void:
 	var missing_sprite := FallbackFactory.load_sprite_or_fallback("res://_missing_ui_004.png") as ColorRect
 	check(missing_sprite != null and missing_sprite.size == Vector2(32, 32), "Missing sprite must be a 32px ColorRect")
 	if missing_sprite != null:
+		check(missing_sprite.mouse_filter == Control.MOUSE_FILTER_IGNORE, "Missing sprite must not intercept UI pointer input")
 		var checker := missing_sprite.get_node_or_null("Checkerboard") as TextureRect
 		check(checker != null and checker.texture != null, "Missing sprite must have checkerboard texture")
-		if checker != null and checker.texture != null:
-			var pixels := checker.texture.get_image()
-			check(pixels.get_pixel(0, 0) != pixels.get_pixel(4, 0), "Checkerboard must have alternating tiles")
+		if checker != null:
+			check(checker.mouse_filter == Control.MOUSE_FILTER_IGNORE, "Checkerboard overlay must not intercept UI pointer input")
+			if checker.texture != null:
+				var pixels := checker.texture.get_image()
+				check(pixels.get_pixel(0, 0) != pixels.get_pixel(4, 0), "Checkerboard must have alternating tiles")
 		missing_sprite.free()
+	var loaded_sprite := FallbackFactory.load_sprite_or_fallback("res://assets/opening/kenney/criminalMaleA.png") as TextureRect
+	check(loaded_sprite != null and loaded_sprite.mouse_filter == Control.MOUSE_FILTER_IGNORE, "Loaded sprite must leave pointer input to its parent")
+	if loaded_sprite != null:
+		loaded_sprite.free()
 	var missing_audio := FallbackFactory.load_audio_or_fallback("res://_missing_clip_004.ogg")
 	check(missing_audio != null and missing_audio.stream == null, "Missing audio must be safely silent")
 	missing_audio.free()
