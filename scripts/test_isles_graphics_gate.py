@@ -5,7 +5,9 @@ import contextlib
 import io
 import sys
 import tempfile
+import subprocess
 import unittest
+from unittest import mock
 from pathlib import Path
 import isles_graphics_gate as gate
 
@@ -228,6 +230,71 @@ class GraphicsGateTest(unittest.TestCase):
         (self.root / 'scenes/ship_view.tscn').write_text(
             '[ext_resource type="Script" path="res://scripts/water.gd" id="1"]')
         self.assertNotIn('FAKE_WATER_DEPTH', self.codes())
+
+
+    def test_runtime_report_uses_resolved_executable_fixed_argv_and_no_shell(self):
+        """Keep the local Godot process boundary explicit and shell-free."""
+        executable = self.root / 'godot'
+        executable.write_text('#!/bin/sh\nexit 0\n')
+        executable.chmod(0o755)
+        report = {
+            '__ship_motion_verified__': True,
+            'res://scenes/realistic_coastal_slice.tscn': [{
+                'node': 'Ship/Hull',
+                'surfaces': [{
+                    'triangles': 1,
+                    'material': 'Hull',
+                    'transparency': 0,
+                    'albedo_alpha': False,
+                    'texture': 'res://assets/hull.png',
+                }],
+            }],
+            'res://scenes/realistic_coastal_fx_slice.tscn': [{
+                'node': 'Ship/FX',
+                'surfaces': [{
+                    'triangles': 1,
+                    'material': 'Wake',
+                    'transparency': 0,
+                    'albedo_alpha': False,
+                    'texture': 'res://assets/wake.png',
+                }],
+            }],
+        }
+        calls = []
+
+        def fake_run(command, **kwargs):
+            calls.append((command, kwargs))
+            if command[-1] == '--version':
+                return subprocess.CompletedProcess(
+                    command, 0, '4.7.2.stable.official.test', ''
+                )
+            return subprocess.CompletedProcess(
+                command, 0, 'RUNTIME_GRAPHICS_JSON=' + json.dumps(report) + '\n', ''
+            )
+
+        with mock.patch.object(gate.shutil, 'which', return_value=str(executable)):
+            with mock.patch.object(gate.subprocess, 'run', side_effect=fake_run):
+                actual = gate._runtime_report(self.root, 'godot')
+
+        resolved = str(executable.resolve())
+        self.assertEqual(report, actual)
+        self.assertEqual(2, len(calls))
+        self.assertEqual([resolved, '--version'], calls[0][0])
+        self.assertEqual([
+            resolved,
+            '--headless',
+            '--rendering-method',
+            'mobile',
+            '--path',
+            str(self.root),
+            '--script',
+            'res://tests/audit_runtime_graphics.gd',
+        ], calls[1][0])
+        for _, kwargs in calls:
+            self.assertIs(kwargs['shell'], False)
+            self.assertIs(kwargs['check'], False)
+            self.assertIs(kwargs['capture_output'], True)
+            self.assertIs(kwargs['text'], True)
 
 if __name__ == '__main__':
     unittest.main()

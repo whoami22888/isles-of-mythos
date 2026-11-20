@@ -325,7 +325,8 @@ def _run_godot(
     """Run a verified executable with fixed argv and no command shell."""
     command = [executable] + arguments
     # No shell is involved, and the executable is resolved and checked before use.
-    return subprocess.run(  # nosec B603
+    # Only the developer-selected local Godot binary and local project path vary; argv tokens are fixed here.
+    return subprocess.run(
         command,
         capture_output=True,
         text=True,
