@@ -100,15 +100,39 @@ export function resolveCgroupDirectory(mount, cgroupPath) {
   return candidate === base || candidate.startsWith(base + "/") ? candidate : null;
 }
 
-export function parseDockerPostgresContainers(text) {
+const DEFAULT_POSTGRES_IMAGE_DIGEST = "sha256:fb42fe07f31379928ffb2fcb9acb903eb40e7e821b562f16809a45bc86097289";
+
+function isExpectedPostgresImage(image, expectedDigest = DEFAULT_POSTGRES_IMAGE_DIGEST) {
+  if (typeof image !== "string" || !/^sha256:[0-9a-f]{64}$/i.test(expectedDigest)) return false;
+  const match = /(?:^|\/)postgres@sha256:([0-9a-f]{64})$/i.exec(image.trim());
+  return Boolean(match && `sha256:${match[1].toLowerCase()}` === expectedDigest.toLowerCase());
+}
+
+export function parseDockerPostgresContainers(text, expectedDigest = DEFAULT_POSTGRES_IMAGE_DIGEST) {
   const rows = text.trim().split(/\r?\n/).filter(Boolean).map(line => {
     const [id, image = "", name = ""] = line.split("|");
     return { id, image, name };
-  }).filter(row => row.id && /postgres/i.test(row.image + " " + row.name));
-  if (rows.length === 1) return { status: "available", containerId: rows[0].id };
-  const pinned = rows.filter(row => /postgres@sha256:/i.test(row.image));
+  }).filter(row => /^[a-f0-9]{12,64}$/i.test(row.id) && /postgres/i.test(row.image + " " + row.name));
+  if (!rows.length) return unavailable("postgres_container_not_found");
+  const pinned = rows.filter(row => isExpectedPostgresImage(row.image, expectedDigest));
   if (pinned.length === 1) return { status: "available", containerId: pinned[0].id };
-  return unavailable(rows.length ? "postgres_container_ambiguous" : "postgres_container_not_found");
+  return unavailable(pinned.length === 0 && rows.length === 1
+    ? "postgres_image_not_digest_pinned"
+    : "postgres_container_ambiguous");
+}
+
+export function parseDockerPostgresInspect(text, expectedId, expectedDigest = DEFAULT_POSTGRES_IMAGE_DIGEST) {
+  const [actualId = "", image = "", pidText = ""] = text.trim().split("|");
+  if (!/^[a-f0-9]{64}$/i.test(actualId) ||
+      !/^[a-f0-9]{12,64}$/i.test(expectedId) ||
+      !actualId.toLowerCase().startsWith(expectedId.toLowerCase())) {
+    return unavailable("postgres_container_id_mismatch");
+  }
+  if (!isExpectedPostgresImage(image, expectedDigest)) return unavailable("postgres_image_not_digest_pinned");
+  const pid = Number(pidText);
+  return Number.isSafeInteger(pid) && pid > 0
+    ? { status: "available", pid }
+    : unavailable("postgres_container_not_running");
 }
 
 export function counterDelta(before, after) {
@@ -128,20 +152,19 @@ function runDocker(command, args) {
   const result = spawnSync(command, args, { encoding: "utf8", timeout: 1500, maxBuffer: 65536, windowsHide: true });
   return { status: result.status ?? 1, stdout: result.stdout || "", error: result.error };
 }
-function postgresPid(runCommand, explicitId) {
+function postgresPid(runCommand, explicitId, expectedDigest) {
   let id = explicitId;
   if (!id) {
     const listed = runCommand("docker", ["ps", "--no-trunc", "--format", "{{.ID}}|{{.Image}}|{{.Names}}"]);
     if (listed.status !== 0) return unavailable(reasonOf(listed.error, "docker_unavailable"));
-    const found = parseDockerPostgresContainers(listed.stdout);
+    const found = parseDockerPostgresContainers(listed.stdout, expectedDigest);
     if (found.status !== "available") return found;
     id = found.containerId;
   }
   if (!/^[a-f0-9]{12,64}$/i.test(id)) return unavailable("invalid_container_id");
-  const inspected = runCommand("docker", ["inspect", "--format", "{{.State.Pid}}", id]);
+  const inspected = runCommand("docker", ["inspect", "--format", "{{.Id}}|{{.Config.Image}}|{{.State.Pid}}", id]);
   if (inspected.status !== 0) return unavailable(reasonOf(inspected.error, "docker_inspect_failed"));
-  const pid = Number(inspected.stdout.trim());
-  return Number.isSafeInteger(pid) && pid > 0 ? { status: "available", pid } : unavailable("postgres_container_not_running");
+  return parseDockerPostgresInspect(inspected.stdout, id, expectedDigest);
 }
 
 export async function startHostIoTelemetry({
@@ -152,15 +175,17 @@ export async function startHostIoTelemetry({
   now = () => performance.now(),
   wallTime = () => new Date().toISOString(),
   postgresContainerId = process.env.POSTGRES_SERVICE_CONTAINER_ID,
+  postgresImageDigest = process.env.POSTGRES_EXPECTED_IMAGE_DIGEST || DEFAULT_POSTGRES_IMAGE_DIGEST,
 } = {}) {
   if (!Number.isInteger(intervalMs) || intervalMs < 100) throw new Error("intervalMs must be >= 100");
+  if (!/^sha256:[0-9a-f]{64}$/i.test(postgresImageDigest)) throw new Error("postgresImageDigest must be a pinned sha256 digest");
   const started = now();
   const mountInfo = await readParsed(readText, "/proc/self/mountinfo", parseCgroup2Mount);
   const mount = mountInfo.status === "available" ? mountInfo.value : null;
   const runnerText = await readParsed(readText, "/proc/self/cgroup", parseUnifiedCgroupPath);
   const runnerPath = runnerText.status === "available" && runnerText.value ? resolveCgroupDirectory(mount, runnerText.value) : null;
   const runnerReason = runnerText.status !== "available" ? runnerText.reason : !runnerText.value ? "runner_cgroup_v2_not_found" : !mount ? "cgroup_v2_mount_not_found" : "runner_cgroup_outside_visible_mount";
-  const processInfo = postgresPid(runCommand, postgresContainerId);
+  const processInfo = postgresPid(runCommand, postgresContainerId, postgresImageDigest);
   let postgresPath = null, postgresReason = processInfo.reason || "postgres_cgroup_not_resolved";
   if (processInfo.status === "available") {
     const group = await readParsed(readText, "/proc/" + processInfo.pid + "/cgroup", parseUnifiedCgroupPath);

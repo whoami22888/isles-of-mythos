@@ -1,8 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+
+const POSTGRES_IMAGE_DIGEST = "sha256:fb42fe07f31379928ffb2fcb9acb903eb40e7e821b562f16809a45bc86097289";
+const POSTGRES_IMAGE = `cgr.dev/chainguard/postgres@${POSTGRES_IMAGE_DIGEST}`;
+const POSTGRES_CONTAINER_ID = "a".repeat(64);
+const OTHER_CONTAINER_ID = "b".repeat(64);
 import {
   counterDelta, deltaDevices, deltaPressure, parseCgroup2Mount, parseCgroupIoStat,
-  parseDiskstats, parseDockerPostgresContainers, parsePressure, parseUnifiedCgroupPath,
+  parseDiskstats, parseDockerPostgresContainers, parseDockerPostgresInspect, parsePressure, parseUnifiedCgroupPath,
   resolveCgroupDirectory, startHostIoTelemetry,
 } from "./host-io-telemetry.mjs";
 
@@ -45,12 +50,28 @@ test("counter deltas preserve precision and report resets or missing baselines",
   assert.deepEqual(deltaPressure({ some: { totalUs: "10" } }, { some: { totalUs: "20" } }), { some: { value: "10" } });
 });
 
-test("Docker discovery refuses ambiguous PostgreSQL containers", () => {
-  assert.deepEqual(parseDockerPostgresContainers("abc123456789|cgr.dev/chainguard/postgres@sha256:deadbeef|postgres"), {
-    status: "available", containerId: "abc123456789",
+test("Docker discovery requires the exact digest-pinned PostgreSQL service image", () => {
+  assert.deepEqual(parseDockerPostgresContainers(`${POSTGRES_CONTAINER_ID}|${POSTGRES_IMAGE}|postgres`), {
+    status: "available", containerId: POSTGRES_CONTAINER_ID,
   });
-  assert.equal(parseDockerPostgresContainers("abc123456789|postgres:18|pg-a\ndef987654321|postgres:18|pg-b").reason, "postgres_container_ambiguous");
-  assert.equal(parseDockerPostgresContainers("abc123456789|redis:7|redis").reason, "postgres_container_not_found");
+  assert.equal(parseDockerPostgresContainers(`${POSTGRES_CONTAINER_ID}|postgres:18|postgres`).reason, "postgres_image_not_digest_pinned");
+  assert.equal(parseDockerPostgresContainers(`${POSTGRES_CONTAINER_ID}|cgr.dev/chainguard/postgres@sha256:${"0".repeat(64)}|postgres`).reason, "postgres_image_not_digest_pinned");
+  assert.deepEqual(parseDockerPostgresContainers(
+    `${POSTGRES_CONTAINER_ID}|${POSTGRES_IMAGE}|postgres-a\n${OTHER_CONTAINER_ID}|postgres:18|postgres-b`
+  ), { status: "available", containerId: POSTGRES_CONTAINER_ID });
+  assert.equal(parseDockerPostgresContainers(
+    `${POSTGRES_CONTAINER_ID}|${POSTGRES_IMAGE}|postgres-a\n${OTHER_CONTAINER_ID}|${POSTGRES_IMAGE}|postgres-b`
+  ).reason, "postgres_container_ambiguous");
+  assert.equal(parseDockerPostgresContainers(`${POSTGRES_CONTAINER_ID}|redis:7|redis`).reason, "postgres_container_not_found");
+});
+
+test("explicit Docker inspect verifies container identity and the expected PostgreSQL digest", () => {
+  assert.deepEqual(parseDockerPostgresInspect(`${POSTGRES_CONTAINER_ID}|${POSTGRES_IMAGE}|123`, POSTGRES_CONTAINER_ID), {
+    status: "available", pid: 123,
+  });
+  assert.equal(parseDockerPostgresInspect(`${OTHER_CONTAINER_ID}|${POSTGRES_IMAGE}|123`, POSTGRES_CONTAINER_ID).reason, "postgres_container_id_mismatch");
+  assert.equal(parseDockerPostgresInspect(`${POSTGRES_CONTAINER_ID}|postgres:18|123`, POSTGRES_CONTAINER_ID).reason, "postgres_image_not_digest_pinned");
+  assert.equal(parseDockerPostgresInspect(`${POSTGRES_CONTAINER_ID}|${POSTGRES_IMAGE}|0`, POSTGRES_CONTAINER_ID).reason, "postgres_container_not_running");
 });
 
 test("unavailable cgroup sources are explicit and never reported as zero", async () => {
@@ -67,8 +88,8 @@ test("unavailable cgroup sources are explicit and never reported as zero", async
     const error = new Error("missing"); error.code = "ENOENT"; throw error;
   };
   const runCommand = (_command, args) => args[0] === "ps"
-    ? { status: 0, stdout: "abc123456789|cgr.dev/chainguard/postgres@sha256:deadbeef|postgres" }
-    : { status: 0, stdout: "123" };
+    ? { status: 0, stdout: `${POSTGRES_CONTAINER_ID}|${POSTGRES_IMAGE}|postgres` }
+    : { status: 0, stdout: `${POSTGRES_CONTAINER_ID}|${POSTGRES_IMAGE}|123` };
   const sampler = await startHostIoTelemetry({
     emit: record => records.push(record), readText, runCommand,
     now: (() => { let value = 0; return () => ++value; })(),

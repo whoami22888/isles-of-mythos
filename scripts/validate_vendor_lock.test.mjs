@@ -28,6 +28,48 @@ const entry = (over = {}) => ({
   vendor: "Test Fixture Vendor", source_revision: "1234567890abcdef1234567890abcdef12345678", pack_id: "test-vendor:kit", ...over
 });
 const good = { "vendor/kit/palm.glb": "palm", "vendor/kit/LICENSE.txt": "CC0" };
+const QUARANTINE_PATH = "docs/vendor/quarantine/quaternius-h05-h06.json";
+const QUARANTINED_ARCHIVE_PATH = "assets-src/quaternius/H05/ultimate-monsters.zip";
+const quarantineRegistry = () => ({
+  schema: "iom-vendor-source-quarantine:v1",
+  status: "LICENSE_REVIEW_REQUIRED",
+  sources: [{
+    harvest_id: "H05",
+    archive_path: QUARANTINED_ARCHIVE_PATH,
+    archive_sha256: sha("archive"),
+    admission_status: "LICENSE_REVIEW_REQUIRED",
+    public_source_redistribution: "BLOCKED",
+    production_admission: "NOT_ADMITTED"
+  }]
+});
+
+test("quarantined vendor archives retain hash evidence but stay outside the active lock and tree", () => {
+  const files = { ...good, [QUARANTINE_PATH]: JSON.stringify(quarantineRegistry()) };
+  assert.deepEqual(validateVendorLock(repo(files, { version: "1.0.0", assets: [entry()] })), []);
+});
+
+test("quarantined vendor archives cannot be reintroduced into the source tree or active lock", () => {
+  const files = {
+    ...good,
+    [QUARANTINE_PATH]: JSON.stringify(quarantineRegistry()),
+    [QUARANTINED_ARCHIVE_PATH]: "archive"
+  };
+  const treeErrors = validateVendorLock(repo(files, { version: "1.0.0", assets: [entry()] })).join("\n");
+  assert.match(treeErrors, /quarantined source must not be present in repository tree/);
+
+  const activeEntry = entry({
+    path: QUARANTINED_ARCHIVE_PATH,
+    sha256: sha("archive"),
+    source_revision: sha("archive")
+  });
+  const lockErrors = validateVendorLock(repo(files, { version: "1.0.0", assets: [entry(), activeEntry] })).join("\n");
+  assert.match(lockErrors, /quarantined source must not appear in vendor.lock.json/);
+});
+
+test("a malformed quarantine registry fails closed", () => {
+  const files = { ...good, [QUARANTINE_PATH]: JSON.stringify({ schema: "wrong", sources: [] }) };
+  assert.match(validateVendorLock(repo(files, { version: "1.0.0", assets: [entry()] })).join("\n"), /invalid or incomplete quarantine registry/);
+});
 
 test("an empty lock is rejected because it admits no source dependency", () => {
   const errors = validateVendorLock(repo()).join("\n");

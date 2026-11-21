@@ -15,6 +15,7 @@ const HASH = /^[0-9a-f]{64}$/;
 const TOP_KEYS = new Set(["$schema", "version", "assets"]);
 const ENTRY_KEYS = new Set(["path", "sha256", "license", "license_path", "license_sha256", "source_url", "vendor", "source_revision", "source_identity", "pack_id"]);
 const EXTERNAL_DIR = join("client-godot", "assets", "external");
+const QUARANTINE_REGISTRY_PATH = join("docs", "vendor", "quarantine", "quaternius-h05-h06.json");
 const GODOT_SIDECARS = new Set([".import", ".uid"]);
 const { validateAssetSourceTree } = require("./validate_asset_src.js");
 
@@ -68,6 +69,52 @@ function readJson(file, errors, label) {
 }
 
 const isPlainObject = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
+
+function validateQuarantinedSources(root, lock) {
+  const errors = [];
+  const file = join(root, QUARANTINE_REGISTRY_PATH);
+  if (!existsSync(file)) return errors;
+  const registry = readJson(file, errors, QUARANTINE_REGISTRY_PATH);
+  if (registry === READ_FAILED) return errors;
+  if (!isPlainObject(registry) ||
+      registry.schema !== "iom-vendor-source-quarantine:v1" ||
+      registry.status !== "LICENSE_REVIEW_REQUIRED" ||
+      !Array.isArray(registry.sources) ||
+      registry.sources.length === 0) {
+    return [...errors, `${QUARANTINE_REGISTRY_PATH}: invalid or incomplete quarantine registry`];
+  }
+
+  const lockedPaths = new Set(lock.assets
+    .filter(asset => isPlainObject(asset) && typeof asset.path === "string")
+    .map(asset => asset.path));
+  const seen = new Set();
+  for (const [index, source] of registry.sources.entries()) {
+    const at = `${QUARANTINE_REGISTRY_PATH} source ${index}`;
+    if (!isPlainObject(source)) {
+      errors.push(`${at}: must be an object`);
+      continue;
+    }
+    const archivePath = source.archive_path;
+    const abs = inside(root, archivePath);
+    if (!abs || typeof archivePath !== "string" || !archivePath.startsWith("assets-src/")) {
+      errors.push(`${at}: archive_path must be a safe assets-src-relative path`);
+      continue;
+    }
+    if (seen.has(archivePath)) errors.push(`${at}: duplicate quarantined archive path ${archivePath}`);
+    seen.add(archivePath);
+    if (typeof source.archive_sha256 !== "string" || !HASH.test(source.archive_sha256)) {
+      errors.push(`${at}: archive_sha256 must be 64 lowercase hex characters`);
+    }
+    if (source.admission_status !== "LICENSE_REVIEW_REQUIRED" ||
+        source.public_source_redistribution !== "BLOCKED" ||
+        source.production_admission !== "NOT_ADMITTED") {
+      errors.push(`${at}: unresolved source must remain blocked from redistribution and production admission`);
+    }
+    if (lockedPaths.has(archivePath)) errors.push(`${at}: quarantined source must not appear in vendor.lock.json: ${archivePath}`);
+    if (existsSync(abs)) errors.push(`${at}: quarantined source must not be present in repository tree: ${archivePath}`);
+  }
+  return errors;
+}
 
 function validateVendorLock(root = resolve(__dirname, "..")) {
   root = resolve(root);
@@ -180,6 +227,7 @@ function validateVendorLock(root = resolve(__dirname, "..")) {
       else if (!manifestPaths.has(rel) && !seen.has(file.full)) errors.push(`unregistered file under ${EXTERNAL_DIR}: ${rel}`);
     }
   }
+  errors.push(...validateQuarantinedSources(root, lock));
   errors.push(...validateAssetSourceTree(root, lock.assets));
   return errors;
 }
