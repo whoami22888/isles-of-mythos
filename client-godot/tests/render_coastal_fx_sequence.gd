@@ -4,6 +4,8 @@ extends SceneTree
 ## No generated image is suitable for owner-facing display without review.
 
 const FRAME_COUNT := 72
+const SOURCE_ASSET_MANIFEST := "res://assets/external-assets.json"
+const SOURCE_ASSET_ROOT := "res://assets/external"
 var _previous_bytes := PackedByteArray()
 var _changed_frames := 0
 
@@ -17,6 +19,98 @@ func _fail(reason: String) -> void:
     quit(1)
 
 
+func _write_source_asset_provenance(directory: String) -> bool:
+    if not FileAccess.file_exists(SOURCE_ASSET_MANIFEST):
+        _fail("Missing source asset manifest: " + SOURCE_ASSET_MANIFEST)
+        return false
+    var source_manifest_text := FileAccess.get_file_as_string(SOURCE_ASSET_MANIFEST)
+    if source_manifest_text.is_empty():
+        _fail("Source asset manifest is empty")
+        return false
+    var parsed: Variant = JSON.parse_string(source_manifest_text)
+    if typeof(parsed) != TYPE_DICTIONARY:
+        _fail("Source asset manifest is not a JSON object")
+        return false
+    var manifest: Dictionary = parsed
+    if int(manifest.get("schema_version", -1)) != 1:
+        _fail("Unsupported source asset manifest schema")
+        return false
+    var assets_value: Variant = manifest.get("assets", null)
+    if typeof(assets_value) != TYPE_ARRAY:
+        _fail("Source asset manifest has no assets array")
+        return false
+    var assets: Array = assets_value
+    if assets.is_empty():
+        _fail("Source asset manifest has no assets")
+        return false
+
+    var seen_paths: Dictionary = {}
+    var checksum_lines: Array[String] = []
+    for entry_value in assets:
+        if typeof(entry_value) != TYPE_DICTIONARY:
+            _fail("Source asset manifest contains a non-object entry")
+            return false
+        var entry: Dictionary = entry_value
+        var relative_path := str(entry.get("path", "")).strip_edges()
+        var expected_sha := str(entry.get("sha256", "")).to_lower()
+        var source_url := str(entry.get("source_url", "")).strip_edges()
+        var license_id := str(entry.get("license", "")).strip_edges()
+        var license_url := str(entry.get("license_url", "")).strip_edges()
+        if relative_path.is_empty() or relative_path.begins_with("/") or relative_path.contains("\\"):
+            _fail("Unsafe source asset path in manifest: " + relative_path)
+            return false
+        var path_parts := relative_path.split("/")
+        if path_parts.has("..") or path_parts.has("") or expected_sha.length() != 64:
+            _fail("Invalid source asset path or SHA-256: " + relative_path)
+            return false
+        if source_url.is_empty() or license_id.is_empty() or license_url.is_empty():
+            _fail("Missing source or licence metadata for: " + relative_path)
+            return false
+        if seen_paths.has(relative_path):
+            _fail("Duplicate source asset path: " + relative_path)
+            return false
+        seen_paths[relative_path] = true
+        var source_path := SOURCE_ASSET_ROOT.path_join(relative_path)
+        if not FileAccess.file_exists(source_path):
+            _fail("Missing source asset file: " + source_path)
+            return false
+        var actual_sha := FileAccess.get_sha256(source_path).to_lower()
+        if actual_sha != expected_sha:
+            _fail("Source asset SHA-256 mismatch for %s expected=%s actual=%s" % [
+                relative_path, expected_sha, actual_sha
+            ])
+            return false
+        checksum_lines.append("%s  %s" % [actual_sha, relative_path])
+
+    checksum_lines.sort()
+    var checksum_path := directory.path_join("ASSET-SHA256SUMS")
+    var checksum_file := FileAccess.open(checksum_path, FileAccess.WRITE)
+    if checksum_file == null:
+        _fail("Could not write ASSET-SHA256SUMS")
+        return false
+    checksum_file.store_string("\n".join(checksum_lines) + "\n")
+    checksum_file.close()
+
+    var provenance_path := directory.path_join("ASSET-PROVENANCE.json")
+    var provenance_file := FileAccess.open(provenance_path, FileAccess.WRITE)
+    if provenance_file == null:
+        _fail("Could not write ASSET-PROVENANCE.json")
+        return false
+    provenance_file.store_string(source_manifest_text)
+    provenance_file.close()
+
+    var source_manifest_sha := FileAccess.get_sha256(SOURCE_ASSET_MANIFEST).to_lower()
+    var copied_manifest_sha := FileAccess.get_sha256(provenance_path).to_lower()
+    var checksum_manifest_sha := FileAccess.get_sha256(checksum_path).to_lower()
+    if source_manifest_sha.length() != 64 or copied_manifest_sha != source_manifest_sha or checksum_manifest_sha.length() != 64:
+        _fail("Source asset provenance manifest checksum verification failed")
+        return false
+    print("IOM_INTERNAL_ASSET_PROVENANCE source_manifest_sha256=%s copied_manifest_sha256=%s checksums_sha256=%s entries=%d" % [
+        source_manifest_sha, copied_manifest_sha, checksum_manifest_sha, checksum_lines.size()
+    ])
+    return true
+
+
 func _record() -> void:
     var directory := OS.get_environment("IOM_FX_FRAMES_DIR")
     if directory.is_empty():
@@ -25,10 +119,21 @@ func _record() -> void:
     if DirAccess.make_dir_recursive_absolute(directory) != OK:
         _fail("Could not create renderer evidence directory")
         return
+    var rendering_method := RenderingServer.get_current_rendering_method()
+    var rendering_driver := RenderingServer.get_current_rendering_driver_name()
+    if rendering_method != "mobile" or rendering_driver != "vulkan":
+        _fail(
+            "Expected Vulkan Mobile renderer, got driver=%s method=%s"
+            % [rendering_driver, rendering_method]
+        )
+        return
+    print("IOM_INTERNAL_RENDERER driver=%s method=%s" % [rendering_driver, rendering_method])
+    if not _write_source_asset_provenance(directory):
+        return
     var start_frame := int(OS.get_environment("IOM_FX_START_FRAME")) if OS.has_environment("IOM_FX_START_FRAME") else 0
     var end_frame := int(OS.get_environment("IOM_FX_END_FRAME")) if OS.has_environment("IOM_FX_END_FRAME") else FRAME_COUNT
-    if start_frame < 0 or end_frame > FRAME_COUNT or start_frame >= end_frame:
-        _fail("Invalid capture frame range; expected 0 <= start < end <= 72")
+    if start_frame != 0 or end_frame != FRAME_COUNT:
+        _fail("Capture must use one renderer process for the complete 0..71 sequence; partitioned workers reset lighting state")
         return
     var packed: PackedScene = load("res://scenes/realistic_coastal_fx_slice.tscn")
     if packed == null:
@@ -107,31 +212,11 @@ func _record() -> void:
             if projected.x < 36.0 or projected.x > 1244.0 or projected.y < 36.0 or projected.y > 684.0:
                 _fail("Ship rigging/hull clips frame at %d corner %d: %s" % [frame_number, corner, projected])
                 return
-        # Pre-roll the complete vessel/wake/spray state without costly GPU
-        # readbacks. Each worker still starts from frame zero simulation state.
-        if frame_number < start_frame:
-            # This path has deterministic_capture enabled, particle/process updates
-            # disabled, and CPU-driven wake/spray state. The state above is the
-            # complete boundary state; rendering 48 discarded full-resolution
-            # frames only burned llvmpipe time and caused worker-2 watchdog exits.
-            # The first retained frame still fences normally below.
-            if frame_number % 6 == 0:
-                print("IOM_INTERNAL_STAGE preroll frame=%d state_ms=%d" % [
-                    frame_number, Time.get_ticks_msec() - render_start_msec
-                ])
-            continue
-        if frame_number >= end_frame:
-            break
-        if frame_number == start_frame and start_frame > 0:
-            var boundary_time: float = ocean_material.get_shader_parameter("capture_time_seconds")
-            if absf(boundary_time - float(start_frame) / 24.0) > 0.0001:
-                _fail("Partition boundary lost deterministic ocean time")
-            if integration.wake.get_sample_count() < 2:
-                _fail("Partition boundary lost CPU wake history")
-        if frame_number == start_frame:
-            # The camera preroll is CPU-only. Give Mobile Vulkan several real
-            # draw fences at its final pose before keeping the first frame;
-            # otherwise one llvmpipe worker can retain an unlit shadow state.
+        if frame_number == 0:
+            # Keep all 72 frames in this renderer process. Separate worker
+            # processes rebuilt camera-dependent directional shadow state and
+            # caused measurable lighting jumps at frames 23->24 and 47->48.
+            # Warm the one renderer before recording; do not partition capture.
             for _warmup in range(3):
                 await process_frame
                 await RenderingServer.frame_post_draw
@@ -154,10 +239,10 @@ func _record() -> void:
         if current_bytes.size() != 1280 * 720 * 4:
             _fail("Invalid RGBA8 capture byte count at frame %d" % frame_number)
             return
-        if frame_number > start_frame and current_bytes != _previous_bytes:
+        if frame_number > 0 and current_bytes != _previous_bytes:
             _changed_frames += 1
         _previous_bytes = current_bytes
-        if frame_number == start_frame:
+        if frame_number == 0:
             # Static land at this camera angle is a stable lighting probe.
             # A dark worker measured 82-85 luma here; lit runs measure 94+.
             # Fail that worker before it uploads a visually invalid segment.
@@ -194,7 +279,7 @@ func _record() -> void:
                 frame_number + 1, FRAME_COUNT, Time.get_ticks_msec() - render_start_msec,
                 fence_elapsed_msec
             ])
-    if _changed_frames < mini(12, end_frame - start_frame - 1):
+    if _changed_frames < mini(12, FRAME_COUNT - 1):
         _fail("Frame sequence is effectively static; no valid moving-engine evidence")
         return
     if not integration._demo_active:
@@ -209,8 +294,8 @@ func _record() -> void:
     if integration._demo_active or not scene.gameplay_camera.current:
         _fail("Cinematic capture failed to restore the gameplay camera and vessel")
         return
-    print("Genuine Godot cinematic FX frames: %d-%d, changed: %d, camera restored" % [
-        start_frame, end_frame, _changed_frames
+    print("Genuine Godot cinematic FX frames: 0-%d, changed: %d, camera restored" % [
+        FRAME_COUNT - 1, _changed_frames
     ])
     scene.queue_free()
     quit(0)

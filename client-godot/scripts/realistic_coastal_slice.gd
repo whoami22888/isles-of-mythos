@@ -221,8 +221,8 @@ func _build_water() -> void:
 	water.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var material := ShaderMaterial.new()
 	material.shader = OCEAN_SHADER
-	material.set_shader_parameter("swell_scale", 0.08)
-	material.set_shader_parameter("ripple_detail", 0.18)
+	material.set_shader_parameter("swell_scale", 0.65)
+	material.set_shader_parameter("ripple_detail", 0.65)
 	material.set_shader_parameter("foam_amount", 0.85)
 	var baked: Dictionary = SHORE_BAKER.bind_to_material(terrain, material, 96, 72)
 	if baked.has("error"):
