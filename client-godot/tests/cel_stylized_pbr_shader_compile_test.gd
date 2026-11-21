@@ -142,6 +142,61 @@ func _run() -> void:
     flat_normal_image.fill(Color(0.5, 0.5, 1.0, 1.0))
     var flat_normal_texture := ImageTexture.new()
     flat_normal_texture.set_image(flat_normal_image)
+
+    var rotated_normal_image := Image.create(1, 1, false, Image.FORMAT_RGBA8)
+    rotated_normal_image.fill(Color(1.0, 0.5, 0.5, 1.0))
+    var rotated_normal_texture := ImageTexture.new()
+    rotated_normal_texture.set_image(rotated_normal_image)
+
+    # UV-mapped normal maps must feed the custom mobile ramp through the
+    # interpolated view-space tangent basis, not only the built-in NORMAL_MAP output.
+    mobile_material.set_shader_parameter("use_triplanar", false)
+    mobile_material.set_shader_parameter("normal_texture", flat_normal_texture)
+    for frame_index in range(2):
+        await process_frame
+    await RenderingServer.frame_post_draw
+
+    var uv_flat_normal_capture: Image = root.get_viewport().get_texture().get_image()
+    if uv_flat_normal_capture == null or uv_flat_normal_capture.is_empty():
+        push_error("Vulkan Mobile did not produce a flat UV-normal-map frame")
+        scene.queue_free()
+        quit(1)
+        return
+    var uv_flat_normal_pixel := uv_flat_normal_capture.get_pixel(sample_position.x, sample_position.y)
+
+    mobile_material.set_shader_parameter("normal_texture", rotated_normal_texture)
+    for frame_index in range(2):
+        await process_frame
+    await RenderingServer.frame_post_draw
+
+    var uv_rotated_normal_capture: Image = root.get_viewport().get_texture().get_image()
+    if uv_rotated_normal_capture == null or uv_rotated_normal_capture.is_empty():
+        push_error("Vulkan Mobile did not produce a rotated UV-normal-map frame")
+        scene.queue_free()
+        quit(1)
+        return
+    var uv_rotated_normal_pixel := uv_rotated_normal_capture.get_pixel(sample_position.x, sample_position.y)
+    var uv_normal_map_delta := Vector3(
+        uv_flat_normal_pixel.r,
+        uv_flat_normal_pixel.g,
+        uv_flat_normal_pixel.b
+    ).distance_to(Vector3(
+        uv_rotated_normal_pixel.r,
+        uv_rotated_normal_pixel.g,
+        uv_rotated_normal_pixel.b
+    ))
+    if uv_normal_map_delta < 0.05:
+        push_error(
+            "Mobile UV normal map did not affect the fragment ramp (delta=%f)"
+            % uv_normal_map_delta
+        )
+        scene.queue_free()
+        quit(1)
+        return
+
+    # Keep the triplanar path independently covered; it reconstructs object-space
+    # normals before converting them to view space and must not use the UV TBN path.
+    mobile_material.set_shader_parameter("use_triplanar", true)
     mobile_material.set_shader_parameter("normal_texture", flat_normal_texture)
     for frame_index in range(2):
         await process_frame
@@ -149,16 +204,12 @@ func _run() -> void:
 
     var flat_normal_capture: Image = root.get_viewport().get_texture().get_image()
     if flat_normal_capture == null or flat_normal_capture.is_empty():
-        push_error("Vulkan Mobile did not produce a flat-normal-map frame")
+        push_error("Vulkan Mobile did not produce a flat triplanar-normal-map frame")
         scene.queue_free()
         quit(1)
         return
     var flat_normal_pixel := flat_normal_capture.get_pixel(sample_position.x, sample_position.y)
 
-    var rotated_normal_image := Image.create(1, 1, false, Image.FORMAT_RGBA8)
-    rotated_normal_image.fill(Color(1.0, 0.5, 0.5, 1.0))
-    var rotated_normal_texture := ImageTexture.new()
-    rotated_normal_texture.set_image(rotated_normal_image)
     mobile_material.set_shader_parameter("normal_texture", rotated_normal_texture)
     for frame_index in range(2):
         await process_frame
@@ -166,7 +217,7 @@ func _run() -> void:
 
     var rotated_normal_capture: Image = root.get_viewport().get_texture().get_image()
     if rotated_normal_capture == null or rotated_normal_capture.is_empty():
-        push_error("Vulkan Mobile did not produce a triplanar-normal-map frame")
+        push_error("Vulkan Mobile did not produce a rotated triplanar-normal-map frame")
         scene.queue_free()
         quit(1)
         return
