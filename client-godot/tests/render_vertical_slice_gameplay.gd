@@ -80,7 +80,7 @@ func _capture() -> void:
 		return
 	world._on_camera_drag(Vector2(140.0, 0.0))
 	# Closer look at the player avatar: standing idle, then mid-walk after a few server steps.
-	var camera := world.get_node("Camera") as Camera3D
+	var camera := world.get_node("Camera") as CameraZoomController
 	var feet: Vector3 = world._player - Vector3(0.0, world.PLAYER_HALF_HEIGHT, 0.0)
 	camera.h_offset = 0.0
 	camera.look_at_from_position(feet + Vector3(2.4, 2.2, -4.2), feet + Vector3(0.0, 0.9, 0.0))
