@@ -20,6 +20,16 @@ test("diskstats uses major:minor identity and exact counters", () => {
   assert.throws(() => parseDiskstats("8 0 sda 1 2"), /invalid_diskstats_row/);
 });
 
+test("diskstats accepts only complete kernel field layouts", () => {
+  const row = count => "8 0 sda " + Array.from({ length: count }, (_, index) => index + 1).join(" ");
+  for (const count of [11, 15, 17]) {
+    assert.doesNotThrow(() => parseDiskstats(row(count)), `valid ${count}-field layout`);
+  }
+  for (const count of [12, 13, 14, 16]) {
+    assert.throws(() => parseDiskstats(row(count)), /invalid_diskstats_row/, `unsupported ${count}-field layout`);
+  }
+});
+
 test("pressure totals and cgroup I/O counters remain exact integers", () => {
   const pressure = parsePressure("some avg10=0.12 avg60=0.08 avg300=0.03 total=900719925474099312345\nfull avg10=0 avg60=0 avg300=0 total=12");
   assert.equal(pressure.some.totalUs, "900719925474099312345");
