@@ -125,6 +125,12 @@ const CAMERA_ZOOM_IN_END := 29
 const CAMERA_FAR_HOLD_END := 44
 const CAMERA_ZOOM_OUT_END := 74
 
+func _camera_focus_point(world: Node) -> Vector3:
+	var target: Vector3 = world.call("_camera_target")
+	var offset: Vector3 = world.get("_camera_focus_offset")
+	return target + offset
+
+
 func _capture_walk_motion(world: Node, camera: CameraZoomController, motion_dir: String) -> bool:
 	DirAccess.make_dir_recursive_absolute(motion_dir)
 	var transitions: Array[bool] = []
@@ -135,7 +141,7 @@ func _capture_walk_motion(world: Node, camera: CameraZoomController, motion_dir:
 	var x := 8.0
 	camera._set_zoom(0.0)
 	camera.set_orbit_yaw(PI)
-	camera.set_focus_point(world.call("_camera_target") + world.get("_camera_focus_offset"))
+	camera.set_focus_point(_camera_focus_point(world))
 	world._on_player_state({"x": x, "y": 11.0, "health": 100})
 	await process_frame
 
@@ -163,7 +169,7 @@ func _capture_walk_motion(world: Node, camera: CameraZoomController, motion_dir:
 
 		var orbit_fraction := float(frame) / float(MOTION_WALK_FRAMES + MOTION_IDLE_FRAMES - 1)
 		camera.set_orbit_yaw(PI + 0.65 * orbit_fraction)
-		camera.set_focus_point(world.call("_camera_target") + world.get("_camera_focus_offset"))
+		camera.set_focus_point(_camera_focus_point(world))
 
 		# The physics callback applies smoothed distance/pitch and terrain clearance;
 		# capture only after the actual rendered frame has completed.
@@ -220,7 +226,7 @@ func _capture_walk_motion(world: Node, camera: CameraZoomController, motion_dir:
 	)
 	camera._set_zoom(0.0)
 	camera.set_orbit_yaw(PI)
-	camera.set_focus_point(world.call("_camera_target") + world.get("_camera_focus_offset"))
+	camera.set_focus_point(_camera_focus_point(world))
 	world._on_player_state({"x": 10.0, "y": 11.0, "health": 100})
 	await process_frame
 	return true
