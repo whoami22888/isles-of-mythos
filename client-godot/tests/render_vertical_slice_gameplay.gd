@@ -135,7 +135,7 @@ func _capture_walk_motion(world: Node, camera: CameraZoomController, motion_dir:
 	var x := 8.0
 	camera._set_zoom(0.0)
 	camera.set_orbit_yaw(PI)
-	camera.set_focus_point(world._camera_target() + world._camera_focus_offset)
+	camera.set_focus_point(world.call("_camera_target") + world.get("_camera_focus_offset"))
 	world._on_player_state({"x": x, "y": 11.0, "health": 100})
 	await process_frame
 
@@ -163,10 +163,11 @@ func _capture_walk_motion(world: Node, camera: CameraZoomController, motion_dir:
 
 		var orbit_fraction := float(frame) / float(MOTION_WALK_FRAMES + MOTION_IDLE_FRAMES - 1)
 		camera.set_orbit_yaw(PI + 0.65 * orbit_fraction)
-		camera.set_focus_point(world._camera_target() + world._camera_focus_offset)
+		camera.set_focus_point(world.call("_camera_target") + world.get("_camera_focus_offset"))
 
 		# The physics callback applies smoothed distance/pitch and terrain clearance;
 		# capture only after the actual rendered frame has completed.
+		await physics_frame
 		await process_frame
 		await RenderingServer.frame_post_draw
 		var image: Image = root.get_viewport().get_texture().get_image()
@@ -183,7 +184,6 @@ func _capture_walk_motion(world: Node, camera: CameraZoomController, motion_dir:
 		maximum_distance = maxf(maximum_distance, rendered_distance)
 		minimum_pitch = minf(minimum_pitch, rendered_pitch)
 		maximum_pitch = maxf(maximum_pitch, rendered_pitch)
-		previous_distance = rendered_distance
 		index += 1
 
 	var final_camera_position := camera.global_position
@@ -220,7 +220,7 @@ func _capture_walk_motion(world: Node, camera: CameraZoomController, motion_dir:
 	)
 	camera._set_zoom(0.0)
 	camera.set_orbit_yaw(PI)
-	camera.set_focus_point(world._camera_target() + world._camera_focus_offset)
+	camera.set_focus_point(world.call("_camera_target") + world.get("_camera_focus_offset"))
 	world._on_player_state({"x": 10.0, "y": 11.0, "health": 100})
 	await process_frame
 	return true
