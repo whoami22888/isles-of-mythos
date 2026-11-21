@@ -17,7 +17,7 @@ export function parseDiskstats(text) {
     if (!line) continue;
     const [majorText, minorText, name, ...values] = line.trim().split(/\s+/);
     const major = Number(majorText), minor = Number(minorText);
-    if (!Number.isSafeInteger(major) || major < 0 || !Number.isSafeInteger(minor) || minor < 0 || !name || values.length < 11 || values.length > diskFields.length) throw new Error("invalid_diskstats_row");
+    if (!Number.isSafeInteger(major) || major < 0 || !Number.isSafeInteger(minor) || minor < 0 || !name || ![11, 15, 17].includes(values.length)) throw new Error("invalid_diskstats_row");
     const id = major + ":" + minor;
     if (result[id]) throw new Error("duplicate_diskstats_device");
     const counters = {}, gauges = {};
