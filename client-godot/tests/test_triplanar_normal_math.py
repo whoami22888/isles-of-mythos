@@ -198,6 +198,21 @@ class StylizedPbrShaderContractTests(unittest.TestCase):
         self.assertIn("METALLIC = metallic", self.fragment)
         self.assertIn("ROUGHNESS = roughness", self.fragment)
 
+    def test_mobile_uv_normal_map_feeds_fragment_ramp(self):
+        """The mobile toon ramp must transform UV normal maps through view-space TBN."""
+        mobile_block = self.fragment.split(
+            "#ifdef IOM_CEL_MOBILE_VERTEX_RAMP", 1
+        )[1].split("#endif", 1)[0]
+        self.assertIn("mobile_uv_tangent_normal", self.fragment)
+        self.assertIn("TANGENT", mobile_block)
+        self.assertIn("BINORMAL", mobile_block)
+        self.assertIn("use_normal_texture && !use_triplanar", mobile_block)
+        self.assertIn("mobile_view_normal", mobile_block)
+        self.assertIn('set_shader_parameter("use_triplanar", false)', self.test_script)
+        self.assertIn("Mobile UV normal map did not affect", self.test_script)
+        self.assertIn('set_shader_parameter("use_triplanar", true)', self.test_script)
+        self.assertIn("Mobile triplanar normal map did not affect", self.test_script)
+
     def test_entrypoints_share_the_same_shader_implementation(self):
         """Desktop and mobile entrypoints must include the single shared source."""
         shared_include = (

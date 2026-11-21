@@ -121,12 +121,19 @@ func run() -> void:
 	var missing_sprite := FallbackFactory.load_sprite_or_fallback("res://_missing_ui_004.png") as ColorRect
 	check(missing_sprite != null and missing_sprite.size == Vector2(32, 32), "Missing sprite must be a 32px ColorRect")
 	if missing_sprite != null:
+		check(missing_sprite.mouse_filter == Control.MOUSE_FILTER_IGNORE, "Missing sprite must not intercept UI pointer input")
 		var checker := missing_sprite.get_node_or_null("Checkerboard") as TextureRect
 		check(checker != null and checker.texture != null, "Missing sprite must have checkerboard texture")
-		if checker != null and checker.texture != null:
-			var pixels := checker.texture.get_image()
-			check(pixels.get_pixel(0, 0) != pixels.get_pixel(4, 0), "Checkerboard must have alternating tiles")
+		if checker != null:
+			check(checker.mouse_filter == Control.MOUSE_FILTER_IGNORE, "Checkerboard overlay must not intercept UI pointer input")
+			if checker.texture != null:
+				var pixels := checker.texture.get_image()
+				check(pixels.get_pixel(0, 0) != pixels.get_pixel(4, 0), "Checkerboard must have alternating tiles")
 		missing_sprite.free()
+	var loaded_sprite := FallbackFactory.load_sprite_or_fallback("res://assets/opening/kenney/criminalMaleA.png") as TextureRect
+	check(loaded_sprite != null and loaded_sprite.mouse_filter == Control.MOUSE_FILTER_IGNORE, "Loaded sprite must leave pointer input to its parent")
+	if loaded_sprite != null:
+		loaded_sprite.free()
 	var missing_audio := FallbackFactory.load_audio_or_fallback("res://_missing_clip_004.ogg")
 	check(missing_audio != null and missing_audio.stream == null, "Missing audio must be safely silent")
 	missing_audio.free()
@@ -242,6 +249,41 @@ func run() -> void:
 	var after_partial_retry := FileAccess.get_file_as_string(FallbackFactory.LOG_PATH)
 	check(retry_error == OK and after_partial_retry == before_partial_append + partial_record,
 		"Retry after a partial append must produce exactly one complete TSV record")
+	# Recover an unterminated record left behind when an earlier rollback could not complete.
+	var before_crash_recovery := after_partial_retry
+	var torn_file := FileAccess.open(FallbackFactory.LOG_PATH, FileAccess.READ_WRITE)
+	check(torn_file != null, "Torn-tail recovery fixture must open")
+	if torn_file != null:
+		torn_file.seek_end()
+		var torn_prefix := "mesh\tcrash_recovery_004"
+		var torn_write_ok := torn_file.store_string(torn_prefix)
+		torn_file.close()
+		check(torn_write_ok, "Torn-tail fixture must append its incomplete prefix")
+		var recovery_record := "mesh\tcrash_recovery_004.glb\n"
+		var recovery_error: int = FallbackFactory._append_log_line(recovery_record)
+		var recovered_text := FileAccess.get_file_as_string(FallbackFactory.LOG_PATH)
+		check(recovery_error == OK and recovered_text == before_crash_recovery + recovery_record,
+			"Next append must truncate a persisted partial TSV tail before writing one complete record")
+	# An unrecognized unterminated tail cannot be repaired safely; fail closed and preserve bytes.
+	var before_unrecognized_tail := FileAccess.get_file_as_string(FallbackFactory.LOG_PATH)
+	for invalid_tail in ["legacy-corrupt-tail", "legacy\tcorrupt-tail"]:
+		var invalid_tail_file := FileAccess.open(FallbackFactory.LOG_PATH, FileAccess.WRITE)
+		check(invalid_tail_file != null, "Unrecognized-tail fixture must open")
+		if invalid_tail_file != null:
+			var fixture_write_ok := invalid_tail_file.store_string(before_unrecognized_tail + invalid_tail)
+			invalid_tail_file.close()
+			check(fixture_write_ok, "Unrecognized-tail fixture must persist its incomplete tail")
+			var before_refusal := FileAccess.get_file_as_string(FallbackFactory.LOG_PATH)
+			var refusal_error: int = FallbackFactory._append_log_line("mesh\tmust_not_append_004.glb\n")
+			var after_refusal := FileAccess.get_file_as_string(FallbackFactory.LOG_PATH)
+			check(refusal_error == FAILED, "Unrecognized unterminated tail must refuse a new append")
+			check(after_refusal == before_refusal, "Refused append must preserve unrecognized legacy bytes")
+			var restore_file := FileAccess.open(FallbackFactory.LOG_PATH, FileAccess.WRITE)
+			check(restore_file != null, "Unrecognized-tail fixture must restore the original log")
+			if restore_file != null:
+				var restore_ok := restore_file.store_string(before_unrecognized_tail)
+				restore_file.close()
+				check(restore_ok, "Unrecognized-tail fixture must restore the original log bytes")
 	# Simulate a new process: the in-memory set resets, but persisted log size stays bounded.
 	var restart_path := "res://_restart_repeat_004.glb"
 	var restart_key := "mesh:" + restart_path
