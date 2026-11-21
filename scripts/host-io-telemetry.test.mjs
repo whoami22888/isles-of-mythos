@@ -90,7 +90,7 @@ test("unavailable cgroup sources are explicit and never reported as zero", async
     ["/proc/self/mountinfo", "29 23 0:26 / /sys/fs/cgroup rw - cgroup2 cgroup rw"],
     ["/proc/self/cgroup", "0::/runner"],
     ["/proc/123/cgroup", "0::/postgres"],
-    ["/proc/diskstats", "8 0 sda 1 2 3 4 5 6 7 8 0 10 11 12 13 14 15 16"],
+    ["/proc/diskstats", "8 0 sda 1 2 3 4 5 6 7 8 0 10 11 12 13 14 15 16 17"],
     ["/proc/pressure/io", "some avg10=0 avg60=0 avg300=0 total=0\nfull avg10=0 avg60=0 avg300=0 total=0"],
   ]);
   const readText = async file => {
