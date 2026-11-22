@@ -12,7 +12,9 @@ var _craft: VBoxContainer
 const TouchControls = preload("res://gameplay/touch_controls.gd")
 const CameraTerrainCollisionBuilder = preload("res://scripts/camera_terrain_collision_factory.gd")
 const PlayerAvatar = preload("res://gameplay/player_avatar.gd")
+const PlayerController = preload("res://entities/player/player.gd")
 var _touch: Control
+var _player_controller
 ## Camera orbit yaw (radians) around the authoritative player. Presentation
 ## only; manual move directions are rotated by it so "up" walks away from the
 ## camera for both keyboard and joystick. It starts at PI: the camera sits
@@ -211,6 +213,12 @@ func _ready() -> void:
 	_death.add_theme_color_override("font_shadow_color", Color(0.15, 0.05, 0.02, 0.85))
 	_death.add_theme_constant_override("shadow_outline_size", 6)
 	$Interface.add_child(_death)
+	_player_controller = PlayerController.new()
+	_player_controller.name = "PlayerController"
+	_player_controller.visual_root = $ServerPlayerRepresentation
+	add_child(_player_controller)
+	if not _player_controller.bind_protocol(_client):
+		push_error("PlayerController could not bind authoritative protocol")
 	_mount_touch_controls()
 	_apply_hud_layout()
 
@@ -288,6 +296,8 @@ func _mount_touch_controls() -> void:
 	_touch.blocked_controls.append($Interface/Panel as Control)
 	$Interface.add_child(_touch)
 	$Interface.move_child(_touch, 0)
+	if _player_controller != null and not _player_controller.bind_touch_controls(_touch):
+		push_error("PlayerController could not bind virtual joystick")
 	_touch.camera_drag.connect(_on_camera_drag)
 	_touch.camera_pinch_started.connect(_on_camera_pinch_started)
 	_touch.camera_pinch.connect(_on_camera_pinch)
@@ -331,12 +341,10 @@ func _on_camera_mode_changed(is_top_down: bool) -> void:
 ## (screen space, +y = down/towards camera) combined into a unit world XZ
 ## direction, rotated by the camera orbit. Zero when there is no input.
 func manual_move_intent() -> Vector2:
-	var screen := Vector2.ZERO
+	if _player_controller == null:
+		return Vector2.ZERO
 	var focus := get_viewport().gui_get_focus_owner()
-	if not (focus is LineEdit):
-		screen = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
-	if _touch != null:
-		screen += _touch.joystick_vector()
+	var screen: Vector2 = _player_controller.movement_intent(not (focus is LineEdit))
 	if screen.length() < 0.0001:
 		return Vector2.ZERO
 	return screen.normalized().rotated(-_camera_yaw)

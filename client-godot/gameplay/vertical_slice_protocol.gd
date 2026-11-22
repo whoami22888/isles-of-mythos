@@ -12,6 +12,8 @@ signal command_outcome_unknown(request_id: String)
 ## A server error that can be attributed to exactly one pending craft. The
 ## request is resolved (removed from _pending) before this is emitted.
 signal command_rejected(request_id: String, code: String)
+signal attack_rejected(request_id: String, code: String)
+signal attack_outcome_unknown(request_id: String)
 
 const MAX_PENDING := 8
 ## Codes the server `craft` handler returns (server/src/app.ts craft branch).
@@ -19,6 +21,7 @@ const MAX_PENDING := 8
 ## returned by gather_resource, so they are attributed only when no gather is
 ## pending.
 const CRAFT_ERROR_CODES := ["RECIPE_NOT_FOUND", "INSUFFICIENT_INVENTORY", "INVENTORY_LIMIT"]
+const ATTACK_ERROR_CODES := ["AUTH_REQUIRED", "PLAYER_DEAD", "PLAYER_STUNNED", "INVALID_MESSAGE", "NO_AMMO", "COMBAT_COOLDOWN", "NO_STAMINA", "OUT_OF_RANGE", "COMBAT_IN_PROGRESS"]
 ## `_authenticated` is owned by the base adapter (it also drives reconnect/resync); this subclass reuses it.
 var _pending: Dictionary = {}
 var _crypto := Crypto.new()
@@ -41,8 +44,12 @@ func _process(_delta: float) -> void:
 		if now_ms - int(_pending[request_id]["started_ms"]) >= 30000:
 			expired.append(request_id)
 	for request_id in expired:
+		var pending: Variant = _pending.get(request_id)
 		_pending.erase(request_id)
-		command_outcome_unknown.emit(request_id)
+		if pending is Dictionary and pending.get("action") == "attack":
+			attack_outcome_unknown.emit(request_id)
+		else:
+			command_outcome_unknown.emit(request_id)
 
 func _ready() -> void:
 	message_received.connect(_on_message)
@@ -53,12 +60,18 @@ func connect_to_server() -> void:
 	super.connect_to_server()
 
 func _clear_pending_as_unknown() -> void:
-	var pending_ids: Array[String] = []
+	var pending_ids: Array[Dictionary] = []
 	for request_id in _pending:
-		pending_ids.append(request_id)
+		var pending: Variant = _pending[request_id]
+		var action := str(pending.get("action", "")) if pending is Dictionary else ""
+		pending_ids.append({"request_id": request_id, "action": action})
 	_pending.clear()
-	for request_id in pending_ids:
-		command_outcome_unknown.emit(request_id)
+	for entry in pending_ids:
+		var request_id := str(entry.get("request_id", ""))
+		if entry.get("action") == "attack":
+			attack_outcome_unknown.emit(request_id)
+		else:
+			command_outcome_unknown.emit(request_id)
 
 func is_authenticated() -> bool:
 	return _authenticated and _attempt_active and _socket.get_ready_state() == WebSocketPeer.STATE_OPEN
@@ -67,7 +80,10 @@ func request_world_chunk(chunk_x: int, chunk_y: int) -> String:
 	return _send_request("subscribe_chunks", {"chunks": [{"x": chunk_x, "y": chunk_y}]})
 
 func request_gather(resource_id: String) -> String:
-	return _send_request("gather_resource", {"resourceId": resource_id})
+	var normalized_id := resource_id.strip_edges()
+	if normalized_id.is_empty() or normalized_id.length() > 128:
+		return ""
+	return _send_request("gather_resource", {"resourceId": normalized_id})
 
 ## Sends the server `craft` action: {type, requestId, recipeId} (server/src/protocol.ts).
 func request_craft(recipe_id: String) -> String:
@@ -84,10 +100,34 @@ func request_move(dx: float, dy: float) -> bool:
 	var message := {"type": "move", "dx": clampf(dx, -1.0, 1.0), "dy": clampf(dy, -1.0, 1.0), "sequence": _move_sequence}
 	return _socket.send_text(JSON.stringify(message)) == OK
 
+## Hotbar selection is confirmed by the next authoritative player_state snapshot.
+func request_select_hotbar(slot: int) -> bool:
+	if not is_authenticated() or slot < 0 or slot >= 8:
+		return false
+	return _socket.send_text(JSON.stringify({"type": "select_hotbar", "slot": slot})) == OK
+
+## Attack outcomes are correlated by request ID. Ambiguous server errors are
+## never assigned to an attack while another durable request is pending.
+func request_attack(target_id: String, facing_x: float, facing_y: float) -> String:
+	var normalized_target := target_id.strip_edges()
+	if normalized_target.is_empty() or normalized_target.length() > 128:
+		return ""
+	if not is_finite(facing_x) or not is_finite(facing_y):
+		return ""
+	var facing := Vector2(facing_x, facing_y)
+	if facing.length_squared() <= 0.000001:
+		return ""
+	facing = facing.normalized()
+	return _send_request("attack", {
+		"targetId": normalized_target,
+		"facingX": facing.x,
+		"facingY": facing.y,
+	})
+
 func _send_request(action: String, fields: Dictionary) -> String:
 	if not is_authenticated() or _pending.size() >= MAX_PENDING:
 		return ""
-	if action != "subscribe_chunks" and action != "gather_resource" and action != "craft":
+	if action != "subscribe_chunks" and action != "gather_resource" and action != "craft" and action != "attack":
 		return ""
 	var request_id := _crypto.generate_random_bytes(16).hex_encode()
 	if request_id.is_empty() or _pending.has(request_id):
@@ -135,17 +175,41 @@ func _on_message(message: Dictionary) -> void:
 			_pending.erase(craft_id)
 			command_acknowledged.emit(craft_id, message)
 		return
+	if message_type == "combat_result":
+		var attack_id = message.get("requestId")
+		if attack_id is String and _pending_action_matches(attack_id, "attack"):
+			_pending.erase(attack_id)
+			command_acknowledged.emit(attack_id, message)
+		return
 	if message_type == "error":
 		var code = message.get("code")
 		if code is String and not code.is_empty():
 			# Current server errors carry no request ID. Never guess which durable
 			# request they reject: resolve a craft only when attribution is
 			# unambiguous, otherwise the pending request stays outcome-unknown.
+			var attack_id := _attributable_attack(code)
+			if not attack_id.is_empty():
+				_pending.erase(attack_id)
+				attack_rejected.emit(attack_id, code)
+				server_rejected.emit(code)
+				return
 			var craft_id := _attributable_craft(code)
 			if not craft_id.is_empty():
 				_pending.erase(craft_id)
 				command_rejected.emit(craft_id, code)
 			server_rejected.emit(code)
+
+## Returns the single pending attack a combat-handler error must belong to.
+## The server error frame has no requestId, so attribution is safe only when
+## the attack is the sole pending durable request.
+func _attributable_attack(code: String) -> String:
+	if not ATTACK_ERROR_CODES.has(code) or _pending.size() != 1:
+		return ""
+	for request_id in _pending:
+		var pending: Variant = _pending[request_id]
+		if pending is Dictionary and pending.get("action") == "attack":
+			return str(request_id)
+	return ""
 
 ## Returns the single pending craft a craft-handler error code must belong to,
 ## or "" when the error could also come from another pending request.
