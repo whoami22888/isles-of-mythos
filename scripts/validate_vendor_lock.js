@@ -146,7 +146,7 @@ function isValidHostname(hostname) {
 }
 
 function parseHttpsUrl(value) {
-  if (typeof value !== "string" || value.trim() !== value || /[\\u0000-\\u0020]/.test(value)) return null;
+  if (typeof value !== "string" || value.trim() !== value || /[\u0000-\u0020]/.test(value)) return null;
   try {
     const parsed = new URL(value);
     if (parsed.protocol !== "https:" || !parsed.hostname ||
@@ -161,7 +161,7 @@ function parseHttpsUrl(value) {
 function isQuaterniusSourceUrl(value) {
   const parsed = value instanceof URL ? value : parseHttpsUrl(value);
   if (!parsed) return false;
-  const hostname = parsed.hostname.toLowerCase().replace(/\\.$/, "");
+  const hostname = parsed.hostname.toLowerCase().replace(/\.$/, "");
   return QUATERNIUS_HOSTS.some((host) =>
     hostname === host || hostname.endsWith("." + host)
   );
