@@ -164,6 +164,8 @@ func _record() -> void:
     integration.set_process(false)
     integration.wake.set_process(false)
     integration.bow_spray.set_process(false)
+    integration.wake.sync_ocean_wave_parameters(ocean_material)
+    integration.wake.set_deterministic_capture(true, 0.0)
     integration.start_visual_demo()
     var scene_triangles := 0
     var mesh_instances := 0
@@ -176,9 +178,12 @@ func _record() -> void:
             var indices: PackedInt32Array = mesh_instance.mesh.surface_get_arrays(surface_index)[Mesh.ARRAY_INDEX]
             scene_triangles += indices.size() / 3
     print("IOM_INTERNAL_SCENE_GEOMETRY mesh_instances=%d triangles=%d" % [mesh_instances, scene_triangles])
+    # Side/rear view: the vessel moves seaward along -Z, so its world-anchored
+    # wake trails back toward this camera instead of disappearing behind the hull.
+    scene.cinematic_camera.position = Vector3(-15.0, 5.5, -5.8)
     var camera_start: Vector3 = scene.cinematic_camera.position
-    var waypoint_a := Vector3(-7.0, 4.8, -17.0)
-    var waypoint_b := Vector3(-2.5, 5.2, -21.0)
+    var waypoint_a := Vector3(-17.0, 6.0, -5.8)
+    var waypoint_b := Vector3(-13.0, 5.2, -5.8)
     if not scene.cinematic_camera.current:
         _fail("Cinematic camera not selected")
         return
@@ -191,8 +196,10 @@ func _record() -> void:
         else:
             var stage := smoothstep(0.0, 1.0, (progress - 0.5) * 2.0)
             scene.cinematic_camera.position = waypoint_a.lerp(waypoint_b, stage)
-        ocean_material.set_shader_parameter("capture_time_seconds", float(frame_number) / 24.0)
+        var capture_time := float(frame_number) / 24.0
+        ocean_material.set_shader_parameter("capture_time_seconds", capture_time)
         integration.advance_visual_demo(1.0 / 24.0)
+        integration.wake.set_capture_time(capture_time)
         if not scene.frame_ship_cinematic(scene.cinematic_camera, scene.cinematic_camera.global_position):
             _fail("Imported ship has no valid full 3D visual bounds")
             return
@@ -287,6 +294,9 @@ func _record() -> void:
         return
     if integration.wake.get_sample_count() < 2:
         _fail("No real wake geometry accumulated in the captured moving ship scene")
+        return
+    if integration.wake.get_triangle_count() < 8:
+        _fail("Wake samples did not produce visible ribbon geometry")
         return
     integration.stop_visual_demo()
     scene.set_gameplay_view()
