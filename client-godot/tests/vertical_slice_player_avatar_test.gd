@@ -7,6 +7,7 @@ extends SceneTree
 
 const Scene = preload("res://gameplay/vertical_slice.tscn")
 const PlayerAvatar = preload("res://gameplay/player_avatar.gd")
+const FallbackDiagnosticOverlay = preload("res://scripts/fallback_diagnostic_overlay.gd")
 const FEET_TOLERANCE := 0.12
 var failures := 0
 
@@ -153,6 +154,47 @@ func run() -> void:
 	var optional_log := FileAccess.get_file_as_string("user://missing_assets.log")
 	check(optional_log.contains("animation\tres://assets/opening/kenney/missing-idle-004.fbx") and optional_log.contains("animation\tres://assets/opening/kenney/missing-walk-004.fbx") and optional_log.contains("texture\tres://assets/opening/kenney/missing-skin-004.png"), "missing runtime clips and skin are logged")
 	missing_optional.queue_free()
+	await _frames(1)
+	# Prompt 004 rendered-evidence fixture: the real visual-capture workflow sets
+	# IOM_VERTICAL_SLICE_OUTPUT_DIR, which mounts this isolated SubViewport overlay.
+	var diagnostic_overlay := FallbackDiagnosticOverlay.new()
+	root.add_child(diagnostic_overlay)
+	await _frames(2)
+	var diagnostic_label := diagnostic_overlay.get_node_or_null("DiagnosticPanel/Content/DiagnosticLabel") as Label
+	check(diagnostic_label != null and diagnostic_label.text.contains("NOT PRODUCTION ART"),
+		"Fallback render evidence must be explicitly labelled diagnostic-only")
+	var diagnostic_viewport := diagnostic_overlay.get_node_or_null(
+		"DiagnosticPanel/Content/ViewportContainer/DiagnosticViewport"
+	) as SubViewport
+	check(diagnostic_viewport != null, "Fallback evidence must use a real SubViewport")
+	if diagnostic_viewport != null:
+		check(diagnostic_viewport.own_world_3d, "Fallback evidence must use an isolated 3D world")
+		check(diagnostic_viewport.render_target_update_mode == SubViewport.UPDATE_ALWAYS,
+			"Fallback evidence viewport must render continuously during capture")
+		var diagnostic_world := diagnostic_viewport.get_node_or_null("DiagnosticWorld") as Node3D
+		check(diagnostic_world != null, "Fallback evidence viewport must contain a 3D world")
+		if diagnostic_world != null:
+			var missing_character := diagnostic_world.get_node_or_null("MissingCharacter") as MeshInstance3D
+			var missing_prop := diagnostic_world.get_node_or_null("MissingProp") as MeshInstance3D
+			check(missing_character != null and missing_character.mesh is CapsuleMesh,
+				"Rendered fallback fixture must mount the cyan character capsule")
+			check(missing_prop != null and missing_prop.mesh is BoxMesh,
+				"Rendered fallback fixture must mount the magenta prop box")
+			if missing_character != null:
+				var character_material := missing_character.material_override as StandardMaterial3D
+				check(character_material != null
+					and character_material.albedo_color.r < 0.01
+					and absf(character_material.albedo_color.g - 0.8) < 0.01
+					and character_material.albedo_color.b > 0.99,
+					"Character diagnostic must use the specified cyan material")
+			if missing_prop != null:
+				var prop_material := missing_prop.material_override as StandardMaterial3D
+				check(prop_material != null
+					and prop_material.albedo_color.r > 0.99
+					and prop_material.albedo_color.g < 0.01
+					and prop_material.albedo_color.b > 0.99,
+					"Prop diagnostic must use the specified magenta material")
+	diagnostic_overlay.queue_free()
 	await _frames(1)
 	if failures == 0:
 		print("vertical slice player avatar test passed")

@@ -10,6 +10,7 @@ extends Node3D
 ## loaded, the original gold capsule stays visible as a cheap fallback.
 
 const KENNEY := "res://assets/opening/kenney/"
+const FallbackDiagnosticOverlay = preload("res://scripts/fallback_diagnostic_overlay.gd")
 const TARGET_HEIGHT := 1.8
 ## Walk is held this long after the last server position change, so the 20 Hz
 ## state stream (moves are sent every 0.08 s) reads as continuous walking.
@@ -59,6 +60,16 @@ func _ready() -> void:
 	_body.position = Vector3(0.0, -feet_offset, 0.0)
 	add_child(_body)
 	_mount_character()
+	_mount_capture_diagnostic_overlay()
+
+## Add a diagnostic-only viewport to the CI visual capture. It is absent from normal
+## gameplay because the visual-evidence workflow alone sets this output-directory flag.
+func _mount_capture_diagnostic_overlay() -> void:
+	if OS.get_environment("IOM_VERTICAL_SLICE_OUTPUT_DIR").is_empty():
+		return
+	var overlay := FallbackDiagnosticOverlay.new()
+	overlay.name = "FallbackDiagnosticOverlay"
+	add_child(overlay)
 
 func is_character_mounted() -> bool:
 	return _character != null
