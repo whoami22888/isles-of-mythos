@@ -444,6 +444,70 @@ test("Quaternius source URLs cannot be hidden by relabelling vendor and pack ide
   assert.match(errors, /Quaternius source is not admitted and must remain outside vendor.lock.json/);
 });
 
+test("Quaternius H05/H06 archive digests cannot be hidden by neutral lock metadata", () => {
+  const cases = [
+    { harvest: "H05", digest: QUARANTINED_H05_SHA256, field: "sha256" },
+    { harvest: "H06", digest: QUARANTINED_H06_SHA256, field: "source_revision" }
+  ];
+  for (const fixture of cases) {
+    const path = "vendor/kit/neutral-" + fixture.harvest.toLowerCase() + ".zip";
+    const bytes = "neutral archive fixture " + fixture.harvest;
+    const source = entry({
+      path,
+      sha256: fixture.field === "sha256" ? fixture.digest : sha(bytes),
+      source_url: "https://independent.example/neutral.zip",
+      vendor: "Independent Vendor",
+      pack_id: "independent:archive",
+      source_revision: fixture.field === "source_revision"
+        ? fixture.digest
+        : sha("unrelated immutable revision").slice(0, 40)
+    });
+    const errors = validateVendorLock(
+      repo({ ...good, [path]: bytes }, { version: "1.0.0", assets: [entry(), source] })
+    ).join("\n");
+    assert.match(errors, /Quaternius source is not admitted and must remain outside vendor\.lock\.json/);
+  }
+
+  const identityPath = "vendor/kit/neutral-h05-identity.zip";
+  const identityBytes = "neutral archive identity fixture";
+  const identitySource = entry({
+    path: identityPath,
+    sha256: sha(identityBytes),
+    source_url: "https://independent.example/neutral-identity.zip",
+    vendor: "Independent Vendor",
+    pack_id: "independent:archive"
+  });
+  delete identitySource.source_revision;
+  identitySource.source_identity = "archive-sha256:" + QUARANTINED_H05_SHA256;
+  const identityErrors = validateVendorLock(
+    repo({ ...good, [identityPath]: identityBytes }, { version: "1.0.0", assets: [entry(), identitySource] })
+  ).join("\n");
+  assert.match(identityErrors, /Quaternius source is not admitted and must remain outside vendor\.lock\.json/);
+});
+
+test("Quaternius H05 archive digest cannot be hidden in external-assets.json", () => {
+  const path = "independent/neutral-archive.zip";
+  const bytes = "neutral external archive fixture";
+  const manifest = {
+    schema_version: 1,
+    assets: [{
+      id: "independent-archive",
+      path,
+      sha256: QUARANTINED_H05_SHA256,
+      source_url: "https://independent.example/source",
+      download_url: "https://independent.example/neutral-archive.zip",
+      license: "CC0-1.0",
+      license_url: "https://creativecommons.org/publicdomain/zero/1.0/",
+      attribution: "Independent Vendor"
+    }]
+  };
+  const errors = validateVendorLock(
+    repo({ ...good, ["client-godot/assets/external/" + path]: bytes },
+      { version: "1.0.0", assets: [entry()] }, manifest)
+  ).join("\n");
+  assert.match(errors, /Quaternius source is not admitted and must remain outside external-assets\.json/);
+});
+
 test("Quaternius source and download URLs cannot be hidden in external-assets.json", () => {
   const path = "independent/monster.glb";
   const bytes = "quaternius manifest fixture";
@@ -470,6 +534,49 @@ test("Quaternius source and download URLs cannot be hidden in external-assets.js
       repo(files, { version: "1.0.0", assets: [entry()] }, manifest)
     ).join("\n");
     assert.match(errors, /Quaternius source is not admitted/);
+  }
+});
+
+test("vendor source URLs fail closed on malformed HTTPS hosts and ports", () => {
+  for (const source_url of [
+    "https://%",
+    "https://example.com:65536/archive.zip",
+    "https://example..com/archive.zip",
+    "https://-example.com/archive.zip",
+    "https://[2001:db8::1/archive.zip"
+  ]) {
+    const errors = validateVendorLock(
+      repo(good, { version: "1.0.0", assets: [entry({ source_url })] })
+    ).join("\n");
+    assert.match(errors, /source_url must be an absolute HTTPS URL with a valid hostname/, source_url);
+  }
+});
+
+test("external source and download URLs fail closed on malformed HTTPS hosts and ports", () => {
+  const path = "independent/monster.glb";
+  const bytes = "malformed URL fixture";
+  const cases = [
+    ["source_url", "https://%"],
+    ["download_url", "https://example.com:65536/download.zip"]
+  ];
+  for (const [field, url] of cases) {
+    const asset = {
+      id: "independent-monster",
+      path,
+      sha256: sha(bytes),
+      source_url: "https://independent.example/source",
+      download_url: "https://independent.example/download.zip",
+      license: "CC0-1.0",
+      license_url: "https://creativecommons.org/publicdomain/zero/1.0/",
+      attribution: "Independent Vendor",
+      [field]: url
+    };
+    const manifest = { schema_version: 1, assets: [asset] };
+    const errors = validateVendorLock(
+      repo({ ...good, ["client-godot/assets/external/" + path]: bytes },
+        { version: "1.0.0", assets: [entry()] }, manifest)
+    ).join("\n");
+    assert.match(errors, new RegExp(field + " must be an absolute HTTPS URL with a valid hostname"));
   }
 });
 
