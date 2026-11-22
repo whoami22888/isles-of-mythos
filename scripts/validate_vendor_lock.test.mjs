@@ -403,6 +403,44 @@ test("falsy or non-object JSON documents are rejected, never treated as an empty
     assert.ok(errs.length > 0, `body ${body} must fail`);
   }
 });
+test("Quaternius sources cannot be admitted through external-assets.json alone", () => {
+  const path = "quaternius/h05/monster.glb";
+  const bytes = "quaternius monster fixture";
+  const files = { ...good, [`client-godot/assets/external/${path}`]: bytes };
+  const manifest = {
+    schema_version: 1,
+    assets: [{
+      id: "quaternius-h05-monster",
+      path,
+      sha256: sha(bytes),
+      source_url: "https://quaternius.com/packs/ultimatemonsters.html",
+      download_url: "https://quaternius.com/downloads/ultimate-monsters.zip",
+      license: "CC0-1.0",
+      license_url: "https://creativecommons.org/publicdomain/zero/1.0/",
+      attribution: "Quaternius"
+    }]
+  };
+  const errors = validateVendorLock(
+    repo(files, { version: "1.0.0", assets: [entry()] }, manifest)
+  ).join("\n");
+  assert.match(errors, /Quaternius source is not admitted/);
+});
+
+test("external-assets.json rejects normalized path aliases", () => {
+  const canonicalPath = "quaternius/h05/monster.glb";
+  const aliasedPath = "../external/quaternius/h05/monster.glb";
+  const bytes = "quaternius monster fixture";
+  const files = { ...good, [`client-godot/assets/external/${canonicalPath}`]: bytes };
+  const manifest = {
+    schema_version: 1,
+    assets: [{ id: "quaternius-h05-monster", path: aliasedPath, sha256: sha(bytes) }]
+  };
+  const errors = validateVendorLock(
+    repo(files, { version: "1.0.0", assets: [entry()] }, manifest)
+  ).join("\n");
+  assert.match(errors, /external-assets\.json.*canonical repository-relative path/);
+});
+
 test("a malformed external-assets.json fails closed", () => {
   const root = repo({}, undefined, null);
   mkdirSync(join(root, "client-godot/assets"), { recursive: true });
