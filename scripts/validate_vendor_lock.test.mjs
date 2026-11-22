@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createRequire } from "node:module";
@@ -227,6 +227,45 @@ test("a symlinked quarantine registry path fails closed", () => {
   mkdirSync(join(root, "docs/vendor"), { recursive: true });
   symlinkSync(outside, join(root, "docs/vendor/quarantine"), "dir");
   assert.match(validateVendorLock(root).join("\n"), /safe repository-relative file without symlinked components/);
+});
+ 
+test("a symlinked vendor.lock.json fails closed", () => {
+  const root = repo(good, { version: "1.0.0", assets: [entry()] });
+  const outside = mkdtempSync(join(tmpdir(), "outside-vendor-lock-"));
+  const outsideLock = join(outside, "vendor.lock.json");
+  writeFileSync(outsideLock, JSON.stringify({ version: "1.0.0", assets: [entry()] }));
+  unlinkSync(join(root, "vendor.lock.json"));
+  symlinkSync(outsideLock, join(root, "vendor.lock.json"));
+  assert.match(
+    validateVendorLock(root).join("\\n"),
+    /vendor\\.lock\\.json: must be a safe repository-relative file without symlinked components/
+  );
+});
+
+test("a symlinked external-assets manifest fails closed", () => {
+  const manifest = { schema_version: 1, assets: [] };
+  const root = repo(good, { version: "1.0.0", assets: [entry()] }, manifest);
+  const outside = mkdtempSync(join(tmpdir(), "outside-external-manifest-"));
+  const outsideManifest = join(outside, "external-assets.json");
+  writeFileSync(outsideManifest, JSON.stringify(manifest));
+  const manifestPath = join(root, "client-godot/assets/external-assets.json");
+  unlinkSync(manifestPath);
+  symlinkSync(outsideManifest, manifestPath);
+  assert.match(
+    validateVendorLock(root).join("\\n"),
+    /external-assets\\.json: must be a safe repository-relative file without symlinked components/
+  );
+});
+
+test("a symlinked external asset root fails closed", () => {
+  const manifest = { schema_version: 1, assets: [] };
+  const root = repo(good, { version: "1.0.0", assets: [entry()] }, manifest);
+  const outside = mkdtempSync(join(tmpdir(), "outside-external-assets-"));
+  symlinkSync(outside, join(root, "client-godot/assets/external"), "dir");
+  assert.match(
+    validateVendorLock(root).join("\\n"),
+    /client-godot\\/assets\\/external: must be a safe repository-relative directory without symlinked components/
+  );
 });
 
 test("an empty lock is rejected because it admits no source dependency", () => {
