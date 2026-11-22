@@ -167,7 +167,8 @@ func _shoreline_probe_regions(scene: Node3D, camera: Camera3D) -> Array:
         "extent": binding.get("extent"),
         "resolution": binding.get("resolution")
     }
-    for x in [-12.0, -8.0, -4.0, 0.0, 4.0, 8.0, 12.0, 16.0]:
+    for x_value in [-12.0, -8.0, -4.0, 0.0, 4.0, 8.0, 12.0, 16.0]:
+        var x: float = float(x_value)
         var previous_z := -28.5
         var previous_height: float = SHORE_BAKER.sample_height(baked, Vector2(x, previous_z))
         for step in range(1, 230):
@@ -199,9 +200,11 @@ func _ocean_wake_probe_regions(scene: Node3D, camera: Camera3D) -> Array:
     forward = forward.normalized()
     var back := -forward
     var side := Vector3(-forward.z, 0.0, forward.x)
-    for along in [3.0, 6.0, 9.0, 12.0, 15.0]:
-        for across in [-0.55, 0.0, 0.55]:
-            var point := vessel.global_position + back * along + side * across + Vector3(0.0, 0.03, 0.0)
+    for along_value in [3.0, 6.0, 9.0, 12.0, 15.0]:
+        var along_distance: float = float(along_value)
+        for across_value in [-0.55, 0.0, 0.55]:
+            var across_distance: float = float(across_value)
+            var point: Vector3 = vessel.global_position + back * along_distance + side * across_distance + Vector3(0.0, 0.03, 0.0)
             _add_screen_roi(regions, camera, point, 18)
     return regions
 
@@ -229,8 +232,9 @@ func _ribbon_probe_regions(integration: Node, camera: Camera3D) -> Array:
         var right := Vector3(-direction.z, 0.0, direction.x)
         var age := clampf((elapsed - float(sample.get("time", elapsed))) / lifetime, 0.0, 1.0)
         var spread := hull_width * 0.30 + age * hull_width * 1.7
-        for side in [-1.0, 1.0]:
-            _add_screen_roi(regions, camera, center + right * side * spread, 18)
+        for side_value in [-1.0, 1.0]:
+            var side_sign: float = float(side_value)
+            _add_screen_roi(regions, camera, center + right * side_sign * spread, 18)
     return regions
 
 
