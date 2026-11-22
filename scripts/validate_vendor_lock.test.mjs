@@ -91,21 +91,6 @@ const quarantineRegistry = () => ({
   },
   sources: QUARANTINED_SOURCES.map((source) => ({ ...source }))
 });
-const quarantineRegistry = () => ({
-  schema: "iom-vendor-source-quarantine:v1",
-  status: "LICENSE_REVIEW_REQUIRED",
-  public_source_redistribution: "BLOCKED",
-  production_admission: "NOT_ADMITTED",
-  sources: [{
-    harvest_id: "H05",
-    archive_path: QUARANTINED_ARCHIVE_PATH,
-    archive_sha256: sha("archive"),
-    admission_status: "LICENSE_REVIEW_REQUIRED",
-    public_source_redistribution: "BLOCKED",
-    production_admission: "NOT_ADMITTED"
-  }]
-});
-
 test("quarantined vendor archives retain hash evidence but stay outside the active lock and tree", () => {
   const files = { ...good, [QUARANTINE_PATH]: JSON.stringify(quarantineRegistry()) };
   assert.deepEqual(validateVendorLock(repo(files, { version: "1.0.0", assets: [entry()] })), []);
