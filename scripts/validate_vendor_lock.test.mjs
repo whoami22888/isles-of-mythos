@@ -440,7 +440,7 @@ test("Quaternius source URLs cannot be hidden by relabelling vendor and pack ide
   });
   const errors = validateVendorLock(
     repo({ ...good, [path]: bytes }, { version: "1.0.0", assets: [entry(), source] })
-  ).join("\\n");
+  ).join("\n");
   assert.match(errors, /Quaternius source is not admitted and must remain outside vendor.lock.json/);
 });
 
@@ -449,7 +449,8 @@ test("Quaternius source and download URLs cannot be hidden in external-assets.js
   const bytes = "quaternius manifest fixture";
   const urls = [
     ["source_url", "https://quaternius.com:443/packs/ultimatemonsters.html"],
-    ["download_url", "https://quaternius.itch.io/ultimate-monsters/download"]
+    ["download_url", "https://quaternius.itch.io/ultimate-monsters/download"],
+    ["source_url", "https://quaternius.com./packs/ultimatemonsters.html"]
   ];
   for (const [field, url] of urls) {
     const files = { ...good, [`client-godot/assets/external/${path}`]: bytes };
@@ -467,7 +468,7 @@ test("Quaternius source and download URLs cannot be hidden in external-assets.js
     const manifest = { schema_version: 1, assets: [asset] };
     const errors = validateVendorLock(
       repo(files, { version: "1.0.0", assets: [entry()] }, manifest)
-    ).join("\\n");
+    ).join("\n");
     assert.match(errors, /Quaternius source is not admitted/);
   }
 });
@@ -592,21 +593,21 @@ test("incoming assets-src symlinks are rejected", () => {
 
 test("a deleted locked source file fails closed", () => {
   const root = repo({ "vendor/kit/LICENSE.txt": "CC0" }, { version: "1.0.0", assets: [sourceEntry()] });
-  assert.match(validateVendorLock(root).join("\\n"), /locked import missing/);
+  assert.match(validateVendorLock(root).join("\n"), /locked import missing/);
 });
 test("a missing assets-src directory fails when source imports are locked", () => {
   const root = repo({ "vendor/kit/LICENSE.txt": "CC0" }, { version: "1.0.0", assets: [sourceEntry()] });
-  assert.match(validateVendorLock(root).join("\\n"), /locked import missing/);
+  assert.match(validateVendorLock(root).join("\n"), /locked import missing/);
 });
 test("a dangling assets-src root symlink is rejected", () => {
   const root = repo({ "vendor/kit/LICENSE.txt": "CC0" }, { version: "1.0.0", assets: [sourceEntry()] });
   symlinkSync(join(root, "missing-source-archive"), join(root, "assets-src"), "dir");
-  assert.match(validateVendorLock(root).join("\\n"), /assets-src: must be a real directory/);
+  assert.match(validateVendorLock(root).join("\n"), /assets-src: must be a real directory/);
 });
 test("a stale source lock entry fails despite another valid import", () => {
   const files = { "assets-src/H01/palm.glb": "palm", "vendor/kit/LICENSE.txt": "CC0" };
   const stale = sourceEntry({ path: "assets-src/H01/deleted.glb" });
-  const errs = validateVendorLock(repo(files, { version: "1.0.0", assets: [sourceEntry(), stale] })).join("\\n");
+  const errs = validateVendorLock(repo(files, { version: "1.0.0", assets: [sourceEntry(), stale] })).join("\n");
   assert.ok(errs.includes("locked import missing assets-src/H01/deleted.glb"));
 });
 test("all present locked source imports continue to pass", () => {
@@ -658,7 +659,7 @@ test("vendor JSON Schema rejects whitespace-only provenance values just like run
   const nonWhitespace = new RegExp(vendorSchema.pattern);
   for (const value of [" ", "\t", "\n", " \t\n"]) {
     assert.equal(nonWhitespace.test(value), false, JSON.stringify(value));
-    const errors = validateVendorLock(repo(good, { version: "1.0.0", assets: [entry({ vendor: value })] })).join("\\n");
+    const errors = validateVendorLock(repo(good, { version: "1.0.0", assets: [entry({ vendor: value })] })).join("\n");
     assert.match(errors, /vendor must be a non-empty string/);
   }
   assert.equal(nonWhitespace.test("Kenney"), true);

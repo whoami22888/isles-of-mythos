@@ -131,7 +131,7 @@ const QUATERNIUS_HOSTS = Object.freeze([
 function isQuaterniusSourceUrl(value) {
   if (typeof value !== "string" || value.trim() === "") return false;
   try {
-    const hostname = new URL(value).hostname.toLowerCase();
+    const hostname = new URL(value).hostname.toLowerCase().replace(/\.$/, "");
     return QUATERNIUS_HOSTS.some((host) =>
       hostname === host || hostname.endsWith("." + host)
     );
