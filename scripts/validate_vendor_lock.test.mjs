@@ -426,6 +426,74 @@ test("Quaternius sources cannot be admitted through external-assets.json alone",
   assert.match(errors, /Quaternius source is not admitted/);
 });
 
+
+test("Quaternius source URLs cannot be hidden by relabelling vendor and pack identity", () => {
+  const path = "vendor/kit/quaternius-derived.glb";
+  const bytes = "quaternius-derived fixture";
+  const source = entry({
+    path,
+    sha256: sha(bytes),
+    source_url: "https://www.quaternius.com:443/packs/ultimatemonsters.html",
+    vendor: "Independent Vendor",
+    pack_id: "independent:monster",
+    source_revision: sha("quaternius-archive")
+  });
+  const errors = validateVendorLock(
+    repo({ ...good, [path]: bytes }, { version: "1.0.0", assets: [entry(), source] })
+  ).join("\\n");
+  assert.match(errors, /Quaternius source is not admitted and must remain outside vendor.lock.json/);
+});
+
+test("Quaternius source and download URLs cannot be hidden in external-assets.json", () => {
+  const path = "independent/monster.glb";
+  const bytes = "quaternius manifest fixture";
+  const urls = [
+    ["source_url", "https://quaternius.com:443/packs/ultimatemonsters.html"],
+    ["download_url", "https://quaternius.itch.io/ultimate-monsters/download"]
+  ];
+  for (const [field, url] of urls) {
+    const files = { ...good, [`client-godot/assets/external/${path}`]: bytes };
+    const asset = {
+      id: "independent-monster",
+      path,
+      sha256: sha(bytes),
+      source_url: "https://independent.example/assets/monster",
+      download_url: "https://independent.example/downloads/monster.zip",
+      license: "CC0-1.0",
+      license_url: "https://creativecommons.org/publicdomain/zero/1.0/",
+      attribution: "Independent Vendor",
+      [field]: url
+    };
+    const manifest = { schema_version: 1, assets: [asset] };
+    const errors = validateVendorLock(
+      repo(files, { version: "1.0.0", assets: [entry()] }, manifest)
+    ).join("\\n");
+    assert.match(errors, /Quaternius source is not admitted/);
+  }
+});
+
+test("Quaternius URL matching rejects host lookalikes without overblocking", () => {
+  const path = "independent/monster.glb";
+  const bytes = "independent fixture";
+  const files = { ...good, [`client-godot/assets/external/${path}`]: bytes };
+  const manifest = {
+    schema_version: 1,
+    assets: [{
+      id: "independent-monster",
+      path,
+      sha256: sha(bytes),
+      source_url: "https://quaternius.com.evil.example/packs/monster",
+      license: "CC0-1.0",
+      license_url: "https://creativecommons.org/publicdomain/zero/1.0/",
+      attribution: "Independent Vendor"
+    }]
+  };
+  assert.deepEqual(
+    validateVendorLock(repo(files, { version: "1.0.0", assets: [entry()] }, manifest)),
+    []
+  );
+});
+
 test("external-assets.json rejects normalized path aliases", () => {
   const canonicalPath = "quaternius/h05/monster.glb";
   const aliasedPath = "../external/quaternius/h05/monster.glb";

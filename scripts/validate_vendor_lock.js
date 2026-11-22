@@ -123,6 +123,23 @@ function readJson(file, errors, label) {
 }
 
 const isPlainObject = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
+const QUATERNIUS_HOSTS = Object.freeze([
+  "quaternius.com",
+  "quaternius.itch.io"
+]);
+
+function isQuaterniusSourceUrl(value) {
+  if (typeof value !== "string" || value.trim() === "") return false;
+  try {
+    const hostname = new URL(value).hostname.toLowerCase();
+    return QUATERNIUS_HOSTS.some((host) =>
+      hostname === host || hostname.endsWith("." + host)
+    );
+  } catch {
+    return false;
+  }
+}
+
 
 function validateQuarantinedSources(root, lock) {
   const errors = [];
@@ -233,7 +250,8 @@ function validateQuarantinedSources(root, lock) {
     const assetPath = typeof asset.path === "string"
       ? asset.path.replaceAll(String.fromCharCode(92), "/").toLowerCase()
       : "";
-    if (vendor === "quaternius" ||
+    const hasQuaterniusUrl = isQuaterniusSourceUrl(asset.source_url);
+    if (vendor === "quaternius" || hasQuaterniusUrl ||
         QUARANTINED_QUATERNIUS_PACK_IDS.has(packId) ||
         QUARANTINED_QUATERNIUS_PATH_PREFIXES.some((prefix) => assetPath.startsWith(prefix))) {
       errors.push("Quaternius source is not admitted and must remain outside vendor.lock.json: " + String(asset.path));
@@ -311,14 +329,9 @@ function validateVendorLock(root = resolve(__dirname, "..")) {
     }
 
     const attribution = typeof item.attribution === "string" ? item.attribution.trim().toLowerCase() : "";
-    const sourceUrls = [item.source_url, item.download_url]
-      .filter((url) => typeof url === "string")
-      .map((url) => url.toLowerCase());
-    const isQuaterniusUrl = sourceUrls.some((url) =>
-      /^https:\/\/(?:www\.)?quaternius\.com(?:\/|$)/.test(url) ||
-      /^https:\/\/quaternius\.itch\.io(?:\/|$)/.test(url)
-    );
-    if (attribution.includes("quaternius") || isQuaterniusUrl ||
+    const sourceUrls = [item.source_url, item.download_url];
+    const hasQuaterniusUrl = sourceUrls.some(isQuaterniusSourceUrl);
+    if (attribution.includes("quaternius") || hasQuaterniusUrl ||
         repoPath.toLowerCase().startsWith("client-godot/assets/external/quaternius/")) {
       errors.push(`external-assets.json asset ${index}: Quaternius source is not admitted and must remain outside external-assets.json: ${item.path}`);
     }
