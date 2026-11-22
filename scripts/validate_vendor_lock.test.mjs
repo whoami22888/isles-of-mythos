@@ -33,6 +33,64 @@ const entry = (over = {}) => ({
 const good = { "vendor/kit/palm.glb": "palm", "vendor/kit/LICENSE.txt": "CC0" };
 const QUARANTINE_PATH = "docs/vendor/quarantine/quaternius-h05-h06.json";
 const QUARANTINED_ARCHIVE_PATH = "assets-src/quaternius/H05/ultimate-monsters.zip";
+const QUARANTINED_H06_ARCHIVE_PATH = "assets-src/quaternius/H06/cute-animated-monsters.zip";
+const QUARANTINED_H05_SHA256 = "f444a35e70895f822f3687eb47e608801baf98f2ae86c7ed24b6c017842f006d";
+const QUARANTINED_H06_SHA256 = "93bb9e0cdd678ddd4367402a38f931d57fd52280b0c50f5075212a216ae673a3";
+const QUARANTINED_SOURCES = [
+  {
+    harvest_id: "H05",
+    pack_id: "quaternius:H05-ultimate-monsters",
+    vendor: "Quaternius",
+    archive_path: QUARANTINED_ARCHIVE_PATH,
+    archive_sha256: QUARANTINED_H05_SHA256,
+    archive_size_bytes: 46576830,
+    archive_file_count: 260,
+    zip_crc: "PASS",
+    gltf_dependency_closure: "PASS",
+    publisher_page: "https://quaternius.com/packs/ultimatemonsters.html",
+    publisher_page_sha256: "5adff0c0a2d5677f59b9810cf7e40d13a72234dafcd1b50968dbdb149c9cb563",
+    acquisition_workflow_run_id: 44736035009,
+    historical_acquisition_commit: "b0c597fb13ff671d43e437a9c84a10dbfb723bec",
+    admission_status: "LICENSE_REVIEW_REQUIRED",
+    public_source_redistribution: "BLOCKED",
+    production_admission: "NOT_ADMITTED"
+  },
+  {
+    harvest_id: "H06",
+    pack_id: "quaternius:H06-cute-animated-monsters",
+    vendor: "Quaternius",
+    archive_path: QUARANTINED_H06_ARCHIVE_PATH,
+    archive_sha256: QUARANTINED_H06_SHA256,
+    archive_size_bytes: 20231284,
+    archive_file_count: 127,
+    zip_crc: "PASS",
+    gltf_dependency_closure: "PASS",
+    publisher_page: "https://quaternius.com/packs/cutemonsters.html",
+    publisher_page_sha256: "d3457924ed35694068d8d5c9594c26781ab9f7b3de89f6b46ecbe0af3b667834",
+    acquisition_workflow_run_id: 44736035009,
+    historical_acquisition_commit: "b0c597fb13ff671d43e437a9c84a10dbfb723bec",
+    admission_status: "LICENSE_REVIEW_REQUIRED",
+    public_source_redistribution: "BLOCKED",
+    production_admission: "NOT_ADMITTED"
+  }
+];
+const quarantineRegistry = () => ({
+  schema: "iom-vendor-source-quarantine:v1",
+  status: "LICENSE_REVIEW_REQUIRED",
+  public_source_redistribution: "BLOCKED",
+  production_admission: "NOT_ADMITTED",
+  current_tree_disposition: "ARCHIVES_REMOVED_FROM_CURRENT_BRANCH_TREE",
+  historical_git_blob_disposition: "NOT_PURGED; earlier public commits in this PR history still contain these archive blobs; no history rewrite was performed.",
+  license_scope_summary: {
+    legacy_pack_pages: "The named Ultimate Monsters and Cute Animated Monsters pages display CC0 and commercial-use language.",
+    qal_v1_url: "https://quaternius.com/license.html",
+    qal_v1_updated: "2026-08-28",
+    qal_v1_section_3a: "Prohibits standalone redistribution of the Assets as assets or packs.",
+    qal_v1_section_7: "The version in effect when the assets were obtained governs; updates are for future releases and are not retroactive.",
+    unresolved_question: "No dated acquisition-time licence receipt or written vendor confirmation establishes whether these exact archives, acquired after the QAL v1.0 update, remain covered by the older pack-specific CC0 grants."
+  },
+  sources: QUARANTINED_SOURCES.map((source) => ({ ...source }))
+});
 const quarantineRegistry = () => ({
   schema: "iom-vendor-source-quarantine:v1",
   status: "LICENSE_REVIEW_REQUIRED",
@@ -91,6 +149,67 @@ test("quarantine archive path traversal cannot bypass active-lock protection", (
     repo(files, { version: "1.0.0", assets: [entry(), activeArchive] })
   ).join("\n");
   assert.match(errors, /archive_path must be a safe assets-src-relative path/);
+});
+
+test("the quarantine registry pins both exact H05/H06 source archives and licence-scope evidence", () => {
+  const mutations = [
+    (registry) => { registry.sources.pop(); },
+    (registry) => { registry.sources[0].archive_sha256 = sha("replacement archive"); },
+    (registry) => { registry.sources[1].archive_path = "assets-src/quaternius/H06/repacked.zip"; },
+    (registry) => { registry.sources[0].publisher_page_sha256 = sha("replacement publisher page"); },
+    (registry) => { registry.license_scope_summary.qal_v1_updated = "2026-01-01"; },
+    (registry) => { registry.sources[1] = { ...registry.sources[0] }; }
+  ];
+
+  for (const mutate of mutations) {
+    const registry = quarantineRegistry();
+    mutate(registry);
+    const files = { ...good, [QUARANTINE_PATH]: JSON.stringify(registry) };
+    const errors = validateVendorLock(repo(files, { version: "1.0.0", assets: [entry()] })).join("\n");
+    assert.ok(
+      errors.includes("invalid or incomplete quarantine registry") ||
+      errors.includes("exact H05/H06 source identity"),
+      errors
+    );
+  }
+});
+
+test("Quaternius H05/H06 extracted assets cannot enter the active lock while rights remain unresolved", () => {
+  for (const packId of [
+    "quaternius:H05-ultimate-monsters",
+    "quaternius:H06-cute-animated-monsters"
+  ]) {
+    const activeAsset = entry({ vendor: "Quaternius", pack_id: packId });
+    const files = { ...good, [QUARANTINE_PATH]: JSON.stringify(quarantineRegistry()) };
+    const errors = validateVendorLock(
+      repo(files, { version: "1.0.0", assets: [activeAsset] })
+    ).join("\n");
+    assert.ok(errors.includes("Quaternius source is not admitted and must remain outside vendor.lock.json"), errors);
+  }
+});
+
+test("H05/H06 archive paths cannot be reintroduced by relabelling the vendor", () => {
+  for (const path of [QUARANTINED_ARCHIVE_PATH, QUARANTINED_H06_ARCHIVE_PATH]) {
+    const bytes = "archive";
+    const digest = sha(bytes);
+    const activeAsset = entry({
+      path,
+      sha256: digest,
+      source_revision: digest,
+      vendor: "Another Vendor",
+      pack_id: "another-vendor:archive",
+      source_url: "https://example.com/source.zip"
+    });
+    const files = {
+      ...good,
+      [QUARANTINE_PATH]: JSON.stringify(quarantineRegistry()),
+      [path]: bytes
+    };
+    const errors = validateVendorLock(
+      repo(files, { version: "1.0.0", assets: [activeAsset] })
+    ).join("\n");
+    assert.ok(errors.includes("Quaternius source is not admitted and must remain outside vendor.lock.json"), errors);
+  }
 });
 
 test("a malformed quarantine registry fails closed", () => {

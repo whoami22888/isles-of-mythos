@@ -16,6 +16,52 @@ const TOP_KEYS = new Set(["$schema", "version", "assets"]);
 const ENTRY_KEYS = new Set(["path", "sha256", "license", "license_path", "license_sha256", "source_url", "vendor", "source_revision", "source_identity", "pack_id"]);
 const EXTERNAL_DIR = join("client-godot", "assets", "external");
 const QUARANTINE_REGISTRY_PATH = join("docs", "vendor", "quarantine", "quaternius-h05-h06.json");
+const QUARANTINED_QUATERNIUS_SOURCES = Object.freeze([
+  Object.freeze({
+    harvest_id: "H05",
+    pack_id: "quaternius:H05-ultimate-monsters",
+    vendor: "Quaternius",
+    archive_path: "assets-src/quaternius/H05/ultimate-monsters.zip",
+    archive_sha256: "f444a35e70895f822f3687eb47e608801baf98f2ae86c7ed24b6c017842f006d",
+    archive_size_bytes: 46576830,
+    archive_file_count: 260,
+    zip_crc: "PASS",
+    gltf_dependency_closure: "PASS",
+    publisher_page: "https://quaternius.com/packs/ultimatemonsters.html",
+    publisher_page_sha256: "5adff0c0a2d5677f59b9810cf7e40d13a72234dafcd1b50968dbdb149c9cb563",
+    acquisition_workflow_run_id: 44736035009,
+    historical_acquisition_commit: "b0c597fb13ff671d43e437a9c84a10dbfb723bec",
+    admission_status: "LICENSE_REVIEW_REQUIRED",
+    public_source_redistribution: "BLOCKED",
+    production_admission: "NOT_ADMITTED"
+  }),
+  Object.freeze({
+    harvest_id: "H06",
+    pack_id: "quaternius:H06-cute-animated-monsters",
+    vendor: "Quaternius",
+    archive_path: "assets-src/quaternius/H06/cute-animated-monsters.zip",
+    archive_sha256: "93bb9e0cdd678ddd4367402a38f931d57fd52280b0c50f5075212a216ae673a3",
+    archive_size_bytes: 20231284,
+    archive_file_count: 127,
+    zip_crc: "PASS",
+    gltf_dependency_closure: "PASS",
+    publisher_page: "https://quaternius.com/packs/cutemonsters.html",
+    publisher_page_sha256: "d3457924ed35694068d8d5c9594c26781ab9f7b3de89f6b46ecbe0af3b667834",
+    acquisition_workflow_run_id: 44736035009,
+    historical_acquisition_commit: "b0c597fb13ff671d43e437a9c84a10dbfb723bec",
+    admission_status: "LICENSE_REVIEW_REQUIRED",
+    public_source_redistribution: "BLOCKED",
+    production_admission: "NOT_ADMITTED"
+  })
+]);
+const QUARANTINED_QUATERNIUS_PACK_IDS = new Set(
+  QUARANTINED_QUATERNIUS_SOURCES.map((source) => source.pack_id.toLowerCase())
+);
+const QUARANTINED_QUATERNIUS_PATH_PREFIXES = Object.freeze([
+  "assets-src/quaternius/h05/",
+  "assets-src/quaternius/h06/",
+  "client-godot/assets/external/quaternius/"
+]);
 const GODOT_SIDECARS = new Set([".import", ".uid"]);
 const { validateAssetSourceTree } = require("./validate_asset_src.js");
 
@@ -74,42 +120,72 @@ function validateQuarantinedSources(root, lock) {
   const errors = [];
   const file = inside(root, QUARANTINE_REGISTRY_PATH);
   if (!file) {
-    return [`${QUARANTINE_REGISTRY_PATH}: must be a safe repository-relative file without symlinked components`];
+    return [QUARANTINE_REGISTRY_PATH + ": must be a safe repository-relative file without symlinked components"];
   }
   if (!existsSync(file)) {
-    return [`${QUARANTINE_REGISTRY_PATH}: required quarantine registry is missing`];
+    return [QUARANTINE_REGISTRY_PATH + ": required quarantine registry is missing"];
   }
   let fileStat;
   try {
     fileStat = lstatSync(file);
   } catch (error) {
-    return [`${QUARANTINE_REGISTRY_PATH}: cannot inspect (${error.message})`];
+    return [QUARANTINE_REGISTRY_PATH + ": cannot inspect (" + error.message + ")"];
   }
   if (!fileStat.isFile()) {
-    return [`${QUARANTINE_REGISTRY_PATH}: quarantine registry must be a regular file`];
+    return [QUARANTINE_REGISTRY_PATH + ": quarantine registry must be a regular file"];
   }
   const registry = readJson(file, errors, QUARANTINE_REGISTRY_PATH);
   if (registry === READ_FAILED) return errors;
-  if (!isPlainObject(registry) ||
-      registry.schema !== "iom-vendor-source-quarantine:v1" ||
+  if (!isPlainObject(registry)) {
+    return [...errors, QUARANTINE_REGISTRY_PATH + ": invalid or incomplete quarantine registry"];
+  }
+
+  const licenseSummary = registry.license_scope_summary;
+  if (registry.schema !== "iom-vendor-source-quarantine:v1" ||
       registry.status !== "LICENSE_REVIEW_REQUIRED" ||
       registry.public_source_redistribution !== "BLOCKED" ||
       registry.production_admission !== "NOT_ADMITTED" ||
+      registry.current_tree_disposition !== "ARCHIVES_REMOVED_FROM_CURRENT_BRANCH_TREE" ||
+      typeof registry.historical_git_blob_disposition !== "string" ||
+      !registry.historical_git_blob_disposition.startsWith("NOT_PURGED;") ||
+      !isPlainObject(licenseSummary) ||
+      licenseSummary.qal_v1_url !== "https://quaternius.com/license.html" ||
+      licenseSummary.qal_v1_updated !== "2026-08-28" ||
+      typeof licenseSummary.qal_v1_section_3a !== "string" ||
+      !/standalone redistribution/i.test(licenseSummary.qal_v1_section_3a) ||
+      typeof licenseSummary.qal_v1_section_7 !== "string" ||
+      !/version in effect when.*obtained/i.test(licenseSummary.qal_v1_section_7) ||
+      typeof licenseSummary.unresolved_question !== "string" ||
+      !licenseSummary.unresolved_question.trim() ||
       !Array.isArray(registry.sources) ||
-      registry.sources.length === 0) {
-    return [...errors, `${QUARANTINE_REGISTRY_PATH}: invalid or incomplete quarantine registry`];
+      registry.sources.length !== QUARANTINED_QUATERNIUS_SOURCES.length) {
+    return [...errors, QUARANTINE_REGISTRY_PATH + ": invalid or incomplete quarantine registry"];
   }
 
+  const expectedByHarvestId = new Map(
+    QUARANTINED_QUATERNIUS_SOURCES.map((source) => [source.harvest_id, source])
+  );
   const lockedPaths = new Set(lock.assets
     .filter(asset => isPlainObject(asset) && typeof asset.path === "string")
     .map(asset => asset.path));
-  const seen = new Set();
+  const seenPaths = new Set();
+  const seenHarvestIds = new Set();
+
   for (const [index, source] of registry.sources.entries()) {
-    const at = `${QUARANTINE_REGISTRY_PATH} source ${index}`;
+    const at = QUARANTINE_REGISTRY_PATH + " source " + index;
     if (!isPlainObject(source)) {
-      errors.push(`${at}: must be an object`);
+      errors.push(at + ": must be an object");
       continue;
     }
+
+    const expected = expectedByHarvestId.get(source.harvest_id);
+    if (!expected ||
+        seenHarvestIds.has(source.harvest_id) ||
+        Object.entries(expected).some(([key, value]) => source[key] !== value)) {
+      errors.push(at + ": exact H05/H06 source identity, archive hash and admission state must match the verified quarantine record");
+    }
+    seenHarvestIds.add(source.harvest_id);
+
     const archivePath = source.archive_path;
     const abs = inside(root, archivePath);
     const canonicalArchivePath = abs ? relative(root, abs).split(sep).join("/") : null;
@@ -117,22 +193,45 @@ function validateQuarantinedSources(root, lock) {
         typeof archivePath !== "string" ||
         canonicalArchivePath !== archivePath ||
         !canonicalArchivePath.startsWith("assets-src/")) {
-      errors.push(`${at}: archive_path must be a safe assets-src-relative path`);
+      errors.push(at + ": archive_path must be a safe assets-src-relative path");
       continue;
     }
-    if (seen.has(archivePath)) errors.push(`${at}: duplicate quarantined archive path ${archivePath}`);
-    seen.add(archivePath);
+    if (seenPaths.has(archivePath)) errors.push(at + ": duplicate quarantined archive path " + archivePath);
+    seenPaths.add(archivePath);
     if (typeof source.archive_sha256 !== "string" || !HASH.test(source.archive_sha256)) {
-      errors.push(`${at}: archive_sha256 must be 64 lowercase hex characters`);
+      errors.push(at + ": archive_sha256 must be 64 lowercase hex characters");
     }
     if (source.admission_status !== "LICENSE_REVIEW_REQUIRED" ||
         source.public_source_redistribution !== "BLOCKED" ||
         source.production_admission !== "NOT_ADMITTED") {
-      errors.push(`${at}: unresolved source must remain blocked from redistribution and production admission`);
+      errors.push(at + ": unresolved source must remain blocked from redistribution and production admission");
     }
-    if (lockedPaths.has(archivePath)) errors.push(`${at}: quarantined source must not appear in vendor.lock.json: ${archivePath}`);
-    if (existsSync(abs)) errors.push(`${at}: quarantined source must not be present in repository tree: ${archivePath}`);
+    if (lockedPaths.has(archivePath)) errors.push(at + ": quarantined source must not appear in vendor.lock.json: " + archivePath);
+    if (existsSync(abs)) errors.push(at + ": quarantined source must not be present in repository tree: " + archivePath);
   }
+
+  for (const expected of QUARANTINED_QUATERNIUS_SOURCES) {
+    if (!seenHarvestIds.has(expected.harvest_id)) {
+      errors.push(QUARANTINE_REGISTRY_PATH + ": required quarantined source " + expected.harvest_id + " is missing");
+    }
+  }
+
+  // Block extracted files and renamed archive paths as well as the original ZIPs. The vendor lock must not
+  // turn either unresolved pack into an admitted asset by changing its path or omitting the archive entry.
+  for (const asset of lock.assets) {
+    if (!isPlainObject(asset)) continue;
+    const vendor = typeof asset.vendor === "string" ? asset.vendor.trim().toLowerCase() : "";
+    const packId = typeof asset.pack_id === "string" ? asset.pack_id.trim().toLowerCase() : "";
+    const assetPath = typeof asset.path === "string"
+      ? asset.path.replaceAll(String.fromCharCode(92), "/").toLowerCase()
+      : "";
+    if (vendor === "quaternius" ||
+        QUARANTINED_QUATERNIUS_PACK_IDS.has(packId) ||
+        QUARANTINED_QUATERNIUS_PATH_PREFIXES.some((prefix) => assetPath.startsWith(prefix))) {
+      errors.push("Quaternius source is not admitted and must remain outside vendor.lock.json: " + String(asset.path));
+    }
+  }
+
   return errors;
 }
 
