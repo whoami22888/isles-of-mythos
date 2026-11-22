@@ -106,6 +106,16 @@ func run() -> void:
 	for log_path in [FallbackFactory.LOG_PATH, FallbackFactory.ROTATED_LOG_PATH]:
 		if FileAccess.file_exists(log_path):
 			check(DirAccess.remove_absolute(ProjectSettings.globalize_path(log_path)) == OK, "Missing-asset test log generation must reset")
+	# Prompt 004: keep every supported runtime extension explicit and regression-tested.
+	check(FallbackFactory.MESH_EXTENSIONS == ["glb", "gltf", "fbx"], "3D mesh allowlist must retain GLB, glTF and the existing FBX rig path")
+	check(FallbackFactory.TEXTURE_EXTENSIONS == ["png", "webp"], "Texture allowlist must include PNG and WebP")
+	check(FallbackFactory.AUDIO_EXTENSIONS == ["ogg", "wav"], "Audio allowlist must include OGG and WAV")
+	check(FallbackFactory._allowed_path("res://_supported_mesh_004.GLB", FallbackFactory.MESH_EXTENSIONS), "Mesh allowlist must accept case-insensitive GLB")
+	check(FallbackFactory._allowed_path("res://_supported_texture_004.WEBP", FallbackFactory.TEXTURE_EXTENSIONS), "Texture allowlist must accept case-insensitive WebP")
+	check(FallbackFactory._allowed_path("res://_supported_audio_004.WAV", FallbackFactory.AUDIO_EXTENSIONS), "Audio allowlist must accept case-insensitive WAV")
+	check(not FallbackFactory._allowed_path("user://_outside_project_004.wav", FallbackFactory.AUDIO_EXTENSIONS), "Runtime asset loads must remain confined to res://")
+	check(not FallbackFactory._allowed_path("res://../_outside_project_004.glb", FallbackFactory.MESH_EXTENSIONS), "Runtime asset loads must reject parent traversal")
+	check(not FallbackFactory._allowed_path("res://_unsupported_audio_004.mp3", FallbackFactory.AUDIO_EXTENSIONS), "Runtime audio loads must reject unapproved extensions")
 	# Prompt 004: missing resources must not crash or replace genuine production graphics.
 	var missing_character := FallbackFactory.get_fallback_mesh("res://_missing_character_004.glb")
 	check(missing_character.mesh is CapsuleMesh, "Missing characters use a capsule diagnostic")

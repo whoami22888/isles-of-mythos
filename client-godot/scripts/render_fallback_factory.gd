@@ -8,17 +8,20 @@ const ROTATED_LOG_PATH := "user://missing_assets.log.1"
 const CHECKER_SIZE := 32
 const MAX_LOGGED_PATHS := 1024
 const MAX_LOG_BYTES := 262144
+const MESH_EXTENSIONS: Array[String] = ["glb", "gltf", "fbx"]
+const TEXTURE_EXTENSIONS: Array[String] = ["png", "webp"]
+const AUDIO_EXTENSIONS: Array[String] = ["ogg", "wav"]
 const LOG_CATEGORIES := ["scene", "animation", "mesh", "sprite", "texture", "audio", "other"]
 static var _logged_paths: Dictionary = {}
 static var _logged_path_order: Array[String] = []
 static var _logged_path_cursor := 0
 
 
-static func _allowed_path(path: String, extensions: PackedStringArray) -> bool:
+static func _allowed_path(path: String, extensions: Array[String]) -> bool:
 	return path.begins_with("res://") and not path.contains("..") and extensions.has(path.get_extension().to_lower())
 
 
-static func _load_checked(path: String, extensions: PackedStringArray) -> Resource:
+static func _load_checked(path: String, extensions: Array[String]) -> Resource:
 	if not _allowed_path(path, extensions):
 		return null
 	if not ResourceLoader.exists(path):
@@ -256,7 +259,7 @@ static func mesh_resource_or_fallback(resource: Resource, path: String, kind: St
 
 
 static func load_mesh_or_fallback(path: String, kind: String = "character") -> Node3D:
-	var resource := _load_checked(path, PackedStringArray(["glb", "gltf", "fbx"]))
+	var resource := _load_checked(path, MESH_EXTENSIONS)
 	return mesh_resource_or_fallback(resource, path, kind)
 
 
@@ -291,7 +294,7 @@ static func get_fallback_sprite(path: String) -> ColorRect:
 
 
 static func load_texture_or_fallback(path: String) -> Texture2D:
-	var resource := _load_checked(path, PackedStringArray(["png", "webp"]))
+	var resource := _load_checked(path, TEXTURE_EXTENSIONS)
 	if resource is Texture2D:
 		return resource as Texture2D
 	_log_missing(path, "texture")
@@ -299,7 +302,7 @@ static func load_texture_or_fallback(path: String) -> Texture2D:
 
 
 static func load_sprite_or_fallback(path: String) -> Control:
-	var resource := _load_checked(path, PackedStringArray(["png", "webp"]))
+	var resource := _load_checked(path, TEXTURE_EXTENSIONS)
 	if resource is Texture2D:
 		var sprite := TextureRect.new()
 		# Loaded sprites are presentation-only; interaction belongs to their parent.
@@ -310,7 +313,7 @@ static func load_sprite_or_fallback(path: String) -> Control:
 
 
 static func load_scene_or_null(path: String, category: String = "scene") -> PackedScene:
-	var resource := _load_checked(path, PackedStringArray(["glb", "gltf", "fbx"]))
+	var resource := _load_checked(path, MESH_EXTENSIONS)
 	if resource is PackedScene:
 		return resource as PackedScene
 	_log_missing(path, category)
@@ -319,7 +322,7 @@ static func load_scene_or_null(path: String, category: String = "scene") -> Pack
 
 static func load_audio_or_fallback(path: String) -> AudioStreamPlayer:
 	var player := AudioStreamPlayer.new()
-	var resource := _load_checked(path, PackedStringArray(["ogg", "wav"]))
+	var resource := _load_checked(path, AUDIO_EXTENSIONS)
 	if resource is AudioStream:
 		player.stream = resource
 	else:
