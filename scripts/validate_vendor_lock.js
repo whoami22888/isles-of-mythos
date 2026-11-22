@@ -93,6 +93,8 @@ function validateQuarantinedSources(root, lock) {
   if (!isPlainObject(registry) ||
       registry.schema !== "iom-vendor-source-quarantine:v1" ||
       registry.status !== "LICENSE_REVIEW_REQUIRED" ||
+      registry.public_source_redistribution !== "BLOCKED" ||
+      registry.production_admission !== "NOT_ADMITTED" ||
       !Array.isArray(registry.sources) ||
       registry.sources.length === 0) {
     return [...errors, `${QUARANTINE_REGISTRY_PATH}: invalid or incomplete quarantine registry`];
