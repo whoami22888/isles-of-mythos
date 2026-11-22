@@ -236,10 +236,8 @@ test("a symlinked vendor.lock.json fails closed", () => {
   writeFileSync(outsideLock, JSON.stringify({ version: "1.0.0", assets: [entry()] }));
   unlinkSync(join(root, "vendor.lock.json"));
   symlinkSync(outsideLock, join(root, "vendor.lock.json"));
-  assert.match(
-    validateVendorLock(root).join("\\n"),
-    /vendor\\.lock\\.json: must be a safe repository-relative file without symlinked components/
-  );
+  const errors = validateVendorLock(root).join("\n");
+  assert.ok(errors.includes("vendor.lock.json: must be a safe repository-relative file without symlinked components"), errors);
 });
 
 test("a symlinked external-assets manifest fails closed", () => {
@@ -251,10 +249,8 @@ test("a symlinked external-assets manifest fails closed", () => {
   const manifestPath = join(root, "client-godot/assets/external-assets.json");
   unlinkSync(manifestPath);
   symlinkSync(outsideManifest, manifestPath);
-  assert.match(
-    validateVendorLock(root).join("\\n"),
-    /external-assets\\.json: must be a safe repository-relative file without symlinked components/
-  );
+  const errors = validateVendorLock(root).join("\n");
+  assert.ok(errors.includes("external-assets.json: must be a safe repository-relative file without symlinked components"), errors);
 });
 
 test("a symlinked external asset root fails closed", () => {
@@ -262,10 +258,8 @@ test("a symlinked external asset root fails closed", () => {
   const root = repo(good, { version: "1.0.0", assets: [entry()] }, manifest);
   const outside = mkdtempSync(join(tmpdir(), "outside-external-assets-"));
   symlinkSync(outside, join(root, "client-godot/assets/external"), "dir");
-  assert.match(
-    validateVendorLock(root).join("\\n"),
-    /client-godot\\/assets\\/external: must be a safe repository-relative directory without symlinked components/
-  );
+  const errors = validateVendorLock(root).join("\n");
+  assert.ok(errors.includes("client-godot/assets/external: must be a safe repository-relative directory without symlinked components"), errors);
 });
 
 test("an empty lock is rejected because it admits no source dependency", () => {
