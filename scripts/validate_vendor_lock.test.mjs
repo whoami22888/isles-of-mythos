@@ -69,6 +69,28 @@ test("quarantined vendor archives cannot be reintroduced into the source tree or
   assert.match(lockErrors, /quarantined source must not appear in vendor.lock.json/);
 });
 
+test("quarantine archive path traversal cannot bypass active-lock protection", () => {
+  const registry = quarantineRegistry();
+  registry.sources[0].archive_path = "assets-src/../docs/vendor/not-a-real-archive.zip";
+  const activeArchive = entry({
+    path: QUARANTINED_ARCHIVE_PATH,
+    sha256: sha("archive"),
+    source_revision: sha("archive"),
+    vendor: "Quaternius",
+    source_url: "https://quaternius.com/packs/ultimatemonsters.html",
+    pack_id: "quaternius:H05-ultimate-monsters"
+  });
+  const files = {
+    ...good,
+    [QUARANTINE_PATH]: JSON.stringify(registry),
+    [QUARANTINED_ARCHIVE_PATH]: "archive"
+  };
+  const errors = validateVendorLock(
+    repo(files, { version: "1.0.0", assets: [entry(), activeArchive] })
+  ).join("\n");
+  assert.match(errors, /archive_path must be a safe assets-src-relative path/);
+});
+
 test("a malformed quarantine registry fails closed", () => {
   const files = { ...good, [QUARANTINE_PATH]: JSON.stringify({ schema: "wrong", sources: [] }) };
   assert.match(validateVendorLock(repo(files, { version: "1.0.0", assets: [entry()] })).join("\n"), /invalid or incomplete quarantine registry/);

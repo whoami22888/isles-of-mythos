@@ -110,7 +110,11 @@ function validateQuarantinedSources(root, lock) {
     }
     const archivePath = source.archive_path;
     const abs = inside(root, archivePath);
-    if (!abs || typeof archivePath !== "string" || !archivePath.startsWith("assets-src/")) {
+    const canonicalArchivePath = abs ? relative(root, abs).split(sep).join("/") : null;
+    if (!abs ||
+        typeof archivePath !== "string" ||
+        canonicalArchivePath !== archivePath ||
+        !canonicalArchivePath.startsWith("assets-src/")) {
       errors.push(`${at}: archive_path must be a safe assets-src-relative path`);
       continue;
     }
