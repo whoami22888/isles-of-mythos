@@ -238,8 +238,18 @@ function validateQuarantinedSources(root, lock) {
 function validateVendorLock(root = resolve(__dirname, "..")) {
   root = resolve(root);
   const errors = [];
-  const lockFile = join(root, "vendor.lock.json");
-  if (!existsSync(lockFile)) return ["vendor.lock.json is missing"];
+  const lockFile = inside(root, "vendor.lock.json");
+  if (!lockFile) {
+    return ["vendor.lock.json: must be a safe repository-relative file without symlinked components"];
+  }
+  let lockStat;
+  try {
+    lockStat = lstatSync(lockFile);
+  } catch (error) {
+    if (error.code === "ENOENT") return ["vendor.lock.json is missing"];
+    return ["vendor.lock.json: cannot inspect (" + error.message + ")"];
+  }
+  if (!lockStat.isFile()) return ["vendor.lock.json: must be a regular file"];
   const lock = readJson(lockFile, errors, "vendor.lock.json");
   if (lock === READ_FAILED) return errors;
   if (!isPlainObject(lock)) return ["vendor.lock.json: top level must be an object"];
@@ -250,12 +260,27 @@ function validateVendorLock(root = resolve(__dirname, "..")) {
     errors.push("vendor.lock.json: assets must contain at least one verified dependency; an empty lock does not prove Prompt 001 source admission");
   }
 
-  const manifestFile = join(root, "client-godot", "assets", "external-assets.json");
+  const manifestRelativePath = join("client-godot", "assets", "external-assets.json");
+  const manifestFile = inside(root, manifestRelativePath);
   let manifest = null;
-  if (existsSync(manifestFile)) {
-    manifest = readJson(manifestFile, errors, "external-assets.json");
-    if (manifest !== READ_FAILED && !(isPlainObject(manifest) && Array.isArray(manifest.assets))) {
-      errors.push("external-assets.json: top level must be an object with an assets array");
+  if (!manifestFile) {
+    errors.push("external-assets.json: must be a safe repository-relative file without symlinked components");
+  } else {
+    let manifestStat;
+    try {
+      manifestStat = lstatSync(manifestFile);
+    } catch (error) {
+      if (error.code !== "ENOENT") errors.push("external-assets.json: cannot inspect (" + error.message + ")");
+    }
+    if (manifestStat) {
+      if (!manifestStat.isFile()) {
+        errors.push("external-assets.json: must be a regular file");
+      } else {
+        manifest = readJson(manifestFile, errors, "external-assets.json");
+        if (manifest !== READ_FAILED && !(isPlainObject(manifest) && Array.isArray(manifest.assets))) {
+          errors.push("external-assets.json: top level must be an object with an assets array");
+        }
+      }
     }
   }
   const manifestByRepoPath = new Map();
@@ -336,14 +361,28 @@ function validateVendorLock(root = resolve(__dirname, "..")) {
     if (registered && registered.sha256 !== asset.sha256) errors.push(`${at}: digest disagrees with external-assets.json for ${asset.path}`);
   });
 
-  const externalAbs = join(root, EXTERNAL_DIR);
-  if (existsSync(externalAbs)) {
-    const manifestPaths = new Set(manifestByRepoPath.keys());
-    for (const file of walk(externalAbs)) {
-      const rel = relative(root, file.full);
-      if (file.symlink) errors.push(`symlink under ${EXTERNAL_DIR}: ${rel}`);
-      else if (GODOT_SIDECARS.has(extname(file.full).toLowerCase())) continue;
-      else if (!manifestPaths.has(rel) && !seen.has(file.full)) errors.push(`unregistered file under ${EXTERNAL_DIR}: ${rel}`);
+  const externalAbs = inside(root, EXTERNAL_DIR);
+  if (!externalAbs) {
+    errors.push(`${EXTERNAL_DIR}: must be a safe repository-relative directory without symlinked components`);
+  } else {
+    let externalStat;
+    try {
+      externalStat = lstatSync(externalAbs);
+    } catch (error) {
+      if (error.code !== "ENOENT") errors.push(`${EXTERNAL_DIR}: cannot inspect (${error.message})`);
+    }
+    if (externalStat) {
+      if (!externalStat.isDirectory()) {
+        errors.push(`${EXTERNAL_DIR}: must be a directory`);
+      } else {
+        const manifestPaths = new Set(manifestByRepoPath.keys());
+        for (const file of walk(externalAbs)) {
+          const rel = relative(root, file.full);
+          if (file.symlink) errors.push(`symlink under ${EXTERNAL_DIR}: ${rel}`);
+          else if (GODOT_SIDECARS.has(extname(file.full).toLowerCase())) continue;
+          else if (!manifestPaths.has(rel) && !seen.has(file.full)) errors.push(`unregistered file under ${EXTERNAL_DIR}: ${rel}`);
+        }
+      }
     }
   }
   errors.push(...validateQuarantinedSources(root, lock));
