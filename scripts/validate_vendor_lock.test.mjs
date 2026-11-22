@@ -197,6 +197,30 @@ test("H05/H06 archive paths cannot be reintroduced by relabelling the vendor", (
   }
 });
 
+test("a normalized path alias cannot bypass the Quaternius extracted-asset quarantine", () => {
+  const canonicalPath = "client-godot/assets/external/quaternius/h05/monster.glb";
+  const aliasedPath = "client-godot/assets/external/../external/quaternius/h05/monster.glb";
+  const bytes = "quaternius monster fixture";
+  const digest = sha(bytes);
+  const files = { ...good, [canonicalPath]: bytes };
+  const manifest = {
+    schema_version: 1,
+    assets: [{ id: "quaternius-h05-monster", path: "quaternius/h05/monster.glb", sha256: digest }]
+  };
+  const activeAsset = entry({
+    path: aliasedPath,
+    sha256: digest,
+    source_url: "https://example.com/source",
+    vendor: "Another Vendor",
+    source_revision: "1234567890abcdef1234567890abcdef12345678",
+    pack_id: "another-vendor:archive"
+  });
+  const errors = validateVendorLock(
+    repo(files, { version: "1.0.0", assets: [activeAsset] }, manifest)
+  ).join("\n");
+  assert.match(errors, /canonical repository-relative path/);
+});
+
 test("a malformed quarantine registry fails closed", () => {
   const files = { ...good, [QUARANTINE_PATH]: JSON.stringify({ schema: "wrong", sources: [] }) };
   assert.match(validateVendorLock(repo(files, { version: "1.0.0", assets: [entry()] })).join("\n"), /invalid or incomplete quarantine registry/);
