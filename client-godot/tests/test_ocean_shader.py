@@ -11,6 +11,10 @@ CLIENT = Path(__file__).resolve().parents[1]
 SHADER = CLIENT / "shaders" / "ocean_surface.gdshader"
 COAST_SCRIPT = CLIENT / "scripts" / "realistic_coastal_slice.gd"
 WAVE_SETTINGS = CLIENT / "scripts" / "ocean_wave_settings.gd"
+WAKE_SHADER = CLIENT / "shaders" / "ship_wake_foam.gdshader"
+WAVE_INCLUDE = CLIENT / "shaders" / "coastal_ocean_wave.gdshaderinc"
+WAKE_SCRIPT = CLIENT / "scripts" / "ship_wake_effect.gd"
+CAPTURE_SCRIPT = CLIENT / "tests" / "render_coastal_fx_sequence.gd"
 
 
 def strip_shader_comments(source: str) -> str:
@@ -422,6 +426,78 @@ class OceanShaderContractTests(unittest.TestCase):
         self.assertGreaterEqual(exported_value("wave_amplitude"), 0.60)
         self.assertGreaterEqual(exported_value("wave_steepness_a"), 0.60)
         self.assertGreaterEqual(exported_value("wave_steepness_b"), 0.45)
+
+
+    def test_wake_uses_the_ocean_analytic_wave_contract(self):
+        """Keep the transparent wake ribbon on the same displaced water surface."""
+        wake = strip_shader_comments(WAKE_SHADER.read_text(encoding="utf-8"))
+        shared = strip_shader_comments(WAVE_INCLUDE.read_text(encoding="utf-8"))
+        shared_tokens = (
+            "float wave_k_a = max(wave_frequency, 0.05);",
+            "float wave_k_b = wave_k_a * 1.55;",
+            "float safe_wave_speed = max(wave_speed, 0.0);",
+            "float amplitude_a = amplitude * 0.65;",
+            "float amplitude_b = amplitude * 0.35;",
+            "float legacy_displacement = (",
+            "float coastal_ocean_wave_envelope(",
+            "return vec3(",
+        )
+        for token in shared_tokens:
+            with self.subTest(token=token):
+                self.assertIn(token, shared)
+        ocean_tokens = (
+            "float wave_k_a = max(wave_frequency, 0.05);",
+            "float wave_k_b = wave_k_a * 1.55;",
+            "float safe_wave_speed = max(wave_speed, 0.0);",
+            "float amplitude_a = amplitude * 0.65;",
+            "float amplitude_b = amplitude * 0.35;",
+            "float wave_phase_a = dot(xz, direction_a) * wave_k_a - ocean_time * safe_wave_speed;",
+        )
+        for token in ocean_tokens:
+            with self.subTest(ocean_token=token):
+                self.assertIn(token, self.code)
+        for token in (
+            '#include "res://shaders/coastal_ocean_wave.gdshaderinc"',
+            "coastal_ocean_wave_displacement(",
+            "coastal_ocean_wave_envelope(",
+            "VERTEX += transpose(MODEL_NORMAL_MATRIX) * displacement * envelope;",
+        ):
+            with self.subTest(wake_token=token):
+                self.assertIn(token, wake)
+
+    def test_wake_wave_parameters_and_capture_clock_are_synchronised(self):
+        """Prevent the wake from drifting below the ocean or using wall-clock capture time."""
+        wake = strip_shader_comments(WAKE_SHADER.read_text(encoding="utf-8"))
+        wake_script = WAKE_SCRIPT.read_text(encoding="utf-8")
+        settings = WAVE_SETTINGS.read_text(encoding="utf-8")
+        capture = CAPTURE_SCRIPT.read_text(encoding="utf-8")
+        for token in (
+            "uniform bool deterministic_capture = false;",
+            "uniform float capture_time_seconds = 0.0;",
+            "deterministic_capture ? capture_time_seconds : TIME",
+        ):
+            with self.subTest(shader_token=token):
+                self.assertIn(token, wake)
+        for token in (
+            "func sync_ocean_wave_parameters(",
+            "func set_deterministic_capture(",
+            "func set_capture_time(",
+            '"wave_speed"',
+            '"wave_amplitude"',
+            '"wave_frequency"',
+            '"wave_steepness_a"',
+            '"wave_steepness_b"',
+            '"swell_scale"',
+        ):
+            with self.subTest(script_token=token):
+                self.assertIn(token, wake_script)
+        self.assertIn('call_deferred("_sync_wake_material", coast, material)', settings)
+        self.assertIn('wake.call("sync_ocean_wave_parameters", ocean_material)', settings)
+        self.assertIn("integration.wake.sync_ocean_wave_parameters(ocean_material)", capture)
+        self.assertIn("integration.wake.set_deterministic_capture(true, 0.0)", capture)
+        self.assertIn("integration.wake.set_capture_time(capture_time)", capture)
+        self.assertIn("integration.wake.get_triangle_count() < 8", capture)
+        self.assertIn("scene.cinematic_camera.position = Vector3(-15.0, 5.5, -5.8)", capture)
 
 
 if __name__ == "__main__":
