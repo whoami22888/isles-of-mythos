@@ -10,7 +10,7 @@ extends Node3D
 ## loaded, the original gold capsule stays visible as a cheap fallback.
 
 const KENNEY := "res://assets/opening/kenney/"
-const FallbackDiagnosticOverlay = preload("res://scripts/fallback_diagnostic_overlay.gd")
+const FallbackDiagnosticOverlayScript = preload("res://scripts/fallback_diagnostic_overlay.gd")
 const TARGET_HEIGHT := 1.8
 ## Walk is held this long after the last server position change, so the 20 Hz
 ## state stream (moves are sent every 0.08 s) reads as continuous walking.
@@ -67,7 +67,7 @@ func _ready() -> void:
 func _mount_capture_diagnostic_overlay() -> void:
 	if OS.get_environment("IOM_VERTICAL_SLICE_OUTPUT_DIR").is_empty():
 		return
-	var overlay := FallbackDiagnosticOverlay.new()
+	var overlay := FallbackDiagnosticOverlayScript.new()
 	overlay.name = "FallbackDiagnosticOverlay"
 	add_child(overlay)
 

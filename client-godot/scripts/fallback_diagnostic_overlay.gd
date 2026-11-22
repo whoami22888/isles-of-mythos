@@ -1,5 +1,4 @@
 extends CanvasLayer
-class_name FallbackDiagnosticOverlay
 
 ## Capture-only visual fixture for Prompt 004. The cyan capsule and magenta box
 ## are intentionally diagnostic primitives, never production art.
@@ -8,6 +7,19 @@ const Factory = preload("res://scripts/render_fallback_factory.gd")
 const PANEL_WIDTH := 320.0
 const PANEL_HEIGHT := 376.0
 const VIEWPORT_SIZE := Vector2i(640, 640)
+
+static func resolve_source_sha(event_path: String, fallback_sha: String) -> String:
+	if not event_path.is_empty() and FileAccess.file_exists(event_path):
+		var payload: Variant = JSON.parse_string(FileAccess.get_file_as_string(event_path))
+		if payload is Dictionary:
+			var pull_request: Variant = payload.get("pull_request", {})
+			if pull_request is Dictionary:
+				var head: Variant = pull_request.get("head", {})
+				if head is Dictionary:
+					var head_sha := str(head.get("sha", ""))
+					if not head_sha.is_empty():
+						return head_sha
+	return fallback_sha
 
 func _ready() -> void:
 	layer = 100
@@ -35,7 +47,7 @@ func _ready() -> void:
 	var engine_version: Dictionary = Engine.get_version_info()
 	var version_text := str(engine_version.get("string", "unknown"))
 	var adapter := RenderingServer.get_video_adapter_name()
-	var source_sha := OS.get_environment("GITHUB_SHA")
+	var source_sha := resolve_source_sha(OS.get_environment("GITHUB_EVENT_PATH"), OS.get_environment("GITHUB_SHA"))
 	var short_sha := source_sha.left(12) if not source_sha.is_empty() else "unavailable"
 	label.text = "PROMPT 004 FALLBACKS — DIAGNOSTIC ONLY / NOT PRODUCTION ART\nGodot %s Mobile · %s · SHA %s" % [
 		version_text,

@@ -7,7 +7,7 @@ extends SceneTree
 
 const Scene = preload("res://gameplay/vertical_slice.tscn")
 const PlayerAvatar = preload("res://gameplay/player_avatar.gd")
-const FallbackDiagnosticOverlay = preload("res://scripts/fallback_diagnostic_overlay.gd")
+const FallbackDiagnosticOverlayScript = preload("res://scripts/fallback_diagnostic_overlay.gd")
 const FEET_TOLERANCE := 0.12
 var failures := 0
 
@@ -157,12 +157,30 @@ func run() -> void:
 	await _frames(1)
 	# Prompt 004 rendered-evidence fixture: the real visual-capture workflow sets
 	# IOM_VERTICAL_SLICE_OUTPUT_DIR, which mounts this isolated SubViewport overlay.
-	var diagnostic_overlay := FallbackDiagnosticOverlay.new()
+	var diagnostic_overlay := FallbackDiagnosticOverlayScript.new()
 	root.add_child(diagnostic_overlay)
 	await _frames(2)
 	var diagnostic_label := diagnostic_overlay.get_node_or_null("DiagnosticPanel/Content/DiagnosticLabel") as Label
 	check(diagnostic_label != null and diagnostic_label.text.contains("NOT PRODUCTION ART"),
 		"Fallback render evidence must be explicitly labelled diagnostic-only")
+	var event_path := "user://prompt004-github-event.json"
+	var event_file := FileAccess.open(event_path, FileAccess.WRITE)
+	check(event_file != null, "Synthetic pull-request event must be writable for provenance regression")
+	if event_file != null:
+		event_file.store_string(JSON.stringify({
+			"pull_request": {
+				"head": {
+					"sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+				}
+			}
+		}))
+		event_file.close()
+		check(
+			FallbackDiagnosticOverlayScript.resolve_source_sha(event_path, "merge-sha")
+				== "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+			"Capture label must prefer the exact PR head SHA over the GitHub merge SHA"
+		)
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(event_path))
 	var diagnostic_viewport := diagnostic_overlay.get_node_or_null(
 		"DiagnosticPanel/Content/ViewportContainer/DiagnosticViewport"
 	) as SubViewport
