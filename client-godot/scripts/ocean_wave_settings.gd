@@ -32,3 +32,15 @@ func _apply_to_ocean() -> void:
 	material.set_shader_parameter("wave_frequency", wave_frequency)
 	material.set_shader_parameter("wave_steepness_a", wave_steepness_a)
 	material.set_shader_parameter("wave_steepness_b", wave_steepness_b)
+	# Keep the world-anchored wake on the exact same wave parameters.
+	# Deferred because CoastalShipEffects binds its runtime wake in _ready().
+	call_deferred("_sync_wake_material", coast, material)
+
+
+func _sync_wake_material(coast: Node, ocean_material: ShaderMaterial) -> void:
+	var effects := coast.get_node_or_null("CoastalShipEffects")
+	if effects == null:
+		return
+	var wake: Variant = effects.get("wake")
+	if is_instance_valid(wake) and wake.has_method("sync_ocean_wave_parameters"):
+		wake.call("sync_ocean_wave_parameters", ocean_material)
