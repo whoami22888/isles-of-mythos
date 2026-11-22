@@ -3,9 +3,14 @@
 These checks cannot establish shader compilation, image quality, or device FPS.
 """
 
+import hashlib
+import importlib.util
+import json
 import re
+import tempfile
 import unittest
 from pathlib import Path
+import sys
 
 CLIENT = Path(__file__).resolve().parents[1]
 SHADER = CLIENT / "shaders" / "ocean_surface.gdshader"
@@ -15,6 +20,7 @@ WAKE_SHADER = CLIENT / "shaders" / "ship_wake_foam.gdshader"
 WAVE_INCLUDE = CLIENT / "shaders" / "coastal_ocean_wave.gdshaderinc"
 WAKE_SCRIPT = CLIENT / "scripts" / "ship_wake_effect.gd"
 CAPTURE_SCRIPT = CLIENT / "tests" / "render_coastal_fx_sequence.gd"
+CONTINUITY_SCRIPT = CLIENT.parent / "scripts" / "check_capture_continuity.py"
 
 
 def strip_shader_comments(source: str) -> str:
@@ -419,13 +425,14 @@ class OceanShaderContractTests(unittest.TestCase):
             )
             self.assertIsNotNone(match, f"missing exported wave setting {name}")
             return float(match.group(1))
-        self.assertGreaterEqual(scene_value("swell_scale"), 0.60)
-        self.assertGreaterEqual(scene_value("ripple_detail"), 0.55)
-        self.assertGreaterEqual(scene_value("foam_amount"), 0.80)
+        self.assertGreaterEqual(scene_value("swell_scale"), 0.80)
+        self.assertGreaterEqual(scene_value("ripple_detail"), 0.80)
+        self.assertGreaterEqual(scene_value("foam_amount"), 1.00)
+        self.assertGreaterEqual(scene_value("wake_strength"), 1.00)
         self.assertGreaterEqual(exported_value("wave_speed"), 1.30)
-        self.assertGreaterEqual(exported_value("wave_amplitude"), 0.60)
-        self.assertGreaterEqual(exported_value("wave_steepness_a"), 0.60)
-        self.assertGreaterEqual(exported_value("wave_steepness_b"), 0.45)
+        self.assertGreaterEqual(exported_value("wave_amplitude"), 0.80)
+        self.assertGreaterEqual(exported_value("wave_steepness_a"), 0.75)
+        self.assertGreaterEqual(exported_value("wave_steepness_b"), 0.60)
 
 
     def test_wake_uses_the_ocean_analytic_wave_contract(self):
@@ -498,6 +505,153 @@ class OceanShaderContractTests(unittest.TestCase):
         self.assertIn("integration.wake.set_capture_time(capture_time)", capture)
         self.assertIn("integration.wake.get_triangle_count() < 8", capture)
         self.assertIn("scene.cinematic_camera.position = Vector3(-15.0, 5.5, -5.8)", capture)
+
+
+    def test_coastal_capture_requires_visible_foam_pixels(self):
+        """Geometry alone cannot pass the shoreline/wake visual-effect regression."""
+        capture = CAPTURE_SCRIPT.read_text(encoding="utf-8")
+        for token in (
+            "func _capture_visible_foam_report(",
+            "func _measure_foam_pixel_change(",
+            "func _shoreline_probe_regions(",
+            "func _ocean_wake_probe_regions(",
+            "func _ribbon_probe_regions(",
+            'directory.path_join("FOAM_PIXEL_REPORT.json")',
+            "IOM_INTERNAL_FOAM_PIXELS channel=shoreline",
+            "await _capture_visible_foam_report(scene, integration, ocean_material, directory)",
+        ):
+            with self.subTest(token=token):
+                self.assertIn(token, capture)
+        self.assertIn("integration.wake.get_triangle_count() < 8", capture)
+
+    @staticmethod
+    def _continuity_module():
+        spec = importlib.util.spec_from_file_location("iom_capture_continuity", CONTINUITY_SCRIPT)
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[spec.name] = module
+        spec.loader.exec_module(module)
+        return module
+
+    @staticmethod
+    def _valid_foam_report(module):
+        thresholds = {
+            name: dict(values)
+            for name, values in module.FOAM_PIXEL_THRESHOLDS.items()
+        }
+        channels = {}
+        for name, threshold in thresholds.items():
+            changed = threshold["min_pixels"] + 20
+            roi = 10000
+            channels[name] = {
+                "changed_pixels": changed,
+                "roi_pixels": roi,
+                "coverage": changed / roi,
+                "mean_luma_delta": threshold["min_mean_luma_delta"] + 0.02,
+                "max_luma_delta": threshold["min_mean_luma_delta"] + 0.08,
+            }
+        return {
+            "schema_version": 1,
+            "status": "PASS",
+            "thresholds": thresholds,
+            "channels": channels,
+            "errors": [],
+        }
+
+    def _write_foam_artifact(self, directory, report, logged_sha=None, logged_status="PASS"):
+        directory = Path(directory)
+        directory.mkdir(parents=True, exist_ok=True)
+        report_bytes = json.dumps(report, sort_keys=True).encode("utf-8")
+        (directory / "FOAM_PIXEL_REPORT.json").write_bytes(report_bytes)
+        digest = logged_sha or hashlib.sha256(report_bytes).hexdigest()
+        (directory / "render.log").write_text(
+            f"IOM_INTERNAL_FOAM_REPORT sha256={digest} status={logged_status}\n",
+            encoding="utf-8",
+        )
+
+    def test_foam_pixel_report_is_hash_anchored_and_validated(self):
+        module = self._continuity_module()
+        with tempfile.TemporaryDirectory() as folder:
+            artifact = Path(folder) / "frames" / "internal-coastal-frames"
+            self._write_foam_artifact(artifact, self._valid_foam_report(module))
+            result = module.verify_foam_pixel_report(artifact)
+            self.assertEqual(
+                result["result"], "PASS_PIXEL_FOAM_SCREENING_NOT_VISUAL_ACCEPTANCE"
+            )
+            self.assertEqual(set(result["channels"]), {"shoreline", "ocean_wake", "ribbon_wake"})
+
+    def test_foam_pixel_report_rejects_hash_mismatch(self):
+        module = self._continuity_module()
+        with tempfile.TemporaryDirectory() as folder:
+            artifact = Path(folder)
+            self._write_foam_artifact(
+                artifact, self._valid_foam_report(module), logged_sha="0" * 64
+            )
+            with self.assertRaisesRegex(ValueError, "SHA-256"):
+                module.verify_foam_pixel_report(artifact)
+
+    def test_foam_pixel_report_rejects_missing_file(self):
+        module = self._continuity_module()
+        with tempfile.TemporaryDirectory() as folder:
+            artifact = Path(folder)
+            (artifact / "render.log").write_text("", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "missing foam pixel report"):
+                module.verify_foam_pixel_report(artifact)
+
+    def test_foam_pixel_report_rejects_failed_renderer_status(self):
+        module = self._continuity_module()
+        with tempfile.TemporaryDirectory() as folder:
+            artifact = Path(folder)
+            report = self._valid_foam_report(module)
+            report["status"] = "FAIL"
+            self._write_foam_artifact(artifact, report, logged_status="FAIL")
+            with self.assertRaisesRegex(ValueError, "reported FAIL"):
+                module.verify_foam_pixel_report(artifact)
+
+    def test_foam_pixel_report_cannot_weaken_thresholds(self):
+        module = self._continuity_module()
+        with tempfile.TemporaryDirectory() as folder:
+            artifact = Path(folder)
+            report = self._valid_foam_report(module)
+            report["thresholds"]["shoreline"]["min_pixels"] = 1
+            self._write_foam_artifact(artifact, report)
+            with self.assertRaisesRegex(ValueError, "thresholds were weakened"):
+                module.verify_foam_pixel_report(artifact)
+
+    def test_foam_pixel_report_rejects_insufficient_coverage(self):
+        module = self._continuity_module()
+        with tempfile.TemporaryDirectory() as folder:
+            artifact = Path(folder)
+            report = self._valid_foam_report(module)
+            report["channels"]["shoreline"]["changed_pixels"] = 1
+            report["channels"]["shoreline"]["coverage"] = 0.0001
+            self._write_foam_artifact(artifact, report)
+            with self.assertRaisesRegex(ValueError, "below pixel minimum"):
+                module.verify_foam_pixel_report(artifact)
+
+    def test_continuity_screen_requires_report_when_raw_artifact_exists(self):
+        module = self._continuity_module()
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            ordered = root / "ordered-frames"
+            ordered.mkdir()
+            for index, value in enumerate([20, 21, 22, 23, 24, 25]):
+                (ordered / f"frame_{index:04d}.rgba").write_bytes(
+                    bytes((value, value, value, 255)) * (8 * 8)
+                )
+            artifact = root / "frames" / "internal-coastal-frames"
+            self._write_foam_artifact(artifact, self._valid_foam_report(module))
+            result = module.verify(module.CaptureSpec(
+                folder=ordered, frames=6, width=8, height=8, segment_size=2
+            ))
+            self.assertEqual(
+                result["foam_pixels"]["result"],
+                "PASS_PIXEL_FOAM_SCREENING_NOT_VISUAL_ACCEPTANCE",
+            )
+            (artifact / "FOAM_PIXEL_REPORT.json").unlink()
+            with self.assertRaisesRegex(ValueError, "missing foam pixel report"):
+                module.verify(module.CaptureSpec(
+                    folder=ordered, frames=6, width=8, height=8, segment_size=2
+                ))
 
 
 if __name__ == "__main__":
