@@ -92,6 +92,14 @@ function inside(root, p) {
   return abs;
 }
 
+function canonicalRepoPath(root, p) {
+  if (typeof p !== "string" || p.includes("\\")) return null;
+  const abs = inside(root, p);
+  if (!abs) return null;
+  const canonical = relative(root, abs).split(sep).join("/");
+  return canonical === p ? abs : null;
+}
+
 function walk(dir, out = []) {
   for (const name of readdirSync(dir)) {
     const full = join(dir, name);
@@ -118,7 +126,7 @@ const isPlainObject = (v) => v !== null && typeof v === "object" && !Array.isArr
 
 function validateQuarantinedSources(root, lock) {
   const errors = [];
-  const file = inside(root, QUARANTINE_REGISTRY_PATH);
+  const file = canonicalRepoPath(root, QUARANTINE_REGISTRY_PATH);
   if (!file) {
     return [QUARANTINE_REGISTRY_PATH + ": must be a safe repository-relative file without symlinked components"];
   }
@@ -187,7 +195,7 @@ function validateQuarantinedSources(root, lock) {
     seenHarvestIds.add(source.harvest_id);
 
     const archivePath = source.archive_path;
-    const abs = inside(root, archivePath);
+    const abs = canonicalRepoPath(root, archivePath);
     const canonicalArchivePath = abs ? relative(root, abs).split(sep).join("/") : null;
     if (!abs ||
         typeof archivePath !== "string" ||
@@ -238,7 +246,7 @@ function validateQuarantinedSources(root, lock) {
 function validateVendorLock(root = resolve(__dirname, "..")) {
   root = resolve(root);
   const errors = [];
-  const lockFile = inside(root, "vendor.lock.json");
+  const lockFile = canonicalRepoPath(root, "vendor.lock.json");
   if (!lockFile) {
     return ["vendor.lock.json: must be a safe repository-relative file without symlinked components"];
   }
@@ -261,7 +269,7 @@ function validateVendorLock(root = resolve(__dirname, "..")) {
   }
 
   const manifestRelativePath = join("client-godot", "assets", "external-assets.json");
-  const manifestFile = inside(root, manifestRelativePath);
+  const manifestFile = canonicalRepoPath(root, manifestRelativePath);
   let manifest = null;
   if (!manifestFile) {
     errors.push("external-assets.json: must be a safe repository-relative file without symlinked components");
@@ -284,8 +292,37 @@ function validateVendorLock(root = resolve(__dirname, "..")) {
     }
   }
   const manifestByRepoPath = new Map();
-  for (const item of isPlainObject(manifest) && Array.isArray(manifest.assets) ? manifest.assets : []) {
-    if (item && typeof item.path === "string") manifestByRepoPath.set(join(EXTERNAL_DIR, item.path), item);
+  for (const [index, item] of (isPlainObject(manifest) && Array.isArray(manifest.assets) ? manifest.assets : []).entries()) {
+    if (!isPlainObject(item) || typeof item.path !== "string") {
+      errors.push(`external-assets.json asset ${index}: path must be a canonical repository-relative path`);
+      continue;
+    }
+    const pathParts = item.path.split("/");
+    if (item.path === "" || item.path.includes("\\") ||
+        pathParts.some((part) => part === "" || part === "." || part === "..")) {
+      errors.push(`external-assets.json asset ${index}: path must be a canonical repository-relative path without dot, empty, or backslash segments`);
+      continue;
+    }
+    const repoPath = join(EXTERNAL_DIR, item.path).split(sep).join("/");
+    const manifestAbs = canonicalRepoPath(root, repoPath);
+    if (!manifestAbs) {
+      errors.push(`external-assets.json asset ${index}: path must resolve to a canonical repository-relative file inside ${EXTERNAL_DIR}`);
+      continue;
+    }
+
+    const attribution = typeof item.attribution === "string" ? item.attribution.trim().toLowerCase() : "";
+    const sourceUrls = [item.source_url, item.download_url]
+      .filter((url) => typeof url === "string")
+      .map((url) => url.toLowerCase());
+    const isQuaterniusUrl = sourceUrls.some((url) =>
+      /^https:\/\/(?:www\.)?quaternius\.com(?:\/|$)/.test(url) ||
+      /^https:\/\/quaternius\.itch\.io(?:\/|$)/.test(url)
+    );
+    if (attribution.includes("quaternius") || isQuaterniusUrl ||
+        repoPath.toLowerCase().startsWith("client-godot/assets/external/quaternius/")) {
+      errors.push(`external-assets.json asset ${index}: Quaternius source is not admitted and must remain outside external-assets.json: ${item.path}`);
+    }
+    manifestByRepoPath.set(repoPath, item);
   }
 
   const seen = new Set();
@@ -293,8 +330,8 @@ function validateVendorLock(root = resolve(__dirname, "..")) {
     const at = `vendor.lock.json asset ${index}`;
     if (!asset || typeof asset !== "object" || Array.isArray(asset)) return errors.push(`${at}: must be an object`);
     for (const key of Object.keys(asset)) if (!ENTRY_KEYS.has(key)) errors.push(`${at}: unknown key "${key}"`);
-    const abs = inside(root, asset.path);
-    if (!abs) return errors.push(`${at}: path must be a non-empty repository-relative path with no symlinked component and not outside the repository`);
+    const abs = canonicalRepoPath(root, asset.path);
+    if (!abs) return errors.push(`${at}: path must be a canonical repository-relative path with no dot, empty, backslash, or symlinked component`);
     if (seen.has(abs)) errors.push(`${at}: duplicate path ${asset.path}`);
     seen.add(abs);
     if (typeof asset.sha256 !== "string" || !HASH.test(asset.sha256)) errors.push(`${at}: sha256 must be 64 lowercase hex characters`);
@@ -340,7 +377,7 @@ function validateVendorLock(root = resolve(__dirname, "..")) {
     if (typeof asset.license_path !== "string" || !asset.license_path.trim()) {
       errors.push(`${at}: license_path is required`);
     } else {
-      licenseAbs = inside(root, asset.license_path);
+      licenseAbs = canonicalRepoPath(root, asset.license_path);
       if (!licenseAbs || !existsSync(licenseAbs) || !lstatSync(licenseAbs).isFile()) {
         errors.push(`${at}: license file not found at ${asset.license_path}`);
         licenseAbs = null;
@@ -361,7 +398,7 @@ function validateVendorLock(root = resolve(__dirname, "..")) {
     if (registered && registered.sha256 !== asset.sha256) errors.push(`${at}: digest disagrees with external-assets.json for ${asset.path}`);
   });
 
-  const externalAbs = inside(root, EXTERNAL_DIR);
+  const externalAbs = canonicalRepoPath(root, EXTERNAL_DIR);
   if (!externalAbs) {
     errors.push(`${EXTERNAL_DIR}: must be a safe repository-relative directory without symlinked components`);
   } else {
