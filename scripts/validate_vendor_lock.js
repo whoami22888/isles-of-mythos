@@ -9,6 +9,7 @@
 const { createHash } = require("node:crypto");
 const { existsSync, lstatSync, readdirSync, readFileSync } = require("node:fs");
 const { join, relative, resolve, sep, isAbsolute, extname } = require("node:path");
+const { isIP } = require("node:net");
 
 const LICENSES = new Set(["CC0-1.0", "CC-BY-4.0", "CC-BY-SA-4.0", "MIT", "Apache-2.0", "OFL-1.1"]); // same as validate_godot_assets.py
 const HASH = /^[0-9a-f]{64}$/;
@@ -56,6 +57,9 @@ const QUARANTINED_QUATERNIUS_SOURCES = Object.freeze([
 ]);
 const QUARANTINED_QUATERNIUS_PACK_IDS = new Set(
   QUARANTINED_QUATERNIUS_SOURCES.map((source) => source.pack_id.toLowerCase())
+);
+const QUARANTINED_QUATERNIUS_ARCHIVE_SHA256S = new Set(
+  QUARANTINED_QUATERNIUS_SOURCES.map((source) => source.archive_sha256)
 );
 const QUARANTINED_QUATERNIUS_PATH_PREFIXES = Object.freeze([
   "assets-src/quaternius/h05/",
@@ -128,16 +132,49 @@ const QUATERNIUS_HOSTS = Object.freeze([
   "quaternius.itch.io"
 ]);
 
-function isQuaterniusSourceUrl(value) {
-  if (typeof value !== "string" || value.trim() === "") return false;
+function isValidHostname(hostname) {
+  const normalized = hostname.toLowerCase().replace(/\.$/, "");
+  if (!normalized || normalized.length > 253) return false;
+  const unwrapped = normalized.startsWith("[") && normalized.endsWith("]")
+    ? normalized.slice(1, -1)
+    : normalized;
+  if (isIP(unwrapped) !== 0) return true;
+  return normalized.split(".").every((label) =>
+    label.length > 0 && label.length <= 63 &&
+    /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(label)
+  );
+}
+
+function parseHttpsUrl(value) {
+  if (typeof value !== "string" || value.trim() !== value || /[\\u0000-\\u0020]/.test(value)) return null;
   try {
-    const hostname = new URL(value).hostname.toLowerCase().replace(/\.$/, "");
-    return QUATERNIUS_HOSTS.some((host) =>
-      hostname === host || hostname.endsWith("." + host)
-    );
+    const parsed = new URL(value);
+    if (parsed.protocol !== "https:" || !parsed.hostname ||
+        parsed.username !== "" || parsed.password !== "" ||
+        !isValidHostname(parsed.hostname)) return null;
+    return parsed;
   } catch {
-    return false;
+    return null;
   }
+}
+
+function isQuaterniusSourceUrl(value) {
+  const parsed = value instanceof URL ? value : parseHttpsUrl(value);
+  if (!parsed) return false;
+  const hostname = parsed.hostname.toLowerCase().replace(/\\.$/, "");
+  return QUATERNIUS_HOSTS.some((host) =>
+    hostname === host || hostname.endsWith("." + host)
+  );
+}
+
+function referencesQuarantinedQuaterniusArchive(record) {
+  if (!isPlainObject(record)) return false;
+  return ["sha256", "source_revision", "source_identity", "archive_sha256"].some((field) => {
+    const value = record[field];
+    if (typeof value !== "string") return false;
+    const hashes = value.toLowerCase().match(/[0-9a-f]{64}/g) ?? [];
+    return hashes.some((hash) => QUARANTINED_QUATERNIUS_ARCHIVE_SHA256S.has(hash));
+  });
 }
 
 
@@ -251,10 +288,12 @@ function validateQuarantinedSources(root, lock) {
       ? asset.path.replaceAll(String.fromCharCode(92), "/").toLowerCase()
       : "";
     const hasQuaterniusUrl = isQuaterniusSourceUrl(asset.source_url);
-    if (vendor === "quaternius" || hasQuaterniusUrl ||
+    const hasQuarantinedArchiveDigest = referencesQuarantinedQuaterniusArchive(asset);
+    if (vendor === "quaternius" || hasQuaterniusUrl || hasQuarantinedArchiveDigest ||
         QUARANTINED_QUATERNIUS_PACK_IDS.has(packId) ||
         QUARANTINED_QUATERNIUS_PATH_PREFIXES.some((prefix) => assetPath.startsWith(prefix))) {
-      errors.push("Quaternius source is not admitted and must remain outside vendor.lock.json: " + String(asset.path));
+      const digestNote = hasQuarantinedArchiveDigest ? " (matches quarantined H05/H06 archive SHA-256)" : "";
+      errors.push("Quaternius source is not admitted and must remain outside vendor.lock.json: " + String(asset.path) + digestNote);
     }
   }
 
@@ -329,11 +368,21 @@ function validateVendorLock(root = resolve(__dirname, "..")) {
     }
 
     const attribution = typeof item.attribution === "string" ? item.attribution.trim().toLowerCase() : "";
-    const sourceUrls = [item.source_url, item.download_url];
-    const hasQuaterniusUrl = sourceUrls.some(isQuaterniusSourceUrl);
-    if (attribution.includes("quaternius") || hasQuaterniusUrl ||
+    let hasQuaterniusUrl = false;
+    for (const field of ["source_url", "download_url"]) {
+      if (!Object.hasOwn(item, field)) continue;
+      const parsed = parseHttpsUrl(item[field]);
+      if (!parsed) {
+        errors.push(`external-assets.json asset ${index}: ${field} must be an absolute HTTPS URL with a valid hostname`);
+      } else if (isQuaterniusSourceUrl(parsed)) {
+        hasQuaterniusUrl = true;
+      }
+    }
+    const hasQuarantinedArchiveDigest = referencesQuarantinedQuaterniusArchive(item);
+    if (attribution.includes("quaternius") || hasQuaterniusUrl || hasQuarantinedArchiveDigest ||
         repoPath.toLowerCase().startsWith("client-godot/assets/external/quaternius/")) {
-      errors.push(`external-assets.json asset ${index}: Quaternius source is not admitted and must remain outside external-assets.json: ${item.path}`);
+      const digestNote = hasQuarantinedArchiveDigest ? " (matches quarantined H05/H06 archive SHA-256)" : "";
+      errors.push(`external-assets.json asset ${index}: Quaternius source is not admitted and must remain outside external-assets.json: ${item.path}${digestNote}`);
     }
     manifestByRepoPath.set(repoPath, item);
   }
@@ -349,7 +398,7 @@ function validateVendorLock(root = resolve(__dirname, "..")) {
     seen.add(abs);
     if (typeof asset.sha256 !== "string" || !HASH.test(asset.sha256)) errors.push(`${at}: sha256 must be 64 lowercase hex characters`);
     if (!LICENSES.has(asset.license)) errors.push(`${at}: license "${asset.license}" is not allowlisted; review before admission`);
-    if (typeof asset.source_url !== "string" || !asset.source_url.startsWith("https://")) errors.push(`${at}: source_url must be https`);
+    if (!parseHttpsUrl(asset.source_url)) errors.push(`${at}: source_url must be an absolute HTTPS URL with a valid hostname`);
     if (typeof asset.vendor !== "string" || !asset.vendor.trim()) errors.push(`${at}: vendor must be a non-empty string`);
     const hasRevision = Object.hasOwn(asset, "source_revision");
     const hasIdentity = Object.hasOwn(asset, "source_identity");
