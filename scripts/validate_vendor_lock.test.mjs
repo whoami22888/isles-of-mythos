@@ -36,6 +36,8 @@ const QUARANTINED_ARCHIVE_PATH = "assets-src/quaternius/H05/ultimate-monsters.zi
 const quarantineRegistry = () => ({
   schema: "iom-vendor-source-quarantine:v1",
   status: "LICENSE_REVIEW_REQUIRED",
+  public_source_redistribution: "BLOCKED",
+  production_admission: "NOT_ADMITTED",
   sources: [{
     harvest_id: "H05",
     archive_path: QUARANTINED_ARCHIVE_PATH,
@@ -94,6 +96,19 @@ test("quarantine archive path traversal cannot bypass active-lock protection", (
 test("a malformed quarantine registry fails closed", () => {
   const files = { ...good, [QUARANTINE_PATH]: JSON.stringify({ schema: "wrong", sources: [] }) };
   assert.match(validateVendorLock(repo(files, { version: "1.0.0", assets: [entry()] })).join("\n"), /invalid or incomplete quarantine registry/);
+});
+
+test("top-level quarantine state cannot authorize source redistribution or production admission", () => {
+  for (const [key, value] of [
+    ["public_source_redistribution", "ALLOWED"],
+    ["production_admission", "ADMITTED"]
+  ]) {
+    const registry = quarantineRegistry();
+    registry[key] = value;
+    const files = { ...good, [QUARANTINE_PATH]: JSON.stringify(registry) };
+    const errors = validateVendorLock(repo(files, { version: "1.0.0", assets: [entry()] })).join("\n");
+    assert.match(errors, /invalid or incomplete quarantine registry/);
+  }
 });
 
 test("a missing quarantine registry fails closed", () => {
