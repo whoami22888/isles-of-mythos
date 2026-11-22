@@ -95,7 +95,7 @@ static func run(tree: SceneTree, check: Callable) -> void:
 		"gold": "750",
 		"triumphBadges": "500",
 	})
-	check.call(manager.check_citadel_soft_wall(16, 500), "The 500-badge path must pass only after the authoritative snapshot confirms it")
+	check.call(manager.check_citadel_soft_wall(16, 0), "A stale lower caller badge count must not veto the authoritative 500-badge path")
 	check.call(manager.check_citadel_soft_wall(15, 0), "The earlier citadel levels must not be blocked by the level-16 soft wall")
 	check.call(not manager.check_citadel_soft_wall(17, 500), "Unspecified levels beyond the defined soft wall must fail closed")
 

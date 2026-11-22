@@ -200,18 +200,18 @@ func _set_authoritative_resource(resource_type: String, amount: int) -> void:
 	resource_updated.emit(resource_type, amount)
 
 
-func check_citadel_soft_wall(target_level: int, badges: int) -> bool:
+func check_citadel_soft_wall(target_level: int, _caller_badges: int) -> bool:
 	# This is a UI preview only. The server must re-check all requirements when
-	# processing an actual citadel upgrade command.
+	# processing an actual citadel upgrade command. The caller's badge count is
+	# retained for API compatibility but cannot override or veto server state.
 	if target_level < 1:
 		return false
 	if target_level < SOFT_WALL_TARGET_LEVEL:
 		return true
-	if target_level != SOFT_WALL_TARGET_LEVEL or badges < 0:
+	if target_level != SOFT_WALL_TARGET_LEVEL:
 		return false
 
-	var authoritative_badges: int = mini(badges, get_resource_amount("triumph_badges"))
-	var has_badge_override: bool = authoritative_badges >= SOFT_WALL_BADGES
+	var has_badge_override: bool = get_resource_amount("triumph_badges") >= SOFT_WALL_BADGES
 	var has_resource_requirements: bool = (
 		get_resource_amount("wood") >= SOFT_WALL_WOOD
 		and get_resource_amount("steel") >= SOFT_WALL_STEEL
