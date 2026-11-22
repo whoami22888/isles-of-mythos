@@ -81,9 +81,10 @@ func _ready() -> void:
 	camera.name = "DiagnosticCamera"
 	camera.position = Vector3(0.0, 1.25, 6.0)
 	camera.fov = 40.0
-	camera.look_at(Vector3(0.0, 1.0, 0.0), Vector3.UP)
 	camera.current = true
 	world.add_child(camera)
+	# look_at() requires the camera to be inside the active viewport tree.
+	camera.look_at(Vector3(0.0, 1.0, 0.0), Vector3.UP)
 
 	var character := Factory.get_fallback_mesh(
 		"res://__prompt004_missing_character_fixture.glb",
