@@ -13,6 +13,14 @@
     "qal_v1_section_7": "The version in effect when the assets were obtained governs; updates are for future releases and are not retroactive.",
     "unresolved_question": "No dated acquisition-time licence receipt or written vendor confirmation establishes whether these exact archives, acquired after the QAL v1.0 update, remain covered by the older pack-specific CC0 grants."
   },
+  "member_hash_manifest": {
+    "path": "docs/vendor/quarantine/quaternius-h05-h06-member-hashes.bin",
+    "sha256": "fc4f7d77edf19710a817f0b9d7e9076dfa9b97678d283ef2af59ec79c9ddb07f",
+    "format": "IOMQH5H6-v1",
+    "h05_unique_sha256_count": 244,
+    "h06_unique_sha256_count": 127,
+    "total_unique_sha256_count": 371
+  },
   "sources": [
     {
       "harvest_id": "H05",
@@ -36,7 +44,8 @@
       "historical_acquisition_commit": "b0c597fb13ff671d43e437a9c84a10dbfb723bec",
       "admission_status": "LICENSE_REVIEW_REQUIRED",
       "public_source_redistribution": "BLOCKED",
-      "production_admission": "NOT_ADMITTED"
+      "production_admission": "NOT_ADMITTED",
+      "unique_member_sha256_count": 244
     },
     {
       "harvest_id": "H06",
@@ -60,7 +69,8 @@
       "historical_acquisition_commit": "b0c597fb13ff671d43e437a9c84a10dbfb723bec",
       "admission_status": "LICENSE_REVIEW_REQUIRED",
       "public_source_redistribution": "BLOCKED",
-      "production_admission": "NOT_ADMITTED"
+      "production_admission": "NOT_ADMITTED",
+      "unique_member_sha256_count": 127
     }
   ]
 }

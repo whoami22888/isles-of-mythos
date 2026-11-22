@@ -17,6 +17,16 @@ const TOP_KEYS = new Set(["$schema", "version", "assets"]);
 const ENTRY_KEYS = new Set(["path", "sha256", "license", "license_path", "license_sha256", "source_url", "vendor", "source_revision", "source_identity", "pack_id"]);
 const EXTERNAL_DIR = join("client-godot", "assets", "external");
 const QUARANTINE_REGISTRY_PATH = join("docs", "vendor", "quarantine", "quaternius-h05-h06.json");
+const QUARANTINE_MEMBER_HASH_MANIFEST_PATH = "docs/vendor/quarantine/quaternius-h05-h06-member-hashes.bin";
+const QUARANTINE_MEMBER_HASH_MANIFEST = Object.freeze({
+  path: QUARANTINE_MEMBER_HASH_MANIFEST_PATH,
+  sha256: "fc4f7d77edf19710a817f0b9d7e9076dfa9b97678d283ef2af59ec79c9ddb07f",
+  format: "IOMQH5H6-v1",
+  h05_unique_sha256_count: 244,
+  h06_unique_sha256_count: 127,
+  total_unique_sha256_count: 371
+});
+const QUARANTINED_MEMBER_HASH_COUNTS = Object.freeze({ H05: 244, H06: 127 });
 const QUARANTINED_QUATERNIUS_SOURCES = Object.freeze([
   Object.freeze({
     harvest_id: "H05",
@@ -26,6 +36,7 @@ const QUARANTINED_QUATERNIUS_SOURCES = Object.freeze([
     archive_sha256: "f444a35e70895f822f3687eb47e608801baf98f2ae86c7ed24b6c017842f006d",
     archive_size_bytes: 46576830,
     archive_file_count: 260,
+    unique_member_sha256_count: 244,
     zip_crc: "PASS",
     gltf_dependency_closure: "PASS",
     publisher_page: "https://quaternius.com/packs/ultimatemonsters.html",
@@ -44,6 +55,7 @@ const QUARANTINED_QUATERNIUS_SOURCES = Object.freeze([
     archive_sha256: "93bb9e0cdd678ddd4367402a38f931d57fd52280b0c50f5075212a216ae673a3",
     archive_size_bytes: 20231284,
     archive_file_count: 127,
+    unique_member_sha256_count: 127,
     zip_crc: "PASS",
     gltf_dependency_closure: "PASS",
     publisher_page: "https://quaternius.com/packs/cutemonsters.html",
@@ -71,6 +83,73 @@ const { validateAssetSourceTree } = require("./validate_asset_src.js");
 
 function sha256File(file) {
   return createHash("sha256").update(readFileSync(file)).digest("hex");
+}
+
+function loadQuarantinedMemberHashes(root, errors) {
+  const file = canonicalRepoPath(root, QUARANTINE_MEMBER_HASH_MANIFEST_PATH);
+  if (!file) {
+    errors.push(QUARANTINE_MEMBER_HASH_MANIFEST_PATH + ": must be a safe repository-relative file without symlinked components");
+    return null;
+  }
+  let stat;
+  try {
+    stat = lstatSync(file);
+  } catch (error) {
+    if (error.code === "ENOENT") errors.push(QUARANTINE_MEMBER_HASH_MANIFEST_PATH + ": required member SHA-256 manifest is missing");
+    else errors.push(QUARANTINE_MEMBER_HASH_MANIFEST_PATH + ": cannot inspect (" + error.message + ")");
+    return null;
+  }
+  if (!stat.isFile()) {
+    errors.push(QUARANTINE_MEMBER_HASH_MANIFEST_PATH + ": member SHA-256 manifest must be a regular file");
+    return null;
+  }
+
+  let bytes;
+  try {
+    bytes = readFileSync(file);
+  } catch (error) {
+    errors.push(QUARANTINE_MEMBER_HASH_MANIFEST_PATH + ": cannot read (" + error.message + ")");
+    return null;
+  }
+  if (createHash("sha256").update(bytes).digest("hex") !== QUARANTINE_MEMBER_HASH_MANIFEST.sha256) {
+    errors.push(QUARANTINE_MEMBER_HASH_MANIFEST_PATH + ": member SHA-256 manifest digest mismatch");
+    return null;
+  }
+  if (bytes.length < 16 || bytes.subarray(0, 8).toString("ascii") !== "IOMQH5H6") {
+    errors.push(QUARANTINE_MEMBER_HASH_MANIFEST_PATH + ": invalid member SHA-256 manifest header");
+    return null;
+  }
+
+  const h05Count = bytes.readUInt32BE(8);
+  const h06Count = bytes.readUInt32BE(12);
+  const expectedTotal = QUARANTINED_MEMBER_HASH_COUNTS.H05 + QUARANTINED_MEMBER_HASH_COUNTS.H06;
+  if (h05Count !== QUARANTINED_MEMBER_HASH_COUNTS.H05 ||
+      h06Count !== QUARANTINED_MEMBER_HASH_COUNTS.H06 ||
+      bytes.length !== 16 + (h05Count + h06Count) * 32) {
+    errors.push(QUARANTINE_MEMBER_HASH_MANIFEST_PATH + ": invalid member SHA-256 manifest counts or length");
+    return null;
+  }
+
+  const hashes = new Set();
+  let offset = 16;
+  for (const count of [h05Count, h06Count]) {
+    let previous = "";
+    for (let index = 0; index < count; index++) {
+      const hash = bytes.subarray(offset, offset + 32).toString("hex");
+      offset += 32;
+      if (!HASH.test(hash) || hash <= previous || hashes.has(hash)) {
+        errors.push(QUARANTINE_MEMBER_HASH_MANIFEST_PATH + ": member SHA-256 digests must be valid, unique and sorted within each source pack");
+        return null;
+      }
+      previous = hash;
+      hashes.add(hash);
+    }
+  }
+  if (hashes.size !== expectedTotal) {
+    errors.push(QUARANTINE_MEMBER_HASH_MANIFEST_PATH + ": member SHA-256 manifest does not contain the exact expected unique digest count");
+    return null;
+  }
+  return hashes;
 }
 
 /**
@@ -167,18 +246,18 @@ function isQuaterniusSourceUrl(value) {
   );
 }
 
-function referencesQuarantinedQuaterniusArchive(record) {
+function referencesQuarantinedQuaterniusSourceDigest(record, memberHashes) {
   if (!isPlainObject(record)) return false;
   return ["sha256", "source_revision", "source_identity", "archive_sha256"].some((field) => {
     const value = record[field];
     if (typeof value !== "string") return false;
     const hashes = value.toLowerCase().match(/[0-9a-f]{64}/g) ?? [];
-    return hashes.some((hash) => QUARANTINED_QUATERNIUS_ARCHIVE_SHA256S.has(hash));
+    return hashes.some((hash) => QUARANTINED_QUATERNIUS_ARCHIVE_SHA256S.has(hash) || memberHashes.has(hash));
   });
 }
 
 
-function validateQuarantinedSources(root, lock) {
+function validateQuarantinedSources(root, lock, memberHashes) {
   const errors = [];
   const file = canonicalRepoPath(root, QUARANTINE_REGISTRY_PATH);
   if (!file) {
@@ -211,6 +290,8 @@ function validateQuarantinedSources(root, lock) {
       typeof registry.historical_git_blob_disposition !== "string" ||
       !registry.historical_git_blob_disposition.startsWith("NOT_PURGED;") ||
       !isPlainObject(licenseSummary) ||
+      !isPlainObject(registry.member_hash_manifest) ||
+      Object.entries(QUARANTINE_MEMBER_HASH_MANIFEST).some(([key, value]) => registry.member_hash_manifest[key] !== value) ||
       licenseSummary.qal_v1_url !== "https://quaternius.com/license.html" ||
       licenseSummary.qal_v1_updated !== "2026-08-28" ||
       typeof licenseSummary.qal_v1_section_3a !== "string" ||
@@ -288,11 +369,11 @@ function validateQuarantinedSources(root, lock) {
       ? asset.path.replaceAll(String.fromCharCode(92), "/").toLowerCase()
       : "";
     const hasQuaterniusUrl = isQuaterniusSourceUrl(asset.source_url);
-    const hasQuarantinedArchiveDigest = referencesQuarantinedQuaterniusArchive(asset);
-    if (vendor === "quaternius" || hasQuaterniusUrl || hasQuarantinedArchiveDigest ||
+    const hasQuarantinedSourceDigest = referencesQuarantinedQuaterniusSourceDigest(asset, memberHashes);
+    if (vendor === "quaternius" || hasQuaterniusUrl || hasQuarantinedSourceDigest ||
         QUARANTINED_QUATERNIUS_PACK_IDS.has(packId) ||
         QUARANTINED_QUATERNIUS_PATH_PREFIXES.some((prefix) => assetPath.startsWith(prefix))) {
-      const digestNote = hasQuarantinedArchiveDigest ? " (matches quarantined H05/H06 archive SHA-256)" : "";
+      const digestNote = hasQuarantinedSourceDigest ? " (matches quarantined H05/H06 archive or member SHA-256)" : "";
       errors.push("Quaternius source is not admitted and must remain outside vendor.lock.json: " + String(asset.path) + digestNote);
     }
   }
@@ -303,6 +384,7 @@ function validateQuarantinedSources(root, lock) {
 function validateVendorLock(root = resolve(__dirname, "..")) {
   root = resolve(root);
   const errors = [];
+  const quarantinedMemberHashes = loadQuarantinedMemberHashes(root, errors) ?? new Set();
   const lockFile = canonicalRepoPath(root, "vendor.lock.json");
   if (!lockFile) {
     return ["vendor.lock.json: must be a safe repository-relative file without symlinked components"];
@@ -378,10 +460,10 @@ function validateVendorLock(root = resolve(__dirname, "..")) {
         hasQuaterniusUrl = true;
       }
     }
-    const hasQuarantinedArchiveDigest = referencesQuarantinedQuaterniusArchive(item);
-    if (attribution.includes("quaternius") || hasQuaterniusUrl || hasQuarantinedArchiveDigest ||
+    const hasQuarantinedSourceDigest = referencesQuarantinedQuaterniusSourceDigest(item, quarantinedMemberHashes);
+    if (attribution.includes("quaternius") || hasQuaterniusUrl || hasQuarantinedSourceDigest ||
         repoPath.toLowerCase().startsWith("client-godot/assets/external/quaternius/")) {
-      const digestNote = hasQuarantinedArchiveDigest ? " (matches quarantined H05/H06 archive SHA-256)" : "";
+      const digestNote = hasQuarantinedSourceDigest ? " (matches quarantined H05/H06 archive or member SHA-256)" : "";
       errors.push(`external-assets.json asset ${index}: Quaternius source is not admitted and must remain outside external-assets.json: ${item.path}${digestNote}`);
     }
     manifestByRepoPath.set(repoPath, item);
@@ -484,7 +566,7 @@ function validateVendorLock(root = resolve(__dirname, "..")) {
       }
     }
   }
-  errors.push(...validateQuarantinedSources(root, lock));
+  errors.push(...validateQuarantinedSources(root, lock, quarantinedMemberHashes));
   errors.push(...validateAssetSourceTree(root, lock.assets));
   return errors;
 }

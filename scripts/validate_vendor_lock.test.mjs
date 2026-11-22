@@ -13,7 +13,11 @@ function repo(files = {}, lock, manifest, { omitQuarantineRegistry = false } = {
   const root = mkdtempSync(join(tmpdir(), "vendor-lock-"));
   const fixtureFiles = omitQuarantineRegistry
     ? files
-    : { [QUARANTINE_PATH]: JSON.stringify(quarantineRegistry()), ...files };
+    : {
+        [QUARANTINE_PATH]: JSON.stringify(quarantineRegistry()),
+        [QUARANTINE_MEMBER_HASH_MANIFEST_PATH]: QUARANTINE_MEMBER_HASH_MANIFEST,
+        ...files
+      };
   for (const [path, body] of Object.entries(fixtureFiles)) {
     mkdirSync(join(root, path, ".."), { recursive: true });
     writeFileSync(join(root, path), body);
@@ -32,10 +36,14 @@ const entry = (over = {}) => ({
 });
 const good = { "vendor/kit/palm.glb": "palm", "vendor/kit/LICENSE.txt": "CC0" };
 const QUARANTINE_PATH = "docs/vendor/quarantine/quaternius-h05-h06.json";
+const QUARANTINE_MEMBER_HASH_MANIFEST_PATH = "docs/vendor/quarantine/quaternius-h05-h06-member-hashes.bin";
+const QUARANTINE_MEMBER_HASH_MANIFEST = readFileSync(new URL("../docs/vendor/quarantine/quaternius-h05-h06-member-hashes.bin", import.meta.url));
 const QUARANTINED_ARCHIVE_PATH = "assets-src/quaternius/H05/ultimate-monsters.zip";
 const QUARANTINED_H06_ARCHIVE_PATH = "assets-src/quaternius/H06/cute-animated-monsters.zip";
 const QUARANTINED_H05_SHA256 = "f444a35e70895f822f3687eb47e608801baf98f2ae86c7ed24b6c017842f006d";
 const QUARANTINED_H06_SHA256 = "93bb9e0cdd678ddd4367402a38f931d57fd52280b0c50f5075212a216ae673a3";
+const QUARANTINED_H05_MEMBER_SHA256 = "b970ed1359ce749fd81a8395d58ff5f3044d843213e17fb94b97892d417c0af9";
+const QUARANTINED_H06_MEMBER_SHA256 = "9acc1182a169ae07db654cc1c4533eec486739962f5b70c8e8df6ab19bd5f4a5";
 const QUARANTINED_SOURCES = [
   {
     harvest_id: "H05",
@@ -45,6 +53,7 @@ const QUARANTINED_SOURCES = [
     archive_sha256: QUARANTINED_H05_SHA256,
     archive_size_bytes: 46576830,
     archive_file_count: 260,
+    unique_member_sha256_count: 244,
     zip_crc: "PASS",
     gltf_dependency_closure: "PASS",
     publisher_page: "https://quaternius.com/packs/ultimatemonsters.html",
@@ -63,6 +72,7 @@ const QUARANTINED_SOURCES = [
     archive_sha256: QUARANTINED_H06_SHA256,
     archive_size_bytes: 20231284,
     archive_file_count: 127,
+    unique_member_sha256_count: 127,
     zip_crc: "PASS",
     gltf_dependency_closure: "PASS",
     publisher_page: "https://quaternius.com/packs/cutemonsters.html",
@@ -77,6 +87,14 @@ const QUARANTINED_SOURCES = [
 const quarantineRegistry = () => ({
   schema: "iom-vendor-source-quarantine:v1",
   status: "LICENSE_REVIEW_REQUIRED",
+  member_hash_manifest: {
+    path: QUARANTINE_MEMBER_HASH_MANIFEST_PATH,
+    sha256: "fc4f7d77edf19710a817f0b9d7e9076dfa9b97678d283ef2af59ec79c9ddb07f",
+    format: "IOMQH5H6-v1",
+    h05_unique_sha256_count: 244,
+    h06_unique_sha256_count: 127,
+    total_unique_sha256_count: 371
+  },
   public_source_redistribution: "BLOCKED",
   production_admission: "NOT_ADMITTED",
   current_tree_disposition: "ARCHIVES_REMOVED_FROM_CURRENT_BRANCH_TREE",
@@ -94,6 +112,19 @@ const quarantineRegistry = () => ({
 test("quarantined vendor archives retain hash evidence but stay outside the active lock and tree", () => {
   const files = { ...good, [QUARANTINE_PATH]: JSON.stringify(quarantineRegistry()) };
   assert.deepEqual(validateVendorLock(repo(files, { version: "1.0.0", assets: [entry()] })), []);
+});
+
+test("quarantined member SHA-256 manifest is required and pinned", () => {
+  const missingRoot = repo();
+  unlinkSync(join(missingRoot, QUARANTINE_MEMBER_HASH_MANIFEST_PATH));
+  assert.ok(validateVendorLock(missingRoot).join("\n").includes("required member SHA-256 manifest is missing"));
+
+  const tamperedRoot = repo();
+  const file = join(tamperedRoot, QUARANTINE_MEMBER_HASH_MANIFEST_PATH);
+  const bytes = readFileSync(file);
+  bytes[bytes.length - 1] ^= 1;
+  writeFileSync(file, bytes);
+  assert.ok(validateVendorLock(tamperedRoot).join("\n").includes("member SHA-256 manifest digest mismatch"));
 });
 
 test("quarantined vendor archives cannot be reintroduced into the source tree or active lock", () => {
@@ -483,6 +514,54 @@ test("Quaternius H05/H06 archive digests cannot be hidden by neutral lock metada
     repo({ ...good, [identityPath]: identityBytes }, { version: "1.0.0", assets: [entry(), identitySource] })
   ).join("\n");
   assert.match(identityErrors, /Quaternius source is not admitted and must remain outside vendor\.lock\.json/);
+});
+
+test("Quaternius H05/H06 extracted member digests cannot be hidden by neutral lock metadata", () => {
+  const cases = [
+    { harvest: "H05", digest: QUARANTINED_H05_MEMBER_SHA256 },
+    { harvest: "H06", digest: QUARANTINED_H06_MEMBER_SHA256 }
+  ];
+  for (const fixture of cases) {
+    const path = "vendor/kit/neutral-" + fixture.harvest.toLowerCase() + ".glb";
+    const bytes = "neutral extracted member fixture " + fixture.harvest;
+    const source = entry({
+      path,
+      sha256: sha(bytes),
+      source_url: "https://independent.example/neutral.glb",
+      vendor: "Independent Vendor",
+      pack_id: "independent:archive",
+      source_revision: fixture.digest
+    });
+    const errors = validateVendorLock(
+      repo({ ...good, [path]: bytes }, { version: "1.0.0", assets: [entry(), source] })
+    ).join("\n");
+    assert.ok(errors.includes("matches quarantined H05/H06 archive or member SHA-256"));
+  }
+});
+
+test("Quaternius H05/H06 extracted member digests cannot be hidden in external-assets.json", () => {
+  const path = "independent/neutral-member.glb";
+  const bytes = "neutral external member fixture";
+  const manifest = {
+    schema_version: 1,
+    assets: [{
+      id: "independent-member",
+      path,
+      sha256: sha(bytes),
+      source_url: "https://independent.example/source",
+      download_url: "https://independent.example/download.zip",
+      license: "CC0-1.0",
+      license_url: "https://creativecommons.org/publicdomain/zero/1.0/",
+      attribution: "Independent Vendor",
+      source_identity: "member-sha256:" + QUARANTINED_H06_MEMBER_SHA256
+    }]
+  };
+  const files = { ...good, ["client-godot/assets/external/" + path]: bytes };
+  const errors = validateVendorLock(
+    repo(files, { version: "1.0.0", assets: [entry()] }, manifest)
+  ).join("\n");
+  assert.ok(errors.includes("Quaternius source is not admitted and must remain outside external-assets.json"));
+  assert.ok(errors.includes("matches quarantined H05/H06 archive or member SHA-256"));
 });
 
 test("Quaternius H05 archive digest cannot be hidden in external-assets.json", () => {
