@@ -163,6 +163,11 @@ func run() -> void:
 	var diagnostic_label := diagnostic_overlay.get_node_or_null("DiagnosticPanel/Content/DiagnosticLabel") as Label
 	check(diagnostic_label != null and diagnostic_label.text.contains("NOT PRODUCTION ART"),
 		"Fallback render evidence must be explicitly labelled diagnostic-only")
+	if diagnostic_label != null:
+		check(diagnostic_label.text.contains("actual " + RenderingServer.get_current_rendering_method()),
+			"Fallback evidence must report the actual renderer method, not only the requested method")
+		check(diagnostic_label.text.contains("SHA "),
+			"Fallback evidence must display source revision provenance")
 	var event_path := "user://prompt004-github-event.json"
 	var event_file := FileAccess.open(event_path, FileAccess.WRITE)
 	check(event_file != null, "Synthetic pull-request event must be writable for provenance regression")

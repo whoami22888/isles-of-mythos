@@ -47,11 +47,21 @@ func _ready() -> void:
 	var engine_version: Dictionary = Engine.get_version_info()
 	var version_text := str(engine_version.get("string", "unknown"))
 	var adapter := RenderingServer.get_video_adapter_name()
+	var api_version := RenderingServer.get_video_adapter_api_version()
+	var renderer_method := RenderingServer.get_current_rendering_method()
+	var renderer_driver := RenderingServer.get_current_rendering_driver_name()
+	var requested_method := "mobile" if not OS.get_environment("IOM_VERTICAL_SLICE_OUTPUT_DIR").is_empty() else "project"
 	var source_sha := resolve_source_sha(OS.get_environment("GITHUB_EVENT_PATH"), OS.get_environment("GITHUB_SHA"))
 	var short_sha := source_sha.left(12) if not source_sha.is_empty() else "unavailable"
-	label.text = "PROMPT 004 FALLBACKS — DIAGNOSTIC ONLY / NOT PRODUCTION ART\nGodot %s Mobile · %s · SHA %s" % [
+	var renderer_text := "%s/%s" % [renderer_method, renderer_driver]
+	if not api_version.is_empty():
+		renderer_text += " API " + api_version
+	if not adapter.is_empty():
+		renderer_text += " · " + adapter
+	label.text = "PROMPT 004 FALLBACKS — DIAGNOSTIC ONLY / NOT PRODUCTION ART\nGodot %s · requested %s · actual %s · SHA %s" % [
 		version_text,
-		adapter,
+		requested_method,
+		renderer_text,
 		short_sha
 	]
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
