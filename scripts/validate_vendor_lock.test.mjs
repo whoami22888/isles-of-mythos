@@ -679,7 +679,7 @@ test("Poly Haven per-file identity cannot traverse outside its slug directory", 
     "vendor/kit/LICENSE.txt": "CC0"
   };
   const errors = validateVendorLock(repo(files, { version: "1.0.0", assets: [asset] })).join("\n");
-  assert.match(errors, /Poly Haven asset path must stay inside its slug directory/);
+  assert.match(errors, /canonical repository-relative path|Poly Haven asset path must stay inside its slug directory/);
 });
 
 test("the committed Poly Haven lock keeps all 64 exact per-file source identities executable", () => {
