@@ -9,9 +9,12 @@ import test from "node:test";
 const { validateVendorLock } = createRequire(import.meta.url)("./validate_vendor_lock.js");
 const sha = (text) => createHash("sha256").update(text).digest("hex");
 
-function repo(files = {}, lock, manifest) {
+function repo(files = {}, lock, manifest, { omitQuarantineRegistry = false } = {}) {
   const root = mkdtempSync(join(tmpdir(), "vendor-lock-"));
-  for (const [path, body] of Object.entries(files)) {
+  const fixtureFiles = omitQuarantineRegistry
+    ? files
+    : { [QUARANTINE_PATH]: JSON.stringify(quarantineRegistry()), ...files };
+  for (const [path, body] of Object.entries(fixtureFiles)) {
     mkdirSync(join(root, path, ".."), { recursive: true });
     writeFileSync(join(root, path), body);
   }
@@ -69,6 +72,20 @@ test("quarantined vendor archives cannot be reintroduced into the source tree or
 test("a malformed quarantine registry fails closed", () => {
   const files = { ...good, [QUARANTINE_PATH]: JSON.stringify({ schema: "wrong", sources: [] }) };
   assert.match(validateVendorLock(repo(files, { version: "1.0.0", assets: [entry()] })).join("\n"), /invalid or incomplete quarantine registry/);
+});
+
+test("a missing quarantine registry fails closed", () => {
+  const root = repo(good, { version: "1.0.0", assets: [entry()] }, undefined, { omitQuarantineRegistry: true });
+  assert.match(validateVendorLock(root).join("\n"), /required quarantine registry is missing/);
+});
+
+test("a symlinked quarantine registry path fails closed", () => {
+  const outside = mkdtempSync(join(tmpdir(), "outside-quarantine-"));
+  writeFileSync(join(outside, "quaternius-h05-h06.json"), JSON.stringify(quarantineRegistry()));
+  const root = repo(good, { version: "1.0.0", assets: [entry()] }, undefined, { omitQuarantineRegistry: true });
+  mkdirSync(join(root, "docs/vendor"), { recursive: true });
+  symlinkSync(outside, join(root, "docs/vendor/quarantine"), "dir");
+  assert.match(validateVendorLock(root).join("\n"), /safe repository-relative file without symlinked components/);
 });
 
 test("an empty lock is rejected because it admits no source dependency", () => {

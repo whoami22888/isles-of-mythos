@@ -72,8 +72,22 @@ const isPlainObject = (v) => v !== null && typeof v === "object" && !Array.isArr
 
 function validateQuarantinedSources(root, lock) {
   const errors = [];
-  const file = join(root, QUARANTINE_REGISTRY_PATH);
-  if (!existsSync(file)) return errors;
+  const file = inside(root, QUARANTINE_REGISTRY_PATH);
+  if (!file) {
+    return [`${QUARANTINE_REGISTRY_PATH}: must be a safe repository-relative file without symlinked components`];
+  }
+  if (!existsSync(file)) {
+    return [`${QUARANTINE_REGISTRY_PATH}: required quarantine registry is missing`];
+  }
+  let fileStat;
+  try {
+    fileStat = lstatSync(file);
+  } catch (error) {
+    return [`${QUARANTINE_REGISTRY_PATH}: cannot inspect (${error.message})`];
+  }
+  if (!fileStat.isFile()) {
+    return [`${QUARANTINE_REGISTRY_PATH}: quarantine registry must be a regular file`];
+  }
   const registry = readJson(file, errors, QUARANTINE_REGISTRY_PATH);
   if (registry === READ_FAILED) return errors;
   if (!isPlainObject(registry) ||
