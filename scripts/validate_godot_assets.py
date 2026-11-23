@@ -152,6 +152,18 @@ def validate_bounded_lod_lineage(registered_by_path):
             fail(f"Bounded LOD output is not manifested: {output_path}")
 
     metadata_path = f"{prefix}metadata.json"
+    has_bounded_lod_bundle = (
+        metadata_path in registered_by_path
+        or any(
+            f"{prefix}{asset}.glb" in registered_by_path
+            for asset in BOUNDED_LOD_ASSETS
+        )
+    )
+    # Some importer tests intentionally provide only a generated texture source
+    # for the separate generated/foliage extraction path. Enforce the complete
+    # four-model bundle only when its metadata or a bounded GLB is present.
+    if not has_bounded_lod_bundle:
+        return
     metadata_entry = registered_by_path.get(metadata_path)
     if metadata_entry is None:
         fail("Bounded LOD aggregate metadata is not manifested")
