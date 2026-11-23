@@ -20,8 +20,25 @@ describe("player survival and movement", () => {
     expect(player.hunger).toBe(PLAYER_MAX_HUNGER);
     expect(player.oxygen).toBe(PLAYER_MAX_OXYGEN);
     expect(player.inventory).toEqual({ "ammo.flintlock": STARTING_FLINTLOCK_AMMO, "capture.orb": 3, "creature.feed": 4 });
-    expect(player.hotbar[0]).toBe("cutlass");
+    expect(player.hotbar.slice(0, 4)).toEqual(["cutlass", "flintlock", "harpoon", "shovel"]);
+    expect(player.hotbar).toHaveLength(8);
   });
+  it("seeds new profiles with the server-owned four-slot starter hotbar", async () => {
+    let insertParams: unknown[] | undefined;
+    const db = {
+      query: async (sql: string, params?: unknown[]) => {
+        if (sql.startsWith("INSERT INTO player_profiles")) {
+          insertParams = params;
+          return { rows: [], rowCount: 0 };
+        }
+        throw new Error("UNEXPECTED_QUERY");
+      },
+    } as unknown as Pool;
+    const store = new PlayerStore(db);
+    await store.ensureProfile("starter-user");
+    expect(insertParams?.[1]).toBe(JSON.stringify(["cutlass", "flintlock", "harpoon", "shovel", null, null, null, null]));
+  });
+
   it("normalizes diagonal movement and consumes hunger", () => {
     const player = createDefaultPlayer("user-1");
     applyPlayerInput(player, { dx: 1, dy: 1, dt: 0.25 });

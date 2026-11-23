@@ -11,7 +11,7 @@ const CraftPanel = preload("res://gameplay/craft_panel.gd")
 var _craft: VBoxContainer
 const TouchControls = preload("res://gameplay/touch_controls.gd")
 const CameraTerrainCollisionBuilder = preload("res://scripts/camera_terrain_collision_factory.gd")
-const PlayerAvatar = preload("res://gameplay/player_avatar.gd")
+const PlayerController = preload("res://entities/player/player.gd")
 var _touch: Control
 ## Camera orbit yaw (radians) around the authoritative player. Presentation
 ## only; manual move directions are rotated by it so "up" walks away from the
@@ -59,6 +59,7 @@ var _session_live := false
 ## reconnect; cleared by the next successful authentication.
 var _reconnect_requested := false
 var _client: Node
+var _player_controller: Node
 var _player := Vector3.ZERO
 var _markers: Dictionary = {}
 var _status: Label
@@ -177,6 +178,8 @@ func _ready() -> void:
 	_client.command_rejected.connect(func(request_id: String, code: String) -> void: _craft.on_craft_rejected(request_id, code))
 	_client.command_outcome_unknown.connect(_on_outcome_unknown)
 	_client.auth_failed.connect(_on_auth_failed)
+	if _player_controller != null:
+		_player_controller.call("bind_protocol", _client)
 	var endpoint := OS.get_environment("IOM_WS_URL")
 	if endpoint.is_empty():
 		endpoint = ProjectSettings.get_setting("application/config/default_ws_url", "ws://127.0.0.1:3000/ws")
@@ -293,6 +296,13 @@ func _mount_touch_controls() -> void:
 	_touch.camera_pinch.connect(_on_camera_pinch)
 	_touch.camera_pinch_ended.connect(_on_camera_pinch_ended)
 	_touch.tapped.connect(_handle_tap)
+	if _player_controller != null:
+		_player_controller.call("bind_touch_controls", _touch)
+		var blocked_controls: Variant = _player_controller.call("get_blocked_controls")
+		if blocked_controls is Array:
+			for control in blocked_controls:
+				if control is Control:
+					_touch.blocked_controls.append(control)
 
 func _on_camera_drag(delta: Vector2) -> void:
 	_camera_yaw = wrapf(_camera_yaw - delta.x * CAMERA_ORBIT_RADIANS_PER_PIXEL, -PI, PI)
@@ -331,15 +341,10 @@ func _on_camera_mode_changed(is_top_down: bool) -> void:
 ## (screen space, +y = down/towards camera) combined into a unit world XZ
 ## direction, rotated by the camera orbit. Zero when there is no input.
 func manual_move_intent() -> Vector2:
-	var screen := Vector2.ZERO
-	var focus := get_viewport().gui_get_focus_owner()
-	if not (focus is LineEdit):
-		screen = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
-	if _touch != null:
-		screen += _touch.joystick_vector()
-	if screen.length() < 0.0001:
+	if _player_controller == null or not is_instance_valid(_player_controller):
 		return Vector2.ZERO
-	return screen.normalized().rotated(-_camera_yaw)
+	var intent: Variant = _player_controller.call("movement_intent", _camera_yaw)
+	return intent if intent is Vector2 else Vector2.ZERO
 
 ## Sends the manual direction through the existing server `move` intent at the
 ## same bounded cadence as tap-to-move. Returns true while manual input is held.
@@ -401,13 +406,14 @@ func _build_scaffold_world() -> void:
 	_recenter_ground()
 	# Presentation-only avatar (rigged character, capsule fallback); the server
 	# position below is still the only thing that moves it.
-	var player := PlayerAvatar.new()
+	var player = PlayerController.new()
 	player.feet_offset = PLAYER_HALF_HEIGHT
 	player.name = "ServerPlayerRepresentation"
 	add_child(player)
-	player.position = Vector3(_player.x, _feet_height(_player.x, _player.z) + PLAYER_HALF_HEIGHT, _player.z)
+	player.set_server_position(Vector3(_player.x, _feet_height(_player.x, _player.z) + PLAYER_HALF_HEIGHT, _player.z))
 	_player = player.position
-	player.observe_server_position(_player)
+	_player_controller = player
+	player.gather_requested.connect(_gather_nearest)
 	if _coastal == null:
 		var light := DirectionalLight3D.new()
 		light.rotation_degrees = Vector3(-55, -25, 0)
@@ -609,6 +615,8 @@ func _approach_step() -> void:
 
 func _on_player_state(state: Dictionary) -> void:
 	_craft.set_inventory(state.get("inventory"))
+	if _player_controller != null:
+		_player_controller.call("apply_server_state", state)
 	var x = state.get("x")
 	var y = state.get("y")
 	if x is int or x is float:
@@ -618,8 +626,8 @@ func _on_player_state(state: Dictionary) -> void:
 		_player = Vector3(float(x), _player.y, float(world_y))
 		_recenter_ground()
 		_player.y = _feet_height(_player.x, _player.z) + PLAYER_HALF_HEIGHT
-		$ServerPlayerRepresentation.position = _player
-		$ServerPlayerRepresentation.observe_server_position(_player)
+		if _player_controller != null:
+			_player_controller.call("set_server_position", _player)
 		_follow_camera()
 		var health = state.get("health", 1)
 		if _death:

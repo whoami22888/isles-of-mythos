@@ -84,6 +84,12 @@ func request_move(dx: float, dy: float) -> bool:
 	var message := {"type": "move", "dx": clampf(dx, -1.0, 1.0), "dy": clampf(dy, -1.0, 1.0), "sequence": _move_sequence}
 	return _socket.send_text(JSON.stringify(message)) == OK
 
+## Selection is server-owned: the next player_state snapshot confirms the selected slot.
+func request_select_hotbar(slot: int) -> bool:
+	if not is_authenticated() or slot < 0 or slot >= 8:
+		return false
+	return _socket.send_text(JSON.stringify({"type": "select_hotbar", "slot": slot})) == OK
+
 func _send_request(action: String, fields: Dictionary) -> String:
 	if not is_authenticated() or _pending.size() >= MAX_PENDING:
 		return ""

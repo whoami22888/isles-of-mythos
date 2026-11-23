@@ -62,7 +62,8 @@ func run() -> void:
 	root.add_child(world)
 	await _frames(2)
 	var coastal := world.get_node_or_null("CoastalWorld") as Node3D
-	var avatar := world.get_node("ServerPlayerRepresentation") as Node3D
+	var player_proxy := world.get_node("ServerPlayerRepresentation") as Node3D
+	var avatar := player_proxy.get_node("PlayerAvatar") as Node3D
 	check(coastal != null, "coastal world mounted")
 	check(avatar.has_method("is_character_mounted") and avatar.is_character_mounted(), "rigged character mounted")
 	if coastal == null or not avatar.is_character_mounted():
@@ -97,9 +98,9 @@ func run() -> void:
 	check(avatar.animation_state() == "Walk" and anim.current_animation == "Walk" and anim.is_playing(), "walks while the server position changes")
 	await _check_faces(avatar, skeleton, Vector2(1, 0), "east step")
 	# Feet stay on the terrain at the new server position while walking.
-	var x: float = avatar.position.x
+	var x: float = avatar.global_position.x
 	var walk_terrain: float = coastal.terrain_height_at(x, 12.0)
-	check(is_equal_approx(avatar.position.y - world.PLAYER_HALF_HEIGHT, maxf(walk_terrain, coastal.water_level() - world.WADE_DEPTH)),
+	check(is_equal_approx(avatar.global_position.y - world.PLAYER_HALF_HEIGHT, maxf(walk_terrain, coastal.water_level() - world.WADE_DEPTH)),
 		"walking position keeps the feet height rule")
 
 	# Then north (server -y, world -Z).
@@ -113,7 +114,7 @@ func run() -> void:
 	await create_timer(0.6).timeout
 	check(avatar.animation_state() == "Idle" and anim.current_animation == "Idle", "returns to idle when the server position stops changing")
 	feet = _lowest_foot(skeleton)
-	terrain_y = coastal.terrain_height_at(avatar.position.x, avatar.position.z)
+	terrain_y = coastal.terrain_height_at(avatar.global_position.x, avatar.global_position.z)
 	check(absf(feet - terrain_y) <= FEET_TOLERANCE, "idle feet on terrain after moving: %.3f vs %.3f" % [feet, terrain_y])
 	world.queue_free()
 

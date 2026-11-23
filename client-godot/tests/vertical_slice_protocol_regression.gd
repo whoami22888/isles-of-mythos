@@ -36,6 +36,8 @@ func _init() -> void:
 	_assert(_unknown == ["disconnect-1"], "disconnect reports ambiguous outcome")
 	_assert(not protocol.request_move(1.0, 0.0), "move intent is refused while unauthenticated")
 	_assert(not protocol.request_move(INF, 0.0), "non-finite move intent is refused")
+	_assert(not protocol.request_select_hotbar(0), "hotbar selection is refused while unauthenticated")
+	_assert(not protocol.request_select_hotbar(-1) and not protocol.request_select_hotbar(8), "hotbar slot bounds are enforced")
 	protocol.queue_free()
 	await process_frame
 	quit(0)
