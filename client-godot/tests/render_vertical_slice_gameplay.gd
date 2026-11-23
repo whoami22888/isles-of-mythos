@@ -11,6 +11,7 @@ extends SceneTree
 ## the real CameraZoomController through close-up zoom, strategic top-down zoom, return zoom and orbit.
 ## Frames are written as walk_%03d.png at --fixed-fps 30; CI encodes the sequence to an MP4.
 const WorldScene = preload("res://gameplay/vertical_slice.tscn")
+const RenderingEvidenceGuard = preload("res://scripts/rendering_evidence_guard.gd")
 
 ## Authenticated-session stand-in: reports a live session and records nothing.
 class FixtureSession extends Node:
@@ -52,6 +53,27 @@ func _capture() -> void:
 		await process_frame
 	if world.get_node_or_null("CoastalWorld") == null:
 		push_error("Coastal world not mounted")
+		quit(1)
+		return
+	var motion_dir := OS.get_environment("IOM_VERTICAL_SLICE_MOTION_DIR")
+	var renderer_method := RenderingServer.get_current_rendering_method()
+	var renderer_driver := RenderingServer.get_current_rendering_driver_name()
+	print("IOM_RENDERER method=%s driver=%s" % [renderer_method, renderer_driver])
+	var renderer_guard_contract_valid := (
+		RenderingEvidenceGuard.is_mobile_vulkan("mobile", "vulkan")
+		and not RenderingEvidenceGuard.is_mobile_vulkan("gl_compatibility", "opengl3")
+		and not RenderingEvidenceGuard.is_mobile_vulkan("mobile", "opengl3")
+		and not RenderingEvidenceGuard.is_mobile_vulkan("forward_plus", "vulkan")
+	)
+	if not renderer_guard_contract_valid:
+		push_error("Rendering evidence guard contract regression")
+		quit(1)
+		return
+	if not motion_dir.is_empty() and not RenderingEvidenceGuard.is_mobile_vulkan(renderer_method, renderer_driver):
+		push_error(
+			"Prompt 007 camera-motion capture requires Godot 4.7.2 Mobile/Vulkan; actual method=%s driver=%s"
+			% [renderer_method, renderer_driver]
+		)
 		quit(1)
 		return
 	var transport: Node = world._client
@@ -97,7 +119,6 @@ func _capture() -> void:
 		quit(1)
 		return
 	world._on_player_state({"x": 10.0, "y": 11.0, "health": 100})
-	var motion_dir := OS.get_environment("IOM_VERTICAL_SLICE_MOTION_DIR")
 	if not motion_dir.is_empty():
 		if not await _capture_walk_motion(world, camera, motion_dir):
 			quit(1)
