@@ -62,6 +62,52 @@ const QUARANTINED_H05_SHA256 = "f444a35e70895f822f3687eb47e608801baf98f2ae86c7ed
 const QUARANTINED_H06_SHA256 = "93bb9e0cdd678ddd4367402a38f931d57fd52280b0c50f5075212a216ae673a3";
 const QUARANTINED_H05_MEMBER_SHA256 = "b970ed1359ce749fd81a8395d58ff5f3044d843213e17fb94b97892d417c0af9";
 const QUARANTINED_H06_MEMBER_SHA256 = "9acc1182a169ae07db654cc1c4533eec486739962f5b70c8e8df6ab19bd5f4a5";
+const QUARANTINE_ACQUISITION_EVIDENCE = {
+  workflow_run_id: 44736035009,
+  workflow_run_url: "https://github.com/whoami22888/isles-of-mythos/actions/runs/44736035009",
+  workflow_run_started_at_utc: "2026-11-20T12:28:14Z",
+  workflow_run_completed_at_utc: "2026-11-20T12:30:20Z",
+  manifest_generated_at_utc: "2026-11-20T12:30:05.606651+00:00",
+  artifact_id: 14628497548,
+  artifact_name: "quaternius-source-quarantine-15798f978d9fde3ba0ebf327354432876aa2f2d9",
+  artifact_size_bytes: 65186170,
+  artifact_sha256: "3a31c4a46476eee6b3f944f4c39ca04c5e20c89dfcc7a50ab1897c92e7b7880f",
+  exact_archive_bytes_reverified: true,
+  archive_member_hashes_reverified: {
+    H05: {
+      archive_sha256: QUARANTINED_H05_SHA256,
+      size_bytes: 46576830,
+      member_count: 260,
+      member_hash_mismatches: 0,
+      zip_crc_check: "PASS"
+    },
+    H06: {
+      archive_sha256: QUARANTINED_H06_SHA256,
+      size_bytes: 20231284,
+      member_count: 127,
+      member_hash_mismatches: 0,
+      zip_crc_check: "PASS"
+    }
+  },
+  publisher_page_snapshots: {
+    H05: {
+      sha256: "5adff0c0a2d5677f59b9810cf7e40d13a72234dafcd1b50968dbdb149c9cb563",
+      license_label: "CC0",
+      commercial_use_statement: true
+    },
+    H06: {
+      sha256: "d3457924ed35694068d8d5c9594c26781ab9f7b3de89f6b46ecbe0af3b667834",
+      license_label: "CC0",
+      commercial_use_statement: true
+    }
+  },
+  qal_snapshot_sha256: "d1b56be5228d372b049b45cc7447a823da7989a6cf7036f60cfac2284c8fcb0d",
+  cc0_deed_snapshot_sha256: "4f7659a6941f5160fc0afde17380d7312ab8d5382a6e5355ee07c7d6d7d2349d",
+  per_archive_download_timestamp_recorded: false,
+  vendor_signed_receipt: false,
+  disposition: "QUARANTINED_BYTES_VERIFIED_NOT_ADMITTED"
+};
+const cloneQuarantineAcquisitionEvidence = () => JSON.parse(JSON.stringify(QUARANTINE_ACQUISITION_EVIDENCE));
 const QUARANTINED_SOURCES = [
   {
     harvest_id: "H05",
@@ -105,6 +151,7 @@ const QUARANTINED_SOURCES = [
 const quarantineRegistry = () => ({
   schema: "iom-vendor-source-quarantine:v1",
   status: "LICENSE_REVIEW_REQUIRED",
+  acquisition_evidence: cloneQuarantineAcquisitionEvidence(),
   member_hash_manifest: {
     path: QUARANTINE_MEMBER_HASH_MANIFEST_PATH,
     sha256: "fc4f7d77edf19710a817f0b9d7e9076dfa9b97678d283ef2af59ec79c9ddb07f",
@@ -123,7 +170,7 @@ const quarantineRegistry = () => ({
     qal_v1_updated: "2026-08-28",
     qal_v1_section_3a: "Prohibits standalone redistribution of the Assets as assets or packs.",
     qal_v1_section_7: "The version in effect when the assets were obtained governs; updates are for future releases and are not retroactive.",
-    unresolved_question: "No dated acquisition-time licence receipt or written vendor confirmation establishes whether these exact archives, acquired after the QAL v1.0 update, remain covered by the older pack-specific CC0 grants."
+    unresolved_question: "The acquisition workflow captured the exact H05/H06 publisher pages, QAL page and CC0 deed in the same evidence artifact as the exact source ZIP bytes. The manifest was generated at 2026-11-20T12:30:05.606651Z during run 44736035009 (12:28:14Z–12:30:20Z). Both pack-page snapshots show a CC0 badge and commercial-use statement; the live publisher FAQ says each kit licence is specified on its details page and in its download. This is repository-captured evidence, not a vendor-signed receipt or an explicit confirmation that the archive-level anomalies are clerical. H05’s embedded License.txt names Ultimate Platformer Pack while it is inside Ultimate Monsters; H06 has no embedded licence file. No per-archive download timestamp is recorded. Keep NOT_ADMITTED until written vendor confirmation or an owner-approved source arrangement resolves those anomalies."
   },
   sources: QUARANTINED_SOURCES.map((source) => ({ ...source }))
 });
@@ -972,4 +1019,19 @@ test("the committed Poly Haven lock keeps all 64 exact per-file source identitie
     assert.equal(asset.pack_id, `polyhaven:${slug}`, asset.path);
     assert.equal(asset.source_identity, `polyhaven-file:${slug}/${relativeFile}@sha256:${asset.sha256}`, asset.path);
   }
+});
+
+
+test("checked-in Quaternius acquisition evidence pins exact bytes and keeps H05/H06 quarantined", () => {
+  const registry = JSON.parse(readFileSync(
+    new URL("../docs/vendor/quarantine/quaternius-h05-h06.json", import.meta.url),
+    "utf8"
+  ));
+
+  assert.deepEqual(registry.acquisition_evidence, QUARANTINE_ACQUISITION_EVIDENCE);
+  assert.equal(registry.status, "LICENSE_REVIEW_REQUIRED");
+  assert.equal(registry.public_source_redistribution, "BLOCKED");
+  assert.equal(registry.production_admission, "NOT_ADMITTED");
+  assert.equal(registry.sources.length, 2);
+  assert.deepEqual(validateVendorLock(), []);
 });
