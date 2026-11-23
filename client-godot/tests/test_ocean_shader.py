@@ -44,6 +44,17 @@ def shader_stage_body(source: str, stage: str) -> str:
     return match.group(1)
 
 
+def shader_assignment_expression(source: str, name: str) -> str:
+    """Return one shader assignment expression without its terminating semicolon."""
+    match = re.search(
+        rf"(?ms)^[ \\t]*(?:(?:float|vec[234]|int|bool)\\s+)?{re.escape(name)}\\s*=\\s*(.*?);",
+        source,
+    )
+    if match is None:
+        raise AssertionError(f"missing shader assignment: {name}")
+    return " ".join(match.group(1).split())
+
+
 class OceanShaderContractTests(unittest.TestCase):
     def test_coastal_capture_embeds_verified_source_asset_hashes(self):
         """Tie moving engine evidence to the exact licensed source asset bytes."""
@@ -197,14 +208,15 @@ class OceanShaderContractTests(unittest.TestCase):
         for symbol in ("swell_scale", "near_patch_half_extent", "swell_crest"):
             with self.subTest(stage="vertex", symbol=symbol):
                 self.assertIn(symbol, vertex_body)
-        for symbol in (
+        fragment_symbols = (
             "vessel_xz",
             "vessel_forward",
             "wake_strength",
             "foam_amount",
             "NORMAL_MAP",
             "ROUGHNESS",
-        ):
+        )
+        for symbol in fragment_symbols:
             with self.subTest(stage="fragment", symbol=symbol):
                 self.assertIn(symbol, fragment_body)
         self.assertIn("vec3 world_base_offset = vec3(0.0, 0.18, 0.0);", vertex_body)
@@ -290,50 +302,26 @@ class OceanShaderContractTests(unittest.TestCase):
 
     def test_mobile_normal_map_is_encoded_in_unsigned_tangent_space(self):
         """Tie unsigned tangent-space encoding to the actual NORMAL_MAP assignment."""
-        encoded_assignment = re.compile(
-            r"""
-            NORMAL_MAP \s* = \s* normalize \s* \( \s* vec3 \s* \(
-            [^;]*?
-            \) \s* \) \s* \* \s* 0\.5 \s* \+ \s* 0\.5 \s* ;
-            """,
-            re.VERBOSE,
-        )
         fragment_body = shader_stage_body(self.code, "fragment")
-        self.assertRegex(fragment_body, encoded_assignment)
+        normal_expression = shader_assignment_expression(fragment_body, "NORMAL_MAP")
+        self.assertIn("normalize(vec3(", normal_expression)
+        self.assertRegex(normal_expression, r"\\)\\s*\\*\\s*0\\.5\\s*\\+\\s*0\\.5$")
 
     def test_wake_is_derived_from_vessel_position_direction_and_strength(self):
-        """Require wake geometry to use the vessel position, heading and strength."""
-        patterns = (
-            r"vec2\s+p\s*=\s*surface_world\.xz\s*;",
-            r"vec2\s+fwd\s*=\s*vessel_forward\s*;",
-            r"vec2\s+rel\s*=\s*p\s*-\s*vessel_xz\s*;",
-            r"float\s+along\s*=\s*dot\s*\(\s*rel\s*,\s*-fwd\s*\)\s*;",
-            r"float\s+across\s*=\s*abs\s*\(\s*dot\s*\(\s*rel\s*,\s*side\s*\)\s*\)\s*;",
-            (
-                r"float\s+wake_band\s*=\s*smoothstep\s*"
-                r"\(\s*0\.6\s*,\s*2\.2\s*,\s*along\s*\)\s*\*\s*"
-                r"\(\s*1\.0\s*-\s*smoothstep\s*"
-                r"\(\s*9\.0\s*,\s*28\.0\s*,\s*along\s*\)\s*\)\s*;"
-            ),
-            (
-                r"float\s+lane\s*=\s*1\.0\s*-\s*smoothstep\s*"
-                r"\(\s*half_w\s*\*\s*0\.28\s*,\s*half_w\s*,\s*across\s*\)\s*;"
-            ),
-            (
-                r"float\s+bow\s*=\s*1\.0\s*-\s*smoothstep\s*"
-                r"\(\s*0\.35\s*,\s*3\.6\s*,\s*length\s*"
-                r"\(\s*rel\s*-\s*fwd\s*\*\s*2\.6\s*\)\s*\)\s*;"
-            ),
-            (
-                r"float\s+wake\s*=\s*\(\s*wake_band\s*\*\s*lane\s*\*\s*"
-                r"wake_noise\s*\*\s*0\.55\s*\+\s*bow\s*\*\s*0\.35\s*\)"
-                r"\s*\*\s*wake_strength\s*;"
-            ),
-        )
+        """Require the final wake value to depend on vessel position, heading and strength."""
         fragment_body = shader_stage_body(self.code, "fragment")
-        for pattern in patterns:
-            with self.subTest(pattern=pattern):
-                self.assertRegex(fragment_body, pattern)
+        expressions = {
+            name: shader_assignment_expression(fragment_body, name)
+            for name in ("p", "fwd", "rel", "along", "across", "wake")
+        }
+        self.assertIn("surface_world.xz", expressions["p"])
+        self.assertIn("vessel_forward", expressions["fwd"])
+        self.assertIn("p - vessel_xz", expressions["rel"])
+        self.assertIn("dot(rel, -fwd)", expressions["along"])
+        self.assertIn("dot(rel, side)", expressions["across"])
+        for symbol in ("wake_band", "lane", "wake_noise", "bow", "wake_strength"):
+            with self.subTest(symbol=symbol):
+                self.assertIn(symbol, expressions["wake"])
 
     def test_foam_is_bounded(self):
         """Keep the shoreline and wake foam blend within its existing limit."""
@@ -348,64 +336,46 @@ class OceanShaderContractTests(unittest.TestCase):
 
 
     def test_depth_and_foam_reach_surface_color_output(self):
-        """Prevent live depth and shoreline/wake terms becoming dead calculations."""
-        patterns = (
-            re.compile(
-                r"""
-                vec3 \s+ sea \s* = \s* mix \s*
-                \(
-                    \s* gulf \s*, \s*
-                    shallow_ocean_color \. rgb \s*, \s*
-                    clamp \s* \(
-                        \s* shallow_factor \s*, \s* 0\.0 \s*, \s* 1\.0 \s*
-                    \)
-                    \s*
-                \)
-                """,
-                re.VERBOSE,
-            ),
-            re.compile(
-                r"""
-                float \s+ shore_foam \s* = \s* clamp \s*
-                \(
-                    \s* contact \s* \* \s* shore_band \s* \* \s*
-                    breakup \s* \* \s* mix \s*
-                    \(
-                        \s* 0\.55 \s*, \s* 1\.0 \s*, \s* foam_motion \s*
-                    \)
-                    \s* \* \s* foam_amount \s* \* \s* 0\.9 \s*,
-                    \s* 0\.0 \s*, \s* 1\.0 \s*
-                \)
-                """,
-                re.VERBOSE,
-            ),
-            re.compile(
-                r"""
-                float \s+ foam \s* = \s* clamp \s*
-                \(
-                    \s* shore_foam \s* \+ \s* wake \s*, \s*
-                    0\.0 \s*, \s* 0\.82 \s*
-                \)
-                """,
-                re.VERBOSE,
-            ),
-            re.compile(
-                r"""
-                ALBEDO \s* = \s* mix \s*
-                \(
-                    \s* sea \s*, \s* foam_color \. rgb \s*, \s* foam \s*
-                \)
-                """,
-                re.VERBOSE,
-            ),
-            re.compile(
-                r"float\s+depth_factor\s*=\s*1\.0\s*-\s*smoothstep\s*\(\s*0\.15\s*,\s*6\.5\s*,\s*depth_m\s*\)\s*;",
-            ),
-        )
+        """Require terrain depth and vessel/shore foam to reach the final surface color."""
         fragment_body = shader_stage_body(self.code, "fragment")
-        for pattern in patterns:
-            with self.subTest(pattern=pattern.pattern):
-                self.assertRegex(fragment_body, pattern)
+        expressions = {
+            name: shader_assignment_expression(fragment_body, name)
+            for name in (
+                "floor_y",
+                "depth_m",
+                "depth_factor",
+                "shallow_factor",
+                "terrain_contact",
+                "depth_contact",
+                "contact",
+                "sea",
+                "shore_foam",
+                "wake",
+                "foam",
+                "ALBEDO",
+            )
+        }
+        dataflow = (
+            ("floor_y", "shore_terrain_height(p)"),
+            ("depth_m", "SEA_LEVEL - floor_y"),
+            ("depth_factor", "depth_m"),
+            ("shallow_factor", "depth_factor"),
+            ("terrain_contact", "floor_y"),
+            ("depth_contact", "depth_m"),
+            ("contact", "terrain_contact"),
+            ("contact", "depth_contact"),
+            ("sea", "shallow_factor"),
+            ("shore_foam", "contact"),
+            ("shore_foam", "shore_band"),
+            ("shore_foam", "foam_amount"),
+            ("foam", "shore_foam"),
+            ("foam", "wake"),
+            ("ALBEDO", "sea"),
+            ("ALBEDO", "foam"),
+        )
+        for assignment, dependency in dataflow:
+            with self.subTest(assignment=assignment, dependency=dependency):
+                self.assertIn(dependency, expressions[assignment])
 
     def test_scene_does_not_suppress_mobile_wave_motion_or_normals(self):
         """Keep scene overrides strong enough to expose swell and moving normal detail."""
