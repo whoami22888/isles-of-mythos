@@ -219,7 +219,8 @@ func run() -> void:
 					"Prop diagnostic must use the specified magenta material")
 		# Node presence and material properties do not prove the fallback reached the render target.
 		# Read the isolated SubViewport after a completed frame and assert both diagnostic colours.
-		await RenderingServer.frame_post_draw
+		# Use a bounded process-frame wait: the IOM-00 --headless renderer may not emit frame_post_draw.
+		await _frames(1)
 		var diagnostic_image: Image = diagnostic_viewport.get_texture().get_image()
 		check(diagnostic_image != null and not diagnostic_image.is_empty(),
 			"Fallback diagnostic viewport must produce a rendered image")
