@@ -16,7 +16,7 @@ test("Windows-native relative paths match external manifest keys and file-tree m
   const normalizedPath = normalizeRepositoryRelativePath(nativeRelativePath, win32.sep);
   const expectedPath = "client-godot/assets/external/palm/palm.glb";
 
-  assert.equal(nativeRelativePath, "client-godot\\\\assets\\\\external\\\\palm\\\\palm.glb");
+  assert.equal(nativeRelativePath, ["client-godot", "assets", "external", "palm", "palm.glb"].join(win32.sep));
   assert.equal(normalizedPath, expectedPath);
 
   const manifestByRepoPath = new Map([[expectedPath, { sha256: sha("palm") }]]);
