@@ -170,6 +170,9 @@ func _run_tests() -> void:
     var impostor_box := BoxMesh.new()
     impostor_box.size = Vector3(1.0, 2.0, 1.0)
     impostor_mesh.mesh = impostor_box
+    # Non-zero offset and non-uniform scale must be preserved by the impostor.
+    impostor_mesh.position = Vector3(0.0, 0.5, 0.0)
+    impostor_mesh.scale = Vector3(1.5, 1.0, 0.5)
 
     var impostor_sprite := Sprite3D.new()
     impostor_sprite.name = "Impostor"
@@ -196,6 +199,22 @@ func _run_tests() -> void:
     if measured_height <= 140.0:
         failures += 1
         push_error("Projected AABB height must exceed 140 px at the near orthographic zoom")
+
+    # The sprite frame must match the source bounds, including mesh offset and scale.
+    var frame_width := atlas_image.get_width() / impostor_lod.atlas_columns
+    var frame_height := atlas_image.get_height() / impostor_lod.atlas_rows
+    var sprite_height := impostor_sprite.pixel_size * float(frame_height)
+    var sprite_width := impostor_sprite.pixel_size * float(frame_width) * impostor_sprite.scale.x
+    if absf(sprite_height - 2.0) > 0.001:
+        failures += 1
+        push_error("Impostor frame height must match the 2 m source mesh bounds")
+    if absf(sprite_width - 1.5) > 0.001:
+        failures += 1
+        push_error("Impostor frame width must match the 1.5 m transformed source bounds")
+    if impostor_sprite.position.distance_to(Vector3(0.0, 0.5, 0.0)) > 0.001:
+        failures += 1
+        push_error("Impostor centre must follow the transformed source mesh bounds")
+
     if not impostor_mesh.visible or impostor_sprite.visible:
         failures += 1
         push_error("Initial near view must show only the full 3D mesh")
@@ -248,6 +267,22 @@ func _run_tests() -> void:
         failures += 1
         push_error("Missing atlas must fail safe to the visible 3D mesh and stop processing")
     missing_atlas_lod.queue_free()
+    await process_frame
+
+    # A broken high-detail path must not leave a pre-visible impostor enabled.
+    var invalid_mesh_lod := LodImpostor.new()
+    invalid_mesh_lod.name = "InvalidMeshLOD"
+    invalid_mesh_lod.mesh_path = NodePath("MissingMesh")
+    invalid_mesh_lod.impostor_path = NodePath("Impostor")
+    var invalid_mesh_sprite := Sprite3D.new()
+    invalid_mesh_sprite.name = "Impostor"
+    invalid_mesh_sprite.visible = true
+    invalid_mesh_lod.add_child(invalid_mesh_sprite)
+    root.add_child(invalid_mesh_lod)
+    if invalid_mesh_sprite.visible or invalid_mesh_lod.is_processing():
+        failures += 1
+        push_error("Invalid mesh path must hide the impostor and stop processing")
+    invalid_mesh_lod.queue_free()
     await process_frame
 
     print("Mobile LOD pure + scene lifecycle regression: %d failures" % failures)

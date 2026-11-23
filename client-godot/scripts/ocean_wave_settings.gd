@@ -3,10 +3,10 @@ extends Node
 ## Deferred application is required because the parent builds the ocean in _ready().
 
 @export_range(0.1, 5.0, 0.05) var wave_speed: float = 1.45
-@export_range(0.0, 1.0, 0.01) var wave_amplitude: float = 0.65
+@export_range(0.0, 1.0, 0.01) var wave_amplitude: float = 0.80
 @export_range(0.05, 0.6, 0.01) var wave_frequency: float = 0.18
-@export_range(0.0, 1.0, 0.01) var wave_steepness_a: float = 0.68
-@export_range(0.0, 1.0, 0.01) var wave_steepness_b: float = 0.52
+@export_range(0.0, 1.0, 0.01) var wave_steepness_a: float = 0.75
+@export_range(0.0, 1.0, 0.01) var wave_steepness_b: float = 0.60
 
 
 func _ready() -> void:
@@ -32,3 +32,15 @@ func _apply_to_ocean() -> void:
 	material.set_shader_parameter("wave_frequency", wave_frequency)
 	material.set_shader_parameter("wave_steepness_a", wave_steepness_a)
 	material.set_shader_parameter("wave_steepness_b", wave_steepness_b)
+	# Keep the world-anchored wake on the exact same wave parameters.
+	# Deferred because CoastalShipEffects binds its runtime wake in _ready().
+	call_deferred("_sync_wake_material", coast, material)
+
+
+func _sync_wake_material(coast: Node, ocean_material: ShaderMaterial) -> void:
+	var effects := coast.get_node_or_null("CoastalShipEffects")
+	if effects == null:
+		return
+	var wake: Variant = effects.get("wake")
+	if is_instance_valid(wake) and wake.has_method("sync_ocean_wave_parameters"):
+		wake.call("sync_ocean_wave_parameters", ocean_material)

@@ -102,6 +102,11 @@ void fragment() {
     ROUGHNESS = roughness;
     SPECULAR = specular_amount;
 
+    // Retain the sampled UV normal for the mobile custom ramp. Godot's
+    // NORMAL_MAP output is consumed later by built-in shading; it does not
+    // rewrite NORMAL before this fragment-space ramp is evaluated.
+    vec3 mobile_uv_tangent_normal = vec3(0.0, 0.0, 1.0);
+
     if (use_roughness_texture) {
         ROUGHNESS *= use_triplanar
             ? sample_triplanar(roughness_texture, local_position, local_normal).r
@@ -113,8 +118,14 @@ void fragment() {
             vec3 object_normal = sample_triplanar_normal(local_position, local_normal);
             NORMAL = normalize(mat3(VIEW_MATRIX) * MODEL_NORMAL_MATRIX * object_normal);
         } else {
-            NORMAL_MAP = texture(normal_texture, UV).rgb;
+            vec3 uv_normal_sample = texture(normal_texture, UV).rgb;
+            NORMAL_MAP = uv_normal_sample;
             NORMAL_MAP_DEPTH = 1.0;
+            vec3 decoded_uv_normal = uv_normal_sample * 2.0 - 1.0;
+            float decoded_uv_normal_length = length(decoded_uv_normal);
+            mobile_uv_tangent_normal = decoded_uv_normal_length > 0.0001
+                ? decoded_uv_normal / decoded_uv_normal_length
+                : vec3(0.0, 0.0, 1.0);
         }
     }
 
@@ -122,7 +133,21 @@ void fragment() {
     // This material variant explicitly uses vertex_lighting, so light() is
     // skipped even in desktop CI. Recreate the same three palette bands in
     // fragment() and tint ALBEDO before Godot applies its vertex-based PBR light.
-    vec3 mobile_world_normal = normalize(mat3(INV_VIEW_MATRIX) * normalize(NORMAL));
+    vec3 mobile_view_normal = normalize(NORMAL);
+    if (use_normal_texture && !use_triplanar) {
+        float tangent_length = length(TANGENT);
+        float bitangent_length = length(BINORMAL);
+        if (tangent_length > 0.0001 && bitangent_length > 0.0001) {
+            vec3 tangent = TANGENT / tangent_length;
+            vec3 bitangent = BINORMAL / bitangent_length;
+            mobile_view_normal = normalize(
+                tangent * mobile_uv_tangent_normal.x
+                + bitangent * mobile_uv_tangent_normal.y
+                + mobile_view_normal * mobile_uv_tangent_normal.z
+            );
+        }
+    }
+    vec3 mobile_world_normal = normalize(mat3(INV_VIEW_MATRIX) * mobile_view_normal);
     vec3 mobile_light_direction = normalize(mobile_key_light_direction);
     float mobile_n_dot_l = max(dot(mobile_world_normal, mobile_light_direction), 0.0);
     float mobile_softness = max(toon_ramp_smoothness, 0.001);

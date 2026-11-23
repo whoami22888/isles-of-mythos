@@ -2,6 +2,7 @@ extends SceneTree
 ## Run with: godot --headless --path client-godot --script res://tests/camera_zoom_controller_regression.gd
 
 const Controller = preload("res://scripts/camera_zoom_controller.gd")
+const RenderingEvidenceGuard = preload("res://scripts/rendering_evidence_guard.gd")
 var _failures := 0
 
 func check(condition: bool, message: String) -> void:
@@ -20,6 +21,10 @@ func _run() -> void:
 		print("PROMPT_007 camera regression: %d failures" % _failures)
 		quit(1)
 		return
+	check(RenderingEvidenceGuard.is_mobile_vulkan("mobile", "vulkan"), "Mobile/Vulkan renderer must be accepted")
+	check(not RenderingEvidenceGuard.is_mobile_vulkan("gl_compatibility", "opengl3"), "OpenGL compatibility fallback must be rejected")
+	check(not RenderingEvidenceGuard.is_mobile_vulkan("mobile", "opengl3"), "Mobile method with OpenGL driver must be rejected")
+	check(not RenderingEvidenceGuard.is_mobile_vulkan("forward_plus", "vulkan"), "Forward+ must not be accepted as Mobile/Vulkan")
 	var camera = Controller.new()
 	camera.terrain_collision_mask = Controller.CAMERA_TERRAIN_COLLISION_LAYER # _ready must not query a locked physics space
 	root.add_child(camera)

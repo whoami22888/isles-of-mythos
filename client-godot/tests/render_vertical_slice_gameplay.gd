@@ -7,10 +7,11 @@ extends SceneTree
 ## Frames: collapsed gameplay HUD, the same view orbited, close views of the player avatar idle and
 ## mid-walk, and the objectives/crafting drawer expanded.
 ## Output directory: IOM_VERTICAL_SLICE_OUTPUT_DIR (default user://).
-## Motion evidence: when IOM_VERTICAL_SLICE_MOTION_DIR is set, a sequential walk-then-idle clip of the
-## avatar is written there as walk_%03d.png (run Godot with --fixed-fps 30 so every frame advances the
-## animation by exactly 1/30 s); CI encodes it to an MP4.
+## Motion evidence: when IOM_VERTICAL_SLICE_MOTION_DIR is set, a sequential player-walk clip also drives
+## the real CameraZoomController through close-up zoom, strategic top-down zoom, return zoom and orbit.
+## Frames are written as walk_%03d.png at --fixed-fps 30; CI encodes the sequence to an MP4.
 const WorldScene = preload("res://gameplay/vertical_slice.tscn")
+const RenderingEvidenceGuard = preload("res://scripts/rendering_evidence_guard.gd")
 
 ## Authenticated-session stand-in: reports a live session and records nothing.
 class FixtureSession extends Node:
@@ -54,6 +55,27 @@ func _capture() -> void:
 		push_error("Coastal world not mounted")
 		quit(1)
 		return
+	var motion_dir := OS.get_environment("IOM_VERTICAL_SLICE_MOTION_DIR")
+	var renderer_method := RenderingServer.get_current_rendering_method()
+	var renderer_driver := RenderingServer.get_current_rendering_driver_name()
+	print("IOM_RENDERER method=%s driver=%s" % [renderer_method, renderer_driver])
+	var renderer_guard_contract_valid := (
+		RenderingEvidenceGuard.is_mobile_vulkan("mobile", "vulkan")
+		and not RenderingEvidenceGuard.is_mobile_vulkan("gl_compatibility", "opengl3")
+		and not RenderingEvidenceGuard.is_mobile_vulkan("mobile", "opengl3")
+		and not RenderingEvidenceGuard.is_mobile_vulkan("forward_plus", "vulkan")
+	)
+	if not renderer_guard_contract_valid:
+		push_error("Rendering evidence guard contract regression")
+		quit(1)
+		return
+	if not motion_dir.is_empty() and not RenderingEvidenceGuard.is_mobile_vulkan(renderer_method, renderer_driver):
+		push_error(
+			"Prompt 007 camera-motion capture requires Godot 4.7.2 Mobile/Vulkan; actual method=%s driver=%s"
+			% [renderer_method, renderer_driver]
+		)
+		quit(1)
+		return
 	var transport: Node = world._client
 	world._client = FixtureSession.new()
 	world.add_child(world._client)
@@ -80,7 +102,7 @@ func _capture() -> void:
 		return
 	world._on_camera_drag(Vector2(140.0, 0.0))
 	# Closer look at the player avatar: standing idle, then mid-walk after a few server steps.
-	var camera := world.get_node("Camera") as Camera3D
+	var camera := world.get_node("Camera") as CameraZoomController
 	var feet: Vector3 = world._player - Vector3(0.0, world.PLAYER_HALF_HEIGHT, 0.0)
 	camera.h_offset = 0.0
 	camera.look_at_from_position(feet + Vector3(2.4, 2.2, -4.2), feet + Vector3(0.0, 0.9, 0.0))
@@ -97,7 +119,6 @@ func _capture() -> void:
 		quit(1)
 		return
 	world._on_player_state({"x": 10.0, "y": 11.0, "health": 100})
-	var motion_dir := OS.get_environment("IOM_VERTICAL_SLICE_MOTION_DIR")
 	if not motion_dir.is_empty():
 		if not await _capture_walk_motion(world, camera, motion_dir):
 			quit(1)
@@ -115,37 +136,118 @@ func _capture() -> void:
 	await process_frame
 	quit(0)
 
-## Sequential engine frames of the avatar walking along +X then settling to idle. Server states are
-## fed every frame (a local fixture, not simulated authority) at the walk speed, and the camera follows
-## the feet so the gait stays framed. Every frame is a real Godot render saved in order.
+## Sequential engine frames of the avatar walking while the real camera controller performs a
+## complete close-up -> strategic -> close-up transition and an orbit. The server-state fixture only
+## moves the presentation avatar; the camera remains the actual Prompt 007 CameraZoomController.
 const MOTION_WALK_FRAMES := 66
 const MOTION_IDLE_FRAMES := 24
 const MOTION_SPEED_PER_FRAME := 0.11
+const CAMERA_ZOOM_IN_END := 29
+const CAMERA_FAR_HOLD_END := 44
+const CAMERA_ZOOM_OUT_END := 74
 
-func _capture_walk_motion(world: Node, camera: Camera3D, motion_dir: String) -> bool:
+func _camera_focus_point(world: Node) -> Vector3:
+	var target: Vector3 = world.call("_camera_target")
+	var offset: Vector3 = world.get("_camera_focus_offset")
+	return target + offset
+
+
+func _capture_walk_motion(world: Node, camera: CameraZoomController, motion_dir: String) -> bool:
 	DirAccess.make_dir_recursive_absolute(motion_dir)
+	var transitions: Array[bool] = []
+	camera.camera_mode_changed.connect(
+		func(is_top_down: bool) -> void:
+			transitions.append(is_top_down)
+	)
 	var x := 8.0
+	camera._set_zoom(0.0)
+	camera.set_orbit_yaw(PI)
+	camera.set_focus_point(_camera_focus_point(world))
 	world._on_player_state({"x": x, "y": 11.0, "health": 100})
 	await process_frame
+
+	var first_camera_position := camera.global_position
+	var previous_distance := camera.get_rendered_distance()
+	var minimum_distance := previous_distance
+	var maximum_distance := previous_distance
+	var minimum_pitch := camera.rotation.x
+	var maximum_pitch := camera.rotation.x
 	var index := 0
+
 	for frame in MOTION_WALK_FRAMES + MOTION_IDLE_FRAMES:
 		if frame < MOTION_WALK_FRAMES:
 			x += MOTION_SPEED_PER_FRAME
 			world._on_player_state({"x": x, "y": 11.0, "health": 100})
-		var feet: Vector3 = world._player - Vector3(0.0, world.PLAYER_HALF_HEIGHT, 0.0)
-		camera.h_offset = 0.0
-		camera.look_at_from_position(feet + Vector3(1.2, 1.9, -4.6), feet + Vector3(0.0, 0.9, 0.0))
+
+		var zoom_fraction := 0.0
+		if frame <= CAMERA_ZOOM_IN_END:
+			zoom_fraction = float(frame) / float(CAMERA_ZOOM_IN_END)
+		elif frame <= CAMERA_FAR_HOLD_END:
+			zoom_fraction = 1.0
+		elif frame <= CAMERA_ZOOM_OUT_END:
+			zoom_fraction = 1.0 - float(frame - CAMERA_FAR_HOLD_END) / float(CAMERA_ZOOM_OUT_END - CAMERA_FAR_HOLD_END)
+		camera._set_zoom(zoom_fraction)
+
+		var orbit_fraction := float(frame) / float(MOTION_WALK_FRAMES + MOTION_IDLE_FRAMES - 1)
+		camera.set_orbit_yaw(PI + 0.65 * orbit_fraction)
+		camera.set_focus_point(_camera_focus_point(world))
+
+		# The physics callback applies smoothed distance/pitch and terrain clearance;
+		# capture only after the actual rendered frame has completed.
+		await physics_frame
 		await process_frame
 		await RenderingServer.frame_post_draw
 		var image: Image = root.get_viewport().get_texture().get_image()
 		if image == null or image.is_empty():
-			push_error("Renderer did not produce a motion frame")
+			push_error("Renderer did not produce a camera-motion frame")
 			return false
 		if image.save_png(motion_dir.path_join("walk_%03d.png" % index)) != OK:
-			push_error("Could not write motion frame %d" % index)
+			push_error("Could not write camera-motion frame %d" % index)
 			return false
+
+		var rendered_distance := camera.get_rendered_distance()
+		var rendered_pitch := camera.rotation.x
+		minimum_distance = minf(minimum_distance, rendered_distance)
+		maximum_distance = maxf(maximum_distance, rendered_distance)
+		minimum_pitch = minf(minimum_pitch, rendered_pitch)
+		maximum_pitch = maxf(maximum_pitch, rendered_pitch)
 		index += 1
-	print("captured %d sequential motion frames in %s" % [index, motion_dir])
+
+	var final_camera_position := camera.global_position
+	if index != MOTION_WALK_FRAMES + MOTION_IDLE_FRAMES:
+		push_error("Camera-motion capture produced %d frames, expected %d" % [index, MOTION_WALK_FRAMES + MOTION_IDLE_FRAMES])
+		return false
+	if maximum_distance < 105.0 or minimum_distance > 25.0:
+		push_error("Camera-motion capture did not traverse near/far distances (min=%f max=%f)" % [minimum_distance, maximum_distance])
+		return false
+	if minimum_pitch > deg_to_rad(-80.0) or maximum_pitch < deg_to_rad(-50.0):
+		push_error("Camera-motion capture did not traverse near/far pitches (min=%f max=%f)" % [minimum_pitch, maximum_pitch])
+		return false
+	if transitions != [true, false]:
+		push_error("Camera-motion capture expected top-down enter/exit transitions, got %s" % [transitions])
+		return false
+	if first_camera_position.distance_to(final_camera_position) < 1.0:
+		push_error("Camera-motion capture did not produce a visible orbit/follow transform")
+		return false
+	var overlay := world.get("_camera_mode_overlay") as Control
+	if overlay == null or overlay.visible:
+		push_error("Camera-motion capture did not return the strategic overlay to the action state")
+		return false
+
+	print(
+		"PROMPT007_CAMERA_MOTION=PASS frames=%d distance=%.2f..%.2f pitch=%.2f..%.2f transitions=%s"
+		% [
+			index,
+			minimum_distance,
+			maximum_distance,
+			rad_to_deg(minimum_pitch),
+			rad_to_deg(maximum_pitch),
+			transitions,
+		]
+	)
+	camera._set_zoom(0.0)
+	camera.set_orbit_yaw(PI)
+	camera.set_focus_point(_camera_focus_point(world))
 	world._on_player_state({"x": 10.0, "y": 11.0, "health": 100})
 	await process_frame
 	return true

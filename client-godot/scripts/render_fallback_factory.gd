@@ -8,17 +8,20 @@ const ROTATED_LOG_PATH := "user://missing_assets.log.1"
 const CHECKER_SIZE := 32
 const MAX_LOGGED_PATHS := 1024
 const MAX_LOG_BYTES := 262144
+const MESH_EXTENSIONS: Array[String] = ["glb", "gltf", "fbx"]
+const TEXTURE_EXTENSIONS: Array[String] = ["png", "webp"]
+const AUDIO_EXTENSIONS: Array[String] = ["ogg", "wav"]
 const LOG_CATEGORIES := ["scene", "animation", "mesh", "sprite", "texture", "audio", "other"]
 static var _logged_paths: Dictionary = {}
 static var _logged_path_order: Array[String] = []
 static var _logged_path_cursor := 0
 
 
-static func _allowed_path(path: String, extensions: PackedStringArray) -> bool:
+static func _allowed_path(path: String, extensions: Array[String]) -> bool:
 	return path.begins_with("res://") and not path.contains("..") and extensions.has(path.get_extension().to_lower())
 
 
-static func _load_checked(path: String, extensions: PackedStringArray) -> Resource:
+static func _load_checked(path: String, extensions: Array[String]) -> Resource:
 	if not _allowed_path(path, extensions):
 		return null
 	if not ResourceLoader.exists(path):
@@ -43,7 +46,65 @@ static func _safe_log_path(path: String) -> String:
 	return result
 
 
+static func _repair_incomplete_log_tail() -> int:
+	# A failed resize (or process interruption) can leave an unterminated TSV prefix.
+	# Repair it before every append so a later retry cannot concatenate records.
+	if not FileAccess.file_exists(LOG_PATH):
+		return OK
+	var file := FileAccess.open(LOG_PATH, FileAccess.READ_WRITE)
+	if file == null:
+		return FAILED
+	var size_before := file.get_length()
+	if size_before < 0:
+		file.close()
+		return FAILED
+	if size_before == 0 or size_before >= MAX_LOG_BYTES:
+		# At-cap and oversized logs are handled by the bounded rotation/removal path
+		# in _append_log_line(); do not reject them as an unrecognized torn tail.
+		file.close()
+		return OK
+	file.seek(0)
+	var bytes := file.get_buffer(size_before)
+	var read_error := file.get_error()
+	if bytes.size() != size_before or read_error != OK:
+		file.close()
+		return FAILED
+	if bytes[bytes.size() - 1] == 10:
+		file.close()
+		return OK
+	var tail_start := 0
+	for index in range(bytes.size() - 1, -1, -1):
+		if bytes[index] == 10:
+			tail_start = index + 1
+			break
+	var tail := bytes.slice(tail_start)
+	var tab_index := tail.find(9)
+	var looks_like_record_prefix := false
+	if tab_index == -1:
+		# Also recover a short write that stopped inside the fixed category field.
+		var category_prefix := tail.get_string_from_utf8()
+		for category in LOG_CATEGORIES:
+			if category.begins_with(category_prefix):
+				looks_like_record_prefix = true
+				break
+	else:
+		var category := tail.slice(0, tab_index).get_string_from_utf8()
+		looks_like_record_prefix = LOG_CATEGORIES.has(category)
+	if not looks_like_record_prefix:
+		# Do not reinterpret unrelated legacy bytes as a partial record, and fail closed:
+		# appending would concatenate a new record behind an unverified unterminated tail.
+		file.close()
+		return FAILED
+	var resize_error := file.resize(tail_start)
+	file.flush()
+	var repaired := resize_error == OK and file.get_length() == tail_start
+	file.close()
+	return OK if repaired else FAILED
+
+
 static func _append_log_line(line: String, writer: Callable = Callable()):
+	if _repair_incomplete_log_tail() != OK:
+		return FAILED
 	var entry_bytes := line.to_utf8_buffer().size()
 	var exists := FileAccess.file_exists(LOG_PATH)
 	var existing_size := 0
@@ -198,7 +259,7 @@ static func mesh_resource_or_fallback(resource: Resource, path: String, kind: St
 
 
 static func load_mesh_or_fallback(path: String, kind: String = "character") -> Node3D:
-	var resource := _load_checked(path, PackedStringArray(["glb", "gltf", "fbx"]))
+	var resource := _load_checked(path, MESH_EXTENSIONS)
 	return mesh_resource_or_fallback(resource, path, kind)
 
 
@@ -216,10 +277,14 @@ static func get_fallback_sprite(path: String) -> ColorRect:
 	var background := ColorRect.new()
 	background.name = "MissingSpriteDiagnostic"
 	background.color = Color(1.0, 0.0, 1.0)
+	# This node is a visual placeholder; let its parent Button/Control receive touch input.
+	background.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	background.custom_minimum_size = Vector2(CHECKER_SIZE, CHECKER_SIZE)
 	background.size = Vector2(CHECKER_SIZE, CHECKER_SIZE)
 	var child := TextureRect.new()
 	child.name = "Checkerboard"
+	# The checkerboard is decorative and must not intercept pointer input either.
+	child.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	child.texture = _checkerboard_texture()
 	child.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	child.stretch_mode = TextureRect.STRETCH_SCALE
@@ -229,7 +294,7 @@ static func get_fallback_sprite(path: String) -> ColorRect:
 
 
 static func load_texture_or_fallback(path: String) -> Texture2D:
-	var resource := _load_checked(path, PackedStringArray(["png", "webp"]))
+	var resource := _load_checked(path, TEXTURE_EXTENSIONS)
 	if resource is Texture2D:
 		return resource as Texture2D
 	_log_missing(path, "texture")
@@ -237,16 +302,18 @@ static func load_texture_or_fallback(path: String) -> Texture2D:
 
 
 static func load_sprite_or_fallback(path: String) -> Control:
-	var resource := _load_checked(path, PackedStringArray(["png", "webp"]))
+	var resource := _load_checked(path, TEXTURE_EXTENSIONS)
 	if resource is Texture2D:
 		var sprite := TextureRect.new()
+		# Loaded sprites are presentation-only; interaction belongs to their parent.
+		sprite.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		sprite.texture = resource
 		return sprite
 	return get_fallback_sprite(path)
 
 
 static func load_scene_or_null(path: String, category: String = "scene") -> PackedScene:
-	var resource := _load_checked(path, PackedStringArray(["glb", "gltf", "fbx"]))
+	var resource := _load_checked(path, MESH_EXTENSIONS)
 	if resource is PackedScene:
 		return resource as PackedScene
 	_log_missing(path, category)
@@ -255,7 +322,7 @@ static func load_scene_or_null(path: String, category: String = "scene") -> Pack
 
 static func load_audio_or_fallback(path: String) -> AudioStreamPlayer:
 	var player := AudioStreamPlayer.new()
-	var resource := _load_checked(path, PackedStringArray(["ogg", "wav"]))
+	var resource := _load_checked(path, AUDIO_EXTENSIONS)
 	if resource is AudioStream:
 		player.stream = resource
 	else:
