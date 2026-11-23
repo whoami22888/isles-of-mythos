@@ -10,7 +10,7 @@ class MockProtocol:
 		return true
 
 static func run(tree: SceneTree, check: Callable) -> void:
-	var player = PlayerController.new()
+	var player: CharacterBody3D = PlayerController.new()
 	tree.root.add_child(player)
 	await tree.process_frame
 	check.call(player is CharacterBody3D, "Player proxy must extend CharacterBody3D")
@@ -85,7 +85,7 @@ static func run(tree: SceneTree, check: Callable) -> void:
 	var server_position := Vector3(4.0, 0.9, -2.0)
 	player.set_server_position(server_position)
 	check.call(player.position.is_equal_approx(server_position), "Only a server position setter may move the player proxy")
-	var before_input := player.position
+	var before_input: Vector3 = player.position
 	player.movement_intent(0.0)
 	check.call(player.position.is_equal_approx(before_input), "Keyboard/joystick intent must not locally move the player proxy")
 	mock.queue_free()
