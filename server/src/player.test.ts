@@ -26,12 +26,12 @@ describe("player survival and movement", () => {
   it("seeds new profiles with the server-owned four-slot starter hotbar", async () => {
     let insertParams: unknown[] | undefined;
     const db = {
-      query: async (sql: string, params?: unknown[]) => {
+      query: (sql: string, params?: unknown[]) => {
         if (sql.startsWith("INSERT INTO player_profiles")) {
           insertParams = params;
-          return { rows: [], rowCount: 0 };
+          return Promise.resolve({ rows: [], rowCount: 0 });
         }
-        throw new Error("UNEXPECTED_QUERY");
+        return Promise.reject(new Error("UNEXPECTED_QUERY"));
       },
     } as unknown as Pool;
     const store = new PlayerStore(db);
