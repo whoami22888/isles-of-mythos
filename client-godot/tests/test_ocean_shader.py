@@ -47,7 +47,7 @@ def shader_stage_body(source: str, stage: str) -> str:
 def shader_assignment_expression(source: str, name: str) -> str:
     """Return one shader assignment expression without its terminating semicolon."""
     match = re.search(
-        rf"(?ms)^[ \\t]*(?:(?:float|vec[234]|int|bool)\\s+)?{re.escape(name)}\\s*=\\s*(.*?);",
+        rf"(?ms)^[ \t]*(?:(?:float|vec[234]|int|bool)\s+)?{re.escape(name)}\s*=\s*(.*?);",
         source,
     )
     if match is None:
@@ -305,7 +305,7 @@ class OceanShaderContractTests(unittest.TestCase):
         fragment_body = shader_stage_body(self.code, "fragment")
         normal_expression = shader_assignment_expression(fragment_body, "NORMAL_MAP")
         self.assertIn("normalize(vec3(", normal_expression)
-        self.assertRegex(normal_expression, r"\\)\\s*\\*\\s*0\\.5\\s*\\+\\s*0\\.5$")
+        self.assertRegex(normal_expression, r"\)\s*\*\s*0\.5\s*\+\s*0\.5$")
 
     def test_wake_is_derived_from_vessel_position_direction_and_strength(self):
         """Require the final wake value to depend on vessel position, heading and strength."""
