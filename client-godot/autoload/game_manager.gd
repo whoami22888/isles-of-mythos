@@ -51,6 +51,10 @@ var player_resources: Dictionary:
 
 var _protocol: Node
 
+# One initial authoritative snapshot per bound protocol/session. Socket reconnects
+# reuse the same protocol node and must not reset this guard.
+var _has_received_initial_snapshot := false
+
 
 func set_game_state(next_state: int) -> bool:
 	if next_state < GameState.MENU or next_state > GameState.CINEMATIC:
@@ -123,6 +127,7 @@ func bind_protocol(protocol: Node) -> bool:
 func _unbind_protocol() -> void:
 	if not is_instance_valid(_protocol):
 		_protocol = null
+		_reset_protocol_session()
 		return
 
 	var player_state_callable := Callable(self, "_on_player_state_received")
@@ -135,14 +140,28 @@ func _unbind_protocol() -> void:
 	if _protocol.tree_exiting.is_connected(tree_exit_callable):
 		_protocol.tree_exiting.disconnect(tree_exit_callable)
 	_protocol = null
+	_reset_protocol_session()
+
+
+func _reset_protocol_session() -> void:
+	# A new protocol binding is a new authenticated session boundary. Clear the
+	# prior account's projection until the new server snapshot arrives.
+	# Transport reconnects do not call this because the protocol node survives.
+	_has_received_initial_snapshot = false
+	for resource_type in RESOURCE_KEYS:
+		_set_authoritative_resource(resource_type, 0)
 
 
 func _on_protocol_tree_exiting() -> void:
 	_protocol = null
+	_reset_protocol_session()
 
 
 func _on_player_state_received(state: Dictionary) -> void:
 	_apply_authoritative_player_state(state)
+	if _has_received_initial_snapshot:
+		return
+	_has_received_initial_snapshot = true
 	if _current_state == GameState.MENU or _current_state == GameState.CINEMATIC:
 		set_game_state(GameState.OVERWORLD)
 

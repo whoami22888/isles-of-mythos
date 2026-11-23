@@ -114,13 +114,28 @@ static func run(tree: SceneTree, check: Callable) -> void:
 	protocol.player_state_received.emit({"inventory": {"resource.wood": 5000000}})
 	check.call(manager.current_state == GameManager.GameState.BASE_BUILD, "A player snapshot must not overwrite an active non-menu game mode")
 
+	# A later resync snapshot on the same protocol must refresh balances without
+	# forcing a cinematic that began after initial login back to OVERWORLD.
+	manager.set_game_state(GameManager.GameState.CINEMATIC)
+	protocol.player_state_received.emit({"inventory": {"resource.wood": 5000000}})
+	check.call(manager.current_state == GameManager.GameState.CINEMATIC, "A reconnect/resync snapshot must preserve a later cinematic state")
+
 	var replacement_protocol = Protocol.new()
 	tree.root.add_child(replacement_protocol)
 	check.call(manager.bind_protocol(replacement_protocol), "Rebinding must replace the previous protocol connection")
+	for resource_type in manager.RESOURCE_KEYS:
+		check.call(manager.get_resource_amount(resource_type) == 0, "A new protocol session must not inherit the previous account's %s projection" % resource_type)
 	protocol.player_state_received.emit({"inventory": {"resource.wood": 9000}})
-	check.call(manager.get_resource_amount("wood") == 5000000, "The previous protocol must be disconnected after rebinding")
+	check.call(manager.get_resource_amount("wood") == 0, "The previous protocol must be disconnected after rebinding")
 	replacement_protocol.player_state_received.emit({"inventory": {"resource.wood": 750}})
 	check.call(manager.get_resource_amount("wood") == 750, "The replacement protocol must drive the resource projection")
+	check.call(manager.current_state == GameManager.GameState.OVERWORLD, "The first snapshot on a new protocol must perform its one-time initial state transition")
+
+	# The one-shot guard is per protocol binding, not per socket connection.
+	manager.set_game_state(GameManager.GameState.CINEMATIC)
+	replacement_protocol.player_state_received.emit({"inventory": {"resource.wood": 625}})
+	check.call(manager.get_resource_amount("wood") == 625, "A later snapshot must still update the authoritative resource projection")
+	check.call(manager.current_state == GameManager.GameState.CINEMATIC, "A later snapshot on the same protocol must not overwrite CINEMATIC")
 
 	# An invalid candidate must not disconnect the currently working protocol.
 	var invalid_protocol := Node.new()
@@ -128,11 +143,31 @@ static func run(tree: SceneTree, check: Callable) -> void:
 	check.call(not manager.bind_protocol(invalid_protocol), "A replacement without the required authoritative signals must be rejected")
 	check.call(replacement_protocol.is_connected("player_state_received", Callable(manager, "_on_player_state_received")), "Rejecting an invalid replacement must preserve the active player-state connection")
 	check.call(replacement_protocol.is_connected("command_acknowledged", Callable(manager, "_on_command_acknowledged")), "Rejecting an invalid replacement must preserve the active ACK connection")
-	replacement_protocol.player_state_received.emit({"inventory": {"resource.wood": 625}})
-	check.call(manager.get_resource_amount("wood") == 625, "The active protocol must continue updating the projection after an invalid replacement")
+	replacement_protocol.player_state_received.emit({"inventory": {"resource.wood": 600}})
+	check.call(manager.get_resource_amount("wood") == 600, "The active protocol must continue updating the projection after an invalid replacement")
+	check.call(manager.current_state == GameManager.GameState.CINEMATIC, "An invalid replacement must not reset the active protocol's initial-snapshot guard")
 	invalid_protocol.queue_free()
 
 	check.call(manager.bind_protocol(null), "The GameManager protocol binding must be safely releasable")
+	for resource_type in manager.RESOURCE_KEYS:
+		check.call(manager.get_resource_amount(resource_type) == 0, "Unbinding a protocol must clear the previous account's %s projection" % resource_type)
+	check.call(not manager.check_citadel_soft_wall(16, 500), "A signed-out session must not pass the soft-wall preview using previous account balances")
+
+	# Freeing the protocol node is the normal scene-teardown path. It must clear
+	# the projection even when callers do not explicitly bind null first.
+	var exiting_protocol := Protocol.new()
+	tree.root.add_child(exiting_protocol)
+	manager.set_game_state(GameManager.GameState.CINEMATIC)
+	check.call(manager.bind_protocol(exiting_protocol), "A new session must bind after explicit unbind")
+	exiting_protocol.player_state_received.emit({"inventory": {"resource.wood": 42}})
+	check.call(manager.get_resource_amount("wood") == 42, "The new session must populate from its own authoritative snapshot")
+	check.call(manager.current_state == GameManager.GameState.OVERWORLD, "The new session's first snapshot must perform the initial state transition")
+	exiting_protocol.queue_free()
+	await tree.process_frame
+	for resource_type in manager.RESOURCE_KEYS:
+		check.call(manager.get_resource_amount(resource_type) == 0, "Protocol tree exit must clear the %s projection" % resource_type)
+	check.call(not manager.check_citadel_soft_wall(16, 500), "A freed protocol must not leave prior session balances available")
+
 	manager.state_changed.disconnect(state_callback)
 	manager.resource_updated.disconnect(resource_callback)
 	manager.soft_wall_reached.disconnect(soft_wall_callback)

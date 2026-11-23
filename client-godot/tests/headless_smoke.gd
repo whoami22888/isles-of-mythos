@@ -426,6 +426,6 @@ func run() -> void:
 	adapter.queue_free()
 	scene.queue_free()
 	await MultiMeshRegression.run(self, Callable(self, "check"))
-	GameManagerRegression.run(self, Callable(self, "check"))
+	await GameManagerRegression.run(self, Callable(self, "check"))
 	print("IOM-00 connection checks: %s failures" % _failures)
 	quit(1 if _failures else 0)
