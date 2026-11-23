@@ -85,6 +85,10 @@ function sha256File(file) {
   return createHash("sha256").update(readFileSync(file)).digest("hex");
 }
 
+function normalizeRepositoryRelativePath(value, separator = sep) {
+  return value.split(separator).join("/");
+}
+
 function loadQuarantinedMemberHashes(root, errors) {
   const file = canonicalRepoPath(root, QUARANTINE_MEMBER_HASH_MANIFEST_PATH);
   if (!file) {
@@ -538,7 +542,7 @@ function validateVendorLock(root = resolve(__dirname, "..")) {
     }
     const actual = sha256File(abs);
     if (HASH.test(asset.sha256 ?? "") && actual !== asset.sha256) errors.push(`${at}: sha256 mismatch for ${asset.path} (expected ${asset.sha256}, actual ${actual})`);
-    const registered = manifestByRepoPath.get(relative(root, abs));
+    const registered = manifestByRepoPath.get(normalizeRepositoryRelativePath(relative(root, abs)));
     if (registered && registered.sha256 !== asset.sha256) errors.push(`${at}: digest disagrees with external-assets.json for ${asset.path}`);
   });
 
@@ -558,7 +562,7 @@ function validateVendorLock(root = resolve(__dirname, "..")) {
       } else {
         const manifestPaths = new Set(manifestByRepoPath.keys());
         for (const file of walk(externalAbs)) {
-          const rel = relative(root, file.full);
+          const rel = normalizeRepositoryRelativePath(relative(root, file.full));
           if (file.symlink) errors.push(`symlink under ${EXTERNAL_DIR}: ${rel}`);
           else if (GODOT_SIDECARS.has(extname(file.full).toLowerCase())) continue;
           else if (!manifestPaths.has(rel) && !seen.has(file.full)) errors.push(`unregistered file under ${EXTERNAL_DIR}: ${rel}`);
@@ -571,7 +575,7 @@ function validateVendorLock(root = resolve(__dirname, "..")) {
   return errors;
 }
 
-module.exports = { validateVendorLock, LICENSES };
+module.exports = { validateVendorLock, LICENSES, normalizeRepositoryRelativePath };
 
 if (require.main === module) {
   const errors = validateVendorLock();

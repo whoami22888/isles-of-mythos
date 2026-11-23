@@ -2,12 +2,30 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { mkdirSync, mkdtempSync, readFileSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, win32 } from "node:path";
 import { createRequire } from "node:module";
 import test from "node:test";
 
-const { validateVendorLock } = createRequire(import.meta.url)("./validate_vendor_lock.js");
+const { validateVendorLock, normalizeRepositoryRelativePath } = createRequire(import.meta.url)("./validate_vendor_lock.js");
 const sha = (text) => createHash("sha256").update(text).digest("hex");
+
+test("Windows-native relative paths match external manifest keys and file-tree membership", () => {
+  const root = "C:\\work\\isles-of-mythos";
+  const absolutePath = win32.resolve(root, "client-godot", "assets", "external", "palm", "palm.glb");
+  const nativeRelativePath = win32.relative(root, absolutePath);
+  const normalizedPath = normalizeRepositoryRelativePath(nativeRelativePath, win32.sep);
+  const expectedPath = "client-godot/assets/external/palm/palm.glb";
+
+  assert.equal(nativeRelativePath, "client-godot\\\\assets\\\\external\\\\palm\\\\palm.glb");
+  assert.equal(normalizedPath, expectedPath);
+
+  const manifestByRepoPath = new Map([[expectedPath, { sha256: sha("palm") }]]);
+  assert.equal(manifestByRepoPath.get(normalizedPath)?.sha256, sha("palm"));
+
+  const manifestPaths = new Set(manifestByRepoPath.keys());
+  assert.equal(manifestPaths.has(normalizedPath), true);
+});
+
 
 function repo(files = {}, lock, manifest, { omitQuarantineRegistry = false } = {}) {
   const root = mkdtempSync(join(tmpdir(), "vendor-lock-"));
