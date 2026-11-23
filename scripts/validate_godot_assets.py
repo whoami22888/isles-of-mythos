@@ -132,12 +132,47 @@ def require_source_provenance(entry, source, output_path):
 
 
 def validate_bounded_lod_lineage(registered_by_path):
-    """Fail closed when bounded LOD outputs or aggregate metadata cite the wrong model."""
+    """Fail closed when a complete bounded LOD bundle cites the wrong model."""
     prefix = "generated/bounded_lods/"
     bounded_paths = sorted(
         path for path in registered_by_path if path.startswith(prefix)
     )
     if not bounded_paths:
+        return
+
+    metadata_path = f"{prefix}metadata.json"
+    metadata_entry = registered_by_path.get(metadata_path)
+    has_model_output = any(
+        f"{prefix}{asset}.glb" in registered_by_path
+        for asset in BOUNDED_LOD_ASSETS
+    )
+    if metadata_entry is None:
+        if has_model_output:
+            fail("Bounded LOD aggregate metadata is not manifested")
+        # Texture-only importer fixtures are valid without the four-model
+        # bundle. If their source model is present, still verify its lineage.
+        for output_path in bounded_paths:
+            filename = pathlib.PurePosixPath(output_path).name
+            asset = next(
+                (
+                    name for name in BOUNDED_LOD_ASSETS
+                    if filename.startswith(f"{name}_")
+                ),
+                None,
+            )
+            if asset is None:
+                continue
+            source_path = f"polyhaven/{asset}/{asset}_1k.gltf"
+            source = registered_by_path.get(source_path)
+            if source is None:
+                continue
+            entry = registered_by_path[output_path]
+            if entry.get("generated_from") != [source_path]:
+                fail(
+                    f"Bounded LOD source lineage mismatch for {output_path}: "
+                    f"expected only {source_path}"
+                )
+            require_source_provenance(entry, source, output_path)
         return
 
     expected_sources = [
@@ -151,22 +186,6 @@ def validate_bounded_lod_lineage(registered_by_path):
         if output_path not in registered_by_path:
             fail(f"Bounded LOD output is not manifested: {output_path}")
 
-    metadata_path = f"{prefix}metadata.json"
-    has_bounded_lod_bundle = (
-        metadata_path in registered_by_path
-        or any(
-            f"{prefix}{asset}.glb" in registered_by_path
-            for asset in BOUNDED_LOD_ASSETS
-        )
-    )
-    # Some importer tests intentionally provide only a generated texture source
-    # for the separate generated/foliage extraction path. Enforce the complete
-    # four-model bundle only when its metadata or a bounded GLB is present.
-    if not has_bounded_lod_bundle:
-        return
-    metadata_entry = registered_by_path.get(metadata_path)
-    if metadata_entry is None:
-        fail("Bounded LOD aggregate metadata is not manifested")
     if metadata_entry.get("generated_from") != expected_sources:
         fail("Bounded LOD metadata must list all four source models in generated_from")
     require_source_provenance(
