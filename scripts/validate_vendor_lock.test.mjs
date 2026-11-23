@@ -1033,5 +1033,12 @@ test("checked-in Quaternius acquisition evidence pins exact bytes and keeps H05/
   assert.equal(registry.public_source_redistribution, "BLOCKED");
   assert.equal(registry.production_admission, "NOT_ADMITTED");
   assert.equal(registry.sources.length, 2);
-  assert.deepEqual(validateVendorLock(), []);
+  const files = {
+    ...good,
+    [QUARANTINE_PATH]: JSON.stringify(registry)
+  };
+  assert.deepEqual(
+    validateVendorLock(repo(files, { version: "1.0.0", assets: [entry()] })),
+    []
+  );
 });
