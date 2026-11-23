@@ -113,7 +113,7 @@ jobs:
           set -euo pipefail
           evidence="$RUNNER_TEMP/prompt-007-camera-evidence"
           stills="$evidence/stills"
-          motion="$RUNNER_TEMP/prompt-007-camera-motion-frames"
+          motion="$evidence/motion"
           mkdir -p "$stills" "$motion"
 
           IOM_VERTICAL_SLICE_OUTPUT_DIR="$stills" IOM_VERTICAL_SLICE_MOTION_DIR="$motion" \
@@ -143,7 +143,9 @@ jobs:
           test "$frame_count" -eq 90
           unique_frames="$(sha256sum "$motion"/walk_*.png | awk '{print $1}' | sort -u | wc -l)"
           test "$unique_frames" -gt 1
-          (cd "$motion" && sha256sum walk_*.png > "$evidence/MOTION-FRAME-SHA256SUMS")
+          (cd "$motion" && sha256sum walk_*.png > MOTION-FRAME-SHA256SUMS)
+          (cd "$motion" && sha256sum -c MOTION-FRAME-SHA256SUMS)
+          test "$(wc -l < "$motion/MOTION-FRAME-SHA256SUMS")" -eq 90
 
           video="$evidence/vertical-slice-camera-motion.mp4"
           ffmpeg -hide_banner -loglevel error -nostdin -y \
@@ -196,6 +198,8 @@ jobs:
             "height": 720,
             "fps": 30,
             "frames": 90,
+            "motion_frames_directory": "motion",
+            "motion_frame_hash_manifest": "motion/MOTION-FRAME-SHA256SUMS",
             "camera_motion_assertion": "$motion_assertion",
             "new_source_assets": [],
             "existing_asset_provenance": "NOT_VERIFIED_BY_THIS_CAMERA_PR",
@@ -205,7 +209,8 @@ jobs:
           }
           EOF
           python3 -m json.tool "$evidence/PROMPT007-CAPTURE-PROVENANCE.json" >/dev/null
-          (cd "$evidence" && sha256sum renderer.log vertical-slice-camera-motion.mp4 PROMPT007-CAPTURE-PROVENANCE.json SOURCE-FILES-SHA256SUMS MOTION-FRAME-SHA256SUMS stills/*.png > SHA256SUMS)
+          (cd "$evidence" && sha256sum renderer.log vertical-slice-camera-motion.mp4 PROMPT007-CAPTURE-PROVENANCE.json SOURCE-FILES-SHA256SUMS motion/MOTION-FRAME-SHA256SUMS motion/walk_*.png stills/*.png > SHA256SUMS)
+          (cd "$evidence" && sha256sum -c SHA256SUMS)
 
       - name: Upload internal diagnostic camera-motion evidence
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
