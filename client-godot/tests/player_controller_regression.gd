@@ -39,6 +39,16 @@ static func run(tree: SceneTree, check: Callable) -> void:
 	check.call(is_equal_approx(float(survival.get("health", 0.0)), 75.0), "Health display must use authoritative health")
 	check.call(is_equal_approx(float(survival.get("hunger", 0.0)), 50.0), "Hunger display must use authoritative hunger")
 	check.call(is_equal_approx(float(survival.get("oxygen", 0.0)), 25.0), "Oxygen display must use authoritative oxygen")
+	var death_events := [0]
+	player.player_died.connect(func() -> void: death_events[0] += 1)
+	player.apply_server_state({"health": 0})
+	check.call(death_events[0] == 1, "Zero authoritative health must emit player_died")
+	player.apply_server_state({"health": 0})
+	check.call(death_events[0] == 1, "Repeated zero-health snapshots must not duplicate player_died")
+	player.apply_server_state({"health": 100})
+	player.apply_server_state({"health": 0})
+	check.call(death_events[0] == 2, "A server-confirmed respawn must re-arm the next death signal")
+	player.apply_server_state({"health": 75})
 	check.call(player.get_hotbar_item(0) == "cutlass" and player.get_hotbar_item(1) == "flintlock"
 		and player.get_hotbar_item(2) == "harpoon" and player.get_hotbar_item(3) == "shovel",
 		"Hotbar must expose the four server-provided starter items")

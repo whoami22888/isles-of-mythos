@@ -5,6 +5,7 @@ extends CharacterBody3D
 
 signal gather_requested
 signal survival_changed(health: float, hunger: float, oxygen: float)
+signal player_died
 
 const PlayerAvatarScript = preload("res://gameplay/player_avatar.gd")
 const HOTBAR_SIZE := 8
@@ -19,6 +20,7 @@ var _health := 100.0
 var _hunger := 100.0
 var _oxygen := 100.0
 var _has_server_state := false
+var _is_dead := false
 var _hotbar: Array[String] = ["", "", "", "", "", "", "", ""]
 var _selected_hotbar_slot := 0
 var _survival_panel: PanelContainer
@@ -86,6 +88,13 @@ func apply_server_state(state: Dictionary) -> void:
 	_hunger = _read_percent(state, "hunger", _hunger)
 	_oxygen = _read_percent(state, "oxygen", _oxygen)
 	_has_server_state = true
+	# Death is observed only from authoritative server snapshots; emit once per death.
+	if _health <= 0.0:
+		if not _is_dead:
+			_is_dead = true
+			player_died.emit()
+	else:
+		_is_dead = false
 	var raw_hotbar: Variant = state.get("hotbar")
 	if raw_hotbar is Array:
 		var next_hotbar: Array[String] = ["", "", "", "", "", "", "", ""]
