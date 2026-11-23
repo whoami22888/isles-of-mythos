@@ -13,6 +13,9 @@ extends Control
 
 signal joystick_changed(direction: Vector2)
 signal camera_drag(delta: Vector2)
+signal camera_pinch(distance_delta: float, midpoint_delta: Vector2)
+signal camera_pinch_started
+signal camera_pinch_ended
 ## A short press without a drag: the world treats it as tap-to-move/gather.
 signal tapped(screen_position: Vector2)
 
@@ -34,6 +37,11 @@ var _joystick_anchor := Vector2.ZERO
 var _direction := Vector2.ZERO
 var _camera_finger := -1
 var _camera_last := Vector2.ZERO
+var _camera_touches: Dictionary = {}
+var _camera_last_distance := 0.0
+var _camera_last_midpoint := Vector2.ZERO
+var _camera_multi_touch := false
+var _camera_pinch_active := false
 ## finger index -> [start position, max travel]
 var _travel: Dictionary = {}
 
@@ -48,13 +56,20 @@ func is_joystick_active() -> bool:
 	return _joystick_finger != -1
 
 func is_camera_active() -> bool:
-	return _camera_finger != -1
+	return not _camera_touches.is_empty()
 
 ## Clears every finger (e.g. when the app loses focus) so no stale direction
 ## keeps sending move intents.
 func reset() -> void:
 	_joystick_finger = -1
 	_camera_finger = -1
+	if _camera_pinch_active:
+		_camera_pinch_active = false
+		camera_pinch_ended.emit()
+	_camera_touches.clear()
+	_camera_last_distance = 0.0
+	_camera_last_midpoint = Vector2.ZERO
+	_camera_multi_touch = false
 	_travel.clear()
 	_set_direction(Vector2.ZERO)
 	queue_redraw()
@@ -81,7 +96,7 @@ func _input(event: InputEvent) -> void:
 
 func _on_press(finger: int, position: Vector2, pressed: bool, canceled := false) -> void:
 	if pressed:
-		if _is_blocked(position) or finger == _joystick_finger or finger == _camera_finger:
+		if _is_blocked(position) or finger == _joystick_finger or _camera_touches.has(finger):
 			return
 		var free_left := free_area_left()
 		var left_half := position.x < joystick_split_x()
@@ -96,41 +111,94 @@ func _on_press(finger: int, position: Vector2, pressed: bool, canceled := false)
 				clampf(position.y, JOYSTICK_RADIUS, maxf(JOYSTICK_RADIUS, screen.y - JOYSTICK_RADIUS)))
 			_joystick_point = position
 			_set_direction(Vector2.ZERO)
-		elif not left_half and _camera_finger == -1:
-			_camera_finger = finger
-			_camera_last = position
+		elif not left_half and _camera_touches.size() < 2:
+			_camera_touches[finger] = position
+			if _camera_touches.size() == 1:
+				_camera_finger = finger
+				_camera_last = position
+			else:
+				_camera_multi_touch = true
+				_capture_pinch_baseline()
+				_camera_pinch_active = true
+				camera_pinch_started.emit()
 		else:
-			# Zone already owned by another finger: consume the press so the
-			# world's tap-to-move fallback never sees it; it is never a tap.
+			# A third camera finger or an already-owned joystick zone is consumed;
+			# it must never leak through as a world tap or a second control.
 			_claim()
 			return
 		_travel[finger] = [position, 0.0]
 		_claim()
 		queue_redraw()
 		return
-	if finger != _joystick_finger and finger != _camera_finger:
+
+	if _camera_touches.has(finger):
+		var was_multi_touch := _camera_multi_touch
+		var was_tap := not canceled and not was_multi_touch and _travel.has(finger) and float(_travel[finger][1]) <= TAP_MAX_TRAVEL
+		_camera_touches.erase(finger)
+		_travel.erase(finger)
+		if _camera_pinch_active and _camera_touches.size() < 2:
+			_camera_pinch_active = false
+			camera_pinch_ended.emit()
+		if _camera_touches.is_empty():
+			_camera_finger = -1
+			_camera_multi_touch = false
+			_camera_last_distance = 0.0
+			_camera_last_midpoint = Vector2.ZERO
+		else:
+			var indices: Array = _camera_touches.keys()
+			indices.sort()
+			_camera_finger = int(indices[0])
+			_camera_last = _camera_touches[_camera_finger]
+			if _camera_touches.size() >= 2:
+				_capture_pinch_baseline()
+		_claim()
+		queue_redraw()
+		if was_tap:
+			tapped.emit(position)
 		return
-	var was_tap: bool = not canceled and _travel.has(finger) and float(_travel[finger][1]) <= TAP_MAX_TRAVEL
+
+	if finger != _joystick_finger:
+		return
+	var was_joystick_tap: bool = not canceled and _travel.has(finger) and float(_travel[finger][1]) <= TAP_MAX_TRAVEL
 	_travel.erase(finger)
-	if finger == _joystick_finger:
-		_joystick_finger = -1
-		_set_direction(Vector2.ZERO)
-	else:
-		_camera_finger = -1
+	_joystick_finger = -1
+	_set_direction(Vector2.ZERO)
 	_claim()
 	queue_redraw()
-	if was_tap:
+	if was_joystick_tap:
 		tapped.emit(position)
 
 func _on_drag(finger: int, position: Vector2) -> void:
-	if finger != _joystick_finger and finger != _camera_finger:
+	if finger == _joystick_finger:
+		if _travel.has(finger):
+			var start: Vector2 = _travel[finger][0]
+			_travel[finger][1] = maxf(float(_travel[finger][1]), start.distance_to(position))
+		_joystick_point = position
+		_set_direction(direction_for_offset(position - _joystick_origin))
+		_claim()
+		queue_redraw()
+		return
+	if not _camera_touches.has(finger):
 		return
 	if _travel.has(finger):
 		var start: Vector2 = _travel[finger][0]
 		_travel[finger][1] = maxf(float(_travel[finger][1]), start.distance_to(position))
-	if finger == _joystick_finger:
-		_joystick_point = position
-		_set_direction(direction_for_offset(position - _joystick_origin))
+	_camera_touches[finger] = position
+	if _camera_touches.size() >= 2:
+		var indices: Array = _camera_touches.keys()
+		indices.sort()
+		var first: int = int(indices[0])
+		var second: int = int(indices[1])
+		var first_position: Vector2 = _camera_touches[first]
+		var second_position: Vector2 = _camera_touches[second]
+		var distance := first_position.distance_to(second_position)
+		var midpoint := (first_position + second_position) * 0.5
+		var distance_delta := distance - _camera_last_distance
+		var midpoint_delta := midpoint - _camera_last_midpoint
+		if not is_zero_approx(distance_delta) or midpoint_delta != Vector2.ZERO:
+			camera_pinch.emit(distance_delta, midpoint_delta)
+		_camera_last_distance = distance
+		_camera_last_midpoint = midpoint
 	else:
 		var delta := position - _camera_last
 		_camera_last = position
@@ -138,6 +206,19 @@ func _on_drag(finger: int, position: Vector2) -> void:
 			camera_drag.emit(delta)
 	_claim()
 	queue_redraw()
+
+
+func _capture_pinch_baseline() -> void:
+	var indices: Array = _camera_touches.keys()
+	indices.sort()
+	if indices.size() < 2:
+		_camera_last_distance = 0.0
+		_camera_last_midpoint = Vector2.ZERO
+		return
+	var first: Vector2 = _camera_touches[int(indices[0])]
+	var second: Vector2 = _camera_touches[int(indices[1])]
+	_camera_last_distance = first.distance_to(second)
+	_camera_last_midpoint = (first + second) * 0.5
 
 ## Joystick offset (pixels from where the thumb landed) to a unit direction;
 ## zero inside the dead zone.
