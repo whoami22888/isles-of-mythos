@@ -70,7 +70,8 @@ static func movement_vector_for(keyboard: Vector2, joystick: Vector2, camera_yaw
 func set_server_position(world_position: Vector3) -> void:
 	if not is_finite(world_position.x) or not is_finite(world_position.y) or not is_finite(world_position.z):
 		return
-	global_position = world_position
+	position = world_position
+	velocity = Vector3.ZERO
 	observe_server_position(world_position)
 
 func observe_server_position(world_position: Vector3) -> void:
@@ -135,8 +136,10 @@ func use_selected_tool() -> bool:
 	return true
 
 func has_fallback_visual() -> bool:
-	return not find_children("*", "MeshInstance3D", true, false).is_empty() \
+	return (
+		not find_children("*", "MeshInstance3D", true, false).is_empty()
 		or not find_children("*", "Sprite3D", true, false).is_empty()
+	)
 
 func get_blocked_controls() -> Array[Control]:
 	var blocked: Array[Control] = []
@@ -149,11 +152,15 @@ func get_blocked_controls() -> Array[Control]:
 func _unhandled_input(event: InputEvent) -> void:
 	if not (event is InputEventKey) or not event.pressed or event.echo:
 		return
+	var viewport := get_viewport()
+	var focus := viewport.gui_get_focus_owner() if viewport != null else null
+	if focus is LineEdit:
+		return
 	if event.keycode >= KEY_1 and event.keycode <= KEY_4:
 		select_hotbar_slot(event.keycode - KEY_1)
-		get_viewport().set_input_as_handled()
+		viewport.set_input_as_handled()
 	elif event.keycode == KEY_E and use_selected_tool():
-		get_viewport().set_input_as_handled()
+		viewport.set_input_as_handled()
 
 func _ensure_fallback_visual() -> void:
 	if has_fallback_visual():
@@ -263,7 +270,8 @@ func _update_hotbar_ui() -> void:
 		button.text = "%d %s" % [slot + 1, "Empty" if item.is_empty() else item.capitalize()]
 		button.disabled = not _has_server_state or item.is_empty()
 		button.button_pressed = slot == _selected_hotbar_slot
-	_use_button.disabled = not _has_server_state or _hotbar[_selected_hotbar_slot] != "shovel"
+	if is_instance_valid(_use_button):
+		_use_button.disabled = not _has_server_state or _hotbar[_selected_hotbar_slot] != "shovel"
 
 func _on_hotbar_pressed(slot: int) -> void:
 	select_hotbar_slot(slot)
