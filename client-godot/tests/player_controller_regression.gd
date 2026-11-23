@@ -16,6 +16,7 @@ static func run(tree: SceneTree, check: Callable) -> void:
 	check.call(player is CharacterBody3D, "Player proxy must extend CharacterBody3D")
 	check.call(player.has_fallback_visual(), "Player proxy must retain a fallback visual without an assigned production mesh")
 	check.call(player.get_blocked_controls().size() == 2, "Survival and hotbar panels must block camera/joystick gestures")
+	check.call(player._hotbar_buttons.size() == 8, "The HUD must render all eight server-authoritative hotbar slots")
 	var directions := [Vector2.UP, Vector2.DOWN, Vector2.LEFT, Vector2.RIGHT,
 		Vector2(1, -1), Vector2(1, 1), Vector2(-1, -1), Vector2(-1, 1)]
 	for direction in directions:
@@ -30,7 +31,7 @@ static func run(tree: SceneTree, check: Callable) -> void:
 	check.call(cancelled == Vector2.ZERO, "Opposing keyboard and joystick input must cancel safely")
 	player.apply_server_state({
 		"health": 75, "hunger": 50, "oxygen": 25,
-		"hotbar": ["cutlass", "flintlock", "harpoon", "shovel", null, null, null, null],
+		"hotbar": ["cutlass", "flintlock", "harpoon", "shovel", null, null, null, "cutlass"],
 		"selectedHotbarSlot": 3,
 	})
 	var survival: Dictionary = player.get_survival_values()
@@ -41,6 +42,13 @@ static func run(tree: SceneTree, check: Callable) -> void:
 	check.call(player.get_hotbar_item(0) == "cutlass" and player.get_hotbar_item(1) == "flintlock"
 		and player.get_hotbar_item(2) == "harpoon" and player.get_hotbar_item(3) == "shovel",
 		"Hotbar must expose the four server-provided starter items")
+	check.call(player.get_hotbar_item(4).is_empty() and player.get_hotbar_item(7) == "cutlass",
+		"Hotbar must preserve empty and populated slots through slot eight")
+	check.call(player.get_hotbar_item(8).is_empty() and not player.select_hotbar_slot(8),
+		"Hotbar access must reject an out-of-range ninth slot")
+	check.call(PlayerController.hotbar_slot_for_key(KEY_1) == 0 and PlayerController.hotbar_slot_for_key(KEY_8) == 7
+		and PlayerController.hotbar_slot_for_key(KEY_9) == -1,
+		"Number-row keys 1 through 8 must map to server slots 0 through 7 only")
 	var gathered := [0]
 	player.gather_requested.connect(func() -> void: gathered[0] += 1)
 	check.call(player.use_selected_tool(), "Selecting the shovel must expose the gather tool action")
@@ -53,6 +61,11 @@ static func run(tree: SceneTree, check: Callable) -> void:
 	check.call(player.get_selected_hotbar_slot() == 3, "Hotbar selection must wait for the server snapshot")
 	player.apply_server_state({"selectedHotbarSlot": 2})
 	check.call(player.get_selected_hotbar_slot() == 2, "The server snapshot must confirm hotbar selection")
+	check.call(player.select_hotbar_slot(7), "The eighth populated slot must send a server selection request")
+	check.call(mock.requested_slots == [2, 7], "Hotbar selection must support the full eight-slot server range")
+	check.call(player.get_selected_hotbar_slot() == 2, "Eighth-slot selection must also wait for the server snapshot")
+	player.apply_server_state({"selectedHotbarSlot": 7})
+	check.call(player.get_selected_hotbar_slot() == 7, "The server snapshot must confirm eighth-slot selection")
 	check.call(not player.use_selected_tool(), "A non-shovel slot must not dispatch the gather action")
 	player.apply_server_state({"health": -5, "hunger": "invalid", "oxygen": 125})
 	survival = player.get_survival_values()

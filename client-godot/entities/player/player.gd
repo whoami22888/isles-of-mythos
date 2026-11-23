@@ -7,7 +7,7 @@ signal gather_requested
 signal survival_changed(health: float, hunger: float, oxygen: float)
 
 const PlayerAvatarScript = preload("res://gameplay/player_avatar.gd")
-const HOTBAR_SIZE := 4
+const HOTBAR_SIZE := 8
 const HOTBAR_ITEM_IDS := ["cutlass", "flintlock", "harpoon", "shovel"]
 const SURVIVAL_MAX := 100.0
 
@@ -19,7 +19,7 @@ var _health := 100.0
 var _hunger := 100.0
 var _oxygen := 100.0
 var _has_server_state := false
-var _hotbar: Array[String] = ["", "", "", ""]
+var _hotbar: Array[String] = ["", "", "", "", "", "", "", ""]
 var _selected_hotbar_slot := 0
 var _survival_panel: PanelContainer
 var _hotbar_panel: PanelContainer
@@ -88,7 +88,7 @@ func apply_server_state(state: Dictionary) -> void:
 	_has_server_state = true
 	var raw_hotbar: Variant = state.get("hotbar")
 	if raw_hotbar is Array:
-		var next_hotbar: Array[String] = ["", "", "", ""]
+		var next_hotbar: Array[String] = ["", "", "", "", "", "", "", ""]
 		for slot in range(mini(HOTBAR_SIZE, raw_hotbar.size())):
 			var item: Variant = raw_hotbar[slot]
 			if item is String and HOTBAR_ITEM_IDS.has(item):
@@ -149,6 +149,12 @@ func get_blocked_controls() -> Array[Control]:
 		blocked.append(_hotbar_panel)
 	return blocked
 
+static func hotbar_slot_for_key(keycode: int) -> int:
+	if keycode < KEY_1 or keycode > KEY_8:
+		return -1
+	return keycode - KEY_1
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if not (event is InputEventKey) or not event.pressed or event.echo:
 		return
@@ -156,8 +162,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	var focus := viewport.gui_get_focus_owner() if viewport != null else null
 	if focus is LineEdit:
 		return
-	if event.keycode >= KEY_1 and event.keycode <= KEY_4:
-		select_hotbar_slot(event.keycode - KEY_1)
+	var hotbar_slot := hotbar_slot_for_key(event.keycode)
+	if hotbar_slot >= 0:
+		select_hotbar_slot(hotbar_slot)
 		viewport.set_input_as_handled()
 	elif event.keycode == KEY_E and use_selected_tool():
 		viewport.set_input_as_handled()
@@ -204,32 +211,44 @@ func _build_hud() -> void:
 	_hotbar_panel = PanelContainer.new()
 	_hotbar_panel.name = "HotbarPanel"
 	_hotbar_panel.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	_hotbar_panel.offset_left = -488.0
-	_hotbar_panel.offset_top = -76.0
+	_hotbar_panel.offset_left = -442.0
+	_hotbar_panel.offset_top = -128.0
 	_hotbar_panel.offset_right = -18.0
 	_hotbar_panel.offset_bottom = -12.0
-	_hotbar_panel.custom_minimum_size = Vector2(470.0, 64.0)
+	_hotbar_panel.custom_minimum_size = Vector2(424.0, 116.0)
 	root.add_child(_hotbar_panel)
-	var hotbar_row := HBoxContainer.new()
-	hotbar_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	hotbar_row.add_theme_constant_override("separation", 4)
-	_hotbar_panel.add_child(hotbar_row)
+	var hotbar_column := VBoxContainer.new()
+	hotbar_column.add_theme_constant_override("separation", 4)
+	_hotbar_panel.add_child(hotbar_column)
+	var first_row := HBoxContainer.new()
+	first_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	first_row.add_theme_constant_override("separation", 4)
+	hotbar_column.add_child(first_row)
+	var second_row := HBoxContainer.new()
+	second_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	second_row.add_theme_constant_override("separation", 4)
+	hotbar_column.add_child(second_row)
 	for slot in range(HOTBAR_SIZE):
 		var button := Button.new()
 		button.name = "HotbarSlot%d" % (slot + 1)
-		button.custom_minimum_size = Vector2(82.0, 48.0)
+		button.custom_minimum_size = Vector2(74.0, 44.0)
+		button.add_theme_font_size_override("font_size", 11)
 		button.toggle_mode = true
 		button.text = "%d Empty" % (slot + 1)
 		button.pressed.connect(_on_hotbar_pressed.bind(slot))
 		_hotbar_buttons.append(button)
-		hotbar_row.add_child(button)
+		if slot < 4:
+			first_row.add_child(button)
+		else:
+			second_row.add_child(button)
 	_use_button = Button.new()
 	_use_button.name = "UseSelectedTool"
-	_use_button.custom_minimum_size = Vector2(92.0, 48.0)
-	_use_button.text = "Gather (shovel)"
+	_use_button.custom_minimum_size = Vector2(92.0, 44.0)
+	_use_button.add_theme_font_size_override("font_size", 11)
+	_use_button.text = "Gather"
 	_use_button.disabled = true
 	_use_button.pressed.connect(use_selected_tool)
-	hotbar_row.add_child(_use_button)
+	second_row.add_child(_use_button)
 	_update_survival_ui()
 	_update_hotbar_ui()
 
