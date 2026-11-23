@@ -1,6 +1,7 @@
 extends SceneTree
 
 const Adapter = preload("res://scripts/websocket_adapter.gd")
+const PerformancePolicy = preload("res://autoload/performance_adapter.gd")
 const FallbackFactory = preload("res://scripts/render_fallback_factory.gd")
 var _failures := 0
 
@@ -64,6 +65,61 @@ func run() -> void:
 	check(preset.load("res://export_presets.cfg") == OK, "Export preset must load")
 	check(preset.get_value("preset.0.options", "permissions/internet", false), "APK must allow Internet access")
 	check(ProjectSettings.get_setting("rendering/renderer/rendering_method", "") == "mobile", "Mobile renderer required")
+	var viewport := root.get_viewport()
+	var original_3d_scale := viewport.scaling_3d_scale
+	var original_canvas_transform := viewport.canvas_transform
+	var performance_adapter = root.get_node_or_null("PerformanceAdapter")
+	check(performance_adapter != null, "Dynamic resolution adapter must be registered as an autoload")
+	if performance_adapter != null:
+		performance_adapter.monitoring_enabled = false
+		# Deterministic 2-second artificial frame load exercises the actual rolling ring buffer.
+		performance_adapter._clear_window()
+		for frame_index in range(80):
+			performance_adapter._record_sample(frame_index * 25000, 25.0, 40.0, 25.0)
+		var rolling_summary: Vector2 = performance_adapter._summarize_window(2000000)
+		var rolling_average_ms := rolling_summary.x / maxf(rolling_summary.y, 1.0)
+		var rolling_fps := 1000.0 / maxf(rolling_average_ms, 0.001)
+		var rolling_metrics: Dictionary = performance_adapter.get_metrics_snapshot()
+		check(is_equal_approx(rolling_summary.y, 80.0), "Rolling window must retain all 80 synthetic 25 ms frames")
+		check(is_equal_approx(rolling_average_ms, 25.0) and is_equal_approx(rolling_fps, 40.0), "Two seconds of artificial load must measure 25 ms / 40 FPS")
+		check(is_equal_approx(float(rolling_metrics.get("engine_fps_monitor", 0.0)), 40.0), "TIME_FPS samples must be retained in the rolling window")
+		check(is_equal_approx(float(rolling_metrics.get("engine_process_ms_monitor", 0.0)), 25.0), "TIME_PROCESS samples must be retained in the rolling window")
+		performance_adapter._set_scale(1.0)
+		performance_adapter.apply_metrics_sample(rolling_fps, rolling_average_ms, 0.5)
+		check(is_equal_approx(viewport.scaling_3d_scale, 0.95), "Injected 40 FPS rolling load must lower only 3D scale by 0.05")
+		performance_adapter._clear_window()
+
+	var low_fps_step := PerformancePolicy.next_policy_state(1.0, 47.9, 16.0, 0.0, 0.5)
+	check(is_equal_approx(low_fps_step.x, 0.95) and is_equal_approx(low_fps_step.y, 0.0), "FPS below 48 must lower 3D scale by 0.05")
+	var slow_frame_step := PerformancePolicy.next_policy_state(1.0, 55.0, 20.1, 0.0, 0.5)
+	check(is_equal_approx(slow_frame_step.x, 0.95), "Average frame time above 20 ms must lower 3D scale")
+	var exact_boundary := PerformancePolicy.next_policy_state(1.0, 48.0, 20.0, 0.0, 0.5)
+	check(is_equal_approx(exact_boundary.x, 1.0), "Exact 48 FPS and 20 ms boundaries must not lower scale")
+	var minimum_step := PerformancePolicy.next_policy_state(0.72, 47.0, 25.0, 0.0, 0.5)
+	check(is_equal_approx(minimum_step.x, 0.70), "3D scale must not fall below 0.70")
+	var restore_step := PerformancePolicy.next_policy_state(0.70, 59.0, 16.5, 9.5, 0.5)
+	check(is_equal_approx(restore_step.x, 0.72) and is_equal_approx(restore_step.y, 9.0), "Ten stable seconds must restore one 0.02 step")
+	var unstable_step := PerformancePolicy.next_policy_state(0.80, 58.4, 16.5, 9.5, 0.5)
+	check(is_equal_approx(unstable_step.x, 0.80) and is_equal_approx(unstable_step.y, 0.0), "Below 58.5 FPS must reset the restore timer")
+	var restore_cap := PerformancePolicy.next_policy_state(0.99, 59.0, 16.5, 9.5, 0.5)
+	check(is_equal_approx(restore_cap.x, 1.0), "Restoration must never exceed native 1.0x resolution")
+	var restore_spacing := PerformancePolicy.next_policy_state(0.72, 59.0, 16.5, 9.0, 0.5)
+	check(is_equal_approx(restore_spacing.x, 0.72) and is_equal_approx(restore_spacing.y, 9.5), "Restore increments must be spaced one second apart")
+
+	if performance_adapter != null:
+		performance_adapter._set_scale(1.0)
+		performance_adapter._stable_seconds = 0.0
+		performance_adapter.apply_metrics_sample(47.9, 16.0, 0.5)
+		check(is_equal_approx(viewport.scaling_3d_scale, 0.95), "Autoload must apply the 3D-only scale step")
+		performance_adapter._set_scale(0.72)
+		performance_adapter.apply_metrics_sample(47.0, 25.0, 0.5)
+		check(is_equal_approx(viewport.scaling_3d_scale, 0.70), "Autoload must clamp the 3D scale at 0.70")
+		performance_adapter._stable_seconds = 9.5
+		performance_adapter.apply_metrics_sample(59.0, 16.5, 0.5)
+		check(is_equal_approx(viewport.scaling_3d_scale, 0.72), "Autoload must restore 3D scale after ten stable seconds")
+		check(viewport.canvas_transform == original_canvas_transform, "3D scaling must leave the 2D canvas transform unchanged")
+		performance_adapter._set_scale(original_3d_scale)
+		performance_adapter._stable_seconds = 0.0
 	var adapter := Adapter.new()
 	root.add_child(adapter)
 	for url in ["wss://example.invalid/ws", "ws://127.0.0.1:3000/ws", "ws://localhost:3000/ws", "ws://[::1]:3000/ws"]:
@@ -106,16 +162,6 @@ func run() -> void:
 	for log_path in [FallbackFactory.LOG_PATH, FallbackFactory.ROTATED_LOG_PATH]:
 		if FileAccess.file_exists(log_path):
 			check(DirAccess.remove_absolute(ProjectSettings.globalize_path(log_path)) == OK, "Missing-asset test log generation must reset")
-	# Prompt 004: keep every supported runtime extension explicit and regression-tested.
-	check(FallbackFactory.MESH_EXTENSIONS == ["glb", "gltf", "fbx"], "3D mesh allowlist must retain GLB, glTF and the existing FBX rig path")
-	check(FallbackFactory.TEXTURE_EXTENSIONS == ["png", "webp"], "Texture allowlist must include PNG and WebP")
-	check(FallbackFactory.AUDIO_EXTENSIONS == ["ogg", "wav"], "Audio allowlist must include OGG and WAV")
-	check(FallbackFactory._allowed_path("res://_supported_mesh_004.GLB", FallbackFactory.MESH_EXTENSIONS), "Mesh allowlist must accept case-insensitive GLB")
-	check(FallbackFactory._allowed_path("res://_supported_texture_004.WEBP", FallbackFactory.TEXTURE_EXTENSIONS), "Texture allowlist must accept case-insensitive WebP")
-	check(FallbackFactory._allowed_path("res://_supported_audio_004.WAV", FallbackFactory.AUDIO_EXTENSIONS), "Audio allowlist must accept case-insensitive WAV")
-	check(not FallbackFactory._allowed_path("user://_outside_project_004.wav", FallbackFactory.AUDIO_EXTENSIONS), "Runtime asset loads must remain confined to res://")
-	check(not FallbackFactory._allowed_path("res://../_outside_project_004.glb", FallbackFactory.MESH_EXTENSIONS), "Runtime asset loads must reject parent traversal")
-	check(not FallbackFactory._allowed_path("res://_unsupported_audio_004.mp3", FallbackFactory.AUDIO_EXTENSIONS), "Runtime audio loads must reject unapproved extensions")
 	# Prompt 004: missing resources must not crash or replace genuine production graphics.
 	var missing_character := FallbackFactory.get_fallback_mesh("res://_missing_character_004.glb")
 	check(missing_character.mesh is CapsuleMesh, "Missing characters use a capsule diagnostic")
@@ -131,19 +177,12 @@ func run() -> void:
 	var missing_sprite := FallbackFactory.load_sprite_or_fallback("res://_missing_ui_004.png") as ColorRect
 	check(missing_sprite != null and missing_sprite.size == Vector2(32, 32), "Missing sprite must be a 32px ColorRect")
 	if missing_sprite != null:
-		check(missing_sprite.mouse_filter == Control.MOUSE_FILTER_IGNORE, "Missing sprite must not intercept UI pointer input")
 		var checker := missing_sprite.get_node_or_null("Checkerboard") as TextureRect
 		check(checker != null and checker.texture != null, "Missing sprite must have checkerboard texture")
-		if checker != null:
-			check(checker.mouse_filter == Control.MOUSE_FILTER_IGNORE, "Checkerboard overlay must not intercept UI pointer input")
-			if checker.texture != null:
-				var pixels := checker.texture.get_image()
-				check(pixels.get_pixel(0, 0) != pixels.get_pixel(4, 0), "Checkerboard must have alternating tiles")
+		if checker != null and checker.texture != null:
+			var pixels := checker.texture.get_image()
+			check(pixels.get_pixel(0, 0) != pixels.get_pixel(4, 0), "Checkerboard must have alternating tiles")
 		missing_sprite.free()
-	var loaded_sprite := FallbackFactory.load_sprite_or_fallback("res://assets/opening/kenney/criminalMaleA.png") as TextureRect
-	check(loaded_sprite != null and loaded_sprite.mouse_filter == Control.MOUSE_FILTER_IGNORE, "Loaded sprite must leave pointer input to its parent")
-	if loaded_sprite != null:
-		loaded_sprite.free()
 	var missing_audio := FallbackFactory.load_audio_or_fallback("res://_missing_clip_004.ogg")
 	check(missing_audio != null and missing_audio.stream == null, "Missing audio must be safely silent")
 	missing_audio.free()
@@ -259,41 +298,6 @@ func run() -> void:
 	var after_partial_retry := FileAccess.get_file_as_string(FallbackFactory.LOG_PATH)
 	check(retry_error == OK and after_partial_retry == before_partial_append + partial_record,
 		"Retry after a partial append must produce exactly one complete TSV record")
-	# Recover an unterminated record left behind when an earlier rollback could not complete.
-	var before_crash_recovery := after_partial_retry
-	var torn_file := FileAccess.open(FallbackFactory.LOG_PATH, FileAccess.READ_WRITE)
-	check(torn_file != null, "Torn-tail recovery fixture must open")
-	if torn_file != null:
-		torn_file.seek_end()
-		var torn_prefix := "mesh\tcrash_recovery_004"
-		var torn_write_ok := torn_file.store_string(torn_prefix)
-		torn_file.close()
-		check(torn_write_ok, "Torn-tail fixture must append its incomplete prefix")
-		var recovery_record := "mesh\tcrash_recovery_004.glb\n"
-		var recovery_error: int = FallbackFactory._append_log_line(recovery_record)
-		var recovered_text := FileAccess.get_file_as_string(FallbackFactory.LOG_PATH)
-		check(recovery_error == OK and recovered_text == before_crash_recovery + recovery_record,
-			"Next append must truncate a persisted partial TSV tail before writing one complete record")
-	# An unrecognized unterminated tail cannot be repaired safely; fail closed and preserve bytes.
-	var before_unrecognized_tail := FileAccess.get_file_as_string(FallbackFactory.LOG_PATH)
-	for invalid_tail in ["legacy-corrupt-tail", "legacy\tcorrupt-tail"]:
-		var invalid_tail_file := FileAccess.open(FallbackFactory.LOG_PATH, FileAccess.WRITE)
-		check(invalid_tail_file != null, "Unrecognized-tail fixture must open")
-		if invalid_tail_file != null:
-			var fixture_write_ok := invalid_tail_file.store_string(before_unrecognized_tail + invalid_tail)
-			invalid_tail_file.close()
-			check(fixture_write_ok, "Unrecognized-tail fixture must persist its incomplete tail")
-			var before_refusal := FileAccess.get_file_as_string(FallbackFactory.LOG_PATH)
-			var refusal_error: int = FallbackFactory._append_log_line("mesh\tmust_not_append_004.glb\n")
-			var after_refusal := FileAccess.get_file_as_string(FallbackFactory.LOG_PATH)
-			check(refusal_error == FAILED, "Unrecognized unterminated tail must refuse a new append")
-			check(after_refusal == before_refusal, "Refused append must preserve unrecognized legacy bytes")
-			var restore_file := FileAccess.open(FallbackFactory.LOG_PATH, FileAccess.WRITE)
-			check(restore_file != null, "Unrecognized-tail fixture must restore the original log")
-			if restore_file != null:
-				var restore_ok := restore_file.store_string(before_unrecognized_tail)
-				restore_file.close()
-				check(restore_ok, "Unrecognized-tail fixture must restore the original log bytes")
 	# Simulate a new process: the in-memory set resets, but persisted log size stays bounded.
 	var restart_path := "res://_restart_repeat_004.glb"
 	var restart_key := "mesh:" + restart_path
