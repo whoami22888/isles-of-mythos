@@ -217,6 +217,26 @@ func run() -> void:
 					and prop_material.albedo_color.g < 0.01
 					and prop_material.albedo_color.b > 0.99,
 					"Prop diagnostic must use the specified magenta material")
+		# Node presence and material properties do not prove the fallback reached the render target.
+		# Read the isolated SubViewport after a completed frame and assert both diagnostic colours.
+		await RenderingServer.frame_post_draw
+		var diagnostic_image: Image = diagnostic_viewport.get_texture().get_image()
+		check(diagnostic_image != null and not diagnostic_image.is_empty(),
+			"Fallback diagnostic viewport must produce a rendered image")
+		if diagnostic_image != null and not diagnostic_image.is_empty():
+			var cyan_pixels := 0
+			var magenta_pixels := 0
+			for pixel_y in range(diagnostic_image.get_height()):
+				for pixel_x in range(diagnostic_image.get_width()):
+					var pixel := diagnostic_image.get_pixel(pixel_x, pixel_y)
+					if pixel.r < 0.12 and pixel.g > 0.45 and pixel.b > 0.65:
+						cyan_pixels += 1
+					if pixel.r > 0.65 and pixel.g < 0.12 and pixel.b > 0.65:
+						magenta_pixels += 1
+			check(cyan_pixels > 100,
+				"Cyan fallback capsule must be present in rendered viewport pixels")
+			check(magenta_pixels > 100,
+				"Magenta fallback box must be present in rendered viewport pixels")
 	diagnostic_overlay.queue_free()
 	await _frames(1)
 	if failures == 0:
