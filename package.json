@@ -15,7 +15,7 @@
     "dev:server": "npm run dev -w server",
     "build": "npm run build -w client && npm run build -w server",
     "typecheck": "npm run typecheck -w client && npm run typecheck -w server",
-    "test": "npm run test -w client && npm run test -w server",
+    "test": "npm run test -w client && npm run test -w server && python3 -m unittest discover -s client-godot/tests -p test_ocean_shader.py",
     "lint": "npm run lint:eslint",
     "migrate:up": "npm run migrate:up -w server",
     "migrate:down": "npm run migrate:down -w server",

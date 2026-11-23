@@ -64,6 +64,50 @@ func get_sample_count() -> int:
 func get_triangle_count() -> int:
     return _triangles
 
+func _wake_material() -> ShaderMaterial:
+    if _foam == null:
+        return null
+    return _foam.material_override as ShaderMaterial
+
+
+func sync_ocean_wave_parameters(ocean_material: ShaderMaterial) -> void:
+    if ocean_material == null:
+        return
+    var material := _wake_material()
+    if material == null:
+        return
+    # These are the scene-owned values that differ from shader defaults.
+    # Directions and near-patch bounds intentionally share the same defaults
+    # in both shaders until they become scene-configurable.
+    for parameter in [
+        "wave_speed",
+        "wave_amplitude",
+        "wave_frequency",
+        "wave_steepness_a",
+        "wave_steepness_b",
+        "swell_scale"
+    ]:
+        var value: Variant = ocean_material.get_shader_parameter(parameter)
+        if value != null:
+            material.set_shader_parameter(parameter, value)
+
+
+func set_deterministic_capture(enabled: bool, time_seconds: float = 0.0) -> void:
+    var material := _wake_material()
+    if material == null:
+        return
+    material.set_shader_parameter("deterministic_capture", enabled)
+    set_capture_time(time_seconds)
+
+
+func set_capture_time(time_seconds: float) -> void:
+    if not is_finite(time_seconds) or time_seconds < 0.0:
+        return
+    var material := _wake_material()
+    if material == null:
+        return
+    material.set_shader_parameter("capture_time_seconds", time_seconds)
+
 
 func _process(delta: float) -> void:
     advance_wake(delta)

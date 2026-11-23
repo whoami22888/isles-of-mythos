@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """Conservative boundary continuity screen; never visual acceptance."""
 import argparse
+import hashlib
 import json
 import math
+import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -78,6 +80,129 @@ def region_luma(frame: bytes, width: int, region: Region) -> float:
     return total / samples
 
 
+
+FOAM_PIXEL_THRESHOLDS = {
+    "shoreline": {
+        "min_pixels": 120,
+        "min_coverage": 0.003,
+        "min_mean_luma_delta": 0.02,
+    },
+    "ocean_wake": {
+        "min_pixels": 60,
+        "min_coverage": 0.003,
+        "min_mean_luma_delta": 0.02,
+    },
+    "ribbon_wake": {
+        "min_pixels": 60,
+        "min_coverage": 0.003,
+        "min_mean_luma_delta": 0.02,
+    },
+}
+FOAM_REPORT_NAME = "FOAM_PIXEL_REPORT.json"
+FOAM_REPORT_LOG_PATTERN = re.compile(
+    r"^IOM_INTERNAL_FOAM_REPORT sha256=([0-9a-f]{64}) status=(PASS|FAIL)$",
+    re.MULTILINE,
+)
+
+
+def _find_foam_artifact_directory(frame_folder: Path) -> Optional[Path]:
+    """Find the raw renderer artifact adjacent to the assembled frame folder."""
+    resolved = frame_folder.resolve()
+    for parent in (resolved.parent, *resolved.parents):
+        candidate = parent / "frames" / "internal-coastal-frames"
+        if candidate.is_dir():
+            return candidate
+    return None
+
+
+def verify_foam_pixel_report(artifact_directory: Path) -> Dict[str, object]:
+    """Verify hash-anchored, real-render pixel coverage for shoreline and both wakes."""
+    report_path = artifact_directory / FOAM_REPORT_NAME
+    render_log_path = artifact_directory / "render.log"
+    if not report_path.is_file() or not render_log_path.is_file():
+        raise ValueError("missing foam pixel report or renderer log")
+    try:
+        report_bytes = report_path.read_bytes()
+        report = json.loads(report_bytes)
+        render_log = render_log_path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ValueError(f"unreadable foam pixel evidence: {exc}") from exc
+
+    matches = FOAM_REPORT_LOG_PATTERN.findall(render_log)
+    if len(matches) != 1:
+        raise ValueError("missing or duplicate hash-anchored foam report line")
+    logged_sha, logged_status = matches[0]
+    actual_sha = hashlib.sha256(report_bytes).hexdigest()
+    if logged_sha != actual_sha:
+        raise ValueError("foam pixel report SHA-256 does not match render.log")
+    if logged_status != "PASS" or report.get("status") != "PASS":
+        raise ValueError("Godot rendered foam pixel screen reported FAIL")
+    if report.get("schema_version") != 1:
+        raise ValueError("unsupported foam pixel report schema")
+    if report.get("errors") not in ([], None):
+        raise ValueError("foam pixel report contains capture errors")
+
+    thresholds = report.get("thresholds")
+    channels = report.get("channels")
+    if not isinstance(thresholds, dict) or not isinstance(channels, dict):
+        raise ValueError("foam pixel report is missing thresholds or channels")
+
+    verified_channels: Dict[str, object] = {}
+    for channel, required in FOAM_PIXEL_THRESHOLDS.items():
+        reported_threshold = thresholds.get(channel)
+        metrics = channels.get(channel)
+        if not isinstance(reported_threshold, dict) or not isinstance(metrics, dict):
+            raise ValueError(f"foam pixel report missing channel {channel}")
+        try:
+            reported_min_pixels = int(reported_threshold["min_pixels"])
+            reported_min_coverage = float(reported_threshold["min_coverage"])
+            reported_min_mean = float(reported_threshold["min_mean_luma_delta"])
+            changed_pixels = int(metrics["changed_pixels"])
+            roi_pixels = int(metrics["roi_pixels"])
+            coverage = float(metrics["coverage"])
+            mean_delta = float(metrics["mean_luma_delta"])
+            max_delta = float(metrics["max_luma_delta"])
+        except (KeyError, TypeError, ValueError, OverflowError) as exc:
+            raise ValueError(f"invalid {channel} foam pixel metrics: {exc}") from exc
+
+        numeric_values = (reported_min_coverage, reported_min_mean, coverage, mean_delta, max_delta)
+        if not all(math.isfinite(value) for value in numeric_values):
+            raise ValueError(f"non-finite {channel} foam pixel metric")
+        if (
+            reported_min_pixels < required["min_pixels"]
+            or reported_min_coverage < required["min_coverage"]
+            or reported_min_mean < required["min_mean_luma_delta"]
+        ):
+            raise ValueError(f"{channel} foam pixel thresholds were weakened")
+        if (
+            roi_pixels <= 0
+            or changed_pixels < required["min_pixels"]
+            or changed_pixels > roi_pixels
+            or coverage < required["min_coverage"]
+            or mean_delta < required["min_mean_luma_delta"]
+            or max_delta < mean_delta
+            or not math.isclose(
+                coverage, changed_pixels / roi_pixels, rel_tol=0.02, abs_tol=0.001
+            )
+        ):
+            raise ValueError(
+                f"{channel} rendered foam below pixel minimum: "
+                f"changed={changed_pixels}, roi={roi_pixels}, coverage={coverage:.6f}, "
+                f"mean_delta={mean_delta:.6f}"
+            )
+        verified_channels[channel] = {
+            "changed_pixels": changed_pixels,
+            "roi_pixels": roi_pixels,
+            "coverage": round(coverage, 6),
+            "mean_luma_delta": round(mean_delta, 6),
+        }
+    return {
+        "result": "PASS_PIXEL_FOAM_SCREENING_NOT_VISUAL_ACCEPTANCE",
+        "channels": verified_channels,
+        "report_sha256": actual_sha,
+    }
+
+
 def _read_frame_metrics(spec: CaptureSpec) -> Tuple[List[float], List[float]]:
     """Load the bounded frame set and calculate adjacent-frame metrics."""
     expected_size = spec.width * spec.height * 4
@@ -136,8 +261,15 @@ def verify(spec: CaptureSpec) -> Dict[str, object]:
             f"capture boundary discontinuity {failures}; threshold={threshold:.3f}"
         )
     lighting = _lighting_boundaries(spec, boundaries, lumas)
+    foam_artifact_directory = _find_foam_artifact_directory(spec.folder)
+    foam_pixels = (
+        verify_foam_pixel_report(foam_artifact_directory)
+        if foam_artifact_directory is not None
+        else None
+    )
     return {
         "result": "PASS_SCREENING_NOT_VISUAL_ACCEPTANCE",
+        "foam_pixels": foam_pixels,
         "frames": spec.frames,
         "interior_median": round(baseline, 3),
         "threshold": round(threshold, 3),
