@@ -25,6 +25,14 @@ def normalize(vector):
     return tuple(component / length for component in vector)
 
 
+def normalize_normal_sample(sample):
+    """Normalize a decoded tangent-space normal; use flat +Z for degenerate input."""
+    length = math.sqrt(sum(component * component for component in sample))
+    if length <= 1e-6:
+        return (0.0, 0.0, 1.0)
+    return tuple(component / length for component in sample)
+
+
 def triplanar_uvs(position, geometric_normal):
     """Return X/Y/Z projection UVs with the normal-map tangent-frame signs."""
     normal = normalize(geometric_normal)
@@ -52,8 +60,11 @@ def blend_normal(geometric_normal, samples, sharpness=4.0):
     total_weight = sum(raw_weights)
     weights = [weight / total_weight for weight in raw_weights]
     signs = [1 if component >= 0 else -1 for component in normal]
+    normalized_samples = tuple(
+        normalize_normal_sample(sample) for sample in samples
+    )
     projections = [
-        reorient_projection(samples[index], signs[index], index)
+        reorient_projection(normalized_samples[index], signs[index], index)
         for index in range(3)
     ]
     flat_normals = (
@@ -172,6 +183,32 @@ class TriplanarNormalReferenceTests(unittest.TestCase):
             )
 
 
+    def test_non_unit_normal_samples_preserve_direction(self):
+        """Texture compression magnitude must not change decoded normal direction."""
+        samples = (
+            (0.2, -0.1, math.sqrt(0.95)),
+            (-0.1, 0.2, math.sqrt(0.95)),
+            (0.1, 0.2, math.sqrt(0.95)),
+        )
+        scales = (0.35, 0.55, 0.8)
+        scaled_samples = tuple(
+            tuple(component * scale for component in sample)
+            for sample, scale in zip(samples, scales)
+        )
+        for face in ((1, 2, 3), (-1, 2, -3), (0.1, -0.2, 0.7)):
+            expected = blend_normal(face, samples)
+            actual = blend_normal(face, scaled_samples)
+            for actual_component, expected_component in zip(actual, expected):
+                self.assertAlmostEqual(actual_component, expected_component, places=7)
+
+    def test_degenerate_normal_sample_uses_flat_tangent_fallback(self):
+        """A zero-length decoded normal must not inject undefined shader directions."""
+        self.assertEqual(
+            normalize_normal_sample((0.0, 0.0, 0.0)),
+            (0.0, 0.0, 1.0),
+        )
+
+
 class StylizedPbrShaderContractTests(unittest.TestCase):
     """Guard the optional shader and its headless test-scene contract."""
 
@@ -281,6 +318,20 @@ class StylizedPbrShaderContractTests(unittest.TestCase):
             self.assertIn(token, self.shared)
         self.assertNotIn("texture(tex, uvw.yz)", self.shared)
         self.assertNotIn("texture(normal_texture, uvw.yz)", self.shared)
+
+    def test_triplanar_normal_samples_are_normalized_and_guarded(self):
+        """All three projected samples normalize decoded vectors and guard degenerate texels."""
+        for token in (
+            "vec3 decode_normal_sample(vec3 encoded_normal)",
+            "float length_squared = dot(decoded, decoded);",
+            "if (length_squared <= 0.0001)",
+            "return vec3(0.0, 0.0, 1.0);",
+            "return decoded * inversesqrt(length_squared);",
+            "nx = decode_normal_sample(texture(normal_texture, uv_x).xyz);",
+            "ny = decode_normal_sample(texture(normal_texture, uv_y).xyz);",
+            "nz = decode_normal_sample(texture(normal_texture, uv_z).xyz);",
+        ):
+            self.assertIn(token, self.shared)
 
     def test_triplanar_normal_reconstruction_stays_world_space_until_view_transform(self):
         """Reconstruct triplanar normals in world space, then transform once for shading."""
