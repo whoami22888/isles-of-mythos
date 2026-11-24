@@ -1,4 +1,4 @@
-"""Focused fail-closed tests for the non-visual Godot capture boundary screen."""
+"""Focused fail-closed tests for the non-visual continuous Godot capture screen."""
 import importlib.util
 import contextlib
 import io
@@ -8,7 +8,10 @@ import tempfile
 import unittest
 from unittest import mock
 
-SOURCE = Path(__file__).resolve().parents[1] / "check_capture_continuity.py"
+ROOT = Path(__file__).resolve().parents[2]
+SOURCE = ROOT / "scripts" / "check_capture_continuity.py"
+WORKFLOW = ROOT / ".github" / "workflows" / "iom-coastal-ship-fx.yml"
+SEQUENCE = ROOT / "client-godot" / "tests" / "render_coastal_fx_sequence.gd"
 SPEC = importlib.util.spec_from_file_location("check_capture_continuity", SOURCE)
 MODULE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(MODULE)
@@ -40,7 +43,7 @@ class CaptureContinuityTests(unittest.TestCase):
             self.assertEqual(result["result"], "PASS_SCREENING_NOT_VISUAL_ACCEPTANCE")
             self.assertEqual(set(result["boundaries"]), {"1->2", "3->4"})
 
-    def test_discontinuous_worker_boundary_rejected(self):
+    def test_discontinuous_checkpoint_rejected(self):
         with tempfile.TemporaryDirectory() as folder:
             self.write_frames(folder, [20, 21, 230, 231, 232, 233])
             with self.assertRaisesRegex(ValueError, "boundary discontinuity"):
@@ -109,6 +112,60 @@ class CaptureContinuityTests(unittest.TestCase):
             with mock.patch.object(sys, "argv", arguments), contextlib.redirect_stderr(stderr):
                 self.assertEqual(1, MODULE.main())
             self.assertIn("lighting ROI requires integer x0,y0,x1,y1", stderr.getvalue())
+
+
+    def test_two_lighting_seams_are_rejected_even_when_global_delta_is_small(self):
+        """Reproduce the two observed 24-frame renderer-reset lighting jumps."""
+        with tempfile.TemporaryDirectory() as folder:
+            values = [170] * 4 + [121] * 4 + [162] * 4
+            for index, value in enumerate(values):
+                frame = bytearray(bytes((50, 50, 50, 255)) * 64)
+                for y_coord in range(4, 8):
+                    for x_coord in range(8):
+                        offset = (y_coord * 8 + x_coord) * 4
+                        frame[offset:offset + 4] = bytes((value, value, value, 255))
+                (Path(folder) / f"frame_{index:04d}.rgba").write_bytes(frame)
+            with self.assertRaisesRegex(
+                ValueError,
+                r"lighting discontinuity.*3->4.*49\.0.*7->8.*41\.0",
+            ):
+                MODULE.verify(self.spec(
+                    folder,
+                    frames=12,
+                    segment_size=4,
+                    lighting_roi=(0, 4, 8, 8),
+                    max_luma_jump=5.0,
+                ))
+
+    def test_workflow_and_renderer_require_one_continuous_process(self):
+        """Prevent reintroducing worker partitions that reset directional shadows."""
+        workflow = WORKFLOW.read_text(encoding="utf-8")
+        capture_job = workflow.split("  capture:\n", 1)[1].split("  assemble:\n", 1)[0]
+        self.assertNotIn("matrix:", capture_job)
+        self.assertNotIn("\\${{", workflow)
+        self.assertIn('IOM_FX_START_FRAME: "0"', capture_job)
+        self.assertIn('IOM_FX_END_FRAME: "72"', capture_job)
+        self.assertIn("internal-coastal-frames", capture_job)
+        self.assertIn("--display-driver x11", capture_job)
+        self.assertIn("--rendering-method mobile", capture_job)
+        self.assertIn("--rendering-driver vulkan", capture_job)
+        self.assertIn("VK_ICD_FILENAMES=$lvp_icd", workflow)
+        self.assertIn("sha256sum frame_*.rgba render.log > SHA256SUMS", capture_job)
+        self.assertIn(
+            "grep -Fx 'IOM_INTERNAL_RENDERER driver=vulkan method=mobile' "
+            '"$source_dir/render.log"',
+            workflow,
+        )
+        self.assertNotIn("render=Mobile Vulkan llvmpipe software", workflow)
+        sequence = SEQUENCE.read_text(encoding="utf-8")
+        self.assertIn("RenderingServer.get_current_rendering_method()", sequence)
+        self.assertIn("RenderingServer.get_current_rendering_driver_name()", sequence)
+        self.assertIn("IOM_INTERNAL_RENDERER driver=%s method=%s", sequence)
+        self.assertIn(
+            "start_frame != 0 or end_frame != FRAME_COUNT",
+            sequence,
+        )
+        self.assertNotIn("frame_number < start_frame", sequence)
 
 
 if __name__ == "__main__":

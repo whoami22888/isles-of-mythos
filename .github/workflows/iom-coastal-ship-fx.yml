@@ -68,10 +68,6 @@ jobs:
     needs: integrate
     runs-on: ubuntu-24.04
     timeout-minutes: 12
-    strategy:
-      fail-fast: false
-      matrix:
-        segment: [0, 1, 2]
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
@@ -87,23 +83,33 @@ jobs:
           install "$RUNNER_TEMP/Godot_v4.7.2-stable_linux.x86_64" "$RUNNER_TEMP/godot"
           sudo apt-get update -qq
           sudo apt-get install -y -qq xvfb mesa-vulkan-drivers
+          lvp_icd="$(find /usr/share/vulkan/icd.d -maxdepth 1 -type f -name 'lvp_icd*.json' -print -quit)"
+          if [ -z "$lvp_icd" ]; then
+            echo "::error::Mesa Lavapipe Vulkan ICD is unavailable."
+            exit 1
+          fi
+          echo "VK_ICD_FILENAMES=$lvp_icd" >> "$GITHUB_ENV"
           timeout --signal=TERM --kill-after=10s 180s "$RUNNER_TEMP/godot" --headless --path client-godot --editor --quit --import
-      - name: Render exact frame partition
+      - name: Render one continuous 72-frame sequence
         shell: bash
         env:
-          SEGMENT: ${{ matrix.segment }}
+          IOM_FX_START_FRAME: "0"
+          IOM_FX_END_FRAME: "72"
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/coastal-fx-frames"
           export IOM_FX_FRAMES_DIR="$RUNNER_TEMP/coastal-fx-frames"
-          export IOM_FX_START_FRAME="$((SEGMENT * 24))"
-          export IOM_FX_END_FRAME="$((IOM_FX_START_FRAME + 24))"
-          timeout --signal=TERM --kill-after=10s 240s xvfb-run -a -s "-screen 0 1280x720x24" "$RUNNER_TEMP/godot" --path client-godot --rendering-method mobile --script res://tests/render_coastal_fx_sequence.gd
-          test "$(find "$IOM_FX_FRAMES_DIR" -name 'frame_*.rgba' | wc -l)" -eq 24
-          (cd "$IOM_FX_FRAMES_DIR" && sha256sum frame_*.rgba > SHA256SUMS)
+          timeout --signal=TERM --kill-after=10s 240s xvfb-run -a -s "-screen 0 1280x720x24" "$RUNNER_TEMP/godot" \
+            --path client-godot \
+            --display-driver x11 \
+            --rendering-method mobile \
+            --rendering-driver vulkan \
+            --script res://tests/render_coastal_fx_sequence.gd 2>&1 | tee "$IOM_FX_FRAMES_DIR/render.log"
+          test "$(find "$IOM_FX_FRAMES_DIR" -maxdepth 1 -name 'frame_*.rgba' | wc -l)" -eq 72
+          (cd "$IOM_FX_FRAMES_DIR" && sha256sum frame_*.rgba render.log > SHA256SUMS)
       - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
         with:
-          name: internal-coastal-frames-${{ matrix.segment }}
+          name: internal-coastal-frames
           path: ${{ runner.temp }}/coastal-fx-frames/
           retention-days: 7
           compression-level: 1
@@ -118,54 +124,50 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
-      - name: Download latest artifact for each render partition
+      - name: Download the single continuous render artifact
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          for segment in 0 1 2; do
-            name="internal-coastal-frames-$segment"
-            artifact_id="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --paginate \
-              --jq ".artifacts[] | select(.name == \"$name\" and .expired == false) | [.created_at, .id] | @tsv" \
-              | sort -r | sed -n '1p' | cut -f 2)"
-            test -n "$artifact_id"
-            mkdir -p "frames/$name"
-            gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact_id/zip" \
-              > "$RUNNER_TEMP/$name.zip"
-            unzip -q "$RUNNER_TEMP/$name.zip" -d "frames/$name"
-            echo "Selected $name artifact $artifact_id"
-          done
-      - name: Verify original worker manifests and assemble in exact frame order
+          name="internal-coastal-frames"
+          artifact_id="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --paginate \
+            --jq ".artifacts[] | select(.name == \"$name\" and .expired == false) | [.created_at, .id] | @tsv" \
+            | sort -r | sed -n '1p' | cut -f 2)"
+          test -n "$artifact_id"
+          mkdir -p "frames/$name"
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact_id/zip" \
+            > "$RUNNER_TEMP/$name.zip"
+          unzip -q "$RUNNER_TEMP/$name.zip" -d "frames/$name"
+          echo "Selected $name artifact $artifact_id"
+      - name: Verify continuous manifest and assemble exact frame order
         shell: bash
         run: |
           set -euo pipefail
+          source_dir="frames/internal-coastal-frames"
+          test -d "$source_dir"
+          test -f "$source_dir/SHA256SUMS"
+          (cd "$source_dir" && sha256sum --check --strict SHA256SUMS)
+          test "$(find "$source_dir" -maxdepth 1 -name 'frame_*.rgba' | wc -l)" -eq 72
+          renderer_line="$(grep -Fx 'IOM_INTERNAL_RENDERER driver=vulkan method=mobile' "$source_dir/render.log")"
+          test -n "$renderer_line"
           mkdir -p ordered-frames evidence
-          for segment in 0 1 2; do
-            source_dir="frames/internal-coastal-frames-$segment"
-            test -d "$source_dir"
-            test -f "$source_dir/SHA256SUMS"
-            (cd "$source_dir" && sha256sum --check --strict SHA256SUMS)
-            test "$(find "$source_dir" -maxdepth 1 -name 'frame_*.rgba' | wc -l)" -eq 24
-            for offset in $(seq 0 23); do
-              frame_number=$((segment * 24 + offset))
-              printf -v filename 'frame_%04d.rgba' "$frame_number"
-              test -f "$source_dir/$filename"
-              test "$(stat -c %s "$source_dir/$filename")" -eq 3686400
-              cp -- "$source_dir/$filename" "ordered-frames/$filename"
-            done
+          for frame_number in $(seq 0 71); do
+            printf -v filename 'frame_%04d.rgba' "$frame_number"
+            test -f "$source_dir/$filename"
+            test "$(stat -c %s "$source_dir/$filename")" -eq 3686400
+            cp -- "$source_dir/$filename" "ordered-frames/$filename"
           done
           test "$(find ordered-frames -maxdepth 1 -name 'frame_*.rgba' | wc -l)" -eq 72
           python3 -m unittest discover -s scripts/tests -p "test_capture_continuity.py" -v
           python3 scripts/check_capture_continuity.py ordered-frames --frames 72 --width 1280 --height 720 --segment-size 24 --lighting-roi 830,330,1190,470 --max-luma-jump 5 > evidence/CONTINUITY.json
           sudo apt-get update -qq
           sudo apt-get install -y -qq ffmpeg
-          mkdir -p evidence
           ffmpeg -hide_banner -loglevel error -nostdin -y -f image2 -start_number 0 -framerate 24 -c:v rawvideo -pixel_format rgba -video_size 1280x720 -i ordered-frames/frame_%04d.rgba -frames:v 72 -c:v libx264 -preset veryfast -crf 23 -pix_fmt yuv420p -movflags +faststart evidence/ship-wake-cinematic.mp4
           test "$(ffprobe -v error -select_streams v:0 -show_entries stream=nb_frames -of default=noprint_wrappers=1:nokey=1 evidence/ship-wake-cinematic.mp4)" -eq 72
           (cd ordered-frames && sha256sum frame_*.rgba > ../evidence/FRAME_SHA256SUMS)
           (cd evidence && sha256sum ship-wake-cinematic.mp4 > SHA256SUMS)
-          printf 'commit=%s\\nengine=Godot 4.7.2\\nrender=Mobile Vulkan llvmpipe software\\nframes=72\\nresolution=1280x720\\nfps=24\\nvisual_parity=NOT VERIFIED\\n' "${{ github.event.pull_request.head.sha || github.sha }}" > evidence/EVIDENCE.txt
+          printf 'commit=%s\nengine=Godot 4.7.2\nrenderer_assertion=%s\nrender_driver=vulkan\nrender_method=mobile\nvulkan_icd=lavapipe\ncapture_mode=single-process-continuous\nframes=72\nresolution=1280x720\nfps=24\nvisual_parity=NOT VERIFIED\ndevice_validation=NOT VERIFIED\n' "${{ github.event.pull_request.head.sha || github.sha }}" "$renderer_line" > evidence/EVIDENCE.txt
       - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
         with:
           name: internal-coastal-ship-fx-engine-evidence
