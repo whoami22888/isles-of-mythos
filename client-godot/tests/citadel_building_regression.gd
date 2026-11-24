@@ -102,6 +102,29 @@ static func run(tree: SceneTree, check: Callable) -> void:
 	})
 	check.call(building.request_next_upgrade(), "A server-provided badge alternative must be honored for non-soft-wall levels")
 
+	var badge_only_state := _idle_state(2, costs)
+	protocol.player_state_received.emit({
+		"inventory": {
+			"resource.wood": 0,
+			"resource.steel": 0,
+			"resource.food": 0,
+		},
+		"gold": "0",
+		"triumphBadges": "29",
+	})
+	check.call(building.apply_authoritative_state(badge_only_state), "Citadel must accept a level whose only configured path is a badge alternative")
+	check.call(not building.request_next_upgrade(), "Zero resource costs must not create a free resource path when badge balance is insufficient")
+	protocol.player_state_received.emit({
+		"inventory": {
+			"resource.wood": 0,
+			"resource.steel": 0,
+			"resource.food": 0,
+		},
+		"gold": "0",
+		"triumphBadges": "30",
+	})
+	check.call(building.request_next_upgrade(), "A badge-only cost must require and accept the exact configured badge balance")
+
 	var no_queue_state := _idle_state(1, costs)
 	no_queue_state["queue_flags"] = {
 		"primary_busy": true,
@@ -186,6 +209,12 @@ static func _test_cost_matrix() -> Dictionary:
 			"food": target_level * 25,
 			"badge_alternative": target_level * 10,
 		}
+	costs["3"] = {
+		"wood": 0,
+		"steel": 0,
+		"food": 0,
+		"badge_alternative": 30,
+	}
 	costs["16"] = {
 		"wood": 5000000,
 		"steel": 5000000,
