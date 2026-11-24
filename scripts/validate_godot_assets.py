@@ -162,6 +162,10 @@ def validate_bounded_lod_lineage(registered_by_path):
             )
             if asset is None:
                 fail(f"Unknown bounded LOD output family: {output_path}")
+            if pathlib.PurePosixPath(output_path).suffix.lower() not in {
+                ".jpg", ".jpeg", ".png"
+            }:
+                fail(f"Bounded LOD output must be a texture: {output_path}")
             source_path = f"polyhaven/{asset}/{asset}_1k.gltf"
             source = registered_by_path.get(source_path)
             if source is None:
