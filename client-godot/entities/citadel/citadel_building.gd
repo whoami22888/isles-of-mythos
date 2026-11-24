@@ -6,7 +6,8 @@ extends Node3D
 ## guild-help eligibility and persisted level changes. This node never deducts resources
 ## or advances a level locally.
 
-signal upgrade_requested(target_level: int, queue_slot: int, costs: Dictionary, payment_mode: String, duration_seconds: int)
+signal upgrade_requested(target_level: int, queue_slot: int, payment_preference: String)
+signal upgrade_previewed(target_level: int, costs: Dictionary, payment_mode: String, duration_seconds: int)
 signal soft_wall_blocked(target_level: int)
 signal upgrade_blocked(target_level: int, missing_resources: Dictionary)
 signal upgrade_request_rejected(reason: String)
@@ -52,7 +53,7 @@ const UPGRADE_COSTS: Dictionary = {
 	20: {"wood": 10_000_000, "steel": 10_000_000, "food": 3_000_000},
 }
 
-## Server-provided countdown durations, in seconds, indexed by target level.
+## Display-only duration defaults, in seconds, indexed by target level. The server supplies the real timer.
 const UPGRADE_DURATION_SECONDS: Dictionary = {
 	2: 900,
 	3: 1_800,
@@ -207,13 +208,14 @@ func request_upgrade(requested_queue_slot: int) -> bool:
 		return false
 
 	_request_pending = true
-	upgrade_requested.emit(
+	upgrade_previewed.emit(
 		target_level,
-		requested_queue_slot,
 		costs.duplicate(true),
 		payment_mode,
 		upgrade_duration_for_level(target_level)
 	)
+	# Only player intent crosses the request signal. Costs and durations are never trusted by the server.
+	upgrade_requested.emit(target_level, requested_queue_slot, payment_mode)
 	return true
 
 
