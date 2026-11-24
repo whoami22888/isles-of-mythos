@@ -35,19 +35,17 @@ uniform vec3 mobile_key_light_color = vec3(1.0);
 uniform float mobile_ramp_strength : hint_range(0.0, 1.0) = 1.0;
 #endif
 
-varying vec3 local_position;
-varying vec3 local_normal;
+varying vec3 triplanar_world_position;
+varying vec3 triplanar_world_normal;
 varying float vertex_rim_factor;
 
 void vertex() {
-    local_position = VERTEX;
-    local_normal = NORMAL;
+    triplanar_world_position = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+    triplanar_world_normal = normalize(MODEL_NORMAL_MATRIX * NORMAL);
 
-    vec3 world_position = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
-    vec3 world_normal = normalize(MODEL_NORMAL_MATRIX * NORMAL);
-    vec3 world_view_delta = CAMERA_POSITION_WORLD - world_position;
+    vec3 world_view_delta = CAMERA_POSITION_WORLD - triplanar_world_position;
     vec3 world_view = world_view_delta / max(length(world_view_delta), 0.0001);
-    float vertex_n_dot_v = clamp(dot(world_normal, world_view), 0.0, 1.0);
+    float vertex_n_dot_v = clamp(dot(triplanar_world_normal, world_view), 0.0, 1.0);
     float rim_width = max(rim_thickness, 0.001);
     vertex_rim_factor = smoothstep(1.0 - rim_width, 1.0, 1.0 - vertex_n_dot_v);
 }
@@ -65,11 +63,11 @@ vec4 sample_triplanar(sampler2D tex, vec3 p, vec3 n) {
          + texture(tex, uvw.xy) * w.z;
 }
 
-// Reorient each tangent-space projection into object space. Blend only the
+// Reorient each tangent-space projection into world space. Blend only the
 // perturbation from each projection's flat normal so oblique flat surfaces
-// retain their original geometric normal instead of snapping to an axis.
-vec3 sample_triplanar_normal(vec3 p, vec3 geometric_normal) {
-    vec3 n = normalize(geometric_normal);
+// retain their original world-space geometric normal instead of snapping to an axis.
+vec3 sample_triplanar_normal(vec3 p, vec3 world_geometric_normal) {
+    vec3 n = normalize(world_geometric_normal);
     vec3 w = projection_weights(n);
     vec3 uvw = p * triplanar_scale;
     vec3 nx = texture(normal_texture, uvw.yz).xyz * 2.0 - 1.0;
@@ -94,7 +92,7 @@ void fragment() {
     vec4 albedo_sample = vec4(1.0);
     if (use_albedo_texture) {
         albedo_sample = use_triplanar
-            ? sample_triplanar(albedo_texture, local_position, local_normal)
+            ? sample_triplanar(albedo_texture, triplanar_world_position, triplanar_world_normal)
             : texture(albedo_texture, UV);
     }
     ALBEDO = base_color.rgb * albedo_sample.rgb;
@@ -109,14 +107,14 @@ void fragment() {
 
     if (use_roughness_texture) {
         ROUGHNESS *= use_triplanar
-            ? sample_triplanar(roughness_texture, local_position, local_normal).r
+            ? sample_triplanar(roughness_texture, triplanar_world_position, triplanar_world_normal).r
             : texture(roughness_texture, UV).r;
     }
 
     if (use_normal_texture) {
         if (use_triplanar) {
-            vec3 object_normal = sample_triplanar_normal(local_position, local_normal);
-            NORMAL = normalize(mat3(VIEW_MATRIX) * MODEL_NORMAL_MATRIX * object_normal);
+            vec3 world_normal = sample_triplanar_normal(triplanar_world_position, triplanar_world_normal);
+            NORMAL = normalize(mat3(VIEW_MATRIX) * world_normal);
         } else {
             vec3 uv_normal_sample = texture(normal_texture, UV).rgb;
             NORMAL_MAP = uv_normal_sample;
