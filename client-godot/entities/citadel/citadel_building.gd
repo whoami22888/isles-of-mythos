@@ -149,7 +149,7 @@ func bind_game_manager(manager: Node) -> bool:
 
 static func upgrade_cost_for_level(target_level: int) -> Dictionary:
 	var value: Variant = UPGRADE_COSTS.get(target_level, {})
-	if not value is Dictionary:
+	if not (value is Dictionary):
 		return {}
 	return value.duplicate(true)
 
@@ -224,9 +224,9 @@ func apply_server_snapshot(snapshot: Dictionary) -> bool:
 	var level_value: Variant = snapshot.get("level")
 	var second_queue_value: Variant = snapshot.get("second_queue_enabled")
 	var in_progress_value: Variant = snapshot.get("upgrade_in_progress")
-	if not level_value is int or int(level_value) < MIN_LEVEL or int(level_value) > MAX_LEVEL:
+	if not (level_value is int) or int(level_value) < MIN_LEVEL or int(level_value) > MAX_LEVEL:
 		return false
-	if not second_queue_value is bool or not in_progress_value is bool:
+	if not (second_queue_value is bool) or not in_progress_value is bool:
 		return false
 
 	var next_queue_slot := -1
@@ -236,11 +236,11 @@ func apply_server_snapshot(snapshot: Dictionary) -> bool:
 		var queue_value: Variant = snapshot.get("queue_slot")
 		var target_value: Variant = snapshot.get("target_level")
 		var remaining_value: Variant = snapshot.get("remaining_seconds")
-		if not queue_value is int or int(queue_value) < FIRST_QUEUE_SLOT or int(queue_value) > SECOND_QUEUE_SLOT:
+		if not (queue_value is int) or int(queue_value) < FIRST_QUEUE_SLOT or int(queue_value) > SECOND_QUEUE_SLOT:
 			return false
 		if int(queue_value) == SECOND_QUEUE_SLOT and not bool(second_queue_value):
 			return false
-		if not target_value is int or int(target_value) != int(level_value) + 1 or int(target_value) > MAX_LEVEL:
+		if not (target_value is int) or int(target_value) != int(level_value) + 1 or int(target_value) > MAX_LEVEL:
 			return false
 		if not (remaining_value is int or remaining_value is float):
 			return false
