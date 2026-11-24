@@ -7,7 +7,9 @@ class MockAttackProtocol extends Node:
 	func is_authenticated() -> bool:
 		return true
 	func request_attack(target_id: String, facing: Vector2) -> String:
-		attacks.append({"target_id": target_id, "facing": facing})
+		# Match the production protocol's build_attack_message normalization.
+		var direction := facing.normalized() if facing.length_squared() >= 0.00000001 else Vector2.ZERO
+		attacks.append({"target_id": target_id, "facing": direction})
 		return "attack-1"
 
 func _init() -> void:
