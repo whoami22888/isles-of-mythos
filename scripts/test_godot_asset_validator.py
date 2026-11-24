@@ -252,17 +252,46 @@ class AssetValidatorTests(unittest.TestCase):
 
     def test_tree_lod_extraction_requires_registered_identical_texture(self):
         """Godot's LOD2 extraction cannot admit a modified or unrelated PNG."""
+        source_model_path = "polyhaven/island_tree_01/island_tree_01_1k.gltf"
+        source_model_bytes = b"verified source model"
+        source_model_file = self.assets / source_model_path
+        source_model_file.parent.mkdir(parents=True)
+        source_model_file.write_bytes(source_model_bytes)
+        source_model_entry = {
+            "id": "source-island-tree-01",
+            "path": source_model_path,
+            "sha256": hashlib.sha256(source_model_bytes).hexdigest(),
+            "source_url": "https://polyhaven.com/a/island_tree_01",
+            "download_url": (
+                "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/"
+                "island_tree_01/island_tree_01_1k.gltf"
+            ),
+            "license": "CC0-1.0",
+            "license_url": "https://polyhaven.com/license",
+            "attribution": "Poly Haven",
+            "upstream_md5": "a" * 32,
+        }
         source = (self.assets / "generated/bounded_lods"
                   / "island_tree_01_island_tree_01_leaves_diff_1k.png")
         source.parent.mkdir(parents=True)
         source.write_bytes(b"approved leaf texture")
-        entry = dict(self.entry, path=source.relative_to(self.assets).as_posix(),
-                     sha256=hashlib.sha256(source.read_bytes()).hexdigest())
+        entry = {
+            "id": "bounded-lod-island-tree-texture",
+            "path": source.relative_to(self.assets).as_posix(),
+            "sha256": hashlib.sha256(source.read_bytes()).hexdigest(),
+            "source_url": source_model_entry["source_url"],
+            "download_url": source_model_entry["download_url"],
+            "license": source_model_entry["license"],
+            "license_url": source_model_entry["license_url"],
+            "attribution": source_model_entry["attribution"],
+            "generated_from": [source_model_path],
+            "generation_note": "Extracted from the admitted island-tree source model",
+        }
         output = (self.assets / "generated/foliage"
                   / "island_tree_01_lod2_island_tree_01_leaves_diff_1k.png")
         output.parent.mkdir(parents=True)
         output.write_bytes(source.read_bytes())
-        self.write([entry])
+        self.write([source_model_entry, entry])
         self.assertEqual(validator.validate(), 0)
         output.write_bytes(b"different texture")
         with self.assertRaisesRegex(ValueError, "Unregistered"):
