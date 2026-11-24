@@ -4,6 +4,7 @@ extends CharacterBody3D
 ## Survival and hotbar values are read-only projections of server state.
 
 signal gather_requested
+signal attack_requested(item_id: String)
 signal survival_changed(health: float, hunger: float, oxygen: float)
 signal player_died
 
@@ -130,6 +131,9 @@ func get_hotbar_item(slot: int) -> String:
 func get_selected_hotbar_slot() -> int:
 	return _selected_hotbar_slot
 
+func get_selected_hotbar_item() -> String:
+	return _hotbar[_selected_hotbar_slot]
+
 func select_hotbar_slot(slot: int) -> bool:
 	if slot < 0 or slot >= HOTBAR_SIZE or not _has_server_state or _hotbar[slot].is_empty():
 		return false
@@ -139,10 +143,18 @@ func select_hotbar_slot(slot: int) -> bool:
 	return bool(_protocol.call("request_select_hotbar", slot))
 
 func use_selected_tool() -> bool:
-	if not _has_server_state or _hotbar[_selected_hotbar_slot] != "shovel":
+	if not _has_server_state:
 		return false
-	gather_requested.emit()
-	return true
+	var item_id := _hotbar[_selected_hotbar_slot]
+	if item_id == "shovel":
+		gather_requested.emit()
+		return true
+	if item_id == "cutlass" or item_id == "flintlock" or item_id == "harpoon":
+		# The server reads the selected slot and owns weapon validation, ammo,
+		# cooldown, stamina, hit checks and damage. This signal carries no damage.
+		attack_requested.emit(item_id)
+		return true
+	return false
 
 func has_fallback_visual() -> bool:
 	return (
@@ -299,7 +311,19 @@ func _update_hotbar_ui() -> void:
 		button.disabled = not _has_server_state or item.is_empty()
 		button.button_pressed = slot == _selected_hotbar_slot
 	if is_instance_valid(_use_button):
-		_use_button.disabled = not _has_server_state or _hotbar[_selected_hotbar_slot] != "shovel"
+		var selected_item := _hotbar[_selected_hotbar_slot]
+		match selected_item:
+			"shovel":
+				_use_button.text = "Gather"
+			"cutlass":
+				_use_button.text = "Slash"
+			"flintlock":
+				_use_button.text = "Fire"
+			"harpoon":
+				_use_button.text = "Harpoon"
+			_:
+				_use_button.text = "Use"
+		_use_button.disabled = not _has_server_state or not HOTBAR_ITEM_IDS.has(selected_item)
 
 func _on_hotbar_pressed(slot: int) -> void:
 	select_hotbar_slot(slot)

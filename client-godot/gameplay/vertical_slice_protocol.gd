@@ -9,6 +9,8 @@ signal world_chunk_received(request_id: String, chunk: Dictionary)
 signal command_acknowledged(request_id: String, message: Dictionary)
 signal server_rejected(code: String)
 signal command_outcome_unknown(request_id: String)
+signal combat_result_received(message: Dictionary)
+signal projectile_spawn_received(message: Dictionary)
 ## A server error that can be attributed to exactly one pending craft. The
 ## request is resolved (removed from _pending) before this is emitted.
 signal command_rejected(request_id: String, code: String)
@@ -90,6 +92,35 @@ func request_select_hotbar(slot: int) -> bool:
 		return false
 	return _socket.send_text(JSON.stringify({"type": "select_hotbar", "slot": slot})) == OK
 
+## Build the existing server-authoritative combat intent. The selected weapon is
+## deliberately omitted: the server reads it from the authenticated player state.
+static func build_attack_message(target_id: String, facing: Vector2, request_id: String) -> Dictionary:
+	if target_id.is_empty() or target_id.length() > 128 or not target_id.begins_with("creature:"):
+		return {}
+	if request_id.is_empty() or request_id.length() > 128:
+		return {}
+	if not is_finite(facing.x) or not is_finite(facing.y) or facing.length_squared() < 0.00000001:
+		return {}
+	var direction := facing.normalized()
+	return {
+		"type": "attack",
+		"requestId": request_id,
+		"targetId": target_id,
+		"facingX": direction.x,
+		"facingY": direction.y,
+	}
+
+## Combat is an action, not a durable inventory mutation. Do not queue/replay it
+## after a disconnect; the server owns cooldown, ammunition, stamina and damage.
+func request_attack(target_id: String, facing: Vector2) -> String:
+	if not is_authenticated():
+		return ""
+	var request_id := _crypto.generate_random_bytes(16).hex_encode()
+	var message := build_attack_message(target_id, facing, request_id)
+	if message.is_empty():
+		return ""
+	return request_id if _socket.send_text(JSON.stringify(message)) == OK else ""
+
 func _send_request(action: String, fields: Dictionary) -> String:
 	if not is_authenticated() or _pending.size() >= MAX_PENDING:
 		return ""
@@ -140,6 +171,12 @@ func _on_message(message: Dictionary) -> void:
 		if craft_id is String and _pending_action_matches(craft_id, "craft"):
 			_pending.erase(craft_id)
 			command_acknowledged.emit(craft_id, message)
+		return
+	if message_type == "combat_result":
+		combat_result_received.emit(message)
+		return
+	if message_type == "projectile_spawn":
+		projectile_spawn_received.emit(message)
 		return
 	if message_type == "error":
 		var code = message.get("code")

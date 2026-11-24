@@ -62,6 +62,7 @@ var _client: Node
 var _player_controller: Node
 var _player := Vector3.ZERO
 var _markers: Dictionary = {}
+var _creatures: Dictionary = {}
 var _status: Label
 var _state: Label
 var _gather: Button
@@ -79,6 +80,8 @@ const CHUNK_SIZE := 32.0
 # server still validates every gather, this only decides when to send intent.
 const GATHER_APPROACH_DISTANCE := 2.0
 const TAP_RESOURCE_RADIUS := 1.5
+## Target-selection hints only; the server revalidates weapon range and hit direction.
+const CREATURE_WEAPON_RANGES := {"cutlass": 1.6, "flintlock": 8.0, "harpoon": 9.0}
 const MOVE_ARRIVE_DISTANCE := 0.35
 const MOVE_INTERVAL_SECONDS := 0.08
 # Chunk snapshots are not pushed, so re-read the authoritative chunk on a
@@ -177,6 +180,8 @@ func _ready() -> void:
 	_client.server_rejected.connect(_on_rejection)
 	_client.command_rejected.connect(func(request_id: String, code: String) -> void: _craft.on_craft_rejected(request_id, code))
 	_client.command_outcome_unknown.connect(_on_outcome_unknown)
+	_client.combat_result_received.connect(_on_combat_result)
+	_client.projectile_spawn_received.connect(_on_projectile_spawn)
 	_client.auth_failed.connect(_on_auth_failed)
 	if _player_controller != null:
 		_player_controller.call("bind_protocol", _client)
@@ -414,6 +419,7 @@ func _build_scaffold_world() -> void:
 	_player = player.position
 	_player_controller = player
 	player.gather_requested.connect(_gather_nearest)
+	player.attack_requested.connect(_attack_nearest_creature)
 	if _coastal == null:
 		var light := DirectionalLight3D.new()
 		light.rotation_degrees = Vector3(-55, -25, 0)
@@ -672,6 +678,33 @@ func _on_world_chunk(request_id: String, chunk: Dictionary) -> void:
 			_markers[resource_id].queue_free()
 			_markers.erase(resource_id)
 
+	# Creature IDs and positions come from the same authoritative chunk snapshot.
+	# They are targeting metadata only; this client never simulates creature state.
+	var current_creature_ids: Dictionary = {}
+	for creature in chunk.get("creatures", []):
+		if not creature is Dictionary:
+			continue
+		var creature_id = creature.get("id")
+		var species = creature.get("species")
+		var creature_x = creature.get("x")
+		var creature_y = creature.get("y")
+		if not creature_id is String or not creature_id.begins_with("creature:") or creature_id.length() > 128:
+			continue
+		if not species is String or not ["slime", "boar", "raptor", "fire_wisp"].has(species):
+			continue
+		if not (creature_x is int or creature_x is float) or not (creature_y is int or creature_y is float):
+			continue
+		var x := float(creature_x)
+		var y := float(creature_y)
+		if not is_finite(x) or not is_finite(y):
+			continue
+		current_creature_ids[creature_id] = true
+		_creatures[creature_id] = {"species": species, "position": Vector2(x, y)}
+	# Depleted or out-of-chunk targets are discarded on the next server snapshot.
+	for creature_id in _creatures.keys():
+		if not current_creature_ids.has(creature_id):
+			_creatures.erase(creature_id)
+
 func _create_resource_marker(resource_id: String) -> MeshInstance3D:
 	var marker := MeshInstance3D.new()
 	var sphere := SphereMesh.new()
@@ -891,6 +924,67 @@ func _gather_nearest() -> void:
 func _send_gather(nearest_id: String) -> void:
 	var request_id: String = _client.request_gather(nearest_id)
 	_status.text = "Awaiting server gather ACK (%s)" % request_id if not request_id.is_empty() else "Command window unavailable"
+
+func _nearest_creature_for_attack(item_id: String) -> Dictionary:
+	var max_range := float(CREATURE_WEAPON_RANGES.get(item_id, 0.0))
+	if max_range <= 0.0:
+		return {}
+	var origin := Vector2(_player.x, _player.z)
+	var nearest: Dictionary = {}
+	var nearest_distance := max_range
+	for creature_id in _creatures:
+		var creature = _creatures[creature_id]
+		if not creature is Dictionary:
+			continue
+		var target_position: Variant = creature.get("position")
+		if not target_position is Vector2:
+			continue
+		var distance := origin.distance_to(target_position)
+		if distance <= nearest_distance:
+			nearest_distance = distance
+			nearest = {
+				"id": creature_id,
+				"species": creature.get("species", ""),
+				"position": target_position,
+				"distance": distance,
+			}
+	return nearest
+
+func _attack_nearest_creature(item_id: String) -> void:
+	if _client == null or not _client.is_authenticated():
+		_status.text = "Authenticate before issuing a server attack"
+		return
+	var target := _nearest_creature_for_attack(item_id)
+	if target.is_empty():
+		_status.text = "No server-visible creature within %s range" % item_id
+		return
+	var origin := Vector2(_player.x, _player.z)
+	var facing: Vector2 = target["position"] - origin
+	if facing.length_squared() < 0.00000001:
+		_status.text = "Cannot attack a target at the player origin"
+		return
+	var request_id: String = _client.request_attack(str(target["id"]), facing)
+	_status.text = "Server attack sent (%s)" % request_id if not request_id.is_empty() else "Attack command window unavailable"
+
+func _on_combat_result(message: Dictionary) -> void:
+	var damage = message.get("damage")
+	var damage_text := "?"
+	if damage is int or damage is float:
+		damage_text = str(roundi(float(damage)))
+	var target_id = message.get("targetId", "creature")
+	var critical := message.get("critical") == true
+	var killed := message.get("killed") == true
+	_status.text = "Combat result: %s damage%s%s" % [
+		damage_text,
+		" critical" if critical else "",
+		" — defeated" if killed else " (%s)" % str(target_id),
+	]
+	if killed:
+		_request_current_chunk()
+
+func _on_projectile_spawn(message: Dictionary) -> void:
+	var target_id = message.get("targetId", "creature")
+	_status.text = "Server projectile launched at %s" % str(target_id)
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch and event.pressed:

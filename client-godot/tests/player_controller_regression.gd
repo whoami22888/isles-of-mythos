@@ -63,6 +63,20 @@ static func run(tree: SceneTree, check: Callable) -> void:
 	player.gather_requested.connect(func() -> void: gathered[0] += 1)
 	check.call(player.use_selected_tool(), "Selecting the shovel must expose the gather tool action")
 	check.call(gathered[0] == 1, "Shovel use must dispatch the existing gather action, not mutate inventory locally")
+	var attack_items: Array[String] = []
+	player.attack_requested.connect(func(item_id: String) -> void: attack_items.append(item_id))
+	for slot in [0, 1, 2]:
+		player.apply_server_state({"selectedHotbarSlot": slot})
+		check.call(player.use_selected_tool(), "A populated combat hotbar slot must dispatch its server attack intent")
+	check.call(attack_items == ["cutlass", "flintlock", "harpoon"],
+		"Cutlass, flintlock and harpoon must each dispatch their own server attack intent")
+	check.call(gathered[0] == 1, "Combat tools must not be misrouted to the gather action")
+	player.apply_server_state({"selectedHotbarSlot": 3})
+	check.call(player.get_selected_hotbar_item() == "shovel", "Selected tool accessor must reflect the server snapshot")
+	check.call(player._use_button.text == "Gather", "Shovel action button must be labelled Gather")
+	player.apply_server_state({"selectedHotbarSlot": 1})
+	check.call(player._use_button.text == "Fire", "Flintlock action button must be labelled Fire")
+	player.apply_server_state({"selectedHotbarSlot": 3})
 	var mock := MockProtocol.new()
 	tree.root.add_child(mock)
 	player.bind_protocol(mock)
