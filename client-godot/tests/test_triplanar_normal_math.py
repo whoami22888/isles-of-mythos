@@ -26,11 +26,12 @@ def normalize(vector):
 
 
 def normalize_normal_sample(sample):
-    """Normalize a decoded tangent-space normal; use flat +Z for degenerate input."""
-    length = math.sqrt(sum(component * component for component in sample))
-    if length <= 1e-6:
+    """Mirror the shader's squared-length guard and flat +Z fallback."""
+    length_squared = sum(component * component for component in sample)
+    if length_squared <= 0.0001:
         return (0.0, 0.0, 1.0)
-    return tuple(component / length for component in sample)
+    inverse_length = 1.0 / math.sqrt(length_squared)
+    return tuple(component * inverse_length for component in sample)
 
 
 def triplanar_uvs(position, geometric_normal):
@@ -206,6 +207,14 @@ class TriplanarNormalReferenceTests(unittest.TestCase):
         self.assertEqual(
             normalize_normal_sample((0.0, 0.0, 0.0)),
             (0.0, 0.0, 1.0),
+        )
+        self.assertEqual(
+            normalize_normal_sample((0.005, 0.0, 0.0)),
+            (0.0, 0.0, 1.0),
+        )
+        self.assertEqual(
+            normalize_normal_sample((0.0, 0.02, 0.0)),
+            (0.0, 1.0, 0.0),
         )
 
 
