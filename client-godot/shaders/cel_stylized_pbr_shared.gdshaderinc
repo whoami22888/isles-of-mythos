@@ -77,6 +77,15 @@ vec4 sample_triplanar(sampler2D tex, vec3 p, vec3 n) {
 // Reorient each tangent-space projection into world space. Blend only the
 // perturbation from each projection's flat normal so oblique flat surfaces
 // retain their original world-space geometric normal instead of snapping to an axis.
+vec3 decode_normal_sample(vec3 encoded_normal) {
+    vec3 decoded = encoded_normal * 2.0 - 1.0;
+    float length_squared = dot(decoded, decoded);
+    if (length_squared <= 0.0001) {
+        return vec3(0.0, 0.0, 1.0);
+    }
+    return decoded * inversesqrt(length_squared);
+}
+
 vec3 sample_triplanar_normal(vec3 p, vec3 world_geometric_normal) {
     vec3 n = normalize(world_geometric_normal);
     vec3 w = projection_weights(n);
@@ -85,9 +94,9 @@ vec3 sample_triplanar_normal(vec3 p, vec3 world_geometric_normal) {
     vec2 uv_x = vec2(uvw.y, uvw.z * face.x);
     vec2 uv_y = vec2(uvw.x, -uvw.z * face.y);
     vec2 uv_z = vec2(uvw.x, uvw.y * face.z);
-    vec3 nx = texture(normal_texture, uv_x).xyz * 2.0 - 1.0;
-    vec3 ny = texture(normal_texture, uv_y).xyz * 2.0 - 1.0;
-    vec3 nz = texture(normal_texture, uv_z).xyz * 2.0 - 1.0;
+    vec3 nx = decode_normal_sample(texture(normal_texture, uv_x).xyz);
+    vec3 ny = decode_normal_sample(texture(normal_texture, uv_y).xyz);
+    vec3 nz = decode_normal_sample(texture(normal_texture, uv_z).xyz);
     // Preserve each projection's UV tangent-frame handedness on both face signs.
     // U stays fixed; the face sign flips the bitangent so normal maps do not mirror.
     vec3 tx = vec3(nx.z * face.x, nx.x, nx.y * face.x);
