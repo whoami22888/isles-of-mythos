@@ -39,6 +39,7 @@ var is_excited: bool = false
 var xp_multiplier: float = 1.0
 var work_output_max: bool = false
 var workstation: String = ""
+var work_task: String = ""
 var work_yield_multiplier: float = 1.0
 var _has_authoritative_snapshot: bool = false
 
@@ -53,6 +54,7 @@ func apply_authoritative_snapshot(snapshot: Dictionary) -> bool:
 	var xp_value: Variant = snapshot.get("xp_multiplier")
 	var max_output_value: Variant = snapshot.get("work_output_max")
 	var workstation_value: Variant = snapshot.get("workstation")
+	var work_task_value: Variant = snapshot.get("work_task")
 	var yield_value: Variant = snapshot.get("work_yield_multiplier")
 
 	if not (id_value is String) or id_value.strip_edges().is_empty():
@@ -65,7 +67,7 @@ func apply_authoritative_snapshot(snapshot: Dictionary) -> bool:
 		return false
 	if not (xp_value is int or xp_value is float):
 		return false
-	if not (max_output_value is bool) or not (workstation_value is String):
+	if not (max_output_value is bool) or not (workstation_value is String) or not (work_task_value is String):
 		return false
 	if not (yield_value is int or yield_value is float):
 		return false
@@ -81,6 +83,7 @@ func apply_authoritative_snapshot(snapshot: Dictionary) -> bool:
 	var next_state: int = STATE_BY_NAME[state_name_value]
 	var next_element: int = ELEMENT_BY_NAME[element_name_value]
 	var next_workstation := workstation_value.strip_edges().to_lower()
+	var next_work_task := work_task_value.strip_edges().to_lower()
 	var next_excited := next_state != State.WILD and next_mood >= EXCITED_MOOD_THRESHOLD
 	var expected_xp := EXCITED_XP_MULTIPLIER if next_excited else 1.0
 	if absf(next_xp_multiplier - expected_xp) > 0.001:
@@ -92,8 +95,10 @@ func apply_authoritative_snapshot(snapshot: Dictionary) -> bool:
 	if next_state == State.TAMED_WORK:
 		if next_workstation.is_empty():
 			return false
-		expected_yield = _expected_work_yield(next_element, next_workstation)
-	elif not next_workstation.is_empty():
+		if next_work_task.is_empty():
+			return false
+		expected_yield = _expected_work_yield(next_element, next_workstation, next_work_task)
+	elif not next_workstation.is_empty() or not next_work_task.is_empty():
 		return false
 	if absf(next_yield_multiplier - expected_yield) > 0.001:
 		return false
@@ -107,6 +112,7 @@ func apply_authoritative_snapshot(snapshot: Dictionary) -> bool:
 	xp_multiplier = next_xp_multiplier
 	work_output_max = max_output_value
 	workstation = next_workstation
+	work_task = next_work_task
 	work_yield_multiplier = next_yield_multiplier
 	_has_authoritative_snapshot = true
 	authoritative_snapshot_changed.emit()
@@ -156,12 +162,17 @@ func get_element_name() -> String:
 	return "water"
 
 
-func _expected_work_yield(creature_element: int, target_workstation: String) -> float:
-	if creature_element == Element.FIRE and target_workstation == "forge":
+func _expected_work_yield(creature_element: int, target_workstation: String, target_task: String) -> float:
+	if (
+		creature_element == Element.FIRE
+		and target_workstation == "forge"
+		and target_task == "ore_smelting"
+	):
 		return FIRE_FORGE_YIELD_MULTIPLIER
 	if (
 		creature_element == Element.WATER
 		and target_workstation in ["docks", "fishing_dock", "farm"]
+		and target_task in ["collect", "irrigation", "fishing", "net_operation", "aquatic_harvesting"]
 	):
 		return WATER_DOCKS_FARM_YIELD_MULTIPLIER
 	return 1.0
