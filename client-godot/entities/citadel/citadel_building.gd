@@ -211,19 +211,24 @@ func _can_afford(cost: Dictionary) -> bool:
 	if manager == null or not manager.has_method("get_resource_amount"):
 		return false
 
+	var has_resource_cost := false
 	var resources_sufficient := true
 	for resource_key in RESOURCE_FIELDS:
 		var required := int(cost.get(resource_key, 0))
+		if required <= 0:
+			continue
+		has_resource_cost = true
 		var available := int(manager.call("get_resource_amount", resource_key))
 		if available < required:
 			resources_sufficient = false
 
+	var resource_path_sufficient := has_resource_cost and resources_sufficient
 	var badge_cost := int(cost.get("badge_alternative", 0))
 	var badges_sufficient := (
 		badge_cost > 0
 		and int(manager.call("get_resource_amount", "triumph_badges")) >= badge_cost
 	)
-	return resources_sufficient or badges_sufficient
+	return resource_path_sufficient or badges_sufficient
 
 
 func _get_game_manager() -> Node:
