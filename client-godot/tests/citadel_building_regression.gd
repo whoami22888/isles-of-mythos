@@ -12,17 +12,17 @@ class FakeGameManager extends Node:
 		return int(resources.get(resource_type, 0))
 
 	func check_citadel_soft_wall(target_level: int, _caller_badges: int) -> bool:
-		if target_level < CitadelBuildingScript.SOFT_WALL_TARGET_LEVEL:
-			return target_level >= CitadelBuildingScript.MIN_LEVEL
-		if target_level != CitadelBuildingScript.SOFT_WALL_TARGET_LEVEL:
+		if target_level < 16:
+			return target_level >= 1
+		if target_level != 16:
 			return false
 
 		var has_resources := (
-			get_resource_amount("wood") >= int(CitadelBuildingScript.SOFT_WALL_RESOURCE_COST["wood"])
-			and get_resource_amount("steel") >= int(CitadelBuildingScript.SOFT_WALL_RESOURCE_COST["steel"])
-			and get_resource_amount("food") >= int(CitadelBuildingScript.SOFT_WALL_RESOURCE_COST["food"])
+			get_resource_amount("wood") >= 5_000_000
+			and get_resource_amount("steel") >= 5_000_000
+			and get_resource_amount("food") >= 1_000_000
 		)
-		var has_badges := get_resource_amount("triumph_badges") >= int(CitadelBuildingScript.SOFT_WALL_BADGE_COST["triumph_badges"])
+		var has_badges := get_resource_amount("triumph_badges") >= 500
 		if not has_resources and not has_badges:
 			soft_wall_reached.emit()
 		return has_resources or has_badges
