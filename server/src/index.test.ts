@@ -1123,4 +1123,120 @@ describe("server foundation", () => {
     }
   });
 
+  it("broadcasts hotbar selection to every authenticated socket before another socket attacks", async () => {
+    const database = (await import("./db.js")).createDbPool();
+    const app = await buildApp();
+    let primary: WebSocket | undefined;
+    let observer: WebSocket | undefined;
+    const unique = Date.now();
+
+    try {
+      const register = await app.inject({
+        method: "POST",
+        url: "/auth/register",
+        payload: {
+          username: `hotbar_broadcast_${unique}`,
+          email: `hotbar_broadcast_${unique}@example.com`,
+          password: "Correct-Horse-Battery-9",
+        },
+      });
+      expect(register.statusCode).toBe(201);
+      const registerBody = parseJsonObject(register.body);
+      const token = getString(registerBody, "accessToken");
+      const userId = getString(getObject(registerBody, "user"), "id");
+
+      let spawnObject: JsonObject | null = null;
+      for (let chunkY = 0; chunkY < 8 && !spawnObject; chunkY += 1) {
+        for (let chunkX = 0; chunkX < 8 && !spawnObject; chunkX += 1) {
+          const chunkResponse = await app.inject({ method: "GET", url: `/world/chunks/${chunkX}/${chunkY}` });
+          expect(chunkResponse.statusCode).toBe(200);
+          const chunk = parseJsonObject(chunkResponse.body);
+          if (!Array.isArray(chunk.creatures)) throw new Error("Test world chunk creatures are malformed");
+          spawnObject = chunk.creatures.find(isJsonObject) ?? null;
+        }
+      }
+      if (!spawnObject) throw new Error("Deterministic test world contains no creature spawn");
+      const targetId = getString(spawnObject, "id");
+      const targetX = Number(spawnObject.x);
+      const targetY = Number(spawnObject.y);
+      expect(Number.isFinite(targetX)).toBe(true);
+      expect(Number.isFinite(targetY)).toBe(true);
+
+      await database.query(
+        "INSERT INTO player_profiles (user_id, x, y, stamina, inventory) VALUES ($1, $2, $3, 100, $4::jsonb) ON CONFLICT (user_id) DO UPDATE SET x=EXCLUDED.x, y=EXCLUDED.y, stamina=100, inventory=EXCLUDED.inventory",
+        [userId, targetX - 0.5, targetY, JSON.stringify({ "ammo.flintlock": 1 })],
+      );
+
+      const primarySocket = await openSocket(app);
+      primary = primarySocket;
+      await new Promise<void>((resolve, reject) => {
+        primarySocket.once("open", resolve);
+        primarySocket.once("error", reject);
+      });
+      const primaryAuth = waitForMatchingMessage(primarySocket, (message) => isJsonObject(message) && message.type === "auth_ok");
+      const primaryInitialState = waitForMatchingMessage(primarySocket, (message) => isJsonObject(message) && message.type === "player_state");
+      primarySocket.send(JSON.stringify({ type: "auth", token }));
+      await Promise.all([primaryAuth, primaryInitialState]);
+
+      const observerSocket = await openSocket(app);
+      observer = observerSocket;
+      await new Promise<void>((resolve, reject) => {
+        observerSocket.once("open", resolve);
+        observerSocket.once("error", reject);
+      });
+      const observerAuth = waitForMatchingMessage(observerSocket, (message) => isJsonObject(message) && message.type === "auth_ok");
+      const observerInitialState = waitForMatchingMessage(observerSocket, (message) => isJsonObject(message) && message.type === "player_state");
+      observerSocket.send(JSON.stringify({ type: "auth", token }));
+      await Promise.all([observerAuth, observerInitialState]);
+
+      const selectedOnPrimary = waitForMatchingMessage(
+        primarySocket,
+        (message) => isJsonObject(message)
+          && message.type === "player_state"
+          && isJsonObject(message.state)
+          && message.state.selectedHotbarSlot === 1,
+      );
+      const selectedOnObserver = waitForMatchingMessage(
+        observerSocket,
+        (message) => isJsonObject(message)
+          && message.type === "player_state"
+          && isJsonObject(message.state)
+          && message.state.selectedHotbarSlot === 1,
+      );
+      primarySocket.send(JSON.stringify({ type: "select_hotbar", slot: 1 }));
+
+      const [primarySelection, observerSelection] = await Promise.all([selectedOnPrimary, selectedOnObserver]);
+      expect(getObject(primarySelection as JsonObject, "state").selectedHotbarSlot).toBe(1);
+      expect(getObject(observerSelection as JsonObject, "state").selectedHotbarSlot).toBe(1);
+
+      const attackResult = waitForMatchingMessage(
+        observerSocket,
+        (message) => isJsonObject(message)
+          && message.type === "combat_result"
+          && message.requestId === "hotbar-broadcast-attack",
+      );
+      observerSocket.send(JSON.stringify({
+        type: "attack",
+        requestId: "hotbar-broadcast-attack",
+        targetId,
+        facingX: 1,
+        facingY: 0,
+      }));
+      const result = await attackResult;
+      expect(result).toMatchObject({
+        type: "combat_result",
+        requestId: "hotbar-broadcast-attack",
+        targetId,
+      });
+      if (!isJsonObject(result)) throw new Error("Malformed combat result");
+      expect(Number(result.damage)).toBeGreaterThan(0);
+      expect(result.missed).not.toBe(true);
+    } finally {
+      primary?.close();
+      observer?.close();
+      await app.close();
+      await database.end();
+    }
+  });
+
 });
