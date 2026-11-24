@@ -55,12 +55,23 @@ vec3 projection_weights(vec3 n) {
     return weights / max(weights.x + weights.y + weights.z, 0.0001);
 }
 
+vec3 projection_face_signs(vec3 n) {
+    return mix(vec3(-1.0), vec3(1.0), step(vec3(0.0), normalize(n)));
+}
+
+// Keep the signed UV bitangents identical for albedo, normal and roughness
+// projections. This prevents opposite faces from mirroring texture detail
+// relative to the reconstructed tangent-space normal map.
 vec4 sample_triplanar(sampler2D tex, vec3 p, vec3 n) {
     vec3 w = projection_weights(n);
+    vec3 face = projection_face_signs(n);
     vec3 uvw = p * triplanar_scale;
-    return texture(tex, uvw.yz) * w.x
-         + texture(tex, uvw.xz) * w.y
-         + texture(tex, uvw.xy) * w.z;
+    vec2 uv_x = vec2(uvw.y, uvw.z * face.x);
+    vec2 uv_y = vec2(uvw.x, -uvw.z * face.y);
+    vec2 uv_z = vec2(uvw.x, uvw.y * face.z);
+    return texture(tex, uv_x) * w.x
+         + texture(tex, uv_y) * w.y
+         + texture(tex, uv_z) * w.z;
 }
 
 // Reorient each tangent-space projection into world space. Blend only the
@@ -70,10 +81,13 @@ vec3 sample_triplanar_normal(vec3 p, vec3 world_geometric_normal) {
     vec3 n = normalize(world_geometric_normal);
     vec3 w = projection_weights(n);
     vec3 uvw = p * triplanar_scale;
-    vec3 nx = texture(normal_texture, uvw.yz).xyz * 2.0 - 1.0;
-    vec3 ny = texture(normal_texture, uvw.xz).xyz * 2.0 - 1.0;
-    vec3 nz = texture(normal_texture, uvw.xy).xyz * 2.0 - 1.0;
-    vec3 face = mix(vec3(-1.0), vec3(1.0), step(vec3(0.0), n));
+    vec3 face = projection_face_signs(n);
+    vec2 uv_x = vec2(uvw.y, uvw.z * face.x);
+    vec2 uv_y = vec2(uvw.x, -uvw.z * face.y);
+    vec2 uv_z = vec2(uvw.x, uvw.y * face.z);
+    vec3 nx = texture(normal_texture, uv_x).xyz * 2.0 - 1.0;
+    vec3 ny = texture(normal_texture, uv_y).xyz * 2.0 - 1.0;
+    vec3 nz = texture(normal_texture, uv_z).xyz * 2.0 - 1.0;
     // Preserve each projection's UV tangent-frame handedness on both face signs.
     // U stays fixed; the face sign flips the bitangent so normal maps do not mirror.
     vec3 tx = vec3(nx.z * face.x, nx.x, nx.y * face.x);
