@@ -25,6 +25,17 @@ def normalize(vector):
     return tuple(component / length for component in vector)
 
 
+def triplanar_uvs(position, geometric_normal):
+    """Return X/Y/Z projection UVs with the normal-map tangent-frame signs."""
+    normal = normalize(geometric_normal)
+    face = tuple(1 if component >= 0 else -1 for component in normal)
+    return (
+        (position[1], position[2] * face[0]),
+        (position[0], -position[2] * face[1]),
+        (position[0], position[1] * face[2]),
+    )
+
+
 def reorient_projection(sample, face_sign, axis_index):
     """Map a tangent-space sample into its signed local projection frame."""
     if axis_index == 0:
@@ -65,6 +76,30 @@ def blend_normal(geometric_normal, samples, sharpness=4.0):
 
 class TriplanarNormalReferenceTests(unittest.TestCase):
     """Verify the CPU reference normal reconstruction on representative faces."""
+
+    def test_signed_projection_uvs_match_normal_map_bitangents(self):
+        """Albedo, roughness and normal maps must use the same signed projection frames."""
+        cases = (
+            ((1, 0, 0), 0, 1, 2, 1),
+            ((-1, 0, 0), 0, 1, 2, -1),
+            ((0, 1, 0), 1, 0, 2, -1),
+            ((0, -1, 0), 1, 0, 2, 1),
+            ((0, 0, 1), 2, 0, 1, 1),
+            ((0, 0, -1), 2, 0, 1, -1),
+        )
+        origin = (0.0, 0.0, 0.0)
+        for face, projection, u_axis, v_axis, v_sign in cases:
+            base_uv = triplanar_uvs(origin, face)[projection]
+            u_position = [0.0, 0.0, 0.0]
+            u_position[u_axis] = 1.0
+            v_position = [0.0, 0.0, 0.0]
+            v_position[v_axis] = 1.0
+            u_uv = triplanar_uvs(tuple(u_position), face)[projection]
+            v_uv = triplanar_uvs(tuple(v_position), face)[projection]
+            self.assertAlmostEqual(u_uv[0] - base_uv[0], 1.0)
+            self.assertAlmostEqual(u_uv[1] - base_uv[1], 0.0)
+            self.assertAlmostEqual(v_uv[0] - base_uv[0], 0.0)
+            self.assertAlmostEqual(v_uv[1] - base_uv[1], v_sign)
 
     def test_flat_normal_map_preserves_six_axis_faces(self):
         """A flat tangent normal must preserve every signed cardinal face."""
@@ -228,6 +263,24 @@ class StylizedPbrShaderContractTests(unittest.TestCase):
         )
         self.assertNotIn("local_position", self.shared)
         self.assertNotIn("local_normal", self.shared)
+
+    def test_all_triplanar_maps_share_signed_projection_uvs(self):
+        """Every sampled map must share the signed world-space tangent frames."""
+        for token in (
+            "vec3 projection_face_signs(vec3 n)",
+            "vec2 uv_x = vec2(uvw.y, uvw.z * face.x);",
+            "vec2 uv_y = vec2(uvw.x, -uvw.z * face.y);",
+            "vec2 uv_z = vec2(uvw.x, uvw.y * face.z);",
+            "texture(tex, uv_x)",
+            "texture(tex, uv_y)",
+            "texture(tex, uv_z)",
+            "texture(normal_texture, uv_x)",
+            "texture(normal_texture, uv_y)",
+            "texture(normal_texture, uv_z)",
+        ):
+            self.assertIn(token, self.shared)
+        self.assertNotIn("texture(tex, uvw.yz)", self.shared)
+        self.assertNotIn("texture(normal_texture, uvw.yz)", self.shared)
 
     def test_triplanar_normal_reconstruction_stays_world_space_until_view_transform(self):
         """Reconstruct triplanar normals in world space, then transform once for shading."""
