@@ -518,6 +518,18 @@ class AssetValidatorTests(unittest.TestCase):
         ):
             validator.validate_bounded_lod_lineage(registered)
 
+    def test_bounded_lod_texture_only_branch_rejects_model_outputs(self):
+        """A suffixed GLB cannot masquerade as a texture-only partial bundle."""
+        output_path = "generated/bounded_lods/island_tree_01_lod2.glb"
+        registered = self.metadata_free_bounded_lod_fixture(
+            output_path, "island_tree_01"
+        )
+        validator.validate_generated_dependencies(registered)
+        with self.assertRaisesRegex(
+            ValueError, "Bounded LOD output must be a texture"
+        ):
+            validator.validate_bounded_lod_lineage(registered)
+
 
 
 if __name__ == "__main__":
