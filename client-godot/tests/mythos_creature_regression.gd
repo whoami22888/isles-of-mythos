@@ -34,7 +34,7 @@ static func run(tree: SceneTree, check: Callable) -> void:
 	], "Pet and feed intents must carry the configured mood gains")
 	check.call(creature.mood == mood_before_care, "Care intents must not mutate mood before a server snapshot")
 
-	var excited_fire := _snapshot("mythos-1", "tamed_work", "fire", 80.0, 2.0, true, "forge", 1.6)
+	var excited_fire := _snapshot("mythos-1", "tamed_work", "fire", 80.0, 2.0, true, "forge", 1.6, "ore_smelting")
 	check.call(creature.apply_authoritative_snapshot(excited_fire), "Fire companion at a Forge must accept the server's 1.6x yield snapshot")
 	check.call(creature.is_excited and creature.hearts == 4, "Mood 80 must enter excited state")
 	check.call(creature.xp_multiplier == 2.0 and creature.work_output_max, "Excited state must project the server's 2.0x XP and maximum-work flags")
@@ -43,13 +43,13 @@ static func run(tree: SceneTree, check: Callable) -> void:
 	check.call(work_events == [{"id": "mythos-1", "building_id": "forge-building-1", "task": "ore_smelting"}], "Work assignment intent must include the creature, building and task")
 	check.call(creature.state == MythosCreature.State.TAMED_WORK and creature.workstation == "forge", "Work intent must not locally change the server-owned assignment")
 
-	var excited_water_docks := _snapshot("mythos-1", "tamed_work", "water", 85.0, 2.0, true, "docks", 1.4)
+	var excited_water_docks := _snapshot("mythos-1", "tamed_work", "water", 85.0, 2.0, true, "docks", 1.4, "fishing")
 	check.call(creature.apply_authoritative_snapshot(excited_water_docks), "Water companion at Docks must accept the server's 1.4x yield snapshot")
 	check.call(is_equal_approx(creature.work_yield_multiplier, 1.4), "Water at Docks must project 1.4x food yield")
-	var excited_water_farm := _snapshot("mythos-1", "tamed_work", "water", 90.0, 2.0, true, "farm", 1.4)
+	var excited_water_farm := _snapshot("mythos-1", "tamed_work", "water", 90.0, 2.0, true, "farm", 1.4, "irrigation")
 	check.call(creature.apply_authoritative_snapshot(excited_water_farm), "Water companion at Farm must accept the server's 1.4x yield snapshot")
 	check.call(is_equal_approx(creature.work_yield_multiplier, 1.4), "Water at Farm must project 1.4x food yield")
-	var earth_forge := _snapshot("mythos-1", "tamed_work", "earth", 80.0, 2.0, true, "forge", 1.0)
+	var earth_forge := _snapshot("mythos-1", "tamed_work", "earth", 80.0, 2.0, true, "forge", 1.0, "ore_smelting")
 	check.call(creature.apply_authoritative_snapshot(earth_forge), "Unmatched element/workstation pairs must remain at normal yield")
 	check.call(is_equal_approx(creature.work_yield_multiplier, 1.0), "Earth at Forge must not receive a Fire bonus")
 
@@ -73,7 +73,7 @@ static func run(tree: SceneTree, check: Callable) -> void:
 	check.call(creature.mood == mood_before_invalid, "Rejected mood data must not overwrite the last valid snapshot")
 	var invalid_xp := _snapshot("wild-1", "tamed_follow", "fire", 85.0, 1.0, false, "", 1.0)
 	check.call(not creature.apply_authoritative_snapshot(invalid_xp), "An excited snapshot with a non-2.0 XP multiplier must be rejected")
-	var invalid_yield := _snapshot("wild-1", "tamed_work", "fire", 85.0, 2.0, true, "forge", 1.4)
+	var invalid_yield := _snapshot("wild-1", "tamed_work", "fire", 85.0, 2.0, true, "forge", 1.4, "ore_smelting")
 	check.call(not creature.apply_authoritative_snapshot(invalid_yield), "Fire/Forge yield mismatch must be rejected")
 	var invalid_element := _snapshot("wild-1", "tamed_follow", "lightning", 50.0, 1.0, false, "", 1.0)
 	check.call(not creature.apply_authoritative_snapshot(invalid_element), "Unknown creature elements must be rejected")
@@ -91,7 +91,8 @@ static func _snapshot(
 	xp_multiplier: float,
 	work_output_max: bool,
 	workstation: String,
-	work_yield_multiplier: float
+	work_yield_multiplier: float,
+	work_task: String = ""
 ) -> Dictionary:
 	return {
 		"id": id,
@@ -101,5 +102,6 @@ static func _snapshot(
 		"xp_multiplier": xp_multiplier,
 		"work_output_max": work_output_max,
 		"workstation": workstation,
+		"work_task": work_task,
 		"work_yield_multiplier": work_yield_multiplier,
 	}
