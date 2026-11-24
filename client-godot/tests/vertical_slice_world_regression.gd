@@ -86,6 +86,7 @@ func _init() -> void:
 	await process_frame
 	_assert(world._markers.is_empty(), "authoritative deletion frees depleted markers")
 	_assert(world._creatures.is_empty(), "authoritative deletion clears depleted creature targets")
+	movement_controller.queue_free()
 	world.queue_free()
 	attack_protocol.queue_free()
 	await process_frame
