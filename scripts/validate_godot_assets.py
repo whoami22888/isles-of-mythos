@@ -161,11 +161,11 @@ def validate_bounded_lod_lineage(registered_by_path):
                 None,
             )
             if asset is None:
-                continue
+                fail(f"Unknown bounded LOD output family: {output_path}")
             source_path = f"polyhaven/{asset}/{asset}_1k.gltf"
             source = registered_by_path.get(source_path)
             if source is None:
-                continue
+                fail(f"Bounded LOD source model is not manifested: {source_path}")
             entry = registered_by_path[output_path]
             if entry.get("generated_from") != [source_path]:
                 fail(
