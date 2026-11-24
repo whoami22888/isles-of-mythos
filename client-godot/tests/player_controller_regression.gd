@@ -90,7 +90,11 @@ static func run(tree: SceneTree, check: Callable) -> void:
 	check.call(player.get_selected_hotbar_slot() == 2, "Eighth-slot selection must also wait for the server snapshot")
 	player.apply_server_state({"selectedHotbarSlot": 7})
 	check.call(player.get_selected_hotbar_slot() == 7, "The server snapshot must confirm eighth-slot selection")
-	check.call(not player.use_selected_tool(), "A non-shovel slot must not dispatch the gather action")
+	var attack_count_before_eighth_slot := attack_items.size()
+	check.call(player.use_selected_tool(), "The eighth populated slot must dispatch its combat action")
+	check.call(attack_items.size() == attack_count_before_eighth_slot + 1 and attack_items[-1] == "cutlass",
+		"The eighth-slot cutlass must dispatch a server attack, not a gather action")
+	check.call(gathered[0] == 1, "Combat use must never increment the gather action count")
 	player.apply_server_state({"health": -5, "hunger": "invalid", "oxygen": 125})
 	survival = player.get_survival_values()
 	check.call(is_equal_approx(float(survival.get("health", 1.0)), 0.0), "Survival values must clamp to their lower bound")
