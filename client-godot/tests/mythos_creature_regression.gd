@@ -8,7 +8,7 @@ static func run(tree: SceneTree, check: Callable) -> void:
 	tree.root.add_child(creature)
 	var care_events: Array[Dictionary] = []
 	var work_events: Array[Dictionary] = []
-	var snapshot_changes := 0
+	var snapshot_changes := [0]
 	creature.care_requested.connect(func(id: String, action: String, gain: int) -> void:
 		care_events.append({"id": id, "action": action, "gain": gain})
 	)
@@ -16,7 +16,7 @@ static func run(tree: SceneTree, check: Callable) -> void:
 		work_events.append({"id": id, "building_id": building_id, "task": task})
 	)
 	creature.authoritative_snapshot_changed.connect(func() -> void:
-		snapshot_changes += 1
+		snapshot_changes[0] += 1
 	)
 
 	var follow := _snapshot("mythos-1", "tamed_follow", "fire", 79.0, 1.0, false, "", 1.0)
@@ -77,7 +77,7 @@ static func run(tree: SceneTree, check: Callable) -> void:
 	check.call(not creature.apply_authoritative_snapshot(invalid_yield), "Fire/Forge yield mismatch must be rejected")
 	var invalid_element := _snapshot("wild-1", "tamed_follow", "lightning", 50.0, 1.0, false, "", 1.0)
 	check.call(not creature.apply_authoritative_snapshot(invalid_element), "Unknown creature elements must be rejected")
-	check.call(snapshot_changes == 7, "Only valid authoritative snapshots may emit snapshot_changed")
+	check.call(snapshot_changes[0] == 8, "Only valid authoritative snapshots may emit snapshot_changed")
 
 	creature.queue_free()
 	await tree.process_frame
