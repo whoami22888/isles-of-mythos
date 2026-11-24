@@ -51,6 +51,114 @@ class AssetValidatorTests(unittest.TestCase):
             json.dumps({"schema_version": 1, "assets": entries}), encoding="utf-8"
         )
 
+
+    def bounded_lod_fixture(self):
+        """Create four source models, their LODs, one texture output and aggregate metadata."""
+        asset_names = (
+            "tree_small_02",
+            "island_tree_01",
+            "island_tree_02",
+            "coast_rocks_05",
+        )
+        entries = []
+        sources = {}
+        outputs = {}
+        metadata_rows = []
+
+        for asset in asset_names:
+            source_path = f"polyhaven/{asset}/{asset}_1k.gltf"
+            source_bytes = f"source-model:{asset}".encode()
+            source_file = self.assets / source_path
+            source_file.parent.mkdir(parents=True, exist_ok=True)
+            source_file.write_bytes(source_bytes)
+            source = {
+                "id": f"source-{asset}",
+                "path": source_path,
+                "sha256": hashlib.sha256(source_bytes).hexdigest(),
+                "source_url": f"https://polyhaven.com/a/{asset}",
+                "download_url": (
+                    "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/"
+                    f"{asset}/{asset}_1k.gltf"
+                ),
+                "license": "CC0-1.0",
+                "license_url": "https://polyhaven.com/license",
+                "attribution": "Poly Haven",
+                "upstream_md5": "a" * 32,
+            }
+            entries.append(source)
+            sources[asset] = source
+
+            output_path = f"generated/bounded_lods/{asset}.glb"
+            output_bytes = f"bounded-lod:{asset}".encode()
+            output_file = self.assets / output_path
+            output_file.parent.mkdir(parents=True, exist_ok=True)
+            output_file.write_bytes(output_bytes)
+            output = {
+                "id": f"lod-{asset}",
+                "path": output_path,
+                "sha256": hashlib.sha256(output_bytes).hexdigest(),
+                "source_url": source["source_url"],
+                "download_url": source["download_url"],
+                "license": source["license"],
+                "license_url": source["license_url"],
+                "attribution": source["attribution"],
+                "generated_from": [source_path],
+                "generation_note": f"Bounded LOD derived from {source_path}",
+            }
+            entries.append(output)
+            outputs[asset] = output
+            metadata_rows.append({
+                "asset": asset,
+                "before": 1000,
+                "after": 900,
+                "source_sha256": source["sha256"],
+                "output_sha256": output["sha256"],
+                "blender": "4.3.2",
+            })
+
+        texture_path = (
+            "generated/bounded_lods/"
+            "island_tree_01_island_tree_01_leaves_diff_1k.jpg"
+        )
+        texture_bytes = b"derived tree texture"
+        texture_file = self.assets / texture_path
+        texture_file.write_bytes(texture_bytes)
+        texture_source = sources["island_tree_01"]
+        texture_entry = {
+            "id": "lod-island-tree-01-leaves",
+            "path": texture_path,
+            "sha256": hashlib.sha256(texture_bytes).hexdigest(),
+            "source_url": texture_source["source_url"],
+            "download_url": texture_source["download_url"],
+            "license": texture_source["license"],
+            "license_url": texture_source["license_url"],
+            "attribution": texture_source["attribution"],
+            "generated_from": [texture_source["path"]],
+            "generation_note": "Texture bundled with the island_tree_01 bounded LOD",
+        }
+        entries.append(texture_entry)
+
+        metadata_path = "generated/bounded_lods/metadata.json"
+        metadata_bytes = json.dumps(metadata_rows, indent=2).encode()
+        metadata_file = self.assets / metadata_path
+        metadata_file.write_bytes(metadata_bytes)
+        primary_source = sources["tree_small_02"]
+        metadata_entry = {
+            "id": "bounded-lod-metadata",
+            "path": metadata_path,
+            "sha256": hashlib.sha256(metadata_bytes).hexdigest(),
+            "source_url": primary_source["source_url"],
+            "download_url": primary_source["download_url"],
+            "license": primary_source["license"],
+            "license_url": primary_source["license_url"],
+            "attribution": primary_source["attribution"],
+            "generated_from": [sources[name]["path"] for name in asset_names],
+            "generation_note": "Aggregate metadata for all four bounded LOD source models",
+        }
+        entries.append(metadata_entry)
+        self.write(entries)
+        return entries, sources, outputs, texture_entry, metadata_entry, metadata_file
+
     def test_empty_manifest(self):
         """Regression: empty manifest."""
         self.write([])
@@ -144,17 +252,46 @@ class AssetValidatorTests(unittest.TestCase):
 
     def test_tree_lod_extraction_requires_registered_identical_texture(self):
         """Godot's LOD2 extraction cannot admit a modified or unrelated PNG."""
+        source_model_path = "polyhaven/island_tree_01/island_tree_01_1k.gltf"
+        source_model_bytes = b"verified source model"
+        source_model_file = self.assets / source_model_path
+        source_model_file.parent.mkdir(parents=True)
+        source_model_file.write_bytes(source_model_bytes)
+        source_model_entry = {
+            "id": "source-island-tree-01",
+            "path": source_model_path,
+            "sha256": hashlib.sha256(source_model_bytes).hexdigest(),
+            "source_url": "https://polyhaven.com/a/island_tree_01",
+            "download_url": (
+                "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/"
+                "island_tree_01/island_tree_01_1k.gltf"
+            ),
+            "license": "CC0-1.0",
+            "license_url": "https://polyhaven.com/license",
+            "attribution": "Poly Haven",
+            "upstream_md5": "a" * 32,
+        }
         source = (self.assets / "generated/bounded_lods"
                   / "island_tree_01_island_tree_01_leaves_diff_1k.png")
         source.parent.mkdir(parents=True)
         source.write_bytes(b"approved leaf texture")
-        entry = dict(self.entry, path=source.relative_to(self.assets).as_posix(),
-                     sha256=hashlib.sha256(source.read_bytes()).hexdigest())
+        entry = {
+            "id": "bounded-lod-island-tree-texture",
+            "path": source.relative_to(self.assets).as_posix(),
+            "sha256": hashlib.sha256(source.read_bytes()).hexdigest(),
+            "source_url": source_model_entry["source_url"],
+            "download_url": source_model_entry["download_url"],
+            "license": source_model_entry["license"],
+            "license_url": source_model_entry["license_url"],
+            "attribution": source_model_entry["attribution"],
+            "generated_from": [source_model_path],
+            "generation_note": "Extracted from the admitted island-tree source model",
+        }
         output = (self.assets / "generated/foliage"
                   / "island_tree_01_lod2_island_tree_01_leaves_diff_1k.png")
         output.parent.mkdir(parents=True)
         output.write_bytes(source.read_bytes())
-        self.write([entry])
+        self.write([source_model_entry, entry])
         self.assertEqual(validator.validate(), 0)
         output.write_bytes(b"different texture")
         with self.assertRaisesRegex(ValueError, "Unregistered"):
@@ -260,6 +397,140 @@ class AssetValidatorTests(unittest.TestCase):
         self.write([self.entry])
         with self.assertRaisesRegex(ValueError, "dependency is absent"):
             validator.validate()
+
+
+    def test_bounded_lod_lineage_accepts_matching_sources_and_metadata(self):
+        """Every bounded LOD output and aggregate row must bind to its actual model."""
+        self.bounded_lod_fixture()
+        self.assertEqual(validator.validate(), 0)
+
+    def test_bounded_lod_texture_rejects_swapped_source_family(self):
+        """A tree texture cannot claim the unrelated coast-rocks source model."""
+        entries, sources, _, texture_entry, _, _ = self.bounded_lod_fixture()
+        wrong_source = sources["coast_rocks_05"]
+        texture_entry["generated_from"] = [wrong_source["path"]]
+        texture_entry["source_url"] = wrong_source["source_url"]
+        texture_entry["download_url"] = wrong_source["download_url"]
+        self.write(entries)
+        with self.assertRaisesRegex(ValueError, "Bounded LOD source lineage mismatch"):
+            validator.validate()
+
+    def test_bounded_lod_metadata_requires_all_four_source_models(self):
+        """Aggregate LOD metadata must record all four source model parents."""
+        entries, _, _, _, metadata_entry, _ = self.bounded_lod_fixture()
+        metadata_entry["generated_from"] = [
+            "polyhaven/coast_rocks_05/coast_rocks_05_1k.gltf"
+        ]
+        self.write(entries)
+        with self.assertRaisesRegex(ValueError, "must list all four source models"):
+            validator.validate()
+
+    def test_bounded_lod_metadata_source_sha_must_match_manifest(self):
+        """Metadata source hashes must match the admitted source model records."""
+        entries, _, _, _, metadata_entry, metadata_file = self.bounded_lod_fixture()
+        records = json.loads(metadata_file.read_text(encoding="utf-8"))
+        records[0]["source_sha256"] = "0" * 64
+        metadata_bytes = json.dumps(records, indent=2).encode()
+        metadata_file.write_bytes(metadata_bytes)
+        metadata_entry["sha256"] = hashlib.sha256(metadata_bytes).hexdigest()
+        self.write(entries)
+        with self.assertRaisesRegex(ValueError, "metadata source SHA-256 mismatch"):
+            validator.validate()
+
+    def test_bounded_lod_metadata_output_sha_must_match_manifest(self):
+        """Metadata output hashes must match the manifested generated GLB."""
+        entries, _, _, _, metadata_entry, metadata_file = self.bounded_lod_fixture()
+        records = json.loads(metadata_file.read_text(encoding="utf-8"))
+        records[0]["output_sha256"] = "f" * 64
+        metadata_bytes = json.dumps(records, indent=2).encode()
+        metadata_file.write_bytes(metadata_bytes)
+        metadata_entry["sha256"] = hashlib.sha256(metadata_bytes).hexdigest()
+        self.write(entries)
+        with self.assertRaisesRegex(ValueError, "metadata output SHA-256 mismatch"):
+            validator.validate()
+
+    def metadata_free_bounded_lod_fixture(self, output_path, source_asset):
+        """Create one generated texture and its claimed source without aggregate metadata."""
+        source_path = f"polyhaven/{source_asset}/{source_asset}_1k.gltf"
+        source = {
+            "id": f"source-{source_asset}",
+            "path": source_path,
+            "sha256": "a" * 64,
+            "source_url": f"https://polyhaven.com/a/{source_asset}",
+            "download_url": (
+                "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/"
+                f"{source_asset}/{source_asset}_1k.gltf"
+            ),
+            "license": "CC0-1.0",
+            "license_url": "https://polyhaven.com/license",
+            "attribution": "Poly Haven",
+        }
+        output = {
+            "id": "bounded-lod-texture-test",
+            "path": output_path,
+            "sha256": "b" * 64,
+            "source_url": source["source_url"],
+            "download_url": source["download_url"],
+            "license": source["license"],
+            "license_url": source["license_url"],
+            "attribution": source["attribution"],
+            "generated_from": [source_path],
+            "generation_note": "Texture-only bounded LOD regression fixture",
+        }
+        return {source_path: source, output_path: output}
+
+    def test_bounded_lod_texture_only_fixture_requires_matching_source(self):
+        """A partial texture fixture remains valid only with its matching source."""
+        output_path = (
+            "generated/bounded_lods/"
+            "island_tree_01_island_tree_01_leaves_diff_1k.jpg"
+        )
+        registered = self.metadata_free_bounded_lod_fixture(
+            output_path, "island_tree_01"
+        )
+        validator.validate_generated_dependencies(registered)
+        self.assertIsNone(validator.validate_bounded_lod_lineage(registered))
+
+    def test_bounded_lod_texture_rejects_wrong_manifested_parent_without_expected_source(self):
+        """An unrelated manifested parent cannot stand in for the expected tree model."""
+        output_path = (
+            "generated/bounded_lods/"
+            "island_tree_01_island_tree_01_leaves_diff_1k.jpg"
+        )
+        registered = self.metadata_free_bounded_lod_fixture(
+            output_path, "coast_rocks_05"
+        )
+        validator.validate_generated_dependencies(registered)
+        with self.assertRaisesRegex(
+            ValueError, "Bounded LOD source model is not manifested"
+        ):
+            validator.validate_bounded_lod_lineage(registered)
+
+    def test_bounded_lod_rejects_unknown_texture_family_without_metadata(self):
+        """Unknown files cannot bypass lineage checks in the partial bundle path."""
+        output_path = "generated/bounded_lods/unlisted_asset_lod1.jpg"
+        registered = self.metadata_free_bounded_lod_fixture(
+            output_path, "coast_rocks_05"
+        )
+        validator.validate_generated_dependencies(registered)
+        with self.assertRaisesRegex(
+            ValueError, "Unknown bounded LOD output family"
+        ):
+            validator.validate_bounded_lod_lineage(registered)
+
+    def test_bounded_lod_texture_only_branch_rejects_model_outputs(self):
+        """A suffixed GLB cannot masquerade as a texture-only partial bundle."""
+        output_path = "generated/bounded_lods/island_tree_01_lod2.glb"
+        registered = self.metadata_free_bounded_lod_fixture(
+            output_path, "island_tree_01"
+        )
+        validator.validate_generated_dependencies(registered)
+        with self.assertRaisesRegex(
+            ValueError, "Bounded LOD output must be a texture"
+        ):
+            validator.validate_bounded_lod_lineage(registered)
+
+
 
 if __name__ == "__main__":
     unittest.main()
