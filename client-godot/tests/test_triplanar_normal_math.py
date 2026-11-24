@@ -198,6 +198,22 @@ class StylizedPbrShaderContractTests(unittest.TestCase):
         self.assertIn("METALLIC = metallic", self.fragment)
         self.assertIn("ROUGHNESS = roughness", self.fragment)
 
+    def test_unassigned_samplers_use_uniform_fallbacks(self):
+        """Unassigned texture samplers preserve the base-colour and scalar PBR uniforms."""
+        for token in (
+            "uniform bool use_albedo_texture = false;",
+            "uniform bool use_normal_texture = false;",
+            "uniform bool use_roughness_texture = false;",
+            "vec4 albedo_sample = vec4(1.0);",
+            "if (use_albedo_texture) {",
+            "if (use_normal_texture) {",
+            "if (use_roughness_texture) {",
+            "ALBEDO = base_color.rgb * albedo_sample.rgb;",
+            "METALLIC = metallic;",
+            "ROUGHNESS = roughness;",
+        ):
+            self.assertIn(token, self.shared)
+
     def test_mobile_uv_normal_map_feeds_fragment_ramp(self):
         """The mobile toon ramp must transform UV normal maps through view-space TBN."""
         mobile_block = self.fragment.split(
