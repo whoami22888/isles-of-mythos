@@ -1049,7 +1049,8 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           }
           state.selectedHotbarSlot = message.slot;
           players.markDirty(userId);
-          send(socket, { type: "player_state", state: serializePlayerState(state) });
+          // Selection is shared player state: keep every authenticated socket's HUD in sync.
+          pushPlayerState(userId);
           return;
         }
 
