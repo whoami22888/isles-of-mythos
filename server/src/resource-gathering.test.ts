@@ -43,7 +43,7 @@ describe("resource gathering transactions", () => {
     const respawnsAt = "2026-11-24T10:00:00.000Z";
     const node: ResourceNode = { id: "node-performance", type: "wood", x: 0, y: 0 };
     const query = vi.fn(async (sql: string) => {
-      const normalized = sql.replace(/\\s+/g, " ").trim();
+      const normalized = sql.trim();
       sqlCalls.push(normalized);
       if (normalized === "BEGIN" || normalized === "COMMIT" || normalized === "ROLLBACK") {
         return { rows: [], rowCount: null };
