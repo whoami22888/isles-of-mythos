@@ -6,6 +6,7 @@ const FallbackFactory = preload("res://scripts/render_fallback_factory.gd")
 const MultiMeshRegression = preload("res://tests/multimesh_instancer_regression.gd")
 const GameManagerRegression = preload("res://tests/game_manager_regression.gd")
 const CitadelBuildingRegression = preload("res://tests/citadel_building_regression.gd")
+const MythosCreatureRegression = preload("res://tests/mythos_creature_regression.gd")
 const PlayerControllerRegression = preload("res://tests/player_controller_regression.gd")
 var _failures := 0
 
@@ -430,6 +431,7 @@ func run() -> void:
 	await MultiMeshRegression.run(self, Callable(self, "check"))
 	await GameManagerRegression.run(self, Callable(self, "check"))
 	await CitadelBuildingRegression.run(self, Callable(self, "check"))
+	await MythosCreatureRegression.run(self, Callable(self, "check"))
 	await PlayerControllerRegression.run(self, Callable(self, "check"))
 	print("IOM-00 connection checks: %s failures" % _failures)
 	quit(1 if _failures else 0)
