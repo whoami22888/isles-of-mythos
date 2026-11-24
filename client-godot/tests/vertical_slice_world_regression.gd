@@ -2,9 +2,18 @@ extends SceneTree
 
 const Scene = preload("res://gameplay/vertical_slice.tscn")
 
+class MockMovementController extends Node:
+	var intent := Vector2.ZERO
+	func movement_intent(_camera_yaw: float) -> Vector2:
+		return intent
+
 class MockAttackProtocol extends Node:
 	var attacks: Array[Dictionary] = []
+	var moves: Array[Vector2] = []
 	func is_authenticated() -> bool:
+		return true
+	func request_move(dx: float, dy: float) -> bool:
+		moves.append(Vector2(dx, dy))
 		return true
 	func request_attack(target_id: String, facing: Vector2) -> String:
 		# Match the production protocol's build_attack_message normalization.
@@ -42,6 +51,26 @@ func _init() -> void:
 	var facing: Vector2 = attack_protocol.attacks[0].get("facing", Vector2.ZERO)
 	_assert(facing.distance_to(Vector2(0.6, 0.8)) < 0.0001,
 		"attack facing points from the server player position to the selected creature")
+
+	var movement_controller := MockMovementController.new()
+	movement_controller.intent = Vector2(0.6, 0.8)
+	root.add_child(movement_controller)
+	world._player_controller = movement_controller
+	world._approaching = true
+	world._move_to_point = true
+	world._move_point = Vector2(12.0, 12.0)
+	world._manual_moving = false
+	world._move_clock = 0.0
+	_assert(world._manual_move_step(0.016), "manual input is handled while the player is authenticated")
+	_assert(attack_protocol.moves.size() == 1, "manual movement sends one bounded server move intent")
+	var manual_move: Vector2 = attack_protocol.moves[0]
+	_assert(manual_move.distance_to(Vector2(0.6, 0.8)) < 0.0001,
+		"manual movement forwards the normalized world-space direction to the server")
+	_assert(not world._approaching and not world._move_to_point,
+		"manual movement cancels a pending tap-to-move approach")
+	movement_controller.intent = Vector2.ZERO
+	_assert(not world._manual_move_step(0.016), "releasing manual input stops sending movement intents")
+	_assert(attack_protocol.moves.size() == 1, "released input does not send an extra server move")
 
 	world._on_world_chunk("chunk-2", {
 		"resources": [{"id": "wood:1", "x": 3, "y": 4}],
