@@ -972,8 +972,8 @@ func _on_combat_result(message: Dictionary) -> void:
 	if damage is int or damage is float:
 		damage_text = str(roundi(float(damage)))
 	var target_id = message.get("targetId", "creature")
-	var critical := message.get("critical") == true
-	var killed := message.get("killed") == true
+	var critical: bool = message.get("critical", false) == true
+	var killed: bool = message.get("killed", false) == true
 	_status.text = "Combat result: %s damage%s%s" % [
 		damage_text,
 		" critical" if critical else "",
