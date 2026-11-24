@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createDbPool } from "./db.js";
 import { MAX_ITEM_STACK } from "./economy.js";
 import { gatherResource } from "./resource-gathering.js";
@@ -38,6 +38,44 @@ async function createPlayer() {
 }
 
 describe("resource gathering transactions", () => {
+  it("does not issue a redundant resource-gather ledger update", async () => {
+    const sqlCalls: string[] = [];
+    const respawnsAt = "2026-11-24T10:00:00.000Z";
+    const node: ResourceNode = { id: "node-performance", type: "wood", x: 0, y: 0 };
+    const query = vi.fn(async (sql: string) => {
+      const normalized = sql.replace(/\\s+/g, " ").trim();
+      sqlCalls.push(normalized);
+      if (normalized === "BEGIN" || normalized === "COMMIT" || normalized === "ROLLBACK") {
+        return { rows: [], rowCount: null };
+      }
+      if (normalized.startsWith("SELECT fingerprint")) return { rows: [], rowCount: 0 };
+      if (normalized.startsWith("INSERT INTO world_resource_nodes")) return { rows: [], rowCount: 1 };
+      if (normalized.startsWith("SELECT node_id,type,x,y,depleted_until")) {
+        return { rows: [{ node_id: node.id, type: node.type, x: node.x, y: node.y, depleted_until: null }], rowCount: 1 };
+      }
+      if (normalized.startsWith("INSERT INTO resource_gather_requests")) {
+        return { rows: [{ request_id: "request-1", transaction_id: "00000000-0000-4000-8000-000000000001" }], rowCount: 1 };
+      }
+      if (normalized.startsWith("SELECT gold, triumph_badges, inventory")) {
+        return { rows: [{ gold: "0", triumph_badges: "0", inventory: {} }], rowCount: 1 };
+      }
+      if (normalized.startsWith("UPDATE player_profiles")) return { rows: [], rowCount: 1 };
+      if (normalized.startsWith("INSERT INTO economy_transactions")) return { rows: [], rowCount: 1 };
+      if (normalized.startsWith("UPDATE world_resource_nodes")) {
+        return { rows: [{ depleted_until: respawnsAt }], rowCount: 1 };
+      }
+      throw new Error("Unexpected resource-gathering query: " + normalized);
+    });
+    const client = { query, release: vi.fn() };
+    const db = { connect: vi.fn().mockResolvedValue(client) };
+
+    const result = await gatherResource(db as never, "user-1", "request-1", "gather_resource|node-performance", node);
+
+    expect(result.respawnsAt).toBe(respawnsAt);
+    expect(sqlCalls.some((sql) => sql.startsWith("UPDATE resource_gather_requests"))).toBe(false);
+    expect(client.release).toHaveBeenCalledExactlyOnceWith(undefined);
+  });
+
   it("gathers once, depletes the node, and replays the same request without a second reward", async () => {
     const { db, userId } = await createPlayer();
     const node = findResource();
@@ -52,8 +90,16 @@ describe("resource gathering transactions", () => {
       expect(timing.diagnostic?.commitEventLoopIdleMs).toBeGreaterThanOrEqual(0);
       expect(first.transactionId).toMatch(/^[0-9a-f-]{36}$/i);
       expect(replay).toEqual(first);
-      const ledger = await db.query<{ transaction_id:string }>("SELECT transaction_id FROM resource_gather_requests WHERE user_id=$1 AND request_id=$2",[userId,"gather-1"]);
+      const ledger = await db.query<{ transaction_id: string; respawns_at: Date }>(
+        "SELECT transaction_id,respawns_at FROM resource_gather_requests WHERE user_id=$1 AND request_id=$2",
+        [userId, "gather-1"],
+      );
+      const nodeState = await db.query<{ depleted_until: Date }>(
+        "SELECT depleted_until FROM world_resource_nodes WHERE node_id=$1",
+        [node.id],
+      );
       expect(ledger.rows[0]?.transaction_id).toBe(first.transactionId);
+      expect(ledger.rows[0]?.respawns_at).toEqual(nodeState.rows[0]?.depleted_until);
 
       const player = await db.query<{ inventory: Record<string, number> }>(
         "SELECT inventory FROM player_profiles WHERE user_id=$1",
