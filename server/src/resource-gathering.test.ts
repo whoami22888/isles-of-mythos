@@ -59,6 +59,7 @@ describe("resource gathering transactions", () => {
       if (normalized.startsWith("SELECT gold, triumph_badges, inventory")) {
         return { rows: [{ gold: "0", triumph_badges: "0", inventory: {} }], rowCount: 1 };
       }
+      if (normalized.startsWith("UPDATE resource_gather_requests")) return { rows: [], rowCount: 1 };
       if (normalized.startsWith("UPDATE player_profiles")) return { rows: [], rowCount: 1 };
       if (normalized.startsWith("INSERT INTO economy_transactions")) return { rows: [], rowCount: 1 };
       if (normalized.startsWith("UPDATE world_resource_nodes")) {
