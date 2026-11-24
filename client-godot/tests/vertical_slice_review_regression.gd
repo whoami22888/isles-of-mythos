@@ -118,6 +118,9 @@ func run() -> void:
 					)
 	cam.terrain_collision_mask = 0
 	world._follow_camera()
+	# The physics_frame signal precedes node physics callbacks; wait for the
+	# following signal before asserting the camera's applied transform.
+	await physics_frame
 	await physics_frame
 	check(cam.top_level, "camera transform is independent of the parent scene")
 	var expected_focus: Vector3 = Vector3(world._player.x, world._player.y - world.PLAYER_HALF_HEIGHT, world._player.z) + world._camera_focus_offset
@@ -133,6 +136,7 @@ func run() -> void:
 	var focus_before_drag: Vector3 = cam.focus_point
 	world._touch.call("_on_press", 20, Vector2(900.0, 200.0), true)
 	world._touch.call("_on_drag", 20, Vector2(910.0, 220.0))
+	await physics_frame
 	await physics_frame
 	check(absf(wrapf(cam.rotation.y - (yaw_before_drag - 10.0 * world.CAMERA_ORBIT_RADIANS_PER_PIXEL), -PI, PI)) < 0.001, "single-finger drag rotates the active camera exactly once")
 	check(not cam.focus_point.is_equal_approx(focus_before_drag), "vertical single-finger drag pans the active camera")
