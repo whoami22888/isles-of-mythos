@@ -420,6 +420,76 @@ class AssetValidatorTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "metadata output SHA-256 mismatch"):
             validator.validate()
 
+    def metadata_free_bounded_lod_fixture(self, output_path, source_asset):
+        """Create one generated texture and its claimed source without aggregate metadata."""
+        source_path = f"polyhaven/{source_asset}/{source_asset}_1k.gltf"
+        source = {
+            "id": f"source-{source_asset}",
+            "path": source_path,
+            "sha256": "a" * 64,
+            "source_url": f"https://polyhaven.com/a/{source_asset}",
+            "download_url": (
+                "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/"
+                f"{source_asset}/{source_asset}_1k.gltf"
+            ),
+            "license": "CC0-1.0",
+            "license_url": "https://polyhaven.com/license",
+            "attribution": "Poly Haven",
+        }
+        output = {
+            "id": "bounded-lod-texture-test",
+            "path": output_path,
+            "sha256": "b" * 64,
+            "source_url": source["source_url"],
+            "download_url": source["download_url"],
+            "license": source["license"],
+            "license_url": source["license_url"],
+            "attribution": source["attribution"],
+            "generated_from": [source_path],
+            "generation_note": "Texture-only bounded LOD regression fixture",
+        }
+        return {source_path: source, output_path: output}
+
+    def test_bounded_lod_texture_only_fixture_requires_matching_source(self):
+        """A partial texture fixture remains valid only with its matching source."""
+        output_path = (
+            "generated/bounded_lods/"
+            "island_tree_01_island_tree_01_leaves_diff_1k.jpg"
+        )
+        registered = self.metadata_free_bounded_lod_fixture(
+            output_path, "island_tree_01"
+        )
+        validator.validate_generated_dependencies(registered)
+        self.assertIsNone(validator.validate_bounded_lod_lineage(registered))
+
+    def test_bounded_lod_texture_rejects_wrong_manifested_parent_without_expected_source(self):
+        """An unrelated manifested parent cannot stand in for the expected tree model."""
+        output_path = (
+            "generated/bounded_lods/"
+            "island_tree_01_island_tree_01_leaves_diff_1k.jpg"
+        )
+        registered = self.metadata_free_bounded_lod_fixture(
+            output_path, "coast_rocks_05"
+        )
+        validator.validate_generated_dependencies(registered)
+        with self.assertRaisesRegex(
+            ValueError, "Bounded LOD source model is not manifested"
+        ):
+            validator.validate_bounded_lod_lineage(registered)
+
+    def test_bounded_lod_rejects_unknown_texture_family_without_metadata(self):
+        """Unknown files cannot bypass lineage checks in the partial bundle path."""
+        output_path = "generated/bounded_lods/unlisted_asset_lod1.jpg"
+        registered = self.metadata_free_bounded_lod_fixture(
+            output_path, "coast_rocks_05"
+        )
+        validator.validate_generated_dependencies(registered)
+        with self.assertRaisesRegex(
+            ValueError, "Unknown bounded LOD output family"
+        ):
+            validator.validate_bounded_lod_lineage(registered)
+
+
 
 if __name__ == "__main__":
     unittest.main()
