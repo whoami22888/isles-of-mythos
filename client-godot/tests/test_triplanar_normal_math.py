@@ -198,6 +198,37 @@ class StylizedPbrShaderContractTests(unittest.TestCase):
         self.assertIn("METALLIC = metallic", self.fragment)
         self.assertIn("ROUGHNESS = roughness", self.fragment)
 
+    def test_triplanar_projection_uses_world_space_coordinates(self):
+        """Albedo, normal and roughness projections use transformed world-space inputs."""
+        self.assertIn(
+            "varying vec3 triplanar_world_position;", self.shared
+        )
+        self.assertIn(
+            "varying vec3 triplanar_world_normal;", self.shared
+        )
+        self.assertIn(
+            "triplanar_world_position = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;",
+            self.shared,
+        )
+        self.assertIn(
+            "triplanar_world_normal = normalize(MODEL_NORMAL_MATRIX * NORMAL);",
+            self.shared,
+        )
+        self.assertIn(
+            "sample_triplanar(albedo_texture, triplanar_world_position, triplanar_world_normal)",
+            self.fragment,
+        )
+        self.assertIn(
+            "sample_triplanar(roughness_texture, triplanar_world_position, triplanar_world_normal)",
+            self.fragment,
+        )
+        self.assertIn(
+            "sample_triplanar_normal(triplanar_world_position, triplanar_world_normal)",
+            self.fragment,
+        )
+        self.assertNotIn("local_position", self.shared)
+        self.assertNotIn("local_normal", self.shared)
+
     def test_unassigned_samplers_use_uniform_fallbacks(self):
         """Unassigned texture samplers preserve the base-colour and scalar PBR uniforms."""
         for token in (
