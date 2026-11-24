@@ -229,6 +229,20 @@ class StylizedPbrShaderContractTests(unittest.TestCase):
         self.assertNotIn("local_position", self.shared)
         self.assertNotIn("local_normal", self.shared)
 
+    def test_triplanar_normal_reconstruction_stays_world_space_until_view_transform(self):
+        """Reconstruct triplanar normals in world space, then transform once for shading."""
+        self.assertIn(
+            "vec3 sample_triplanar_normal(vec3 p, vec3 world_geometric_normal)",
+            self.shared,
+        )
+        self.assertIn("vec3 n = normalize(world_geometric_normal);", self.shared)
+        self.assertIn("return normalize(n + perturbation);", self.shared)
+        self.assertIn(
+            "NORMAL = normalize(mat3(VIEW_MATRIX) * world_normal);",
+            self.fragment,
+        )
+        self.assertNotIn("MODEL_NORMAL_MATRIX * world_normal", self.fragment)
+
     def test_unassigned_samplers_use_uniform_fallbacks(self):
         """Unassigned texture samplers preserve the base-colour and scalar PBR uniforms."""
         for token in (

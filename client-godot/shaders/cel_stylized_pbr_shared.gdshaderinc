@@ -63,11 +63,11 @@ vec4 sample_triplanar(sampler2D tex, vec3 p, vec3 n) {
          + texture(tex, uvw.xy) * w.z;
 }
 
-// Reorient each tangent-space projection into object space. Blend only the
+// Reorient each tangent-space projection into world space. Blend only the
 // perturbation from each projection's flat normal so oblique flat surfaces
-// retain their original geometric normal instead of snapping to an axis.
-vec3 sample_triplanar_normal(vec3 p, vec3 geometric_normal) {
-    vec3 n = normalize(geometric_normal);
+// retain their original world-space geometric normal instead of snapping to an axis.
+vec3 sample_triplanar_normal(vec3 p, vec3 world_geometric_normal) {
+    vec3 n = normalize(world_geometric_normal);
     vec3 w = projection_weights(n);
     vec3 uvw = p * triplanar_scale;
     vec3 nx = texture(normal_texture, uvw.yz).xyz * 2.0 - 1.0;
