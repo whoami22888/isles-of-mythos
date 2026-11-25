@@ -172,7 +172,7 @@ func advance_wake(delta: float) -> void:
         return
 
     # Position updates can arrive less often than this VFX sampling cadence.
-    # Use time since the last observed movement, but fail closed after 500 ms:
+    # Use time since the last observed movement, but fail closed after 750 ms:
     # a missing path cannot be reconstructed from two endpoints.
     var observed_gap := maxf(_position_elapsed, MIN_TICK_SEC)
     var max_continuous_step := (
