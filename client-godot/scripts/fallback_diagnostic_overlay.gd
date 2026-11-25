@@ -7,6 +7,9 @@ const Factory = preload("res://scripts/render_fallback_factory.gd")
 const PANEL_WIDTH := 320.0
 const PANEL_HEIGHT := 376.0
 const VIEWPORT_SIZE := Vector2i(640, 640)
+const MIN_DIAGNOSTIC_PIXELS := 100
+
+var _diagnostic_viewport: SubViewport
 
 static func resolve_source_sha(event_path: String, fallback_sha: String) -> String:
 	if not event_path.is_empty() and FileAccess.file_exists(event_path):
@@ -87,6 +90,7 @@ func _ready() -> void:
 	viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	viewport.render_target_clear_mode = SubViewport.CLEAR_MODE_ALWAYS
 	viewport_container.add_child(viewport)
+	_diagnostic_viewport = viewport
 
 	var world := Node3D.new()
 	world.name = "DiagnosticWorld"
@@ -135,3 +139,42 @@ func _ready() -> void:
 	light.name = "DiagnosticLight"
 	light.rotation_degrees = Vector3(-35.0, -25.0, 0.0)
 	world.add_child(light)
+
+	# Pixel readback is only meaningful in the real capture renderer. The IOM-00
+	# headless dummy backend has no ViewportTexture storage; its smoke test checks
+	# node/material contracts while this capture-only check validates actual pixels.
+	if not OS.get_environment("IOM_VERTICAL_SLICE_OUTPUT_DIR").is_empty():
+		call_deferred("_verify_rendered_fallback_pixels")
+
+
+func _verify_rendered_fallback_pixels() -> void:
+	await get_tree().process_frame
+	await RenderingServer.frame_post_draw
+	if not is_instance_valid(_diagnostic_viewport):
+		push_error("Prompt 004 fallback pixel check: diagnostic SubViewport was freed")
+		get_tree().quit(1)
+		return
+	var viewport_texture := _diagnostic_viewport.get_texture()
+	if viewport_texture == null:
+		push_error("Prompt 004 fallback pixel check: SubViewport texture is unavailable")
+		get_tree().quit(1)
+		return
+	var diagnostic_image: Image = viewport_texture.get_image()
+	if diagnostic_image == null or diagnostic_image.is_empty():
+		push_error("Prompt 004 fallback pixel check: SubViewport produced no rendered image")
+		get_tree().quit(1)
+		return
+	var cyan_pixels := 0
+	var magenta_pixels := 0
+	for pixel_y in range(diagnostic_image.get_height()):
+		for pixel_x in range(diagnostic_image.get_width()):
+			var pixel := diagnostic_image.get_pixel(pixel_x, pixel_y)
+			if pixel.r < 0.12 and pixel.g > 0.45 and pixel.b > 0.65:
+				cyan_pixels += 1
+			if pixel.r > 0.65 and pixel.g < 0.12 and pixel.b > 0.65:
+				magenta_pixels += 1
+	if cyan_pixels < MIN_DIAGNOSTIC_PIXELS or magenta_pixels < MIN_DIAGNOSTIC_PIXELS:
+		push_error("Prompt 004 fallback pixel check failed: cyan=%d magenta=%d" % [cyan_pixels, magenta_pixels])
+		get_tree().quit(1)
+		return
+	print("PROMPT004_RENDERED_FALLBACK_PIXELS cyan=%d magenta=%d" % [cyan_pixels, magenta_pixels])

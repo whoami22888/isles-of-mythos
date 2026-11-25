@@ -1,0 +1,39 @@
+name: Prompt 006 ocean shader contract
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/prompt-006-ocean-shader-contract.yml"
+      - "client-godot/tests/test_ocean_shader.py"
+      - "client-godot/shaders/ocean_surface.gdshader"
+      - "client-godot/shaders/ship_wake_foam.gdshader"
+      - "client-godot/shaders/coastal_ocean_wave.gdshaderinc"
+      - "client-godot/scripts/realistic_coastal_slice.gd"
+      - "client-godot/scripts/ocean_wave_settings.gd"
+      - "client-godot/tests/render_coastal_fx_sequence.gd"
+      - "scripts/check_capture_continuity.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prompt-006-ocean-contract-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  shader-contract:
+    name: Prompt 006 shader contract regression
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Run exact-head ocean shader contract tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 --version
+          python3 -m unittest discover -s client-godot/tests -p "test_ocean_shader.py" -v
