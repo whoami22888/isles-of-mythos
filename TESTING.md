@@ -19,7 +19,16 @@ Passing tests prove only the behaviours they exercise. PDF post-Phase-16 archite
 
 ## Controller acceptance requirements — 2026-10-12
 
-Operational PostgreSQL candidate: \`cgr.dev/chainguard/postgres@sha256:1a417cf464d938b1b1182411416401215af7fbc88395d9b90f7c805e96d639a7\` (PostgreSQL 18.6, a major-version upgrade from 17). Acceptance must record both \`SHOW server_version\` and \`SHOW server_version_num\`, fail unless the numeric value is in \`[180000, 190000)\`, and retain \`postgres-server-version.txt\` in the report/artifacts. This does not waive migration, integration, regression, backup/restore or supply-chain checks.
+Operational PostgreSQL candidate:
+
+`cgr.dev/chainguard/postgres@sha256:fb42fe07f31379928ffb2fcb9acb903eb40e7e821b562f16809a45bc86097289`
+(PostgreSQL 18.7, a patch-level update within major version 18; the earlier
+18.6 candidate established the 17-to-18 major upgrade).
+
+Acceptance must record both `SHOW server_version` and
+`SHOW server_version_num`, fail unless the numeric value is in `[180000, 190000)`,
+and retain `postgres-server-version.txt` in the report/artifacts. This does not
+waive migration, integration, regression, backup/restore or supply-chain checks.
 
 For pull-request events, required workflows must explicitly check out \`github.event.pull_request.head.sha\` (falling back to \`github.sha\` for non-PR events), so the tested source matches the reported PR HEAD. The workflow changes implementing this policy still require fresh exact-head verification.
 
@@ -35,7 +44,9 @@ Preserve section 93's 1/50/250/1,000-player matrix and add 500-player guild batt
 PostgreSQL acceptance requires an immutable exact-registry digest, verified signed SLSA provenance and SPDX SBOM attestation plus a locally generated CycloneDX SBOM, vulnerability scan evidence, artifact retention, monthly review and expedited reviewed security updates. Historical passing results do not satisfy these new checks.
 
 
-**Compatibility warning:** this pin selects PostgreSQL 18.6, a major-version change from PostgreSQL 17. Do not accept it unless the exact-image migration, integration, regression and full CI chain passes.
+**Compatibility warning:** This pin selects PostgreSQL 18.7, a patch-level
+update within major version 18. Do not accept it unless the exact-image
+migration, integration, regression and full CI chain passes.
 
 ## Anti-cheat shared-state tests (Redis + PostgreSQL)
 

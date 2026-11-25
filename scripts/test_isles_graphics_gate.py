@@ -161,5 +161,73 @@ class GraphicsGateTest(unittest.TestCase):
         self.assertIn('::warning::FLAT_FOAM', output.getvalue())
         self.assertIn('does NOT certify', output.getvalue())
 
+    def test_runtime_material_and_geometry_are_checked_instead_of_source_model(self):
+        self.glb('tree.glb', {'asset': {'version': '2.0'}, 'materials': [
+            {'name': 'Leaves', 'alphaMode': 'MASK', 'pbrMetallicRoughness': {'baseColorTexture': {'index': 0}}}],
+            'textures': [{'source': 0}], 'images': [{'mimeType': 'image/jpeg'}]})
+        self.scene('assets/tree.glb')
+        report = {'res://scenes/ship_view.tscn': [{
+            'node': 'Tree/Leaves', 'surfaces': [{'triangles': 12000, 'material': 'Leaves',
+            'transparency': 4, 'albedo_alpha': True, 'texture': 'res://assets/packed/leaves.png'}]}]}
+        findings, _ = gate.audit(self.root, report)
+        self.assertNotIn('FOLIAGE_ALPHA', {item.code for item in findings})
+        report['res://scenes/ship_view.tscn'][0]['surfaces'][0]['albedo_alpha'] = False
+        report['res://scenes/ship_view.tscn'][0]['surfaces'][0]['triangles'] = 400000
+        codes = {item.code for item in gate.audit(self.root, report)[0]}
+        self.assertIn('FOLIAGE_ALPHA', codes)
+        self.assertIn('HEAVY_LOD0', codes)
+
+    def test_distant_tree_budget_uses_instantiated_mesh(self):
+        mesh = {'node': 'VerifiedTropicalContentLayer/Tree/island_tree_01_LOD2',
+                'surfaces': [{'triangles': 14000, 'material': 'Bark',
+                              'transparency': 0, 'albedo_alpha': False, 'texture': ''}]}
+        self.assertEqual([], gate.inspect_scene_nodes_runtime('res://scenes/coastal.tscn', [mesh]))
+        mesh['surfaces'][0]['triangles'] = 15000
+        self.assertIn('HEAVY_LOD0', {f.code for f in
+                      gate.inspect_scene_nodes_runtime('res://scenes/coastal.tscn', [mesh])})
+
+    def test_runtime_report_schema_rejects_malformed_surfaces(self):
+        surface = {'triangles': 14000, 'material': 'Leaves',
+                   'transparency': 4, 'albedo_alpha': True, 'texture': 'leaves.png'}
+        report = {
+            '__ship_motion_verified__': True,
+            'res://scenes/realistic_coastal_slice.tscn': [
+                {'node': 'Tree', 'surfaces': [surface]}],
+            'res://scenes/realistic_coastal_fx_slice.tscn': [
+                {'node': 'Ship', 'surfaces': [surface]}],
+        }
+        self.assertIs(report, gate._validate_runtime_report(report))
+        bad_values = [
+            ('triangles', True), ('triangles', float('nan')),
+            ('triangles', float('inf')), ('transparency', True),
+            ('albedo_alpha', 1), ('texture', None),
+        ]
+        for field, bad_value in bad_values:
+            with self.subTest(field=field):
+                original = surface[field]
+                surface[field] = bad_value
+                with self.assertRaisesRegex(ValueError, 'Invalid runtime surface'):
+                    gate._validate_runtime_report(report)
+                surface[field] = original
+
+    def test_base_ship_is_only_covered_by_verified_fx_motion(self):
+        (self.root / 'scripts').mkdir()
+        (self.root / 'scripts/coast.gd').write_text('const SHIP_SCENE = 1\n')
+        (self.root / 'scenes/realistic_coastal_slice.tscn').write_text(
+            '[ext_resource type="Script" path="res://scripts/coast.gd" id="1"]')
+        report = {'__ship_motion_verified__': False,
+                  'res://scenes/realistic_coastal_slice.tscn': []}
+        self.assertIn('STATIC_SHIP', {f.code for f in gate.audit(self.root, report)[0]})
+        report['__ship_motion_verified__'] = True
+        self.assertNotIn('STATIC_SHIP', {f.code for f in gate.audit(self.root, report)[0]})
+
+    def test_heightfield_water_is_not_misclassified_as_uv_only_depth(self):
+        (self.root / 'scripts').mkdir()
+        (self.root / 'scripts/water.gd').write_text(
+            'var shallow = true\nvar deep = true\nvar uv = "UV.y"\nvar height = "shore_terrain_height"')
+        (self.root / 'scenes/ship_view.tscn').write_text(
+            '[ext_resource type="Script" path="res://scripts/water.gd" id="1"]')
+        self.assertNotIn('FAKE_WATER_DEPTH', self.codes())
+
 if __name__ == '__main__':
     unittest.main()
