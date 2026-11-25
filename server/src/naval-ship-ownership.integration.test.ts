@@ -52,7 +52,8 @@ describe("naval ship commands require ownership of the commanded ship (Finding C
     await db.query("DELETE FROM ship_crew WHERE ship_id=ANY($1::uuid[])", [ids]);
     await db.query("UPDATE player_ships SET hull=max_hull,fuel=max_fuel,status='active',fire_until=NULL,retreat_until=NULL,heading=0 WHERE id=ANY($1::uuid[])", [ids]);
     await db.query("UPDATE player_ships SET x=0,y=0 WHERE id=$1", [t.ownerShip]);
-    await db.query("UPDATE player_ships SET x=20,y=0 WHERE id=$1", [t.victimShip]);
+    // Heading 0 faces +X; port/starboard arcs are the ±Y beams, not dead ahead.
+    await db.query("UPDATE player_ships SET x=0,y=20 WHERE id=$1", [t.victimShip]);
     await db.query("UPDATE player_ships SET x=500,y=0 WHERE id=$1", [t.thiefShip]);
     await db.query("INSERT INTO ship_inventory(ship_id,item_id,quantity) VALUES($1,'cannonball',50) ON CONFLICT(ship_id,item_id) DO UPDATE SET quantity=50", [t.ownerShip]);
   });
