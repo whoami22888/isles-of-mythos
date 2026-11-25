@@ -627,6 +627,29 @@ class OceanShaderContractTests(unittest.TestCase):
                 ))
 
 
+    def test_ocean_wave_settings_apply_mobile_wave_and_foam_uniforms(self):
+        settings = (CLIENT / "scripts" / "ocean_wave_settings.gd").read_text(encoding="utf-8")
+        for parameter in (
+            "wave_speed",
+            "wave_amplitude",
+            "wave_frequency",
+            "wave_steepness_a",
+            "wave_steepness_b",
+            "ripple_detail",
+            "foam_amount",
+        ):
+            self.assertIn(
+                f'material.set_shader_parameter("{parameter}", {parameter})',
+                settings,
+                f"scene settings must apply {parameter} to the live ocean material",
+            )
+        self.assertIn('var wave_amplitude: float = 0.95', settings)
+        self.assertIn('var wave_steepness_a: float = 0.85', settings)
+        self.assertIn('var wave_steepness_b: float = 0.70', settings)
+        self.assertIn('var ripple_detail: float = 1.0', settings)
+        self.assertIn('var foam_amount: float = 1.0', settings)
+
+
     def test_wake_discontinuity_guard_matches_authoritative_ship_speed_contract(self):
         """Keep cosmetic wake sampling below the server's real movement envelope."""
         wake = WAKE_SCRIPT.read_text(encoding="utf-8")
