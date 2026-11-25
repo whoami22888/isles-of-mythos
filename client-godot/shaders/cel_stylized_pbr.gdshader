@@ -77,10 +77,11 @@ void fragment() {
 			vec3 weights = pow(abs(normal), vec3(4.0));
 			weights /= max(weights.x + weights.y + weights.z, 0.0001);
 			vec3 p = world_position * triplanar_scale;
-			vec3 nx = texture(normal_texture, p.zy).rgb;
-			vec3 ny = texture(normal_texture, p.xz).rgb;
-			vec3 nz = texture(normal_texture, p.xy).rgb;
-			NORMAL_MAP = normalize(nx * weights.x + ny * weights.y + nz * weights.z);
+			vec3 nx = texture(normal_texture, p.zy).rgb * 2.0 - 1.0;
+			vec3 ny = texture(normal_texture, p.xz).rgb * 2.0 - 1.0;
+			vec3 nz = texture(normal_texture, p.xy).rgb * 2.0 - 1.0;
+			vec3 blended_normal = normalize(nx * weights.x + ny * weights.y + nz * weights.z);
+			NORMAL_MAP = blended_normal * 0.5 + 0.5;
 		}
 	}
 }
