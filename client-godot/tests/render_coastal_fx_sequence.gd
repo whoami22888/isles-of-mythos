@@ -4,6 +4,20 @@ extends SceneTree
 ## No generated image is suitable for owner-facing display without review.
 
 const FRAME_COUNT := 72
+const SOURCE_ASSET_MANIFEST := "res://assets/external-assets.json"
+const SOURCE_ASSET_ROOT := "res://assets/external"
+const SHORE_BAKER := preload("res://scripts/coastal_shore_heightfield.gd")
+const WAKE_SCRIPT := preload("res://scripts/ship_wake_effect.gd")
+const CAPTURE_WIDTH := 1280
+const CAPTURE_HEIGHT := 720
+const SEA_LEVEL := -0.35
+const FOAM_PIXEL_DELTA_MIN := 0.02
+const FOAM_PIXEL_SATURATION_DROP_MIN := 0.008
+const FOAM_PIXEL_MIN_COVERAGE := 0.003
+const FOAM_PIXEL_MIN_MEAN_LUMA_DELTA := 0.02
+const SHORELINE_FOAM_MIN_PIXELS := 120
+const OCEAN_WAKE_MIN_PIXELS := 60
+const RIBBON_WAKE_MIN_PIXELS := 60
 var _previous_bytes := PackedByteArray()
 var _changed_frames := 0
 
@@ -17,7 +31,474 @@ func _fail(reason: String) -> void:
     quit(1)
 
 
+func _verify_wake_discontinuity_guard() -> bool:
+    var test_vessel := Node3D.new()
+    var test_wake: Node3D = WAKE_SCRIPT.new() as Node3D
+    root.add_child(test_vessel)
+    root.add_child(test_wake)
+    test_wake.set_process(false)
+    test_wake.call("attach_vessel", test_vessel)
+
+    # A continuous 0.8 m step at 0.12 s is inside the 7.5 m/s server envelope.
+    test_vessel.global_position = Vector3(0.0, 0.0, -0.8)
+    test_wake.call("advance_wake", 0.12)
+    if int(test_wake.call("get_sample_count")) != 1:
+        test_wake.queue_free()
+        test_vessel.queue_free()
+        await process_frame
+        return false
+
+    # A 1 km authoritative correction must clear history, not create a bridge.
+    test_vessel.global_position = Vector3(1000.0, 0.0, -0.8)
+    test_wake.call("advance_wake", 0.12)
+    if int(test_wake.call("get_sample_count")) != 0 or int(test_wake.call("get_triangle_count")) != 0:
+        test_wake.queue_free()
+        test_vessel.queue_free()
+        await process_frame
+        return false
+
+    # Normal movement after the correction must resume a fresh wake.
+    test_vessel.global_position = Vector3(1000.0, 0.0, -1.6)
+    test_wake.call("advance_wake", 0.12)
+    test_vessel.global_position = Vector3(1000.0, 0.0, -2.4)
+    test_wake.call("advance_wake", 0.12)
+    var recovered := (
+        int(test_wake.call("get_sample_count")) == 2
+        and int(test_wake.call("get_triangle_count")) >= 4
+    )
+    test_wake.queue_free()
+    test_vessel.queue_free()
+    await process_frame
+    if recovered:
+        print("IOM_INTERNAL_WAKE_DISCONTINUITY_TEST PASS")
+    return recovered
+
+
+func _write_source_asset_provenance(directory: String) -> bool:
+    if not FileAccess.file_exists(SOURCE_ASSET_MANIFEST):
+        _fail("Missing source asset manifest: " + SOURCE_ASSET_MANIFEST)
+        return false
+    var source_manifest_text := FileAccess.get_file_as_string(SOURCE_ASSET_MANIFEST)
+    if source_manifest_text.is_empty():
+        _fail("Source asset manifest is empty")
+        return false
+    var parsed: Variant = JSON.parse_string(source_manifest_text)
+    if typeof(parsed) != TYPE_DICTIONARY:
+        _fail("Source asset manifest is not a JSON object")
+        return false
+    var manifest: Dictionary = parsed
+    if int(manifest.get("schema_version", -1)) != 1:
+        _fail("Unsupported source asset manifest schema")
+        return false
+    var assets_value: Variant = manifest.get("assets", null)
+    if typeof(assets_value) != TYPE_ARRAY:
+        _fail("Source asset manifest has no assets array")
+        return false
+    var assets: Array = assets_value
+    if assets.is_empty():
+        _fail("Source asset manifest has no assets")
+        return false
+
+    var seen_paths: Dictionary = {}
+    var checksum_lines: Array[String] = []
+    for entry_value in assets:
+        if typeof(entry_value) != TYPE_DICTIONARY:
+            _fail("Source asset manifest contains a non-object entry")
+            return false
+        var entry: Dictionary = entry_value
+        var relative_path := str(entry.get("path", "")).strip_edges()
+        var expected_sha := str(entry.get("sha256", "")).to_lower()
+        var source_url := str(entry.get("source_url", "")).strip_edges()
+        var license_id := str(entry.get("license", "")).strip_edges()
+        var license_url := str(entry.get("license_url", "")).strip_edges()
+        if relative_path.is_empty() or relative_path.begins_with("/") or relative_path.contains("\\"):
+            _fail("Unsafe source asset path in manifest: " + relative_path)
+            return false
+        var path_parts := relative_path.split("/")
+        if path_parts.has("..") or path_parts.has("") or expected_sha.length() != 64:
+            _fail("Invalid source asset path or SHA-256: " + relative_path)
+            return false
+        if source_url.is_empty() or license_id.is_empty() or license_url.is_empty():
+            _fail("Missing source or licence metadata for: " + relative_path)
+            return false
+        if seen_paths.has(relative_path):
+            _fail("Duplicate source asset path: " + relative_path)
+            return false
+        seen_paths[relative_path] = true
+        var source_path := SOURCE_ASSET_ROOT.path_join(relative_path)
+        if not FileAccess.file_exists(source_path):
+            _fail("Missing source asset file: " + source_path)
+            return false
+        var actual_sha := FileAccess.get_sha256(source_path).to_lower()
+        if actual_sha != expected_sha:
+            _fail("Source asset SHA-256 mismatch for %s expected=%s actual=%s" % [
+                relative_path, expected_sha, actual_sha
+            ])
+            return false
+        checksum_lines.append("%s  %s" % [actual_sha, relative_path])
+
+    checksum_lines.sort()
+    var checksum_path := directory.path_join("ASSET-SHA256SUMS")
+    var checksum_file := FileAccess.open(checksum_path, FileAccess.WRITE)
+    if checksum_file == null:
+        _fail("Could not write ASSET-SHA256SUMS")
+        return false
+    checksum_file.store_string("\n".join(checksum_lines) + "\n")
+    checksum_file.close()
+
+    var provenance_path := directory.path_join("ASSET-PROVENANCE.json")
+    var provenance_file := FileAccess.open(provenance_path, FileAccess.WRITE)
+    if provenance_file == null:
+        _fail("Could not write ASSET-PROVENANCE.json")
+        return false
+    provenance_file.store_string(source_manifest_text)
+    provenance_file.close()
+
+    var source_manifest_sha := FileAccess.get_sha256(SOURCE_ASSET_MANIFEST).to_lower()
+    var copied_manifest_sha := FileAccess.get_sha256(provenance_path).to_lower()
+    var checksum_manifest_sha := FileAccess.get_sha256(checksum_path).to_lower()
+    if source_manifest_sha.length() != 64 or copied_manifest_sha != source_manifest_sha or checksum_manifest_sha.length() != 64:
+        _fail("Source asset provenance manifest checksum verification failed")
+        return false
+    print("IOM_INTERNAL_ASSET_PROVENANCE source_manifest_sha256=%s copied_manifest_sha256=%s checksums_sha256=%s entries=%d" % [
+        source_manifest_sha, copied_manifest_sha, checksum_manifest_sha, checksum_lines.size()
+    ])
+    return true
+
+
+
+func _capture_foam_probe_image() -> Image:
+    await process_frame
+    await RenderingServer.frame_post_draw
+    var viewport := root.get_viewport()
+    if viewport == null or viewport.get_texture() == null:
+        return null
+    var pixels: Image = viewport.get_texture().get_image()
+    if pixels == null or pixels.is_empty() or pixels.get_width() != CAPTURE_WIDTH or pixels.get_height() != CAPTURE_HEIGHT:
+        return null
+    if pixels.get_format() != Image.FORMAT_RGBA8:
+        pixels.convert(Image.FORMAT_RGBA8)
+    return pixels
+
+
+func _add_screen_roi(regions: Array, camera: Camera3D, world_point: Vector3, radius_px: int) -> void:
+    if camera.is_position_behind(world_point):
+        return
+    var screen := camera.unproject_position(world_point)
+    if screen.x < -radius_px or screen.x >= CAPTURE_WIDTH + radius_px or screen.y < -radius_px or screen.y >= CAPTURE_HEIGHT + radius_px:
+        return
+    var rect := Rect2i(
+        Vector2i(int(floor(screen.x)) - radius_px, int(floor(screen.y)) - radius_px),
+        Vector2i(radius_px * 2 + 1, radius_px * 2 + 1)
+    )
+    var clipped := rect.intersection(Rect2i(Vector2i.ZERO, Vector2i(CAPTURE_WIDTH, CAPTURE_HEIGHT)))
+    if clipped.size.x > 0 and clipped.size.y > 0:
+        regions.append(clipped)
+
+
+func _shoreline_probe_regions(scene: Node3D, camera: Camera3D) -> Array:
+    var regions: Array = []
+    var binding: Dictionary = scene.get("_shore_binding")
+    var texture := binding.get("texture") as Texture2D
+    if texture == null:
+        return regions
+    var height_image: Image = texture.get_image()
+    if height_image == null or height_image.is_empty():
+        return regions
+    var baked: Dictionary = {
+        "image": height_image,
+        "origin": binding.get("origin"),
+        "extent": binding.get("extent"),
+        "resolution": binding.get("resolution")
+    }
+    for x_value in [-12.0, -8.0, -4.0, 0.0, 4.0, 8.0, 12.0, 16.0]:
+        var x: float = float(x_value)
+        var previous_z := -28.5
+        var previous_height: float = SHORE_BAKER.sample_height(baked, Vector2(x, previous_z))
+        for step in range(1, 230):
+            var z := -28.5 + float(step) * 0.25
+            var height: float = SHORE_BAKER.sample_height(baked, Vector2(x, z))
+            if previous_height < SEA_LEVEL and height >= SEA_LEVEL:
+                var denominator := height - previous_height
+                if denominator > 0.0001:
+                    var fraction := clampf((SEA_LEVEL - previous_height) / denominator, 0.0, 1.0)
+                    var shoreline_z := lerpf(previous_z, z, fraction)
+                    # Sample just seaward of the mesh-derived waterline; the
+                    # ROI follows the real camera projection, not fixed pixels.
+                    _add_screen_roi(regions, camera, Vector3(x, SEA_LEVEL + 0.02, shoreline_z - 0.35), 22)
+                break
+            previous_z = z
+            previous_height = height
+    return regions
+
+
+func _ocean_wake_probe_regions(scene: Node3D, camera: Camera3D) -> Array:
+    var regions: Array = []
+    var vessel := scene.get("ship_focal") as Node3D
+    if vessel == null:
+        return regions
+    var forward := -vessel.global_transform.basis.z
+    forward.y = 0.0
+    if forward.length_squared() <= 0.0001:
+        return regions
+    forward = forward.normalized()
+    var back := -forward
+    var side := Vector3(-forward.z, 0.0, forward.x)
+    for along_value in [3.0, 6.0, 9.0, 12.0, 15.0]:
+        var along_distance: float = float(along_value)
+        for across_value in [-0.55, 0.0, 0.55]:
+            var across_distance: float = float(across_value)
+            var point: Vector3 = vessel.global_position + back * along_distance + side * across_distance + Vector3(0.0, 0.03, 0.0)
+            _add_screen_roi(regions, camera, point, 18)
+    return regions
+
+
+func _ribbon_probe_regions(integration: Node, camera: Camera3D) -> Array:
+    var regions: Array = []
+    var wake := integration.get("wake") as Node
+    if wake == null:
+        return regions
+    var samples: Array = wake.get("_samples")
+    if samples.size() < 2:
+        return regions
+    var elapsed := float(wake.get("_elapsed"))
+    var lifetime := maxf(float(wake.get("trail_lifetime")), 1.0)
+    var hull_width := float(wake.get("hull_width"))
+    var first_sample := maxi(0, samples.size() - 6)
+    for sample_index in range(first_sample, samples.size()):
+        var sample: Dictionary = samples[sample_index]
+        var center: Vector3 = sample.get("center", Vector3.ZERO)
+        var direction: Vector3 = sample.get("direction", Vector3.ZERO)
+        direction.y = 0.0
+        if direction.length_squared() <= 0.0001:
+            continue
+        direction = direction.normalized()
+        var right := Vector3(-direction.z, 0.0, direction.x)
+        var age := clampf((elapsed - float(sample.get("time", elapsed))) / lifetime, 0.0, 1.0)
+        var spread := hull_width * 0.30 + age * hull_width * 1.7
+        for side_value in [-1.0, 1.0]:
+            var side_sign: float = float(side_value)
+            _add_screen_roi(regions, camera, center + right * side_sign * spread, 18)
+    return regions
+
+
+func _pixel_luma(pixel: Color) -> float:
+    return 0.2126 * pixel.r + 0.7152 * pixel.g + 0.0722 * pixel.b
+
+
+func _pixel_saturation(pixel: Color) -> float:
+    return maxf(maxf(pixel.r, pixel.g), pixel.b) - minf(minf(pixel.r, pixel.g), pixel.b)
+
+
+func _empty_foam_pixel_stats() -> Dictionary:
+    return {
+        "changed_pixels": 0,
+        "roi_pixels": 0,
+        "coverage": 0.0,
+        "mean_luma_delta": 0.0,
+        "max_luma_delta": 0.0
+    }
+
+
+func _measure_foam_pixel_change(before: Image, after: Image, regions: Array) -> Dictionary:
+    var seen := PackedByteArray()
+    seen.resize(CAPTURE_WIDTH * CAPTURE_HEIGHT)
+    var changed_pixels := 0
+    var roi_pixels := 0
+    var total_luma_delta := 0.0
+    var max_luma_delta := 0.0
+    for region_value in regions:
+        var region: Rect2i = region_value
+        for y in range(region.position.y, region.position.y + region.size.y):
+            for x in range(region.position.x, region.position.x + region.size.x):
+                var index := y * CAPTURE_WIDTH + x
+                if seen[index] != 0:
+                    continue
+                seen[index] = 1
+                roi_pixels += 1
+                var before_color: Color = before.get_pixel(x, y)
+                var after_color: Color = after.get_pixel(x, y)
+                var luma_delta := _pixel_luma(after_color) - _pixel_luma(before_color)
+                var saturation_drop := _pixel_saturation(before_color) - _pixel_saturation(after_color)
+                if luma_delta >= FOAM_PIXEL_DELTA_MIN and saturation_drop >= FOAM_PIXEL_SATURATION_DROP_MIN:
+                    changed_pixels += 1
+                    total_luma_delta += luma_delta
+                    max_luma_delta = maxf(max_luma_delta, luma_delta)
+    var coverage := float(changed_pixels) / float(maxi(roi_pixels, 1))
+    var mean_delta := total_luma_delta / float(maxi(changed_pixels, 1))
+    return {
+        "changed_pixels": changed_pixels,
+        "roi_pixels": roi_pixels,
+        "coverage": coverage,
+        "mean_luma_delta": mean_delta,
+        "max_luma_delta": max_luma_delta
+    }
+
+
+func _foam_pixel_stats_pass(stats: Dictionary, minimum_pixels: int) -> bool:
+    return (
+        int(stats.get("changed_pixels", 0)) >= minimum_pixels
+        and int(stats.get("roi_pixels", 0)) > 0
+        and float(stats.get("coverage", 0.0)) >= FOAM_PIXEL_MIN_COVERAGE
+        and float(stats.get("mean_luma_delta", 0.0)) >= FOAM_PIXEL_MIN_MEAN_LUMA_DELTA
+    )
+
+
+func _write_foam_pixel_report(directory: String, report: Dictionary) -> void:
+    var report_path := directory.path_join("FOAM_PIXEL_REPORT.json")
+    var file := FileAccess.open(report_path, FileAccess.WRITE)
+    if file == null:
+        print("IOM_INTERNAL_FOAM_REPORT_WRITE_FAIL path=%s error=%d" % [report_path, FileAccess.get_open_error()])
+        return
+    file.store_string(JSON.stringify(report, "\t") + "\n")
+    file.close()
+    var digest := FileAccess.get_sha256(report_path)
+    if digest.is_empty():
+        print("IOM_INTERNAL_FOAM_REPORT_WRITE_FAIL sha256 unavailable")
+        return
+    print("IOM_INTERNAL_FOAM_REPORT sha256=%s status=%s" % [digest, str(report.get("status", "FAIL"))])
+
+
+func _capture_visible_foam_report(scene: Node3D, integration: Node, ocean_material: ShaderMaterial, directory: String) -> void:
+    var thresholds: Dictionary = {
+        "shoreline": {
+            "min_pixels": SHORELINE_FOAM_MIN_PIXELS,
+            "min_coverage": FOAM_PIXEL_MIN_COVERAGE,
+            "min_mean_luma_delta": FOAM_PIXEL_MIN_MEAN_LUMA_DELTA
+        },
+        "ocean_wake": {
+            "min_pixels": OCEAN_WAKE_MIN_PIXELS,
+            "min_coverage": FOAM_PIXEL_MIN_COVERAGE,
+            "min_mean_luma_delta": FOAM_PIXEL_MIN_MEAN_LUMA_DELTA
+        },
+        "ribbon_wake": {
+            "min_pixels": RIBBON_WAKE_MIN_PIXELS,
+            "min_coverage": FOAM_PIXEL_MIN_COVERAGE,
+            "min_mean_luma_delta": FOAM_PIXEL_MIN_MEAN_LUMA_DELTA
+        }
+    }
+    var report: Dictionary = {
+        "schema_version": 1,
+        "status": "FAIL",
+        "capture_frame": FRAME_COUNT - 1,
+        "capture_time_seconds": float(FRAME_COUNT - 1) / 24.0,
+        "renderer": RenderingServer.get_current_rendering_driver_name(),
+        "method": RenderingServer.get_current_rendering_method(),
+        "thresholds": thresholds,
+        "channels": {},
+        "errors": []
+    }
+    var errors: Array = report["errors"]
+    var channels: Dictionary = report["channels"]
+    var camera := scene.get("cinematic_camera") as Camera3D
+    var wake := integration.get("wake") as Node
+    var bow_spray := integration.get("bow_spray") as Node3D
+    var wake_mesh: MeshInstance3D = wake.get_node_or_null("WakeFoamGeometry") as MeshInstance3D if wake != null else null
+    var foam_value: Variant = ocean_material.get_shader_parameter("foam_amount")
+    var wake_value: Variant = ocean_material.get_shader_parameter("wake_strength")
+    if camera == null or wake == null or bow_spray == null or wake_mesh == null or foam_value == null or wake_value == null:
+        errors.append("Missing camera, wake, bow-spray, wake-mesh or foam shader parameters")
+        _write_foam_pixel_report(directory, report)
+        return
+
+    var original_foam := float(foam_value)
+    var original_wake := float(wake_value)
+    var original_wake_visible := wake_mesh.visible
+    var original_bow_visible := bow_spray.visible
+    bow_spray.visible = false
+    wake_mesh.visible = false
+    ocean_material.set_shader_parameter("foam_amount", 0.0)
+    ocean_material.set_shader_parameter("wake_strength", 0.0)
+    var baseline: Image = await _capture_foam_probe_image()
+    var shoreline_regions := _shoreline_probe_regions(scene, camera)
+    var ocean_wake_regions := _ocean_wake_probe_regions(scene, camera)
+    var ribbon_regions := _ribbon_probe_regions(integration, camera)
+
+    var shoreline_stats := _empty_foam_pixel_stats()
+    var ocean_wake_stats := _empty_foam_pixel_stats()
+    var ribbon_wake_stats := _empty_foam_pixel_stats()
+    if baseline == null:
+        errors.append("Baseline foam-disabled frame was not rendered")
+    else:
+        if shoreline_regions.is_empty():
+            errors.append("No camera-visible shoreline probe regions")
+        else:
+            ocean_material.set_shader_parameter("foam_amount", original_foam)
+            var shoreline_image: Image = await _capture_foam_probe_image()
+            if shoreline_image == null:
+                errors.append("Shoreline foam-enabled frame was not rendered")
+            else:
+                shoreline_stats = _measure_foam_pixel_change(baseline, shoreline_image, shoreline_regions)
+        ocean_material.set_shader_parameter("foam_amount", 0.0)
+        if ocean_wake_regions.is_empty():
+            errors.append("No camera-visible ocean wake probe regions")
+        else:
+            ocean_material.set_shader_parameter("wake_strength", original_wake)
+            var ocean_wake_image: Image = await _capture_foam_probe_image()
+            if ocean_wake_image == null:
+                errors.append("Ocean wake-enabled frame was not rendered")
+            else:
+                ocean_wake_stats = _measure_foam_pixel_change(baseline, ocean_wake_image, ocean_wake_regions)
+        ocean_material.set_shader_parameter("wake_strength", 0.0)
+        if ribbon_regions.is_empty():
+            errors.append("No camera-visible ribbon wake probe regions")
+        else:
+            wake_mesh.visible = original_wake_visible
+            var ribbon_image: Image = await _capture_foam_probe_image()
+            if ribbon_image == null:
+                errors.append("Ribbon wake-enabled frame was not rendered")
+            else:
+                ribbon_wake_stats = _measure_foam_pixel_change(baseline, ribbon_image, ribbon_regions)
+
+    channels["shoreline"] = shoreline_stats
+    channels["ocean_wake"] = ocean_wake_stats
+    channels["ribbon_wake"] = ribbon_wake_stats
+    var shoreline_pass := _foam_pixel_stats_pass(shoreline_stats, SHORELINE_FOAM_MIN_PIXELS)
+    var ocean_wake_pass := _foam_pixel_stats_pass(ocean_wake_stats, OCEAN_WAKE_MIN_PIXELS)
+    var ribbon_wake_pass := _foam_pixel_stats_pass(ribbon_wake_stats, RIBBON_WAKE_MIN_PIXELS)
+    if not shoreline_pass:
+        errors.append("Rendered shoreline foam did not meet pixel coverage/contrast minimum")
+    if not ocean_wake_pass:
+        errors.append("Rendered ocean wake did not meet pixel coverage/contrast minimum")
+    if not ribbon_wake_pass:
+        errors.append("Rendered wake ribbon did not meet pixel coverage/contrast minimum")
+    print("IOM_INTERNAL_FOAM_PIXELS channel=shoreline changed=%d roi=%d coverage=%.6f mean_luma_delta=%.6f" % [
+        int(shoreline_stats["changed_pixels"]), int(shoreline_stats["roi_pixels"]),
+        float(shoreline_stats["coverage"]), float(shoreline_stats["mean_luma_delta"])
+    ])
+    print("IOM_INTERNAL_FOAM_PIXELS channel=ocean_wake changed=%d roi=%d coverage=%.6f mean_luma_delta=%.6f" % [
+        int(ocean_wake_stats["changed_pixels"]), int(ocean_wake_stats["roi_pixels"]),
+        float(ocean_wake_stats["coverage"]), float(ocean_wake_stats["mean_luma_delta"])
+    ])
+    print("IOM_INTERNAL_FOAM_PIXELS channel=ribbon_wake changed=%d roi=%d coverage=%.6f mean_luma_delta=%.6f" % [
+        int(ribbon_wake_stats["changed_pixels"]), int(ribbon_wake_stats["roi_pixels"]),
+        float(ribbon_wake_stats["coverage"]), float(ribbon_wake_stats["mean_luma_delta"])
+    ])
+    _restore_foam_probe_state(ocean_material, wake_mesh, bow_spray, original_foam, original_wake, original_wake_visible, original_bow_visible)
+    report["status"] = "PASS" if errors.is_empty() and shoreline_pass and ocean_wake_pass and ribbon_wake_pass else "FAIL"
+    _write_foam_pixel_report(directory, report)
+
+
+func _restore_foam_probe_state(
+    ocean_material: ShaderMaterial,
+    wake_mesh: MeshInstance3D,
+    bow_spray: Node3D,
+    original_foam: float,
+    original_wake: float,
+    original_wake_visible: bool,
+    original_bow_visible: bool
+) -> void:
+    ocean_material.set_shader_parameter("foam_amount", original_foam)
+    ocean_material.set_shader_parameter("wake_strength", original_wake)
+    wake_mesh.visible = original_wake_visible
+    bow_spray.visible = original_bow_visible
+
+
+
 func _record() -> void:
+    if not await _verify_wake_discontinuity_guard():
+        _fail("Wake discontinuity guard regression failed")
+        return
     var directory := OS.get_environment("IOM_FX_FRAMES_DIR")
     if directory.is_empty():
         _fail("IOM_FX_FRAMES_DIR is required; no default public output")
@@ -25,10 +506,21 @@ func _record() -> void:
     if DirAccess.make_dir_recursive_absolute(directory) != OK:
         _fail("Could not create renderer evidence directory")
         return
+    var rendering_method := RenderingServer.get_current_rendering_method()
+    var rendering_driver := RenderingServer.get_current_rendering_driver_name()
+    if rendering_method != "mobile" or rendering_driver != "vulkan":
+        _fail(
+            "Expected Vulkan Mobile renderer, got driver=%s method=%s"
+            % [rendering_driver, rendering_method]
+        )
+        return
+    print("IOM_INTERNAL_RENDERER driver=%s method=%s" % [rendering_driver, rendering_method])
+    if not _write_source_asset_provenance(directory):
+        return
     var start_frame := int(OS.get_environment("IOM_FX_START_FRAME")) if OS.has_environment("IOM_FX_START_FRAME") else 0
     var end_frame := int(OS.get_environment("IOM_FX_END_FRAME")) if OS.has_environment("IOM_FX_END_FRAME") else FRAME_COUNT
-    if start_frame < 0 or end_frame > FRAME_COUNT or start_frame >= end_frame:
-        _fail("Invalid capture frame range; expected 0 <= start < end <= 72")
+    if start_frame != 0 or end_frame != FRAME_COUNT:
+        _fail("Capture must use one renderer process for the complete 0..71 sequence; partitioned workers reset lighting state")
         return
     var packed: PackedScene = load("res://scenes/realistic_coastal_fx_slice.tscn")
     if packed == null:
@@ -59,6 +551,8 @@ func _record() -> void:
     integration.set_process(false)
     integration.wake.set_process(false)
     integration.bow_spray.set_process(false)
+    integration.wake.sync_ocean_wave_parameters(ocean_material)
+    integration.wake.set_deterministic_capture(true, 0.0)
     integration.start_visual_demo()
     var scene_triangles := 0
     var mesh_instances := 0
@@ -71,9 +565,12 @@ func _record() -> void:
             var indices: PackedInt32Array = mesh_instance.mesh.surface_get_arrays(surface_index)[Mesh.ARRAY_INDEX]
             scene_triangles += indices.size() / 3
     print("IOM_INTERNAL_SCENE_GEOMETRY mesh_instances=%d triangles=%d" % [mesh_instances, scene_triangles])
+    # Side/rear view: the vessel moves seaward along -Z, so its world-anchored
+    # wake trails back toward this camera instead of disappearing behind the hull.
+    scene.cinematic_camera.position = Vector3(-15.0, 5.5, -5.8)
     var camera_start: Vector3 = scene.cinematic_camera.position
-    var waypoint_a := Vector3(-7.0, 4.8, -17.0)
-    var waypoint_b := Vector3(-2.5, 5.2, -21.0)
+    var waypoint_a := Vector3(-17.0, 6.0, -5.8)
+    var waypoint_b := Vector3(-13.0, 5.2, -5.8)
     if not scene.cinematic_camera.current:
         _fail("Cinematic camera not selected")
         return
@@ -86,8 +583,10 @@ func _record() -> void:
         else:
             var stage := smoothstep(0.0, 1.0, (progress - 0.5) * 2.0)
             scene.cinematic_camera.position = waypoint_a.lerp(waypoint_b, stage)
-        ocean_material.set_shader_parameter("capture_time_seconds", float(frame_number) / 24.0)
+        var capture_time := float(frame_number) / 24.0
+        ocean_material.set_shader_parameter("capture_time_seconds", capture_time)
         integration.advance_visual_demo(1.0 / 24.0)
+        integration.wake.set_capture_time(capture_time)
         if not scene.frame_ship_cinematic(scene.cinematic_camera, scene.cinematic_camera.global_position):
             _fail("Imported ship has no valid full 3D visual bounds")
             return
@@ -107,31 +606,11 @@ func _record() -> void:
             if projected.x < 36.0 or projected.x > 1244.0 or projected.y < 36.0 or projected.y > 684.0:
                 _fail("Ship rigging/hull clips frame at %d corner %d: %s" % [frame_number, corner, projected])
                 return
-        # Pre-roll the complete vessel/wake/spray state without costly GPU
-        # readbacks. Each worker still starts from frame zero simulation state.
-        if frame_number < start_frame:
-            # This path has deterministic_capture enabled, particle/process updates
-            # disabled, and CPU-driven wake/spray state. The state above is the
-            # complete boundary state; rendering 48 discarded full-resolution
-            # frames only burned llvmpipe time and caused worker-2 watchdog exits.
-            # The first retained frame still fences normally below.
-            if frame_number % 6 == 0:
-                print("IOM_INTERNAL_STAGE preroll frame=%d state_ms=%d" % [
-                    frame_number, Time.get_ticks_msec() - render_start_msec
-                ])
-            continue
-        if frame_number >= end_frame:
-            break
-        if frame_number == start_frame and start_frame > 0:
-            var boundary_time: float = ocean_material.get_shader_parameter("capture_time_seconds")
-            if absf(boundary_time - float(start_frame) / 24.0) > 0.0001:
-                _fail("Partition boundary lost deterministic ocean time")
-            if integration.wake.get_sample_count() < 2:
-                _fail("Partition boundary lost CPU wake history")
-        if frame_number == start_frame:
-            # The camera preroll is CPU-only. Give Mobile Vulkan several real
-            # draw fences at its final pose before keeping the first frame;
-            # otherwise one llvmpipe worker can retain an unlit shadow state.
+        if frame_number == 0:
+            # Keep all 72 frames in this renderer process. Separate worker
+            # processes rebuilt camera-dependent directional shadow state and
+            # caused measurable lighting jumps at frames 23->24 and 47->48.
+            # Warm the one renderer before recording; do not partition capture.
             for _warmup in range(3):
                 await process_frame
                 await RenderingServer.frame_post_draw
@@ -154,10 +633,10 @@ func _record() -> void:
         if current_bytes.size() != 1280 * 720 * 4:
             _fail("Invalid RGBA8 capture byte count at frame %d" % frame_number)
             return
-        if frame_number > start_frame and current_bytes != _previous_bytes:
+        if frame_number > 0 and current_bytes != _previous_bytes:
             _changed_frames += 1
         _previous_bytes = current_bytes
-        if frame_number == start_frame:
+        if frame_number == 0:
             # Static land at this camera angle is a stable lighting probe.
             # A dark worker measured 82-85 luma here; lit runs measure 94+.
             # Fail that worker before it uploads a visually invalid segment.
@@ -194,7 +673,7 @@ func _record() -> void:
                 frame_number + 1, FRAME_COUNT, Time.get_ticks_msec() - render_start_msec,
                 fence_elapsed_msec
             ])
-    if _changed_frames < mini(12, end_frame - start_frame - 1):
+    if _changed_frames < mini(12, FRAME_COUNT - 1):
         _fail("Frame sequence is effectively static; no valid moving-engine evidence")
         return
     if not integration._demo_active:
@@ -203,14 +682,20 @@ func _record() -> void:
     if integration.wake.get_sample_count() < 2:
         _fail("No real wake geometry accumulated in the captured moving ship scene")
         return
+    if integration.wake.get_triangle_count() < 8:
+        _fail("Wake samples did not produce visible ribbon geometry")
+        return
+    # Geometry counts are not visual proof. Compare real rendered pixels with
+    # each foam source independently enabled/disabled, then hash the report.
+    await _capture_visible_foam_report(scene, integration, ocean_material, directory)
     integration.stop_visual_demo()
     scene.set_gameplay_view()
     await process_frame
     if integration._demo_active or not scene.gameplay_camera.current:
         _fail("Cinematic capture failed to restore the gameplay camera and vessel")
         return
-    print("Genuine Godot cinematic FX frames: %d-%d, changed: %d, camera restored" % [
-        start_frame, end_frame, _changed_frames
+    print("Genuine Godot cinematic FX frames: 0-%d, changed: %d, camera restored" % [
+        FRAME_COUNT - 1, _changed_frames
     ])
     scene.queue_free()
     quit(0)

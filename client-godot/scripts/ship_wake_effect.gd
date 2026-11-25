@@ -9,6 +9,14 @@ const MAX_SAMPLES := 80
 const MIN_STEP_M := 0.12
 const MIN_TICK_SEC := 0.08
 
+# Authoritative contract in server/src/ship.ts:
+# dragon_ship 4.0 m/s * max wind 1.5 * max crew 1.25 = 7.5 m/s.
+# MAX_SAIL_SECONDS is 60, so a single server command can move hundreds of
+# metres. The client-only wake must reset across unobserved/snap movement.
+const MAX_EXPECTED_VESSEL_SPEED_MPS := 7.5
+const MAX_CONTINUOUS_GAP_SEC := 0.75
+const MAX_CONTINUOUS_STEP_MARGIN := 1.25
+
 @export_range(0.05, 0.5, 0.01) var sample_interval: float = 0.12
 @export_range(1.0, 20.0, 0.5) var trail_lifetime: float = 8.0
 @export_range(0.2, 10.0, 0.1) var hull_width: float = 3.2
@@ -22,6 +30,7 @@ var _mesh: ArrayMesh
 var _samples: Array[Dictionary] = []
 var _elapsed: float = 0.0
 var _sample_clock: float = 0.0
+var _position_elapsed: float = 0.0
 var _last_vessel_position := Vector3.ZERO
 var _has_previous_position := false
 var _triangles: int = 0
@@ -46,12 +55,14 @@ func attach_vessel(target: Node3D) -> void:
     if is_instance_valid(target):
         _last_vessel_position = target.global_position
         _has_previous_position = true
+        _position_elapsed = 0.0
 
 
 func clear_wake() -> void:
     _samples.clear()
     _triangles = 0
     _sample_clock = 0.0
+    _position_elapsed = 0.0
     _has_previous_position = false
     if _mesh != null:
         _mesh.clear_surfaces()
@@ -64,9 +75,62 @@ func get_sample_count() -> int:
 func get_triangle_count() -> int:
     return _triangles
 
+func _wake_material() -> ShaderMaterial:
+    if _foam == null:
+        return null
+    return _foam.material_override as ShaderMaterial
+
+
+func sync_ocean_wave_parameters(ocean_material: ShaderMaterial) -> void:
+    if ocean_material == null:
+        return
+    var material := _wake_material()
+    if material == null:
+        return
+    # These are the scene-owned values that differ from shader defaults.
+    # Directions and near-patch bounds intentionally share the same defaults
+    # in both shaders until they become scene-configurable.
+    for parameter in [
+        "wave_speed",
+        "wave_amplitude",
+        "wave_frequency",
+        "wave_steepness_a",
+        "wave_steepness_b",
+        "swell_scale"
+    ]:
+        var value: Variant = ocean_material.get_shader_parameter(parameter)
+        if value != null:
+            material.set_shader_parameter(parameter, value)
+
+
+func set_deterministic_capture(enabled: bool, time_seconds: float = 0.0) -> void:
+    var material := _wake_material()
+    if material == null:
+        return
+    material.set_shader_parameter("deterministic_capture", enabled)
+    set_capture_time(time_seconds)
+
+
+func set_capture_time(time_seconds: float) -> void:
+    if not is_finite(time_seconds) or time_seconds < 0.0:
+        return
+    var material := _wake_material()
+    if material == null:
+        return
+    material.set_shader_parameter("capture_time_seconds", time_seconds)
+
 
 func _process(delta: float) -> void:
     advance_wake(delta)
+
+
+func _reset_after_discontinuity(current: Vector3) -> void:
+    # Do not join an authoritative snap, respawn, reconnect or long frame gap
+    # to the previous sample. This is VFX-only; never clamp or rewrite the ship.
+    clear_wake()
+    _last_vessel_position = current
+    _has_previous_position = true
+    _position_elapsed = 0.0
 
 
 func advance_wake(delta: float) -> void:
@@ -75,35 +139,64 @@ func advance_wake(delta: float) -> void:
         return
     _elapsed += minf(delta, 1.0)
     _sample_clock += delta
+
+    if not is_instance_valid(vessel):
+        _position_elapsed = 0.0
+        _has_previous_position = false
+        _prune_samples()
+        _rebuild_foam_mesh()
+        return
+
+    _position_elapsed = minf(_position_elapsed + delta, MAX_CONTINUOUS_GAP_SEC + 1.0)
     var interval := maxf(MIN_TICK_SEC, sample_interval)
     if _sample_clock < interval:
         return
-    var elapsed_for_velocity := maxf(_sample_clock, MIN_TICK_SEC)
     _sample_clock = 0.0
 
-    if is_instance_valid(vessel):
-        var current := vessel.global_position
-        if not _has_previous_position:
-            _last_vessel_position = current
-            _has_previous_position = true
-        var motion := Vector3(
-            current.x - _last_vessel_position.x,
-            0.0,
-            current.z - _last_vessel_position.z
-        )
-        var distance := motion.length()
-        var speed := distance / elapsed_for_velocity
+    var current := vessel.global_position
+    if not _has_previous_position:
         _last_vessel_position = current
-        if distance >= MIN_STEP_M and speed >= minimum_speed:
-            var travel_direction := motion / distance
-            var spawn := current - travel_direction * (hull_length * 0.35)
-            # Position and time are visual-only. No physics or collision bodies.
-            _samples.append({
-                "center": Vector3(spawn.x, sea_level + 0.018, spawn.z),
-                "direction": travel_direction,
-                "time": _elapsed,
-                "strength": clampf(speed / 5.0, 0.18, 1.0)
-            })
+        _has_previous_position = true
+        _position_elapsed = 0.0
+        return
+
+    var motion := Vector3(
+        current.x - _last_vessel_position.x,
+        0.0,
+        current.z - _last_vessel_position.z
+    )
+    var distance := motion.length()
+    if distance < MIN_STEP_M:
+        _prune_samples()
+        _rebuild_foam_mesh()
+        return
+
+    # Position updates can arrive less often than this VFX sampling cadence.
+    # Use time since the last observed movement, but fail closed after 750 ms:
+    # a missing path cannot be reconstructed from two endpoints.
+    var observed_gap := maxf(_position_elapsed, MIN_TICK_SEC)
+    var max_continuous_step := (
+        MAX_EXPECTED_VESSEL_SPEED_MPS
+        * minf(observed_gap, MAX_CONTINUOUS_GAP_SEC)
+        * MAX_CONTINUOUS_STEP_MARGIN
+    )
+    if observed_gap > MAX_CONTINUOUS_GAP_SEC or distance > max_continuous_step:
+        _reset_after_discontinuity(current)
+        return
+
+    var speed := distance / observed_gap
+    _last_vessel_position = current
+    _position_elapsed = 0.0
+    if speed >= minimum_speed:
+        var travel_direction := motion / distance
+        var spawn := current - travel_direction * (hull_length * 0.35)
+        # Position and time are visual-only. No physics or collision bodies.
+        _samples.append({
+            "center": Vector3(spawn.x, sea_level + 0.018, spawn.z),
+            "direction": travel_direction,
+            "time": _elapsed,
+            "strength": clampf(speed / 5.0, 0.18, 1.0)
+        })
     _prune_samples()
     _rebuild_foam_mesh()
 

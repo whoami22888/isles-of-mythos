@@ -62,6 +62,29 @@ func run() -> void:
     check(shader_source.contains("coastal_shore_sampler.gdshaderinc"), "Material must use PR #173 shoreline")
     check(shader_source.contains("shore_terrain_height("), "Depth must sample actual terrain mesh")
     check(shader_source.contains("shore_terrain_coverage("), "Foam must honour terrain coverage")
+    check(shader_source.contains("render_mode cull_back, depth_draw_opaque")
+        and not shader_source.contains("blend_mix"),
+        "Mobile ocean must retain the existing opaque depth-write path")
+    check(not shader_source.contains("hint_depth_texture") and not shader_source.contains("ALPHA ="),
+        "Mobile ocean must avoid scene-depth alpha blending and its extra overdraw")
+    check(shader_source.contains("float depth_m = max(SEA_LEVEL - floor_y, 0.0);"),
+        "Water depth must derive from the actual coastal heightfield")
+    check(shader_source.contains("float depth_factor = 1.0 - smoothstep(0.15, 6.5, depth_m);"),
+        "Water depth tint must attenuate from the bound terrain heightfield")
+    check(shader_source.contains("abs(SEA_LEVEL - floor_y)"),
+        "Shoreline foam must cover exposed sand and submerged waterline")
+    check(shader_source.contains("const vec2 RING_DIRS[12]"),
+        "Shoreline foam must use bounded heightfield ring samples")
+    check(shader_source.contains("shore_land_fraction(p, 1.1)")
+        and shader_source.contains("shore_land_fraction(p, 2.6)"),
+        "Shoreline foam must detect nearby land at both physical radii")
+    check(shader_source.contains("if (water_here > 0.0 && contact > 0.0)"),
+        "Heightfield ring taps must be limited to covered shoreline pixels")
+    check(shader_source.contains("float breakup = 0.78 + 0.22 * breakup_noise;")
+        and shader_source.contains("mix(0.55, 1.0, foam_motion)"),
+        "Aperiodic breakup must define foam shape; sine motion may only modulate it")
+    check(not shader_source.contains("contact * foam_motion * foam_amount"),
+        "Periodic sine lattice must not directly gate shoreline foam")
     var shoreline_source: String = FileAccess.get_file_as_string("res://shaders/coastal_shore_sampler.gdshaderinc")
     check(shoreline_source.contains("smoothstep(0.0, 0.12, uv.x)"),
         "Terrain coverage edge must feather to avoid a rectangular ocean seam")
@@ -71,6 +94,23 @@ func run() -> void:
     check(not shader_source.contains("land_region"), "Invented rectangular shore mask banned")
     check(shader_source.contains("fresnel"), "Grazing-angle water response required")
     check(shader_source.contains("NORMAL_MAP"), "Moving water normal detail required")
+    check(shader_source.contains("wave_phase_a") and shader_source.contains("wave_phase_b"),
+        "Both Gerstner wave phases must compile into the ocean shader")
+    check(shader_source.contains("deep_ocean_color") and shader_source.contains("shallow_ocean_color")
+        and shader_source.contains("foam_color"), "Ocean color controls must remain exposed")
+    var wave_settings := scene.get_node_or_null("OceanWaveSettings")
+    check(wave_settings != null, "Scene-exposed ocean wave settings must be present")
+    if wave_settings != null:
+        check(absf(float(material.get_shader_parameter("wave_speed")) - float(wave_settings.get("wave_speed"))) < 0.0001,
+            "Scene wave-speed control must reach the shader material")
+        check(absf(float(material.get_shader_parameter("wave_amplitude")) - float(wave_settings.get("wave_amplitude"))) < 0.0001,
+            "Scene wave-amplitude control must reach the shader material")
+        check(absf(float(material.get_shader_parameter("wave_frequency")) - float(wave_settings.get("wave_frequency"))) < 0.0001,
+            "Scene wave-frequency control must reach the shader material")
+        check(absf(float(material.get_shader_parameter("wave_steepness_a")) - float(wave_settings.get("wave_steepness_a"))) < 0.0001,
+            "Scene wave-steepness A control must reach the shader material")
+        check(absf(float(material.get_shader_parameter("wave_steepness_b")) - float(wave_settings.get("wave_steepness_b"))) < 0.0001,
+            "Scene wave-steepness B control must reach the shader material")
     check(shader_source.contains("* 0.5 + 0.5"),
         "Water normal map must encode signed normals into Godot's 0..1 range")
     check(material.get_shader_parameter("shoremap_bound") == true, "Fail closed if shoreline unbound")
