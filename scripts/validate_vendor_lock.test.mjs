@@ -6,8 +6,16 @@ import { join, win32 } from "node:path";
 import { createRequire } from "node:module";
 import test from "node:test";
 
-const { validateVendorLock, normalizeRepositoryRelativePath } = createRequire(import.meta.url)("./validate_vendor_lock.js");
+const { validateVendorLock, normalizeRepositoryRelativePath, canonicalRepoPath } = createRequire(import.meta.url)("./validate_vendor_lock.js");
 const sha = (text) => createHash("sha256").update(text).digest("hex");
+
+test("internal canonical repository paths remain valid on Windows", () => {
+  if (process.platform !== "win32") return;
+  const root = mkdtempSync(join(tmpdir(), "vendor-lock-win-paths-"));
+  assert.ok(canonicalRepoPath(root, "client-godot/assets/external"));
+  assert.ok(canonicalRepoPath(root, "docs/vendor/quarantine/quaternius-h05-h06.json"));
+  assert.ok(canonicalRepoPath(root, "client-godot/assets/external-assets.json"));
+});
 
 test("Windows-native relative paths match external manifest keys and file-tree membership", () => {
   const root = "C:\\work\\isles-of-mythos";
