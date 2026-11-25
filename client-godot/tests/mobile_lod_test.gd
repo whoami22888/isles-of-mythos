@@ -245,6 +245,24 @@ func _run_tests() -> void:
     if not impostor_mesh.visible or impostor_sprite.visible:
         failures += 1
         push_error("Crossing above 140 px must restore the 3D mesh immediately")
+
+    # If all bounds corners are behind the camera, retain the full mesh.
+    # The old zero-projected-corners path returned 0 px and incorrectly
+    # switched to an impostor that can appear on the wrong side of the camera.
+    impostor_camera.position = Vector3(0.0, 0.0, -10.0)
+    impostor_lod._process(0.0)
+    if impostor_lod._projected_pixel_height() <= 140.0 or not impostor_mesh.visible or impostor_sprite.visible:
+        failures += 1
+        push_error("All-behind-camera bounds must retain the full 3D mesh")
+
+    # A camera intersecting the AABB also retains full detail until the
+    # complete bounds are in front of the view plane.
+    impostor_camera.position = Vector3(0.0, 0.5, 0.0)
+    impostor_lod._process(0.0)
+    if impostor_lod._projected_pixel_height() <= 140.0 or not impostor_mesh.visible or impostor_sprite.visible:
+        failures += 1
+        push_error("Camera-plane-intersecting bounds must retain the full 3D mesh")
+
     impostor_lod.queue_free()
     await process_frame
     root.size = previous_root_size

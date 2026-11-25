@@ -29,6 +29,21 @@ func _run() -> void:
 	camera.terrain_collision_mask = Controller.CAMERA_TERRAIN_COLLISION_LAYER # _ready must not query a locked physics space
 	root.add_child(camera)
 	await process_frame
+	# Focus and orbit are target state: only the physics callback may replace the
+	# camera transform, preserving the last terrain-resolved pose between ticks.
+	var initial_transform: Transform3D = camera.global_transform
+	camera.set_focus_point(Vector3(5.0, 0.0, 0.0))
+	camera.set_orbit_yaw(PI * 0.5)
+	check(camera.global_transform.is_equal_approx(initial_transform), "focus/orbit changes do not write an unchecked transform outside physics")
+	# SceneTree.physics_frame is emitted before node _physics_process callbacks;
+	# the next signal confirms the camera has completed one physics update.
+	await physics_frame
+	await physics_frame
+	check(not camera.global_transform.is_equal_approx(initial_transform), "camera applies focus/orbit on a physics tick")
+	check(absf(camera.rotation.y - PI * 0.5) < 0.001, "orbit yaw is applied on a physics tick")
+	camera.set_focus_point(Vector3.ZERO)
+	camera.set_orbit_yaw(0.0)
+	await physics_frame
 	# Manual interpolation calls below are not physics callbacks; keep raycasts off.
 	# The raised-terrain test at the end re-enables the mask on real physics ticks.
 	camera.terrain_collision_mask = 0
