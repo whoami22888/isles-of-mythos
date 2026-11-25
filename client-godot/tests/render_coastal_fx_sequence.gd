@@ -7,6 +7,7 @@ const FRAME_COUNT := 72
 const SOURCE_ASSET_MANIFEST := "res://assets/external-assets.json"
 const SOURCE_ASSET_ROOT := "res://assets/external"
 const SHORE_BAKER := preload("res://scripts/coastal_shore_heightfield.gd")
+const WAKE_SCRIPT := preload("res://scripts/ship_wake_effect.gd")
 const CAPTURE_WIDTH := 1280
 const CAPTURE_HEIGHT := 720
 const SEA_LEVEL := -0.35
@@ -28,6 +29,49 @@ func _init() -> void:
 func _fail(reason: String) -> void:
     push_error(reason)
     quit(1)
+
+
+func _verify_wake_discontinuity_guard() -> bool:
+    var test_vessel := Node3D.new()
+    var test_wake: Node3D = WAKE_SCRIPT.new() as Node3D
+    root.add_child(test_vessel)
+    root.add_child(test_wake)
+    test_wake.set_process(false)
+    test_wake.call("attach_vessel", test_vessel)
+
+    # A continuous 0.8 m step at 0.12 s is inside the 7.5 m/s server envelope.
+    test_vessel.global_position = Vector3(0.0, 0.0, -0.8)
+    test_wake.call("advance_wake", 0.12)
+    if int(test_wake.call("get_sample_count")) != 1:
+        test_wake.queue_free()
+        test_vessel.queue_free()
+        await process_frame
+        return false
+
+    # A 1 km authoritative correction must clear history, not create a bridge.
+    test_vessel.global_position = Vector3(1000.0, 0.0, -0.8)
+    test_wake.call("advance_wake", 0.12)
+    if int(test_wake.call("get_sample_count")) != 0 or int(test_wake.call("get_triangle_count")) != 0:
+        test_wake.queue_free()
+        test_vessel.queue_free()
+        await process_frame
+        return false
+
+    # Normal movement after the correction must resume a fresh wake.
+    test_vessel.global_position = Vector3(1000.0, 0.0, -1.6)
+    test_wake.call("advance_wake", 0.12)
+    test_vessel.global_position = Vector3(1000.0, 0.0, -2.4)
+    test_wake.call("advance_wake", 0.12)
+    var recovered := (
+        int(test_wake.call("get_sample_count")) == 2
+        and int(test_wake.call("get_triangle_count")) >= 4
+    )
+    test_wake.queue_free()
+    test_vessel.queue_free()
+    await process_frame
+    if recovered:
+        print("IOM_INTERNAL_WAKE_DISCONTINUITY_TEST PASS")
+    return recovered
 
 
 func _write_source_asset_provenance(directory: String) -> bool:
@@ -452,6 +496,9 @@ func _restore_foam_probe_state(
 
 
 func _record() -> void:
+    if not await _verify_wake_discontinuity_guard():
+        _fail("Wake discontinuity guard regression failed")
+        return
     var directory := OS.get_environment("IOM_FX_FRAMES_DIR")
     if directory.is_empty():
         _fail("IOM_FX_FRAMES_DIR is required; no default public output")
