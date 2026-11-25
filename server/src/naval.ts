@@ -3,6 +3,7 @@ import { runEconomyMutation, subtractGoldDoubloons } from "./economy.js";
 import { CREATURE_STATS } from "./combat.js";
 import { CREW_BONUS_CAPS, stackCrewContributions } from "./crew-bonus.js";
 import type { Pool } from "pg";
+import { CANNON_COOLDOWN_MS, resolveBroadside } from "./ship-turn.js";
 
 interface NpcCrewResult{id:string;shipId:string;creatureId:null;npcType:CrewType;role:CrewRole;skill:number;morale:number}
 
@@ -94,12 +95,11 @@ export class NavalStore {
       const range=250+scoutRange;
       const distance=Math.hypot(attacker.x-target.x,attacker.y-target.y);
       if(distance>range) throw new Error("NAVAL_TARGET_OUT_OF_RANGE");
-      const targetAngle=Math.atan2(target.y-attacker.y,target.x-attacker.x);
-      const delta=Math.atan2(Math.sin(targetAngle-attacker.heading),Math.cos(targetAngle-attacker.heading));
       const navigatorBonus=Math.min(Math.PI/12,crew.rows.filter(x=>x.role==="navigator").reduce((s,x)=>s+x.skill*(x.morale/100),0)*Math.PI/1800);
-      if(Math.abs(delta)>Math.PI/4+navigatorBonus) throw new Error("CANNON_OUTSIDE_ARC");
+      const side=resolveBroadside(attacker.heading,attacker.x,attacker.y,target.x,target.y,navigatorBonus);
+      if(!side) throw new Error("CANNON_OUTSIDE_ARC");
       const recent=await c.query<{created_at:Date}>("SELECT created_at FROM naval_combat_events WHERE attacker_ship_id=$1 ORDER BY created_at DESC LIMIT 1",[shipId]);
-      if(recent.rows[0] && now-new Date(recent.rows[0].created_at).getTime()<1000) throw new Error("CANNON_COOLDOWN");
+      if(recent.rows[0] && now-new Date(recent.rows[0].created_at).getTime()<CANNON_COOLDOWN_MS) throw new Error("CANNON_COOLDOWN");
       const ammo=await c.query<{quantity:string}>("SELECT quantity FROM ship_inventory WHERE ship_id=$1 AND item_id='cannonball' FOR UPDATE",[shipId]);
       if(Number(ammo.rows[0]?.quantity??0)<1) throw new Error("NO_CANNON_AMMO");
       const gunner=crew.rows.filter(x=>x.role==="gunner");
@@ -115,7 +115,7 @@ export class NavalStore {
       const updated=await c.query<Row>("UPDATE player_ships SET hull=$2,status=$3,fire_until=CASE WHEN $4 THEN CURRENT_TIMESTAMP+INTERVAL '5 seconds' ELSE fire_until END,fire_damage=CASE WHEN $4 THEN GREATEST(1,CEIL($5/10.0))::integer ELSE fire_damage END,updated_at=CURRENT_TIMESTAMP WHERE id=$1 RETURNING "+select,[target.id,hull,status,fireStarted,damage]);
       await c.query("INSERT INTO naval_combat_events(attacker_ship_id,defender_ship_id,attacker_user_id,defender_user_id,damage,attacker_hull_after,defender_hull_after,action_type) VALUES($1,$2,$3,$4,$5,$6,$7,'cannon')",[attacker.id,target.id,userId,target.owner_user_id,damage,attacker.hull,hull]);
       await c.query("COMMIT");
-      return {attacker:mapShip(attacker),target:mapShip(updated.rows[0]),damage,fireStarted};
+      return {attacker:mapShip(attacker),target:mapShip(updated.rows[0]),damage,fireStarted,side,cooldownMs:CANNON_COOLDOWN_MS};
     } catch(e){await c.query("ROLLBACK");throw e} finally{c.release()}
   }
 

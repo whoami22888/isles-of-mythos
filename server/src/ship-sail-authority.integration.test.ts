@@ -162,6 +162,18 @@ describe("server-timed sailing (store)", () => {
     }
   });
 
+  it("limits heading change to turnRate * elapsed time and travels on the applied heading", async () => {
+    const { userId } = await register(app, "turn");
+    const shipId = await sloop(db, userId);
+    await db.query("UPDATE player_ships SET x=0,y=0,heading=0,turn_rate=2 WHERE id=$1", [shipId]);
+    await backdate(db, shipId, 0.5);
+    const moved = await new ShipStore(db).sail(userId, shipId, -1, 0);
+    expect(moved.heading).toBeGreaterThan(0.8);
+    expect(moved.heading).toBeLessThan(1.4);
+    expect(moved.x).toBeGreaterThan(0);
+    expect(moved.y).toBeGreaterThan(0);
+  });
+
   it("rejects a tiny heading in the store without moving the ship or spending fuel", async () => {
     const { userId } = await register(app, "tiny");
     const shipId = await sloop(db, userId);

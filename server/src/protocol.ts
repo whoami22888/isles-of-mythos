@@ -180,7 +180,7 @@ export type ServerMessage =
   | { type:"ship_crew"; requestId:string; crew:unknown }
   | { type:"fleet_state"; requestId:string; fleet:unknown }
   | { type:"fleet_list"; requestId:string; fleets:unknown[] }
-  | { type:"naval_combat_result"; requestId:string; attacker:unknown; target:unknown; damage:number; fireStarted?:boolean; captured?:boolean }
+  | { type:"naval_combat_result"; requestId:string; attacker:unknown; target:unknown; damage:number; fireStarted?:boolean; captured?:boolean; side?:"port"|"starboard"; cooldownMs?:number }
   | { type:"friends_list"; requestId:string; friends:FriendRecord[] }
   | { type:"blocks_list"; requestId:string; blockedUserIds:string[] }
   | { type:"social_operation_ok"; requestId:string }
