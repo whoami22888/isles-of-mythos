@@ -14,6 +14,7 @@ import { isGameplayAccessToken, registerAuthRoutes, verifyGameplayRequest } from
 import { registerCreatureResearchRoutes } from "./creature-research-routes.js";
 import { registerDailyObjectiveRoutes } from "./daily-objectives.js";
 import { registerCitadelRoutes } from "./citadel.js";
+import { registerMythosCompanionRoutes } from "./mythos-companion.js";
 import { registerExpeditionRoutes } from "./expeditions.js";
 import { registerGuildObjectiveRoutes } from "./guild-objectives.js";
 import { log } from "./logger.js";
@@ -831,6 +832,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   };
   registerDailyObjectiveRoutes(app, db, players, pushPlayerState);
   registerCitadelRoutes(app, db, players, bases, pushPlayerState);
+  registerMythosCompanionRoutes(app, db, players, pushPlayerState);
   registerExpeditionRoutes(app, db, players, pushPlayerState);
   registerGuildObjectiveRoutes(app, db, players, pushPlayerState);
 

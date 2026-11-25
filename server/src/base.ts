@@ -1,5 +1,6 @@
 import type { Pool } from "pg";
 import { nextWorkerWaypoint } from "./base-pathfinding.js";
+import { grantCompanionXp, companionStateFrom, workYieldMultiplier } from "./mythos-companion.js";
 
 export const BASE_GRID_MIN = -128;
 export const BASE_GRID_MAX = 128;
@@ -62,7 +63,7 @@ export interface BaseState {
 interface BaseRow { id:string; owner_user_id:string; name:string; x:number; y:number; maximum_creatures:number; maximum_workers:number; maximum_breeding_slots:number; production_processed_at:Date|string; }
 interface BuildingRow { id:string; base_id:string; type:BuildingType; level:number; grid_x:number; grid_y:number; active:boolean; }
 interface StorageRow { resource_key:string; quantity:string; }
-interface WorkerRow { creature_id:string; base_id:string; building_id:string; task:WorkerMode; creature_x?:number|null; creature_y?:number|null; }
+interface WorkerRow { creature_id:string; base_id:string; building_id:string; task:WorkerMode; creature_x?:number|null; creature_y?:number|null; element?:string|null; mood?:string|number|null; tame_progress?:number|null; companion_state?:string|null; ai_mode?:string|null; }
 
 export const BASE_BUILDING_DEFINITIONS: Record<BuildingType,{maxLevel:number; prerequisites:BuildingType[]}> = {
   command_centre:{maxLevel:7,prerequisites:[]}, storage:{maxLevel:7,prerequisites:["command_centre"]},
@@ -102,6 +103,7 @@ const PRODUCTION: Partial<Record<BuildingType,{output:string;ratePerMinute:numbe
   steel_mill:{output:"steel",ratePerMinute:5,input:"iron",inputPerMinute:10},
   farm:{output:"food",ratePerMinute:8,inputPerMinute:0},
   fishing_dock:{output:"fish",ratePerMinute:6,inputPerMinute:0},
+  forge:{output:"steel",ratePerMinute:4,input:"iron",inputPerMinute:8},
 };
 
 function toQuantity(value:string|number):number {
@@ -138,7 +140,7 @@ export function validateBuildingUpgrade(base:Pick<BaseState,"buildings">,buildin
   for(const prerequisite of BASE_BUILDING_DEFINITIONS[building.type].prerequisites)if(!base.buildings.some(b=>b.type===prerequisite&&b.active))throw new Error("BUILDING_PREREQUISITE_MISSING");
   return building;
 }
-type ProductionWorker = BaseWorker & { creatureX?:number|null; creatureY?:number|null };
+type ProductionWorker = BaseWorker & { creatureX?:number|null; creatureY?:number|null; element?:string|null };
 type ProductionBase = Omit<Pick<BaseState,"buildings"|"workers"|"storage"|"workPriorities">,"workers"> & { x?:number; y?:number; workers:ProductionWorker[] };
 export function productionFor(base:ProductionBase,elapsedMs:number):Record<string,number>{
   if(!Number.isFinite(elapsedMs)||elapsedMs<=0)return {};
@@ -152,19 +154,25 @@ export function productionFor(base:ProductionBase,elapsedMs:number):Record<strin
       if(worker.task!=="auto")return validTasksForBuilding(building.type).includes(worker.task);
       return automaticTask!==null;
     };
-    const workerCount=base.workers.filter(w=>{
+    const contributing=base.workers.filter(w=>{
       if(w.buildingId!==building.id||!validTask(w))return false;
       if(!Number.isFinite(w.creatureX)||!Number.isFinite(w.creatureY)||!Number.isFinite(base.x)||!Number.isFinite(base.y))return true;
       const targetX=base.x!+building.gridX+0.5;
       const targetY=base.y!+building.gridY+0.5;
       return Math.hypot(w.creatureX!-targetX,w.creatureY!-targetY)<=0.75;
-    }).length;
-    if(workerCount===0)continue;
-    const multiplier=building.level*workerCount;
-    const output=Math.floor(spec.ratePerMinute*multiplier*elapsed);
+    });
+    if(contributing.length===0)continue;
+    const workerWeight=contributing.reduce((sum,worker)=>{
+      const task=worker.task==="auto"?(automaticTask??worker.task):worker.task;
+      return sum+workYieldMultiplier(worker.element,building.type,task);
+    },0);
+    if(workerWeight<=0)continue;
+    const outputMultiplier=building.level*workerWeight;
+    const inputMultiplier=building.level*contributing.length;
+    const output=Math.floor(spec.ratePerMinute*outputMultiplier*elapsed);
     if(output>0)deltas[spec.output]=(deltas[spec.output]??0)+output;
     if(spec.input){
-      const required=Math.floor(spec.inputPerMinute*multiplier*elapsed);
+      const required=Math.floor(spec.inputPerMinute*inputMultiplier*elapsed);
       if(required>0)deltas[spec.input]=(deltas[spec.input]??0)-required;
     }
   }
@@ -396,10 +404,10 @@ export class BaseStore {
       const [storageRows,buildingRows,workerRows]=await Promise.all([
         client.query<StorageRow>("SELECT resource_key,quantity FROM base_storage WHERE base_id=$1 FOR UPDATE",[base.id]),
         client.query<BuildingRow>("SELECT id,base_id,type,level,grid_x,grid_y,active FROM base_buildings WHERE base_id=$1",[base.id]),
-        client.query<WorkerRow>("SELECT bw.creature_id,bw.base_id,bw.building_id,bw.task,pc.x AS creature_x,pc.y AS creature_y FROM base_workers bw LEFT JOIN player_creatures pc ON pc.id=bw.creature_id WHERE bw.base_id=$1",[base.id]),
+        client.query<WorkerRow>("SELECT bw.creature_id,bw.base_id,bw.building_id,bw.task,pc.x AS creature_x,pc.y AS creature_y,pc.element,pc.mood,pc.tame_progress,pc.companion_state,pc.ai_mode FROM base_workers bw LEFT JOIN player_creatures pc ON pc.id=bw.creature_id WHERE bw.base_id=$1",[base.id]),
       ]);
       const storage=Object.fromEntries(storageRows.rows.map(r=>[r.resource_key,toQuantity(r.quantity)]));
-      const runtime={...base,storage,buildings:buildingRows.rows.map(rowToBuilding),workers:workerRows.rows.map(r=>({...rowToWorker(r),creatureX:r.creature_x,creatureY:r.creature_y}))};
+      const runtime={...base,storage,buildings:buildingRows.rows.map(rowToBuilding),workers:workerRows.rows.map(r=>({...rowToWorker(r),creatureX:r.creature_x,creatureY:r.creature_y,element:r.element??undefined}))};
       const deltas=productionFor(runtime,elapsed);
       const next={...storage};
       let valid=true;
@@ -414,6 +422,11 @@ export class BaseStore {
           if(delta===0)continue;
           await client.query("INSERT INTO base_storage(base_id,resource_key,quantity) VALUES($1,$2,$3) ON CONFLICT(base_id,resource_key) DO UPDATE SET quantity=EXCLUDED.quantity,updated_at=CURRENT_TIMESTAMP",[base.id,resource,next[resource]]);
         }
+      }
+      for(const worker of workerRows.rows){
+        const state=companionStateFrom({tameProgress:Number(worker.tame_progress??0),assigned:true,companionState:worker.companion_state,aiMode:worker.ai_mode});
+        const xp=grantCompanionXp(Math.floor(elapsed/60000),state,Number(worker.mood??0));
+        if(xp>0)await client.query("UPDATE player_creatures SET xp=xp+$2,updated_at=CURRENT_TIMESTAMP WHERE id=$1",[worker.creature_id,xp]);
       }
       await client.query("UPDATE player_bases SET production_processed_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=$1",[base.id]);
       await client.query("COMMIT");
