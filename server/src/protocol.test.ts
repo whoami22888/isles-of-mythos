@@ -1,6 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { parseClientMessage } from "./protocol.js";
 
+describe("hotbar protocol", () => {
+  it("accepts only bounded integer hotbar slots", () => {
+    expect(parseClientMessage(JSON.stringify({ type: "select_hotbar", slot: 0 }))).toEqual({ type: "select_hotbar", slot: 0 });
+    expect(parseClientMessage(JSON.stringify({ type: "select_hotbar", slot: 7 }))).toEqual({ type: "select_hotbar", slot: 7 });
+    expect(parseClientMessage(JSON.stringify({ type: "select_hotbar", slot: -1 }))).toBeNull();
+    expect(parseClientMessage(JSON.stringify({ type: "select_hotbar", slot: 8 }))).toBeNull();
+    expect(parseClientMessage(JSON.stringify({ type: "select_hotbar", slot: 1.5 }))).toBeNull();
+  });
+});
+
 describe("combat protocol", () => {
   it("accepts bounded attack messages", () => {
     expect(parseClientMessage(JSON.stringify({

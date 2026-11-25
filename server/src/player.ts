@@ -28,6 +28,8 @@ export const PLAYER_HITBOX_HEIGHT = 0.7;
 export const MELEE_RANGE = 1.5;
 export const STARTING_FLINTLOCK_AMMO = 30;
 export const PLAYER_BASE_DEFENSE = 0;
+/** The shovel is a gather tool; the client maps it to the existing server gather_resource action. */
+const PLAYER_DEFAULT_HOTBAR: Array<string | null> = ["cutlass", "flintlock", "harpoon", "shovel", null, null, null, null];
 
 export interface PlayerState {
   userId: string; x: number; y: number; health: number; defense: number; stamina: number; maxStamina: number; hunger: number; oxygen: number;
@@ -173,7 +175,7 @@ export function applyAuthoritativePlayerInput(
 
 export function createDefaultPlayer(userId: string): PlayerState {
   return { userId, x: 0, y: 0, health: PLAYER_MAX_HEALTH, defense: PLAYER_BASE_DEFENSE, stamina: 100, maxStamina: 100, hunger: PLAYER_MAX_HUNGER, oxygen: PLAYER_MAX_OXYGEN,
-    xp: 0, level: 1, gold: 0n, triumphBadges: 0n, inventory: { "ammo.flintlock": STARTING_FLINTLOCK_AMMO, "capture.orb": 3, "creature.feed": 4 }, hotbar: ["cutlass", "flintlock", null, null, null, null, null, null], selectedHotbarSlot: 0 };
+    xp: 0, level: 1, gold: 0n, triumphBadges: 0n, inventory: { "ammo.flintlock": STARTING_FLINTLOCK_AMMO, "capture.orb": 3, "creature.feed": 4 }, hotbar: PLAYER_DEFAULT_HOTBAR.slice(), selectedHotbarSlot: 0 };
 }
 interface PlayerRow {
   user_id: string; x: number; y: number; health: number; defense: number; stamina: number; max_stamina: number; hunger: number; oxygen: number;
@@ -184,7 +186,7 @@ function rowToState(row: PlayerRow): PlayerState {
   return { userId: row.user_id, x: row.x, y: row.y, health: row.health, defense: row.defense ?? PLAYER_BASE_DEFENSE, stamina: row.stamina, maxStamina: row.max_stamina, hunger: row.hunger, oxygen: row.oxygen,
     xp: Number(row.xp), level: row.level, gold: parseGoldDoubloons(row.gold), triumphBadges: parseTriumphBadges(row.triumph_badges),
     inventory: cloneInventory({ "ammo.flintlock": STARTING_FLINTLOCK_AMMO, ...(row.inventory ?? {}) }),
-    hotbar: row.hotbar ?? [null, null, null, null, null, null, null, null], selectedHotbarSlot: row.selected_hotbar_slot };
+    hotbar: row.hotbar ?? PLAYER_DEFAULT_HOTBAR.slice(), selectedHotbarSlot: row.selected_hotbar_slot };
 }
 const PERSIST_DIRTY_CONCURRENCY = 4;
 
@@ -230,8 +232,8 @@ export class PlayerStore {
   }
   async ensureProfile(userId: string): Promise<void> {
     await this.db.query(
-      "INSERT INTO player_profiles (user_id, inventory, hotbar, selected_hotbar_slot) VALUES ($1, '{\"ammo.flintlock\":30,\"capture.orb\":3,\"creature.feed\":4}'::jsonb, '[\"cutlass\",\"flintlock\",null,null,null,null,null,null]'::jsonb, 0) ON CONFLICT (user_id) DO NOTHING",
-      [userId],
+      "INSERT INTO player_profiles (user_id, inventory, hotbar, selected_hotbar_slot) VALUES ($1, '{\"ammo.flintlock\":30,\"capture.orb\":3,\"creature.feed\":4}'::jsonb, $2::jsonb, 0) ON CONFLICT (user_id) DO NOTHING",
+      [userId, JSON.stringify(PLAYER_DEFAULT_HOTBAR)],
     );
   }
   get(userId: string): PlayerState | undefined { return this.active.get(userId); }
