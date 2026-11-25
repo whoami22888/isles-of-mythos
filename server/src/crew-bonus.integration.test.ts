@@ -26,16 +26,16 @@ describe("crew bonuses have diminishing returns and hard caps (Finding D)", () =
   beforeAll(async () => {
     app = await buildApp({ db });
     a = await register(app, "cba"); b = await register(app, "cbb");
-    const mk = async (userId: string, x: number): Promise<string> => {
+    const mk = async (userId: string, x: number, y = 0): Promise<string> => {
       await new PlayerStore(db).loadOrCreate(userId);
       const base = await new BaseStore(db).create(userId, "Base", 0, 0);
       await db.query("INSERT INTO base_storage(base_id,resource_key,quantity) VALUES($1,'wood',5000),($1,'steel',5000) ON CONFLICT (base_id,resource_key) DO UPDATE SET quantity=EXCLUDED.quantity", [base.id]);
       await db.query("INSERT INTO base_buildings(base_id,type,level,grid_x,grid_y,active) VALUES($1,'shipyard',1,1,0,true)", [base.id]);
       const ship = await new ShipStore(db).create(userId, "Galleon", "galleon");
-      await db.query("UPDATE player_ships SET x=$2,y=0,heading=0 WHERE id=$1", [ship.id, x]);
+      await db.query("UPDATE player_ships SET x=$2,y=$3,heading=0 WHERE id=$1", [ship.id, x, y]);
       return ship.id;
     };
-    aShip = await mk(a, 0); bShip = await mk(b, 20);
+    aShip = await mk(a, 0, 0); bShip = await mk(b, 0, 20);
   });
   afterAll(async () => { await app.close(); await db.end(); });
   beforeEach(async () => {

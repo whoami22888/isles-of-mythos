@@ -40,14 +40,14 @@ describe("Gate 9 naval mechanics",()=>{
       const attacker=await ships.create(a,"War Galleon","galleon");
       const defender=await ships.create(b,"Target Raft","raft");
       await db.query("UPDATE player_ships SET x=0,y=0,heading=0 WHERE id=$1",[attacker.id]);
-      await db.query("UPDATE player_ships SET x=20,y=0 WHERE id=$1",[defender.id]);
+      await db.query("UPDATE player_ships SET x=0,y=20 WHERE id=$1",[defender.id]);
       await db.query("UPDATE player_profiles SET gold=100000 WHERE user_id=$1",[a]);
       const pirate=await naval.assignNpcCrew(a,attacker.id,"pirate","boarding_specialist");expect(pirate.npcType).toBe("pirate");expect(pirate.skill).toBe(deriveNpcCrewSkill("pirate"));expect(pirate.morale).toBe(CREW_START_MORALE);
       expect((await naval.assignNpcCrew(a,attacker.id,"npc_specialist","engineer")).role).toBe("engineer");
       await expect(naval.assignNpcCrew(a,attacker.id,"mermaid","medic")).rejects.toThrow("NPC_CREW_UNAVAILABLE");
       await expect(naval.assignNpcCrew(a,attacker.id,"dragon","gunner")).rejects.toThrow("NPC_CREW_UNAVAILABLE");
       const shot=await naval.fireCannon(a,attacker.id,defender.id);
-      expect(shot.damage).toBeGreaterThan(0);expect(shot.fireStarted).toBe(true);
+      expect(shot.damage).toBeGreaterThan(0);expect(shot.fireStarted).toBe(true);expect(shot.side).toBe("port");expect(shot.cooldownMs).toBe(1000);
       const fireStopped=await naval.fightFire(b,defender.id);
       expect(fireStopped).toBeDefined();
       await db.query("UPDATE player_ships SET x=0,y=0,heading=0 WHERE id=$1",[attacker.id]);

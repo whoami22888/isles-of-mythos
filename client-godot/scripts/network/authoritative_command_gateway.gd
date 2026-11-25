@@ -46,6 +46,8 @@ const COMMAND_FIELDS := {
 	"get_invasion_waves": ["invasionId"],
 	"territory_at": ["x", "y"],
 	"ship_inventory": ["shipId"],
+	"sail": ["shipId", "dx", "dy"],
+	"fire_cannon": ["shipId", "targetShipId"],
 	"chat_history": ["channel", "recipientUserId", "guildId", "partyId"],
 	"auction_list": ["itemId", "rarity", "category", "minLevel", "maxLevel", "minPrice", "maxPrice"]
 }
@@ -170,6 +172,10 @@ func _valid_fields(action: String, fields: Dictionary) -> bool:
 	match action:
 		"gather_resource", "capture", "tame", "get_invasion_waves", "ship_inventory":
 			return _non_empty_string(fields, allowed[0], 128)
+		"sail":
+			return _non_empty_string(fields, "shipId", 64) and _unit_heading(fields, "dx", "dy")
+		"fire_cannon":
+			return _non_empty_string(fields, "shipId", 64) and _non_empty_string(fields, "targetShipId", 64)
 		"create_base":
 			return _non_empty_string(fields, "name", 64) and _bounded_int(fields, "x", -1000000, 1000000) and _bounded_int(fields, "y", -1000000, 1000000)
 		"build":
@@ -213,3 +219,14 @@ func _normalized_fields(action: String, fields: Dictionary) -> Dictionary:
 			if not normalized.has(key):
 				normalized[key] = null
 	return normalized
+
+func _bounded_float(fields: Dictionary, key: String, minimum: float, maximum: float) -> bool:
+	var value = fields.get(key)
+	return (value is float or value is int) and is_finite(float(value)) and float(value) >= minimum and float(value) <= maximum
+
+func _unit_heading(fields: Dictionary, dx_key: String, dy_key: String) -> bool:
+	if not _bounded_float(fields, dx_key, -1.0, 1.0) or not _bounded_float(fields, dy_key, -1.0, 1.0):
+		return false
+	var dx := float(fields[dx_key])
+	var dy := float(fields[dy_key])
+	return Vector2(dx, dy).length() >= 0.000001
