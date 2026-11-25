@@ -19,6 +19,7 @@ WAVE_SETTINGS = CLIENT / "scripts" / "ocean_wave_settings.gd"
 WAKE_SHADER = CLIENT / "shaders" / "ship_wake_foam.gdshader"
 WAVE_INCLUDE = CLIENT / "shaders" / "coastal_ocean_wave.gdshaderinc"
 WAKE_SCRIPT = CLIENT / "scripts" / "ship_wake_effect.gd"
+SERVER_SHIP_SCRIPT = CLIENT.parent / "server" / "src" / "ship.ts"
 CAPTURE_SCRIPT = CLIENT / "tests" / "render_coastal_fx_sequence.gd"
 CONTINUITY_SCRIPT = CLIENT.parent / "scripts" / "check_capture_continuity.py"
 
@@ -624,6 +625,30 @@ class OceanShaderContractTests(unittest.TestCase):
                 module.verify(module.CaptureSpec(
                     folder=ordered, frames=6, width=8, height=8, segment_size=2
                 ))
+
+
+    def test_wake_discontinuity_guard_matches_authoritative_ship_speed_contract(self):
+        """Keep cosmetic wake sampling below the server's real movement envelope."""
+        wake = WAKE_SCRIPT.read_text(encoding="utf-8")
+        server = SERVER_SHIP_SCRIPT.read_text(encoding="utf-8")
+        dragon = re.search(r'"dragon_ship"\s*:\s*\{[^}]*\bspeed\s*:\s*([0-9.]+)', server, re.DOTALL)
+        wind = re.search(r'windMultiplier\s*=\s*Math\.max\(0,\s*Math\.min\(([0-9.]+),', server)
+        crew = re.search(r'crewMultiplier\s*=\s*Math\.min\(([0-9.]+),', server)
+        declared = re.search(r'MAX_EXPECTED_VESSEL_SPEED_MPS\s*:=\s*([0-9.]+)', wake)
+        self.assertIsNotNone(dragon, "server maximum ship class speed is missing")
+        self.assertIsNotNone(wind, "server wind multiplier cap is missing")
+        self.assertIsNotNone(crew, "server crew multiplier cap is missing")
+        self.assertIsNotNone(declared, "wake must declare the authoritative speed ceiling")
+        expected_speed = float(dragon.group(1)) * float(wind.group(1)) * float(crew.group(1))
+        self.assertAlmostEqual(float(declared.group(1)), expected_speed)
+        self.assertEqual(expected_speed, 7.5)
+        self.assertIn("MAX_SAIL_SECONDS=60", server)
+        self.assertIn("ship.speed*dt*windMultiplier*crewMultiplier", server)
+        self.assertIn("MAX_CONTINUOUS_GAP_SEC := 0.5", wake)
+        self.assertIn("MAX_CONTINUOUS_STEP_MARGIN := 1.25", wake)
+        self.assertIn("distance > max_continuous_step", wake)
+        self.assertIn("observed_gap > MAX_CONTINUOUS_GAP_SEC", wake)
+        self.assertIn("_reset_after_discontinuity(current)", wake)
 
 
 if __name__ == "__main__":
