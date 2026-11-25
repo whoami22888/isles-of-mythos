@@ -25,6 +25,26 @@ def normalize(vector):
     return tuple(component / length for component in vector)
 
 
+def normalize_normal_sample(sample):
+    """Mirror the shader's squared-length guard and flat +Z fallback."""
+    length_squared = sum(component * component for component in sample)
+    if length_squared <= 0.0001:
+        return (0.0, 0.0, 1.0)
+    inverse_length = 1.0 / math.sqrt(length_squared)
+    return tuple(component * inverse_length for component in sample)
+
+
+def triplanar_uvs(position, geometric_normal):
+    """Return X/Y/Z projection UVs with the normal-map tangent-frame signs."""
+    normal = normalize(geometric_normal)
+    face = tuple(1 if component >= 0 else -1 for component in normal)
+    return (
+        (position[1], position[2] * face[0]),
+        (position[0], -position[2] * face[1]),
+        (position[0], position[1] * face[2]),
+    )
+
+
 def reorient_projection(sample, face_sign, axis_index):
     """Map a tangent-space sample into its signed local projection frame."""
     if axis_index == 0:
@@ -41,8 +61,11 @@ def blend_normal(geometric_normal, samples, sharpness=4.0):
     total_weight = sum(raw_weights)
     weights = [weight / total_weight for weight in raw_weights]
     signs = [1 if component >= 0 else -1 for component in normal]
+    normalized_samples = tuple(
+        normalize_normal_sample(sample) for sample in samples
+    )
     projections = [
-        reorient_projection(samples[index], signs[index], index)
+        reorient_projection(normalized_samples[index], signs[index], index)
         for index in range(3)
     ]
     flat_normals = (
@@ -65,6 +88,30 @@ def blend_normal(geometric_normal, samples, sharpness=4.0):
 
 class TriplanarNormalReferenceTests(unittest.TestCase):
     """Verify the CPU reference normal reconstruction on representative faces."""
+
+    def test_signed_projection_uvs_match_normal_map_bitangents(self):
+        """Albedo, roughness and normal maps must use the same signed projection frames."""
+        cases = (
+            ((1, 0, 0), 0, 1, 2, 1),
+            ((-1, 0, 0), 0, 1, 2, -1),
+            ((0, 1, 0), 1, 0, 2, -1),
+            ((0, -1, 0), 1, 0, 2, 1),
+            ((0, 0, 1), 2, 0, 1, 1),
+            ((0, 0, -1), 2, 0, 1, -1),
+        )
+        origin = (0.0, 0.0, 0.0)
+        for face, projection, u_axis, v_axis, v_sign in cases:
+            base_uv = triplanar_uvs(origin, face)[projection]
+            u_position = [0.0, 0.0, 0.0]
+            u_position[u_axis] = 1.0
+            v_position = [0.0, 0.0, 0.0]
+            v_position[v_axis] = 1.0
+            u_uv = triplanar_uvs(tuple(u_position), face)[projection]
+            v_uv = triplanar_uvs(tuple(v_position), face)[projection]
+            self.assertAlmostEqual(u_uv[0] - base_uv[0], 1.0)
+            self.assertAlmostEqual(u_uv[1] - base_uv[1], 0.0)
+            self.assertAlmostEqual(v_uv[0] - base_uv[0], 0.0)
+            self.assertAlmostEqual(v_uv[1] - base_uv[1], v_sign)
 
     def test_flat_normal_map_preserves_six_axis_faces(self):
         """A flat tangent normal must preserve every signed cardinal face."""
@@ -137,6 +184,40 @@ class TriplanarNormalReferenceTests(unittest.TestCase):
             )
 
 
+    def test_non_unit_normal_samples_preserve_direction(self):
+        """Texture compression magnitude must not change decoded normal direction."""
+        samples = (
+            (0.2, -0.1, math.sqrt(0.95)),
+            (-0.1, 0.2, math.sqrt(0.95)),
+            (0.1, 0.2, math.sqrt(0.95)),
+        )
+        scales = (0.35, 0.55, 0.8)
+        scaled_samples = tuple(
+            tuple(component * scale for component in sample)
+            for sample, scale in zip(samples, scales)
+        )
+        for face in ((1, 2, 3), (-1, 2, -3), (0.1, -0.2, 0.7)):
+            expected = blend_normal(face, samples)
+            actual = blend_normal(face, scaled_samples)
+            for actual_component, expected_component in zip(actual, expected):
+                self.assertAlmostEqual(actual_component, expected_component, places=7)
+
+    def test_degenerate_normal_sample_uses_flat_tangent_fallback(self):
+        """A zero-length decoded normal must not inject undefined shader directions."""
+        self.assertEqual(
+            normalize_normal_sample((0.0, 0.0, 0.0)),
+            (0.0, 0.0, 1.0),
+        )
+        self.assertEqual(
+            normalize_normal_sample((0.005, 0.0, 0.0)),
+            (0.0, 0.0, 1.0),
+        )
+        self.assertEqual(
+            normalize_normal_sample((0.0, 0.02, 0.0)),
+            (0.0, 1.0, 0.0),
+        )
+
+
 class StylizedPbrShaderContractTests(unittest.TestCase):
     """Guard the optional shader and its headless test-scene contract."""
 
@@ -197,6 +278,99 @@ class StylizedPbrShaderContractTests(unittest.TestCase):
         self.assertIn("base_color.rgb", self.fragment)
         self.assertIn("METALLIC = metallic", self.fragment)
         self.assertIn("ROUGHNESS = roughness", self.fragment)
+
+    def test_triplanar_projection_uses_world_space_coordinates(self):
+        """Albedo, normal and roughness projections use transformed world-space inputs."""
+        self.assertIn(
+            "varying vec3 triplanar_world_position;", self.shared
+        )
+        self.assertIn(
+            "varying vec3 triplanar_world_normal;", self.shared
+        )
+        self.assertIn(
+            "triplanar_world_position = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;",
+            self.shared,
+        )
+        self.assertIn(
+            "triplanar_world_normal = normalize(MODEL_NORMAL_MATRIX * NORMAL);",
+            self.shared,
+        )
+        self.assertIn(
+            "sample_triplanar(albedo_texture, triplanar_world_position, triplanar_world_normal)",
+            self.fragment,
+        )
+        self.assertIn(
+            "sample_triplanar(roughness_texture, triplanar_world_position, triplanar_world_normal)",
+            self.fragment,
+        )
+        self.assertIn(
+            "sample_triplanar_normal(triplanar_world_position, triplanar_world_normal)",
+            self.fragment,
+        )
+        self.assertNotIn("local_position", self.shared)
+        self.assertNotIn("local_normal", self.shared)
+
+    def test_all_triplanar_maps_share_signed_projection_uvs(self):
+        """Every sampled map must share the signed world-space tangent frames."""
+        for token in (
+            "vec3 projection_face_signs(vec3 n)",
+            "vec2 uv_x = vec2(uvw.y, uvw.z * face.x);",
+            "vec2 uv_y = vec2(uvw.x, -uvw.z * face.y);",
+            "vec2 uv_z = vec2(uvw.x, uvw.y * face.z);",
+            "texture(tex, uv_x)",
+            "texture(tex, uv_y)",
+            "texture(tex, uv_z)",
+            "texture(normal_texture, uv_x)",
+            "texture(normal_texture, uv_y)",
+            "texture(normal_texture, uv_z)",
+        ):
+            self.assertIn(token, self.shared)
+        self.assertNotIn("texture(tex, uvw.yz)", self.shared)
+        self.assertNotIn("texture(normal_texture, uvw.yz)", self.shared)
+
+    def test_triplanar_normal_samples_are_normalized_and_guarded(self):
+        """All three projected samples normalize decoded vectors and guard degenerate texels."""
+        for token in (
+            "vec3 decode_normal_sample(vec3 encoded_normal)",
+            "float length_squared = dot(decoded, decoded);",
+            "if (length_squared <= 0.0001)",
+            "return vec3(0.0, 0.0, 1.0);",
+            "return decoded * inversesqrt(length_squared);",
+            "nx = decode_normal_sample(texture(normal_texture, uv_x).xyz);",
+            "ny = decode_normal_sample(texture(normal_texture, uv_y).xyz);",
+            "nz = decode_normal_sample(texture(normal_texture, uv_z).xyz);",
+        ):
+            self.assertIn(token, self.shared)
+
+    def test_triplanar_normal_reconstruction_stays_world_space_until_view_transform(self):
+        """Reconstruct triplanar normals in world space, then transform once for shading."""
+        self.assertIn(
+            "vec3 sample_triplanar_normal(vec3 p, vec3 world_geometric_normal)",
+            self.shared,
+        )
+        self.assertIn("vec3 n = normalize(world_geometric_normal);", self.shared)
+        self.assertIn("return normalize(n + perturbation);", self.shared)
+        self.assertIn(
+            "NORMAL = normalize(mat3(VIEW_MATRIX) * world_normal);",
+            self.fragment,
+        )
+        self.assertNotIn("MODEL_NORMAL_MATRIX * world_normal", self.fragment)
+
+    def test_unassigned_samplers_use_uniform_fallbacks(self):
+        """Unassigned texture samplers preserve the base-colour and scalar PBR uniforms."""
+        for token in (
+            "uniform bool use_albedo_texture = false;",
+            "uniform bool use_normal_texture = false;",
+            "uniform bool use_roughness_texture = false;",
+            "vec4 albedo_sample = vec4(1.0);",
+            "if (use_albedo_texture) {",
+            "if (use_normal_texture) {",
+            "if (use_roughness_texture) {",
+            "ALBEDO = base_color.rgb * albedo_sample.rgb;",
+            "METALLIC = metallic;",
+            "ROUGHNESS = roughness;",
+        ):
+            self.assertIn(token, self.shared)
 
     def test_mobile_uv_normal_map_feeds_fragment_ramp(self):
         """The mobile toon ramp must transform UV normal maps through view-space TBN."""

@@ -160,11 +160,13 @@ func _projected_pixel_height() -> float:
 	_accumulate_projected_corner(mesh_transform * _local_bounds.get_endpoint(6))
 	_accumulate_projected_corner(mesh_transform * _local_bounds.get_endpoint(7))
 
-	if _projected_corners == 0:
-		return 0.0
 	if _behind_corners > 0:
-		# Bounds intersect the camera plane: keep the full mesh to avoid a
-		# sudden impostor while the camera passes through the entity.
+		# A corner behind the camera plane means the bounds straddle it or are
+		# entirely behind it. Keep the full mesh; an impostor must not pop into
+		# view while the camera crosses or looks away from the entity.
+		return INF
+	if _projected_corners == 0:
+		# Defensive fallback for an incomplete projection; prefer full detail.
 		return INF
 	return maxf(0.0, _screen_max_y - _screen_min_y)
 

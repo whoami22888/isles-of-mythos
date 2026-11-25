@@ -1,0 +1,17 @@
+SPDX-License-Identifier: CC0-1.0
+
+Asset source: Poly Haven
+Official license statement: https://polyhaven.com/license
+CC0 1.0 legal code: https://creativecommons.org/publicdomain/zero/1.0/legalcode.txt
+SPDX license reference: https://spdx.org/licenses/CC0-1.0.html
+
+Scope: the original Poly Haven source files listed in vendor.lock.json. Poly Haven's official license page identifies its HDRIs, textures and 3D models as CC0 and permits commercial use, redistribution and inclusion in products for sale. Attribution is not required, but is appreciated.
+
+Revision pinning: Poly Haven publishes file-addressed assets rather than
+immutable Git tags. For these records, source_identity records the exact
+asset slug, relative file path and SHA-256 of the source-file bytes; sha256
+is independently checked against the repository file. This per-file
+content identity is not an upstream source revision. Generated derivatives
+are separately identified in client-godot/assets/external-assets.json by
+generated_from and generation_note and are not represented as upstream
+downloads.

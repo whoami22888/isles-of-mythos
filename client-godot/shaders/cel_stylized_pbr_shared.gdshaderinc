@@ -35,19 +35,17 @@ uniform vec3 mobile_key_light_color = vec3(1.0);
 uniform float mobile_ramp_strength : hint_range(0.0, 1.0) = 1.0;
 #endif
 
-varying vec3 local_position;
-varying vec3 local_normal;
+varying vec3 triplanar_world_position;
+varying vec3 triplanar_world_normal;
 varying float vertex_rim_factor;
 
 void vertex() {
-    local_position = VERTEX;
-    local_normal = NORMAL;
+    triplanar_world_position = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+    triplanar_world_normal = normalize(MODEL_NORMAL_MATRIX * NORMAL);
 
-    vec3 world_position = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
-    vec3 world_normal = normalize(MODEL_NORMAL_MATRIX * NORMAL);
-    vec3 world_view_delta = CAMERA_POSITION_WORLD - world_position;
+    vec3 world_view_delta = CAMERA_POSITION_WORLD - triplanar_world_position;
     vec3 world_view = world_view_delta / max(length(world_view_delta), 0.0001);
-    float vertex_n_dot_v = clamp(dot(world_normal, world_view), 0.0, 1.0);
+    float vertex_n_dot_v = clamp(dot(triplanar_world_normal, world_view), 0.0, 1.0);
     float rim_width = max(rim_thickness, 0.001);
     vertex_rim_factor = smoothstep(1.0 - rim_width, 1.0, 1.0 - vertex_n_dot_v);
 }
@@ -57,25 +55,48 @@ vec3 projection_weights(vec3 n) {
     return weights / max(weights.x + weights.y + weights.z, 0.0001);
 }
 
-vec4 sample_triplanar(sampler2D tex, vec3 p, vec3 n) {
-    vec3 w = projection_weights(n);
-    vec3 uvw = p * triplanar_scale;
-    return texture(tex, uvw.yz) * w.x
-         + texture(tex, uvw.xz) * w.y
-         + texture(tex, uvw.xy) * w.z;
+vec3 projection_face_signs(vec3 n) {
+    return mix(vec3(-1.0), vec3(1.0), step(vec3(0.0), normalize(n)));
 }
 
-// Reorient each tangent-space projection into object space. Blend only the
+// Keep the signed UV bitangents identical for albedo, normal and roughness
+// projections. This prevents opposite faces from mirroring texture detail
+// relative to the reconstructed tangent-space normal map.
+vec4 sample_triplanar(sampler2D tex, vec3 p, vec3 n) {
+    vec3 w = projection_weights(n);
+    vec3 face = projection_face_signs(n);
+    vec3 uvw = p * triplanar_scale;
+    vec2 uv_x = vec2(uvw.y, uvw.z * face.x);
+    vec2 uv_y = vec2(uvw.x, -uvw.z * face.y);
+    vec2 uv_z = vec2(uvw.x, uvw.y * face.z);
+    return texture(tex, uv_x) * w.x
+         + texture(tex, uv_y) * w.y
+         + texture(tex, uv_z) * w.z;
+}
+
+// Reorient each tangent-space projection into world space. Blend only the
 // perturbation from each projection's flat normal so oblique flat surfaces
-// retain their original geometric normal instead of snapping to an axis.
-vec3 sample_triplanar_normal(vec3 p, vec3 geometric_normal) {
-    vec3 n = normalize(geometric_normal);
+// retain their original world-space geometric normal instead of snapping to an axis.
+vec3 decode_normal_sample(vec3 encoded_normal) {
+    vec3 decoded = encoded_normal * 2.0 - 1.0;
+    float length_squared = dot(decoded, decoded);
+    if (length_squared <= 0.0001) {
+        return vec3(0.0, 0.0, 1.0);
+    }
+    return decoded * inversesqrt(length_squared);
+}
+
+vec3 sample_triplanar_normal(vec3 p, vec3 world_geometric_normal) {
+    vec3 n = normalize(world_geometric_normal);
     vec3 w = projection_weights(n);
     vec3 uvw = p * triplanar_scale;
-    vec3 nx = texture(normal_texture, uvw.yz).xyz * 2.0 - 1.0;
-    vec3 ny = texture(normal_texture, uvw.xz).xyz * 2.0 - 1.0;
-    vec3 nz = texture(normal_texture, uvw.xy).xyz * 2.0 - 1.0;
-    vec3 face = mix(vec3(-1.0), vec3(1.0), step(vec3(0.0), n));
+    vec3 face = projection_face_signs(n);
+    vec2 uv_x = vec2(uvw.y, uvw.z * face.x);
+    vec2 uv_y = vec2(uvw.x, -uvw.z * face.y);
+    vec2 uv_z = vec2(uvw.x, uvw.y * face.z);
+    vec3 nx = decode_normal_sample(texture(normal_texture, uv_x).xyz);
+    vec3 ny = decode_normal_sample(texture(normal_texture, uv_y).xyz);
+    vec3 nz = decode_normal_sample(texture(normal_texture, uv_z).xyz);
     // Preserve each projection's UV tangent-frame handedness on both face signs.
     // U stays fixed; the face sign flips the bitangent so normal maps do not mirror.
     vec3 tx = vec3(nx.z * face.x, nx.x, nx.y * face.x);
@@ -94,7 +115,7 @@ void fragment() {
     vec4 albedo_sample = vec4(1.0);
     if (use_albedo_texture) {
         albedo_sample = use_triplanar
-            ? sample_triplanar(albedo_texture, local_position, local_normal)
+            ? sample_triplanar(albedo_texture, triplanar_world_position, triplanar_world_normal)
             : texture(albedo_texture, UV);
     }
     ALBEDO = base_color.rgb * albedo_sample.rgb;
@@ -109,14 +130,14 @@ void fragment() {
 
     if (use_roughness_texture) {
         ROUGHNESS *= use_triplanar
-            ? sample_triplanar(roughness_texture, local_position, local_normal).r
+            ? sample_triplanar(roughness_texture, triplanar_world_position, triplanar_world_normal).r
             : texture(roughness_texture, UV).r;
     }
 
     if (use_normal_texture) {
         if (use_triplanar) {
-            vec3 object_normal = sample_triplanar_normal(local_position, local_normal);
-            NORMAL = normalize(mat3(VIEW_MATRIX) * MODEL_NORMAL_MATRIX * object_normal);
+            vec3 world_normal = sample_triplanar_normal(triplanar_world_position, triplanar_world_normal);
+            NORMAL = normalize(mat3(VIEW_MATRIX) * world_normal);
         } else {
             vec3 uv_normal_sample = texture(normal_texture, UV).rgb;
             NORMAL_MAP = uv_normal_sample;

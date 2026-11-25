@@ -23,6 +23,7 @@ var _rendered_distance: float = NEAR_DISTANCE
 var _rendered_pitch: float = NEAR_PITCH
 var _touches: Dictionary = {}
 var _top_down: bool = false
+var _orbit_yaw: float = 0.0
 var _pinch_start_distance: float = 0.0
 var _pinch_start_zoom: float = 0.0
 var _routed_pinch_active: bool = false
@@ -102,13 +103,13 @@ func _set_zoom(value: float) -> void:
 
 
 func set_focus_point(value: Vector3) -> void:
+	# Focus changes are consumed by _physics_process so the last collision-
+	# resolved transform is never replaced by an unchecked main-thread pose.
 	focus_point = value
-	_apply_camera_transform(false)
 
 
 func set_orbit_yaw(value: float) -> void:
-	rotation.y = wrapf(value, -PI, PI)
-	_apply_camera_transform(false)
+	_orbit_yaw = wrapf(value, -PI, PI)
 
 
 func get_rendered_distance() -> float:
@@ -117,7 +118,6 @@ func get_rendered_distance() -> float:
 
 func pan_by_pixels(motion: Vector2) -> void:
 	_pan(motion)
-	_apply_camera_transform(false)
 
 
 func begin_routed_pinch() -> void:
@@ -139,7 +139,6 @@ func apply_touch_gesture(distance_delta: float, midpoint_delta: Vector2) -> void
 		_set_zoom(_routed_pinch_start_zoom - _routed_pinch_total_delta * zoom_sensitivity)
 	if midpoint_delta != Vector2.ZERO:
 		_pan(midpoint_delta)
-	_apply_camera_transform(false)
 
 
 func _pan(motion: Vector2) -> void:
@@ -152,7 +151,7 @@ func _pan(motion: Vector2) -> void:
 		half_fov = atan(tan(half_fov) * viewport_size.y / viewport_size.x)
 	var metres_per_pixel: float = 2.0 * _rendered_distance * tan(half_fov) / viewport_size.y
 	var scale_factor: float = pan_sensitivity * metres_per_pixel
-	var yaw: float = rotation.y
+	var yaw: float = _orbit_yaw
 	var right: Vector3 = Vector3(cos(yaw), 0.0, -sin(yaw))
 	var forward: Vector3 = Vector3(-sin(yaw), 0.0, -cos(yaw))
 	# A ground-plane movement is foreshortened on screen by the camera's
@@ -165,6 +164,7 @@ func _pan(motion: Vector2) -> void:
 
 func _apply_camera_transform(resolve_collision: bool = false) -> void:
 	rotation.x = deg_to_rad(_rendered_pitch)
+	rotation.y = _orbit_yaw
 	var pitch_radians: float = deg_to_rad(-_rendered_pitch)
 	var offset: Vector3 = Vector3(0.0, sin(pitch_radians), cos(pitch_radians)) * _rendered_distance
 	offset = offset.rotated(Vector3.UP, rotation.y)
