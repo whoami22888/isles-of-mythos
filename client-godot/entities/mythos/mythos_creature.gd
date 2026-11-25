@@ -82,8 +82,8 @@ func apply_authoritative_snapshot(snapshot: Dictionary) -> bool:
 
 	var next_state: int = STATE_BY_NAME[state_name_value]
 	var next_element: int = ELEMENT_BY_NAME[element_name_value]
-	var next_workstation := workstation_value.strip_edges().to_lower()
-	var next_work_task := work_task_value.strip_edges().to_lower()
+	var next_workstation: String = str(workstation_value).strip_edges().to_lower()
+	var next_work_task: String = str(work_task_value).strip_edges().to_lower()
 	var next_excited := next_state != State.WILD and next_mood >= EXCITED_MOOD_THRESHOLD
 	var expected_xp := EXCITED_XP_MULTIPLIER if next_excited else 1.0
 	if absf(next_xp_multiplier - expected_xp) > 0.001:

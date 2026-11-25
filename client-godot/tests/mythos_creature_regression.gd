@@ -1,10 +1,17 @@
 extends RefCounted
 
-const MythosCreature = preload("res://entities/mythos/mythos_creature.gd")
+const MYTHOS_CREATURE_SCRIPT_PATH := "res://entities/mythos/mythos_creature.gd"
 
 
 static func run(tree: SceneTree, check: Callable) -> void:
-	var creature = MythosCreature.new()
+	var creature_script: Variant = ResourceLoader.load(MYTHOS_CREATURE_SCRIPT_PATH)
+	check.call(creature_script is GDScript, "MythosCreature script must compile and load")
+	if not (creature_script is GDScript):
+		return
+	check.call(creature_script.can_instantiate(), "MythosCreature script must be instantiable")
+	if not creature_script.can_instantiate():
+		return
+	var creature: Variant = creature_script.new()
 	tree.root.add_child(creature)
 	var care_events: Array[Dictionary] = []
 	var work_events: Array[Dictionary] = []
@@ -34,14 +41,14 @@ static func run(tree: SceneTree, check: Callable) -> void:
 	], "Pet and feed intents must carry the configured mood gains")
 	check.call(creature.mood == mood_before_care, "Care intents must not mutate mood before a server snapshot")
 
-	var excited_fire := _snapshot("mythos-1", "tamed_work", "fire", 80.0, 2.0, true, "forge", 1.6, "ore_smelting")
+	var excited_fire := _snapshot("mythos-1", "tamed_work", "fire", 80.0, 2.0, true, " Forge ", 1.6, " ORE_SMELTING ")
 	check.call(creature.apply_authoritative_snapshot(excited_fire), "Fire companion at a Forge must accept the server's 1.6x yield snapshot")
 	check.call(creature.is_excited and creature.hearts == 4, "Mood 80 must enter excited state")
 	check.call(creature.xp_multiplier == 2.0 and creature.work_output_max, "Excited state must project the server's 2.0x XP and maximum-work flags")
 	check.call(is_equal_approx(creature.work_yield_multiplier, 1.6), "Fire at Forge must project 1.6x smelting yield")
 	check.call(creature.request_work_assignment("forge-building-1", "ore_smelting"), "A tamed companion must emit a work-assignment intent")
 	check.call(work_events == [{"id": "mythos-1", "building_id": "forge-building-1", "task": "ore_smelting"}], "Work assignment intent must include the creature, building and task")
-	check.call(creature.state == MythosCreature.State.TAMED_WORK and creature.workstation == "forge", "Work intent must not locally change the server-owned assignment")
+	check.call(creature.get_state_name() == "tamed_work" and creature.workstation == "forge" and creature.work_task == "ore_smelting", "Work intent must not locally change the server-owned assignment and snapshot names must normalize")
 
 	var excited_water_docks := _snapshot("mythos-1", "tamed_work", "water", 85.0, 2.0, true, "docks", 1.4, "fishing")
 	check.call(creature.apply_authoritative_snapshot(excited_water_docks), "Water companion at Docks must accept the server's 1.4x yield snapshot")
