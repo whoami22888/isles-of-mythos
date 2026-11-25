@@ -10,6 +10,7 @@ extends Node3D
 ## loaded, the original gold capsule stays visible as a cheap fallback.
 
 const KENNEY := "res://assets/opening/kenney/"
+const FallbackDiagnosticOverlayScript = preload("res://scripts/fallback_diagnostic_overlay.gd")
 const TARGET_HEIGHT := 1.8
 ## Walk is held this long after the last server position change, so the 20 Hz
 ## state stream (moves are sent every 0.08 s) reads as continuous walking.
@@ -59,6 +60,16 @@ func _ready() -> void:
 	_body.position = Vector3(0.0, -feet_offset, 0.0)
 	add_child(_body)
 	_mount_character()
+	_mount_capture_diagnostic_overlay()
+
+## Add a diagnostic-only viewport to the CI visual capture. It is absent from normal
+## gameplay because the visual-evidence workflow alone sets this output-directory flag.
+func _mount_capture_diagnostic_overlay() -> void:
+	if OS.get_environment("IOM_VERTICAL_SLICE_OUTPUT_DIR").is_empty():
+		return
+	var overlay := FallbackDiagnosticOverlayScript.new()
+	overlay.name = "FallbackDiagnosticOverlay"
+	add_child(overlay)
 
 func is_character_mounted() -> bool:
 	return _character != null
@@ -114,31 +125,27 @@ func _set_state(next: String) -> void:
 		_anim.speed_scale = WALK_SPEED_SCALE if next == ANIM_WALK else 1.0
 
 func _mount_character() -> void:
-	if not ResourceLoader.exists(character_scene_path):
-		return
-	var packed = load(character_scene_path)
-	if not (packed is PackedScene):
-		return
-	var rig = packed.instantiate()
-	if not (rig is Node3D):
-		if rig:
-			rig.free()
+	var rig := RenderFallbackFactory.load_mesh_or_fallback(character_scene_path, "character")
+	if rig is MeshInstance3D and rig.name == "MissingAssetDiagnostic":
+		_apply_fallback_diagnostic(rig)
 		return
 	var meshes := _meshes(rig)
 	if meshes.is_empty():
 		rig.free()
+		_apply_fallback_diagnostic(RenderFallbackFactory.get_fallback_mesh(character_scene_path, "character"))
 		return
 	rig.name = "Character"
 	_body.add_child(rig)
 	var box := _merged_aabb(rig)
 	if box.size.y < 0.05:
-		rig.queue_free()
+		rig.free()
+		_apply_fallback_diagnostic(RenderFallbackFactory.get_fallback_mesh(character_scene_path, "character"))
 		return
 	rig.scale = Vector3.ONE * (TARGET_HEIGHT / box.size.y)
 	var fitted := _merged_aabb(rig)
 	rig.position.y -= fitted.position.y
 	# One shared material and one 35 KB albedo for the single skinned surface.
-	var skin = load(skin_texture_path) if ResourceLoader.exists(skin_texture_path) else null
+	var skin := RenderFallbackFactory.load_texture_or_fallback(skin_texture_path)
 	var mat := StandardMaterial3D.new()
 	mat.albedo_texture = skin
 	mat.roughness = 0.62
@@ -158,13 +165,24 @@ func _mount_character() -> void:
 	if _anim.has_animation(ANIM_IDLE):
 		_anim.play(ANIM_IDLE)
 
+func _apply_fallback_diagnostic(diagnostic: MeshInstance3D) -> void:
+	var capsule_mesh := diagnostic.mesh as CapsuleMesh
+	if capsule_mesh != null:
+		capsule_mesh.height = TARGET_HEIGHT
+		capsule_mesh.radius = 0.35
+	_capsule.mesh = diagnostic.mesh
+	_capsule.material_override = diagnostic.material_override
+	_capsule.visible = true
+	diagnostic.free()
+
+
 func _copy_longest_clip(library: AnimationLibrary, path: String, alias: String) -> void:
-	if not ResourceLoader.exists(path):
+	var packed := RenderFallbackFactory.load_scene_or_null(path, "animation")
+	if packed == null:
 		return
-	var packed = load(path)
-	if not (packed is PackedScene):
+	var temp := RenderFallbackFactory.instantiate_scene_or_null(packed, path, "animation")
+	if temp == null:
 		return
-	var temp = packed.instantiate()
 	var source := temp.find_child("AnimationPlayer", true, false) as AnimationPlayer
 	var best: Animation = null
 	if source:

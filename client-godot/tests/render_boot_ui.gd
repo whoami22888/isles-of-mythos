@@ -56,7 +56,11 @@ func _run() -> void:
 			return
 		var advanced: Button = scene.get_node("Panel/Margin/Content/Advanced")
 		advanced.pressed.emit()
-		await process_frame
+		var layout_settled := await _wait_for_endpoint_layout(scene, viewport_size)
+		if not layout_settled:
+			scene.queue_free()
+			quit(1)
+			return
 		if not _verify_endpoint_open(scene, viewport_size):
 			scene.queue_free()
 			quit(1)
@@ -131,6 +135,46 @@ func _verify_layout(scene: Control, expected: Vector2i) -> bool:
 	return true
 
 
+func _wait_for_endpoint_layout(scene: Control, expected: Vector2i) -> bool:
+	var endpoint: Control = scene.get_node("Panel/Margin/Content/Endpoint")
+	var status: Control = scene.get_node("Panel/Margin/Content/Status")
+	var modes: Control = scene.get_node("Panel/Margin/Content/Modes")
+	var previous_endpoint := endpoint.get_global_rect()
+	var previous_status := status.get_global_rect()
+	var previous_modes := modes.get_global_rect()
+	var stable_frames := 0
+	for _frame in range(6):
+		await process_frame
+		var current_endpoint := endpoint.get_global_rect()
+		var current_status := status.get_global_rect()
+		var current_modes := modes.get_global_rect()
+		var stable := (
+			_rect_unchanged(previous_endpoint, current_endpoint)
+			and _rect_unchanged(previous_status, current_status)
+			and _rect_unchanged(previous_modes, current_modes)
+		)
+		stable_frames = stable_frames + 1 if stable else 0
+		previous_endpoint = current_endpoint
+		previous_status = current_status
+		previous_modes = current_modes
+		if stable_frames >= 2:
+			return true
+	_fail("Responsive endpoint layout did not settle at %s within six frames: endpoint=%s status=%s modes=%s" % [
+		expected,
+		previous_endpoint,
+		previous_status,
+		previous_modes
+	])
+	return false
+
+
+func _rect_unchanged(previous: Rect2, current: Rect2) -> bool:
+	return (
+		previous.position.distance_to(current.position) <= 0.01
+		and previous.size.distance_to(current.size) <= 0.01
+	)
+
+
 func _verify_endpoint_open(scene: Control, expected: Vector2i) -> bool:
 	var viewport_rect := Rect2(Vector2.ZERO, Vector2(expected))
 	var panel: Control = scene.get_node("Panel")
@@ -152,7 +196,12 @@ func _verify_endpoint_open(scene: Control, expected: Vector2i) -> bool:
 		_fail("Server URL target below 44 px at %s" % expected)
 		return false
 	if bounds.position.y < status.get_global_rect().end.y - 1.0 or bounds.end.y > modes.get_global_rect().position.y + 1.0:
-		_fail("Server URL must sit between status and the mode buttons at %s" % expected)
+		_fail("Server URL must sit between status and mode buttons at %s: endpoint=%s status=%s modes=%s" % [
+			expected,
+			bounds,
+			status.get_global_rect(),
+			modes.get_global_rect()
+		])
 		return false
 	return true
 
