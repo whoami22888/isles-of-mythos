@@ -23,13 +23,37 @@ uniform float capture_time_seconds = 0.0;
 
 const float SEA_LEVEL = -0.35;
 varying vec3 surface_world;
-varying float swell_crest;
 
 // Imported from the exact indexed PBR terrain mesh by PR #173's baker.
 // Binds once at scene load. Unbound height data must never invent foam.
 #include "res://shaders/coastal_shore_sampler.gdshaderinc"
 uniform bool shoremap_bound = false;
 uniform vec2 near_patch_half_extent = vec2(92.0, 70.0);
+
+
+// Aperiodic cell hash for foam breakup. Never a fixed sine lattice.
+float foam_hash(vec2 q) {
+    return fract(sin(dot(q, vec2(127.1, 311.7))) * 43758.5453);
+}
+
+const vec2 RING_DIRS[12] = vec2[12](
+    vec2(1.0, 0.0), vec2(0.8660254, 0.5), vec2(0.5, 0.8660254), vec2(0.0, 1.0),
+    vec2(-0.5, 0.8660254), vec2(-0.8660254, 0.5), vec2(-1.0, 0.0), vec2(-0.8660254, -0.5),
+    vec2(-0.5, -0.8660254), vec2(0.0, -1.0), vec2(0.5, -0.8660254), vec2(0.8660254, -0.5));
+
+// Smooth land occupancy of a ring of 12 heightfield samples around p (radius
+// r, metres). 1.0 means fully land-surrounded. This is ring occupancy, not a
+// distance field. The caller gates the centre point with coverage; ring
+// samples past the mesh edge read the clamped edge texel, which the 12%
+// feather attenuates.
+float shore_land_fraction(vec2 p, float r) {
+    float land = 0.0;
+    for (int i = 0; i < 12; i++) {
+        vec2 o = RING_DIRS[i] * r;
+        land += smoothstep(SEA_LEVEL - 0.08, SEA_LEVEL + 0.08, shore_terrain_height(p + o));
+    }
+    return land / 12.0;
+}
 
 void vertex() {
     float ocean_time = deterministic_capture ? capture_time_seconds : TIME;
@@ -58,7 +82,6 @@ void vertex() {
     VERTEX.y += 0.18 + displacement * envelope;
     NORMAL = normalize(vec3(-dx * envelope, 1.0, -dz * envelope));
     surface_world = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
-    swell_crest = displacement * envelope;
 }
 
 void fragment() {
@@ -74,8 +97,17 @@ void fragment() {
     float depth_factor = 1.0 - smoothstep(0.15, 6.5, depth_m);
     float seabed_variation = 0.86 + 0.14 * sin(dot(p, vec2(0.045, 0.03)));
     float shallow_factor = coverage * depth_factor * seabed_variation;
-    float contact = coverage * smoothstep(0.02, 0.12, depth_m)
-                    * (1.0 - smoothstep(0.16, 0.55, depth_m));
+    // Shoreline mask: water at this texel with land within 1.1 m (strong) and
+    // 2.6 m (soft). The 24 ring taps run only where the centre is baked water,
+    // because outside the terrain footprint the result is always zero.
+    float water_here = (1.0 - smoothstep(SEA_LEVEL - 0.08, SEA_LEVEL + 0.08, floor_y)) * coverage;
+    float land_near = 0.0;
+    float land_far = 0.0;
+    if (water_here > 0.0) {
+        land_near = shore_land_fraction(p, 1.1);
+        land_far = shore_land_fraction(p, 2.6);
+    }
+    float shore_band = water_here * clamp(land_near * 1.1 + land_far * 0.35, 0.0, 1.0);
 
     // Gentle micro normals. High-frequency normals plus a shiny roughness
     // produced a repeating diamond lattice under the mobile specular model.
@@ -94,7 +126,13 @@ void fragment() {
                        * cos(p.y * 2.1 - ocean_time * 0.85);
     foam_pattern += sin(p.x * 3.4 - p.y * 2.6 + ocean_time * 1.5) * 0.35;
     float foam_motion = smoothstep(-0.15, 0.72, foam_pattern);
-    float shore_foam = contact * foam_motion * foam_amount;
+    vec2 cell = floor(p * 3.5);
+    vec2 cf = fract(p * 3.5);
+    cf = cf * cf * (3.0 - 2.0 * cf);
+    float breakup_n = mix(mix(foam_hash(cell), foam_hash(cell + vec2(1.0, 0.0)), cf.x),
+                          mix(foam_hash(cell + vec2(0.0, 1.0)), foam_hash(cell + vec2(1.0, 1.0)), cf.x), cf.y);
+    float breakup = 0.78 + 0.22 * breakup_n;
+    float shore_foam = clamp(shore_band * breakup * mix(0.55, 1.0, foam_motion), 0.0, 1.0) * foam_amount * 0.9;
 
     vec2 fwd = vessel_forward;
     float fwd_len = length(fwd);
