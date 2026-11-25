@@ -870,6 +870,50 @@
       "vendor": "Poly Haven",
       "pack_id": "polyhaven:tree_small_02",
       "source_identity": "polyhaven-file:tree_small_02/tree_small_02.bin@sha256:8da6c3c389ad8748286d1b7488cd827f75ebdad9d8f59ef7dfb0916df5edc634"
+    },
+    {
+      "path": "LICENSES/CC0-1.0-Quaternius-H05.txt",
+      "sha256": "1e18819171a0a8f36028a6335535f404ce397e3edea74c566e6e2df2166e00fe",
+      "license": "CC0-1.0",
+      "license_path": "LICENSES/CC0-1.0-Quaternius-H05.txt",
+      "license_sha256": "1e18819171a0a8f36028a6335535f404ce397e3edea74c566e6e2df2166e00fe",
+      "source_url": "https://quaternius.com/packs/ultimatemonsters.html",
+      "vendor": "Quaternius",
+      "source_revision": "f444a35e70895f822f3687eb47e608801baf98f2ae86c7ed24b6c017842f006d",
+      "pack_id": "quaternius:H05-ultimate-monsters"
+    },
+    {
+      "path": "assets-src/quaternius/H05/ultimate-monsters.zip",
+      "sha256": "f444a35e70895f822f3687eb47e608801baf98f2ae86c7ed24b6c017842f006d",
+      "license": "CC0-1.0",
+      "license_path": "LICENSES/CC0-1.0-Quaternius-H05.txt",
+      "license_sha256": "1e18819171a0a8f36028a6335535f404ce397e3edea74c566e6e2df2166e00fe",
+      "source_url": "https://quaternius.com/packs/ultimatemonsters.html",
+      "vendor": "Quaternius",
+      "source_revision": "f444a35e70895f822f3687eb47e608801baf98f2ae86c7ed24b6c017842f006d",
+      "pack_id": "quaternius:H05-ultimate-monsters"
+    },
+    {
+      "path": "LICENSES/CC0-1.0-Quaternius-H06.txt",
+      "sha256": "a45fbc72375e089bc74c3138304470d4907b9b55be866595f5d4bc233aa3645b",
+      "license": "CC0-1.0",
+      "license_path": "LICENSES/CC0-1.0-Quaternius-H06.txt",
+      "license_sha256": "a45fbc72375e089bc74c3138304470d4907b9b55be866595f5d4bc233aa3645b",
+      "source_url": "https://quaternius.com/packs/cutemonsters.html",
+      "vendor": "Quaternius",
+      "source_revision": "93bb9e0cdd678ddd4367402a38f931d57fd52280b0c50f5075212a216ae673a3",
+      "pack_id": "quaternius:H06-cute-animated-monsters"
+    },
+    {
+      "path": "assets-src/quaternius/H06/cute-animated-monsters.zip",
+      "sha256": "93bb9e0cdd678ddd4367402a38f931d57fd52280b0c50f5075212a216ae673a3",
+      "license": "CC0-1.0",
+      "license_path": "LICENSES/CC0-1.0-Quaternius-H06.txt",
+      "license_sha256": "a45fbc72375e089bc74c3138304470d4907b9b55be866595f5d4bc233aa3645b",
+      "source_url": "https://quaternius.com/packs/cutemonsters.html",
+      "vendor": "Quaternius",
+      "source_revision": "93bb9e0cdd678ddd4367402a38f931d57fd52280b0c50f5075212a216ae673a3",
+      "pack_id": "quaternius:H06-cute-animated-monsters"
     }
   ]
 }

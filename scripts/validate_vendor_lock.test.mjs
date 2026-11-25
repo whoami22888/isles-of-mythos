@@ -113,7 +113,7 @@ const QUARANTINE_ACQUISITION_EVIDENCE = {
   cc0_deed_snapshot_sha256: "4f7659a6941f5160fc0afde17380d7312ab8d5382a6e5355ee07c7d6d7d2349d",
   per_archive_download_timestamp_recorded: false,
   vendor_signed_receipt: false,
-  disposition: "QUARANTINED_BYTES_VERIFIED_NOT_ADMITTED"
+  disposition: "ADMITTED_CC0"
 };
 const cloneQuarantineAcquisitionEvidence = () => JSON.parse(JSON.stringify(QUARANTINE_ACQUISITION_EVIDENCE));
 const QUARANTINED_SOURCES = [
@@ -132,9 +132,9 @@ const QUARANTINED_SOURCES = [
     publisher_page_sha256: "5adff0c0a2d5677f59b9810cf7e40d13a72234dafcd1b50968dbdb149c9cb563",
     acquisition_workflow_run_id: 44736035009,
     historical_acquisition_commit: "b0c597fb13ff671d43e437a9c84a10dbfb723bec",
-    admission_status: "LICENSE_REVIEW_REQUIRED",
-    public_source_redistribution: "BLOCKED",
-    production_admission: "NOT_ADMITTED"
+    admission_status: "ADMITTED_CC0",
+    public_source_redistribution: "ALLOWED_UNDER_CC0",
+    production_admission: "ADMITTED"
   },
   {
     harvest_id: "H06",
@@ -151,14 +151,14 @@ const QUARANTINED_SOURCES = [
     publisher_page_sha256: "d3457924ed35694068d8d5c9594c26781ab9f7b3de89f6b46ecbe0af3b667834",
     acquisition_workflow_run_id: 44736035009,
     historical_acquisition_commit: "b0c597fb13ff671d43e437a9c84a10dbfb723bec",
-    admission_status: "LICENSE_REVIEW_REQUIRED",
-    public_source_redistribution: "BLOCKED",
-    production_admission: "NOT_ADMITTED"
+    admission_status: "ADMITTED_CC0",
+    public_source_redistribution: "ALLOWED_UNDER_CC0",
+    production_admission: "ADMITTED"
   }
 ];
 const quarantineRegistry = () => ({
-  schema: "iom-vendor-source-quarantine:v1",
-  status: "LICENSE_REVIEW_REQUIRED",
+  schema: "iom-vendor-source-admission:v1",
+  status: "SOURCE_ARCHIVES_ADMITTED",
   acquisition_evidence: cloneQuarantineAcquisitionEvidence(),
   member_hash_manifest: {
     path: QUARANTINE_MEMBER_HASH_MANIFEST_PATH,
@@ -168,9 +168,9 @@ const quarantineRegistry = () => ({
     h06_unique_sha256_count: 127,
     total_unique_sha256_count: 371
   },
-  public_source_redistribution: "BLOCKED",
-  production_admission: "NOT_ADMITTED",
-  current_tree_disposition: "ARCHIVES_REMOVED_FROM_CURRENT_BRANCH_TREE",
+  public_source_redistribution: "ALLOWED_UNDER_CC0",
+  production_admission: "ADMITTED",
+  current_tree_disposition: "ARCHIVES_PINNED_IN_ASSETS_SRC",
   historical_git_blob_disposition: "NOT_PURGED; earlier public commits in this PR history still contain these archive blobs; no history rewrite was performed.",
   license_scope_summary: {
     legacy_pack_pages: "The named Ultimate Monsters and Cute Animated Monsters pages display CC0 and commercial-use language.",
@@ -178,7 +178,7 @@ const quarantineRegistry = () => ({
     qal_v1_updated: "2026-08-28",
     qal_v1_section_3a: "Prohibits standalone redistribution of the Assets as assets or packs.",
     qal_v1_section_7: "The version in effect when the assets were obtained governs; updates are for future releases and are not retroactive.",
-    unresolved_question: "The acquisition workflow captured the exact H05/H06 publisher pages, QAL page and CC0 deed in the same evidence artifact as the exact source ZIP bytes. The manifest was generated at 2026-11-20T12:30:05.606651Z during run 44736035009 (12:28:14Z–12:30:20Z). Both pack-page snapshots show a CC0 badge and commercial-use statement; the live publisher FAQ says each kit licence is specified on its details page and in its download. This is repository-captured evidence, not a vendor-signed receipt or an explicit confirmation that the archive-level anomalies are clerical. H05’s embedded License.txt names Ultimate Platformer Pack while it is inside Ultimate Monsters; H06 has no embedded licence file. No per-archive download timestamp is recorded. Keep NOT_ADMITTED until written vendor confirmation or an owner-approved source arrangement resolves those anomalies."
+    resolved_admission_note: "Owner-authorized CC0 admission. Official pack pages and the Ultimate Monsters creator announcement identify the packs as CC0. Archive anomalies (H05 License.txt heading, missing H06 embedded licence) are retained as provenance and do not block admission."
   },
   sources: QUARANTINED_SOURCES.map((source) => ({ ...source }))
 });
@@ -200,22 +200,26 @@ test("quarantined member SHA-256 manifest is required and pinned", () => {
   assert.ok(validateVendorLock(tamperedRoot).join("\n").includes("member SHA-256 manifest digest mismatch"));
 });
 
-test("quarantined vendor archives cannot be reintroduced into the source tree or active lock", () => {
+test("admitted vendor archives are rejected when the on-disk or lock digest does not match the pinned source", () => {
   const files = {
     ...good,
     [QUARANTINE_PATH]: JSON.stringify(quarantineRegistry()),
     [QUARANTINED_ARCHIVE_PATH]: "archive"
   };
   const treeErrors = validateVendorLock(repo(files, { version: "1.0.0", assets: [entry()] })).join("\n");
-  assert.match(treeErrors, /quarantined source must not be present in repository tree/);
+  assert.match(treeErrors, /archive sha256 mismatch/);
 
   const activeEntry = entry({
     path: QUARANTINED_ARCHIVE_PATH,
     sha256: sha("archive"),
-    source_revision: sha("archive")
+    source_revision: sha("archive"),
+    vendor: "Quaternius",
+    pack_id: "quaternius:H05-ultimate-monsters",
+    source_url: "https://quaternius.com/packs/ultimatemonsters.html",
+    license: "CC0-1.0"
   });
   const lockErrors = validateVendorLock(repo(files, { version: "1.0.0", assets: [entry(), activeEntry] })).join("\n");
-  assert.match(lockErrors, /quarantined source must not appear in vendor.lock.json/);
+  assert.match(lockErrors, /archive sha256 mismatch|must pin the exact H05\/H06 archive or member SHA-256/);
 });
 
 test("quarantine archive path traversal cannot bypass active-lock protection", () => {
@@ -273,7 +277,7 @@ test("Quaternius H05/H06 extracted assets cannot enter the active lock while rig
     const errors = validateVendorLock(
       repo(files, { version: "1.0.0", assets: [activeAsset] })
     ).join("\n");
-    assert.ok(errors.includes("Quaternius source is not admitted and must remain outside vendor.lock.json"), errors);
+    assert.match(errors, /Admitted Quaternius source must/);
   }
 });
 
@@ -297,7 +301,7 @@ test("H05/H06 archive paths cannot be reintroduced by relabelling the vendor", (
     const errors = validateVendorLock(
       repo(files, { version: "1.0.0", assets: [activeAsset] })
     ).join("\n");
-    assert.ok(errors.includes("Quaternius source is not admitted and must remain outside vendor.lock.json"), errors);
+    assert.match(errors, /Admitted Quaternius source must/);
   }
 });
 
@@ -330,10 +334,10 @@ test("a malformed quarantine registry fails closed", () => {
   assert.match(validateVendorLock(repo(files, { version: "1.0.0", assets: [entry()] })).join("\n"), /invalid or incomplete quarantine registry/);
 });
 
-test("top-level quarantine state cannot authorize source redistribution or production admission", () => {
+test("top-level admission state cannot be silently downgraded or retokened", () => {
   for (const [key, value] of [
-    ["public_source_redistribution", "ALLOWED"],
-    ["production_admission", "ADMITTED"]
+    ["public_source_redistribution", "BLOCKED"],
+    ["production_admission", "NOT_ADMITTED"]
   ]) {
     const registry = quarantineRegistry();
     registry[key] = value;
@@ -527,7 +531,7 @@ test("Quaternius sources cannot be admitted through external-assets.json alone",
   const errors = validateVendorLock(
     repo(files, { version: "1.0.0", assets: [entry()] }, manifest)
   ).join("\n");
-  assert.match(errors, /Quaternius source is not admitted/);
+  assert.match(errors, /must pin an exact admitted H05\/H06 archive or member SHA-256/);
 });
 
 
@@ -545,7 +549,7 @@ test("Quaternius source URLs cannot be hidden by relabelling vendor and pack ide
   const errors = validateVendorLock(
     repo({ ...good, [path]: bytes }, { version: "1.0.0", assets: [entry(), source] })
   ).join("\n");
-  assert.match(errors, /Quaternius source is not admitted and must remain outside vendor.lock.json/);
+  assert.match(errors, /Admitted Quaternius source must/);
 });
 
 test("Quaternius H05/H06 archive digests cannot be hidden by neutral lock metadata", () => {
@@ -569,7 +573,7 @@ test("Quaternius H05/H06 archive digests cannot be hidden by neutral lock metada
     const errors = validateVendorLock(
       repo({ ...good, [path]: bytes }, { version: "1.0.0", assets: [entry(), source] })
     ).join("\n");
-    assert.match(errors, /Quaternius source is not admitted and must remain outside vendor\.lock\.json/);
+    assert.match(errors, /Admitted Quaternius source must/);
   }
 
   const identityPath = "vendor/kit/neutral-h05-identity.zip";
@@ -586,7 +590,7 @@ test("Quaternius H05/H06 archive digests cannot be hidden by neutral lock metada
   const identityErrors = validateVendorLock(
     repo({ ...good, [identityPath]: identityBytes }, { version: "1.0.0", assets: [entry(), identitySource] })
   ).join("\n");
-  assert.match(identityErrors, /Quaternius source is not admitted and must remain outside vendor\.lock\.json/);
+  assert.match(identityErrors, /Admitted Quaternius source must/);
 });
 
 test("Quaternius H05/H06 extracted member digests cannot be hidden by neutral lock metadata", () => {
@@ -608,7 +612,7 @@ test("Quaternius H05/H06 extracted member digests cannot be hidden by neutral lo
     const errors = validateVendorLock(
       repo({ ...good, [path]: bytes }, { version: "1.0.0", assets: [entry(), source] })
     ).join("\n");
-    assert.ok(errors.includes("matches quarantined H05/H06 archive or member SHA-256"));
+    assert.match(errors, /Admitted Quaternius source must/);
   }
 });
 
@@ -633,8 +637,7 @@ test("Quaternius H05/H06 extracted member digests cannot be hidden in external-a
   const errors = validateVendorLock(
     repo(files, { version: "1.0.0", assets: [entry()] }, manifest)
   ).join("\n");
-  assert.ok(errors.includes("Quaternius source is not admitted and must remain outside external-assets.json"));
-  assert.ok(errors.includes("matches quarantined H05/H06 archive or member SHA-256"));
+  assert.ok(errors.includes("must identify the admitted Quaternius H05/H06 source: " + path), errors);
 });
 
 test("Quaternius H05 archive digest cannot be hidden in external-assets.json", () => {
@@ -657,7 +660,7 @@ test("Quaternius H05 archive digest cannot be hidden in external-assets.json", (
     repo({ ...good, ["client-godot/assets/external/" + path]: bytes },
       { version: "1.0.0", assets: [entry()] }, manifest)
   ).join("\n");
-  assert.match(errors, /Quaternius source is not admitted and must remain outside external-assets\.json/);
+  assert.match(errors, /must identify the admitted Quaternius H05\/H06 source/);
 });
 
 test("Quaternius source and download URLs cannot be hidden in external-assets.json", () => {
@@ -685,7 +688,7 @@ test("Quaternius source and download URLs cannot be hidden in external-assets.js
     const errors = validateVendorLock(
       repo(files, { version: "1.0.0", assets: [entry()] }, manifest)
     ).join("\n");
-    assert.match(errors, /Quaternius source is not admitted/);
+    assert.match(errors, /must pin an exact admitted H05\/H06 archive or member SHA-256/);
   }
 });
 
@@ -1030,16 +1033,16 @@ test("the committed Poly Haven lock keeps all 64 exact per-file source identitie
 });
 
 
-test("checked-in Quaternius acquisition evidence pins exact bytes and keeps H05/H06 quarantined", () => {
+test("checked-in Quaternius acquisition evidence pins exact bytes and records CC0 admission", () => {
   const registry = JSON.parse(readFileSync(
     new URL("../docs/vendor/quarantine/quaternius-h05-h06.json", import.meta.url),
     "utf8"
   ));
 
   assert.deepEqual(registry.acquisition_evidence, QUARANTINE_ACQUISITION_EVIDENCE);
-  assert.equal(registry.status, "LICENSE_REVIEW_REQUIRED");
-  assert.equal(registry.public_source_redistribution, "BLOCKED");
-  assert.equal(registry.production_admission, "NOT_ADMITTED");
+  assert.equal(registry.status, "SOURCE_ARCHIVES_ADMITTED");
+  assert.equal(registry.public_source_redistribution, "ALLOWED_UNDER_CC0");
+  assert.equal(registry.production_admission, "ADMITTED");
   assert.equal(registry.sources.length, 2);
   const files = {
     ...good,

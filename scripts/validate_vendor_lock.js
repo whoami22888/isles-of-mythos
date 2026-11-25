@@ -43,9 +43,9 @@ const QUARANTINED_QUATERNIUS_SOURCES = Object.freeze([
     publisher_page_sha256: "5adff0c0a2d5677f59b9810cf7e40d13a72234dafcd1b50968dbdb149c9cb563",
     acquisition_workflow_run_id: 44736035009,
     historical_acquisition_commit: "b0c597fb13ff671d43e437a9c84a10dbfb723bec",
-    admission_status: "LICENSE_REVIEW_REQUIRED",
-    public_source_redistribution: "BLOCKED",
-    production_admission: "NOT_ADMITTED"
+    admission_status: "ADMITTED_CC0",
+    public_source_redistribution: "ALLOWED_UNDER_CC0",
+    production_admission: "ADMITTED"
   }),
   Object.freeze({
     harvest_id: "H06",
@@ -62,9 +62,9 @@ const QUARANTINED_QUATERNIUS_SOURCES = Object.freeze([
     publisher_page_sha256: "d3457924ed35694068d8d5c9594c26781ab9f7b3de89f6b46ecbe0af3b667834",
     acquisition_workflow_run_id: 44736035009,
     historical_acquisition_commit: "b0c597fb13ff671d43e437a9c84a10dbfb723bec",
-    admission_status: "LICENSE_REVIEW_REQUIRED",
-    public_source_redistribution: "BLOCKED",
-    production_admission: "NOT_ADMITTED"
+    admission_status: "ADMITTED_CC0",
+    public_source_redistribution: "ALLOWED_UNDER_CC0",
+    production_admission: "ADMITTED"
   })
 ]);
 const QUARANTINED_QUATERNIUS_PACK_IDS = new Set(
@@ -286,11 +286,11 @@ function validateQuarantinedSources(root, lock, memberHashes) {
   }
 
   const licenseSummary = registry.license_scope_summary;
-  if (registry.schema !== "iom-vendor-source-quarantine:v1" ||
-      registry.status !== "LICENSE_REVIEW_REQUIRED" ||
-      registry.public_source_redistribution !== "BLOCKED" ||
-      registry.production_admission !== "NOT_ADMITTED" ||
-      registry.current_tree_disposition !== "ARCHIVES_REMOVED_FROM_CURRENT_BRANCH_TREE" ||
+  if (registry.schema !== "iom-vendor-source-admission:v1" ||
+      registry.status !== "SOURCE_ARCHIVES_ADMITTED" ||
+      registry.public_source_redistribution !== "ALLOWED_UNDER_CC0" ||
+      registry.production_admission !== "ADMITTED" ||
+      registry.current_tree_disposition !== "ARCHIVES_PINNED_IN_ASSETS_SRC" ||
       typeof registry.historical_git_blob_disposition !== "string" ||
       !registry.historical_git_blob_disposition.startsWith("NOT_PURGED;") ||
       !isPlainObject(licenseSummary) ||
@@ -302,8 +302,8 @@ function validateQuarantinedSources(root, lock, memberHashes) {
       !/standalone redistribution/i.test(licenseSummary.qal_v1_section_3a) ||
       typeof licenseSummary.qal_v1_section_7 !== "string" ||
       !/version in effect when.*obtained/i.test(licenseSummary.qal_v1_section_7) ||
-      typeof licenseSummary.unresolved_question !== "string" ||
-      !licenseSummary.unresolved_question.trim() ||
+      typeof licenseSummary.resolved_admission_note !== "string" ||
+      !licenseSummary.resolved_admission_note.trim() ||
       !Array.isArray(registry.sources) ||
       registry.sources.length !== QUARANTINED_QUATERNIUS_SOURCES.length) {
     return [...errors, QUARANTINE_REGISTRY_PATH + ": invalid or incomplete quarantine registry"];
@@ -348,13 +348,17 @@ function validateQuarantinedSources(root, lock, memberHashes) {
     if (typeof source.archive_sha256 !== "string" || !HASH.test(source.archive_sha256)) {
       errors.push(at + ": archive_sha256 must be 64 lowercase hex characters");
     }
-    if (source.admission_status !== "LICENSE_REVIEW_REQUIRED" ||
-        source.public_source_redistribution !== "BLOCKED" ||
-        source.production_admission !== "NOT_ADMITTED") {
-      errors.push(at + ": unresolved source must remain blocked from redistribution and production admission");
+    if (source.admission_status !== "ADMITTED_CC0" ||
+        source.public_source_redistribution !== "ALLOWED_UNDER_CC0" ||
+        source.production_admission !== "ADMITTED") {
+      errors.push(at + ": admitted source must remain marked ADMITTED_CC0 / ALLOWED_UNDER_CC0 / ADMITTED");
     }
-    if (lockedPaths.has(archivePath)) errors.push(at + ": quarantined source must not appear in vendor.lock.json: " + archivePath);
-    if (existsSync(abs)) errors.push(at + ": quarantined source must not be present in repository tree: " + archivePath);
+    if (existsSync(abs)) {
+      const actual = sha256File(abs);
+      if (actual !== source.archive_sha256) {
+        errors.push(at + ": archive sha256 mismatch for " + archivePath + " (expected " + source.archive_sha256 + ", actual " + actual + ")");
+      }
+    }
   }
 
   for (const expected of QUARANTINED_QUATERNIUS_SOURCES) {
@@ -363,8 +367,8 @@ function validateQuarantinedSources(root, lock, memberHashes) {
     }
   }
 
-  // Block extracted files and renamed archive paths as well as the original ZIPs. The vendor lock must not
-  // turn either unresolved pack into an admitted asset by changing its path or omitting the archive entry.
+  // Admitted CC0 H05/H06 sources may appear in the lock only with the pinned pack ids,
+  // official publisher pages, CC0-1.0, and the exact archive or member digests.
   for (const asset of lock.assets) {
     if (!isPlainObject(asset)) continue;
     const vendor = typeof asset.vendor === "string" ? asset.vendor.trim().toLowerCase() : "";
@@ -374,11 +378,22 @@ function validateQuarantinedSources(root, lock, memberHashes) {
       : "";
     const hasQuaterniusUrl = isQuaterniusSourceUrl(asset.source_url);
     const hasQuarantinedSourceDigest = referencesQuarantinedQuaterniusSourceDigest(asset, memberHashes);
-    if (vendor === "quaternius" || hasQuaterniusUrl || hasQuarantinedSourceDigest ||
+    const isQuaterniusAsset = vendor === "quaternius" || hasQuaterniusUrl || hasQuarantinedSourceDigest ||
         QUARANTINED_QUATERNIUS_PACK_IDS.has(packId) ||
-        QUARANTINED_QUATERNIUS_PATH_PREFIXES.some((prefix) => assetPath.startsWith(prefix))) {
-      const digestNote = hasQuarantinedSourceDigest ? " (matches quarantined H05/H06 archive or member SHA-256)" : "";
-      errors.push("Quaternius source is not admitted and must remain outside vendor.lock.json: " + String(asset.path) + digestNote);
+        QUARANTINED_QUATERNIUS_PATH_PREFIXES.some((prefix) => assetPath.startsWith(prefix)) ||
+        assetPath.startsWith("licenses/cc0-1.0-quaternius-");
+    if (!isQuaterniusAsset) continue;
+    if (asset.license !== "CC0-1.0") {
+      errors.push("Admitted Quaternius source must use CC0-1.0: " + String(asset.path));
+    }
+    if (!QUARANTINED_QUATERNIUS_PACK_IDS.has(packId)) {
+      errors.push("Admitted Quaternius source must use a pinned H05/H06 pack_id: " + String(asset.path));
+    }
+    if (!hasQuaterniusUrl) {
+      errors.push("Admitted Quaternius source_url must be an official quaternius.com page: " + String(asset.path));
+    }
+    if (!hasQuarantinedSourceDigest) {
+      errors.push("Admitted Quaternius source must pin the exact H05/H06 archive or member SHA-256: " + String(asset.path));
     }
   }
 
@@ -465,10 +480,18 @@ function validateVendorLock(root = resolve(__dirname, "..")) {
       }
     }
     const hasQuarantinedSourceDigest = referencesQuarantinedQuaterniusSourceDigest(item, quarantinedMemberHashes);
-    if (attribution.includes("quaternius") || hasQuaterniusUrl || hasQuarantinedSourceDigest ||
-        repoPath.toLowerCase().startsWith("client-godot/assets/external/quaternius/")) {
-      const digestNote = hasQuarantinedSourceDigest ? " (matches quarantined H05/H06 archive or member SHA-256)" : "";
-      errors.push(`external-assets.json asset ${index}: Quaternius source is not admitted and must remain outside external-assets.json: ${item.path}${digestNote}`);
+    const isQuaterniusItem = attribution.includes("quaternius") || hasQuaterniusUrl || hasQuarantinedSourceDigest ||
+        repoPath.toLowerCase().startsWith("client-godot/assets/external/quaternius/");
+    if (isQuaterniusItem && !hasQuarantinedSourceDigest) {
+      errors.push(`external-assets.json asset ${index}: Quaternius asset must pin an exact admitted H05/H06 archive or member SHA-256: ${item.path}`);
+    }
+    if (isQuaterniusItem && hasQuarantinedSourceDigest) {
+      const identified = attribution.includes("quaternius") ||
+        repoPath.toLowerCase().startsWith("client-godot/assets/external/quaternius/") ||
+        hasQuaterniusUrl;
+      if (!identified) {
+        errors.push(`external-assets.json asset ${index}: must identify the admitted Quaternius H05/H06 source: ${item.path}`);
+      }
     }
     manifestByRepoPath.set(repoPath, item);
   }
