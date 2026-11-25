@@ -644,7 +644,7 @@ class OceanShaderContractTests(unittest.TestCase):
         self.assertEqual(expected_speed, 7.5)
         self.assertIn("MAX_SAIL_SECONDS=60", server)
         self.assertIn("ship.speed*dt*windMultiplier*crewMultiplier", server)
-        self.assertIn("MAX_CONTINUOUS_GAP_SEC := 0.5", wake)
+        self.assertIn("MAX_CONTINUOUS_GAP_SEC := 0.75", wake)
         self.assertIn("MAX_CONTINUOUS_STEP_MARGIN := 1.25", wake)
         self.assertIn("distance > max_continuous_step", wake)
         self.assertIn("observed_gap > MAX_CONTINUOUS_GAP_SEC", wake)
