@@ -25,7 +25,7 @@ static func run(tree: SceneTree, check: Callable) -> void:
 	check.call(creature.mood == 79.0 and creature.hearts == 4 and not creature.is_excited, "Mood 79 must remain below the excited threshold and derive four hearts")
 	check.call(creature.xp_multiplier == 1.0 and not creature.work_output_max, "A non-excited server snapshot must not grant excited bonuses")
 
-	var mood_before_care := creature.mood
+	var mood_before_care: float = float(creature.mood)
 	check.call(creature.pet_companion(), "A tamed companion must emit a pet intent")
 	check.call(creature.feed_companion(), "A tamed companion must emit a feed intent")
 	check.call(care_events == [
@@ -67,7 +67,7 @@ static func run(tree: SceneTree, check: Callable) -> void:
 	check.call(not creature.pet_companion() and not creature.feed_companion(), "Wild creatures must reject owned-companion care actions")
 	check.call(not creature.request_work_assignment("forge-1", "ore_smelting"), "Wild creatures must reject work assignment intents")
 
-	var mood_before_invalid := creature.mood
+	var mood_before_invalid: float = float(creature.mood)
 	var invalid_mood := _snapshot("wild-1", "wild", "earth", 101.0, 2.0, true, "", 1.0)
 	check.call(not creature.apply_authoritative_snapshot(invalid_mood), "Mood outside 0–100 must be rejected")
 	check.call(creature.mood == mood_before_invalid, "Rejected mood data must not overwrite the last valid snapshot")
