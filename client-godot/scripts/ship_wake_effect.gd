@@ -14,7 +14,7 @@ const MIN_TICK_SEC := 0.08
 # MAX_SAIL_SECONDS is 60, so a single server command can move hundreds of
 # metres. The client-only wake must reset across unobserved/snap movement.
 const MAX_EXPECTED_VESSEL_SPEED_MPS := 7.5
-const MAX_CONTINUOUS_GAP_SEC := 0.5
+const MAX_CONTINUOUS_GAP_SEC := 0.75
 const MAX_CONTINUOUS_STEP_MARGIN := 1.25
 
 @export_range(0.05, 0.5, 0.01) var sample_interval: float = 0.12
