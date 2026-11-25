@@ -71,7 +71,17 @@ void fragment() {
 	ROUGHNESS = sample_roughness(world_position, normal, UV);
 
 	if (use_normal_texture) {
-		NORMAL_MAP = texture(normal_texture, UV).rgb;
+		if (!use_triplanar) {
+			NORMAL_MAP = texture(normal_texture, UV).rgb;
+		} else {
+			vec3 weights = pow(abs(normal), vec3(4.0));
+			weights /= max(weights.x + weights.y + weights.z, 0.0001);
+			vec3 p = world_position * triplanar_scale;
+			vec3 nx = texture(normal_texture, p.zy).rgb;
+			vec3 ny = texture(normal_texture, p.xz).rgb;
+			vec3 nz = texture(normal_texture, p.xy).rgb;
+			NORMAL_MAP = normalize(nx * weights.x + ny * weights.y + nz * weights.z);
+		}
 	}
 }
 
