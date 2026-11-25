@@ -1,0 +1,66 @@
+Supplemental source/licence evidence — Quaternius H06: Cute Animated Monsters
+===============================================================================
+
+Purpose
+-------
+This file records pack-specific publisher evidence for the CC0-1.0 entry in
+vendor.lock.json. It does not fabricate or insert an embedded licence file into
+the original archive.
+
+Pack-specific grant
+-------------------
+Pack: Cute Animated Monsters Pack (21 animated models), Quaternius, August 2020.
+
+Official publisher page:
+https://quaternius.com/packs/cutemonsters.html
+The page identifies the pack licence as CC0, links to the CC0 1.0 deed, and
+states that the pack is free to use in personal and commercial projects.
+Captured publisher-page HTML SHA-256:
+d3457924ed35694068d8d5c9594c26781ab9f7b3de89f6b46ecbe0af3b667834
+
+Official creator announcement (1 August 2020):
+https://www.patreon.com/quaternius/posts/cute-animated-20-39982825
+The announcement identifies the Cute Animated Monsters pack and states that
+it is free for everyone to use in any project, including commercial projects,
+under CC0.
+
+CC0 1.0 deed:
+https://creativecommons.org/publicdomain/zero/1.0/
+Captured deed HTML SHA-256:
+4f7659a6941f5160fc0afde17380d7312ab8d5382a6e5355ee07c7d6d7d2349d
+
+Quaternius Asset License v1.0 context:
+https://quaternius.com/license.html
+Last updated 28 August 2026. Section 7 says updates apply to future releases and
+do not apply retroactively to assets already obtained under an earlier version.
+The pack-specific publisher page and 2020 creator announcement identify this
+pack as CC0; this record does not substitute the later QAL terms for that grant.
+Captured QAL page HTML SHA-256:
+d1b56be5228d372b049b45cc7447a823da7989a6cf7036f60cfac2284c8fcb0d
+
+Exact source archive
+--------------------
+Official Drive folder linked by the publisher page:
+https://drive.google.com/drive/folders/1zLLO_7ZoWgUsS4uooYnVSErQYRu1VdS0?usp=sharing
+
+The exact publisher "Download all" ZIP bytes were captured by workflow run
+44736035009 and retained at commit
+b0c597fb13ff671d43e437a9c84a10dbfb723bec under
+quarantine/quaternius/archives/H06.zip.
+
+Archive SHA-256:
+93bb9e0cdd678ddd4367402a38f931d57fd52280b0c50f5075212a216ae673a3
+
+Verification: 127 files; ZIP CRC PASS; glTF dependency closure PASS; historical
+file-count comparison PASS. The full per-file manifest and page evidence are
+retained at:
+https://raw.githubusercontent.com/whoami22888/isles-of-mythos/b0c597fb13ff671d43e437a9c84a10dbfb723bec/quarantine/quaternius/manifest.json
+
+Embedded notice status
+----------------------
+No embedded licence file was present in the exact H06 archive. That absence is
+preserved as a recorded source fact; no synthetic License.txt was added to the
+archive. The pack-specific publisher page and creator announcement provide the
+CC0-1.0 evidence used for this vendor-lock entry.
+
+Recorded SPDX licence: CC0-1.0.

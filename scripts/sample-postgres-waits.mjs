@@ -1,4 +1,5 @@
 import pg from "pg";
+import { startHostIoTelemetry } from "./host-io-telemetry.mjs";
 
 // Diagnostic-only, read-only sampler. Wall time joins server trace timestamps;
 // monotonic time records the interval. Samples can miss shorter waits.
@@ -8,6 +9,7 @@ let busy = false;
 let stopped = false;
 let sequence = 0;
 const started = performance.now();
+const hostIoTelemetry = await startHostIoTelemetry();
 
 async function sample() {
   if (busy || stopped) return;
@@ -34,7 +36,7 @@ async function stop() {
   if (stopped) return;
   stopped = true;
   clearInterval(timer);
-  await db.end();
+  await Promise.all([db.end(), hostIoTelemetry.stop()]);
 }
 const timer = setInterval(sample, intervalMs);
 process.once("SIGTERM", stop);

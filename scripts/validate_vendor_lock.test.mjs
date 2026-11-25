@@ -1,17 +1,50 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, win32 } from "node:path";
 import { createRequire } from "node:module";
 import test from "node:test";
 
-const { validateVendorLock } = createRequire(import.meta.url)("./validate_vendor_lock.js");
+const { validateVendorLock, normalizeRepositoryRelativePath, canonicalRepoPath } = createRequire(import.meta.url)("./validate_vendor_lock.js");
 const sha = (text) => createHash("sha256").update(text).digest("hex");
 
-function repo(files = {}, lock, manifest) {
+test("internal canonical repository paths remain valid on Windows", () => {
+  if (process.platform !== "win32") return;
+  const root = mkdtempSync(join(tmpdir(), "vendor-lock-win-paths-"));
+  assert.ok(canonicalRepoPath(root, "client-godot/assets/external"));
+  assert.ok(canonicalRepoPath(root, "docs/vendor/quarantine/quaternius-h05-h06.json"));
+  assert.ok(canonicalRepoPath(root, "client-godot/assets/external-assets.json"));
+});
+
+test("Windows-native relative paths match external manifest keys and file-tree membership", () => {
+  const root = "C:\\work\\isles-of-mythos";
+  const absolutePath = win32.resolve(root, "client-godot", "assets", "external", "palm", "palm.glb");
+  const nativeRelativePath = win32.relative(root, absolutePath);
+  const normalizedPath = normalizeRepositoryRelativePath(nativeRelativePath, win32.sep);
+  const expectedPath = "client-godot/assets/external/palm/palm.glb";
+
+  assert.equal(nativeRelativePath, ["client-godot", "assets", "external", "palm", "palm.glb"].join(win32.sep));
+  assert.equal(normalizedPath, expectedPath);
+
+  const manifestByRepoPath = new Map([[expectedPath, { sha256: sha("palm") }]]);
+  assert.equal(manifestByRepoPath.get(normalizedPath)?.sha256, sha("palm"));
+
+  const manifestPaths = new Set(manifestByRepoPath.keys());
+  assert.equal(manifestPaths.has(normalizedPath), true);
+});
+
+
+function repo(files = {}, lock, manifest, { omitQuarantineRegistry = false } = {}) {
   const root = mkdtempSync(join(tmpdir(), "vendor-lock-"));
-  for (const [path, body] of Object.entries(files)) {
+  const fixtureFiles = omitQuarantineRegistry
+    ? files
+    : {
+        [QUARANTINE_PATH]: JSON.stringify(quarantineRegistry()),
+        [QUARANTINE_MEMBER_HASH_MANIFEST_PATH]: QUARANTINE_MEMBER_HASH_MANIFEST,
+        ...files
+      };
+  for (const [path, body] of Object.entries(fixtureFiles)) {
     mkdirSync(join(root, path, ".."), { recursive: true });
     writeFileSync(join(root, path), body);
   }
@@ -24,12 +57,346 @@ function repo(files = {}, lock, manifest) {
 }
 const entry = (over = {}) => ({
   path: "vendor/kit/palm.glb", sha256: sha("palm"), license: "CC0-1.0",
-  license_path: "vendor/kit/LICENSE.txt", source_url: "https://polyhaven.com/a/palm", ...over
+  license_path: "vendor/kit/LICENSE.txt", license_sha256: sha("CC0"), source_url: "https://polyhaven.com/a/palm",
+  vendor: "Test Fixture Vendor", source_revision: "1234567890abcdef1234567890abcdef12345678", pack_id: "test-vendor:kit", ...over
 });
 const good = { "vendor/kit/palm.glb": "palm", "vendor/kit/LICENSE.txt": "CC0" };
+const QUARANTINE_PATH = "docs/vendor/quarantine/quaternius-h05-h06.json";
+const QUARANTINE_MEMBER_HASH_MANIFEST_PATH = "docs/vendor/quarantine/quaternius-h05-h06-member-hashes.bin";
+const QUARANTINE_MEMBER_HASH_MANIFEST = readFileSync(new URL("../docs/vendor/quarantine/quaternius-h05-h06-member-hashes.bin", import.meta.url));
+const QUARANTINED_ARCHIVE_PATH = "assets-src/quaternius/H05/ultimate-monsters.zip";
+const QUARANTINED_H06_ARCHIVE_PATH = "assets-src/quaternius/H06/cute-animated-monsters.zip";
+const QUARANTINED_H05_SHA256 = "f444a35e70895f822f3687eb47e608801baf98f2ae86c7ed24b6c017842f006d";
+const QUARANTINED_H06_SHA256 = "93bb9e0cdd678ddd4367402a38f931d57fd52280b0c50f5075212a216ae673a3";
+const QUARANTINED_H05_MEMBER_SHA256 = "b970ed1359ce749fd81a8395d58ff5f3044d843213e17fb94b97892d417c0af9";
+const QUARANTINED_H06_MEMBER_SHA256 = "9acc1182a169ae07db654cc1c4533eec486739962f5b70c8e8df6ab19bd5f4a5";
+const QUARANTINE_ACQUISITION_EVIDENCE = {
+  workflow_run_id: 44736035009,
+  workflow_run_url: "https://github.com/whoami22888/isles-of-mythos/actions/runs/44736035009",
+  workflow_run_started_at_utc: "2026-11-20T12:28:14Z",
+  workflow_run_completed_at_utc: "2026-11-20T12:30:20Z",
+  manifest_generated_at_utc: "2026-11-20T12:30:05.606651+00:00",
+  artifact_id: 14628497548,
+  artifact_name: "quaternius-source-quarantine-15798f978d9fde3ba0ebf327354432876aa2f2d9",
+  artifact_size_bytes: 65186170,
+  artifact_sha256: "3a31c4a46476eee6b3f944f4c39ca04c5e20c89dfcc7a50ab1897c92e7b7880f",
+  exact_archive_bytes_reverified: true,
+  archive_member_hashes_reverified: {
+    H05: {
+      archive_sha256: QUARANTINED_H05_SHA256,
+      size_bytes: 46576830,
+      member_count: 260,
+      member_hash_mismatches: 0,
+      zip_crc_check: "PASS"
+    },
+    H06: {
+      archive_sha256: QUARANTINED_H06_SHA256,
+      size_bytes: 20231284,
+      member_count: 127,
+      member_hash_mismatches: 0,
+      zip_crc_check: "PASS"
+    }
+  },
+  publisher_page_snapshots: {
+    H05: {
+      sha256: "5adff0c0a2d5677f59b9810cf7e40d13a72234dafcd1b50968dbdb149c9cb563",
+      license_label: "CC0",
+      commercial_use_statement: true
+    },
+    H06: {
+      sha256: "d3457924ed35694068d8d5c9594c26781ab9f7b3de89f6b46ecbe0af3b667834",
+      license_label: "CC0",
+      commercial_use_statement: true
+    }
+  },
+  qal_snapshot_sha256: "d1b56be5228d372b049b45cc7447a823da7989a6cf7036f60cfac2284c8fcb0d",
+  cc0_deed_snapshot_sha256: "4f7659a6941f5160fc0afde17380d7312ab8d5382a6e5355ee07c7d6d7d2349d",
+  per_archive_download_timestamp_recorded: false,
+  vendor_signed_receipt: false,
+  disposition: "ADMITTED_CC0"
+};
+const cloneQuarantineAcquisitionEvidence = () => JSON.parse(JSON.stringify(QUARANTINE_ACQUISITION_EVIDENCE));
+const QUARANTINED_SOURCES = [
+  {
+    harvest_id: "H05",
+    pack_id: "quaternius:H05-ultimate-monsters",
+    vendor: "Quaternius",
+    archive_path: QUARANTINED_ARCHIVE_PATH,
+    archive_sha256: QUARANTINED_H05_SHA256,
+    archive_size_bytes: 46576830,
+    archive_file_count: 260,
+    unique_member_sha256_count: 244,
+    zip_crc: "PASS",
+    gltf_dependency_closure: "PASS",
+    publisher_page: "https://quaternius.com/packs/ultimatemonsters.html",
+    publisher_page_sha256: "5adff0c0a2d5677f59b9810cf7e40d13a72234dafcd1b50968dbdb149c9cb563",
+    acquisition_workflow_run_id: 44736035009,
+    historical_acquisition_commit: "b0c597fb13ff671d43e437a9c84a10dbfb723bec",
+    admission_status: "ADMITTED_CC0",
+    public_source_redistribution: "ALLOWED_UNDER_CC0",
+    production_admission: "ADMITTED"
+  },
+  {
+    harvest_id: "H06",
+    pack_id: "quaternius:H06-cute-animated-monsters",
+    vendor: "Quaternius",
+    archive_path: QUARANTINED_H06_ARCHIVE_PATH,
+    archive_sha256: QUARANTINED_H06_SHA256,
+    archive_size_bytes: 20231284,
+    archive_file_count: 127,
+    unique_member_sha256_count: 127,
+    zip_crc: "PASS",
+    gltf_dependency_closure: "PASS",
+    publisher_page: "https://quaternius.com/packs/cutemonsters.html",
+    publisher_page_sha256: "d3457924ed35694068d8d5c9594c26781ab9f7b3de89f6b46ecbe0af3b667834",
+    acquisition_workflow_run_id: 44736035009,
+    historical_acquisition_commit: "b0c597fb13ff671d43e437a9c84a10dbfb723bec",
+    admission_status: "ADMITTED_CC0",
+    public_source_redistribution: "ALLOWED_UNDER_CC0",
+    production_admission: "ADMITTED"
+  }
+];
+const quarantineRegistry = () => ({
+  schema: "iom-vendor-source-admission:v1",
+  status: "SOURCE_ARCHIVES_ADMITTED",
+  acquisition_evidence: cloneQuarantineAcquisitionEvidence(),
+  member_hash_manifest: {
+    path: QUARANTINE_MEMBER_HASH_MANIFEST_PATH,
+    sha256: "fc4f7d77edf19710a817f0b9d7e9076dfa9b97678d283ef2af59ec79c9ddb07f",
+    format: "IOMQH5H6-v1",
+    h05_unique_sha256_count: 244,
+    h06_unique_sha256_count: 127,
+    total_unique_sha256_count: 371
+  },
+  public_source_redistribution: "ALLOWED_UNDER_CC0",
+  production_admission: "ADMITTED",
+  current_tree_disposition: "ARCHIVES_PINNED_IN_ASSETS_SRC",
+  historical_git_blob_disposition: "NOT_PURGED; earlier public commits in this PR history still contain these archive blobs; no history rewrite was performed.",
+  license_scope_summary: {
+    legacy_pack_pages: "The named Ultimate Monsters and Cute Animated Monsters pages display CC0 and commercial-use language.",
+    qal_v1_url: "https://quaternius.com/license.html",
+    qal_v1_updated: "2026-08-28",
+    qal_v1_section_3a: "Prohibits standalone redistribution of the Assets as assets or packs.",
+    qal_v1_section_7: "The version in effect when the assets were obtained governs; updates are for future releases and are not retroactive.",
+    resolved_admission_note: "Owner-authorized CC0 admission. Official pack pages and the Ultimate Monsters creator announcement identify the packs as CC0. Archive anomalies (H05 License.txt heading, missing H06 embedded licence) are retained as provenance and do not block admission."
+  },
+  sources: QUARANTINED_SOURCES.map((source) => ({ ...source }))
+});
+test("quarantined vendor archives retain hash evidence but stay outside the active lock and tree", () => {
+  const files = { ...good, [QUARANTINE_PATH]: JSON.stringify(quarantineRegistry()) };
+  assert.deepEqual(validateVendorLock(repo(files, { version: "1.0.0", assets: [entry()] })), []);
+});
 
-test("an empty lock is valid", () => {
-  assert.deepEqual(validateVendorLock(repo()), []);
+test("quarantined member SHA-256 manifest is required and pinned", () => {
+  const missingRoot = repo();
+  unlinkSync(join(missingRoot, QUARANTINE_MEMBER_HASH_MANIFEST_PATH));
+  assert.ok(validateVendorLock(missingRoot).join("\n").includes("required member SHA-256 manifest is missing"));
+
+  const tamperedRoot = repo();
+  const file = join(tamperedRoot, QUARANTINE_MEMBER_HASH_MANIFEST_PATH);
+  const bytes = readFileSync(file);
+  bytes[bytes.length - 1] ^= 1;
+  writeFileSync(file, bytes);
+  assert.ok(validateVendorLock(tamperedRoot).join("\n").includes("member SHA-256 manifest digest mismatch"));
+});
+
+test("admitted vendor archives are rejected when the on-disk or lock digest does not match the pinned source", () => {
+  const files = {
+    ...good,
+    [QUARANTINE_PATH]: JSON.stringify(quarantineRegistry()),
+    [QUARANTINED_ARCHIVE_PATH]: "archive"
+  };
+  const treeErrors = validateVendorLock(repo(files, { version: "1.0.0", assets: [entry()] })).join("\n");
+  assert.match(treeErrors, /archive sha256 mismatch/);
+
+  const activeEntry = entry({
+    path: QUARANTINED_ARCHIVE_PATH,
+    sha256: sha("archive"),
+    source_revision: sha("archive"),
+    vendor: "Quaternius",
+    pack_id: "quaternius:H05-ultimate-monsters",
+    source_url: "https://quaternius.com/packs/ultimatemonsters.html",
+    license: "CC0-1.0"
+  });
+  const lockErrors = validateVendorLock(repo(files, { version: "1.0.0", assets: [entry(), activeEntry] })).join("\n");
+  assert.match(lockErrors, /archive sha256 mismatch|must pin the exact H05\/H06 archive or member SHA-256/);
+});
+
+test("quarantine archive path traversal cannot bypass active-lock protection", () => {
+  const registry = quarantineRegistry();
+  registry.sources[0].archive_path = "assets-src/../docs/vendor/not-a-real-archive.zip";
+  const activeArchive = entry({
+    path: QUARANTINED_ARCHIVE_PATH,
+    sha256: sha("archive"),
+    source_revision: sha("archive"),
+    vendor: "Quaternius",
+    source_url: "https://quaternius.com/packs/ultimatemonsters.html",
+    pack_id: "quaternius:H05-ultimate-monsters"
+  });
+  const files = {
+    ...good,
+    [QUARANTINE_PATH]: JSON.stringify(registry),
+    [QUARANTINED_ARCHIVE_PATH]: "archive"
+  };
+  const errors = validateVendorLock(
+    repo(files, { version: "1.0.0", assets: [entry(), activeArchive] })
+  ).join("\n");
+  assert.match(errors, /archive_path must be a safe assets-src-relative path/);
+});
+
+test("the quarantine registry pins both exact H05/H06 source archives and licence-scope evidence", () => {
+  const mutations = [
+    (registry) => { registry.sources.pop(); },
+    (registry) => { registry.sources[0].archive_sha256 = sha("replacement archive"); },
+    (registry) => { registry.sources[1].archive_path = "assets-src/quaternius/H06/repacked.zip"; },
+    (registry) => { registry.sources[0].publisher_page_sha256 = sha("replacement publisher page"); },
+    (registry) => { registry.license_scope_summary.qal_v1_updated = "2026-01-01"; },
+    (registry) => { registry.sources[1] = { ...registry.sources[0] }; }
+  ];
+
+  for (const mutate of mutations) {
+    const registry = quarantineRegistry();
+    mutate(registry);
+    const files = { ...good, [QUARANTINE_PATH]: JSON.stringify(registry) };
+    const errors = validateVendorLock(repo(files, { version: "1.0.0", assets: [entry()] })).join("\n");
+    assert.ok(
+      errors.includes("invalid or incomplete quarantine registry") ||
+      errors.includes("exact H05/H06 source identity"),
+      errors
+    );
+  }
+});
+
+test("Quaternius H05/H06 extracted assets cannot enter the active lock while rights remain unresolved", () => {
+  for (const packId of [
+    "quaternius:H05-ultimate-monsters",
+    "quaternius:H06-cute-animated-monsters"
+  ]) {
+    const activeAsset = entry({ vendor: "Quaternius", pack_id: packId });
+    const files = { ...good, [QUARANTINE_PATH]: JSON.stringify(quarantineRegistry()) };
+    const errors = validateVendorLock(
+      repo(files, { version: "1.0.0", assets: [activeAsset] })
+    ).join("\n");
+    assert.match(errors, /Admitted Quaternius source must/);
+  }
+});
+
+test("H05/H06 archive paths cannot be reintroduced by relabelling the vendor", () => {
+  for (const path of [QUARANTINED_ARCHIVE_PATH, QUARANTINED_H06_ARCHIVE_PATH]) {
+    const bytes = "archive";
+    const digest = sha(bytes);
+    const activeAsset = entry({
+      path,
+      sha256: digest,
+      source_revision: digest,
+      vendor: "Another Vendor",
+      pack_id: "another-vendor:archive",
+      source_url: "https://example.com/source.zip"
+    });
+    const files = {
+      ...good,
+      [QUARANTINE_PATH]: JSON.stringify(quarantineRegistry()),
+      [path]: bytes
+    };
+    const errors = validateVendorLock(
+      repo(files, { version: "1.0.0", assets: [activeAsset] })
+    ).join("\n");
+    assert.match(errors, /Admitted Quaternius source must/);
+  }
+});
+
+test("a normalized path alias cannot bypass the Quaternius extracted-asset quarantine", () => {
+  const canonicalPath = "client-godot/assets/external/quaternius/h05/monster.glb";
+  const aliasedPath = "client-godot/assets/external/../external/quaternius/h05/monster.glb";
+  const bytes = "quaternius monster fixture";
+  const digest = sha(bytes);
+  const files = { ...good, [canonicalPath]: bytes };
+  const manifest = {
+    schema_version: 1,
+    assets: [{ id: "quaternius-h05-monster", path: "quaternius/h05/monster.glb", sha256: digest }]
+  };
+  const activeAsset = entry({
+    path: aliasedPath,
+    sha256: digest,
+    source_url: "https://example.com/source",
+    vendor: "Another Vendor",
+    source_revision: "1234567890abcdef1234567890abcdef12345678",
+    pack_id: "another-vendor:archive"
+  });
+  const errors = validateVendorLock(
+    repo(files, { version: "1.0.0", assets: [activeAsset] }, manifest)
+  ).join("\n");
+  assert.match(errors, /canonical repository-relative path/);
+});
+
+test("a malformed quarantine registry fails closed", () => {
+  const files = { ...good, [QUARANTINE_PATH]: JSON.stringify({ schema: "wrong", sources: [] }) };
+  assert.match(validateVendorLock(repo(files, { version: "1.0.0", assets: [entry()] })).join("\n"), /invalid or incomplete quarantine registry/);
+});
+
+test("top-level admission state cannot be silently downgraded or retokened", () => {
+  for (const [key, value] of [
+    ["public_source_redistribution", "BLOCKED"],
+    ["production_admission", "NOT_ADMITTED"]
+  ]) {
+    const registry = quarantineRegistry();
+    registry[key] = value;
+    const files = { ...good, [QUARANTINE_PATH]: JSON.stringify(registry) };
+    const errors = validateVendorLock(repo(files, { version: "1.0.0", assets: [entry()] })).join("\n");
+    assert.match(errors, /invalid or incomplete quarantine registry/);
+  }
+});
+
+test("a missing quarantine registry fails closed", () => {
+  const root = repo(good, { version: "1.0.0", assets: [entry()] }, undefined, { omitQuarantineRegistry: true });
+  assert.match(validateVendorLock(root).join("\n"), /required quarantine registry is missing/);
+});
+
+test("a symlinked quarantine registry path fails closed", () => {
+  const outside = mkdtempSync(join(tmpdir(), "outside-quarantine-"));
+  writeFileSync(join(outside, "quaternius-h05-h06.json"), JSON.stringify(quarantineRegistry()));
+  const root = repo(good, { version: "1.0.0", assets: [entry()] }, undefined, { omitQuarantineRegistry: true });
+  mkdirSync(join(root, "docs/vendor"), { recursive: true });
+  symlinkSync(outside, join(root, "docs/vendor/quarantine"), "dir");
+  assert.match(validateVendorLock(root).join("\n"), /safe repository-relative file without symlinked components/);
+});
+ 
+test("a symlinked vendor.lock.json fails closed", () => {
+  const root = repo(good, { version: "1.0.0", assets: [entry()] });
+  const outside = mkdtempSync(join(tmpdir(), "outside-vendor-lock-"));
+  const outsideLock = join(outside, "vendor.lock.json");
+  writeFileSync(outsideLock, JSON.stringify({ version: "1.0.0", assets: [entry()] }));
+  unlinkSync(join(root, "vendor.lock.json"));
+  symlinkSync(outsideLock, join(root, "vendor.lock.json"));
+  const errors = validateVendorLock(root).join("\n");
+  assert.ok(errors.includes("vendor.lock.json: must be a safe repository-relative file without symlinked components"), errors);
+});
+
+test("a symlinked external-assets manifest fails closed", () => {
+  const manifest = { schema_version: 1, assets: [] };
+  const root = repo(good, { version: "1.0.0", assets: [entry()] }, manifest);
+  const outside = mkdtempSync(join(tmpdir(), "outside-external-manifest-"));
+  const outsideManifest = join(outside, "external-assets.json");
+  writeFileSync(outsideManifest, JSON.stringify(manifest));
+  const manifestPath = join(root, "client-godot/assets/external-assets.json");
+  unlinkSync(manifestPath);
+  symlinkSync(outsideManifest, manifestPath);
+  const errors = validateVendorLock(root).join("\n");
+  assert.ok(errors.includes("external-assets.json: must be a safe repository-relative file without symlinked components"), errors);
+});
+
+test("a symlinked external asset root fails closed", () => {
+  const manifest = { schema_version: 1, assets: [] };
+  const root = repo(good, { version: "1.0.0", assets: [entry()] }, manifest);
+  const outside = mkdtempSync(join(tmpdir(), "outside-external-assets-"));
+  symlinkSync(outside, join(root, "client-godot/assets/external"), "dir");
+  const errors = validateVendorLock(root).join("\n");
+  assert.ok(errors.includes("client-godot/assets/external: must be a safe repository-relative directory without symlinked components"), errors);
+});
+
+test("an empty lock is rejected because it admits no source dependency", () => {
+  const errors = validateVendorLock(repo()).join("\n");
+  assert.match(errors, /assets must contain at least one verified dependency/);
 });
 test("a fully verified entry passes", () => {
   assert.deepEqual(validateVendorLock(repo(good, { version: "1.0.0", assets: [entry()] })), []);
@@ -47,12 +414,28 @@ test("a malformed or missing SHA-256 is rejected", () => {
   const { sha256, ...rest } = entry();
   assert.match(validateVendorLock(repo(good, { version: "1.0.0", assets: [rest] })).join("\n"), /sha256/i);
 });
-test("a missing license_path or a license file that does not exist is rejected", () => {
+test("a missing, whitespace-only, or absent license_path is rejected", () => {
   const { license_path, ...rest } = entry();
   assert.match(validateVendorLock(repo(good, { version: "1.0.0", assets: [rest] })).join("\n"), /license_path/);
+  for (const value of [" ", "\t", "\n", " \t\n"]) {
+    assert.match(validateVendorLock(repo(good, { version: "1.0.0", assets: [entry({ license_path: value })] })).join("\n"), /license_path is required/);
+  }
   const noFile = { "vendor/kit/palm.glb": "palm" };
   assert.match(validateVendorLock(repo(noFile, { version: "1.0.0", assets: [entry()] })).join("\n"), /license file/i);
 });
+test("a missing or malformed license_sha256 is rejected", () => {
+  const { license_sha256, ...rest } = entry();
+  assert.match(validateVendorLock(repo(good, { version: "1.0.0", assets: [rest] })).join("\n"), /license_sha256/);
+  for (const value of ["", " ", "A".repeat(64), "a".repeat(63)]) {
+    assert.match(validateVendorLock(repo(good, { version: "1.0.0", assets: [entry({ license_sha256: value })] })).join("\n"), /license_sha256/);
+  }
+});
+test("a modified license file fails its independently pinned SHA-256", () => {
+  const files = { ...good, "vendor/kit/LICENSE.txt": "changed license text" };
+  const errors = validateVendorLock(repo(files, { version: "1.0.0", assets: [entry()] })).join("\n");
+  assert.match(errors, /license sha256 mismatch/);
+});
+
 test("licences outside the allowlist are rejected", () => {
   const errs = validateVendorLock(repo(good, { version: "1.0.0", assets: [entry({ license: "CC-BY-NC-4.0" })] }));
   assert.match(errs.join("\n"), /license/i);
@@ -67,6 +450,21 @@ test("duplicate paths are rejected", () => {
 });
 test("a non-https source_url is rejected", () => {
   assert.match(validateVendorLock(repo(good, { version: "1.0.0", assets: [entry({ source_url: "http://x.test/a" })] })).join("\n"), /source_url/);
+});
+
+test("vendor and source_revision are required for every lock entry", () => {
+  const withoutVendor = entry();
+  delete withoutVendor.vendor;
+  const withoutRevision = entry();
+  delete withoutRevision.source_revision;
+  assert.match(validateVendorLock(repo(good, { version: "1.0.0", assets: [withoutVendor] })).join("\n"), /vendor must be a non-empty string/);
+  assert.match(validateVendorLock(repo(good, { version: "1.0.0", assets: [withoutRevision] })).join("\n"), /exactly one of source_revision or source_identity/);
+});
+
+test("pack_id must be non-empty when provided", () => {
+  for (const value of ["", " ", "\t", "\n", " \t\n"]) {
+    assert.match(validateVendorLock(repo(good, { version: "1.0.0", assets: [entry({ pack_id: value })] })).join("\n"), /pack_id must be a non-empty string/);
+  }
 });
 test("unknown top-level or entry keys are rejected (no silent schema drift)", () => {
   assert.match(validateVendorLock(repo({}, { version: "1.0.0", assets: [], extra: 1 })).join("\n"), /unknown/i);
@@ -87,9 +485,22 @@ test("a third-party file under client-godot/assets/external that is in neither r
   assert.match(errs.join("\n"), /unregistered/i);
 });
 test("a third-party file registered only in external-assets.json is accepted", () => {
-  const files = { "client-godot/assets/external/polyhaven/x/x.glb": "x" };
+  const files = { ...good, "client-godot/assets/external/polyhaven/x/x.glb": "x" };
   const manifest = { schema_version: 1, assets: [{ path: "polyhaven/x/x.glb", sha256: sha("x") }] };
-  assert.deepEqual(validateVendorLock(repo(files, undefined, manifest)), []);
+  const lock = { version: "1.0.0", assets: [entry()] };
+  assert.deepEqual(validateVendorLock(repo(files, lock, manifest)), []);
+});
+
+test("Godot import sidecars under external assets are ignored after import", () => {
+  const ext = "client-godot/assets/external/polyhaven/x/x.glb";
+  const files = {
+    ...good,
+    [ext]: "x",
+    [`${ext}.import`]: "Godot import metadata",
+    [`${ext}.uid`]: "Godot UID metadata"
+  };
+  const manifest = { schema_version: 1, assets: [{ path: "polyhaven/x/x.glb", sha256: sha("x") }] };
+  assert.deepEqual(validateVendorLock(repo(files, { version: "1.0.0", assets: [entry()] }, manifest)), []);
 });
 
 test("falsy or non-object JSON documents are rejected, never treated as an empty lock (Codex P2)", () => {
@@ -100,6 +511,267 @@ test("falsy or non-object JSON documents are rejected, never treated as an empty
     assert.ok(errs.length > 0, `body ${body} must fail`);
   }
 });
+test("Quaternius sources cannot be admitted through external-assets.json alone", () => {
+  const path = "quaternius/h05/monster.glb";
+  const bytes = "quaternius monster fixture";
+  const files = { ...good, [`client-godot/assets/external/${path}`]: bytes };
+  const manifest = {
+    schema_version: 1,
+    assets: [{
+      id: "quaternius-h05-monster",
+      path,
+      sha256: sha(bytes),
+      source_url: "https://quaternius.com/packs/ultimatemonsters.html",
+      download_url: "https://quaternius.com/downloads/ultimate-monsters.zip",
+      license: "CC0-1.0",
+      license_url: "https://creativecommons.org/publicdomain/zero/1.0/",
+      attribution: "Quaternius"
+    }]
+  };
+  const errors = validateVendorLock(
+    repo(files, { version: "1.0.0", assets: [entry()] }, manifest)
+  ).join("\n");
+  assert.match(errors, /must pin an exact admitted H05\/H06 archive or member SHA-256/);
+});
+
+
+test("Quaternius source URLs cannot be hidden by relabelling vendor and pack identity", () => {
+  const path = "vendor/kit/quaternius-derived.glb";
+  const bytes = "quaternius-derived fixture";
+  const source = entry({
+    path,
+    sha256: sha(bytes),
+    source_url: "https://www.quaternius.com:443/packs/ultimatemonsters.html",
+    vendor: "Independent Vendor",
+    pack_id: "independent:monster",
+    source_revision: sha("quaternius-archive")
+  });
+  const errors = validateVendorLock(
+    repo({ ...good, [path]: bytes }, { version: "1.0.0", assets: [entry(), source] })
+  ).join("\n");
+  assert.match(errors, /Admitted Quaternius source must/);
+});
+
+test("Quaternius H05/H06 archive digests cannot be hidden by neutral lock metadata", () => {
+  const cases = [
+    { harvest: "H05", digest: QUARANTINED_H05_SHA256, field: "sha256" },
+    { harvest: "H06", digest: QUARANTINED_H06_SHA256, field: "source_revision" }
+  ];
+  for (const fixture of cases) {
+    const path = "vendor/kit/neutral-" + fixture.harvest.toLowerCase() + ".zip";
+    const bytes = "neutral archive fixture " + fixture.harvest;
+    const source = entry({
+      path,
+      sha256: fixture.field === "sha256" ? fixture.digest : sha(bytes),
+      source_url: "https://independent.example/neutral.zip",
+      vendor: "Independent Vendor",
+      pack_id: "independent:archive",
+      source_revision: fixture.field === "source_revision"
+        ? fixture.digest
+        : sha("unrelated immutable revision").slice(0, 40)
+    });
+    const errors = validateVendorLock(
+      repo({ ...good, [path]: bytes }, { version: "1.0.0", assets: [entry(), source] })
+    ).join("\n");
+    assert.match(errors, /Admitted Quaternius source must/);
+  }
+
+  const identityPath = "vendor/kit/neutral-h05-identity.zip";
+  const identityBytes = "neutral archive identity fixture";
+  const identitySource = entry({
+    path: identityPath,
+    sha256: sha(identityBytes),
+    source_url: "https://independent.example/neutral-identity.zip",
+    vendor: "Independent Vendor",
+    pack_id: "independent:archive"
+  });
+  delete identitySource.source_revision;
+  identitySource.source_identity = "archive-sha256:" + QUARANTINED_H05_SHA256;
+  const identityErrors = validateVendorLock(
+    repo({ ...good, [identityPath]: identityBytes }, { version: "1.0.0", assets: [entry(), identitySource] })
+  ).join("\n");
+  assert.match(identityErrors, /Admitted Quaternius source must/);
+});
+
+test("Quaternius H05/H06 extracted member digests cannot be hidden by neutral lock metadata", () => {
+  const cases = [
+    { harvest: "H05", digest: QUARANTINED_H05_MEMBER_SHA256 },
+    { harvest: "H06", digest: QUARANTINED_H06_MEMBER_SHA256 }
+  ];
+  for (const fixture of cases) {
+    const path = "vendor/kit/neutral-" + fixture.harvest.toLowerCase() + ".glb";
+    const bytes = "neutral extracted member fixture " + fixture.harvest;
+    const source = entry({
+      path,
+      sha256: sha(bytes),
+      source_url: "https://independent.example/neutral.glb",
+      vendor: "Independent Vendor",
+      pack_id: "independent:archive",
+      source_revision: fixture.digest
+    });
+    const errors = validateVendorLock(
+      repo({ ...good, [path]: bytes }, { version: "1.0.0", assets: [entry(), source] })
+    ).join("\n");
+    assert.match(errors, /Admitted Quaternius source must/);
+  }
+});
+
+test("Quaternius H05/H06 extracted member digests cannot be hidden in external-assets.json", () => {
+  const path = "independent/neutral-member.glb";
+  const bytes = "neutral external member fixture";
+  const manifest = {
+    schema_version: 1,
+    assets: [{
+      id: "independent-member",
+      path,
+      sha256: sha(bytes),
+      source_url: "https://independent.example/source",
+      download_url: "https://independent.example/download.zip",
+      license: "CC0-1.0",
+      license_url: "https://creativecommons.org/publicdomain/zero/1.0/",
+      attribution: "Independent Vendor",
+      source_identity: "member-sha256:" + QUARANTINED_H06_MEMBER_SHA256
+    }]
+  };
+  const files = { ...good, ["client-godot/assets/external/" + path]: bytes };
+  const errors = validateVendorLock(
+    repo(files, { version: "1.0.0", assets: [entry()] }, manifest)
+  ).join("\n");
+  assert.ok(errors.includes("must identify the admitted Quaternius H05/H06 source: " + path), errors);
+});
+
+test("Quaternius H05 archive digest cannot be hidden in external-assets.json", () => {
+  const path = "independent/neutral-archive.zip";
+  const bytes = "neutral external archive fixture";
+  const manifest = {
+    schema_version: 1,
+    assets: [{
+      id: "independent-archive",
+      path,
+      sha256: QUARANTINED_H05_SHA256,
+      source_url: "https://independent.example/source",
+      download_url: "https://independent.example/neutral-archive.zip",
+      license: "CC0-1.0",
+      license_url: "https://creativecommons.org/publicdomain/zero/1.0/",
+      attribution: "Independent Vendor"
+    }]
+  };
+  const errors = validateVendorLock(
+    repo({ ...good, ["client-godot/assets/external/" + path]: bytes },
+      { version: "1.0.0", assets: [entry()] }, manifest)
+  ).join("\n");
+  assert.match(errors, /must identify the admitted Quaternius H05\/H06 source/);
+});
+
+test("Quaternius source and download URLs cannot be hidden in external-assets.json", () => {
+  const path = "independent/monster.glb";
+  const bytes = "quaternius manifest fixture";
+  const urls = [
+    ["source_url", "https://quaternius.com:443/packs/ultimatemonsters.html"],
+    ["download_url", "https://quaternius.itch.io/ultimate-monsters/download"],
+    ["source_url", "https://quaternius.com./packs/ultimatemonsters.html"]
+  ];
+  for (const [field, url] of urls) {
+    const files = { ...good, [`client-godot/assets/external/${path}`]: bytes };
+    const asset = {
+      id: "independent-monster",
+      path,
+      sha256: sha(bytes),
+      source_url: "https://independent.example/assets/monster",
+      download_url: "https://independent.example/downloads/monster.zip",
+      license: "CC0-1.0",
+      license_url: "https://creativecommons.org/publicdomain/zero/1.0/",
+      attribution: "Independent Vendor",
+      [field]: url
+    };
+    const manifest = { schema_version: 1, assets: [asset] };
+    const errors = validateVendorLock(
+      repo(files, { version: "1.0.0", assets: [entry()] }, manifest)
+    ).join("\n");
+    assert.match(errors, /must pin an exact admitted H05\/H06 archive or member SHA-256/);
+  }
+});
+
+test("vendor source URLs fail closed on malformed HTTPS hosts and ports", () => {
+  for (const source_url of [
+    "https://%",
+    "https://example.com:65536/archive.zip",
+    "https://example..com/archive.zip",
+    "https://-example.com/archive.zip",
+    "https://[2001:db8::1/archive.zip"
+  ]) {
+    const errors = validateVendorLock(
+      repo(good, { version: "1.0.0", assets: [entry({ source_url })] })
+    ).join("\n");
+    assert.match(errors, /source_url must be an absolute HTTPS URL with a valid hostname/, source_url);
+  }
+});
+
+test("external source and download URLs fail closed on malformed HTTPS hosts and ports", () => {
+  const path = "independent/monster.glb";
+  const bytes = "malformed URL fixture";
+  const cases = [
+    ["source_url", "https://%"],
+    ["download_url", "https://example.com:65536/download.zip"]
+  ];
+  for (const [field, url] of cases) {
+    const asset = {
+      id: "independent-monster",
+      path,
+      sha256: sha(bytes),
+      source_url: "https://independent.example/source",
+      download_url: "https://independent.example/download.zip",
+      license: "CC0-1.0",
+      license_url: "https://creativecommons.org/publicdomain/zero/1.0/",
+      attribution: "Independent Vendor",
+      [field]: url
+    };
+    const manifest = { schema_version: 1, assets: [asset] };
+    const errors = validateVendorLock(
+      repo({ ...good, ["client-godot/assets/external/" + path]: bytes },
+        { version: "1.0.0", assets: [entry()] }, manifest)
+    ).join("\n");
+    assert.match(errors, new RegExp(field + " must be an absolute HTTPS URL with a valid hostname"));
+  }
+});
+
+test("Quaternius URL matching rejects host lookalikes without overblocking", () => {
+  const path = "independent/monster.glb";
+  const bytes = "independent fixture";
+  const files = { ...good, [`client-godot/assets/external/${path}`]: bytes };
+  const manifest = {
+    schema_version: 1,
+    assets: [{
+      id: "independent-monster",
+      path,
+      sha256: sha(bytes),
+      source_url: "https://quaternius.com.evil.example/packs/monster",
+      license: "CC0-1.0",
+      license_url: "https://creativecommons.org/publicdomain/zero/1.0/",
+      attribution: "Independent Vendor"
+    }]
+  };
+  assert.deepEqual(
+    validateVendorLock(repo(files, { version: "1.0.0", assets: [entry()] }, manifest)),
+    []
+  );
+});
+
+test("external-assets.json rejects normalized path aliases", () => {
+  const canonicalPath = "quaternius/h05/monster.glb";
+  const aliasedPath = "../external/quaternius/h05/monster.glb";
+  const bytes = "quaternius monster fixture";
+  const files = { ...good, [`client-godot/assets/external/${canonicalPath}`]: bytes };
+  const manifest = {
+    schema_version: 1,
+    assets: [{ id: "quaternius-h05-monster", path: aliasedPath, sha256: sha(bytes) }]
+  };
+  const errors = validateVendorLock(
+    repo(files, { version: "1.0.0", assets: [entry()] }, manifest)
+  ).join("\n");
+  assert.match(errors, /external-assets\.json.*canonical repository-relative path/);
+});
+
 test("a malformed external-assets.json fails closed", () => {
   const root = repo({}, undefined, null);
   mkdirSync(join(root, "client-godot/assets"), { recursive: true });
@@ -123,4 +795,261 @@ test("a symlinked licence directory is rejected too", () => {
   const root = repo({ "vendor/kit/palm.glb": "palm" }, { version: "1.0.0", assets: [entry({ license_path: "lic/LICENSE.txt" })] });
   symlinkSync(outside, join(root, "lic"));
   assert.match(validateVendorLock(root).join("\n"), /symlink|outside|license file/i);
+});
+
+
+const SOURCE_REVISION = "1234567890abcdef1234567890abcdef12345678";
+function sourceEntry(overrides = {}) {
+  return entry({
+    path: "assets-src/H01/palm.glb", vendor: "Kenney",
+    source_revision: SOURCE_REVISION, ...overrides
+  });
+}
+test("incoming assets-src import with verified vendor and revision passes", () => {
+  const files = { "assets-src/H01/palm.glb": "palm", "vendor/kit/LICENSE.txt": "CC0" };
+  assert.deepEqual(validateVendorLock(repo(files, { version: "1.0.0", assets: [sourceEntry()] })), []);
+});
+
+test("a 64-character source revision for a source archive must match the exact archive SHA-256", () => {
+  const path = "assets-src/H01/kenney-pirate-kit.zip";
+  const bytes = "archive bytes";
+  const digest = sha(bytes);
+  const files = { [path]: bytes, "vendor/kit/LICENSE.txt": "CC0" };
+  const base = {
+    path,
+    sha256: digest,
+    source_url: "https://kenney.nl/media/pages/assets/pirate-kit/archive.zip",
+    pack_id: "kenney:H01-pirate-kit-2.1"
+  };
+  const mismatched = sourceEntry({ ...base, source_revision: sha("different archive") });
+  const errors = validateVendorLock(repo(files, { version: "1.0.0", assets: [mismatched] })).join("\n");
+  assert.match(errors, /archive source_revision must equal sha256/);
+
+  const matching = sourceEntry({ ...base, source_revision: digest });
+  assert.deepEqual(validateVendorLock(repo(files, { version: "1.0.0", assets: [matching] })), []);
+});
+test("incoming assets-src unlisted binary is rejected with its real SHA-256", () => {
+  const errs = validateVendorLock(repo({ "assets-src/H01/palm.glb": "palm" })).join("\n");
+  assert.match(errs, /unlisted import/);
+  assert.ok(errs.includes(sha("palm")));
+});
+test("incoming assets-src altered binary is rejected with both hashes", () => {
+  const files = { "assets-src/H01/palm.glb": "changed", "vendor/kit/LICENSE.txt": "CC0" };
+  const errs = validateVendorLock(repo(files, { version: "1.0.0", assets: [sourceEntry()] })).join("\n");
+  assert.match(errs, /sha256 mismatch/);
+  assert.ok(errs.includes(sha("palm")) && errs.includes(sha("changed")));
+});
+test("incoming assets-src cannot omit exact source revision or vendor identity", () => {
+  const files = { "assets-src/H01/palm.glb": "palm", "vendor/kit/LICENSE.txt": "CC0" };
+  for (const override of [{ source_revision: "latest" }, { vendor: "" }]) {
+    const errs = validateVendorLock(repo(files, { version: "1.0.0", assets: [sourceEntry(override)] })).join("\n");
+    assert.match(errs, /source_revision|vendor provenance/);
+  }
+});
+test("incoming assets-src symlinks are rejected", () => {
+  const root = repo({});
+  mkdirSync(join(root, "assets-src"), { recursive: true });
+  symlinkSync("/etc/passwd", join(root, "assets-src", "escape.bin"));
+  assert.match(validateVendorLock(root).join("\n"), /symlink rejected/);
+});
+
+test("a deleted locked source file fails closed", () => {
+  const root = repo({ "vendor/kit/LICENSE.txt": "CC0" }, { version: "1.0.0", assets: [sourceEntry()] });
+  assert.match(validateVendorLock(root).join("\n"), /locked import missing/);
+});
+test("a missing assets-src directory fails when source imports are locked", () => {
+  const root = repo({ "vendor/kit/LICENSE.txt": "CC0" }, { version: "1.0.0", assets: [sourceEntry()] });
+  assert.match(validateVendorLock(root).join("\n"), /locked import missing/);
+});
+test("a dangling assets-src root symlink is rejected", () => {
+  const root = repo({ "vendor/kit/LICENSE.txt": "CC0" }, { version: "1.0.0", assets: [sourceEntry()] });
+  symlinkSync(join(root, "missing-source-archive"), join(root, "assets-src"), "dir");
+  assert.match(validateVendorLock(root).join("\n"), /assets-src: must be a real directory/);
+});
+test("a stale source lock entry fails despite another valid import", () => {
+  const files = { "assets-src/H01/palm.glb": "palm", "vendor/kit/LICENSE.txt": "CC0" };
+  const stale = sourceEntry({ path: "assets-src/H01/deleted.glb" });
+  const errs = validateVendorLock(repo(files, { version: "1.0.0", assets: [sourceEntry(), stale] })).join("\n");
+  assert.ok(errs.includes("locked import missing assets-src/H01/deleted.glb"));
+});
+test("all present locked source imports continue to pass", () => {
+  const files = { "assets-src/H01/palm.glb": "palm", "vendor/kit/LICENSE.txt": "CC0" };
+  assert.deepEqual(validateVendorLock(repo(files, { version: "1.0.0", assets: [sourceEntry()] })), []);
+});
+
+
+test("every committed vendor entry pins the exact bytes of its licence file", () => {
+  const lock = JSON.parse(readFileSync(new URL("../vendor.lock.json", import.meta.url), "utf8"));
+  for (const asset of lock.assets) {
+    const licenseBytes = readFileSync(new URL(`../${asset.license_path}`, import.meta.url));
+    const actual = createHash("sha256").update(licenseBytes).digest("hex");
+    assert.equal(asset.license_sha256, actual, asset.path);
+  }
+});
+
+test("committed Corsairs naval-math sources pin the immutable upstream revision and MIT notice", () => {
+  const lock = JSON.parse(readFileSync(new URL("../vendor.lock.json", import.meta.url), "utf8"));
+  const entries = lock.assets.filter((asset) => asset.pack_id === "corsairs:naval-math");
+  assert.equal(entries.length, 7);
+  assert.ok(entries.every((asset) =>
+    asset.source_revision === "22467f438be328924e6abf0578e970943eb0fd88" &&
+    asset.license === "MIT" &&
+    asset.license_path === "LICENSES/MIT-Corsairs.txt"
+  ));
+  assert.deepEqual(
+    entries.map((asset) => asset.path).sort(),
+    [
+      "assets-src/corsairs/core/ammo.gd",
+      "assets-src/corsairs/core/boarding.gd",
+      "assets-src/corsairs/core/combat.gd",
+      "assets-src/corsairs/core/sailing.gd",
+      "assets-src/corsairs/core/ship.gd",
+      "assets-src/corsairs/core/ship_types.gd",
+      "LICENSES/MIT-Corsairs.txt"
+    ].sort()
+  );
+  const license = readFileSync(new URL("../LICENSES/MIT-Corsairs.txt", import.meta.url), "utf8");
+  assert.ok(license.includes("Copyright (c) 2026 Elkhan Isayev"));
+});
+
+const vendorLockEntrySchema = JSON.parse(readFileSync(new URL("../schemas/vendor-lock.schema.json", import.meta.url), "utf8"))
+  .properties.assets.items.properties;
+const vendorSchema = vendorLockEntrySchema.vendor;
+test("vendor JSON Schema rejects whitespace-only provenance values just like runtime validation", () => {
+  assert.equal(vendorSchema.minLength, 1);
+  assert.equal(vendorSchema.pattern, "\\S");
+  const nonWhitespace = new RegExp(vendorSchema.pattern);
+  for (const value of [" ", "\t", "\n", " \t\n"]) {
+    assert.equal(nonWhitespace.test(value), false, JSON.stringify(value));
+    const errors = validateVendorLock(repo(good, { version: "1.0.0", assets: [entry({ vendor: value })] })).join("\n");
+    assert.match(errors, /vendor must be a non-empty string/);
+  }
+  assert.equal(nonWhitespace.test("Kenney"), true);
+  assert.equal(nonWhitespace.test("Poly Haven"), true);
+});
+
+
+test("vendor JSON Schema constrains asset and licence paths to repository-relative lexical paths", () => {
+  assert.equal(vendorLockEntrySchema.path.pattern, "^(?=.*\\S)(?!/)(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.?(/|$))(?!.*\\\\).+$");
+  assert.equal(vendorLockEntrySchema.license_path.pattern, vendorLockEntrySchema.path.pattern);
+  const safe = new RegExp(vendorLockEntrySchema.path.pattern);
+  for (const value of ["../outside.glb", "/tmp/file", "C:\\tmp\\file", "assets/../outside.glb", "assets/./file.glb", "\\\\server\\share", " \t\n"]) {
+    assert.equal(safe.test(value), false, JSON.stringify(value));
+  }
+  for (const value of ["assets-src/corsairs/core/ammo.gd", "client-godot/assets/external/polyhaven/model.glb"]) {
+    assert.equal(safe.test(value), true, value);
+  }
+});
+
+test("vendor JSON Schema rejects whitespace-only license paths and pack IDs", () => {
+  assert.equal(vendorLockEntrySchema.pack_id.pattern, "\\S");
+  for (const field of ["license_path", "pack_id"]) {
+    const pattern = new RegExp(vendorLockEntrySchema[field].pattern);
+    for (const value of [" ", "\t", "\n", " \t\n"]) {
+      assert.equal(pattern.test(value), false, `${field}: ${JSON.stringify(value)}`);
+    }
+    assert.equal(pattern.test(field === "license_path" ? "LICENSES/MIT-Corsairs.txt" : "kenney:pirate-pack"), true);
+  }
+});
+
+test("vendor JSON Schema requires exactly one immutable source revision or per-file identity", () => {
+  const schema = JSON.parse(readFileSync(new URL("../schemas/vendor-lock.schema.json", import.meta.url), "utf8"));
+  const item = schema.properties.assets.items;
+  assert.ok(item.required.includes("vendor"));
+  assert.ok(item.oneOf.some((choice) => choice.required?.includes("source_revision")));
+  assert.ok(item.oneOf.some((choice) => choice.required?.includes("source_identity")));
+  assert.equal(item.properties.source_identity.pattern, "^polyhaven-file:[a-z0-9_-]+/[A-Za-z0-9._/-]+@sha256:[0-9a-f]{64}$");
+  assert.equal(item.then.properties.vendor.const, "Poly Haven");
+});
+
+test("Poly Haven per-file identity must match its official asset page, pack, path and SHA-256", () => {
+  const path = "client-godot/assets/external/polyhaven/coast_rocks_05/textures/coast_rocks_05_diff_1k.jpg";
+  const bytes = "texture bytes";
+  const digest = sha(bytes);
+  const entry = {
+    path,
+    sha256: digest,
+    license: "CC0-1.0",
+    license_path: "vendor/kit/LICENSE.txt",
+    license_sha256: sha("CC0"),
+    source_url: "https://polyhaven.com/a/coast_rocks_05",
+    vendor: "Poly Haven",
+    pack_id: "polyhaven:coast_rocks_05",
+    source_identity: `polyhaven-file:coast_rocks_05/textures/coast_rocks_05_diff_1k.jpg@sha256:${digest}`
+  };
+  const files = { [path]: bytes, "vendor/kit/LICENSE.txt": "CC0" };
+  assert.deepEqual(validateVendorLock(repo(files, { version: "1.0.0", assets: [entry] })), []);
+  for (const override of [
+    { source_url: "https://polyhaven.com/a/other_asset" },
+    { pack_id: "polyhaven:other_asset" },
+    { source_identity: entry.source_identity.replace("coast_rocks_05", "other_asset") },
+    { source_revision: "a".repeat(40) }
+  ]) {
+    const errors = validateVendorLock(repo(files, { version: "1.0.0", assets: [{ ...entry, ...override }] })).join("\n");
+    assert.match(errors, /source_identity|exactly one/);
+  }
+});
+
+test("Poly Haven per-file identity cannot traverse outside its slug directory", () => {
+  const path = "client-godot/assets/external/polyhaven/palm/../../other/x.glb";
+  const bytes = "x";
+  const digest = sha(bytes);
+  const asset = {
+    path,
+    sha256: digest,
+    license: "CC0-1.0",
+    license_path: "vendor/kit/LICENSE.txt",
+    license_sha256: sha("CC0"),
+    source_url: "https://polyhaven.com/a/palm",
+    vendor: "Poly Haven",
+    pack_id: "polyhaven:palm",
+    source_identity: `polyhaven-file:palm/../../other/x.glb@sha256:${digest}`
+  };
+  const files = {
+    "client-godot/assets/external/other/x.glb": bytes,
+    "vendor/kit/LICENSE.txt": "CC0"
+  };
+  const errors = validateVendorLock(repo(files, { version: "1.0.0", assets: [asset] })).join("\n");
+  assert.match(errors, /canonical repository-relative path|Poly Haven asset path must stay inside its slug directory/);
+});
+
+test("the committed Poly Haven lock keeps all 64 exact per-file source identities executable", () => {
+  const lock = JSON.parse(readFileSync(new URL("../vendor.lock.json", import.meta.url), "utf8"));
+  const entries = lock.assets.filter((asset) => asset.vendor === "Poly Haven");
+  assert.equal(entries.length, 64);
+  for (const asset of entries) {
+    assert.equal(asset.source_revision, undefined, asset.path);
+    const prefix = "client-godot/assets/external/polyhaven/";
+    assert.ok(asset.path.startsWith(prefix), asset.path);
+    const parts = asset.path.slice(prefix.length).split("/");
+    const slug = parts.shift();
+    const relativeFile = parts.join("/");
+    assert.ok(parts.length > 0 && parts.every((part) => part !== "" && part !== "." && part !== ".."), asset.path);
+    assert.equal(asset.path.includes("\\"), false, asset.path);
+    assert.equal(asset.source_url, `https://polyhaven.com/a/${slug}`, asset.path);
+    assert.equal(asset.pack_id, `polyhaven:${slug}`, asset.path);
+    assert.equal(asset.source_identity, `polyhaven-file:${slug}/${relativeFile}@sha256:${asset.sha256}`, asset.path);
+  }
+});
+
+
+test("checked-in Quaternius acquisition evidence pins exact bytes and records CC0 admission", () => {
+  const registry = JSON.parse(readFileSync(
+    new URL("../docs/vendor/quarantine/quaternius-h05-h06.json", import.meta.url),
+    "utf8"
+  ));
+
+  assert.deepEqual(registry.acquisition_evidence, QUARANTINE_ACQUISITION_EVIDENCE);
+  assert.equal(registry.status, "SOURCE_ARCHIVES_ADMITTED");
+  assert.equal(registry.public_source_redistribution, "ALLOWED_UNDER_CC0");
+  assert.equal(registry.production_admission, "ADMITTED");
+  assert.equal(registry.sources.length, 2);
+  const files = {
+    ...good,
+    [QUARANTINE_PATH]: JSON.stringify(registry)
+  };
+  assert.deepEqual(
+    validateVendorLock(repo(files, { version: "1.0.0", assets: [entry()] })),
+    []
+  );
 });
