@@ -13,6 +13,7 @@ import { createDbPool } from "./db.js";
 import { isGameplayAccessToken, registerAuthRoutes, verifyGameplayRequest } from "./auth.js";
 import { registerCreatureResearchRoutes } from "./creature-research-routes.js";
 import { registerDailyObjectiveRoutes } from "./daily-objectives.js";
+import { registerCitadelRoutes } from "./citadel.js";
 import { registerExpeditionRoutes } from "./expeditions.js";
 import { registerGuildObjectiveRoutes } from "./guild-objectives.js";
 import { log } from "./logger.js";
@@ -829,6 +830,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     for (const socket of userSockets.get(userId) ?? []) send(socket, { type: "player_state", state: serializePlayerState(player) });
   };
   registerDailyObjectiveRoutes(app, db, players, pushPlayerState);
+  registerCitadelRoutes(app, db, players, bases, pushPlayerState);
   registerExpeditionRoutes(app, db, players, pushPlayerState);
   registerGuildObjectiveRoutes(app, db, players, pushPlayerState);
 
