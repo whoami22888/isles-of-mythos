@@ -46,6 +46,30 @@ describe("base foundation",()=>{
     expect(productionFor(base,60_000)).toEqual({});
     expect(productionFor({...base,workers:[{...base.workers[0],creatureX:12.5,creatureY:20.5}]},60_000)).toEqual({wood:20});
   });
+  it("applies authoritative elemental work-yield multipliers",()=>{
+    const forge={
+      buildings:[
+        {id:"cc",baseId:"b",type:"command_centre" as const,level:1,gridX:0,gridY:0,active:true},
+        {id:"forge",baseId:"b",type:"forge" as const,level:1,gridX:1,gridY:0,active:true},
+      ],
+      workers:[{creatureId:"fire-1",baseId:"b",buildingId:"forge",task:"ore_smelting" as const,element:"fire"}],
+      workPriorities:["ore_smelting"],
+      storage:{iron:100,steel:0},
+    };
+    // Level 1 forge is 4 steel / 8 iron per minute; fire ore_smelting yields 1.6x output only.
+    expect(productionFor(forge,60_000)).toEqual({steel:6,iron:-8});
+    expect(productionFor({...forge,workers:[{...forge.workers[0],element:"earth"}]},60_000)).toEqual({steel:4,iron:-8});
+    const farm={
+      buildings:[
+        {id:"cc",baseId:"b",type:"command_centre" as const,level:1,gridX:0,gridY:0,active:true},
+        {id:"farm",baseId:"b",type:"farm" as const,level:1,gridX:1,gridY:0,active:true},
+      ],
+      workers:[{creatureId:"water-1",baseId:"b",buildingId:"farm",task:"irrigation" as const,element:"water"}],
+      workPriorities:["irrigation"],
+      storage:{food:0},
+    };
+    expect(productionFor(farm,60_000)).toEqual({food:11});
+  });
   it("caps storage from authoritative building levels",()=>{
     const base={buildings:[{id:"s",baseId:"b",type:"storage" as const,level:2,gridX:1,gridY:0,active:true}]};
     expect(storageCapacity(base)).toBe(3000);

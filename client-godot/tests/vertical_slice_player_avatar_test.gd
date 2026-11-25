@@ -58,12 +58,17 @@ func _check_faces(avatar: Node3D, skeleton: Skeleton3D, want: Vector2, label: St
 	check(toes.dot(want) > 0.8, "%s: the rig's toes point along %s, got %s" % [label, want, toes])
 
 func run() -> void:
+	# This test exercises normal gameplay, so capture-only diagnostics must be disabled.
+	OS.set_environment("IOM_VERTICAL_SLICE_OUTPUT_DIR", "")
 	var world = Scene.instantiate()
 	root.add_child(world)
 	await _frames(2)
 	var coastal := world.get_node_or_null("CoastalWorld") as Node3D
 	var player_proxy := world.get_node("ServerPlayerRepresentation") as Node3D
 	var avatar := player_proxy.get_node("PlayerAvatar") as Node3D
+	check(player_proxy.get_node_or_null("FallbackDiagnosticOverlay") == null
+		and avatar.get_node_or_null("FallbackDiagnosticOverlay") == null,
+		"capture-only fallback overlay must stay out of normal gameplay")
 	check(coastal != null, "coastal world mounted")
 	check(avatar.has_method("is_character_mounted") and avatar.is_character_mounted(), "rigged character mounted")
 	if coastal == null or not avatar.is_character_mounted():
