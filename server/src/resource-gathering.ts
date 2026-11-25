@@ -170,10 +170,9 @@ export async function gatherResource(
     const respawnsAt = updatedNode.rows[0]?.depleted_until;
     if (!respawnsAt) throw new Error("RESOURCE_NODE_UPDATE_FAILED");
 
-    await client.query(
-      "UPDATE resource_gather_requests SET respawns_at=$3,updated_at=CURRENT_TIMESTAMP WHERE user_id=$1 AND request_id=$2",
-      [userId, requestId, respawnsAt],
-    );
+    // PostgreSQL CURRENT_TIMESTAMP is fixed at transaction start, so the ledger
+    // deadline inserted above already matches this node deadline. Avoid a second
+    // ledger UPDATE on the latency-sensitive gather path.
 
     await commit();
     return {
