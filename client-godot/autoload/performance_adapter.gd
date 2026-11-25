@@ -91,20 +91,25 @@ func _process(delta: float) -> void:
 	var evaluation_elapsed := _evaluation_elapsed
 	_evaluation_elapsed = 0.0
 	var summary := _summarize_window(now_usec)
+	# Do not make a scaling decision until the complete 2-second window exists.
+	_apply_window_summary(summary, evaluation_elapsed)
+
+
+func _apply_window_summary(summary: Vector2, evaluation_elapsed: float) -> bool:
 	var samples := int(summary.y)
-	if samples <= 0 or summary.x <= 0.0:
-		return
+	if samples <= 0 or not has_full_window_coverage(summary.x):
+		return false
 
 	_last_average_frame_ms = summary.x / float(samples)
 	if _last_average_frame_ms <= 0.0 or not is_finite(_last_average_frame_ms):
-		return
+		return false
 	_last_rolling_fps = 1000.0 / _last_average_frame_ms
 
 	# Engine monitors are retained as rolling diagnostics. The delta-derived
 	# interval clock remains authoritative because IOM07 measured TIME_PROCESS
 	# divergence from actual frame intervals on Xvfb.
-
 	apply_metrics_sample(_last_rolling_fps, _last_average_frame_ms, evaluation_elapsed)
+	return true
 
 
 func _record_sample(timestamp_usec: int, frame_ms: float, engine_fps: float, engine_process_ms: float) -> void:
@@ -156,6 +161,10 @@ func _summarize_window(now_usec: int) -> Vector2:
 func _clear_window() -> void:
 	_write_index = 0
 	_sample_count = 0
+
+
+static func has_full_window_coverage(total_frame_ms: float) -> bool:
+	return is_finite(total_frame_ms) and total_frame_ms >= (float(WINDOW_USEC) / 1000.0)
 
 
 ## Public injection point used by deterministic tests and diagnostics.

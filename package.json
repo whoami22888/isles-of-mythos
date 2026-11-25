@@ -15,14 +15,15 @@
     "dev:server": "npm run dev -w server",
     "build": "npm run build -w client && npm run build -w server",
     "typecheck": "npm run typecheck -w client && npm run typecheck -w server",
-    "test": "npm run test -w client && npm run test -w server && python3 -m unittest discover -s client-godot/tests -p test_ocean_shader.py",
+    "test": "npm run test -w client && npm run test -w server && python3 -m unittest discover -s client-godot/tests -p test_ocean_shader.py && npm run test:performance-telemetry",
     "lint": "npm run lint:eslint",
     "migrate:up": "npm run migrate:up -w server",
     "migrate:down": "npm run migrate:down -w server",
     "lint:eslint": "eslint client/src server/src --max-warnings=0",
     "lint:ts": "npm run typecheck",
     "test:orchestration": "node --test scripts/orchestration-control.test.mjs",
-    "test:review-controller": "node --test scripts/review-controller.test.mjs"
+    "test:review-controller": "node --test scripts/review-controller.test.mjs",
+    "test:performance-telemetry": "node --test scripts/host-io-telemetry.test.mjs scripts/sample-postgres-waits.test.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
