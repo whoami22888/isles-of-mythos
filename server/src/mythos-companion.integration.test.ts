@@ -45,6 +45,8 @@ describe("mythos companion persistence", () => {
       expect(petted.xp_multiplier).toBe(2);
       expect(petted.work_output_max).toBe(true);
 
+      // New profiles are seeded with creature.feed; clear it to assert the empty path.
+      await t.db.query("UPDATE player_profiles SET inventory = inventory || '{\"creature.feed\":0}'::jsonb WHERE user_id=$1", [t.userId]);
       const noFeed = await t.app.inject({
         method: "POST",
         url: `/creatures/${t.creatureId}/care`,
