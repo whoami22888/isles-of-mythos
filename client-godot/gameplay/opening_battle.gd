@@ -1,6 +1,6 @@
 extends Node3D
 ## Client-only opening battle. No server calls. After it ends, boot's
-## authenticated session is handed to the existing gameplay scene.
+## authenticated session is handed to the washed-ashore island.
 
 const SHIP_SCENE := "res://assets/external/polyhaven/dutch_ship_medium/dutch_ship_medium_1k.gltf"
 const SAIL_ALBEDO := "res://assets/external/polyhaven/dutch_ship_medium/textures/dutch_ship_medium_sails_rgba_1k.png"
@@ -286,7 +286,7 @@ func _finish_opening() -> void:
 	var cfg := ConfigFile.new()
 	cfg.set_value("opening", "completed", true)
 	cfg.save(FLAG_PATH)
-	var packed = load("res://gameplay/vertical_slice.tscn")
+	var packed = load("res://gameplay/ashore/washed_ashore.tscn")
 	if packed == null:
 		return
 	var gameplay = packed.instantiate()

@@ -1345,7 +1345,7 @@ func _launch_internal_gameplay(message: Dictionary) -> void:
     if _adapter._url.is_empty() or _adapter._token.is_empty():
         return
     _release_title_media()
-    var scene_path := "res://gameplay/vertical_slice.tscn"
+    var scene_path := "res://gameplay/ashore/washed_ashore.tscn"
     if not _opening_battle_done():
         scene_path = "res://gameplay/opening_battle.tscn"
     var gameplay = load(scene_path).instantiate()
