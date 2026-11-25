@@ -15,8 +15,8 @@ const LICENSES = new Set(["CC0-1.0", "CC-BY-4.0", "CC-BY-SA-4.0", "MIT", "Apache
 const HASH = /^[0-9a-f]{64}$/;
 const TOP_KEYS = new Set(["$schema", "version", "assets"]);
 const ENTRY_KEYS = new Set(["path", "sha256", "license", "license_path", "license_sha256", "source_url", "vendor", "source_revision", "source_identity", "pack_id"]);
-const EXTERNAL_DIR = join("client-godot", "assets", "external");
-const QUARANTINE_REGISTRY_PATH = join("docs", "vendor", "quarantine", "quaternius-h05-h06.json");
+const EXTERNAL_DIR = "client-godot/assets/external";
+const QUARANTINE_REGISTRY_PATH = "docs/vendor/quarantine/quaternius-h05-h06.json";
 const QUARANTINE_MEMBER_HASH_MANIFEST_PATH = "docs/vendor/quarantine/quaternius-h05-h06-member-hashes.bin";
 const QUARANTINE_MEMBER_HASH_MANIFEST = Object.freeze({
   path: QUARANTINE_MEMBER_HASH_MANIFEST_PATH,
@@ -411,7 +411,7 @@ function validateVendorLock(root = resolve(__dirname, "..")) {
     errors.push("vendor.lock.json: assets must contain at least one verified dependency; an empty lock does not prove Prompt 001 source admission");
   }
 
-  const manifestRelativePath = join("client-godot", "assets", "external-assets.json");
+  const manifestRelativePath = "client-godot/assets/external-assets.json";
   const manifestFile = canonicalRepoPath(root, manifestRelativePath);
   let manifest = null;
   if (!manifestFile) {
@@ -575,7 +575,7 @@ function validateVendorLock(root = resolve(__dirname, "..")) {
   return errors;
 }
 
-module.exports = { validateVendorLock, LICENSES, normalizeRepositoryRelativePath };
+module.exports = { validateVendorLock, LICENSES, normalizeRepositoryRelativePath, canonicalRepoPath };
 
 if (require.main === module) {
   const errors = validateVendorLock();
