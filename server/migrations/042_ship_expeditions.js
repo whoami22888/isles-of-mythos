@@ -2,8 +2,8 @@
 // duration; the reward is fixed per route and is credited exactly once on collect.
 // While away the ship is 'docked' (an existing, previously unused player_ships status),
 // so existing sail/naval code that requires 'active' already refuses it.
-// Rollback: `down` drops the table; no other table depends on it. Ships left 'docked'
-// by an uncollected expedition must be set back to 'active' by the operator first.
+// Rollback: `down` first returns every ship on an uncollected expedition to 'active'
+// (undoing the dock that `start` applied), then drops the table. No other table depends on it.
 export const up = (pgm) => {
   pgm.createTable("ship_expeditions", {
     id: { type: "uuid", primaryKey: true, default: pgm.func("gen_random_uuid()") },
@@ -24,5 +24,7 @@ export const up = (pgm) => {
 };
 
 export const down = (pgm) => {
+  pgm.sql(`UPDATE player_ships SET status='active', updated_at=CURRENT_TIMESTAMP
+           WHERE status='docked' AND id IN (SELECT ship_id FROM ship_expeditions WHERE collected_at IS NULL)`);
   pgm.dropTable("ship_expeditions");
 };
