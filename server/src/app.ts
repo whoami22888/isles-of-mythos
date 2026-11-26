@@ -14,6 +14,7 @@ import { isGameplayAccessToken, registerAuthRoutes, verifyGameplayRequest } from
 import { registerCreatureResearchRoutes } from "./creature-research-routes.js";
 import { registerDailyObjectiveRoutes } from "./daily-objectives.js";
 import { registerCitadelRoutes } from "./citadel.js";
+import { registerNpcCrewRoutes } from "./economy/npc_crew_store.js";
 import { registerMythosCompanionRoutes } from "./mythos-companion.js";
 import { registerExpeditionRoutes } from "./expeditions.js";
 import { registerGuildObjectiveRoutes } from "./guild-objectives.js";
@@ -940,6 +941,8 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       }
     },
   );
+
+  registerNpcCrewRoutes(app, db, players);
 
   app.get("/ws", { websocket: true, config: { rateLimit: { max: 2000, timeWindow: "1 minute" } } }, (socket: WebSocket) => {
     sockets.add(socket);
