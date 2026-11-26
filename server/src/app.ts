@@ -17,6 +17,7 @@ import { registerCitadelRoutes } from "./citadel.js";
 import { registerMythosCompanionRoutes } from "./mythos-companion.js";
 import { registerExpeditionRoutes } from "./expeditions.js";
 import { registerGuildObjectiveRoutes } from "./guild-objectives.js";
+import { registerPurchaseRoutes } from "./economy/purchase_handler.js";
 import { log } from "./logger.js";
 import { parseClientMessage, type ServerMessage } from "./protocol.js";
 import { PLAYER_MAX_HEALTH, PlayerStore, serializePlayerState } from "./player.js";
@@ -940,6 +941,8 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       }
     },
   );
+
+  registerPurchaseRoutes(app, db, players);
 
   app.get("/ws", { websocket: true, config: { rateLimit: { max: 2000, timeWindow: "1 minute" } } }, (socket: WebSocket) => {
     sockets.add(socket);
