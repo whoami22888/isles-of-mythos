@@ -53,6 +53,7 @@ import { PostgresAntiCheatEvidenceSink } from "./anti-cheat-evidence-store.js";
 import { RedisAntiCheatStateStore } from "./anti-cheat-store.js";
 import { createMutationTiming, measureMutationStage, runTimedMutation, type MutationTiming, type MutationTimingSnapshot } from "./mutation-timing.js";
 import { runReplayableRequest, type RequestDuplicateOutcome } from "./request-coordinator.js";
+import { connectRedisBufferClient, RedisWriteBackBuffer, runWithOptionalRequestLock } from "./storage/redis_buffer.js";
 import { BACKLOG_CLOSE_CODE, BACKLOG_CLOSE_REASON, MessageBacklogGuard, reportMessageFailure } from "./ws-backlog.js";
 import { buildCreatureSnapshotFrames, CreatureTooLargeError } from "./creature-snapshot.js";
 
@@ -137,6 +138,10 @@ export interface BuildAppOptions {
   antiCheatRedisUrl?: string;
   /** When true (and no `antiCheat` is injected), anti-cheat evidence is persisted to PostgreSQL. */
   persistAntiCheatEvidence?: boolean;
+  /** Injected write-back buffer (tests). When omitted, `sessionBufferRedisUrl` creates one. */
+  sessionBuffer?: RedisWriteBackBuffer;
+  /** When set (and no `sessionBuffer` is injected), ephemeral request locks and session write-back use Redis. */
+  sessionBufferRedisUrl?: string;
 }
 
 export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyInstance> {
@@ -165,6 +170,33 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     store: options.antiCheatRedisUrl ? new RedisAntiCheatStateStore({ url: options.antiCheatRedisUrl }) : undefined,
     sink: options.persistAntiCheatEvidence ? new PostgresAntiCheatEvidenceSink(db) : undefined,
   });
+
+  const ownsSessionBuffer = options.sessionBuffer === undefined && Boolean(options.sessionBufferRedisUrl);
+  const sessionBuffer = options.sessionBuffer ?? (options.sessionBufferRedisUrl
+    ? new RedisWriteBackBuffer({
+      redis: connectRedisBufferClient(options.sessionBufferRedisUrl),
+      ownsRedis: true,
+      flushToPostgres: async (userId, state) => {
+        const player = players.get(userId);
+        if (!player) return;
+        if (state.x !== undefined) player.x = state.x;
+        if (state.y !== undefined) player.y = state.y;
+        if (state.health !== undefined) player.health = state.health;
+        players.markDirty(userId);
+        await players.persistDirty();
+      },
+    })
+    : undefined);
+  sessionBuffer?.start();
+  const lockDuplicate = (): ServerMessage => ({ type: "error", code: "REQUEST_DUPLICATE" });
+  const bufferSession = (userId: string): void => {
+    if (!sessionBuffer) return;
+    const player = players.get(userId);
+    if (!player) return;
+    void sessionBuffer.bufferSessionState(userId, { x: player.x, y: player.y, health: player.health }).catch((error) => {
+      log("session_buffer_failed", { message: error instanceof Error ? error.message : String(error) });
+    });
+  };
   // Anti-cheat observation is diagnostic and never gates a gameplay mutation: hard validity checks run in the
   // authoritative handlers/transactions. Observations are therefore fire-and-forget so a slow or failed
   // detection store can neither delay nor change the outcome of an action.
@@ -335,7 +367,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     }
     const previous = pendingCreatureOperations.get(userId) ?? Promise.resolve();
     const task = previous.catch(() => undefined).then(async () => {
-      const response = await operation();
+      const response = await runWithOptionalRequestLock(sessionBuffer, requestId, operation, lockDuplicate);
       creatureReplay.remember(userId, requestId, fingerprint, response);
       return response;
     });
@@ -362,7 +394,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       userId,
       requestId,
       fingerprint,
-      operation,
+      () => runWithOptionalRequestLock(sessionBuffer, requestId, operation, lockDuplicate),
       { type: "error", code: "INVALID_MESSAGE" },
       (outcome) => recordRequestDuplicate(userId, outcome),
     );
@@ -389,7 +421,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       recordRequestDuplicate(userId, "COALESCED");
       return existing;
     }
-    const task = Promise.resolve().then(operation).then((response) => {
+    const task = Promise.resolve().then(() => runWithOptionalRequestLock(sessionBuffer, requestId, operation, lockDuplicate)).then((response) => {
       baseReplay.remember(userId, requestId, fingerprint, response);
       return response;
     });
@@ -420,6 +452,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         player.health = result.health;
         players.markDirty(userId);
         for (const socket of userSockets.get(userId) ?? []) send(socket, { type: "player_state", state: serializePlayerState(player) });
+        bufferSession(userId);
       }
       if (result.statuses.length === 0) playerStatuses.delete(userId);
       else playerStatuses.set(userId, result.statuses);
@@ -756,6 +789,12 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       log("anti_cheat_shutdown_failed", { message: error instanceof Error ? error.message : String(error) });
     }
     if (tickUnsettled !== undefined) throw tickUnsettled;
+    try {
+      if (sessionBuffer && ownsSessionBuffer) await sessionBuffer.close();
+      else if (sessionBuffer) await sessionBuffer.flushDirty();
+    } catch (error) {
+      log("session_buffer_shutdown_failed", { message: error instanceof Error ? error.message : String(error) });
+    }
     if (ownsDb) await db.end();
   });
 
@@ -870,9 +909,17 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         const totalGold = calculatePurchase(item, request.body.quantity);
         if (totalGold === null) return reply.code(400).send({ error: "INVALID_PURCHASE_QUANTITY" });
         await players.loadOrCreate(userId);
-        const purchase = await players.purchase(userId, request.body.requestId, item, request.body.quantity, totalGold);
+        const purchase = await runWithOptionalRequestLock(
+          sessionBuffer,
+          request.body.requestId,
+          () => players.purchase(userId, request.body.requestId, item, request.body.quantity, totalGold),
+          () => { throw new Error("REQUEST_DUPLICATE"); },
+        );
         return { requestId: request.body.requestId, transactionId: purchase.transactionId, itemId: item.id, quantity: request.body.quantity, totalGold: totalGold.toString(), state: purchase.state };
       } catch (error) {
+        if (error instanceof Error && error.message === "REQUEST_DUPLICATE") {
+          return reply.code(409).send({ error: "REQUEST_DUPLICATE" });
+        }
         if (error instanceof Error && error.message === "INSUFFICIENT_GOLD") {
           return reply.code(409).send({ error: "INSUFFICIENT_GOLD" });
         }
@@ -1034,6 +1081,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           for (const movementSocket of userSockets.get(userId) ?? []) {
             send(movementSocket, playerStateMessage);
           }
+          bufferSession(userId);
           return;
         }
 

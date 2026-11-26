@@ -6,6 +6,7 @@ import { log } from "./logger.js";
 // always persisted to PostgreSQL in the running server.
 const app = await buildApp({
   antiCheatRedisUrl: process.env.REDIS_URL?.trim() ? config.redisUrl : undefined,
+  sessionBufferRedisUrl: process.env.REDIS_URL?.trim() ? config.redisUrl : undefined,
   persistAntiCheatEvidence: true,
 });
 

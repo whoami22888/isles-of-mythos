@@ -161,6 +161,23 @@ export class RedisWriteBackBuffer {
   }
 }
 
+
+/** Run `operation` under the request lock when a buffer is configured. In-flight dups map to `onDuplicate`. */
+export async function runWithOptionalRequestLock<T>(
+  buffer: RedisWriteBackBuffer | undefined,
+  requestId: string,
+  operation: () => Promise<T> | T,
+  onDuplicate: () => T,
+): Promise<T> {
+  if (!buffer) return await operation();
+  try {
+    return await buffer.withRequestLock(requestId, async () => await operation());
+  } catch (error) {
+    if (error instanceof Error && error.message === REQUEST_DUPLICATE) return onDuplicate();
+    throw error;
+  }
+}
+
 export function connectRedisBufferClient(url: string): RedisBufferClient {
   const redis = new Redis(url, { maxRetriesPerRequest: 1, lazyConnect: true });
   return {
