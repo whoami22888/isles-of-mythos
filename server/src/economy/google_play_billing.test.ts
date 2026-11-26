@@ -10,10 +10,13 @@ describe("Google Play billing fulfillment", () => {
   it("credits pearls once and rejects a duplicate token with HTTP 400", async () => {
     const tokens = new Set<string>();
     const billing = new GooglePlayBilling(
-      { verify: async () => ({ ok: true, pearls: 120 }) },
+      { verify: () => Promise.resolve({ ok: true, pearls: 120 }) },
       {
-        findToken: async (token) => (tokens.has(token) ? { purchaseToken: token } : null),
-        fulfill: async (purchase) => { tokens.add(purchase.purchaseToken); },
+        findToken: (token) => Promise.resolve(tokens.has(token) ? { purchaseToken: token } : null),
+        fulfill: (purchase) => {
+          tokens.add(purchase.purchaseToken);
+          return Promise.resolve();
+        },
       },
     );
     await expect(billing.fulfillPurchase({
