@@ -9,6 +9,7 @@ const CitadelBuildingRegression = preload("res://tests/citadel_building_regressi
 const MythosCreatureRegression = preload("res://tests/mythos_creature_regression.gd")
 const PlayerControllerRegression = preload("res://tests/player_controller_regression.gd")
 const NavalVesselRegression = preload("res://tests/naval_vessel_regression.gd")
+const TacticalManagerRegression = preload("res://tests/tactical_manager_regression.gd")
 var _failures := 0
 
 func check(condition: bool, description: String) -> void:
@@ -493,5 +494,6 @@ func run() -> void:
 	await MythosCreatureRegression.run(self, Callable(self, "check"))
 	await PlayerControllerRegression.run(self, Callable(self, "check"))
 	await NavalVesselRegression.run(self, Callable(self, "check"))
+	await TacticalManagerRegression.run(self, Callable(self, "check"))
 	print("IOM-00 connection checks: %s failures" % _failures)
 	quit(1 if _failures else 0)
