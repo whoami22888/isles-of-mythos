@@ -3,17 +3,30 @@ import type { Pool, PoolClient } from "pg";
 import { isGameplayAccessToken } from "./auth.js";
 import type { BaseStore } from "./base.js";
 import { runEconomyMutation, subtractTriumphBadges } from "./economy.js";
+import {
+  CITADEL_SOFT_WALL_BADGES,
+  CITADEL_SOFT_WALL_BLOCKED,
+  CITADEL_SOFT_WALL_FOOD,
+  CITADEL_SOFT_WALL_FROM_LEVEL,
+  CITADEL_SOFT_WALL_STEEL,
+  CITADEL_SOFT_WALL_TARGET_LEVEL,
+  CITADEL_SOFT_WALL_WOOD,
+  recordCitadelSoftWallAudit,
+} from "./logic/citadel_soft_wall.js";
 import type { PlayerStore } from "./player.js";
+
+export {
+  CITADEL_SOFT_WALL_BADGES,
+  CITADEL_SOFT_WALL_FOOD,
+  CITADEL_SOFT_WALL_FROM_LEVEL,
+  CITADEL_SOFT_WALL_STEEL,
+  CITADEL_SOFT_WALL_TARGET_LEVEL,
+  CITADEL_SOFT_WALL_WOOD,
+} from "./logic/citadel_soft_wall.js";
 
 /** Citadel is a distinct 1–20 track. Ordinary buildings stay on MAX_BUILDING_LEVEL=7. */
 export const CITADEL_MIN_LEVEL = 1;
 export const CITADEL_MAX_LEVEL = 20;
-export const CITADEL_SOFT_WALL_FROM_LEVEL = 15;
-export const CITADEL_SOFT_WALL_TARGET_LEVEL = 16;
-export const CITADEL_SOFT_WALL_WOOD = 5_000_000;
-export const CITADEL_SOFT_WALL_STEEL = 5_000_000;
-export const CITADEL_SOFT_WALL_FOOD = 1_000_000;
-export const CITADEL_SOFT_WALL_BADGES = 500;
 export const CITADEL_SECOND_QUEUE_UNLOCK_LEVEL = 10;
 export const CITADEL_DEFAULT_GUILD_HELP_SECONDS = 60;
 export const CITADEL_MAX_GUILD_HELP_SECONDS = 86_400;
@@ -267,7 +280,7 @@ export class CitadelStore {
 
       const targetLevel = row.citadel_level + 1;
       if (targetLevel === CITADEL_SOFT_WALL_TARGET_LEVEL && row.citadel_level !== CITADEL_SOFT_WALL_FROM_LEVEL) {
-        throw new Error("CITADEL_SOFT_WALL_BLOCKED");
+        throw new Error(CITADEL_SOFT_WALL_BLOCKED);
       }
       const cost = getCitadelUpgradeCost(targetLevel);
       const storage = await loadStorage(client, row.base_id);
@@ -308,6 +321,9 @@ export class CitadelStore {
       return toSnapshot(updated.rows[0], started);
     } catch (error) {
       await client.query("ROLLBACK").catch(() => undefined);
+      if (error instanceof Error && error.message === CITADEL_SOFT_WALL_BLOCKED) {
+        await recordCitadelSoftWallAudit(this.db, userId, { target_level: CITADEL_SOFT_WALL_TARGET_LEVEL });
+      }
       throw error;
     } finally {
       client.release();
@@ -433,9 +449,9 @@ async function verifyPlayer(request: FastifyRequest): Promise<string | null> {
 function httpStatusFor(code: string): number {
   if (code === "UNAUTHORIZED") return 401;
   if (code === "BASE_NOT_FOUND" || code === "PLAYER_NOT_FOUND") return 404;
+  if (code === CITADEL_SOFT_WALL_BLOCKED) return 400;
   if (
-    code === "CITADEL_SOFT_WALL_BLOCKED"
-    || code === "INSUFFICIENT_CITADEL_RESOURCES"
+    code === "INSUFFICIENT_CITADEL_RESOURCES"
     || code === "INSUFFICIENT_TRIUMPH_BADGES"
     || code === "CITADEL_QUEUE_BUSY"
     || code === "CITADEL_UPGRADE_IN_PROGRESS"
