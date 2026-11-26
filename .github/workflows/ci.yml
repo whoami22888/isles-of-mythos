@@ -138,6 +138,7 @@ jobs:
           node --test scripts/validate_vendor_lock.test.mjs
           node scripts/validate_vendor_lock.js
           python3 -m unittest discover -s scripts -p "test_check_workflow_matrices.py"
+          python3 -m unittest discover -s scripts -p "test_android_apk_pack.py"
           python3 scripts/check_workflow_matrices.py
           python3 -m unittest discover -s tools -p "test_orchestrator.py"
 
@@ -272,6 +273,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 -m unittest discover -s scripts -p "test_check_workflow_matrices.py"
+          python3 -m unittest discover -s scripts -p "test_android_apk_pack.py"
           python3 scripts/check_workflow_matrices.py
       - name: Checkout queue-aware actionlint source
         if: matrix.target == 'lint'
@@ -379,6 +381,8 @@ jobs:
           apk="$RUNNER_TEMP/prompt003/artifact/isles-of-mythos-debug.apk"
           "$RUNNER_TEMP/prompt003/godot" --headless --path client-godot --export-debug "Android Debug" "$apk"
           test -s "$apk"
+          python3 scripts/android_apk_pack.py store "$apk" --debug-keystore --resign
+          python3 scripts/android_apk_pack.py check "$apk"
           apksigner="$(find "$ANDROID_HOME/build-tools" -mindepth 2 -maxdepth 2 -name apksigner -print | sort -V | tail -n 1)"
           test -x "$apksigner"
           "$apksigner" verify --verbose "$apk" | tee "$RUNNER_TEMP/prompt003/artifact/APKSIGNER.txt"
