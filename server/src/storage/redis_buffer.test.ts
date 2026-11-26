@@ -6,6 +6,7 @@ import {
   REQUEST_LOCK_TTL_SECONDS,
   RedisWriteBackBuffer,
   requestLockKey,
+  runWithOptionalRequestLock,
   type RedisBufferClient,
 } from "./redis_buffer.js";
 
@@ -158,5 +159,16 @@ describe("Redis request lock and write-back buffer (Prompt 021)", () => {
     expect(buffer.flushIntervalMs).toBe(45_000);
     buffer.start();
     await buffer.close();
+  });
+
+  it("passes through when no buffer is configured and maps in-flight dups when one is", async () => {
+    const redis = new MemoryRedis();
+    const buffer = createBuffer(redis, () => Promise.resolve());
+    await expect(runWithOptionalRequestLock(undefined, "tx", () => Promise.resolve("ok"), () => "dup")).resolves.toBe("ok");
+    const first = buffer.withRequestLock("tx-wire", async () => {
+      const raced = await runWithOptionalRequestLock(buffer, "tx-wire", () => Promise.resolve("second"), () => "dup");
+      return raced;
+    });
+    await expect(first).resolves.toBe("dup");
   });
 });
