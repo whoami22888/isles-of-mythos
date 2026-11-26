@@ -131,9 +131,14 @@ describe("citadel store and routes", () => {
       await t.seedStorage(1, 1, 1);
       await t.seedBadges(0);
       const blocked = await t.post("/citadel/upgrade", { queue_slot: 1 });
-      expect(blocked.status).toBe(409);
+      expect(blocked.status).toBe(400);
       expect(blocked.body).toEqual({ error: "CITADEL_SOFT_WALL_BLOCKED" });
       expect((await t.store.snapshot(t.userId)).citadel_level).toBe(15);
+      const audit = await t.db.query<{ flag: string }>(
+        "SELECT flag FROM audit_logs WHERE user_id=$1 AND flag=$2",
+        [t.userId, "CITADEL_SOFT_WALL_BLOCKED"],
+      );
+      expect(audit.rowCount).toBeGreaterThan(0);
 
       await t.seedBadges(CITADEL_SOFT_WALL_BADGES);
       const started = await t.post("/citadel/upgrade", { queue_slot: 1, payment: "badges" });
@@ -142,6 +147,20 @@ describe("citadel store and routes", () => {
       expect(body.upgrade_target_level).toBe(16);
       expect(await t.badges()).toBe("0");
       expect((await t.storage()).wood).toBe(1);
+    } finally { await t.close(); }
+  });
+
+  it("rejects a level 16 upgrade with 4,999,999 wood and 0 badges", async () => {
+    const t = await setup();
+    try {
+      await t.store.snapshot(t.userId);
+      await t.setLevel(15);
+      await t.seedStorage(4_999_999, CITADEL_SOFT_WALL_STEEL, CITADEL_SOFT_WALL_FOOD);
+      await t.seedBadges(0);
+      const blocked = await t.post("/citadel/upgrade", { queue_slot: 1 });
+      expect(blocked.status).toBe(400);
+      expect(blocked.body).toEqual({ error: "CITADEL_SOFT_WALL_BLOCKED" });
+      expect((await t.store.snapshot(t.userId)).citadel_level).toBe(15);
     } finally { await t.close(); }
   });
 
