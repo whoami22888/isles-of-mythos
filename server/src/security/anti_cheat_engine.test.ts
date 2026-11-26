@@ -14,7 +14,10 @@ describe("anti-cheat movement validation", () => {
     expect(verdict.velocity).toBe(1_000);
     expect(verdict.rolledBackTo).toEqual(previous);
     const flags: string[] = [];
-    await recordIllegalMovementAudit(async (flag) => { flags.push(flag); }, verdict);
+    await recordIllegalMovementAudit((flag) => {
+      flags.push(flag);
+      return Promise.resolve();
+    }, verdict);
     expect(flags).toEqual([ILLEGAL_SPEED_AUDIT_FLAG]);
   });
 
