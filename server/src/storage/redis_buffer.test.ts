@@ -62,7 +62,7 @@ class MemoryRedis implements RedisBufferClient {
 
   srem(key: string, ...members: string[]): Promise<number> {
     const set = this.sets.get(key);
-    if (!set) return 0;
+    if (!set) return Promise.resolve(0);
     let removed = 0;
     for (const member of members) {
       if (set.delete(member)) removed += 1;
@@ -101,13 +101,13 @@ describe("Redis request lock and write-back buffer (Prompt 021)", () => {
     const started: string[] = [];
     const first = buffer.withRequestLock("tx-same", async () => {
       started.push("first");
-      const raced = await buffer.withRequestLock("tx-same", async () => "second-should-not-run");
+      const raced = await buffer.withRequestLock("tx-same", () => Promise.resolve("second-should-not-run"));
       return raced;
     });
     await expect(first).rejects.toThrow(REQUEST_DUPLICATE);
     expect(started).toEqual(["first"]);
     // After the in-flight lock is released, the requestId is free again (durable Postgres idempotency can replay).
-    await expect(buffer.withRequestLock("tx-same", async () => "ok")).resolves.toBe("ok");
+    await expect(buffer.withRequestLock("tx-same", () => Promise.resolve("ok"))).resolves.toBe("ok");
   });
 
   it("rejects a parallel acquire of the same requestId while the lock is held", async () => {
