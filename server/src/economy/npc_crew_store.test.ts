@@ -95,7 +95,10 @@ describe("POST /api/v1/economy/npc-crew/hire", () => {
         payload: { crewType: "specialist_officer" },
       });
       expect(response.statusCode).toBe(403);
-      expect(JSON.parse(response.body).error).toBe("CITADEL_LEVEL_REQUIRED");
+      expect(JSON.parse(response.body) as { error: string; message: string }).toEqual({
+        error: "CITADEL_LEVEL_REQUIRED",
+        message: "Citadel Level 8 required",
+      });
     } finally {
       await app.close();
       await db.end();
