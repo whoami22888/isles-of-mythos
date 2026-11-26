@@ -83,6 +83,8 @@ jobs:
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/iom-artifacts"
           "$RUNNER_TEMP/godot/godot" --headless --path client-godot --export-debug "Android Debug" "$RUNNER_TEMP/iom-artifacts/isles-of-mythos-debug.apk"
+          python3 scripts/android_apk_pack.py store "$RUNNER_TEMP/iom-artifacts/isles-of-mythos-debug.apk" --debug-keystore --resign
+          python3 scripts/android_apk_pack.py check "$RUNNER_TEMP/iom-artifacts/isles-of-mythos-debug.apk"
           sha256sum "$RUNNER_TEMP/iom-artifacts/isles-of-mythos-debug.apk" | tee "$RUNNER_TEMP/iom-artifacts/SHA256SUMS"
       - name: Verify the APK carries a valid signature
         shell: bash
