@@ -162,5 +162,15 @@ export class RedisWriteBackBuffer {
 }
 
 export function connectRedisBufferClient(url: string): RedisBufferClient {
-  return new Redis(url, { maxRetriesPerRequest: 1, lazyConnect: true }) as unknown as RedisBufferClient;
+  const redis = new Redis(url, { maxRetriesPerRequest: 1, lazyConnect: true });
+  return {
+    set: (key, value, expiryMode, ttlSeconds, notExists) => redis.set(key, value, expiryMode, ttlSeconds, notExists),
+    del: (...keys) => redis.del(...keys),
+    hset: (key, values) => redis.hset(key, values),
+    hgetall: (key) => redis.hgetall(key),
+    sadd: (key, member) => redis.sadd(key, member),
+    smembers: (key) => redis.smembers(key),
+    srem: (key, ...members) => redis.srem(key, ...members),
+    quit: () => redis.quit(),
+  };
 }

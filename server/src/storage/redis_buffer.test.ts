@@ -19,59 +19,59 @@ class MemoryRedis implements RedisBufferClient {
     return expiresAtMs !== null && expiresAtMs <= this.nowMs;
   }
 
-  async set(key: string, value: string, expiryMode: "EX", ttlSeconds: number, notExists: "NX"): Promise<"OK" | null> {
+  set(key: string, value: string, expiryMode: "EX", ttlSeconds: number, notExists: "NX"): Promise<"OK" | null> {
     if (expiryMode !== "EX" || notExists !== "NX") throw new Error("unsupported set mode");
     const existing = this.strings.get(key);
-    if (existing && !this.expired(existing.expiresAtMs)) return null;
+    if (existing && !this.expired(existing.expiresAtMs)) return Promise.resolve(null);
     this.strings.set(key, { value, expiresAtMs: this.nowMs + ttlSeconds * 1000 });
-    return "OK";
+    return Promise.resolve("OK");
   }
 
-  async del(...keys: string[]): Promise<number> {
+  del(...keys: string[]): Promise<number> {
     let removed = 0;
     for (const key of keys) {
       if (this.strings.delete(key)) removed += 1;
       if (this.hashes.delete(key)) removed += 1;
       if (this.sets.delete(key)) removed += 1;
     }
-    return removed;
+    return Promise.resolve(removed);
   }
 
-  async hset(key: string, values: Record<string, string>): Promise<number> {
+  hset(key: string, values: Record<string, string>): Promise<number> {
     const current = this.hashes.get(key) ?? {};
     Object.assign(current, values);
     this.hashes.set(key, current);
-    return Object.keys(values).length;
+    return Promise.resolve(Object.keys(values).length);
   }
 
-  async hgetall(key: string): Promise<Record<string, string>> {
-    return { ...(this.hashes.get(key) ?? {}) };
+  hgetall(key: string): Promise<Record<string, string>> {
+    return Promise.resolve({ ...(this.hashes.get(key) ?? {}) });
   }
 
-  async sadd(key: string, member: string): Promise<number> {
+  sadd(key: string, member: string): Promise<number> {
     const set = this.sets.get(key) ?? new Set<string>();
     const added = set.has(member) ? 0 : 1;
     set.add(member);
     this.sets.set(key, set);
-    return added;
+    return Promise.resolve(added);
   }
 
-  async smembers(key: string): Promise<string[]> {
-    return [...(this.sets.get(key) ?? new Set<string>())];
+  smembers(key: string): Promise<string[]> {
+    return Promise.resolve([...(this.sets.get(key) ?? new Set<string>())]);
   }
 
-  async srem(key: string, ...members: string[]): Promise<number> {
+  srem(key: string, ...members: string[]): Promise<number> {
     const set = this.sets.get(key);
     if (!set) return 0;
     let removed = 0;
     for (const member of members) {
       if (set.delete(member)) removed += 1;
     }
-    return removed;
+    return Promise.resolve(removed);
   }
 
-  async quit(): Promise<string> {
-    return "OK";
+  quit(): Promise<string> {
+    return Promise.resolve("OK");
   }
 }
 
@@ -89,7 +89,7 @@ describe("Redis request lock and write-back buffer (Prompt 021)", () => {
     expect(REQUEST_LOCK_TTL_SECONDS).toBe(10);
     expect(FLUSH_INTERVAL_MS).toBe(45_000);
     const redis = new MemoryRedis();
-    const buffer = createBuffer(redis, async () => {});
+    const buffer = createBuffer(redis, () => Promise.resolve());
     expect(await buffer.acquireRequestLock("shop-1")).toBe("acquired");
     const held = redis.strings.get(requestLockKey("shop-1"));
     expect(held?.expiresAtMs).toBe(10_000);
@@ -97,7 +97,7 @@ describe("Redis request lock and write-back buffer (Prompt 021)", () => {
 
   it("rejects a second simultaneous transactional request with the same requestId", async () => {
     const redis = new MemoryRedis();
-    const buffer = createBuffer(redis, async () => {});
+    const buffer = createBuffer(redis, () => Promise.resolve());
     const started: string[] = [];
     const first = buffer.withRequestLock("tx-same", async () => {
       started.push("first");
@@ -112,7 +112,7 @@ describe("Redis request lock and write-back buffer (Prompt 021)", () => {
 
   it("rejects a parallel acquire of the same requestId while the lock is held", async () => {
     const redis = new MemoryRedis();
-    const buffer = createBuffer(redis, async () => {});
+    const buffer = createBuffer(redis, () => Promise.resolve());
     const first = buffer.acquireRequestLock("pay-1");
     const second = buffer.acquireRequestLock("pay-1");
     await expect(Promise.all([first, second])).resolves.toEqual(["acquired", "duplicate"]);
@@ -120,7 +120,7 @@ describe("Redis request lock and write-back buffer (Prompt 021)", () => {
 
   it("expires a crashed in-flight lock after 10 seconds so the requestId can be retried", async () => {
     const redis = new MemoryRedis();
-    const buffer = createBuffer(redis, async () => {});
+    const buffer = createBuffer(redis, () => Promise.resolve());
     expect(await buffer.acquireRequestLock("hung")).toBe("acquired");
     redis.nowMs = 9_999;
     expect(await buffer.acquireRequestLock("hung")).toBe("duplicate");
@@ -135,8 +135,9 @@ describe("Redis request lock and write-back buffer (Prompt 021)", () => {
       redis,
       flushIntervalMs: FLUSH_INTERVAL_MS,
       now: () => redis.nowMs,
-      flushToPostgres: async (userId, state) => {
+      flushToPostgres: (userId, state) => {
         writes.push({ userId, x: state.x, y: state.y, health: state.health });
+        return Promise.resolve();
       },
     });
     await buffer.bufferSessionState("user-a", { x: 1, y: 2, health: 90 });
@@ -153,7 +154,7 @@ describe("Redis request lock and write-back buffer (Prompt 021)", () => {
 
   it("starts a 45-second flush interval", async () => {
     const redis = new MemoryRedis();
-    const buffer = createBuffer(redis, async () => {});
+    const buffer = createBuffer(redis, () => Promise.resolve());
     expect(buffer.flushIntervalMs).toBe(45_000);
     buffer.start();
     await buffer.close();
